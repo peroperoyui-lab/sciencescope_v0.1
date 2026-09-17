@@ -1,0 +1,426 @@
+{
+  "prototype": "ScienceScope v0.3",
+  "tested_at": "2026-09-17T08:22:41Z",
+  "method": "Chromium Playwright set_content; local/file navigation denied by environment policy, no policy altered",
+  "cases": [
+    {
+      "name": "route:home",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:work",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:free",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:ordered",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:secretary",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:compose",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:overview",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:preview",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:diff",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:workbench",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:plan",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:journal",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:versions",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:version-note",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:map",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:map-rich",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:files",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:database",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:library",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:resource",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:sources",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:browser",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:quick",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:assistant",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:projects",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:project-new",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:branch",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:models",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:provider",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:experts",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:general",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:persona",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:library-settings",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:behavior",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:usage",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:secretary-settings",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:assistant-settings",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:shortcuts",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:browser-settings",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:environment",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:plugins",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:plugin",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:help",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:resume",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:welcome",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:context",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:run",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:map-history",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "route:changes",
+      "status": "PASS",
+      "detail": "Rendered"
+    },
+    {
+      "name": "top menus and Escape",
+      "status": "PASS",
+      "detail": "4 menus; keyboard navigation; no modal"
+    },
+    {
+      "name": "ellipsis matches right-click menu",
+      "status": "PASS",
+      "detail": "理论与方法核查\n打开对话\n✓\n取消置顶\n重命名\nF2\n归档\n标为未读\n复制对话链接\n删除对话"
+    },
+    {
+      "name": "manual pin stability",
+      "status": "PASS",
+      "detail": "Manual pins are independent of active project"
+    },
+    {
+      "name": "project expand collapse",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "browse all fixed and functional",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "all conversations search archive filter",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "overview flyout coexists with browser",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "usage hover distinct from annotations",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "message alignment dates actions",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "copy exact message content",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "branch only selected prefix",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "per-thread drafts survive project switch",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "find current chat and command palette",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "plan create and attachments",
+      "status": "PASS",
+      "detail": "create + validation + attached File"
+    },
+    {
+      "name": "plan edit delete undo",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "journal create whole-card open files delete",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "project journals isolated global plans shared",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "journal jump to exact message",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "secretary preserves marks outside formal records",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "failed send preserves annotations",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "send receipt clears only submitted mark revisions",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "in-flight send remains in original thread",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "browser address back forward citation",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "global assistant separate window orb parent action",
+      "status": "PASS",
+      "detail": "actual auxiliary browsing context; parent navigation"
+    },
+    {
+      "name": "mind map detached nonblocking editor",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "create project does not inherit other project logs",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "existing map Enter ShiftEnter preserved",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "execution transcript density toggle",
+      "status": "PASS",
+      "detail": null
+    },
+    {
+      "name": "viewport (1280, 800)",
+      "status": "PASS",
+      "detail": "(1280, 800)"
+    },
+    {
+      "name": "viewport (1100, 750)",
+      "status": "PASS",
+      "detail": "(1100, 750)"
+    },
+    {
+      "name": "viewport (960, 700)",
+      "status": "PASS",
+      "detail": "(960, 700)"
+    },
+    {
+      "name": "viewport (768, 900)",
+      "status": "PASS",
+      "detail": "(768, 900)"
+    },
+    {
+      "name": "no JavaScript exceptions",
+      "status": "PASS",
+      "detail": null
+    }
+  ],
+  "page_errors": [],
+  "passed": 82,
+  "failed": 0,
+  "boundaries": [
+    "No live model or DSH runtime tested",
+    "No OS floating ball/always-on-top tested",
+    "Browser uses offline page fixture",
+    "Native file default application/Explorer not tested"
+  ]
+}
