@@ -1,0 +1,18 @@
+# Project-local state, build output and dependencies
+.sciencescope-local/
+node_modules/
+src-tauri/target/
+data/
+
+# Local credentials and key material - never commit these
+*.env
+*.env.json
+*.env.*
+!*.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+secrets.json
+credentials.json
+api-keys.json

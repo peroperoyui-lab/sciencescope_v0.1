@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-show-assistant-menu"
+description = "Enables the show_assistant_menu command without any pre-configured scope."
+commands.allow = ["show_assistant_menu"]
+
+[[permission]]
+identifier = "deny-show-assistant-menu"
+description = "Denies the show_assistant_menu command without any pre-configured scope."
+commands.deny = ["show_assistant_menu"]
