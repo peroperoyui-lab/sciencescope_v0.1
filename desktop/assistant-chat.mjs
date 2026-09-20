@@ -27,7 +27,7 @@ function surfaceHTML(scope){
   return `<section class="assistant-surface" data-scope="${scope}" data-owner="${esc(e.ownerId)}">
     <div class="assistant-messages" aria-label="${label(scope)}对话记录" tabindex="0"></div>
     <div class="assistant-feedback" role="status"></div>
-    <div class="assistant-controls"><button class="btn tiny" data-assistant-action="history">较早记录</button><button class="btn tiny" data-assistant-action="latest">最新</button><span class="grow"></span><button class="btn tiny" data-assistant-action="context" title="只将明确选择的最近对话附在下一次请求；取消不会抹去先前已分享的内容。">引用对话</button></div>
+<div class="assistant-controls"><button class="btn tiny" data-assistant-action="history">较早记录</button><button class="btn tiny" data-assistant-action="latest">最新</button><span class="grow"></span><button class="btn tiny" data-assistant-action="context" title="在主对话选中文字，选择引用至本角色；仅发送所选片段。">引用对话</button></div>
     <div class="assistant-approvals"></div>
     <div class="assistant-proposals"></div>
     <div class="composer assistant-composer"><div class="assistant-attachments"></div><textarea data-assistant-input aria-label="${label(scope)}输入" placeholder="${scope==='global'?'想问什么？':'先问清楚，再决定下一步…'}"></textarea>
@@ -91,7 +91,8 @@ async function send(e){
   };
   try{
     await saveDraft(e);
-    await streamChat({scope:e.scope,ownerId:e.ownerId,model:e.model,text,userMessageId:userId,contextChatId:e.contextChatId||undefined,executionMode:e.executionMode,reasoningEffort:e.reasoningEffort,attachmentIds},event=>{
+    const researchInput=await window.ScienceScopeResearchInput?.capture(e.scope,e.ownerId);
+    await streamChat({scope:e.scope,ownerId:e.ownerId,model:e.model,text,userMessageId:userId,researchInput,contextChatId:e.contextChatId||undefined,executionMode:e.executionMode,reasoningEffort:e.reasoningEffort,attachmentIds},event=>{
       if(event.type==='accepted'){
         accepted=true;e.running=true;
         answer={id:event.assistantMessageId,role:'assistant',text:''};
@@ -104,7 +105,7 @@ async function send(e){
       if(event.type==='main-draft-proposal'){e.proposals??=[];e.proposals.push({id:event.proposalId,text:event.text,status:'pending'});paint(e,{messages:false});}
       if(['tool-call','tool-result'].includes(event.type)&&answer){recordTool(answer,event);const node=[...visible(e)?.querySelectorAll('[data-assistant-message]')||[]].find(node=>node.dataset.assistantMessage===answer.id)?.querySelector('.turn-activity-host');if(node)node.innerHTML=activityHTML(answer);}
     },'/api/assistant/chat');
-  }catch(error){e.error=error.message;if(!accepted)e.draft=text;}
+  }catch(error){e.error=error.message;if(!accepted)e.draft=text;for(const id of attachmentIds)if(!e.attachments.some(file=>file.id===id))e.attachments.push({id,title:id});}
   finally{
     clearTimeout(timer);e.sending=false;e.running=false;
     const error=e.error;if(accepted)await load(e,true);if(error)e.error=error;
@@ -185,10 +186,7 @@ window.addEventListener('click',async event=>{
       picker.onchange=async()=>{try{for(const file of picker.files){if(e.attachments.length>=8)throw new Error('每次最多添加 8 个文件。');if(file.size>20*1024*1024)throw new Error('单个文件不能超过 20 MiB。');const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file);});const resource=await hostRequest('library/import',{name:file.name,base64});e.attachments.push({id:resource.id,title:resource.title});await saveDraft(e);paint(e,{messages:false});}}catch(error){e.error=error.message;paint(e,{messages:false});}};picker.click();return;
     }
     if(action==='context'){
-      if(e.contextChatId){e.contextChatId='';paint(e,{messages:false});return;}
-      if(e.scope==='secretary'){e.contextChatId=e.ownerId;paint(e,{messages:false});return;}
-      const {chats}=await hostRequest('chats');
-      composerMenu(button,'选择要引用的对话',chats.slice(0,30).map(c=>({label:c.title,action:'assistant-choice',attrs:`data-assistant-action="choose-context" data-entry="${esc(e.key)}" data-chat="${esc(c.id)}"`})));
+      toast('请在主对话中选中文字，然后选择引用至任务秘书或全局助手；只发送选中片段。');
       return;
     }
     if(action==='choose-context'){e.contextChatId=button.dataset.chat;closeMenu();paint(e,{messages:false});return;}

@@ -33,7 +33,8 @@ async function enqueue() {
   const chatId=V.chat,text=S.drafts.main || '';
   if(enqueuing.has(chatId))return;
   if(!text.trim())return;
-  if(S.annotations?.length||getThreadData(chatId).contextRefs?.length)return toast('本轮队列先支持文本；请保留材料与批注，待材料发送接通。');
+  const research=await window.ScienceScopeResearchInput?.capture('main',chatId);
+  if(S.annotations?.length||getThreadData(chatId).contextRefs?.length||Object.values(research||{}).some(v=>v.length))return toast('材料、引用和批注已完整保留在草稿；当前轮结束后请再次确认发送。不会只将文字入队。');
   if(activeThread()?.temporary)return toast('临时窗口暂不保存待发送队列。');
   const executionMode=window.ScienceScopeExecution?.mode() || 'ask';
   if(executionMode==='auto')return toast('请先暂停或结束自动化，再使用普通消息队列。');

@@ -5,7 +5,7 @@ import { prepareDesktop, defaultRoot } from './prepare-desktop.mjs';
 
 // Keep the approved source intact. Only the generated desktop entry gets wiring.
 export const DESKTOP_ASSETS = ['model-settings.mjs', 'model-settings.css', 'provider-draft.mjs', 'host-client.mjs', 'live-chat.mjs', 'turn-activity.mjs', 'main-outbox.mjs', 'background-activity.mjs', 'context-meter.mjs', 'native-window.mjs', 'markdown.mjs', 'chat.css', 'workspace.mjs', 'workspace-layout.mjs', 'workspace.css', 'preferences.mjs', 'workbench.mjs', 'workbench.css', 'library.mjs', 'execution.mjs', 'assistant-chat.mjs', 'assistant-chat.css', 'reasoning.mjs', 'work-mode.mjs', 'composer-menu.mjs', 'desktop-behavior.mjs', 'desktop-behavior.css'];
-DESKTOP_ASSETS.push('settings.mjs','role-settings.mjs','extensions.mjs','settings.css','secretary-settings.mjs','shortcuts.mjs','assistant-window-settings.mjs');
+DESKTOP_ASSETS.push('settings.mjs','role-settings.mjs','extensions.mjs','settings.css','secretary-settings.mjs','shortcuts.mjs','assistant-window-settings.mjs','research-input.mjs');
 export async function buildDesktop({ root = defaultRoot, outputDir = path.join(root, '.sciencescope-local', 'desktop-dist') } = {}) {
   const assets = DESKTOP_ASSETS;
   await Promise.all(assets.map(file => readFile(path.join(root, 'desktop', file))));

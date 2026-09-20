@@ -23,6 +23,7 @@ let thirdRelease;
 const thirdGate=new Promise(resolve=>{thirdRelease=resolve;});
 const outbox={paused:false,items:[]};
 const server = http.createServer(async (req,res) => {
+  if(req.url.startsWith('/api/research-input/draft')){for await(const _ of req){}res.setHeader('Content-Type','application/json');res.end(JSON.stringify({attachmentIds:[],messageQuotes:[],annotations:[],contextRefs:[]}));return;}
   if(req.url==='/api/workspace') {res.setHeader('Content-Type','application/json');res.end(JSON.stringify({projects:[],pins:[],projectExpanded:{},lastChatId:null}));return;}
   if(req.url==='/api/chats') {res.setHeader('Content-Type','application/json');res.end('{"chats":[]}');return;}
   if(req.url.startsWith('/api/chats/')) {res.setHeader('Content-Type','application/json');res.end(JSON.stringify({chat:{},messages:[],total:2,before:null,after:null}));return;}

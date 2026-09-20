@@ -1,4 +1,6 @@
 .message-text.rendered-markdown { white-space:normal; line-height:1.75; overflow-wrap:anywhere; }
+/* Stream/tool updates must not continue an old smooth-scroll animation while reading. */
+.messages,.assistant-messages { scroll-behavior:auto; }
 .rendered-markdown > :first-child { margin-top:0; }
 .rendered-markdown > :last-child { margin-bottom:0; }
 .rendered-markdown p { margin:0 0 .85em; }

@@ -77,7 +77,7 @@ export function createAssistantChatService({host,conversations,chatStore,dataRoo
       accept();accepted=true;emit({type:'accepted',chatId:chat.id,userMessageId:userId,assistantMessageId:answerId});
       let receipts=Promise.resolve();
       try{
-        await host.send({sessionId:binding.sessionId,text:context+(input.attachmentContext||'')+input.text,onEvent:event=>{
+        await host.send({sessionId:binding.sessionId,text:context+(input.researchContext??((input.attachmentContext||'')+input.text)),onEvent:event=>{
           if(event.type==='main-draft-proposal'&&input.scope==='secretary'){conversations.saveProposal(event.proposalId,input.ownerId,event.text);emit(event);}
           if(event.type==='text-delta'){text+=event.delta;emit(event);}
           if(event.type==='text-replace'||event.type==='text-reset'){text=event.text||'';emit(event);}

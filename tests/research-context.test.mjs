@@ -20,6 +20,12 @@ test('research patch roots instruction discovery at the workspace and clears SDK
   assert.equal(patch[1].id, 'system-prompt');
   assert.equal(patch[1].config.personaSuffix, '');
   assert.match(patch[1].config.personaPrefix, /Main research coordinator/);
+  assert.match(patch[1].config.personaPrefix, /evidence.*methods.*assumptions.*uncertainty/s);
+  assert.match(patch[1].config.personaPrefix, /formulas.*statistical assumptions.*evidential basis/s);
+  assert.match(patch[1].config.personaPrefix, /understand, judge, and correct/);
+  assert.match(patch[1].config.personaPrefix, /lengthy basic teaching unless requested/);
+  assert.match(patch[1].config.personaPrefix, /private user profile/);
+  assert.doesNotMatch(patch[1].config.personaPrefix, /teaching tutor/);
 });
 
 test('research patch materialization stays in local temp and is collision-safe', async () => {

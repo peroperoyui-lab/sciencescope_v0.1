@@ -4,6 +4,7 @@ import './workspace.mjs';
 import { recordTool, paintActivity } from './turn-activity.mjs';
 import './main-outbox.mjs';
 import './background-activity.mjs';
+import './research-input.mjs';
 
 const stopping = new Set();
 const originalComposer = composer;
@@ -54,13 +55,15 @@ submitMain = async function(text, annotations = S.annotations, options = {}) {
   const chatId = options.targetChat || V.chat;
   const thread = window.ScienceScopeWorkspace?.resolveThread(chatId) || S.threads.find(t => t.id === chatId);
   if (!thread || V.pending.has(chatId)) return false;
-  if (annotations.length || (getThreadData(chatId).contextRefs || []).length) { toast('材料与批注的真实发送尚未接通；本次请先使用纯文本。'); return false; }
+  let researchInput;
+try{researchInput=options.outboxId?{attachmentIds:[],messageQuotes:[],annotations:[],contextRefs:[]}:await window.ScienceScopeResearchInput.capture('main',chatId);if(!options.outboxId){const legacy=getThreadData(chatId).contextRefs||[];for(const ref of legacy){if(ref.messageId&&ref.chatId&&ref.text)researchInput.messageQuotes.push({id:ref.id,revision:0,sourceChatId:ref.chatId,sourceMessageId:ref.messageId,selectedText:ref.text});else throw new Error('旧材料引用没有真实原件标识，请移除后重新附加；草稿已保留。');}researchInput.annotations.push(...await window.ScienceScopeResearchInput.legacyAnnotations(annotations,thread.projectId));}}catch(error){toast(error.message);return false;}
   if (!text.trim()) return false;
   const inputBefore = chatId===V.chat ? S.drafts.main : chatData[chatId]?.draft;
   const reasoningEffort=options.snapshot?.reasoningEffort??window.ScienceScopeReasoning?.value();
   const executionMode=options.snapshot?.executionMode||window.ScienceScopeExecution?.mode()||'ask';
   try { await window.ScienceScopeWorkspace?.beforeSend(chatId); }
   catch(error) {toast(error.message);return false;}
+  if(V.pending.has(chatId))return false;
   const userId = options.snapshot?.userMessageId || uid('msg'); const answerId = options.snapshot?.assistantMessageId || uid('msg');
   saveThread(); V.pending.add(chatId);
   let accepted = false;
@@ -81,17 +84,20 @@ submitMain = async function(text, annotations = S.annotations, options = {}) {
     if (follow) box.scrollTop = box.scrollHeight;
   };
   try {
-    await streamChat({projectId:thread.projectId || null, chatId, model, text,reasoningEffort,executionMode, title:thread.title==='新对话'?text.trim().slice(0,40):thread.title, userMessageId:userId, assistantMessageId:answerId, temporary:!!thread.temporary,...(options.outboxId?{outboxId:options.outboxId}:{})}, event => {
+    await streamChat({projectId:thread.projectId || null, chatId, model, text,researchInput,reasoningEffort,executionMode, title:thread.title==='新对话'?text.trim().slice(0,40):thread.title, userMessageId:userId, assistantMessageId:answerId, temporary:!!thread.temporary,...(options.outboxId?{outboxId:options.outboxId}:{})}, event => {
       if (event.type === 'accepted' && !accepted) {
         const previousBox=chatId===V.chat?document.querySelector('.messages'):null;
         const previousTop=previousBox?.scrollTop || 0;
         const follow=previousBox&&previousBox.scrollHeight-previousBox.scrollTop-previousBox.clientHeight<90;
         accepted = true;
+        if(!options.outboxId)void window.ScienceScopeResearchInput.accepted('main',chatId,researchInput).catch(error=>toast(error.message));
         void window.ScienceScopeActivity?.refresh();
         thread.model=model;
         window.ScienceScopeWorkspace?.accepted(thread,text);
         const d = data(); d.messages ??= [];
-        d.messages.push({id:userId,role:'user',text,time:vtime()});
+        if(!options.outboxId)d.contextRefs=(d.contextRefs||[]).filter(ref=>!researchInput.messageQuotes.some(q=>q.id===ref.id&&q.selectedText===ref.text));
+        if(!options.outboxId)d.annotations=(d.annotations||[]).filter(a=>!researchInput.annotations.some(sent=>sent.id===a.id&&sent.revision===a.rev));
+        d.messages.push({id:userId,role:'user',text,researchInput,time:vtime()});
         d.messages.push({id:answerId,role:'assistant',name:'主专家',label:model.modelId,text:'',streaming:true,time:vtime()});
         d.messages=d.messages.slice(-60);
         if (!options.outboxId) {
@@ -153,6 +159,7 @@ submitMain = async function(text, annotations = S.annotations, options = {}) {
     thread.updated = vtime();
     return true;
   } catch(error) {
+    if(accepted&&!options.outboxId)await window.ScienceScopeResearchInput.restore('main',chatId,researchInput).catch(()=>toast('材料草稿恢复失败；已发送快照仍保留在消息记录中，请检查后重试。'));
     if (accepted) {
       const receipt = {id:uid('error'),role:'system',text:error.message,time:vtime()};
       data().messages.push(receipt);

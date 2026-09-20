@@ -43,6 +43,23 @@ test('existing binding uses builtin prompt and revision zero', () => {
   finally { close(f); }
 });
 
+test('main builtin prompt sets rigorous research persona without changing saved or bound prompts', () => {
+  const f = fixture('main-persona');
+  try {
+    const builtin = f.store.builtins.main;
+    assert.match(builtin, /evidence.*methods.*assumptions.*uncertainty/s);
+    assert.match(builtin, /formulas.*statistical assumptions.*evidential basis/s);
+    assert.match(builtin, /understand, judge, and correct/);
+    assert.match(builtin, /lengthy basic teaching unless requested/);
+    assert.match(builtin, /private user profile/);
+    assert.doesNotMatch(builtin, /teaching tutor/);
+    const bound = f.store.bind('main-persona-chat', 'main', { existing: true });
+    f.store.save('main', { prompt: 'Saved custom prompt', model: null, reasoningEffort: null });
+    assert.equal(f.store.getBinding('main-persona-chat').prompt, bound.prompt);
+    assert.equal(f.store.get('main').prompt, 'Saved custom prompt');
+  } finally { close(f); }
+});
+
 test('explicit apply snapshot records receipt and applies that snapshot', () => {
   const f = fixture('receipt');
   try {

@@ -44,7 +44,10 @@ const model={providerId:'sciencescope-assistant-fixture',modelId:'fixture'};
 try{
   await launch();
   await json('providers/save',{id:model.providerId,name:'Fixture',baseUrl:`http://127.0.0.1:${fixture.address().port}/v1`,protocol:'openai-chat-completions',models:[model.modelId,'fixture-two'],apiKey:'offline-fixture'});
-  await stream('chat',{chatId:'main-a',projectId:null,model,text:'MAIN_PUBLIC_SENTINEL'});
+  const researchFile=await json('library/import',{name:'research-input.txt',base64:Buffer.from('RESEARCH_MATERIAL_FIXTURE').toString('base64')});
+  await stream('chat',{chatId:'main-a',projectId:null,model,text:'MAIN_PUBLIC_SENTINEL',researchInput:{attachmentIds:[researchFile.id],annotations:[{id:'annotation-fixture',revision:0,resourceId:researchFile.id,selectedText:'RESEARCH_MATERIAL_FIXTURE',comment:'Check the evidence.'}]}});
+  assert.match(JSON.stringify(calls[0].messages),/RESEARCH_MATERIAL_FIXTURE/);
+  assert.match(JSON.stringify(calls[0].messages),/User-provided research material/);
   await json('roles/save',{role:'secretary',config:{prompt:'SECRETARY_ROLE_BEFORE',model,reasoningEffort:null}});
   await Promise.all([
     stream('assistant/chat',{scope:'global',ownerId:'global',model,text:'PRIVATE_GLOBAL_SENTINEL'}),

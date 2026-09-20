@@ -1,5 +1,60 @@
 # Desktop implementation — first increment
 
+## 2026-09-20 Alpha 收口路线：Slice A Research Input
+
+最新用户任务改为科研流程优先，不再因次要设置延迟 Alpha。当前工作区接续
+`594a875`，不围绕 main 重做。纵向顺序：A 共享输入 → B 专家名册/并行讨论 →
+C project_state.md → D 稳定版本组/DOCX → E Main 空闲换模型 → F Workbench
+字段感知乐观重试 → G Portable 单一 app root。本轮先实现并提交 A。
+后续不重做 DSH loop、Provider/Meeting/权限框架；专家职责以提示词区分。
+Portable 优先于自动更新、签名与完整安装器；已有开发窗口不是 Portable 验收。
+
+### Implemented
+
+- 默认 Main persona 明确支持按需解释方法、公式、统计假设与科研依据，帮助用户
+  理解、判断、纠正研究；删除 teaching tutor 禁令。不主动长篇基础教学，不依据
+  私人画像改变科学结论。已保存自定义 prompt/已有绑定快照不被强制覆盖。
+- Main/Secretary/Global 请求共用 research-input 编译器，复用 Library 与已有附件
+  读取。txt/md/csv/json/tex/log 最多 64000 字符材料正文；其他格式只提供真实路径
+  和“未提取”说明。坏 UTF-8 同样保留原件，不伪称 PDF/DOCX/图片已解析。
+- 显式研究材料位于 `[User-provided research material]` / end 标记之间，作为
+  用户请求材料而非 system prompt。材料结构最大 128000 字符，用户正文最大64000。
+- 聊天文字选择菜单提供 Main/Secretary/Global/复制；冻结源 chat/message ID 和
+  精确 DOM 选中文字，可填写 comment。服务端点查源消息存在和 speaker，不扫描
+  最近聊天；选区可跨 Markdown 标签，不声称其是 raw Markdown 的逐字子串。
+- Main 真实附件原件入库，输入框显示可编辑引用；附件可添加文本片段、位置说明及
+  comment。旧批注仅当 version ID 能映射真实项目资源才发送，缺失则保留并报错。
+- draft/receipt 存 SQLite；消息记录可展开已发送研究输入。ACK 按 id+revision 清理
+  捕获的批注/引用，保护新批注和新 revision；迟到的草稿保存不复活已消费 revision。
+  Secretary 的 annotation 不被消费，不自动写项目记录。模型发送失败时恢复材料，
+  保留更新的草稿；重复 userMessageId 拒绝重发。
+- 复杂输入暂不进入 text-only outbox：全部留在草稿并明确提示当前轮结束后再次确认，
+  后端也拒绝把复杂输入 silently drop 成纯文本。后台发送纯文本队列不带当前草稿材料。
+- 附件操作只更新输入框，不重绘 transcript；修复原型 smooth scroll 动画在工具更新时
+  继续移动阅读位置，以及引用菜单 mouseup 重建自身导致点击失效。
+
+### Actually tested / remaining
+
+生产资源路由 UI smoke：实际选取跨 Markdown 的正文、中文路径文件导入、创建批注、
+点击发送、宿主实际收到材料、ACK 清理及重开 receipt。API/store 验证 source identity、
+失败前/后保留原件与草稿、A/B 发送期间 A 新 revision/C 新增、秘书不消费、重复消息、
+复杂队列拒绝。实际 DSH localhost composition 验证材料到 provider 请求，7 次本地
+请求、零付费请求，包含原有秘书提案 tool-call、独立历史、停止及恢复验收。
+
+精确引用不是隐式广播完整专家历史。未来 B 的 Expert 应复用此编译器；B 尚未实现。
+此 Slice 不新增文件全文预览、Word/PDF parser、OCR、自动 annotation 定位；当前可填写
+材料已知页/行/章节，版本材料继承已知 version identity。旧 contextChatId API 兼容入口
+仍存在，但新 UI 引用按钮已改为选区指引，不再附加最近二十条消息。
+完整任务书中的 B–G 和最终科研闭环尚未验收；Alpha readiness：NOT PROVEN。
+
+本 Slice 实际命令：
+- `node --test --test-concurrency=2 tests/*.test.mjs`：103/103。
+- `node scripts/research-input-ui-smoke.mjs`：生产路由、真实选区、附件/批注、ACK、重开快照通过。
+- `node scripts/chat-ui-smoke.mjs`：流式 Markdown、阅读位置、工具详情、停止和纯文本队列通过。
+- `node scripts/assistant-api-smoke.mjs`：真实 DSH，7 次 localhost 请求，0 次付费请求。
+- `node scripts/assistant-api-smoke.mjs --native`：真实 Tauri 副本 + DSH，通过秘书/全局助手 UI、草稿重开、Main 隔离与主窗口退出；11 次 localhost 请求，0 次付费请求。
+- `git diff --check`：通过。
+
 ## 2026-09-19 全局助手窗口设置
 
 全局助手设置新增独立的 SQLite 启动偏好：closed（默认）、orb、expanded。
