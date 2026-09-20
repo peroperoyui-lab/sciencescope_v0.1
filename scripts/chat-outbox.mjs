@@ -8,6 +8,7 @@ const inputId = (value, name) => {
 
 function snapshot(input = {}) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) throw new TypeError('input is required');
+  if(input.researchInput&&Object.values(input.researchInput).some(value=>Array.isArray(value)?value.length:!!value))throw new TypeError('Complex research input must remain in the draft for explicit resend');
   if (input.temporary || !['ask','full'].includes(input.executionMode || 'ask') || ['attachments','annotations','contextRefs'].some(key=>input[key]?.length)) throw new TypeError('Outbox only accepts non-temporary text turns');
   if (typeof input.text !== 'string' || !input.text.trim() || input.text.length > 20000) throw new TypeError('text is required');
   const model = input.model;
