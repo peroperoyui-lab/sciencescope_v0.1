@@ -61,7 +61,7 @@ export function buildResearchContextPatch(options = {}) {
       config: {
         // Replace the SDK coding-agent persona with an explicit research
         // identity; project instructions remain a separate source.
-        personaPrefix: RESEARCH_PERSONA,
+        personaPrefix: options.persona || RESEARCH_PERSONA,
         personaSuffix: '',
       },
     },

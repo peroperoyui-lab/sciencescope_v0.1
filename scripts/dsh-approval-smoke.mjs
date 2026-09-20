@@ -27,6 +27,14 @@ try{
   await host.send({sessionId,text:'Fixture only: request a permission decision, then acknowledge rejection. Do not retry.',onEvent:event=>events.push(event)});
   const call=events.find(e=>e.type==='tool-call'),result=events.find(e=>e.type==='tool-result');
   assert.ok(call);assert.ok(result);assert.equal(call.callId,result.callId);
+  assert.match(call.argumentsPreview,/APPROVAL_FIXTURE/);
+  assert.equal(typeof result.resultPreview,'string');
+  assert.notEqual(result.resultPreview,'undefined');
+  assert.equal(typeof call.turn,'number');
+  assert.equal(result.turn,call.turn);
+  const contextUsage=await host.getContextUsage({sessionId});
+  assert.equal(contextUsage.contextWindow,32768);
+  assert.ok(contextUsage.usedTokens>0);
   assert.equal(fixtureError,undefined);assert.equal(approvals,1);assert.equal(count,2);
   console.log(JSON.stringify({passed:true,approvals,rejected:true,fixtureRequests:count}));
 }finally{await host.close();fixture.closeAllConnections();await new Promise(r=>fixture.close(r));await rm(root,{recursive:true,force:true});}

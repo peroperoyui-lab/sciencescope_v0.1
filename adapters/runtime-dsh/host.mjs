@@ -65,6 +65,7 @@ export async function createDshHost(options = {}) {
   await mkdir(localCache, { recursive: true });
   const env = {
     ...process.env,
+    DSH_AGENTS_HOME: join(options.home,'agents-home'),
     TEMP: localTemp,
     TMP: localTemp,
     npm_config_cache: localCache,
@@ -100,7 +101,7 @@ export async function createDshHost(options = {}) {
   const streamAddress = streamServer.address();
   const streamEndpoint = `http://127.0.0.1:${streamAddress.port}/assistant-stream`;
 
-  async function startSession({ model, workspace, runtimeConfig, sessionId: requestedSessionId, noTools = false } = {}) {
+  async function startSession({ model, workspace, runtimeConfig, sessionId: requestedSessionId, noTools = false, persona, proposalTargetChatId } = {}) {
     if (!model?.providerId || !model?.modelId) throw new TypeError('model.providerId and model.modelId are required');
     if (model.reasoningEffort !== undefined && (typeof model.reasoningEffort !== 'string' || !/^[A-Za-z0-9._-]{1,80}$/u.test(model.reasoningEffort))) {
       throw new TypeError('model.reasoningEffort must be a non-empty DSH reasoning-effort id');
@@ -117,7 +118,7 @@ export async function createDshHost(options = {}) {
       if (message.type === 'control-ready') readyResolve(message);
       if (message.type === 'control-error') readyReject(new Error(message.error));
     } });
-    const research = await createResearchContextPatch({home:options.home,workspace:workspace ?? cwd});
+    const research = await createResearchContextPatch({home:options.home,workspace:workspace ?? cwd,persona});
     patches.push(research.patchPath);
     const launchPatchId = randomUUID();
     const streamPatch = join(options.home, 'session-patches', sessionId+'.'+launchPatchId+'.assistant-stream.json');
@@ -149,7 +150,7 @@ export async function createDshHost(options = {}) {
         patches,
         dshHome: options.home,
         processCwd: workspace ?? cwd,
-        env: { ...env, SCIENCESCOPE_STREAM_ENDPOINT: streamEndpoint, SCIENCESCOPE_STREAM_TOKEN: streamToken, SCIENCESCOPE_STREAM_SESSION: sessionId, SCIENCESCOPE_PROVIDER: model.providerId, SCIENCESCOPE_MODEL: model.modelId, ...(noTools ? { SCIENCESCOPE_NO_TOOLS: '1' } : {}) },
+        env: { ...env, SCIENCESCOPE_STREAM_ENDPOINT: streamEndpoint, SCIENCESCOPE_STREAM_TOKEN: streamToken, SCIENCESCOPE_STREAM_SESSION: sessionId, SCIENCESCOPE_PROVIDER: model.providerId, SCIENCESCOPE_MODEL: model.modelId, ...(persona === undefined ? {} : { SCIENCESCOPE_PERSONA: persona }), ...(proposalTargetChatId ? { SCIENCESCOPE_PROPOSAL_TARGET_CHAT_ID: proposalTargetChatId } : {}), ...(noTools ? { SCIENCESCOPE_NO_TOOLS: '1' } : {}) },
         cwd: workspace ?? cwd,
         provider: model.providerId,
         model: model.modelId,
@@ -188,8 +189,8 @@ export async function createDshHost(options = {}) {
         return;
       }
       if (message.type === 'run-start') { running = true; drained = false; }
-      if(message.type==='tool-call')onEvent?.({type:'tool-call',callId:message.callId,name:message.name});
-      if(message.type==='tool-result')onEvent?.({type:'tool-result',callId:message.callId,isError:message.isError});
+      if(message.type==='tool-call')onEvent?.({type:'tool-call',turn:message.turn,step:message.step,callId:message.callId,name:message.name,argumentsPreview:message.argumentsPreview});
+      if(message.type==='tool-result')onEvent?.({type:'tool-result',turn:message.turn,step:message.step,callId:message.callId,isError:message.isError,resultPreview:message.resultPreview});
       if (message.type === 'stream-start') beforeAttempt = visibleText;
       if (message.type === 'text-delta') {
         visibleText += message.delta;
@@ -273,11 +274,15 @@ export async function createDshHost(options = {}) {
   async function clearGoal({sessionId,ref}={}){return control(sessionId,'/goal',{action:'clear',ref});}
   async function configurePolicy({ sessionId, approvalPolicy, sandboxMode } = {}) { return control(sessionId, '/policy', { approvalPolicy, sandboxMode }); }
   async function configureReasoning({sessionId,reasoningEffort}) { return control(sessionId,'/reasoning',{reasoningEffort}); }
+  async function configureModel({sessionId,model,reasoningEffort}) { return control(sessionId,'/model',{model,reasoningEffort}); }
+  async function configurePersona({sessionId,persona}) { return control(sessionId, '/persona', { persona }); }
+  async function interrupt(sessionId) {return control(sessionId,'/interrupt');}
   async function replyApproval({sessionId,requestId,outcome}) {return control(sessionId,'/approval/reply',{requestId,outcome});}
+  async function getContextUsage({ sessionId } = {}) { return control(sessionId, '/context-usage'); }
 
   const pause = pauseGoal;
   const resume = resumeGoal;
-  return { startSession, send, releaseSession, close, observeSession, sessionGoal, getGoal, pause, resume, pauseGoal, resumeGoal, completeGoal,clearGoal, configurePolicy,configureReasoning,replyApproval, capabilities: DSH_CAPABILITIES };
+  return { startSession, send, releaseSession, close, observeSession, sessionGoal, getGoal, pause, resume, pauseGoal, resumeGoal, completeGoal,clearGoal, configurePolicy,configureReasoning,configureModel,configurePersona,interrupt,replyApproval,getContextUsage, capabilities: DSH_CAPABILITIES };
 }
 
 export default { createDshHost, DSH_CAPABILITIES };

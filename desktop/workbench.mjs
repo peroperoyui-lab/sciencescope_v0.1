@@ -31,12 +31,13 @@ function apply(value){
 }
 async function load(id=S.projectId){
   if(!id||loading.has(id))return;
+  const requestedRoute=route;
   loading.add(id);
   try {
     const value=await hostRequest(`workbench?projectId=${encodeURIComponent(id)}`);
     if(id===S.projectId&&dirty)return;
     cache.set(id,value);
-    if(id===S.projectId){apply(value);await files('');render();requestAnimationFrame(fitMap);}
+    if(id===S.projectId){apply(value);await files('');if(route===requestedRoute){render();requestAnimationFrame(fitMap);}}
   }catch(error){toast(error.message);}finally{loading.delete(id);}
 }
 async function files(relative=folder){
@@ -57,7 +58,7 @@ async function saveMap(){
   dirty=false;toast('导图已保存，预览已更新。');
   const status=document.querySelector('#mapsavestate');if(status)status.textContent='已保存到项目目录';
 }
-channel.onmessage=({data})=>{if(data.plans){hostRequest('workbench/plans').then(plans=>{S.plans=plans;render();}).catch(()=>{});return;}if(data.projectId===S.projectId&&!dirty)load();else if(data.projectId!==S.projectId)cache.delete(data.projectId);else toast('其他窗口已更新导图；当前草稿保留，保存时会检查版本。');};
+channel.onmessage=({data})=>{if(data.plans){hostRequest('workbench/plans').then(plans=>{S.plans=plans;if(['workbench','plans'].includes(route))render();}).catch(()=>{});return;}if(data.projectId===S.projectId&&!dirty){if(['workbench','map','map-rich','versions'].includes(route))load();else cache.delete(data.projectId);}else if(data.projectId!==S.projectId)cache.delete(data.projectId);else toast('其他窗口已更新导图；当前草稿保留，保存时会检查版本。');};
 const baseAfter=window.ScienceScopeWorkspace.afterRender;
 window.ScienceScopeWorkspace.afterRender=function(...args){
   baseAfter?.(...args);if(!ready)return;
@@ -65,7 +66,7 @@ window.ScienceScopeWorkspace.afterRender=function(...args){
   if(key!==viewKey){
     const changedProject=viewKey.split(':')[0]!==S.projectId;viewKey=key;
     if(changedProject){folder='';entries=[];if(current()){apply(current());files('').then(()=>render()).catch(e=>toast(e.message));}else load();}
-    else if(route==='workbench'&&!dirty)load();
+    else if(['workbench','versions','map','map-rich'].includes(route)&&!dirty)load();
     if(['workbench','map','map-rich'].includes(route))requestAnimationFrame(fitMap);
   }
 };
@@ -143,7 +144,6 @@ mapEditor=()=>baseMapEditor().replace(/<button[^>]*(?:data-action="back-workbenc
   .replace('当前为浏览器内存原型 · 保存后同步预览',dirty?'尚未保存 · 保存后更新预览':'项目文件 · 保存后更新预览')
   .replace('<div class="toolbar-scroll">',`<div class="toolbar-scroll">${button('游离节点','floating')}${button('连线','connect')}`);
 mapChanged=(label='编辑导图')=>{dirty=true;S.mapHistory.unshift({label,source:window.ScienceScopeProfile?.name()||'用户',time:new Date().toLocaleString()});render();const status=document.querySelector('#mapsavestate');if(status)status.textContent='尚未保存 · 保存后更新预览';};
-showUsage=trigger=>{document.querySelector('#usage-pop')?.remove();const box=document.createElement('div');box.id='usage-pop';box.className='usage-pop';box.innerHTML='<strong>模型上下文</strong><div class="usage-stat"><span>当前占用</span><span>未知</span></div><div class="usage-stat"><span>缓存读取</span><span>未知</span></div><p class="hint">当前连接尚未提供可核实的用量数据；不使用估算值或演示数值。</p>';document.body.append(box);const r=trigger.getBoundingClientRect();box.style.left=Math.max(8,Math.min(innerWidth-310,r.left))+'px';box.style.top=Math.max(40,r.top-box.offsetHeight-10)+'px';};
 
 async function upload(filesToImport,kind,nodeId=S.mapSelected){
   if(!current())throw new Error('请先打开项目工作站。');

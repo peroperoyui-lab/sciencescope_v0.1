@@ -15,6 +15,13 @@ const baseMainhead=mainhead;
 const baseThreadRow=threadRow;
 const baseObjectMenu=objectMenu;
 const baseGo=go;
+// Retain the panel location, but never present the prototype article as a website.
+browserPanel=()=>`<aside class="rightpanel browser-panel"><div class="panel-resizer" data-v-resize></div><div class="panelhead between"><h2>浏览器</h2>${vib('close','close-panel','关闭浏览器')}</div><div class="empty" style="padding:32px 20px">网页浏览尚未接入。</div></aside>`;
+window.addEventListener('click',event=>{
+  const action=event.target.closest('[data-v]')?.dataset.v;
+  if(!['browser-go','browser-back','browser-forward','browser-refresh','browser-newtab','browser-add','cite-page','external-browser'].includes(action))return;
+  event.preventDefault();event.stopImmediatePropagation();toast('网页浏览尚未接入。');
+},true);
 branchAt=()=>toast('运行时分支尚未接通；不会伪造已继承的模型历史。可以先创建新对话。');
 const historyNav=page=>page&&(page.before||page.after)?`<div class="history-navigation"><button data-ws="history" data-direction="before" ${!page.before?'disabled':''}>向上加载 30 条</button><span>滚动加载 · 共 ${Number(page.total)} 条</span><button data-ws="history" data-direction="after" ${!page.after?'disabled':''}>向下加载 30 条</button><button data-ws="history" data-direction="latest">回到最新</button></div>`:'';
 function scrollLatest(){state.scrollLock=true;requestAnimationFrame(()=>{const box=document.querySelector('.messages');if(box)box.scrollTop=box.scrollHeight;requestAnimationFrame(()=>{state.scrollLock=false;});});}
@@ -61,6 +68,7 @@ newThread=function(projectId=focusedProject(),title='新对话') {
   state.draft=draft;
   if(projectId)setProject(projectId);
   restoreChat(draft.id,chatData[draft.id] || {});S.chatName=draft.title;
+  if(!S.drafts.main)queueMicrotask(()=>window.ScienceScopeRoleSettings?.applyNewDraft(draft.id));
   go('work');render();capMemory();
   document.querySelector('[data-draft="main"]')?.focus();
   return draft;
@@ -231,10 +239,7 @@ openDetached=async function(surface) {
     try {await window.ScienceScopeWindows.open({...options,toggle:surface==='assistant'});}catch {toast('辅助窗口打开失败。');}
     return;
   }
-  const url=new URL(location.href);url.hash='work';url.search='';url.searchParams.set('surface',surface);
-  if(['quick','map'].includes(surface)&&projectId)url.searchParams.set('projectId',projectId);
-  const child=window.open(url.href,'ScienceScope-'+surface+(surface==='quick'?'-'+projectId:''),'popup,width=760,height=780');
-  if(!child)toast('浏览器预览拦截了弹窗；桌面版使用原生辅助窗口。');
+  toast('此操作需要桌面客户端的独立窗口。');
 };
 detachedContent=function() {
   if(V.surface==='assistant-orb') {
@@ -325,18 +330,33 @@ window.addEventListener('pagehide',()=>{
 
 window.ScienceScopeWorkspace={
   focusedProject,afterRender,confirmAction,
+  async openMessage(chatId,messageId){
+    await loadThread(chatId);
+    if(V.chat!==chatId)return;
+    if(V.pending.has(chatId)){toast('此对话正在运行，已打开最新进度。');return;}
+    const page=await hostRequest(`chats/${encodeURIComponent(chatId)}/messages?around=${encodeURIComponent(messageId)}`);
+    if(V.chat!==chatId||!page)return;
+    S.messages=page.messages.map(m=>({...m,time:m.created,name:m.role==='assistant'?'主专家':undefined}));
+    state.pages.set(chatId,page);saveThread();render();
+    requestAnimationFrame(()=>{
+      const element=document.querySelector(`[data-message-id="${CSS.escape(messageId)}"]`)||document.querySelector(`[data-id="${CSS.escape(messageId)}"]`);
+      if(element){element.scrollIntoView({block:'center'});element.animate([{background:'#e6e9e2'},{background:'transparent'}],1800);}
+    });
+  },
   async appendNotice(message){
     if(!message)return;
-    // A mode change is a newest-message action. Load the actual newest window
-    // first when browsing old history, rather than appending into an old page.
-    if(state.pages.get(V.chat)?.after){await pageHistory('latest');return;}
+    // A settings change must not eject the user from the history they are reading.
+    // The durable receipt will be loaded when they explicitly return to latest.
+    if(state.pages.get(V.chat)?.after)return;
+    const previousBox=document.querySelector('.messages');
+    const follow=previousBox&&previousBox.scrollHeight-previousBox.scrollTop-previousBox.clientHeight<90;
     const receipt={...message,time:message.created||vtime()};
     S.messages.push(receipt);S.messages=S.messages.slice(-PAGE_LIMIT);saveThread();
     const box=document.querySelector('.messages');
     box?.insertAdjacentHTML('beforeend',messageHTML(receipt));
     const nodes=[...(box?.querySelectorAll(':scope > .message')||[])];
     for(const node of nodes.slice(0,Math.max(0,nodes.length-PAGE_LIMIT)))node.remove();
-    scrollLatest();await window.ScienceScopeWorkspace.settled(V.chat);
+    if(follow)scrollLatest();await window.ScienceScopeWorkspace.settled(V.chat);
   },
   async refreshLive(id){
     if(id!==V.chat||V.pending.has(id)||state.paging||state.pages.get(id)?.after)return;
@@ -351,7 +371,7 @@ window.ScienceScopeWorkspace={
     await window.ScienceScopeWorkspace.ready;
     if(!state.ready)throw new Error('工作区尚未就绪，暂不能发送。');
     if(!V.surface) {const payload=snapshot();await hostRequest('workspace',payload);state.lastSaved=JSON.stringify(payload);}
-    const page=state.pages.get(id);if(page?.after)await pageHistory('latest');
+    const page=state.pages.get(id);if(id===V.chat&&page?.after)await pageHistory('latest');
   },
   accepted(thread,text) {
     thread.title=thread.title==='新对话'?text.trim().slice(0,40):thread.title;
@@ -385,6 +405,7 @@ window.ScienceScopeWorkspace={
 window.SSV2={...window.SSV2,newThread:(...a)=>newThread(...a),loadThread:(...a)=>loadThread(...a),selectProject:(...a)=>selectProject(...a),openDetached:(...a)=>openDetached(...a)};
 window.SS.navigate=(...a)=>go(...a);
 window.ScienceScopeWorkspace.ready=(async()=>{
+  const requestedSettings=[...settingsRoutes,'provider','plugin'].includes(route)?route:null;
   try {
     const [workspace,{chats}]=await Promise.all([hostRequest('workspace'),hostRequest('chats')]);
     S.projects=workspace.projects;S.pins=workspace.pins;S.projectExpanded=workspace.projectExpanded;S.threads=chats;
@@ -400,5 +421,6 @@ window.ScienceScopeWorkspace.ready=(async()=>{
     else if(!V.surface&&workspace.lastChatId&&chats.some(t=>t.id===workspace.lastChatId))await loadThread(workspace.lastChatId);
     else if(!V.surface)newThread(null);
     else render();
+    if(requestedSettings&&!V.surface)go(requestedSettings);
   }catch {toast('本地工作区读取失败，未覆盖已有内容。');}
 })();

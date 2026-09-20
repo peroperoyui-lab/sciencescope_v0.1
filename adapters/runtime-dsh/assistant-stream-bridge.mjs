@@ -1,6 +1,7 @@
 /** Adapter-owned presentation bridge for DSH's public assistant stream event. */
 import { request } from 'node:http';
 import { isTokenDelta } from '@deepseek-ai/dsh-llm';
+import { previewValue } from '../../scripts/tool-activity.mjs';
 
 export const name = 'sciencescope-assistant-stream-bridge';
 export const inject = ['agents'];
@@ -40,10 +41,10 @@ export function apply(ctx) {
     if (String(session.id) !== sessionId) return;
     // Presentation receipts only. Do not copy raw command arguments, private
     // result metadata or credentials into application chat records.
-    if (event.type === 'tool/call') void enqueue({type:'tool-call',callId:String(event.data.callId),name:event.data.name});
+    if (event.type === 'tool/call') void enqueue({type:'tool-call',turn:event.data.turn,step:event.data.step,callId:String(event.data.callId),name:String(event.data.name || 'tool'),argumentsPreview:previewValue(event.data.arguments)});
     if (event.type === 'tool/result') {
       const result = event.data.message?.content?.find(block => block.type === 'tool-result');
-      if (result) void enqueue({type:'tool-result',callId:String(result.toolCallId),isError:!!result.isError});
+      if (result) void enqueue({type:'tool-result',turn:event.data.turn,step:event.data.step,callId:String(result.toolCallId),isError:!!result.isError,resultPreview:previewValue(result.content)});
     }
     if (event.type === 'assistant/message' || event.type === 'turn/end') void enqueue({ type: 'committed-event', eventType: event.type, seq:event.seq,time:event.time,data: committed(event.data) });
   });

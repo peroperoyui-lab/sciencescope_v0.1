@@ -28,4 +28,4 @@ window.addEventListener('click',event=>{
 },true);
 const after=window.ScienceScopeWorkspace.afterRender;
 window.ScienceScopeWorkspace.afterRender=(...args)=>{after?.(...args);paint();};
-window.ScienceScopeReasoning={open,value:()=>selections.get(key())?.id||undefined};
+window.ScienceScopeReasoning={open,value:()=>selections.get(key())?.id||undefined,setDefault(effort){selections.set(key(),{id:effort||'',name:effort||'模型默认'});paint();}};

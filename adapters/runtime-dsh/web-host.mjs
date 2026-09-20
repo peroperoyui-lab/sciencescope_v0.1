@@ -118,6 +118,7 @@ export async function createDshWebHost(options = {}) {
     env: {
       ...process.env,
       DSH_HOME: home,
+      DSH_AGENTS_HOME: join(home,'agents-home'),
       TEMP: localTemp,
       TMP: localTemp,
       npm_config_cache: localCache,

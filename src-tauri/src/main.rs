@@ -2,18 +2,33 @@
 
 use std::{
     fs,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Read, Write},
+    net::TcpStream,
     path::PathBuf,
     process::{Child, Command, Stdio},
     sync::{mpsc, Mutex},
     thread,
-    time::Duration,
+    time::{Duration, Instant},
 };
 use serde::{Deserialize, Serialize};
 use tauri::{menu::{ContextMenu, Menu, MenuItem}, AppHandle, Emitter, Manager, LogicalSize, PhysicalPosition, WebviewUrl, WebviewWindowBuilder, Window};
 
 struct HostProcess {
     child: Mutex<Option<ChildHandle>>,
+}
+
+impl HostProcess {
+    fn shutdown(&self) {
+        let child = self.child.lock().ok().and_then(|mut slot| slot.take());
+        if let Some(child) = child { child.shutdown(); }
+    }
+}
+
+struct ShutdownTarget {
+    host: String,
+    port: u16,
+    path: String,
+    token: String,
 }
 
 struct WebviewDataDirectory(PathBuf);
@@ -51,6 +66,8 @@ struct SecondaryRequest {
     project_id: Option<String>,
     #[serde(default)]
     toggle: bool,
+    #[serde(default)]
+    collapsed: bool,
 }
 
 fn surface_name(surface: &str) -> Result<&'static str, String> {
@@ -181,6 +198,17 @@ async fn get_assistant_mode(window: Window) -> Result<AssistantMode, String> {
 }
 
 #[tauri::command]
+async fn hide_assistant(window: Window) -> Result<(), String> {
+    if window.label() != "main" { return Err("only the main window can hide the assistant".to_owned()); }
+    for label in [ASSISTANT_LABEL, ASSISTANT_ORB_LABEL] {
+        if let Some(view) = window.app_handle().get_webview_window(label) {
+            view.hide().map_err(|e|e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
 async fn show_assistant_menu(window: Window) -> Result<(), String> {
     if !matches!(window.label(), ASSISTANT_LABEL | ASSISTANT_ORB_LABEL) {
         return Err("assistant menu can only be opened by the assistant window".to_owned());
@@ -241,6 +269,7 @@ async fn open_secondary_window(
             WebviewWindowBuilder::new(&app, ASSISTANT_LABEL, WebviewUrl::External(url.clone()))
                 .devtools(false)
                 .title("ScienceScope · 全局助手")
+                .visible(false)
                 .inner_size(f64::from(dimensions.width), f64::from(dimensions.height))
                 .decorations(false).transparent(true).shadow(false).always_on_top(false).resizable(true)
                 .data_directory(app.state::<WebviewDataDirectory>().0.clone()).build()
@@ -272,7 +301,7 @@ async fn open_secondary_window(
         orb.show().map_err(|e| e.to_string())?;
         keep_within_work_area(&orb)?;
         let current = *state.mode.lock().map_err(|_| "assistant state is unavailable".to_owned())?;
-        let next = if request.toggle && had_panel {
+        let next = if request.collapsed { AssistantMode::Orb } else if request.toggle && had_panel {
             if current == AssistantMode::Expanded { AssistantMode::Orb } else { AssistantMode::Expanded }
         } else { AssistantMode::Expanded };
         *state.mode.lock().map_err(|_| "assistant state is unavailable".to_owned())? = next;
@@ -305,8 +334,48 @@ async fn open_secondary_window(
 
 struct ChildHandle {
     child: Child,
+    shutdown: Option<ShutdownTarget>,
     #[cfg(windows)]
     job: windows_job::Job,
+}
+
+impl ChildHandle {
+    fn request_shutdown(target: &ShutdownTarget) -> std::io::Result<()> {
+        let mut stream = TcpStream::connect_timeout(
+            &format!("{}:{}", target.host, target.port).parse().map_err(|_| std::io::ErrorKind::InvalidInput)?,
+            Duration::from_millis(400),
+        )?;
+        stream.set_read_timeout(Some(Duration::from_millis(400)))?;
+        stream.set_write_timeout(Some(Duration::from_millis(400)))?;
+        let path = if target.path.starts_with('/') { target.path.as_str() } else { "/__host_shutdown" };
+        let request = format!(
+            "POST {path} HTTP/1.1\r\nHost: {}:{}\r\nAuthorization: Bearer {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            target.host, target.port, target.token,
+        );
+        stream.write_all(request.as_bytes())?;
+        let mut response = [0u8; 64];
+        let _ = stream.read(&mut response);
+        Ok(())
+    }
+
+    fn shutdown(mut self) {
+        if let Some(target) = self.shutdown.as_ref() {
+            let _ = Self::request_shutdown(target);
+        }
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            match self.child.try_wait() {
+                Ok(Some(_)) => return,
+                Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(25)),
+                _ => break,
+            }
+        }
+        #[cfg(not(windows))]
+        let _ = self.child.kill();
+        #[cfg(windows)]
+        self.job.kill();
+        let _ = self.child.wait();
+    }
 }
 
 impl Drop for ChildHandle {
@@ -355,6 +424,7 @@ fn host_url() -> Result<Option<(String, ChildHandle)>, Box<dyn std::error::Error
 
     let mut owned = ChildHandle {
         child,
+        shutdown: None,
         #[cfg(windows)]
         job,
     };
@@ -382,6 +452,20 @@ fn host_url() -> Result<Option<(String, ChildHandle)>, Box<dyn std::error::Error
         return Err("desktop host URL was not an http loopback address".into());
     }
 
+    if let (Some(shutdown_path), Some(shutdown_token)) = (
+        parsed.get("shutdownPath").and_then(serde_json::Value::as_str),
+        parsed.get("shutdownToken").and_then(serde_json::Value::as_str),
+    ) {
+        if !shutdown_path.starts_with('/') || shutdown_token.is_empty() || shutdown_token.len() > 256 {
+            return Err("desktop host shutdown capability was invalid".into());
+        }
+        owned.shutdown = Some(ShutdownTarget {
+            host: parsed_url.host_str().unwrap_or("127.0.0.1").to_owned(),
+            port: parsed_url.port().ok_or("desktop host URL did not contain a port")?,
+            path: shutdown_path.to_owned(),
+            token: shutdown_token.to_owned(),
+        });
+    }
     Ok(Some((url.to_owned(), owned)))
 }
 
@@ -449,7 +533,7 @@ mod windows_job {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![open_secondary_window, set_assistant_mode, get_assistant_mode, show_assistant_menu])
+        .invoke_handler(tauri::generate_handler![open_secondary_window, set_assistant_mode, get_assistant_mode, show_assistant_menu, hide_assistant])
         .on_menu_event(|app, event| {
             let id = event.id().as_ref();
             if id == "assistant-exit" {
@@ -511,6 +595,9 @@ fn main() {
                         if label != "main" {
                             let _ = secondary.close();
                         }
+                    }
+                    if let Some(host) = window.app_handle().try_state::<HostProcess>() {
+                        host.shutdown();
                     }
                     window.app_handle().exit(0);
                 }
