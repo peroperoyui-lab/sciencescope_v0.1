@@ -1,5 +1,6 @@
 import { access, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { DEFAULT_NOTES_TEMPLATE } from './secretary-preferences.mjs';
 
 const MAX_TEXT = 40000;
 const SUPPORTED = new Set(['.md', '.txt', '.csv', '.tex', '.json']);
@@ -30,10 +31,11 @@ function previousVersion(snapshot, version) {
     .sort((a, b) => Number(b.number) - Number(a.number))[0];
 }
 
-function promptFor({ project, version, source, baseline }) {
+function promptFor({ project, version, source, baseline, notesTemplate }) {
   return [
     '你是项目文件秘书。请只整理版本变化说明，不要替用户决定研究方向，不要改写原件。',
-    '请用 Markdown 输出：当前版本与原件位置、对比基线、内容变化、对当前研究工作的影响、已明确决定与仍待用户决定事项、关联上下文、生成时间。',
+    `请使用以下笔记模板作为 Markdown 输出结构（保留标题和顺序，可在其下补充内容）：\n${notesTemplate}`,
+    '说明中保留原件位置、对比基线、研究影响、已决定与待决定事项及生成时间；模板没有这些标题时放在相关章节。',
     '若输入被截取，请明确说明可获得的内容范围；不要声称看到了未提供的内容。',
     `项目上下文：${project ? JSON.stringify(project) : '无'}`,
     `当前版本：${version.name}（第 ${version.number ?? '?'} 版）`,
@@ -47,7 +49,7 @@ function promptFor({ project, version, source, baseline }) {
  * Build the isolated, no-tools secretary workflow for a paper version.
  * `host` is the public desktop DSH host (startSession/send/releaseSession).
  */
-export function createVersionOrganizer({ host, store, getProject }) {
+export function createVersionOrganizer({ host, store, getProject, getPreferences }) {
   if (!host || !store) throw new TypeError('host and store are required');
   const pending = new Map();
 
@@ -78,7 +80,11 @@ export function createVersionOrganizer({ host, store, getProject }) {
         const baselinePath = await store.resolvePath(projectId, baselineVersion.relativePath);
         baseline = { version: baselineVersion, ...textPart(await readFile(baselinePath, 'utf8'), 'baseline') };
       }
-      const prompt = promptFor({ project: await getProject?.(projectId), version, source, baseline });
+      const preferences = await getPreferences?.(projectId) ?? { notesTemplate: DEFAULT_NOTES_TEMPLATE };
+      const notesTemplate = typeof preferences.notesTemplate === 'string' && preferences.notesTemplate.length > 0
+        ? preferences.notesTemplate
+        : DEFAULT_NOTES_TEMPLATE;
+      const prompt = promptFor({ project: await getProject?.(projectId), version, source, baseline, notesTemplate });
       const runtimeConfig = await host.getRuntimeConfig?.();
       sessionId = await host.startSession({ model, workspace: path.dirname(originalPath), runtimeConfig, noTools: true });
       const response = await host.send({ sessionId, text: prompt });

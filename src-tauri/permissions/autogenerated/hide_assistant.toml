@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-hide-assistant"
+description = "Enables the hide_assistant command without any pre-configured scope."
+commands.allow = ["hide_assistant"]
+
+[[permission]]
+identifier = "deny-hide-assistant"
+description = "Denies the hide_assistant command without any pre-configured scope."
+commands.deny = ["hide_assistant"]

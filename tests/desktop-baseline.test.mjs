@@ -18,7 +18,7 @@ test('desktop shell embeds generated assets with scoped local window controls an
   assert.equal(config.build.devUrl, undefined);
   assert.deepEqual(config.app.security.capabilities, ['main-window-controls']);
   const capability = JSON.parse(await readFile(new URL('../src-tauri/capabilities/main.json', import.meta.url), 'utf8'));
-  assert.deepEqual(capability.permissions, ['allow-open-secondary-window','allow-set-assistant-mode','allow-get-assistant-mode','allow-show-assistant-menu','core:event:allow-listen','core:event:allow-unlisten','core:window:allow-minimize','core:window:allow-start-dragging','core:window:allow-toggle-maximize','core:window:allow-close']);
+  assert.deepEqual(capability.permissions, ['allow-open-secondary-window','allow-set-assistant-mode','allow-get-assistant-mode','allow-show-assistant-menu','allow-hide-assistant','core:event:allow-listen','core:event:allow-unlisten','core:window:allow-minimize','core:window:allow-start-dragging','core:window:allow-toggle-maximize','core:window:allow-close','core:window:allow-is-visible']);
   assert.deepEqual(capability.windows,['main','secondary-*']);
   assert.equal(config.app.windows[0].decorations,false);
   assert.match(config.app.windows[0].title, /开发版/);

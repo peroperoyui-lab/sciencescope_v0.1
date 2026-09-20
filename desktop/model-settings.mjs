@@ -125,7 +125,7 @@ window.addEventListener('click', async event => {
     if (drafts[index].saved) {
       const approved = window.ScienceScopeWorkspace?.confirmAction
         ? await window.ScienceScopeWorkspace.confirmAction('移除模型服务','移除这个服务及由它管理的密钥？\n已有聊天记录不会删除，使用它的聊天将暂时不能继续。','移除服务')
-        : confirm('移除这个服务及由它管理的密钥？已有聊天记录不会删除。');
+        : false;
       if (!approved) return;
       try { await hostRequest('providers/remove',{id:drafts[index].id}); await refreshProviders(); render(); }
       catch(error) { toast(error.message); }

@@ -1,5 +1,22 @@
 # ScienceScope · 交互优化版 v0.3
 
+## 桌面客户端开发状态
+
+本轮试用与网页端讨论入口：[2026-09-20 交接清单](docs/WEB_REVIEW_HANDOFF.md)。
+列明已实现、实际验证、未完成项和建议试用路径；不代表 alpha 已发布。
+
+当前仓库包含已批准的 HTML 设计基线，以及 `desktop/`、`scripts/`、`src-tauri/`
+中的实际桌面实现。以下设计包说明不是生产功能清单。
+
+下一目标是 `1.0.0-alpha`：完整计划、真实接线与验收范围见
+[开发手册](docs/DESKTOP_IMPLEMENTATION.md)，本机开发启动见
+[Windows 环境说明](docs/NATIVE_SETUP.md)。当前尚无完成验收的正式安装包。
+
+Publisher: **peroperoyui**。Contributors: **Codex (AI-assisted development)**。
+此署名不是 Windows 数字签名或已发布声明。
+
+## 原始设计包
+
 先打开 **ScienceScope.html**。不需要 npm 或服务器。底栏“页面目录”可浏览 49 个页面状态；Ctrl K 搜索与命令。
 
 本轮保持上版视觉与用户 PPT 结构，修复菜单/浮层、置顶、项目折叠、浏览全部、上下文悬停、消息操作、计划日志及多窗口体验。
