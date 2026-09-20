@@ -45,6 +45,11 @@ Preserved its model list. Explicit route: `openai-chat-completions`, DSH
 
 Only synthetic test material was used. This acceptance does not prove full Alpha
 release readiness; repair startup-failure containment before calling it complete.
+Test chats were soft-deleted and their dedicated project archived; DSH history is
+retained for diagnostics. The smoke removed its read fixture. Final removal of
+the remaining ignored `temp/provider-acceptance-20260920` directory and five
+temporary acceptance runner scripts was blocked by execution policy, so complete
+temporary-file cleanup is still pending. Saved Provider credentials are retained.
 
 ## 2026-09-20 Alpha 收口路线：Slice A Research Input
 
