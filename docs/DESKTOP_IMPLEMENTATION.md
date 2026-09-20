@@ -1,5 +1,51 @@
 # Desktop implementation — first increment
 
+## 2026-09-20 Real Provider acceptance — partial pass, startup failure remains
+
+Tested source baseline: `00b6b035e9d7bcd17b18af6697afdeb3374b2ad6`.
+Used the running native client's application host, initially loopback port 59211,
+then 59501 after a user-approved restart. Ports are ephemeral, not defaults.
+Saved the existing OpenCode Go provider using ScienceScope's actual settings form
+(automated Edge rendering of that same host UI, not a direct provider API write).
+Preserved its model list. Explicit route: `openai-chat-completions`, DSH
+`openai-completions`, `https://opencode.ai/zen/go/v1`, `deepseek-v4.1-flash`.
+
+- Tiny application/DSH request returned `SCIENCESCOPE_REAL_OK`: seven text deltas,
+  approximately 6.3 seconds to first text. A second turn recalled the sentinel;
+  both assistant messages survived host restart.
+- The opt-in command is now `node scripts/real-provider-smoke.mjs <desktop-host-url>
+  <test-project-id>`. The project must bind to an existing directory beneath this
+  checkout's `.sciencescope-local/temp`. It never saves/removes a provider.
+  Real execution passed: one `read` call on its unique synthetic file, matching
+  successful result, streaming sentinel, completed event and SQLite assistant.
+- Stop via ScienceScope's API cancelled a longer synthetic response after text
+  began. Partial text persisted; activity became `stopped`. The actual UI loaded
+  it with no pending state and with the Send button restored. This is not a test
+  of clicking the native WebView Stop button during generation.
+- Catalog returned `reasoning: null`; no invented reasoning effort was tested.
+- Count evidence: four valid application sends plus one invalid-model UI send.
+  DSH persisted five LLM steps and one retry across the three test sessions
+  (consistent with six attempts, not an independently measured HTTP wire count).
+  Reported usage totals: input 15107, cache-read 14720, output 143, total 29970.
+  The interrupted turn has no returned usage, so this is not a full billing total.
+  Exact-key scanning of all three decoded DSH histories found no secret.
+- **Failed acceptance:** sending an unregistered model through the actual UI caused
+  the application API host to disappear (`ECONNREFUSED`), while the native window
+  stayed open. Provider configuration and existing messages survived restart.
+  Do not call error-path containment passed. Source inspection finds `controlReady`
+  can reject before `harness.start()` finishes and before its rejection is observed;
+  this is a diagnosis candidate, not a confirmed/patched root cause in this slice.
+- Exact-key scans found no hits in tracked files/diff, SQLite rows, ordinary DSH
+  settings or 15 local log files. The key is in the ignored DSH credential store;
+  the pre-existing ignored test credential source is retained, not exported.
+- Offline regression: default concurrent run 101/103 (two 30-second SDK initialize
+  timeouts); both affected files passed separately, then
+  `node --test --test-concurrency=1 tests/*.test.mjs` passed 103/103. No test or
+  timeout was weakened. Real tests remain explicit opt-in, outside `npm test`.
+
+Only synthetic test material was used. This acceptance does not prove full Alpha
+release readiness; repair startup-failure containment before calling it complete.
+
 ## 2026-09-20 Alpha 收口路线：Slice A Research Input
 
 最新用户任务改为科研流程优先，不再因次要设置延迟 Alpha。当前工作区接续
