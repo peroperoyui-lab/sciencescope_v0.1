@@ -6,12 +6,13 @@ import { fileURLToPath } from 'node:url';
 let origin;
 try { origin = new URL(process.argv[2] || ''); } catch { throw new Error('INVALID_HOST'); }
 const projectId = process.argv[3];
+const apiToken = process.env.SCIENCESCOPE_TEST_API_TOKEN || process.argv[4] || '';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const tempRoot = await realpath(path.join(repoRoot, '.sciencescope-local', 'temp'));
 if (origin.protocol !== 'http:' || origin.hostname !== '127.0.0.1') throw new Error('INVALID_HOST');
 if (typeof projectId !== 'string' || !projectId.trim()) throw new Error('PROJECT_ID_REQUIRED');
 const request = async (route, body) => {
-  const response = await fetch(new URL(`/api/${route}`, origin), { method: body === undefined ? 'GET' : 'POST', headers: body === undefined ? {} : { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const response = await fetch(new URL(`/api/${route}`, origin), { method: body === undefined ? 'GET' : 'POST', headers: {...(body === undefined ? {} : { 'Content-Type': 'application/json' }), ...(apiToken ? {Authorization: `Bearer ${apiToken}`} : {})}, body: body === undefined ? undefined : JSON.stringify(body) });
   if (!response.ok) throw new Error(`APPLICATION_HTTP_${response.status}`);
   return response;
 };

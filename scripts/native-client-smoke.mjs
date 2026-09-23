@@ -10,7 +10,7 @@ try {
   await main.waitForFunction(()=>window.ScienceScopeProfile&&window.ScienceScopeWorkspace);
   await main.evaluate(()=>Promise.all([window.ScienceScopeProfile.ready,window.ScienceScopeWorkspace.ready]));
   for(const file of DESKTOP_ASSETS)assert.equal((await main.request.get(new URL('/desktop/'+file,main.url()).href)).status(),200,file);
-  original=await main.evaluate(()=>fetch('/api/profile').then(r=>r.json()));
+  original=await main.evaluate(async()=>{const {hostRequest}=await import('/desktop/host-client.mjs');return hostRequest('profile');});
   assert.equal(await main.evaluate(()=>V.pending.size||(S.drafts.main||'').length),0,'do not disturb active work');
   await main.locator('[data-profile-open]').click();
   await main.locator('#profile-name').fill('本机资料验收');
@@ -41,7 +41,7 @@ try {
   console.log(JSON.stringify({productionAssets:DESKTOP_ASSETS.length,profileSaveReload:true,persistentOrb:true,separateRoundedPanel:true,headerRemoved:true,toggle:true,providerRequests:0}));
 } finally {
   if(original&&!main.isClosed())await main.evaluate(async value=>{
-    await fetch('/api/profile',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});
+    const {hostRequest}=await import('/desktop/host-client.mjs');await hostRequest('profile',value);
     new BroadcastChannel('sciencescope-local-profile').postMessage('changed');
   },original);
   await browser.close();
