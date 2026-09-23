@@ -41,6 +41,9 @@ const server = http.createServer(async (req, res) => {
     const experts = panel.map(expert => ({id: expert.id, label: expert.label, role: expert.role, model: {providerId: 'offline', modelId: `model-${expert.id}`}, messageId: `msg-${body.kind}-${expert.id}-${calls.length}`}));
     res.write(JSON.stringify({type: 'accepted', runId: 'r', kind: body.kind, userMessageId: body.userMessageId, experts}) + '\n');
     // Finish in reverse order: display must still follow the roster.
+    for (const expert of experts) res.write(JSON.stringify({type: 'expert-tool', runId: 'r', expertId: expert.id, messageId: expert.messageId, name: 'bash'}) + '\n');
+    for (const expert of experts) res.write(JSON.stringify({type: 'expert-delta', runId: 'r', expertId: expert.id, messageId: expert.messageId, delta: `PARTIAL_${expert.id}`}) + '\n');
+    await new Promise(r => setTimeout(r, 400));
     for (const expert of [...experts].reverse()) { await new Promise(r => setTimeout(r, 120)); res.write(JSON.stringify({type: 'expert-end', runId: 'r', expertId: expert.id, messageId: expert.messageId, text: `**${expert.label}** ${body.kind} ANSWER`, stopReason: 'completed'}) + '\n'); }
     res.end(JSON.stringify({type: 'completed', runId: 'r', failed: 0}) + '\n'); return;
   }
@@ -82,7 +85,9 @@ try {
   assert.match(await page.locator('[data-discussion-strip]').innerText(), /1 方法学家[\s\S]*2 统计审稿人/);
   await page.locator('[data-draft="main"]').fill('这个因果结论成立吗？');
   await page.locator('[data-composer="main"] [data-v="send"]').click();
+  await page.waitForFunction(() => document.querySelector('.message[data-streaming] .message-text')?.textContent.includes('PARTIAL_'));
   await page.waitForFunction(() => S.messages.filter(m => m.expert && !m.streaming).length === 2 && !V.pending.has(V.chat));
+  assert.equal(await page.locator('.message:not(.user) .message-text', {hasText: 'PARTIAL_'}).count(), 0, 'final text replaces the partial stream');
   assert.deepEqual(calls[0].body.expertIds, ['methodologist', 'statistician']);
   assert.equal(calls[0].body.kind, 'independent');
   const heads = (await page.locator('.message:not(.user) .messagehead').allInnerTexts()).slice(1);
@@ -131,5 +136,5 @@ try {
   assert.deepEqual(savedCall.body.experts[2].model, {providerId: 'offline', modelId: 'model-b'});
   assert.equal(savedCall.body.experts[1].id, 'statistician', 'rename keeps the stable id');
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({rosterEditor: true, orderedAllEnabled: true, rosterOrderDisplay: true, realAuthors: true, critiqueRound: true, freeMentionsOnly: true, workModeUnchanged: true, localRequests: calls.length, paidRequests: 0}));
+  console.log(JSON.stringify({liveExpertText: true, rosterEditor: true, orderedAllEnabled: true, rosterOrderDisplay: true, realAuthors: true, critiqueRound: true, freeMentionsOnly: true, workModeUnchanged: true, localRequests: calls.length, paidRequests: 0}));
 } finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

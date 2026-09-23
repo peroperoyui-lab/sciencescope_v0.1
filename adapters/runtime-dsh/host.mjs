@@ -309,7 +309,7 @@ export async function createDshHost(options = {}) {
   async function runExperts({ sessionId, runId, prompt, experts, onEvent } = {}) {
     const stop = typeof onEvent === 'function' ? observeSession(sessionId, (frame) => {
       const event = frame.type === 'control-event' ? frame.event : frame;
-      if (event?.runId === runId && (event.type === 'expert-start' || event.type === 'expert-end')) onEvent(event);
+      if (event?.runId === runId && ['expert-start', 'expert-end', 'expert-delta', 'expert-reset', 'expert-tool'].includes(event.type)) onEvent(event);
     }) : () => {};
     try { return await control(sessionId, '/experts', { runId, prompt, experts }, { timeout: 0 }); }
     finally { stop(); }
