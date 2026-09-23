@@ -5,7 +5,8 @@ docs/DESKTOP_IMPLEMENTATION.md. Keep prototype, implemented, tested and released
 states distinct. An alpha release requires real role/material wiring plus an
 installed-package startup and data-preserving upgrade rehearsal, not only tests
 against the development server. Display publisher: peroperoyui; credit Codex as
-AI-assisted development, without fabricating GitHub identities or signatures.
+AI-assisted development and Claude (Anthropic) as AI-assisted review and
+development, without fabricating GitHub identities or signatures.
 
 Read CODEX_START.md and the relevant design/interaction documents before edits.
 The approved ScienceScope.html, Logo, colors and layout are the visual baseline;
