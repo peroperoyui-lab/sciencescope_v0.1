@@ -36,13 +36,23 @@ export function createExecutionService({host,database,chatStore,bindings}){
     state.mode=mode;if(mode!=='auto')state.automatic=false;persist(id,state);return state;
   }
   async function status(id){
-    const state=rows.get(id);if(!state)return {...stored(id),approvals:[],preview:''};
+    const state=rows.get(id);if(!state)return {...stored(id),approvals:[],preview:'',contextUsage:null};
+    let contextUsage=null;
     if(bindings.has(id)){
       try{state.goal=await host.getGoal(state.sessionId)||null;if(!state.goal||state.goal.phase!=='active'||state.goal.activation!=='armed')bindings.get(id).goalActive=false;persist(id,state);}
       catch{state.error='运行时状态暂时不可用。';}
+      try{contextUsage=typeof host.getContextUsage==='function'?await host.getContextUsage({sessionId:state.sessionId}):null;}catch{contextUsage=null;}
     }
     await writes.get(id);
-    return {mode:state.mode,goal:state.goal,approvals:[...state.approvals.values()],preview:state.preview,error:state.error};
+    return {mode:state.mode,goal:state.goal,approvals:[...state.approvals.values()],preview:state.preview,error:state.error,contextUsage};
+  }
+  // Polling-safe, synchronous projection.  Unlike status(), this never asks
+  // DSH for goal/context usage and never waits for persisted writes.
+  function snapshot(id){
+    const state=rows.get(id);
+    if(!state) return {approvalCount:0, goalActive:false, goalPhase:null};
+    const goal=state.goal;
+    return {approvalCount:state.approvals.size, goalActive:bindings.get(id)?.goalActive===true || (goal?.phase==='active' && goal?.activation!=='disarmed'), goalPhase:goal?.phase==='active'&&goal?.activation==='disarmed'?'paused':goal?.phase||null};
   }
   async function start(id,binding,objective,maxGoalRounds){
     if(maxGoalRounds!==undefined&&(!Number.isInteger(maxGoalRounds)||maxGoalRounds<1||maxGoalRounds>256))throw new TypeError('INVALID_GOAL_ROUND_LIMIT');
@@ -66,5 +76,5 @@ export function createExecutionService({host,database,chatStore,bindings}){
   async function approve(id,requestId,allowed){const state=rows.get(id);if(!state?.approvals.has(requestId))throw new Error('APPROVAL_EXPIRED');await host.replyApproval({sessionId:state.sessionId,requestId,outcome:allowed?'allowed-once':'rejected'});state.approvals.delete(requestId);}
   function busy(id){return bindings.get(id)?.goalActive===true;}
   async function close(){for(const state of rows.values())state.unsubscribe?.();await Promise.allSettled(writes.values());}
-  return {configure,status,start,action,approve,busy,close};
+  return {configure,status,start,action,approve,busy,snapshot,close};
 }

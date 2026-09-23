@@ -65,6 +65,7 @@ export async function createDshHost(options = {}) {
   await mkdir(localCache, { recursive: true });
   const env = {
     ...process.env,
+    DSH_AGENTS_HOME: join(options.home,'agents-home'),
     TEMP: localTemp,
     TMP: localTemp,
     npm_config_cache: localCache,
@@ -86,7 +87,11 @@ export async function createDshHost(options = {}) {
         const receiver = streamReceivers.get(message.sessionId);
         if (!receiver || message.token !== receiver.token) { response.writeHead(401); response.end(); return; }
         if (message.type !== 'control-ready' && message.type !== 'control-error' && message.type !== 'control-event') {
-          if (message.sequence !== receiver.sequence + 1) throw new Error('Stream frame missing');
+          // Reject replays, but tolerate a gap: the bridge drops a frame on a
+          // transient POST error and never resends it. Rejecting every later
+          // frame would lose run-idle and fail the whole turn.
+          if (!Number.isInteger(message.sequence) || message.sequence <= receiver.sequence) throw new Error('Stream frame replayed');
+          if (message.sequence !== receiver.sequence + 1) receiver.gaps = (receiver.gaps ?? 0) + 1;
           receiver.sequence = message.sequence;
         }
         if (message.type !== 'control-ready' && message.type !== 'control-error') {
@@ -100,7 +105,7 @@ export async function createDshHost(options = {}) {
   const streamAddress = streamServer.address();
   const streamEndpoint = `http://127.0.0.1:${streamAddress.port}/assistant-stream`;
 
-  async function startSession({ model, workspace, runtimeConfig, sessionId: requestedSessionId, noTools = false } = {}) {
+  async function startSession({ model, workspace, runtimeConfig, sessionId: requestedSessionId, noTools = false, persona, proposalTargetChatId } = {}) {
     if (!model?.providerId || !model?.modelId) throw new TypeError('model.providerId and model.modelId are required');
     if (model.reasoningEffort !== undefined && (typeof model.reasoningEffort !== 'string' || !/^[A-Za-z0-9._-]{1,80}$/u.test(model.reasoningEffort))) {
       throw new TypeError('model.reasoningEffort must be a non-empty DSH reasoning-effort id');
@@ -113,11 +118,17 @@ export async function createDshHost(options = {}) {
     const streamToken = randomUUID()+randomUUID();
     let readyResolve; let readyReject;
     const controlReady = new Promise((resolve, reject) => { readyResolve = resolve; readyReject = reject; });
+    // control-error can arrive while harness.start() is still pending, before
+    // the race below observes this promise. An unobserved rejection terminates
+    // the whole desktop host process, so mark it handled here; every consumer
+    // still awaits controlReady and receives the rejection.
+    controlReady.catch(() => {});
     streamReceivers.set(sessionId, { token: streamToken, sequence:0, controlReady, onMessage: (message) => {
       if (message.type === 'control-ready') readyResolve(message);
       if (message.type === 'control-error') readyReject(new Error(message.error));
     } });
-    const research = await createResearchContextPatch({home:options.home,workspace:workspace ?? cwd});
+    try {
+    const research = await createResearchContextPatch({home:options.home,workspace:workspace ?? cwd,persona});
     patches.push(research.patchPath);
     const launchPatchId = randomUUID();
     const streamPatch = join(options.home, 'session-patches', sessionId+'.'+launchPatchId+'.assistant-stream.json');
@@ -140,6 +151,7 @@ export async function createDshHost(options = {}) {
       await writeFile(patch,JSON.stringify([{id:'llm-pi-ai',config}]),{flag:'wx'});
       patches.push(patch);
     }
+    } catch (error) { streamReceivers.delete(sessionId); throw error; }
     let harness = harnesses.get(key);
     if (!harness) {
       harness = new sdk.DeepSeekHarness({
@@ -149,7 +161,7 @@ export async function createDshHost(options = {}) {
         patches,
         dshHome: options.home,
         processCwd: workspace ?? cwd,
-        env: { ...env, SCIENCESCOPE_STREAM_ENDPOINT: streamEndpoint, SCIENCESCOPE_STREAM_TOKEN: streamToken, SCIENCESCOPE_STREAM_SESSION: sessionId, SCIENCESCOPE_PROVIDER: model.providerId, SCIENCESCOPE_MODEL: model.modelId, ...(noTools ? { SCIENCESCOPE_NO_TOOLS: '1' } : {}) },
+        env: { ...env, SCIENCESCOPE_STREAM_ENDPOINT: streamEndpoint, SCIENCESCOPE_STREAM_TOKEN: streamToken, SCIENCESCOPE_STREAM_SESSION: sessionId, SCIENCESCOPE_PROVIDER: model.providerId, SCIENCESCOPE_MODEL: model.modelId, ...(persona === undefined ? {} : { SCIENCESCOPE_PERSONA: persona }), ...(proposalTargetChatId ? { SCIENCESCOPE_PROPOSAL_TARGET_CHAT_ID: proposalTargetChatId } : {}), ...(noTools ? { SCIENCESCOPE_NO_TOOLS: '1' } : {}) },
         cwd: workspace ?? cwd,
         provider: model.providerId,
         model: model.modelId,
@@ -182,14 +194,16 @@ export async function createDshHost(options = {}) {
     let running = false;
     let visibleText = '';
     let beforeAttempt = '';
+    let lastFailure;
     receiver.onMessage = (message) => {
+      if (message.type === 'attempt-failed') lastFailure = message;
       if (message.type === 'control-event') {
         if (message.event && typeof message.event === 'object') onEvent?.(message.event);
         return;
       }
       if (message.type === 'run-start') { running = true; drained = false; }
-      if(message.type==='tool-call')onEvent?.({type:'tool-call',callId:message.callId,name:message.name});
-      if(message.type==='tool-result')onEvent?.({type:'tool-result',callId:message.callId,isError:message.isError});
+      if(message.type==='tool-call')onEvent?.({type:'tool-call',turn:message.turn,step:message.step,callId:message.callId,name:message.name,argumentsPreview:message.argumentsPreview});
+      if(message.type==='tool-result')onEvent?.({type:'tool-result',turn:message.turn,step:message.step,callId:message.callId,isError:message.isError,resultPreview:message.resultPreview});
       if (message.type === 'stream-start') beforeAttempt = visibleText;
       if (message.type === 'text-delta') {
         visibleText += message.delta;
@@ -208,14 +222,21 @@ export async function createDshHost(options = {}) {
       const controlUrl = new URL(control.controlEndpoint);
       const body = JSON.stringify({ token: receiver.token, sessionId, text });
       await new Promise((resolve, reject) => {
-        const req = request({ hostname: controlUrl.hostname, port: controlUrl.port, path: controlUrl.pathname, method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) }, timeout: TURN_TIMEOUT_MS }, (response) => { response.resume(); response.statusCode === 204 ? resolve() : reject(new Error(`DSH session control failed: HTTP ${response.statusCode}`)); });
-        req.on('error', reject); req.on('timeout', () => req.destroy(new Error('DSH session control timed out'))); req.end(body);
+        // /prompt answers only when the whole agent turn is idle, so the socket
+        // is legitimately silent for the full turn. Research turns with tool
+        // loops routinely exceed any fixed idle timeout; a timeout here would
+        // report failure while DSH keeps working. The turn is bounded instead
+        // by the user's Stop (/interrupt) and by child-process exit (socket error).
+        const req = request({ hostname: controlUrl.hostname, port: controlUrl.port, path: controlUrl.pathname, method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) } }, (response) => { response.resume(); response.statusCode === 204 ? resolve() : reject(new Error(`DSH session control failed: HTTP ${response.statusCode}`)); });
+        req.on('error', reject); req.end(body);
       });
       const deadline = Date.now() + STREAM_TIMEOUT_MS;
       while (!drained && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 10));
       if (!drained) throw new Error('DSH assistant stream did not finish delivery');
       const result = { sessionId, finalResponse: visibleText, events: [], notifications: [] };
-      if (!result.finalResponse?.trim()) throw new Error('DSH run ended without a final text response');
+      if (!result.finalResponse?.trim()) {
+        throw new Error(lastFailure ? `DSH model request failed (${lastFailure.code}): ${lastFailure.message}` : 'DSH run ended without a final text response', lastFailure ? { cause: { code: lastFailure.code } } : undefined);
+      }
       onEvent?.({ type: 'completed', sessionId, text: result.finalResponse, committed: true });
       return result;
     } finally { receiver.onMessage = () => {}; }
@@ -273,11 +294,15 @@ export async function createDshHost(options = {}) {
   async function clearGoal({sessionId,ref}={}){return control(sessionId,'/goal',{action:'clear',ref});}
   async function configurePolicy({ sessionId, approvalPolicy, sandboxMode } = {}) { return control(sessionId, '/policy', { approvalPolicy, sandboxMode }); }
   async function configureReasoning({sessionId,reasoningEffort}) { return control(sessionId,'/reasoning',{reasoningEffort}); }
+  async function configureModel({sessionId,model,reasoningEffort}) { return control(sessionId,'/model',{model,reasoningEffort}); }
+  async function configurePersona({sessionId,persona}) { return control(sessionId, '/persona', { persona }); }
+  async function interrupt(sessionId) {return control(sessionId,'/interrupt');}
   async function replyApproval({sessionId,requestId,outcome}) {return control(sessionId,'/approval/reply',{requestId,outcome});}
+  async function getContextUsage({ sessionId } = {}) { return control(sessionId, '/context-usage'); }
 
   const pause = pauseGoal;
   const resume = resumeGoal;
-  return { startSession, send, releaseSession, close, observeSession, sessionGoal, getGoal, pause, resume, pauseGoal, resumeGoal, completeGoal,clearGoal, configurePolicy,configureReasoning,replyApproval, capabilities: DSH_CAPABILITIES };
+  return { startSession, send, releaseSession, close, observeSession, sessionGoal, getGoal, pause, resume, pauseGoal, resumeGoal, completeGoal,clearGoal, configurePolicy,configureReasoning,configureModel,configurePersona,interrupt,replyApproval,getContextUsage, capabilities: DSH_CAPABILITIES };
 }
 
 export default { createDshHost, DSH_CAPABILITIES };

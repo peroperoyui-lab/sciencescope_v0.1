@@ -18,6 +18,12 @@ test('desktop extension is generated without changing approved prototype', async
     assert.deepEqual(await readFile(path.join(defaultRoot, 'ScienceScope.html')), original);
     for (const asset of DESKTOP_ASSETS) {
       assert.deepEqual(await readFile(path.join(outputDir, 'desktop', asset)), await readFile(path.join(defaultRoot, 'desktop', asset)));
+      if(asset.endsWith('.mjs')) {
+        const source=await readFile(path.join(defaultRoot,'desktop',asset),'utf8');
+        for(const match of source.matchAll(/(?:from\s*|import\s*)['"]\.\/([^'"]+)['"]/g)) {
+          assert.ok(match[1].startsWith('vendor/')||DESKTOP_ASSETS.includes(match[1]),`${asset} imports an asset absent from the desktop HTTP manifest: ${match[1]}`);
+        }
+      }
     }
   } finally { await rm(outputDir, {recursive:true, force:true}); }
 });

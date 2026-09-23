@@ -15,7 +15,7 @@ async function toggleAssistant() {
   applyAssistantMode(await invoke('set_assistant_mode', {mode:mode==='orb'?'expanded':'orb'}));
 }
 
-async function openNativeSurface({surface, projectId, toggle = false} = {}) {
+async function openNativeSurface({surface, projectId, toggle = false, collapsed = false} = {}) {
   if (!SECONDARY_SURFACES.has(surface)) throw new Error(`Unsupported window surface: ${surface}`);
   if (surface === 'quick' && (typeof projectId !== 'string' || !projectId)) {
     throw new Error('projectId is required for a quick window');
@@ -29,14 +29,24 @@ async function openNativeSurface({surface, projectId, toggle = false} = {}) {
   const invoke = window.__TAURI__?.core?.invoke;
   if (typeof invoke !== 'function') return false;
   return invoke('open_secondary_window', {
-    request: {surface, project_id: projectId ?? null, toggle:surface==='assistant' && toggle},
+    request: {surface, project_id: projectId ?? null, toggle:surface==='assistant' && toggle, collapsed:surface==='assistant' && collapsed},
   });
 }
 
 window.ScienceScopeWindows = Object.freeze({
   open: openNativeSurface,
+  async hideAssistant(){if(typeof window.__TAURI__?.core?.invoke!=='function')throw new Error('请在桌面客户端操作。');await invoke('hide_assistant');},
   isNative: () => typeof window.__TAURI__?.core?.invoke === 'function',
 });
+
+// Apply launch preference once in the main WebView, never in a secondary window.
+if(!surface&&window.__TAURI__?.core?.invoke){
+  void fetch('/api/assistant-window/preferences',{cache:'no-store'}).then(async response=>{
+    if(!response.ok)throw new Error('Assistant launch preference unavailable');
+    const {startup}=await response.json();
+    if(startup==='orb'||startup==='expanded')await openNativeSurface({surface:'assistant',collapsed:startup==='orb'});
+  }).catch(()=>{console.warn('Assistant launch preference could not be applied.');});
+}
 
 window.addEventListener('mousedown', async event => {
   if (event.button !== 0 || !window.__TAURI__?.window) return;

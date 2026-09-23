@@ -2,10 +2,12 @@ import './workspace.mjs';
 import {hostRequest} from './host-client.mjs';
 import {renderMarkdown} from './markdown.mjs';
 import {composerMenu} from './composer-menu.mjs';
+import './context-meter.mjs';
 const labels={ask:'询问',full:'完全接管',auto:'自动化'};
 const modes=new Map();let currentId='',state={mode:'ask',goal:null,approvals:[]},fetching=false;
 const mode=()=>modes.get(V.chat)||state.mode||'ask';
 function paint(){
+  window.ScienceScopeContext?.update(V.chat,state.contextUsage);
   S.settings.mode=labels[mode()];
   for(const el of document.querySelectorAll('[data-v="mode-menu"]'))el.textContent='◉ '+S.settings.mode;
   const column=document.querySelector('.chatcol');if(!column)return;

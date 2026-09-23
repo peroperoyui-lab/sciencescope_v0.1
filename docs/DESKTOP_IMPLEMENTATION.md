@@ -1,5 +1,498 @@
 # Desktop implementation — first increment
 
+## 2026-09-20 Real Provider acceptance — partial pass, startup failure remains
+
+Tested source baseline: `00b6b035e9d7bcd17b18af6697afdeb3374b2ad6`.
+Used the running native client's application host, initially loopback port 59211,
+then 59501 after a user-approved restart. Ports are ephemeral, not defaults.
+Saved the existing OpenCode Go provider using ScienceScope's actual settings form
+(automated Edge rendering of that same host UI, not a direct provider API write).
+Preserved its model list. Explicit route: `openai-chat-completions`, DSH
+`openai-completions`, `https://opencode.ai/zen/go/v1`, `deepseek-v4.1-flash`.
+
+- Tiny application/DSH request returned `SCIENCESCOPE_REAL_OK`: seven text deltas,
+  approximately 6.3 seconds to first text. A second turn recalled the sentinel;
+  both assistant messages survived host restart.
+- The opt-in command is now `node scripts/real-provider-smoke.mjs <desktop-host-url>
+  <test-project-id>`. The project must bind to an existing directory beneath this
+  checkout's `.sciencescope-local/temp`. It never saves/removes a provider.
+  Real execution passed: one `read` call on its unique synthetic file, matching
+  successful result, streaming sentinel, completed event and SQLite assistant.
+- Stop via ScienceScope's API cancelled a longer synthetic response after text
+  began. Partial text persisted; activity became `stopped`. The actual UI loaded
+  it with no pending state and with the Send button restored. This is not a test
+  of clicking the native WebView Stop button during generation.
+- Catalog returned `reasoning: null`; no invented reasoning effort was tested.
+- Count evidence: four valid application sends plus one invalid-model UI send.
+  DSH persisted five LLM steps and one retry across the three test sessions
+  (consistent with six attempts, not an independently measured HTTP wire count).
+  Reported usage totals: input 15107, cache-read 14720, output 143, total 29970.
+  The interrupted turn has no returned usage, so this is not a full billing total.
+  Exact-key scanning of all three decoded DSH histories found no secret.
+- **Failed acceptance:** sending an unregistered model through the actual UI caused
+  the application API host to disappear (`ECONNREFUSED`), while the native window
+  stayed open. Provider configuration and existing messages survived restart.
+  Do not call error-path containment passed. Source inspection finds `controlReady`
+  can reject before `harness.start()` finishes and before its rejection is observed;
+  this is a diagnosis candidate, not a confirmed/patched root cause in this slice.
+- Exact-key scans found no hits in tracked files/diff, SQLite rows, ordinary DSH
+  settings or 15 local log files. The key is in the ignored DSH credential store;
+  the pre-existing ignored test credential source is retained, not exported.
+- Offline regression: default concurrent run 101/103 (two 30-second SDK initialize
+  timeouts); both affected files passed separately, then
+  `node --test --test-concurrency=1 tests/*.test.mjs` passed 103/103. No test or
+  timeout was weakened. Real tests remain explicit opt-in, outside `npm test`.
+
+Only synthetic test material was used. This acceptance does not prove full Alpha
+release readiness; repair startup-failure containment before calling it complete.
+Test chats were soft-deleted and their dedicated project archived; DSH history is
+retained for diagnostics. The smoke removed its read fixture. Final removal of
+the remaining ignored `temp/provider-acceptance-20260920` directory and five
+temporary acceptance runner scripts was blocked by execution policy, so complete
+temporary-file cleanup is still pending. Saved Provider credentials are retained.
+
+## 2026-09-20 Alpha 收口路线：Slice A Research Input
+
+最新用户任务改为科研流程优先，不再因次要设置延迟 Alpha。当前工作区接续
+`594a875`，不围绕 main 重做。纵向顺序：A 共享输入 → B 专家名册/并行讨论 →
+C project_state.md → D 稳定版本组/DOCX → E Main 空闲换模型 → F Workbench
+字段感知乐观重试 → G Portable 单一 app root。本轮先实现并提交 A。
+后续不重做 DSH loop、Provider/Meeting/权限框架；专家职责以提示词区分。
+Portable 优先于自动更新、签名与完整安装器；已有开发窗口不是 Portable 验收。
+
+### Implemented
+
+- 默认 Main persona 明确支持按需解释方法、公式、统计假设与科研依据，帮助用户
+  理解、判断、纠正研究；删除 teaching tutor 禁令。不主动长篇基础教学，不依据
+  私人画像改变科学结论。已保存自定义 prompt/已有绑定快照不被强制覆盖。
+- Main/Secretary/Global 请求共用 research-input 编译器，复用 Library 与已有附件
+  读取。txt/md/csv/json/tex/log 最多 64000 字符材料正文；其他格式只提供真实路径
+  和“未提取”说明。坏 UTF-8 同样保留原件，不伪称 PDF/DOCX/图片已解析。
+- 显式研究材料位于 `[User-provided research material]` / end 标记之间，作为
+  用户请求材料而非 system prompt。材料结构最大 128000 字符，用户正文最大64000。
+- 聊天文字选择菜单提供 Main/Secretary/Global/复制；冻结源 chat/message ID 和
+  精确 DOM 选中文字，可填写 comment。服务端点查源消息存在和 speaker，不扫描
+  最近聊天；选区可跨 Markdown 标签，不声称其是 raw Markdown 的逐字子串。
+- Main 真实附件原件入库，输入框显示可编辑引用；附件可添加文本片段、位置说明及
+  comment。旧批注仅当 version ID 能映射真实项目资源才发送，缺失则保留并报错。
+- draft/receipt 存 SQLite；消息记录可展开已发送研究输入。ACK 按 id+revision 清理
+  捕获的批注/引用，保护新批注和新 revision；迟到的草稿保存不复活已消费 revision。
+  Secretary 的 annotation 不被消费，不自动写项目记录。模型发送失败时恢复材料，
+  保留更新的草稿；重复 userMessageId 拒绝重发。
+- 复杂输入暂不进入 text-only outbox：全部留在草稿并明确提示当前轮结束后再次确认，
+  后端也拒绝把复杂输入 silently drop 成纯文本。后台发送纯文本队列不带当前草稿材料。
+- 附件操作只更新输入框，不重绘 transcript；修复原型 smooth scroll 动画在工具更新时
+  继续移动阅读位置，以及引用菜单 mouseup 重建自身导致点击失效。
+
+### Actually tested / remaining
+
+生产资源路由 UI smoke：实际选取跨 Markdown 的正文、中文路径文件导入、创建批注、
+点击发送、宿主实际收到材料、ACK 清理及重开 receipt。API/store 验证 source identity、
+失败前/后保留原件与草稿、A/B 发送期间 A 新 revision/C 新增、秘书不消费、重复消息、
+复杂队列拒绝。实际 DSH localhost composition 验证材料到 provider 请求，7 次本地
+请求、零付费请求，包含原有秘书提案 tool-call、独立历史、停止及恢复验收。
+
+精确引用不是隐式广播完整专家历史。未来 B 的 Expert 应复用此编译器；B 尚未实现。
+此 Slice 不新增文件全文预览、Word/PDF parser、OCR、自动 annotation 定位；当前可填写
+材料已知页/行/章节，版本材料继承已知 version identity。旧 contextChatId API 兼容入口
+仍存在，但新 UI 引用按钮已改为选区指引，不再附加最近二十条消息。
+完整任务书中的 B–G 和最终科研闭环尚未验收；Alpha readiness：NOT PROVEN。
+
+本 Slice 实际命令：
+- `node --test --test-concurrency=2 tests/*.test.mjs`：103/103。
+- `node scripts/research-input-ui-smoke.mjs`：生产路由、真实选区、附件/批注、ACK、重开快照通过。
+- `node scripts/chat-ui-smoke.mjs`：流式 Markdown、阅读位置、工具详情、停止和纯文本队列通过。
+- `node scripts/assistant-api-smoke.mjs`：真实 DSH，7 次 localhost 请求，0 次付费请求。
+- `node scripts/assistant-api-smoke.mjs --native`：真实 Tauri 副本 + DSH，通过秘书/全局助手 UI、草稿重开、Main 隔离与主窗口退出；11 次 localhost 请求，0 次付费请求。
+- `git diff --check`：通过。
+
+## 2026-09-19 全局助手窗口设置
+
+全局助手设置新增独立的 SQLite 启动偏好：closed（默认）、orb、expanded。
+启动时仅主 WebView 读取一次；保存供下次启动使用，不立即打断当前窗口。
+即时显示浮球、打开对话、隐藏两窗口复用现有 Tauri 窗口，不新建 Agent 会话。
+hide_assistant 限制为 main 调用，仅 hide 不 destroy；未发送草稿与执行保持。
+隐藏不是停止任务，界面明确说明；原有右键关闭动作保留，主窗口关闭仍完全退出。
+只显示浮球时面板以不可见状态创建，避免先闪出对话再收起。
+窗口设置不改变模型、提示词、聊天内容或权限，不读取任何用户全局配置。
+
+验证：项目受控 Rust 工具链 `cargo build --offline` 通过；完整
+`node --test --test-concurrency=2 tests/*.test.mjs` 89/89。
+`node scripts/assistant-window-smoke.mjs` 使用独立临时副本和真实 Tauri exe，
+验证已保存 orb 偏好启动、面板初始隐藏、按钮展开/隐藏、未发送草稿保留、
+保存 closed 偏好和主窗口退出。可见性由原生 isVisible 检查，不以网页
+document.visibilityState 代替；诊断端口只在测试子进程启用，正常启动不带。
+无付费模型请求，未提交或推送；截图快捷键和跨项目检索设置仍未接通。
+
+## 2026-09-19 可编辑的客户端快捷键
+
+设置 → 快捷键已接通搜索与命令、浏览全部、项目内新对话、独立新对话四项。
+输入框通过实际按键录入，保存到本客户端 SQLite；重复绑定、非法组合和保留的
+编辑/浏览器保护组合拒绝整次保存。保存后即时应用并广播到其它窗口，侧栏提示同步。
+新绑定接管入口后，旧 Ctrl+K / Ctrl+N 原型监听器不会继续触发第二套动作。
+恢复默认需要确认，仅恢复四项快捷键，不重置发送键、资料和模型设置。
+
+快捷键仅作用于客户端主窗口，不是操作系统全局热键；辅助窗口不因主窗口导航键
+误建主对话。IME 合成和模态确认期间不派发导航操作。发送、Esc、复制粘贴、
+导图编辑快捷键保持原行为，发送方式仍在常规设置配置。
+原型 HTML 未修改，未引入新的键盘库；注册入口在 desktop-behavior 的捕获阶段，
+生产资源清单包含 shortcuts.mjs。此次不代表所有系统热键均已可配置。
+
+验证：完整 `node --test --test-concurrency=2 tests/*.test.mjs` 86/86；
+其后新增文件数据库重开测试，`node --test tests/shortcut-settings.test.mjs`
+5/5 通过。`node scripts/shortcuts-ui-smoke.mjs` 经生产路由检查按键录入、
+冲突不写入、刷新恢复、旧键失效、新键触发、浏览入口、独立草稿不提前持久化、
+恢复默认与多窗口同步；`node scripts/settings-ui-smoke.mjs` 同样通过。
+本轮零付费模型调用，未提交/推送，未改变正式原型。
+
+设置回归额外暴露并修复：自动整理开关的工作站广播会重绘设置页，导致模板输入
+被旧数据覆盖。现在非工作站页面只失效缓存，回到相关页面再读取；跨路由完成的
+后台读取不重绘新页面。修复后设置 UI smoke 重新通过。
+
+## 2026-09-19 设置原设计对照与继续接线
+
+已执行 `git fetch origin`、`git pull --ff-only`，上游与本地 HEAD 均为
+`60ac8bb`，结果 Already up to date；没有覆盖当前未提交工作。
+对照 `src/original-base.html` 的 configDefs、P31–P40 页面说明，以及本机
+Codex 26.915.4065.0 的只读应用资源（未读取用户配置、凭据或聊天数据库）。
+Codex 仅作为分类和交互参考，不复制其代码或素材，不改变 ScienceScope 原型。
+
+设置导航分为个人偏好、科研协作、工具与环境，保留全部原有入口及新增能力。
+本次新增可用：浅色/深色/跟随系统、标准/紧凑、代码字号、15px 正文字号、
+确认恢复阅读与操作默认值；SQLite additive migration 保留旧值，广播到其它窗口。
+恢复默认不清空个人资料、角色、模型、历史或材料。
+秘书版本说明模板保存到 SQLite，下次版本整理的实际 host.send 使用模板；
+当前项目自动整理开关复用 workbench 的 autoOrganize/revision，不另建状态来源。
+自动整理仍使用工作站已选择的模型，只支持原有文本格式，不因保存设置调用模型。
+
+### 原有设置能力清单（不是完成声明）
+
+| 原设计类别 | 已接通 | 仍待实现的原设计能力 |
+| --- | --- | --- |
+| 常规/个人资料 | 用户名、介绍、主题、密度、正文/代码字号、发送键、动画、滚动条、偏好恢复 | 通知、启动页、语言切换 |
+| 模型/API | 显式协议、手动模型配置、已有 discovery 接口、角色默认模型与可用思考强度 | 继续做端到端 UI 可用性验收 |
+| 人格/专家 | Main/秘书/全局助手提示词及空闲显式应用，历史保留 | 独立专家名册编辑、人格/记忆专属管理（目前人格和专家共用 Main 设置） |
+| 执行策略 | 各对话实际 ask/full，Main 自动化 | 设置页默认策略、网络/子代理数等独立策略控制 |
+| 秘书 | 模型、提示词、模板、项目自动整理、提案工具 | 导图同步策略、缩略图尺寸、说明目录策略 |
+| 全局助手 | 模型/提示词、浮球显示/隐藏、启动行为 | 搜索范围、截图快捷键 |
+| 数据库/文件 | 真实路径、打开目录、原有导入与检索 | 可迁移根目录、导入识别策略、默认打开位置 |
+| 环境 | 实际运行路径及状态 | 外部技能目录注册、路径迁移 |
+| 快捷键 | 四项导航快捷键重映射、冲突校验、确认恢复、发送键可改 | 系统全局热键及其它编辑键定制 |
+| 插件/技能 | 本地 SKILL.md 增删改、启停、真实插件清单 | DSH 插件包安装/升级/卸载与重启协调 |
+| 浏览器 | 保留原入口 | 内置真实浏览器、会话/下载目录策略 |
+| 用量 | 保留原入口 | 按日期/模型/项目聚合、导出；未知费用不可显示为零 |
+
+关闭行为遵循用户后续明确的“关闭即退出”，不恢复原型里的托盘驻留。
+剩余项必须继续连接存储、实际消费者和应用时机；不得以删入口、说明文案或假保存替代。
+本轮无付费模型请求；未发布、未宣布 alpha 完成。
+
+验证：`node --test --test-concurrency=2 tests/*.test.mjs` 82/82 通过。
+`node scripts/settings-ui-smoke.mjs` 经实际生产资源路由验证主题计算样式、
+偏好重载、多窗口同步、恢复默认、模板重载、角色设置和发送快捷键。
+模板进入真实整理函数的 `host.send` 输入由离线 fixture 验证，不是付费模型验收。
+
+## 2026-09-19 本地技能管理与真实插件清单
+
+设置 → 插件与技能现在实际支持：添加/导入 SKILL.md、查看编辑、启用/停用、可恢复移除、打开本地技能目录。保持设置布局，不另建通用插件框架。
+
+- 全部技能元数据与正文合法性由安装版 DSH `FileSystemSkillProvider` / `isSkillName` 处理，没有另写 YAML/skill 解析器。技能原件放在本客户端 `.sciencescope-local/dsh/skills/<name>/SKILL.md`，停用目录为相邻 `disabled-skills`，移除目录为 `removed-skills/<id>/<name>`。启停/移除搬移整个目录，编辑只改 SKILL.md，保留脚本与素材。失败保存清理本次临时目录，不覆盖旧技能。
+- 当前导入入口只导入 SKILL.md，不承诺自动导入 ZIP/目录内的附带资源；可从“打开技能目录”添加资源。变更由 DSH 后续目录发现读取，停用不是擦除模型已读历史的安全机制；需要无旧技能内容的上下文应新建会话。
+- 模型的实际 `skill` 工具仍来自 DSH；技能不授予额外工具权限。本轮未安装任何第三方包或调用付费模型。SDK/Web 宿主的 DSH_AGENTS_HOME 指向客户端受控目录，避免隐式借用用户全局 `.agents/skills`。
+- 宿主插件和 Agent 预设清单来自 `pluginInventory/list`，显示真实启用配置与 fiberPhase；未把宿主插件等同于模型可用工具。此接口只读。安装版 DSH 的依赖包安装/移除需走 `dsh plugin --profile ...` CLI 并考虑重启，因此任意插件安装/更新/启停管理仍须后续接通，不能把清单当成安装器。
+
+验证：`node --test --test-concurrency=2 tests/*.test.mjs` 77/77；`node scripts/skills-runtime-smoke.mjs` 验证真实 DSH 插件清单、发现技能、skill 工具读正文、停用后新会话不含技能、重新启用恢复，4 次 localhost 请求、零付费请求。`scripts/extensions-ui-smoke.mjs` 覆盖实际生产路由下的添加、编辑、停用重开、启用与确认移除。`git diff --check` 通过。
+
+## 2026-09-19 用户纠正与角色设置真实接线
+
+用户明确：未指定删除或重设计的功能，默认修复并实现连通。前一轮隐藏设置分类不是功能交付；本轮恢复原有分类，不再以撤掉入口作为实现。
+
+本轮实际完成：
+
+- 主专家（人格/专家页）、任务秘书、全局助手的 system prompt 编辑、SQLite 保存及版本号；每个角色独立的默认模型、运行时支持的默认思考强度。
+- 默认模型/强度用于新空白对话；保留已有有内容的草稿与绑定会话，不隐式换模型。辅助窗口在首次会话时读取其角色默认值。
+- 保存配置不改变已有 runtime。每个会话保存已应用的提示词快照。旧会话在本功能首次使用时仍绑定旧内置提示词，不因保存了新默认值而改变。
+- 用户空闲时点击“应用已保存提示词”，通过 DSH 公共 systemPrompt.section + Agent.runMaintenance 更新当前会话；保持 session/history。运行中拒绝应用；模型/权限不随 prompt 改变。界面可查看持久应用版本与时间。
+- Main 和辅助会话的恢复路径读取已应用快照；重启后“仅保存但未应用”的提示词不会偷渡进旧会话。
+
+验证：真实 DSH + localhost fixture 检查 system prompt 确实替换、旧用户消息仍在；辅助 composition 验证先保存、重开仍旧 prompt、显式应用后才切换。settings UI smoke 验证编辑后重开、默认模型/思考强度进入新输入框。完整测试首次默认并发下两个 DSH 初始化超过 30 秒；未改运行时超时或删测试，改用 `node --test --test-concurrency=2 tests/*.test.mjs` 重跑 74/74 通过。`git diff --check` 通过。零付费 Provider 请求。
+
+剩余工作仍是实现，不是删除：自定义多专家身份和调度配置、全局/项目记忆管理、插件/技能启停与安装、浏览器和用量页、目录迁移。恢复的分类尚不能视为这些功能已经全部接通。新角色配置是本轮闭环，不代表完整 alpha。
+
+## 2026-09-19 设置页接线与占位清理
+
+- 生产设置页不再调用原型 `configDefs/settingRow`，不会只更新 `S.settings` 就报告保存成功。保留原有左右设置布局和视觉基线；未接线的人格/专家管理、浏览器、插件、账户用量页面不提供假开关、假数据或保存动作。
+- 常规设置：个人资料继续使用真实 profile store；聊天字号（14/16/18/20）、Enter 或 Ctrl+Enter 发送、减少过渡动画、显示滚动条存 SQLite `desktop_preferences`。保存后立即应用，通过窗口通知同步；不进入模型上下文，不改变导图键位。Shift+Enter 始终换行。
+- 模型/API 保留现有真实 provider 编辑流程。执行策略页解释实际 ask/full/auto 并返回当前对话；秘书/全局助手设置页打开真实角色入口，模型与策略仍在各自输入框修改，不放置另一套不生效的默认配置。
+- 数据库/环境页读取当前进程的真实路径、Node 版本和 runtime 加载状态。打开文件夹只接受固定目录 ID，不接受任意调用方路径。DSH 加载不等于真实模型连通验收；不展示秘密内容。目录迁移尚未支持，不提供可编辑路径假装迁移。
+- 快捷键页列出当前绑定；仅发送键可配置。刷新/重开设置深链接时保留设置路由，不被初始工作区加载强制跳走。
+
+验证：`node --test tests/*.test.mjs` 66/66；`node scripts/settings-ui-smoke.mjs` 验证保存/重开、跨窗口字号应用、真实路径、各设置路由无原型控件、Enter 换行；`git diff --check` 通过。零付费模型请求。
+
+尚未实现：角色 system prompt 的保存/显式应用、默认角色模型、插件与技能管理、浏览器设置、账户用量、数据目录迁移。它们本轮是撤掉虚假操作，不是已实现。下一步优先做角色配置到实际 runtime 的闭环，而非重新填满表单。
+
+## 2026-09-19 实施更新：辅助 Agent、正文搜索与退出清理
+
+以下更新覆盖下方较早复盘中对应的旧状态，不代表所有 alpha 缺口已经关闭。
+
+- 助手/秘书已解除固定 noTools，输入框提供询问/完全接管（无自动化）。实际映射 DSH approval + sandbox policy；询问不是“每个工具都弹窗”，只有运行时要求的操作需要审批。完全接管不逐次询问。历史继续独立。
+- 辅助输入框可以选择模型及 DSH 声明支持的思考强度。显式空闲切换保留 runtime session/history；失败不更新保存的模型。未声明能力的模型只有默认项，不伪造高/中/低。
+- 辅助附件进入本地 library 原件存储，草稿引用存 SQLite。文本、Markdown、CSV、JSON、TeX、日志以 UTF-8 有界摘录进入请求；其它格式提供原件路径，**不宣称 PDF/图片已经解析或模型具有视觉能力**。上传只刷新输入区，不重挂 Main transcript。
+- `propose_main_draft` 是秘书 session 显式注册的真实 DSH tool。调用产生持久待审提案和可编辑卡片，用户确认后填入绑定 Main 的草稿，仍须用户发送；忽略只处理提案。普通答复不再自带“填入草稿”按钮。不把模型工具调用当作用户发送授权。
+- 辅助工具记录复用 `tool_activity` 有界展示投影，刷新后可查看。DSH 仍拥有完整 runtime history。
+- 搜索框空输入显示设置；输入后匹配设置优先，再显示 SQLite 正文命中，最多 40 项、每项 220 字摘要。可定位较早消息并保持最多 60 条展示。排除已删除/归档及辅助私聊，不等同于全局 Agent 检索工具。
+- 主窗关闭先向本机宿主发认证关闭请求，限时等待后以既有 Windows Job Object 结束整个自有进程树。不终止其它用户 Node/浏览器进程。独立原生副本测试覆盖宿主额外启动的长驻子进程，无测试手动 kill 后冒充应用退出。
+
+实际验证：`node --test tests/*.test.mjs` 63/63；生产路由 navigation smoke（含正文搜索定位）通过；真实 DSH + localhost assistant UI smoke（附件进入输入、秘书提案编辑不自动发送、工具记录重载）通过；Cargo offline build 通过；原生退出副本测试通过。`node scripts/assistant-api-smoke.mjs --native` 亦通过：11 次 localhost 模型请求，实际换模型保留 DSH 历史、两个原生角色窗口、草稿恢复、Main 未被提案自动发送。均未请求付费 Provider。
+
+仍未完成：精确选区引用与批注的三处统一传递、Main 附件/已有会话换模型、Agent 项目/历史查询工具、完整设置页接线、多专家并行/@、签名安装包和更新演练。下方复盘表保留为当时的问题清单，不能据它将本段已完成能力倒退为 noTools。
+
+## 1.0.0-alpha 内测交付计划（2026-09-19，A 阶段实施中）
+
+### 用户实测复盘：角色能力与产品完整性（2026-09-19；源码核对，不是验收完成）
+
+当前仍是开发客户端，不能称为完整可用 alpha。此前通过的测试只覆盖对应切片，特别是 noTools 私聊测试通过不代表完整助手可用。用户截图揭示的问题分类如下：
+
+| 项目 | 当前证据与缺口 | 完成标准 |
+| --- | --- | --- |
+| 秘书提供 Main 草稿 | assistant-chat 每条秘书答复挂 use-draft 按钮，未注册对应工具 | 按新的交互规范注册提案工具；模型调用后出现可编辑提案；用户确认发送；目标身份稳定、调用幂等 |
+| 助手/秘书权限 | assistant-chat-service 固定 noTools=true、固定 ask，persona 明确禁止工具 | 两处均有 ask/full；复用 DSH 实际审批/执行；禁用的是自动化入口而非全部工具；独立历史不变 |
+| 全局项目可查 | 当前仅手工摘取最近 20 条对话；没有项目/聊天检索工具 | 通过已有应用服务提供项目列表、持久对话查询、材料读取；按需读取而非全库注入，不让 agent 直接修改 SQLite |
+| 文件与精确引用 | Main 拒绝材料/批注，助手无上传；引用是整段最近正文 | 三处共用有来源的附件快照和精确选区批注；只改输入区；真正进入实际模型输入 |
+| 模型切换 | Main 和辅助会话均有已绑定模型拒绝逻辑 | 复用 DSH 显式模型选择，在空闲时切换并保留历史，失败保持原配置，不暗中重建会话 |
+| 推理强度 | 菜单/运行参数存在，但 provider 配置主要保存模型 ID，缺少能力映射；辅助输入框没有对应控件 | 从实际模型描述提供能力选项，保存并验证下一次请求；不支持者明确不可调，不伪造档位 |
+| 设置 | preferences 仅部分真实接线；多页沿用原型 select/toggle 和示例模型 | 逐项标记并绑定存储与生效端；未实现项禁用/隐藏，不显示虚假的“保存成功” |
+| 搜索 | paletteItems 仍存在，主要搜设置、项目名和对话标题；未实现持久正文检索 | 单独复现用户所说入口失效；再接 SQLite 正文分页搜索及消息定位，不只扫当前 DOM |
+| 退出 | main.rs 有主窗 exit、HostProcess/ChildHandle 和 Windows Job 清理 | 原生副本中运行真实宿主并启动受控子进程，记录 PID/父子关系，关闭主窗后核查自有 Node/DSH/工具/WebView/端口；不能只看 exe 退出码 |
+| 多专家讨论 | 工作模式切换与提示已接，不是实际专家调度 | 并行独立执行固定卡片；@ 明确派发、可核对分工，不传播同伴私有思考/工具记录 |
+
+建议按三份可验收交付推进，而非再拆成大量“按钮已接通”的宣称：
+
+1. **桌面可靠性与设置清单。** 先复现进程残留和搜索入口；对退出记录完整自有进程树，而非关闭用户其他 Node/浏览器进程。列出设置的真实存储字段、应用点和重启语义；纯原型项不继续假装生效。
+2. **三处真实 Agent 输入。** 一起完成助手/秘书 ask/full、材料/选区引用、持久项目与对话查询工具、秘书提案工具、显式模型切换与能力支持的推理强度。权限与 persona 分离，复用上游 SDK 工具/会话能力，不新增通用 Agent 框架。验收应从 UI 实际输入到模型/工具，再重开确认历史；只测服务返回 200 不够。
+3. **多专家任务派发。** 前一步稳定后再接有序并行卡片和自由 @ 分工。最终用同一个真实项目串联验证，而不是把单项通过相加当完整 alpha。
+
+本次复盘没有宣称上述缺口已修复。没有重启用户客户端、运行真实 Provider、提交或推送；继续使用现有开发手册，不另建平行状态文件。
+
+独立 Sol 复核与主实现核对一致。需额外注意：当前 native exit 没有等待宿主优雅关闭的显式握手，Windows Job 负责进程回收不等于数据库/运行时关闭钩子已完成。退出修复应先停止接收新任务、处理当前执行和写队列，在有界期限内完成关闭，再以自有 Job 回收兜底；用实际启动入口验证主窗 X 和退出菜单，不能只测试 fixture watchdog。搜索也不是全部缺失：现有 Library/Knowledge 查询与命令导航保留，待补的是持久聊天正文检索和用户报告的入口失效复现。
+
+### 后台对话状态修复（2026-09-19）
+
+切到其他聊天或工作站后，主聊天继续执行。侧栏对应条目显示运行中、待处理、排队中、已暂停、已完成、失败或已停止；有未展示的执行/队列时提供“后台任务”入口，悬停可看当前工具名及待发数量。点击返回原对话，不强制跳转、不刷新当前正文或覆盖草稿。
+
+`GET /api/chat/activity` 汇总实际 Main run、审批/goal 的同步投影和一次分组 SQL 队列计数；不逐个唤醒历史 runtime，也不加载全部正文。终态提示在当前宿主进程内有界保留 200 项，查看后前端消除已读提示；这不是新增的持久通知中心。无执行证据的旧聊天不标为已完成；连接失败显示状态待更新，不伪造结束。助手私聊不出现在主聊天状态列表。
+
+实际验证：`node scripts/background-chat-smoke.mjs` 通过真实宿主路由，覆盖 A 流式执行→切到 B→A 后台增量→切回接续→再次切走→完成提示→加载完整持久结果；B 草稿保留且无串话。`node --test tests/*.test.mjs` 57 项通过，包含运行/队列/审批优先级与状态查询零 context 读取、零额外 runtime 恢复。既有聊天 UI smoke 通过，未调用付费 Provider。经用户确认重启客户端；本轮没有进入材料/引用或其他下一阶段开发。
+
+### A2.1 修复补记：真实启动路由与上下文圆环（2026-09-19）
+
+- 用户报告新对话失败。定位到 `turn-activity.mjs`、`main-outbox.mjs` 虽复制到构建输出，却未列入 DESKTOP_ASSETS；实际 preview-desktop HTTP allowlist 返回 404，导致 live-chat 及其依赖整图不执行。此前直接读取任意静态文件的 smoke 未覆盖该故障，因此先前副本通过不能代表实际宿主模块加载成功。本次统一清单，并检查每个相对导入都能被宿主提供。
+- 增加根目录 `Start-ScienceScope.cmd` / scripts/windows/launch-client.ps1。运行既有 exe、不编译、不下载；进程局部配置 Node/host 路径，现有同路径实例优先激活。仍允许开发机 Node 回退，正式包自带 runtime 尚未完成。启动入口已实际拉起可见的 ScienceScope 主窗；实际宿主三个新增模块请求均返回 200。
+- 禁止 F5、浏览器刷新/打印/页面保存/地址栏/下载列表/DevTools 等浏览器快捷键及落在非应用区域的文件拖入导航。原生辅助窗口不再回退到 window.open；保留应用菜单和文本编辑操作。浏览器侧栏删除假文章与假导航，当前明确显示“网页浏览尚未接入”，并未把它冒充真实内置浏览器。
+- 圆环读取 DSH sessionProjections 的 contextPressure；优先 projectedTokens（包含上下文增删的估计差量），没有样本时读取 tokenMeter 测量；容量来自 runtime contextWindow。不累加历史请求费用，不拿可见 60 条消息估算整段上下文。未知为灰环；悬停只显示实际占用、上限与必要的估计标记。后台会话不为读取指标而自动恢复。
+- `node --test tests/*.test.mjs`：56 项通过；production HTTP router 测试和相对导入检查新增。`node scripts/desktop-navigation-smoke.mjs` 使用同一生产宿主路由，验证首条发送保存、新空白草稿、不弹浏览器对话框、无模块 404，以及圆环 25%→50%→10% / 切换新会话清空。
+- `node scripts/dsh-approval-smoke.mjs` 实际 DSH + localhost fixture 验证上下文容量 32768、占用大于零及工具审批往返；没有真实供应商请求。内置真实网页浏览、发布安装包及其余 A2 内容仍未完成。
+
+### A2.1 交付记录：主聊天中断、文本队列与工具过程（2026-09-19）
+
+本段是当前实现，后面的 A2 仍是整体计划，不能视为三步全部完成。
+
+- Main 普通运行与临时问答接 POST /api/chat/stop，调用 DSH interrupt。发送按钮在运行中变为停止；中断保留已输出文本。覆盖建立会话期间取消及复用同一会话第二次运行的取消。自动化目标仍走已有 goal 暂停/结束接口。
+- 主聊天运行中 Enter 或“加入队列”保存待发文本到 SQLite chat_outbox。固定文本、模型、策略、推理强度和消息 ID，按入队顺序执行；可暂停、继续、取回编辑、删除。当前运行停止或失败后暂停续发；重启将遗留队列置为暂停，发送状态不明的项标为待确认，不自动重试。取回编辑只回填文字，其他设置以当前输入框选择为准。队列最多 20 条，仅普通非临时文本；附件和自动化输入尚未接入。
+- tool_activity 是 DSH 工具事件的有界展示投影，不是另一套运行历史。调用/结果按回复和 callId 配对，保留工具名、输入/结果预览及状态；新工具事件不再变成两条普通系统消息。已有历史系统回执不删除、不伪造迁移。
+- 每条回复一个紧凑的工具折叠区，可展开预览；默认收起，用户主动展开的详情在回复完成后保留。单条预览有大小限制并过滤常见凭据字段/格式，不承诺任意自由文本均能自动识别秘密；不保存 tool-private meta。正文页面最多返回 200 条工具投影，实时单回复缓存最多 100 条；完整运行记录仍归 DSH。
+- 工具更新不重挂聊天或输入框；上滚阅读不强制跳底。模式回执不把历史阅读页切回最新。排队发送不清空用户后写的草稿。
+
+实际检查（全部本地，无付费 Provider 请求）：
+
+- `node --test tests/*.test.mjs`：55 项通过。包含 SQLite 队列恢复、FIFO/claim、存储快照优先于调用方覆盖字段、结束项不可重复派发、API 历史工具分组，以及两轮同会话中断和部分正文保存。
+- `node scripts/chat-ui-smoke.mjs`：4 次本地流请求，Markdown、草稿/焦点、工具详情、上滚位置、停止按钮、Enter 入队与后续草稿保留通过。
+- `node scripts/dsh-approval-smoke.mjs`：真实 DSH、2 次 localhost 模型请求；工具参数/结果/turn 身份可用，拒绝审批后结束，测试命令未获执行授权。
+- `node scripts/assistant-api-smoke.mjs --native`：独立原生副本、7 次 localhost 请求；助手/秘书问答、草稿恢复、独立停止和 Main 不受影响通过。这不是本轮新增助手权限/上传验收。
+- `git diff --check` 通过。重启前将现有 SQLite 一致性备份到 `.sciencescope-local/backups/before-chat-execution-1789815816053/sciencescope.sqlite`；未删旧库，未改全局环境，未提交或推送。
+
+下一步仍为 A2 第 2 步：助手/秘书 ask/full 实际策略、三处文件与精确选区引用、模型能力配置与上下文指标。本轮未实现这些，也未完成多专家派发、安装包、签名或自动更新。当前客户端仍是开发版，不称为 alpha 发布就绪。
+
+### A2 实施顺序：统一聊天行为（2026-09-19，规划，尚未实现）
+
+以 `02_INTERACTION_CONTRACTS.md` 的同日桌面修订为准。用户截图指出的是实际可用性缺口，不能以 A1 测试通过代替完整聊天验收。保留 A1 代码和历史验收，但其固定 noTools、整段最近对话引用、模型锁定不是最终产品规则。
+
+1. **先修执行和阅读体验。** 在 desktop/live-chat.mjs、execution.mjs、workspace.mjs 与 assistant-chat.mjs 中统一提交/接受/运行/停止/结束状态。通过已有 host interrupt 接普通 Main 中断；复用 DSH 会话串行执行能力，在应用层保存小型待发送队列，不创建另一套运行循环。工具事件在 assistant-stream-bridge 与 desktop-api 之间保留 run/message/call 身份和有界详情，归入对应回复；SQLite 表示采用可迁移的附加记录，不把工具原文伪装成普通对话。前端局部更新，保留选择、输入焦点和滚动锚点。
+   验收：一轮多工具执行只有一个紧凑过程入口；详情可查；中断能结束实际 runtime；两条排队按顺序且各执行一次；上滚和添加附件不跳底，重开后队列不自行启动。
+2. **再统一三处输入与真实材料/引用。** 沿用当前文件资源存储、assistant-conversations 草稿及 host 服务，增加文件/引用结构化草稿，提交时冻结快照。选中正文的快捷菜单将精确选区和可选批注送入指定目标；独立窗口从宿主读取，不依赖临时 DOM。助手/秘书取消固定 noTools 和“私聊·只读上下文”文案，接入实际 ask/full 策略与审批；服务端拒绝其自动化请求。角色职责与工具能力分开，凭据不进入可读材料。模型菜单与 reasoning.mjs 共用能力来源，检查自定义 provider descriptor 到 DSH catalog 的缺口；支持能力的配置应可明确修正，不硬编码供应商型号。
+   验收：三处均能上传、查看和移除附件；跨窗口引用只发送选中文字与批注；取消不发送；后续编辑不被旧回执清掉；询问实际产生审批、完全接管使用用户已选授权范围；支持强度的模型在实际请求中收到选择，不支持者明确显示不可调节。
+3. **最后接专家派发。** 复用独立 DSH session，以 task/chat + expertId 绑定；本次有序讨论采用并行执行和固定卡片顺序，不沿用旧串行定义。自由讨论的 @ 先解析显式目标与分句，共同任务共享、独立任务分别投递，歧义分工可编辑确认。保存派发内容与结果身份，失败专家不覆盖成功结果；不同专家不接收彼此工具原文和私有思考。共同文件写入不能靠提示词避免覆盖，使用现有审批/冲突检查，不新建通用调度框架。
+   验收：两位专家同轮并发、卡片独立展开；一个失败另一个继续；用户给出的三种 @ 句型能生成可核对的派发清单；未指定专家不运行；重启后可查询各次指派和公开结果。
+
+当前源码证据：Main 对 annotations/contextRefs 仍直接拒绝；工具调用仍追加系统消息；助手服务仍 noTools=true；自定义模型目录可能缺少 reasoning 描述。这些都是待修项，不是本轮已完成能力。先按上述三个有界交付实施，再继续安装、签名和升级阶段；不以改版本号替代验收。
+
+独立 Sol 只读复核补充：工具过程优先作为 DSH 历史的可重建投影，不复制第二份完整工具日志；队列在停止当前运行后暂停续发，自动化运行期间不隐式插入队列文本；重新派发前核对当前授权，不能沿用已撤回的权限。模型配置编辑器目前只接收 ID，需要沿 DSH 支持的 reasoningEfforts 描述接线，而不是只修选择菜单。P04 原型串行说明已明确标注被本次新定义覆盖。实际实施与验收仍由主实现者负责。
+
+本次仅更新规范和实施设计，保留已有未提交代码；未运行模型请求、未重启客户端、未提交或推送。实现时对每项补实际证据，不能沿用本段作为通过记录。
+
+### A1 交付记录：独立助手与任务秘书（2026-09-19）
+
+已接通真实 DSH 调用，不再走 HTML 原型的模拟回复。尚未完成整个 A 阶段，
+更不代表 alpha 包体、签名或更新已就绪。
+
+| 可见入口 | 真实操作/数据 | 当前验收 |
+| --- | --- | --- |
+| 全局悬浮助手 | 独立 global 会话、流式 Markdown、草稿/历史、停止 | 独立原生副本 + 本地模型服务通过 |
+| 主工作区秘书侧栏 | 每个主任务一个独立 secretary 会话，不共用 Main 历史 | 两任务隔离、并发与原生 UI 通过 |
+| 引用对话 | 用户显式选择，服务端提取最多 20 条公开正文、总计 20000 字符 | 私聊/系统工具回执不混入，越任务引用被拒绝 |
+| 填入主专家草稿 | 用户显式点击后填入；已有草稿先确认；不会自动发送 | 已接线，尚需补齐与材料/批注联合流程 |
+| 助手模型菜单 | 读取已配置模型；现有会话保持模型绑定 | 初始选择接通；同会话改模型仍待下一步 |
+| 历史与草稿 | SQLite 关联表复用现有 chats/messages，独立助手不出现在 Main 列表 | 数据库重开与浏览器重开通过 |
+
+实现：scripts/assistant-conversations.mjs 管理 scope/owner → chat 关系与草稿；
+chat 与关系创建在同一 SQLite 事务内。scripts/assistant-chat-service.mjs 调用
+现有 DSH host，独立 workspace/session/persona；desktop/assistant-chat.mjs 接管
+秘书与全局助手原型发送入口，流式更新不重挂输入框。停止调用公开 Agent.cancel，
+并保留已输出内容。身份、权限与 system prompt 分开；Main 操作接口拒绝辅助会话 ID。
+
+本阶段助手严格 noTools：不开放 shell、文件写入、子代理或全库自动扫描。
+“只读上下文”指用户明确引用的正文，不意味着已拥有全部知识查询工具。
+秘书私聊会话按任务继续；版本整理仍沿用独立的一次性 organizer，二者不共享历史。
+在来源对话被移动/删除、模型切换、自动工具授权等流程扩展前继续保持边界明确。
+
+实际检查：
+- `node --test tests/*.test.mjs`：46 项通过（包括关系存储与助手服务隔离）。
+- `node scripts/assistant-api-smoke.mjs --ui`：真实 DSH + localhost fixture，
+  Main/global/secretary 隔离、明确引用、runtime 重启接续、停止隔离、两处输入发送及草稿恢复。
+- `node scripts/assistant-api-smoke.mjs --native`：独立项目内测试副本，复制现有
+  Tauri exe，独立 WebView 数据和数据库；秘书侧栏与真实悬浮窗口通过，关闭主窗退出码 0。
+  7 次 localhost 请求、0 次付费 Provider 请求。不是 Go 真实角色验收，不是安装包验收。
+- `node scripts/chat-ui-smoke.mjs`：既有主聊天流式/Markdown/草稿焦点回归通过。
+- 现有用户 SQLite 已在项目 backups 中做一致性备份，再启动普通客户端；未删除旧库。
+  测试副本及专用调试入口清理，未关闭用户正在执行的会话。
+
+下一小步：完成助手/秘书角色设置与可控模型变更、接入材料/批注与可查询来源，再接
+主任务的专家派发。按上面的 A/B/C 计划推进；不要把本次 noTools 私聊当作完整 agent 产品。
+
+### 核对基线与判定
+
+- 本轮通过 `git status --short --branch`、`git log`、`git ls-remote origin`
+  核对：本地 HEAD、远端 main 与 codex/desktop-first-slice 均指向
+  `60ac8bb93051642e9fc74cd9c8282d6471f406fc`。开始规划时工作树干净。
+- 当前是可运行的开发客户端，不是可发布安装版：Tauri bundle.active=false，
+  三处版本仍为 0.1.0；原生宿主需要启动脚本传入 Node/host-script 路径。
+  不能把已有开发机运行成功当作干净机器安装成功。
+- 既有 37 项测试及真实 Main 回复/只读工具往返是上一轮验收；本轮只做源码、
+  配置与远端核对，不重跑真实 Provider，不声明新的全量功能/CI 验收。
+- 本轮明确未就绪：全局助手/秘书真实问答、多专家调度、材料/批注发送、
+  DSH 分支接线、完整历史检索、安装签名、升级恢复。当前仓库未见 release CI。
+
+### 完成标准与范围
+
+交付 Windows x64 内测产品 1.0.0-alpha.1（系列名称 1.0.0-alpha），而不是
+只改版本号。保留批准的 UI、DSH、SQLite 与文件原件布局，不重写后端/前端框架。
+内测必须支持：首次配置模型、建项目、导入常见材料、主专家工作、独立秘书问答、
+多专家讨论、可审阅的真实产物、全局助手按授权查询、关闭/重开接续，以及查询
+历史/材料/执行结果。所有核心可见按钮必须有真实操作、明确作用域与错误回执。
+非核心尚不支持的功能明确隐藏或禁用并解释，不保留模拟成功和演示数据。
+
+### A：完整任务闭环（下一项开发；包含一次早期安装技术验证）
+
+1. 根据 docs/page-manifest.json、49 份页面说明和实际 data-v/data-action 入口，
+   在本手册维护页面/动作验收矩阵：入口、接口、数据所有者、权限、空/忙/错状态、
+   持久化、实测状态。页面数量不等于功能数量。继续保留原型作为设计参照。
+2. 复用 adapters/runtime-dsh/host.mjs、session-control.mjs 与已有服务；将
+   scripts/desktop-api.mjs 中确有复用需求的调用/身份绑定抽成小模块，避免为三类
+   角色复制整套 agent loop。生产 UI 在 desktop/ 接线，不修改批准 HTML。
+3. 建立明确绑定：Main=project/chat；专家=task/chat + expertId；秘书私聊与
+   生命周期整理分开；全局助手使用独立全局会话。全局助手可按用户授权检索其他
+   项目，不默认把全库/全部私聊塞入 prompt。授权范围与 persona、模型分开。
+   主专家负责主要撰写，其他专家提供建议/检索/分析，也可接到明确写作任务。
+4. 多 @ 明确形成目标列表，冻结本轮公共输入，各目标独立接收指派；自由讨论按显式目标派发，
+   有序讨论按同日用户修订并行执行、固定顺序展示。不向同伴传播思维链/工具原始历史。文件写入
+   避免多个执行者无协调覆盖同一文件；单个失败不能抹掉其他人的结果。
+5. 实接角色/模型/提示词设置：保存与生效分开；空闲显式应用提示词、保留历史并
+   留下变更记录。模型切换复用上游支持能力，明确历史语义，禁止静默 fallback。
+6. 接通材料/批注/秘书草稿发送：固定来源与版本，接收成功才清空本次草稿/批注；
+   用户后来输入的内容不被异步回执清掉。秘书建议不自动改变正式研究决定。
+   复用成熟解析工具提供 PDF/DOCX/Markdown/TXT/CSV/XLSX 最小阅读路径；扫描件
+   无 OCR 时明确提示。图片依模型能力；不支持的文件保留原件并可用默认应用打开。
+   至少完成一种编辑后文稿交付（DOCX 或用户明确选定格式），不是仅返回聊天文本。
+7. 接入 DSH 已有工具、skills/MCP 的最小配置与可见执行路径：文件、检索、文档/
+   数据处理优先；选择少量成熟组件，不新造插件平台。列出已启用能力和依赖，
+   skills 不赋权。缺少搜索凭据/外部服务时明确不可用，不阻塞离线科研工作。
+8. 统一发送/停止/失败/重试/审批状态，包含全局助手与秘书窗口。上下文/缓存/用量
+   有真实数据才显示。查询从持久历史与 Catalog 取数，不能只搜索当前 60 条 DOM。
+   知识更新采用有来源的候选与确认，项目过滤是全局库视图；私有偏好隔离。
+9. 提前做不发布的安装技术验证：捆绑 Node/DSH 能否在无开发工具的 Windows
+   启动。这是 A 阶段并行排雷，不等 UI 全部完成后才发现 runtime 无法分发。
+
+源码落点：desktop/live-chat.mjs、workspace.mjs、preferences.mjs、model-settings.mjs、
+execution.mjs、work-mode.mjs、workbench.mjs、library.mjs；scripts/desktop-api.mjs、
+chat-store.mjs、application-database.mjs、workbench-store.mjs；DSH adapter 边界。
+仅按需要拆分这些现有文件，不恢复旧仓库的大量分层包。
+
+A 验收：一个新项目完成“导入→提问→至少两位专家讨论→秘书私问→用户纠偏→主专家
+执行→文件产物→版本/日志可查”；同时全局助手独立问答；重启后可接续，各角色不
+串话，错误/取消可解释。离线回归 + 少量授权真实 Provider；不把论文质量当发布门槛。
+
+### B：安装、数据生命周期、签名与升级
+
+- src-tauri/src/main.rs 改为从安装资源目录解析自身 Node/DSH/host；不依赖
+  D:/nodejs、开发 PATH、PowerShell 编译脚本或工作树绝对路径。打包已验证的 Node
+  版本及实际依赖；最小 Python 工具集按 A 的文件/计算需求捆绑并验证许可证。
+  WSL 是可选执行环境，不是所有用户安装/首次运行的强制条件，不承诺当普通文件捆绑。
+- 使用 Tauri 标准 Windows NSIS 安装链，提供选择安装位置、桌面/开始菜单快捷方式、
+  正常卸载和明确的数据保留选项。主窗口关闭=退出所有自有宿主/工具进程与辅助窗口。
+  先支持 Windows x64，不同时扩展三平台。
+- 尽量保持一个用户选择的可写 ScienceScope 根目录，内部程序资源与稳定 data 分开。
+  受保护安装目录不可写时必须明确选择可写数据位置，不能静默散落文件或要求管理员
+  身份运行科研任务。快捷方式/卸载登记等 OS 集成是明确例外。
+- 凭据、SQLite、DSH 历史、项目文件/导图/原件都不被升级覆盖。采用一致性数据库
+  备份与版本化迁移；文件迁移有恢复记录。回退旧程序前确认数据兼容，不对已升级
+  数据库盲目运行旧代码。中断更新保留旧版可启动及数据可恢复路径。
+- 接 Tauri updater + GitHub Releases 的独立 alpha 通道；检查/下载/验证/用户确认/
+  保存与停任务/安装/重启。无缝=不丢数据、无需重装环境，不是边执行边替换 runtime。
+  签名验证失败拒绝更新；断网/取消不会损坏当前安装。首次发布前演练一次
+  alpha.1 候选包→alpha.2 测试包升级，不拿唯一用户库试验。
+- 发布者展示名 peroperoyui；关于/开发手册写 Contributors: Codex (AI-assisted
+  development)。不冒用不存在的 GitHub 作者邮箱，不承诺修改 GitHub 自动贡献统计。
+- Windows Authenticode 和 updater 签名是两件事。产品 publisher 名称不是证书。
+  公共信任签名依赖用户持有/申请合适证书或签名服务；证书法定主体可能与 GitHub ID
+  不同。自签可用于约定的封闭测试，但不能宣称 Windows 默认受信任或保证无警告。
+  没有证书/密钥之前，签名验收保持 BLOCKED，不伪装完成；此时可继续其余开发。
+- 新增必要 Windows build/release workflow：锁文件安装、离线测试、构建、签名、
+  产物/发布说明/依赖许可、更新清单；普通 PR 不用真实 API key；发布只在明确 tag
+  和受控发布步骤执行。证书/更新私钥不进仓库、包体、模型上下文与日志。
+
+B 验收：干净 Windows 机器没有 Node/Python/Rust/仓库也能安装、快捷方式启动、
+配置自己的 API、完成 A 的核心路径；签名可核查；程序退出无残留；同根数据在
+升级后完整；卸载默认保留研究数据。安装与升级都用候选包，不用 cargo run 代替。
+
+### C：候选包真实内测与上线门槛
+
+- 对同一个待发布构建逐页走查动作矩阵：主窗/各辅助窗、空库/有库、短/长对话、
+  拖入/默认程序打开、持久化、查询定位、快捷键、常用缩放/DPI与窗口大小。
+- 至少一次两项目完整任务 + 一次多轮讨论/执行/纠偏/重开；读取真实材料只使用
+  用户已授权的数据和模型。测试在干净备份后的独立副本，所有路径指向本副本。
+- 针对实际边界核对串话、跨项目误写、密钥泄漏、审批/取消、重复提交、请求失败、
+  磁盘不可写/外接盘失联、迁移/更新中断；不铺设无关的庞大安全测试框架。
+- 后台接口结果与 UI 状态一致；没有假数据/空按钮；错误可查，导出诊断不包含
+  API key/默认全文私聊。已知限制列入发布说明而不是藏在按钮后。
+- 每个核心功能必须有当前候选包证据。核心阻塞未清零或签名/安装/升级未通过，
+  不标记 ready、不公开上线；远端 CI 以实际状态为准。
+
+### 开发交接与本轮边界
+
+三个阶段是三项交付目标，不要求一次巨大 commit。允许跨阶段并行排雷，保持小而
+可审查提交。主实现负责接口/上下文/权限/集成；有界代理负责明确的页面接线、
+fixture 与回归；最终依据实际 diff 和运行结果，不采用未经核查的子代理结论。
+README 后续区分产品启动与 HTML 原型；CODEX_START 指向本节；本手册和
+NATIVE_SETUP 记录当前状态，不新增平行膨胀的状态系统。
+
+待用户提供的外部条件：Windows 签名证书/签名服务选择，以及发布时的签名密钥
+保管与授权。尚未采购、生成生产签名私钥、修改 GitHub Secrets 或发布 Release。
+规划轮仅更新计划/开发说明；后续实施记录见本节顶部。未获发布授权时不提交或推送。
+
+官方实现依据（2026-09-19 核对）：
+- https://v2.tauri.app/distribute/windows-installer/
+- https://v2.tauri.app/distribute/sign/windows/
+- https://v2.tauri.app/plugin/updater/
+
 ## Latest: usable native Main conversation and composer controls (2026-09-19)
 
 - Native main and auxiliary WebViews disable DevTools; browser context menus and
