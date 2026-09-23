@@ -1,5 +1,24 @@
 # Desktop implementation — first increment
 
+## 2026-09-23 No stray console window (Claude, cloud) — pending native check
+
+User report: launching ScienceScope left a terminal window open. Cause: the
+launcher runs the **debug** executable, and `windows_subsystem = "windows"` was
+only applied to release builds, so Windows attached a console that the Node host
+and DSH children shared. Now:
+
+- `src-tauri/src/main.rs` uses the GUI subsystem in every build.
+- The Node host starts with `CREATE_NO_WINDOW`; DSH processes it spawns inherit
+  that windowless console instead of opening their own.
+- Host stderr, previously printed to that console, is written per launch to
+  `<exe dir>/data/logs/desktop-host.log` (under `.sciencescope-local`, not tracked).
+  Stdout still carries only the capability line.
+
+Tested: `cargo check` for Linux and for `x86_64-pc-windows-msvc` (type-check only,
+temporary icons, no resource compile). **Not yet verified on Windows**: rebuild the
+debug client and confirm no console window, no flashing windows while a turn runs
+tools, and that the log file is written. See `docs/tasks/T02_console_window.md`.
+
 ## 2026-09-23 T01 round 2 — Windows acceptance and per-launch API authority
 
 Baseline: `a22353c786871b25f49027198bad2157946301f2`, fast-forwarded main in

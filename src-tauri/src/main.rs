@@ -1,4 +1,7 @@
-#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+// GUI subsystem in every build: the development launcher runs the debug
+// executable, and a console subsystem there opened a stray terminal window.
+// Host diagnostics go to data/logs/desktop-host.log instead.
+#![windows_subsystem = "windows"]
 
 use std::{
     fs,
@@ -408,7 +411,7 @@ impl Drop for HostProcess {
     }
 }
 
-fn host_url() -> Result<Option<(String, String, ChildHandle)>, Box<dyn std::error::Error>> {
+fn host_url(log_dir: &std::path::Path) -> Result<Option<(String, String, ChildHandle)>, Box<dyn std::error::Error>> {
     let node = match std::env::var_os("SCIENCESCOPE_NODE") {
         Some(value) if !value.is_empty() => value,
         _ => return Ok(None),
@@ -418,12 +421,24 @@ fn host_url() -> Result<Option<(String, String, ChildHandle)>, Box<dyn std::erro
         _ => return Ok(None),
     };
 
-    let mut child = Command::new(node)
+    std::fs::create_dir_all(log_dir)?;
+    // One log per launch; stdout carries only the capability line read below.
+    let host_log = fs::File::create(log_dir.join("desktop-host.log"))?;
+    let mut command = Command::new(node);
+    command
         .arg(script)
         .arg("--desktop")
         .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .spawn()?;
+        .stderr(Stdio::from(host_log));
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        // CREATE_NO_WINDOW: the host gets a console without a window, and the
+        // DSH processes it starts inherit that console instead of opening theirs.
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        command.creation_flags(CREATE_NO_WINDOW);
+    }
+    let mut child = command.spawn()?;
     #[cfg(windows)]
     let job = match windows_job::Job::for_child(&child) {
         Ok(job) => job,
@@ -632,7 +647,7 @@ fn main() {
                 dimensions_path,
             });
 
-            let hosted = host_url()?;
+            let hosted = host_url(&root.join("data").join("logs"))?;
             let mut config = app.config().app.windows[0].clone();
             if let Some((url, api_token, child)) = hosted {
                 let parsed_url = url::Url::parse(&url)?;
