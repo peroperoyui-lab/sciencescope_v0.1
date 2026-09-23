@@ -29,7 +29,7 @@ export function createDiscussionService({ host, chatStore, db }) {
     if (!messageIds.length) return new Map();
     const marks = messageIds.map(() => '?').join(',');
     const rows = db.prepare(`SELECT * FROM discussion_entries WHERE chat_id=? AND message_id IN (${marks})`).all(chatId, ...messageIds);
-    return new Map(rows.map((row) => [row.message_id, { runId: row.run_id, expertId: row.expert_id, label: row.label, role: row.role, model: row.model_json ? JSON.parse(row.model_json) : null, stopReason: row.stop_reason }]));
+    return new Map(rows.map((row) => [row.message_id, { runId: row.run_id, expertId: row.expert_id, label: row.label, role: row.role, model: row.model_json ? JSON.parse(row.model_json) : null, stopReason: row.stop_reason, position: row.position }]));
   }
 
   /**

@@ -19,7 +19,8 @@ async function fixture() {
     runExperts: async ({ runId, prompt, experts, onEvent }) => {
       state.runs.push({ prompt, experts });
       const result = experts.map((expert) => ({ expertId: expert.id, stopReason: 'completed', text: `${expert.id.toUpperCase()}_VIEW`, ms: 5 }));
-      for (const entry of result) { onEvent({ type: 'expert-start', runId, expertId: entry.expertId }); onEvent({ type: 'expert-end', runId, ...entry }); }
+      // Finish in reverse roster order, as real experts finish in any order.
+      for (const entry of [...result].reverse()) { onEvent({ type: 'expert-start', runId, expertId: entry.expertId }); onEvent({ type: 'expert-end', runId, ...entry }); }
       return result;
     },
     cancelExperts: async () => {},

@@ -34,6 +34,14 @@ Not yet done: per-chat persistence of the selected work mode (resets to 工作 o
 finishes), a secretary-built disagreement matrix, and passing a discussion into
 Main's own history (use quotes for now).
 
+Live end-to-end result (`scripts/evals/discussion-api-live.mjs`, OpenCode Go): roster
+saved with glm-5.3-flash / qwen3.8-flash / mimo-v2.6-flash; independent round 351s,
+critique round 405s, all six answers completed and read back with correct author and
+model. The statistician used the bash tool seven times to recompute effect sizes and
+power, and in the critique round corrected its own earlier sample-size figure. Stored
+answers are in completion order; the messages API reorders each round by roster
+position, as the contract requires a fixed display order.
+
 Tests: `tests/expert-discussion-runtime.test.mjs` (real DSH + fixture: concurrency,
 per-expert model/persona isolation), `tests/discussion-api.test.mjs` (roster, rounds,
 records, errors), `scripts/discussion-ui-smoke.mjs` (Linux Chromium: ordered, critique,

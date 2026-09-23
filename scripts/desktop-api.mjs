@@ -247,7 +247,9 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         const activity=toolActivity.list({chatId:decodeURIComponent(chatMatch[1]),assistantMessageIds:page.messages.filter(m=>m.role==='assistant').map(m=>m.id),limit:200});
         for(const message of page.messages)if(message.role==='assistant')message.toolActivity=activity.filter(call=>call.assistantMessageId===message.id);
         for(const message of page.messages)if(message.role==='user')message.researchInput=researchDrafts.receipt(decodeURIComponent(chatMatch[1]),message.id);
-        if(discussions){const authors=discussions.entriesFor(decodeURIComponent(chatMatch[1]),page.messages.filter(m=>m.role==='assistant').map(m=>m.id));for(const message of page.messages)if(authors.has(message.id))message.expert=authors.get(message.id);}
+        if(discussions){const authors=discussions.entriesFor(decodeURIComponent(chatMatch[1]),page.messages.filter(m=>m.role==='assistant').map(m=>m.id));for(const message of page.messages)if(authors.has(message.id))message.expert=authors.get(message.id);
+          // Answers are stored in completion order; a round is always shown in roster order.
+          for(let start=0;start<page.messages.length;){const run=page.messages[start].expert?.runId;let end=start+1;if(run)while(end<page.messages.length&&page.messages[end].expert?.runId===run)end++;if(end-start>1)page.messages.splice(start,end-start,...page.messages.slice(start,end).sort((a,b)=>a.expert.position-b.expert.position));start=end;}}
         json(response,200,page); return true;
       }
       if (route === '/api/workspace' && request.method === 'GET') { json(response,200,await chatStore.getWorkspace()); return true; }
