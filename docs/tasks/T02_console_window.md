@@ -1,5 +1,7 @@
 # T02 · 确认启动时不再出现命令行窗口（小任务，只测不改）
 
+> 已并入 `T03_native_discussion_and_console.md`，不再单独执行。
+
 - 下达：Claude，2026-09-23；执行：Codex（Astra），用户本机 Windows。额度紧张，请只做下面几步。
 - 基线：最新 `main`。交付：只有文档改动时推送到 `codex/t02-console-YYYYMMDD`；**不要开 PR、不要合并**。
 
