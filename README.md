@@ -3,6 +3,7 @@
 ## 桌面客户端开发状态
 
 本轮试用与网页端讨论入口：[2026-09-20 交接清单](docs/WEB_REVIEW_HANDOFF.md)。
+Claude 深度审阅、已修复缺陷与路线建议：[2026-09-23 审阅](docs/REVIEW_CLAUDE_2026-09-23.md)。
 列明已实现、实际验证、未完成项和建议试用路径；不代表 alpha 已发布。
 
 当前仓库包含已批准的 HTML 设计基线，以及 `desktop/`、`scripts/`、`src-tauri/`
@@ -12,7 +13,7 @@
 [开发手册](docs/DESKTOP_IMPLEMENTATION.md)，本机开发启动见
 [Windows 环境说明](docs/NATIVE_SETUP.md)。当前尚无完成验收的正式安装包。
 
-Publisher: **peroperoyui**。Contributors: **Codex (AI-assisted development)**。
+Publisher: **peroperoyui**。Contributors: **Codex (AI-assisted development)**、**Claude (Anthropic, AI-assisted review & development)**。
 此署名不是 Windows 数字签名或已发布声明。
 
 ## 原始设计包

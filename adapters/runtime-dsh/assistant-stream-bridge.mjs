@@ -46,6 +46,13 @@ export function apply(ctx) {
       const result = event.data.message?.content?.find(block => block.type === 'tool-result');
       if (result) void enqueue({type:'tool-result',turn:event.data.turn,step:event.data.step,callId:String(result.toolCallId),isError:!!result.isError,resultPreview:previewValue(result.content)});
     }
+    if (event.type === 'assistant/attempt') {
+      // Only the provider's failure category leaves the child; the host maps it
+      // to a fixed user-facing message and never shows the raw provider text.
+      const finish = event.data?.stream?.findLast?.((record) => record?.chunk?.type === 'finish')?.chunk;
+      const failure = finish?.reason?.kind === 'error' ? finish.reason.failure : undefined;
+      if (failure) void enqueue({ type: 'attempt-failed', code: String(failure.code ?? '').slice(0, 80), message: String(failure.message ?? '').slice(0, 300) });
+    }
     if (event.type === 'assistant/message' || event.type === 'turn/end') void enqueue({ type: 'committed-event', eventType: event.type, seq:event.seq,time:event.time,data: committed(event.data) });
   });
 }

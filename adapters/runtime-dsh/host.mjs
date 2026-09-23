@@ -87,7 +87,11 @@ export async function createDshHost(options = {}) {
         const receiver = streamReceivers.get(message.sessionId);
         if (!receiver || message.token !== receiver.token) { response.writeHead(401); response.end(); return; }
         if (message.type !== 'control-ready' && message.type !== 'control-error' && message.type !== 'control-event') {
-          if (message.sequence !== receiver.sequence + 1) throw new Error('Stream frame missing');
+          // Reject replays, but tolerate a gap: the bridge drops a frame on a
+          // transient POST error and never resends it. Rejecting every later
+          // frame would lose run-idle and fail the whole turn.
+          if (!Number.isInteger(message.sequence) || message.sequence <= receiver.sequence) throw new Error('Stream frame replayed');
+          if (message.sequence !== receiver.sequence + 1) receiver.gaps = (receiver.gaps ?? 0) + 1;
           receiver.sequence = message.sequence;
         }
         if (message.type !== 'control-ready' && message.type !== 'control-error') {
@@ -114,10 +118,16 @@ export async function createDshHost(options = {}) {
     const streamToken = randomUUID()+randomUUID();
     let readyResolve; let readyReject;
     const controlReady = new Promise((resolve, reject) => { readyResolve = resolve; readyReject = reject; });
+    // control-error can arrive while harness.start() is still pending, before
+    // the race below observes this promise. An unobserved rejection terminates
+    // the whole desktop host process, so mark it handled here; every consumer
+    // still awaits controlReady and receives the rejection.
+    controlReady.catch(() => {});
     streamReceivers.set(sessionId, { token: streamToken, sequence:0, controlReady, onMessage: (message) => {
       if (message.type === 'control-ready') readyResolve(message);
       if (message.type === 'control-error') readyReject(new Error(message.error));
     } });
+    try {
     const research = await createResearchContextPatch({home:options.home,workspace:workspace ?? cwd,persona});
     patches.push(research.patchPath);
     const launchPatchId = randomUUID();
@@ -141,6 +151,7 @@ export async function createDshHost(options = {}) {
       await writeFile(patch,JSON.stringify([{id:'llm-pi-ai',config}]),{flag:'wx'});
       patches.push(patch);
     }
+    } catch (error) { streamReceivers.delete(sessionId); throw error; }
     let harness = harnesses.get(key);
     if (!harness) {
       harness = new sdk.DeepSeekHarness({
@@ -183,7 +194,9 @@ export async function createDshHost(options = {}) {
     let running = false;
     let visibleText = '';
     let beforeAttempt = '';
+    let lastFailure;
     receiver.onMessage = (message) => {
+      if (message.type === 'attempt-failed') lastFailure = message;
       if (message.type === 'control-event') {
         if (message.event && typeof message.event === 'object') onEvent?.(message.event);
         return;
@@ -209,14 +222,21 @@ export async function createDshHost(options = {}) {
       const controlUrl = new URL(control.controlEndpoint);
       const body = JSON.stringify({ token: receiver.token, sessionId, text });
       await new Promise((resolve, reject) => {
-        const req = request({ hostname: controlUrl.hostname, port: controlUrl.port, path: controlUrl.pathname, method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) }, timeout: TURN_TIMEOUT_MS }, (response) => { response.resume(); response.statusCode === 204 ? resolve() : reject(new Error(`DSH session control failed: HTTP ${response.statusCode}`)); });
-        req.on('error', reject); req.on('timeout', () => req.destroy(new Error('DSH session control timed out'))); req.end(body);
+        // /prompt answers only when the whole agent turn is idle, so the socket
+        // is legitimately silent for the full turn. Research turns with tool
+        // loops routinely exceed any fixed idle timeout; a timeout here would
+        // report failure while DSH keeps working. The turn is bounded instead
+        // by the user's Stop (/interrupt) and by child-process exit (socket error).
+        const req = request({ hostname: controlUrl.hostname, port: controlUrl.port, path: controlUrl.pathname, method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) } }, (response) => { response.resume(); response.statusCode === 204 ? resolve() : reject(new Error(`DSH session control failed: HTTP ${response.statusCode}`)); });
+        req.on('error', reject); req.end(body);
       });
       const deadline = Date.now() + STREAM_TIMEOUT_MS;
       while (!drained && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 10));
       if (!drained) throw new Error('DSH assistant stream did not finish delivery');
       const result = { sessionId, finalResponse: visibleText, events: [], notifications: [] };
-      if (!result.finalResponse?.trim()) throw new Error('DSH run ended without a final text response');
+      if (!result.finalResponse?.trim()) {
+        throw new Error(lastFailure ? `DSH model request failed (${lastFailure.code}): ${lastFailure.message}` : 'DSH run ended without a final text response', lastFailure ? { cause: { code: lastFailure.code } } : undefined);
+      }
       onEvent?.({ type: 'completed', sessionId, text: result.finalResponse, committed: true });
       return result;
     } finally { receiver.onMessage = () => {}; }
