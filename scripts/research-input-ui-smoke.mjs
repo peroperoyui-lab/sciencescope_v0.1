@@ -3,13 +3,14 @@ import path from 'node:path';
 import {mkdir,mkdtemp,rm} from 'node:fs/promises';
 import {chromium} from 'playwright-core';
 import {createDesktopServer} from './preview-desktop.mjs';
+import {apiFetch,installApiToken} from './smoke-auth.mjs';
 const base=path.resolve('.sciencescope-local/temp');await mkdir(base,{recursive:true});const root=await mkdtemp(path.join(base,'research-input-ui-'));
 let browser,server,debugPage;const calls=[],errors=[];
 try{
   server=await createDesktopServer({dataRoot:root,outputDir:path.join(root,'assets'),runtimeHost:{capabilities:{tokenStreaming:true},listProviders:async()=>[{id:'fixture',name:'Fixture',models:['one']}],getModelInfo:async()=>({}),getRuntimeConfig:async()=>({}),startSession:async({sessionId})=>sessionId||'session-1',configurePolicy:async()=>{},configureReasoning:async()=>{},observeSession:()=>()=>{},getContextUsage:async()=>null,releaseSession:async()=>{},close:async()=>{},send:async({text,onEvent})=>{calls.push(text);onEvent({type:'text-delta',delta:'Research **bold** source tail'});onEvent({type:'completed',text:'Research **bold** source tail'});}}});
-  const response=await fetch(server.url+'api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chatId:'source',projectId:null,text:'Source question',model:{providerId:'fixture',modelId:'one'},userMessageId:'source-user',assistantMessageId:'source-answer'})});await response.text();assert.equal(response.status,200);
-  browser=await chromium.launchPersistentContext(path.join(root,'profile'),{headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',env:{...process.env,TEMP:root,TMP:root}});
-  const page=await browser.newPage();debugPage=page;page.on('pageerror',e=>errors.push(e.message));await page.goto(server.url);
+  const response=await apiFetch(server,'api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chatId:'source',projectId:null,text:'Source question',model:{providerId:'fixture',modelId:'one'},userMessageId:'source-user',assistantMessageId:'source-answer'})});await response.text();assert.equal(response.status,200);
+  browser=await chromium.launchPersistentContext(path.join(root,'profile'),{headless:true,executablePath:process.env.SCIENCESCOPE_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',env:{...process.env,TEMP:root,TMP:root}});
+  const page=await browser.newPage();debugPage=page;await installApiToken(page,server);page.on('pageerror',e=>errors.push(e.message));await page.goto(server.url);
   await page.waitForFunction(()=>window.ScienceScopeWorkspace?.ready&&window.ScienceScopeResearchInput);
   await page.evaluate(async()=>{await window.ScienceScopeWorkspace.ready;await window.SSV2.loadThread('source');});
   await page.waitForSelector('#message-source-answer .message-text');

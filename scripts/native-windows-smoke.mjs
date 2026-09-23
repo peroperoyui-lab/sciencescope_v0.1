@@ -11,7 +11,7 @@ try {
   await main.evaluate(()=>window.ScienceScopeWorkspace.ready);
   await main.evaluate(async id=>{
     if(!S.projects.some(p=>p.id===id))S.projects.push({id,name:'窗口验收临时项目',desc:'只检查独立窗口，不调用模型。'});
-    await fetch('/api/workspace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projects:S.projects})});
+    const {hostRequest}=await import('/desktop/host-client.mjs');await hostRequest('workspace',{projects:S.projects});
   },projectId);
   // Persistent orb/panel behavior is covered by native-client-smoke.mjs.
   for(const surface of ['quick','map','browser']) {
@@ -37,7 +37,7 @@ try {
 }finally {
   if(!main.isClosed())await main.evaluate(async id=>{
     S.projects=S.projects.filter(p=>p.id!==id);
-    await fetch('/api/workspace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projects:S.projects})});
+    const {hostRequest}=await import('/desktop/host-client.mjs');await hostRequest('workspace',{projects:S.projects});
     render();
   },projectId);
   await browser.close();

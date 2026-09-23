@@ -4,6 +4,7 @@ import path from 'node:path';
 import {mkdir,mkdtemp,rm} from 'node:fs/promises';
 import {chromium} from 'playwright-core';
 import {createDesktopServer} from './preview-desktop.mjs';
+import {apiFetch,installApiToken} from './smoke-auth.mjs';
 const base=path.resolve('.sciencescope-local/temp');await mkdir(base,{recursive:true});
 const root=await mkdtemp(path.join(base,'navigation-'));
 let browser;
@@ -20,10 +21,11 @@ const host={
 const server=await createDesktopServer({dataRoot:root,outputDir:path.join(root,'assets'),runtimeHost:host});
 try {
   browser=await chromium.launchPersistentContext(path.join(root,'profile'),{
-    executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+    executablePath:process.env.SCIENCESCOPE_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
     headless:true,viewport:{width:1440,height:960},env:{...process.env,TEMP:root,TMP:root},
   });
   const page=await browser.newPage(),errors=[],dialogs=[],missing=[];
+  await installApiToken(page,server);
   page.on('pageerror',error=>errors.push(error.message));
   page.on('dialog',dialog=>{dialogs.push(dialog.type());void dialog.dismiss();});
   page.on('response',response=>{if(response.status()===404&&response.url().includes('/desktop/'))missing.push(response.url());});
@@ -36,7 +38,7 @@ try {
   await page.locator('[data-draft="main"]').fill('第一条消息');
   await page.locator('[data-v="send"][data-scope="main"]').click();
   await page.waitForFunction(()=>S.messages.some(m=>m.text==='LOCAL_REPLY')&&!V.pending.has(V.chat));
-  const persisted=await (await fetch(server.url+'api/chats')).json();
+  const persisted=await (await apiFetch(server,'api/chats')).json();
   assert.equal(persisted.chats.length,1);
   assert.equal(persisted.chats[0].id,first);
   await page.waitForFunction(()=>document.querySelector('[data-usage="main"]')?.style.getPropertyValue('--context-pct')==='25%');
@@ -48,11 +50,13 @@ try {
   assert.notEqual(await page.evaluate(()=>V.chat),first);
   assert.equal(await page.locator('[data-draft="main"]').inputValue(),'');
   assert.equal(await page.locator('[data-usage="main"]').getAttribute('data-context-known'),'false');
-  assert.equal((await (await fetch(server.url+'api/chats')).json()).chats.length,1,'draft alone does not create a durable chat');
-  assert.equal(await page.evaluate(()=>{
-    const event=new KeyboardEvent('keydown',{key:'F5',bubbles:true,cancelable:true});
-    return !window.dispatchEvent(event);
-  }),true);
+  assert.equal((await (await apiFetch(server,'api/chats')).json()).chats.length,1,'draft alone does not create a durable chat');
+   assert.equal(await page.evaluate(()=>{
+     const target=document.activeElement instanceof HTMLElement ? document.activeElement : document.body;
+     const event=new KeyboardEvent('keydown',{key:'F5',bubbles:true,cancelable:true});
+     target.dispatchEvent(event);
+     return event.defaultPrevented;
+   }),true);
   await page.evaluate(()=>openPanel('browser'));
   assert.match(await page.locator('.browser-panel').innerText(),/尚未接入/);
   assert.equal(await page.locator('.browser-document').count(),0);

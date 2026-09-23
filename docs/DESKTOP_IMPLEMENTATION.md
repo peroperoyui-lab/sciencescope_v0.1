@@ -1,5 +1,90 @@
 # Desktop implementation — first increment
 
+## 2026-09-23 T01 round 2 — Windows acceptance and per-launch API authority
+
+Baseline: `a22353c786871b25f49027198bad2157946301f2`, fast-forwarded main in
+`H:/ScienceScope_v0.1`; implementation branch `codex/t01-round2-20260923` in
+the existing H-drive desktop worktree. No reset, PR, merge or runtime redesign.
+
+### Part 1: actual Windows / OpenCode Go (not fixtures)
+
+- `node scripts/failed-send-draft-smoke.mjs`: PASS on installed Edge; two local
+  requests, zero Provider requests. Original text returns after failure; newer
+  text typed during the run is not overwritten.
+- **F1 PASS:** actual native UI resent the nonexistent model test with
+  `T01_ROUND2_F1: Do not use tools. Reply exactly OK.`. The host stayed available
+  (HTTP 200), Chinese model-not-found error appeared, Send returned, and native
+  accessibility confirmed the exact text back in the composer. No production
+  fix was made to the already-merged `desktop/live-chat.mjs`.
+- **F2 PASS for the desktop-host/runtime/persistence/native-display path:** one
+  synthetic request submitted to the actual desktop host API using full mode and
+  `deepseek-v4.1-flash`. One `pwsh` call ran
+  `Start-Sleep -Seconds 330; echo SLEPT` with timeoutMs=420000; successful result
+  `SLEPT` persisted, then assistant text included `SCIENCESCOPE_T01_LONG_OK`.
+  Activity was completed. The native client reloaded and displayed that final
+  response and the completed tool group with full mode. This was not a second
+  paid request or an isolated direct-DSH substitute.
+- The temporary Node fetch observer itself hit `UND_ERR_BODY_TIMEOUT` at about
+  five minutes. This is a test-driver limitation, not hidden as a passing stream
+  capture: the actual host continued, completed, and persisted the response.
+  Future long-running Node observers should disable their own body idle timeout.
+- Paid application turns: two (one invalid model, one long tool round). The long
+  round contains tool-selection and final-answer model steps. No independent
+  wire counter/billing total is claimed. No real research file was read or changed.
+- Temporary invalid model entry removed; 30 original model IDs and saved DSH
+  credential retained. No key or per-launch token written to tracked files.
+
+### Parts 2/3: implementation
+
+- Every `createDesktopServer` generates an independent 32-byte random API token;
+  all `/api/*`, including status and binary assets, require Bearer authentication
+  using byte-length checks plus timingSafeEqual. Direct `createDesktopApi` tests
+  may omit it for compatibility. Production server never omits it.
+- The token is passed only in the desktop readiness pipe and kept in memory.
+  All native windows receive an origin-guarded, non-enumerable, immutable property.
+  Frontend requests share host-client; unload saves use authenticated keepalive
+  rather than unauthenticated sendBeacon. Images use authenticated blobs/object
+  URLs, never token query parameters or an unauthenticated asset exception.
+- Static capability no longer grants all loopback ports. Runtime capability uses
+  exactly the spawned host's origin with local=false, reusing the existing
+  permission list. This also covers built-in window/event IPC, rather than only
+  checking custom commands. Secondary URLs derive from the stored host authority,
+  not from the currently navigated main window.
+- Browser/HTTP smoke runners receive the token from their owning server; native
+  fixture readiness forwards it. Diagnostics never print token values. Test-only
+  browser injection is restricted to the matching fixture origin.
+
+### Verification
+
+- `npm test`: 107/107 PASS (default concurrency=2).
+- `cargo build --offline --manifest-path src-tauri/Cargo.toml`: PASS using the
+  project-local Rust/Cargo cache and existing MSVC toolchain; no global env changes.
+- `node scripts/native-api-token-smoke.mjs`: PASS. Main, assistant, orb, quick,
+  map and browser windows read authenticated status. The property is immutable
+  and non-enumerable. On another loopback port it is absent and native IPC is
+  denied even though the Tauri bridge exists; returning to host origin works.
+  Main close exits the isolated native fixture. Zero paid requests.
+- First native auth-smoke launch failed while fixture readiness still lacked the
+  new token; fixed fixture wiring and reran successfully. No auth check was waived.
+- Actual saved-provider client was also launched with the new binary: authenticated
+  status available, configured Provider retained, temporary invalid model removed.
+- `node scripts/assistant-window-smoke.mjs`: PASS, including startup orb, panel
+  show/hide, preservation of an unsent draft, saved preference, and native exit.
+- `node scripts/research-input-ui-smoke.mjs`, `desktop-navigation-smoke.mjs`,
+  `settings-ui-smoke.mjs`, and `workbench-ui-smoke.mjs`: PASS. The workbench
+  check includes authenticated image decoding after reload. Navigation's F5
+  synthetic event now targets a DOM element like a real key event; settings
+  waits for the persisted template to finish loading. Assertions were retained.
+- Supplemental `node scripts/assistant-api-smoke.mjs --native`: FAILED before
+  the native stage at `providers/save` (HTTP 501, DSH host not ready in its fresh
+  fixture). This is not a 401 auth failure and was not bypassed or reported as
+  passed; root cause remains unconfirmed. Runtime adapter changes are out of
+  this task's permitted scope. The separate native-window/auth tests above pass.
+- `git diff --check`: PASS. Forbidden task files and merged draft restoration
+  remain unchanged. Provider-key exact scan found no key in Git diff. No automatic
+  release, PR or merge; delivery is a review branch, not an Alpha release claim.
+
+
 ## 2026-09-23 T01 Windows native acceptance — STOPPED at F1 draft retention
 
 Baseline: `ca9865f47fdfb07537c75121b3e5e64d5512858f` (latest fetched main).

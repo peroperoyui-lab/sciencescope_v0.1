@@ -1,4 +1,5 @@
 // Only the bundled Tauri page receives these scoped native window permissions.
+import {hostRequest} from './host-client.mjs';
 // The prototype still owns its browser-window fallback; this bridge only asks
 // the desktop host for a bounded, same-origin native surface.
 const SECONDARY_SURFACES = new Set(['assistant', 'map', 'browser', 'quick']);
@@ -41,9 +42,7 @@ window.ScienceScopeWindows = Object.freeze({
 
 // Apply launch preference once in the main WebView, never in a secondary window.
 if(!surface&&window.__TAURI__?.core?.invoke){
-  void fetch('/api/assistant-window/preferences',{cache:'no-store'}).then(async response=>{
-    if(!response.ok)throw new Error('Assistant launch preference unavailable');
-    const {startup}=await response.json();
+  void hostRequest('assistant-window/preferences').then(async ({startup})=>{
     if(startup==='orb'||startup==='expanded')await openNativeSurface({surface:'assistant',collapsed:startup==='orb'});
   }).catch(()=>{console.warn('Assistant launch preference could not be applied.');});
 }

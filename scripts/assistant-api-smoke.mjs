@@ -1,5 +1,6 @@
 // Offline real-DSH composition: three identities, explicit context, restart, cancel.
 import {createServer} from 'node:http';
+import {randomBytes} from 'node:crypto';
 import {mkdir,mkdtemp,rm,readFile,copyFile} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
 import path from 'node:path';
@@ -9,6 +10,7 @@ import {buildDesktop} from './build-desktop.mjs';
 import {chromium} from 'playwright-core';
 const base=path.resolve('.sciencescope-local/temp');await mkdir(base,{recursive:true});
 const root=await mkdtemp(path.join(base,'assistant-api-'));
+const apiToken=randomBytes(32).toString('hex');
 const calls=[];let api,server,origin,holdResolve,browser,native,proposalCalled=false;
 const nativeMode=process.argv.includes('--native');
 const entry=(process.argv.includes('--ui')||nativeMode)?await buildDesktop():null;
@@ -27,7 +29,7 @@ const fixture=createServer(async(req,res)=>{
   setTimeout(()=>res.end('data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'),250);
 });
 await new Promise(r=>fixture.listen(0,'127.0.0.1',r));
-async function launch(){api=await createDesktopApi({dataRoot:root,onError:error=>{if(process.env.SCIENCESCOPE_FIXTURE_DIAGNOSTICS==='1')console.error(error);}});server=createServer(async(q,r)=>{
+async function launch(){api=await createDesktopApi({dataRoot:root,apiToken,onError:error=>{if(process.env.SCIENCESCOPE_FIXTURE_DIAGNOSTICS==='1')console.error(error);}});server=createServer(async(q,r)=>{
   if(await api.handle(q,r))return;
   try{
     const pathname=new URL(q.url,'http://localhost').pathname;
@@ -37,7 +39,7 @@ async function launch(){api=await createDesktopApi({dataRoot:root,onError:error=
   }catch{r.writeHead(404);r.end();}
 });await new Promise(r=>server.listen(0,'127.0.0.1',r));origin=`http://127.0.0.1:${server.address().port}/api/`;}
 async function close(){await api?.close();server?.closeAllConnections();if(server)await new Promise(r=>server.close(r));api=null;server=null;}
-async function request(route,body){return fetch(origin+route,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});}
+async function request(route,body){return fetch(origin+route,{method:body?'POST':'GET',headers:{...(body?{'Content-Type':'application/json'}:{}),Authorization:`Bearer ${apiToken}`},body:body?JSON.stringify(body):undefined});}
 async function json(route,body){const r=await request(route,body);assert.equal(r.status,200,route);return r.json();}
 async function stream(route,body){const r=await request(route,body);assert.equal(r.status,200,route);const events=(await r.text()).trim().split('\n').map(JSON.parse);assert.ok(!events.some(e=>e.type==='failed'),JSON.stringify(events));return events;}
 const model={providerId:'sciencescope-assistant-fixture',modelId:'fixture'};
@@ -94,11 +96,11 @@ try{
     if(nativeMode){
       const executable=path.join(root,'sciencescope-desktop.exe');
       await copyFile(path.resolve('.sciencescope-local/build/tauri/debug/sciencescope-desktop.exe'),executable);
-      native=spawn(executable,[],{cwd:root,windowsHide:true,stdio:'ignore',env:{...process.env,SCIENCESCOPE_NODE:process.execPath,SCIENCESCOPE_HOST_SCRIPT:path.resolve('scripts/native-fixture-host.mjs'),SCIENCESCOPE_TEST_HOST_URL:origin.replace('/api/',''),WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:'--remote-debugging-port=9228',TEMP:root,TMP:root}});
+      native=spawn(executable,[],{cwd:root,windowsHide:true,stdio:'ignore',env:{...process.env,SCIENCESCOPE_NODE:process.execPath,SCIENCESCOPE_HOST_SCRIPT:path.resolve('scripts/native-fixture-host.mjs'),SCIENCESCOPE_TEST_HOST_URL:origin.replace('/api/',''),SCIENCESCOPE_TEST_API_TOKEN:apiToken,WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:'--remote-debugging-port=9228',TEMP:root,TMP:root}});
       for(let retry=0;retry<60;retry++){try{browser=await chromium.connectOverCDP('http://127.0.0.1:9228');break;}catch{await new Promise(r=>setTimeout(r,500));}}
       assert.ok(browser,'Native debug bridge did not become ready');context=browser.contexts()[0];
-    }else{context=await chromium.launchPersistentContext(path.join(root,'browser'),{headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',viewport:{width:1440,height:960},env:{...process.env,TEMP:root,TMP:root}});browser=context;}
-    const page=nativeMode?context.pages()[0]:await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+    }else{context=await chromium.launchPersistentContext(path.join(root,'browser'),{headless:true,executablePath:process.env.SCIENCESCOPE_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',viewport:{width:1440,height:960},env:{...process.env,TEMP:root,TMP:root}});browser=context;}
+    const page=nativeMode?context.pages()[0]:await context.newPage(),errors=[];if(!nativeMode)await page.addInitScript(({origin,token})=>{if(location.origin===origin)Object.defineProperty(window,'__SCIENCESCOPE_API_TOKEN__',{value:token,writable:false,enumerable:false,configurable:false});},{origin:origin.replace('/api/','').replace(/\/$/,''),token:apiToken});page.on('pageerror',e=>errors.push(e.message));
     await page.goto(origin.replace('/api/',''));
     await page.waitForFunction(()=>window.ScienceScopeAssistants);
     await page.evaluate(async()=>{await window.ScienceScopeWorkspace.ready;await window.SSV2.loadThread('main-a');openPanel('secretary');});
@@ -125,7 +127,7 @@ try{
       await opened;
       for(let i=0;i<40;i++){global=context.pages().find(p=>p.url().includes('surface=assistant')&&!p.url().includes('assistant-orb'));if(global)break;await new Promise(r=>setTimeout(r,100));}
       assert.ok(global,'Native assistant window missing');
-    }else{global=await context.newPage();await global.goto(origin.replace('/api/','')+'?surface=assistant');}
+      }else{global=await context.newPage();await global.addInitScript(({origin,token})=>{if(location.origin===origin)Object.defineProperty(window,'__SCIENCESCOPE_API_TOKEN__',{value:token,writable:false,enumerable:false,configurable:false});},{origin:origin.replace('/api/','').replace(/\/$/,''),token:apiToken});await global.goto(origin.replace('/api/','')+'?surface=assistant');}
     global.on('pageerror',e=>errors.push(e.message));
     await global.waitForFunction(()=>window.ScienceScopeAssistants?.entry('global').loaded);
     await global.locator('[data-assistant-input]').fill('UI_GLOBAL_QUERY');await global.locator('[data-assistant-input]').press('Enter');

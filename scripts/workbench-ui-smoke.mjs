@@ -1,5 +1,6 @@
 // Actual local host/store, browser interactions, no provider requests.
 import http from 'node:http';
+import {randomBytes} from 'node:crypto';
 import path from 'node:path';
 import {mkdir,mkdtemp,readFile,rm} from 'node:fs/promises';
 import assert from 'node:assert/strict';
@@ -10,8 +11,9 @@ import {defaultRoot} from './prepare-desktop.mjs';
 import {createChatStore} from './chat-store.mjs';
 const temp=path.join(defaultRoot,'.sciencescope-local/temp');await mkdir(temp,{recursive:true});
 const root=await mkdtemp(path.join(temp,'workbench-ui-'));
+const apiToken=randomBytes(32).toString('hex');
 process.env.TEMP=root;process.env.TMP=root;
-const api=await createDesktopApi({dataRoot:root});
+const api=await createDesktopApi({dataRoot:root,apiToken});
 const entry=await buildDesktop();
 const server=http.createServer(async(req,res)=>{
   if(await api.handle(req,res))return;
@@ -22,7 +24,8 @@ const server=http.createServer(async(req,res)=>{
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const url=`http://127.0.0.1:${server.address().port}`;
-const post=async(route,data)=>{const response=await fetch(url+'/api/'+route,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});assert.equal(response.status,200,await response.clone().text());return response.json();};
+const requestHeaders=(contentType=false)=>({...(contentType?{'Content-Type':'application/json'}:{}),Authorization:`Bearer ${apiToken}`});
+const post=async(route,data)=>{const response=await fetch(url+'/api/'+route,{method:'POST',headers:requestHeaders(true),body:JSON.stringify(data)});assert.equal(response.status,200,await response.clone().text());return response.json();};
 let context;
 try{
   await post('workspace',{projects:[{id:'wb-test',name:'工作站验收'}],pins:[],projectExpanded:{},lastChatId:null});
@@ -30,8 +33,8 @@ try{
   await seed.ensureChat({chatId:'long-chat',title:'双向历史',projectId:'wb-test'});
   for(let i=0;i<160;i++)await seed.appendMessage({chatId:'long-chat',id:'history-'+i,role:i%2?'assistant':'user',text:'历史 '+i+'\n\n'+('可追溯内容。'.repeat(15))});
   seed.close?.();
-  context=await chromium.launchPersistentContext(path.join(root,'edge'),{executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,viewport:{width:1500,height:1000},env:{...process.env,TEMP:root,TMP:root}});
-  const page=await context.newPage(),errors=[];page.on('pageerror',e=>{errors.push(e.message);console.log('UI error:',e.message);});
+  context=await chromium.launchPersistentContext(path.join(root,'edge'),{executablePath:process.env.SCIENCESCOPE_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,viewport:{width:1500,height:1000},env:{...process.env,TEMP:root,TMP:root}});
+  const page=await context.newPage(),errors=[];await page.addInitScript(({origin,token})=>{if(location.origin===origin)Object.defineProperty(window,'__SCIENCESCOPE_API_TOKEN__',{value:token,writable:false,enumerable:false,configurable:false});},{origin:url,token:apiToken});page.on('pageerror',e=>{errors.push(e.message);console.log('UI error:',e.message);});
   await page.goto(url);await page.waitForFunction(()=>window.ScienceScopeWorkbench?.ready);
   await page.evaluate(()=>loadThread('long-chat'));
   await page.waitForFunction(()=>{const box=document.querySelector('.messages');return box&&box.scrollHeight-box.scrollTop-box.clientHeight<5;});
@@ -73,12 +76,14 @@ try{
   await page.locator('[data-node="root"]').dispatchEvent('drop',{dataTransfer:await page.evaluateHandle(()=>{const transfer=new DataTransfer();transfer.items.add(new File([Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a8fsAAAAASUVORK5CYII='),c=>c.charCodeAt(0))],'node.png',{type:'image/png'}));return transfer;})});
   await page.waitForFunction(()=>S.nodes[0].images?.length===1&&document.querySelector('#mapsavestate')?.textContent==='项目文件 · 保存后更新预览');
   await page.evaluate(()=>window.ScienceScopeWorkbench.saveMap());
-  const saved=await fetch(url+'/api/workbench?projectId=wb-test').then(r=>r.json());
+  const saved=await fetch(url+'/api/workbench?projectId=wb-test',{headers:requestHeaders()}).then(r=>r.json());
   assert.equal(saved.map.edges.length,1);assert.equal(saved.map.edges[0].directed,true);assert.equal(saved.map.nodes[0].text.length,609);
   await page.reload();await page.waitForFunction(()=>window.ScienceScopeWorkbench?.ready);
   await page.evaluate(()=>{selectProject('wb-test');go('map');});
   assert.equal(await page.evaluate(()=>S.mapEdges.length),1);
   assert.equal(await page.evaluate(()=>S.nodes[0].images.length),1);
+  await page.waitForFunction(()=>document.querySelector('[data-node="root"] img')?.naturalWidth>0);
+  assert.ok(await page.locator('[data-node="root"] img').evaluate(img=>img.naturalWidth>0),'reloaded image must be decoded');
   assert.equal(await page.evaluate(()=>S.plans[0].title),'真实计划');
   assert.equal(await page.evaluate(()=>S.journals[0].title),'真实日志');
   const overflow=await page.locator('[data-node="root"] .nodetext').evaluate(el=>el.scrollWidth>el.clientWidth+2);
