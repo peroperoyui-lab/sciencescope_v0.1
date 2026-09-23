@@ -2,7 +2,6 @@
   "identifier": "main-window-controls",
   "description": "Local main window controls only; no filesystem or process execution.",
   "windows": ["main", "secondary-*"],
-  "remote": { "urls": ["http://127.0.0.1:*"] },
   "permissions": [
     "allow-open-secondary-window",
     "allow-set-assistant-mode",

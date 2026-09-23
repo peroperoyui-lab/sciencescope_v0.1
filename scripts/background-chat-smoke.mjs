@@ -3,6 +3,7 @@ import {mkdir,mkdtemp,rm} from 'node:fs/promises';
 import path from 'node:path';
 import {chromium} from 'playwright-core';
 import {createDesktopServer} from './preview-desktop.mjs';
+import {installApiToken} from './smoke-auth.mjs';
 const base=path.resolve('.sciencescope-local/temp');await mkdir(base,{recursive:true});
 const root=await mkdtemp(path.join(base,'background-ui-'));
 let release,more,browser;
@@ -20,11 +21,12 @@ const host={capabilities:{tokenStreaming:true},listProviders:async()=>[],close:a
 const server=await createDesktopServer({dataRoot:root,outputDir:path.join(root,'assets'),runtimeHost:host});
 try{
   browser=await chromium.launchPersistentContext(path.join(root,'profile'),{
-    executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,
+    executablePath:process.env.SCIENCESCOPE_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,
     viewport:{width:1440,height:960},env:{...process.env,TEMP:root,TMP:root},
   });
   const page=await browser.newPage(),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
+  await installApiToken(page,server);
   await page.goto(server.url);
   await page.waitForFunction(()=>window.ScienceScopeActivity&&window.ScienceScopeWorkspace?.ready);
   await page.evaluate(()=>window.ScienceScopeWorkspace.ready);

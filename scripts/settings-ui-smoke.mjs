@@ -3,13 +3,14 @@ import path from 'node:path';
 import {mkdir,mkdtemp,rm} from 'node:fs/promises';
 import {chromium} from 'playwright-core';
 import {createDesktopServer} from './preview-desktop.mjs';
+import {apiFetch,installApiToken} from './smoke-auth.mjs';
 const base=path.resolve('.sciencescope-local/temp');await mkdir(base,{recursive:true});
 const root=await mkdtemp(path.join(base,'settings-ui-'));let browser,server;
 try{
   server=await createDesktopServer({dataRoot:root,outputDir:path.join(root,'assets'),runtimeHost:{listProviders:async()=>[{id:'fixture',name:'Fixture',models:['one']}],getModelInfo:async()=>({reasoning:{efforts:[{id:'high',name:'High'}]}}),close:async()=>{}}});
-  browser=await chromium.launchPersistentContext(path.join(root,'profile'),{headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',env:{...process.env,TEMP:root,TMP:root}});
-  const page=await browser.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
-  const seeded=await fetch(server.url+'api/workspace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projects:[{id:'settings-project',name:'Settings fixture',desc:'',archived:false}],pins:[],projectExpanded:{},lastChatId:null})});assert.equal(seeded.status,200);
+  browser=await chromium.launchPersistentContext(path.join(root,'profile'),{headless:true,executablePath:process.env.SCIENCESCOPE_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',env:{...process.env,TEMP:root,TMP:root}});
+  const page=await browser.newPage(),errors=[];await installApiToken(page,server);page.on('pageerror',error=>errors.push(error.message));
+  const seeded=await apiFetch(server,'api/workspace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projects:[{id:'settings-project',name:'Settings fixture',desc:'',archived:false}],pins:[],projectExpanded:{},lastChatId:null})});assert.equal(seeded.status,200);
   await page.goto(server.url+'#general');await page.waitForFunction(()=>window.ScienceScopeWorkspace?.ready&&window.ScienceScopePreferences?.ready);
   await page.evaluate(async()=>{await window.ScienceScopeWorkspace.ready;await window.ScienceScopePreferences.ready;go('general');});
   await page.waitForSelector('#desktop-preferences-form');
@@ -40,7 +41,7 @@ try{
   await page.evaluate(()=>go('secretary-settings'));await page.waitForSelector('[data-role-form="secretary"]');
   await page.waitForSelector('[data-secretary-organize]:enabled');
   await page.locator('[data-secretary-organize]').check();
-  await page.waitForFunction(async()=>{const result=await fetch('/api/workbench?projectId=settings-project').then(r=>r.json());return result.autoOrganize===true;});
+  await page.waitForFunction(async()=>{const {hostRequest}=await import('/desktop/host-client.mjs');const result=await hostRequest('workbench?projectId=settings-project');return result.autoOrganize===true;});
   await page.waitForSelector('[name="notesTemplate"]:enabled');
   await page.locator('[name="notesTemplate"]').fill('# Custom persisted version template');
   await page.locator('[data-secretary-template] button').click();
@@ -49,6 +50,7 @@ try{
   await page.locator('[data-role-form] button[type="submit"]').click();
   await page.waitForFunction(()=>document.querySelector('[data-role-feedback]')?.textContent.includes('已保存'));
   await page.reload();await page.waitForSelector('[data-role-form="secretary"]');
+  await page.waitForFunction(()=>document.querySelector('[name="notesTemplate"]')?.value==='# Custom persisted version template');
   await page.waitForSelector('[name="notesTemplate"]:enabled');
   assert.equal(await page.locator('[name="notesTemplate"]').inputValue(),'# Custom persisted version template');
   assert.equal(await page.locator('[data-role-form] textarea[name="prompt"]').inputValue(),'Secretary saved from real settings UI.');
@@ -58,7 +60,7 @@ try{
   await page.locator('[data-role-form] select[name="effort"]').selectOption('high');
   await page.locator('[data-role-form] button[type="submit"]').click();
   await page.waitForFunction(()=>document.querySelector('[data-role-feedback]')?.textContent.includes('已保存'));
-  const second=await browser.newPage();await second.goto(server.url+'#general');await second.waitForSelector('#desktop-preferences-form');
+  const second=await browser.newPage();await installApiToken(second,server);await second.goto(server.url+'#general');await second.waitForSelector('#desktop-preferences-form');
   await second.locator('[name="chatFontSize"]').selectOption('20');await second.locator('#desktop-preferences-form button[type="submit"]').click();
   await page.waitForFunction(()=>document.documentElement.style.getPropertyValue('--chat-font-size')==='20px');
   await page.evaluate(()=>window.SSV2.newThread());await page.waitForSelector('[data-draft="main"]');

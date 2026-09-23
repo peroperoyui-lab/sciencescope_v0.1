@@ -201,6 +201,6 @@ const after=window.ScienceScopeWorkspace.afterRender;
 window.ScienceScopeWorkspace.afterRender=(...args)=>{after?.(...args);for(const root of document.querySelectorAll('.assistant-surface'))void load(entry(root.dataset.scope,root.dataset.owner));};
 setInterval(()=>{if(document.hidden)return;for(const e of entries.values())if(visible(e)&&e.running&&!e.sending)void load(e,true);},1500);
 setInterval(()=>{if(document.hidden)return;for(const e of entries.values())if(visible(e)&&e.sending&&!e.polling){e.polling=true;hostRequest('assistant?'+new URLSearchParams({scope:e.scope,ownerId:e.ownerId})).then(snapshot=>{e.approvals=snapshot.approvals||[];paint(e,{messages:false});}).catch(()=>{}).finally(()=>{e.polling=false;});}},1200);
-window.addEventListener('pagehide',()=>{for(const e of entries.values())if(e.loaded)navigator.sendBeacon('/api/assistant/draft',new Blob([JSON.stringify({scope:e.scope,ownerId:e.ownerId,text:e.draft})],{type:'application/json'}));});
+window.addEventListener('pagehide',()=>{for(const e of entries.values())if(e.loaded)void hostRequest('assistant/draft',{scope:e.scope,ownerId:e.ownerId,text:e.draft},{keepalive:true}).catch(()=>{});});
 window.ScienceScopeAssistants={ready:()=>Promise.all([...entries.values()].map(e=>load(e))),entry};
 render();
