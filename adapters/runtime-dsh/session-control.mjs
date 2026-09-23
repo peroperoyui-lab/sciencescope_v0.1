@@ -7,6 +7,7 @@ import { installModelSelection } from '@deepseek-ai/dsh-agent';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { randomUUID } from 'node:crypto';
 import { PERSONA_PREFIX_SECTION } from '@deepseek-ai/dsh-system-prompt';
+import { isTokenDelta } from '@deepseek-ai/dsh-llm';
 
 export const name = 'sciencescope-session-control';
 export const inject = ['agents', 'goals', 'approval', 'sandboxPolicy', 'llm'];
@@ -23,7 +24,9 @@ export function apply(ctx) {
     req.on('error', resolve); req.on('timeout', () => req.destroy()); req.end(body);
   });
   let eventSequence = 0;
-  const postEvent = (event) => postHost({ type: 'control-event', sequence: ++eventSequence, event });
+  // Serialised: expert text deltas must reach the host in order.
+  let eventTail = Promise.resolve();
+  const postEvent = (event) => { const sequence = ++eventSequence; eventTail = eventTail.then(() => postHost({ type: 'control-event', sequence, event })); return eventTail; };
   const pendingApprovals = new Map();
   const agentOptions = { provider: process.env.SCIENCESCOPE_PROVIDER, model: process.env.SCIENCESCOPE_MODEL };
   const noTools = process.env.SCIENCESCOPE_NO_TOOLS === '1';
@@ -70,6 +73,9 @@ export function apply(ctx) {
   // provider) with its own persona and model route, all answering the same
   // frozen prompt concurrently. The Main agent's history is not changed.
   const expertRuns = new Map();
+  // child session id → {runId, expertId}: lets progress of an expert's own
+  // agent (text and tool calls) reach the UI while the round is running.
+  const expertChildren = new Map();
   const EXPERT_ID = /^[A-Za-z0-9_-]{1,80}$/u;
   const runExperts = async (value) => {
     const subagents = ctx.get('subagents');
@@ -108,6 +114,7 @@ export function apply(ctx) {
             ...(Object.keys(agentOptions).length ? { agentOptions } : {}),
             ...(expert.tools === 'none' ? { toolFilter: { allow: [] } } : {}),
           });
+          expertChildren.set(String(run.id), { runId: value.runId, expertId: expert.id });
           const outcome = await run.result;
           const text = outcome.output.filter((block) => block?.type === 'text').map((block) => block.text).join('');
           const entry = { expertId: expert.id, stopReason: outcome.stopReason, text, ...(outcome.diagnostic ? { diagnostic: outcome.diagnostic.slice(0, 500) } : {}), ms: Date.now() - startedAt };
@@ -117,7 +124,7 @@ export function apply(ctx) {
           const entry = { expertId: expert.id, stopReason: controller.signal.aborted ? 'aborted' : 'error', text: '', diagnostic: String(error?.message ?? error).slice(0, 500), ms: Date.now() - startedAt };
           void postEvent({ type: 'expert-end', runId: value.runId, ...entry });
           return entry;
-        } finally { await run?.dispose().catch(() => {}); }
+        } finally { if (run) expertChildren.delete(String(run.id)); await run?.dispose().catch(() => {}); }
       }));
     } finally { expertRuns.delete(value.runId); }
   };
@@ -226,6 +233,16 @@ export function apply(ctx) {
       readyResolve();
       await postHost({ type: 'control-ready', controlEndpoint: `http://127.0.0.1:${address.port}/prompt`, resumed: true });
     } catch (error) { await postHost({ type: 'control-error', error: error.message }); }
+  });
+  ctx.on('agent/assistant-stream', ({ agent, frame }) => {
+    const child = expertChildren.get(String(agent?.session?.id));
+    if (!child) return;
+    if (frame.type === 'start') void postEvent({ type: 'expert-reset', ...child });
+    if (frame.type === 'chunk' && isTokenDelta(frame.chunk) && frame.chunk.type === 'text-delta' && frame.chunk.text) void postEvent({ type: 'expert-delta', ...child, delta: frame.chunk.text });
+  });
+  ctx.on('session/event', (eventSession, event) => {
+    const child = expertChildren.get(String(eventSession?.id));
+    if (child && event.type === 'tool/call') void postEvent({ type: 'expert-tool', ...child, name: String(event.data?.name || 'tool').slice(0, 120) });
   });
   ctx.on('goal/activation-changed', (event) => {
     if (String(event.sessionId) === sessionId) void postEvent({ type: 'goal-activation', ...event });
