@@ -263,20 +263,25 @@ export async function createDshHost(options = {}) {
     return true;
   }
 
-  async function control(sessionId, path, payload = {}) {
+  async function control(sessionId, path, payload = {}, { timeout = TURN_TIMEOUT_MS } = {}) {
     const receiver = streamReceivers.get(sessionId);
     if (!receiver) throw new Error(`Unknown DSH session: ${sessionId}`);
     const control = await receiver.controlReady;
     const controlUrl = new URL(control.controlEndpoint);
     const body = JSON.stringify({ token: receiver.token, sessionId, ...payload });
     return new Promise((resolve, reject) => {
-      const req = request({ hostname: controlUrl.hostname, port: controlUrl.port, path, method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) }, timeout: TURN_TIMEOUT_MS }, (response) => {
+      const req = request({ hostname: controlUrl.hostname, port: controlUrl.port, path, method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) }, ...(timeout ? { timeout } : {}) }, (response) => {
         let text = ''; response.setEncoding('utf8'); response.on('data', (chunk) => { text += chunk; }); response.on('end', () => {
           if (response.statusCode >= 200 && response.statusCode < 300) { try { resolve(text ? JSON.parse(text).result : undefined); } catch { resolve(undefined); } }
           else reject(new Error(`DSH session control failed: HTTP ${response.statusCode} ${text}`));
         });
       });
-      req.on('error', reject); req.on('timeout', () => req.destroy(new Error('DSH session control timed out'))); req.end(body);
+      req.on('error', reject);
+      // Node's default agent gives every socket a 5s idle timeout and only
+      // emits 'timeout'; a request meant to wait for a whole turn must not
+      // treat that as fatal, so the handler exists only with an explicit timeout.
+      if (timeout) req.on('timeout', () => req.destroy(new Error('DSH session control timed out')));
+      req.end(body);
     });
   }
 
@@ -299,10 +304,21 @@ export async function createDshHost(options = {}) {
   async function interrupt(sessionId) {return control(sessionId,'/interrupt');}
   async function replyApproval({sessionId,requestId,outcome}) {return control(sessionId,'/approval/reply',{requestId,outcome});}
   async function getContextUsage({ sessionId } = {}) { return control(sessionId, '/context-usage'); }
+  // Like /prompt, an expert round answers only when every expert settled, so
+  // it has no idle timeout; cancelExperts bounds it.
+  async function runExperts({ sessionId, runId, prompt, experts, onEvent } = {}) {
+    const stop = typeof onEvent === 'function' ? observeSession(sessionId, (frame) => {
+      const event = frame.type === 'control-event' ? frame.event : frame;
+      if (event?.runId === runId && (event.type === 'expert-start' || event.type === 'expert-end')) onEvent(event);
+    }) : () => {};
+    try { return await control(sessionId, '/experts', { runId, prompt, experts }, { timeout: 0 }); }
+    finally { stop(); }
+  }
+  async function cancelExperts({ sessionId, runId } = {}) { return control(sessionId, '/experts/cancel', { runId }); }
 
   const pause = pauseGoal;
   const resume = resumeGoal;
-  return { startSession, send, releaseSession, close, observeSession, sessionGoal, getGoal, pause, resume, pauseGoal, resumeGoal, completeGoal,clearGoal, configurePolicy,configureReasoning,configureModel,configurePersona,interrupt,replyApproval,getContextUsage, capabilities: DSH_CAPABILITIES };
+  return { startSession, send, releaseSession, close, observeSession, sessionGoal, getGoal, pause, resume, pauseGoal, resumeGoal, completeGoal,clearGoal, configurePolicy,configureReasoning,configureModel,configurePersona,interrupt,replyApproval,getContextUsage,runExperts,cancelExperts, capabilities: DSH_CAPABILITIES };
 }
 
 export default { createDshHost, DSH_CAPABILITIES };
