@@ -25,10 +25,10 @@ import {createChatAttachments} from './chat-attachments.mjs';
 
 function publicRuntimeMessage(error) {
   const raw = String(error?.message || '').toLowerCase();
-  if (/401|403|invalid credential|api key|unauthorized|authentication/.test(raw)) return '模型服务认证失败；请检查已保存的服务凭据。';
-  if (/429|quota|rate limit|too many requests/.test(raw)) return '模型服务暂时限流或额度不足；请稍后重试或检查服务额度。';
+  if (/\b401\b|\b403\b|invalid credential|api key|unauthorized|authentication/.test(raw)) return '模型服务认证失败；请检查已保存的服务凭据。';
+  if (/\b429\b|quota|rate limit|too many requests/.test(raw)) return '模型服务暂时限流或额度不足；请稍后重试或检查服务额度。';
   if (/timed out|timeout|econnrefused|enotfound|fetch failed|network/.test(raw)) return '无法连接模型服务；请检查服务地址和网络连接。';
-  if (/model not found|no configured model|unknown model|model_not_found|does not exist|\b404\b/.test(raw)) return '模型服务找不到所选模型；请在模型设置中确认模型 ID 仍然可用。';
+  if (/model not found|no configured model|unknown model|model_not_found|model is unavailable|model.{0,20}not (?:available|supported)|does not exist|\b404\b/.test(raw)) return '模型服务找不到所选模型；请在模型设置中确认模型 ID 仍然可用。';
   if (/context.?length|maximum context|too many tokens|context_length_exceeded|prompt is too long/.test(raw)) return '请求超过模型上下文上限；请减少附件材料或新建对话。';
   if (/reasoning.?effort/.test(raw)) return '模型不支持所选推理强度；请改用该模型公开支持的 reasoningEffort。';
   return '运行时请求失败；请检查模型配置和网络连接。';

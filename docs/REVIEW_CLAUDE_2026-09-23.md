@@ -187,3 +187,12 @@ ScienceScope 的差异化在"多模型交流"。成熟系统的共同经验：**
 - 未运行需要 Windows/Tauri 原生窗口或 Playwright 浏览器的 smoke 脚本；未调用任何付费 Provider；仓库内未加入任何密钥。
 - F1 的原始竞态在 Linux 上未能稳定复现（启动失败先于 control-error 返回），修复依据是机制验证与源码分析，
   请在 Windows 上用原先失败的"未注册模型"UI 路径重跑一次验收。
+
+### 4.1 真实 Provider 补测（2026-09-23，云端 Linux）
+
+`node scripts/runtime-hardening-live-smoke.mjs`，OpenCode Go `deepseek-v4.1-flash`，共 2 次付费请求：
+
+- 小请求：返回哨兵 `SCIENCESCOPE_LIVE_OK`，约 4 秒。PASS。
+- 不存在的模型：provider 返回 `400 … Model is unavailable`，宿主得到分类错误 `DSH model request failed (INVALID_REQUEST)`，进程存活。PASS。
+  据此把 "model is unavailable" 加入"找不到模型"的中文提示分类，并给 401/403/429 加上词边界，避免数字误判。
+- 超过 5 分钟的长轮次（`--long`）尚未在真实 provider 上运行；Windows 原生复验交给 `docs/tasks/T01_windows_acceptance_and_api_token.md`。
