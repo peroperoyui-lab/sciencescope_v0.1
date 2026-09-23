@@ -26,6 +26,7 @@ function syncRunButton() {
   button.disabled=stopping.has(V.chat);
   window.ScienceScopeOutbox?.paint();
 }
+window.ScienceScopeMainRun=Object.freeze({sync:syncRunButton});
 window.addEventListener('click',async event=>{
   if(!event.target.closest('[data-main-stop]'))return;
   event.preventDefault();event.stopImmediatePropagation();

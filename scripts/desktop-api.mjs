@@ -22,6 +22,8 @@ import {createToolActivityProjection} from './tool-activity.mjs';
 import {createChatOutbox} from './chat-outbox.mjs';
 import {createChatSearch} from './chat-search.mjs';
 import {createChatAttachments} from './chat-attachments.mjs';
+import {createExpertRoster,ExpertRosterError} from './expert-roster.mjs';
+import {createDiscussionService,DiscussionError} from './discussion-service.mjs';
 
 function publicRuntimeMessage(error) {
   const raw = String(error?.message || '').toLowerCase();
@@ -109,6 +111,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   const researchInput=createResearchInput({attachments,chatStore,getResource:id=>database.getResource(id)});
   const researchDrafts=createResearchInputStore({db:database.db});
   const library=createLibraryService({database,root:path.join(dataRoot,'.sciencescope-local','library'),workbench,getWorkspace:()=>chatStore.getWorkspace()});
+  const experts=createExpertRoster({db:database.db});
   let sessionHeaders = [];
   try { sessionHeaders = JSON.parse(await readFile(path.join(dataRoot,'.sciencescope-local/state/runtime-client.json'),'utf8')).sessionHeaders || []; } catch {}
   try {
@@ -132,6 +135,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     const {meta}=await workbench.project(id);return {name:meta.name,goal:meta.desc||''};
   }}):null;
   const execution=host?createExecutionService({host,database,chatStore,bindings}):null;
+  const discussions=host?.runExperts?createDiscussionService({host,chatStore,db:database.db}):null;
   const assistants=createAssistantChatService({host,conversations,chatStore,dataRoot,roleSettings});
   async function restoreExecution(chatId){
     if(bindings.has(chatId))return bindings.get(chatId);
@@ -139,6 +143,64 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     const sessionId=await host.startSession({model:chat.model,workspace:chatStore.getRuntimeWorkspace(chatId),runtimeConfig:await host.getRuntimeConfig?.(),sessionId:chatStore.getBinding(chatId),persona:roleSettings.bind(chatId,'main',{existing:true}).prompt});
     const binding={sessionId,modelKey:JSON.stringify(chat.model),lastUsed:Date.now()};bindings.set(chatId,binding);
     const status=await execution.status(chatId);await execution.configure(chatId,binding,status.mode);return binding;
+  }
+  // Shared by Main turns and expert discussions: start (or resume) the chat's
+  // DSH session and persist its binding exactly once.
+  async function ensureMainBinding({key,input,projectFolder,modelRoute,modelKey,reasoningEffort}) {
+    if (bindings.has(key)) return bindings.get(key);
+    const originalWorkspace = chatStore.getRuntimeWorkspace(input.chatId);
+    const workspace = input.temporary ? path.join(dataRoot,'.sciencescope-local','temp','quick',input.chatId) : (originalWorkspace || projectFolder || path.join(projects,'independent'));
+    await mkdir(workspace,{recursive:true});
+    const persona=input.temporary?roleSettings.get('main').prompt:roleSettings.bind(input.chatId,'main',{existing:!!chatStore.getBinding(input.chatId)}).prompt;
+    const session = await host.startSession({model:{...modelRoute,...(reasoningEffort === undefined ? {} : {reasoningEffort})},workspace,runtimeConfig:host.getRuntimeConfig ? await host.getRuntimeConfig() : undefined,sessionId:input.temporary ? undefined : chatStore.getBinding(input.chatId) ?? undefined,persona});
+    bindings.set(key,{sessionId:typeof session === 'string' ? session : session.sessionId,modelKey,lastUsed:Date.now()});
+    if (!input.temporary) {
+      await chatStore.ensureChat({chatId:input.chatId,projectId:input.projectId ?? null,title:input.title || input.text,model:input.model});
+      await chatStore.markRuntimeBinding(input.chatId,bindings.get(key).sessionId,workspace);
+    }
+    return bindings.get(key);
+  }
+  // Expert discussion turn. Same chat, project and session rules as Main; the
+  // experts run as DSH subagents of this chat's session.
+  async function handleDiscussion(input,response){
+    if(!discussions)throw new DiscussionError('RUNTIME_UNAVAILABLE','当前运行时不支持专家讨论。',503);
+    const kind=input.kind==='critique'?'critique':'independent';
+    const text=typeof input.text==='string'?input.text:'';
+    if(typeof input.chatId!=='string'||!/^[A-Za-z0-9_-]{1,160}$/u.test(input.chatId))throw new DiscussionError('INVALID_CHAT','对话标识无效。');
+    if(kind==='independent'&&!text.trim())throw new DiscussionError('TEXT_REQUIRED','请输入要讨论的问题。');
+    if(text.length>64000)throw new DiscussionError('TEXT_TOO_LONG','问题不能超过 64000 个字符。');
+    if(!input.model?.providerId||!input.model?.modelId)throw new DiscussionError('MODEL_REQUIRED','请选择模型。');
+    const userMessageId=input.userMessageId??'msg-'+randomUUID();
+    if(typeof userMessageId!=='string'||!/^[A-Za-z0-9_-]{1,160}$/u.test(userMessageId))throw new DiscussionError('INVALID_MESSAGE_ID','消息标识无效。');
+    const panel=experts.resolve(input.expertIds);
+    if(kind==='critique'&&!discussions.lastRound(input.chatId)?.entries.length)throw new DiscussionError('NO_PREVIOUS_ROUND','请先进行一轮独立讨论，再让专家互相质询。',409);
+    const executionMode=input.executionMode==='full'?'full':'ask';
+    const workspaceState=await chatStore.getWorkspace();
+    const projectId=input.projectId??null;
+    const currentProject=projectId===null?null:workspaceState.projects.find(project=>project.id===projectId&&!project.archived);
+    if(projectId!==null&&!currentProject)throw new DiscussionError('INVALID_PROJECT','请先选择有效的项目。');
+    const existingChat=chatStore.getChat(input.chatId);
+    if(existingChat?.deletedAt)throw new DiscussionError('CHAT_REMOVED','这条对话已移除。',404);
+    if(existingChat&&existingChat.projectId!==projectId)throw new DiscussionError('PROJECT_MISMATCH','此对话属于其他工作区；请先使用移动接口。',409);
+    const modelRoute={providerId:input.model.providerId,modelId:input.model.modelId};const modelKey=JSON.stringify(modelRoute);
+    if((existingChat?.model&&JSON.stringify({providerId:existingChat.model.providerId,modelId:existingChat.model.modelId})!==modelKey)||(bindings.has(input.chatId)&&bindings.get(input.chatId).modelKey!==modelKey))throw new DiscussionError('MODEL_MISMATCH','此对话已绑定模型；更换模型请新建聊天，避免隐式丢失历史。',409);
+    if(existingChat&&database.db.prepare('SELECT 1 FROM messages WHERE chat_id=? AND id=?').get(input.chatId,userMessageId))throw new DiscussionError('DUPLICATE_MESSAGE','这条消息已被接收，不会重复发送。',409);
+    if(pending.has(input.chatId)||execution?.busy(input.chatId)||discussions.busy(input.chatId))throw new DiscussionError('CHAT_BUSY','这个对话仍在运行，请等待或停止后再讨论。',409);
+    pending.add(input.chatId);
+    try{
+      const projectFolder=currentProject?(await workbench.call(currentProject.id,'get')).folder:undefined;
+      const compiled=kind==='independent'?await researchInput.compile({...input.researchInput,text}):{text,snapshot:null};
+      const binding=await ensureMainBinding({key:input.chatId,input:{...input,projectId,text:text||'专家讨论'},projectFolder,modelRoute,modelKey,reasoningEffort:undefined});
+      await execution.configure(input.chatId,binding,executionMode);
+      const context=currentProject?`[ScienceScope project context]\nProject: ${currentProject.name}\nResearch goal: ${currentProject.desc||''}\nProject directory: ${projectFolder}\n\n`:'';
+      response.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store'});
+      const emit=event=>{if(!response.destroyed)response.write(JSON.stringify(event)+'\n');};
+      await discussions.run({chatId:input.chatId,sessionId:binding.sessionId,experts:panel,kind,context,requestText:compiled.text,chatModel:modelRoute,
+        userMessage:{id:userMessageId,text:kind==='critique'?(text.trim()?`请专家互相质询：${text}`:'请专家互相质询。'):text},
+        onEvent:event=>{if(event.type==='accepted'&&compiled.snapshot)researchDrafts.accepted('main',input.chatId,input.chatId,userMessageId,compiled.snapshot);emit(event);}});
+      binding.lastUsed=Date.now();
+      response.end();
+    }finally{pending.delete(input.chatId);}
   }
   const json = (response,status,body) => { response.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'}); response.end(JSON.stringify(body)); };
   const binary = (response,status,body,type) => { response.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}); response.end(body); };
@@ -185,6 +247,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         const activity=toolActivity.list({chatId:decodeURIComponent(chatMatch[1]),assistantMessageIds:page.messages.filter(m=>m.role==='assistant').map(m=>m.id),limit:200});
         for(const message of page.messages)if(message.role==='assistant')message.toolActivity=activity.filter(call=>call.assistantMessageId===message.id);
         for(const message of page.messages)if(message.role==='user')message.researchInput=researchDrafts.receipt(decodeURIComponent(chatMatch[1]),message.id);
+        if(discussions){const authors=discussions.entriesFor(decodeURIComponent(chatMatch[1]),page.messages.filter(m=>m.role==='assistant').map(m=>m.id));for(const message of page.messages)if(authors.has(message.id))message.expert=authors.get(message.id);}
         json(response,200,page); return true;
       }
       if (route === '/api/workspace' && request.method === 'GET') { json(response,200,await chatStore.getWorkspace()); return true; }
@@ -214,6 +277,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(route==='/api/shortcuts'&&request.method==='GET'){json(response,200,shortcuts.get());return true;}
       if(route==='/api/assistant-window/preferences'&&request.method==='GET'){json(response,200,assistantWindowPreferences.get());return true;}
       if(route==='/api/research-input/draft'&&request.method==='GET'){const value=researchDrafts.get(requestUrl.searchParams.get('scope'),requestUrl.searchParams.get('ownerId'));value.labels={};for(const id of value.attachmentIds){const resource=await database.getResource(id);if(resource)value.labels[id]=resource.title;}json(response,200,value);return true;}
+      if(route==='/api/experts'&&request.method==='GET'){json(response,200,{experts:experts.list(),available:!!discussions});return true;}
       if(route==='/api/skills'&&request.method==='GET'){json(response,200,await skills.list());return true;}
       if(route==='/api/skills/read'&&request.method==='GET'){json(response,200,await skills.read({name:requestUrl.searchParams.get('name')}));return true;}
       if(route==='/api/plugins/inventory'&&request.method==='GET'){
@@ -234,6 +298,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       let input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
       if(!input||typeof input!=='object'||Array.isArray(input)){json(response,400,{message:'请求格式无效。'});return true;}
       if(input.researchInput!==undefined&&(!input.researchInput||typeof input.researchInput!=='object'||Array.isArray(input.researchInput))){json(response,400,{code:'INVALID_RESEARCH_INPUT',message:'研究输入格式无效，未发送。'});return true;}
+      if(route==='/api/experts'){json(response,200,{experts:experts.save(input.experts),available:!!discussions});return true;}
       if(route==='/api/skills/save'){json(response,200,await skills.save(input));return true;}
       if(route==='/api/skills/enabled'){json(response,200,await skills.setEnabled(input));return true;}
       if(route==='/api/skills/remove'){json(response,200,await skills.remove(input));return true;}
@@ -265,6 +330,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(route==='/api/chat/stop'){
         if(typeof input.chatId !== 'string' || !input.chatId.trim()) { json(response,400,{message:'对话标识无效。'}); return true; }
         const key=input.temporary === true ? `temporary:${input.chatId}` : input.chatId;
+        if(!input.temporary&&discussions?.busy(input.chatId)){json(response,200,{...await discussions.cancel(input.chatId),chatId:input.chatId});return true;}
         const run=mainRuns.get(key);
         if(!input.temporary)await outbox.pause(input.chatId);
         if(!run) { json(response,200,{stopped:false,chatId:input.chatId}); return true; }
@@ -329,7 +395,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         if (pending.has(input.chatId) || execution?.busy(input.chatId)) {
           json(response,409,{message:'这个对话仍在运行，请等待当前请求结束后再切换工作方式。'}); return true;
         }
-        const suffix = input.mode === 'work' ? '。' : '（当前仍由主专家执行，尚未接入多专家调度）。';
+        const suffix = input.mode === 'work' ? '。' : input.mode === 'ordered' ? '：启用的专家将并行独立作答。' : '：用 @专家名 点名作答的专家。';
         const message = await chatStore.appendMessage({
           chatId: input.chatId,
           id: input.messageId,
@@ -367,7 +433,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       // operation name in the body. They share the same strict store methods.
       if (request.method === 'POST' && ['/api/chats/update','/api/chats/move','/api/chats/delete'].includes(route)) {
         const chatId = input.chatId;
-        if (pending.has(chatId)||execution?.busy(chatId)||assistants.busyOwner(chatId)) { json(response,409,{message:'这个任务或秘书仍在运行，请先停止。'}); return true; }
+        if (pending.has(chatId)||execution?.busy(chatId)||assistants.busyOwner(chatId)||discussions?.busy(chatId)) { json(response,409,{message:'这个任务或秘书仍在运行，请先停止。'}); return true; }
         let result;
         if (route.endsWith('/update')) result = await chatStore.updateMetadata(chatId,input);
         else if (route.endsWith('/move')) {
@@ -399,6 +465,8 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if (route === '/api/providers/remove' && typeof host.removeProvider === 'function') {
         await host.removeProvider(input); json(response,200,{removed:true}); return true;
       }
+      if (route === '/api/discussion/cancel') { json(response,200,discussions?await discussions.cancel(input.chatId):{stopped:false}); return true; }
+      if (route === '/api/discussion') { await handleDiscussion(input,response); return true; }
       if (route !== '/api/chat') { json(response,501,{message:'当前 DSH 接口尚未开放此操作。'}); return true; }
       if(input.outboxId) {
         const saved=outbox.list(input.chatId).items.find(item=>item.id===input.outboxId);
@@ -443,19 +511,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
           claimed=!!await outbox.claim({chatId:input.chatId,id:input.outboxId});
           if(!claimed){json(response,409,{message:'队列已暂停或另一条消息仍在执行。'});return true;}
         }
-        if (!bindings.has(key)) {
-          const originalWorkspace = chatStore.getRuntimeWorkspace(input.chatId);
-          const workspace = input.temporary ? path.join(dataRoot,'.sciencescope-local','temp','quick',input.chatId) : (originalWorkspace || projectFolder || path.join(projects,'independent'));
-          await mkdir(workspace,{recursive:true});
-          const persona=input.temporary?roleSettings.get('main').prompt:roleSettings.bind(input.chatId,'main',{existing:!!chatStore.getBinding(input.chatId)}).prompt;
-          const session = await host.startSession({model:{...modelRoute,...(reasoningEffort === undefined ? {} : {reasoningEffort})},workspace,runtimeConfig:host.getRuntimeConfig ? await host.getRuntimeConfig() : undefined,sessionId:input.temporary ? undefined : chatStore.getBinding(input.chatId) ?? undefined,persona});
-          bindings.set(key,{sessionId:typeof session === 'string' ? session : session.sessionId,modelKey,lastUsed:Date.now()});
-          if(run) run.sessionId=bindings.get(key).sessionId;
-          if (!input.temporary) {
-            await chatStore.ensureChat({chatId:input.chatId,projectId:input.projectId ?? null,title:input.title || input.text,model:input.model});
-            await chatStore.markRuntimeBinding(input.chatId,bindings.get(key).sessionId,workspace);
-          }
-        }
+        await ensureMainBinding({key,input,projectFolder,modelRoute,modelKey,reasoningEffort});
         if(run)run.sessionId=bindings.get(key).sessionId;
         await execution.configure(key,bindings.get(key),executionMode);
         await host.configureReasoning({sessionId:bindings.get(key).sessionId,reasoningEffort});
@@ -545,6 +601,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       onError?.(error);
       if(!response.headersSent&&(error.code==='INVALID_RESEARCH_INPUT'||['INVALID_RESEARCH_DRAFT','ATTACHMENT_UNAVAILABLE','INVALID_ATTACHMENTS','INVALID_ATTACHMENT_PATH'].includes(error.message))){json(response,400,{code:error.code||error.message,message:'研究材料或引用不可用，请检查来源；草稿和原件保留。'});return true;}
       if(!response.headersSent&&(error instanceof AssistantChatError||error instanceof AssistantConversationError)){json(response,Number.isInteger(error.status)?error.status:400,{code:error.code,message:error.message});return true;}
+      if(!response.headersSent&&(error instanceof ExpertRosterError||error instanceof DiscussionError)){json(response,error.status,{code:error.code,message:error.message});return true;}
       if (error instanceof WorkbenchApiError||error instanceof RoleSettingsError||error instanceof SkillManagerError) { json(response,error.status,{code:error.code,message:error.message}); return true; }
       // Raw runtime errors can contain credentials or provider payloads.
       const message = publicRuntimeMessage(error);
