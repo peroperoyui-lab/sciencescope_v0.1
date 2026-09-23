@@ -160,6 +160,17 @@ try{researchInput=options.outboxId?{attachmentIds:[],messageQuotes:[],annotation
     return true;
   } catch(error) {
     if(accepted&&!options.outboxId)await window.ScienceScopeResearchInput.restore('main',chatId,researchInput).catch(()=>toast('材料草稿恢复失败；已发送快照仍保留在消息记录中，请检查后重试。'));
+    // Acceptance cleared the composer; a failed turn gives the text back for
+    // retry, but never overwrites anything the user typed in the meantime.
+    if(accepted&&!options.outboxId) {
+      if(chatId===V.chat) {
+        const input=document.querySelector('[data-draft="main"]');
+        if(!S.drafts.main&&!input?.value) {
+          S.drafts.main=text;
+          if(input)input.value=text;
+        }
+      } else if(chatData[chatId]&&!chatData[chatId].draft) chatData[chatId].draft=text;
+    }
     if (accepted) {
       const receipt = {id:uid('error'),role:'system',text:error.message,time:vtime()};
       data().messages.push(receipt);

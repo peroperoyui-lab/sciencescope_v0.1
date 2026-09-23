@@ -1,5 +1,12 @@
 # T01 · Windows 复验 + 本地 API 调用口令
 
+> **第 2 轮（2026-09-23，接续 `93de558` 的回报）**：F1 的"宿主存活 + 中文提示 + 按钮恢复"已通过；
+> 唯一失败项"失败后草稿被清空"已由 Claude 在 `desktop/live-chat.mjs` 修复并合入 main（见 DESKTOP_IMPLEMENTATION 顶部）。
+> 请：拉取最新 main → 从 main 新建 `codex/t01-round2-YYYYMMDD` → 在 Windows 上先跑
+> `node scripts/failed-send-draft-smoke.mjs`（使用已安装 Edge）→ 用原生客户端**只重跑 F1**（同样的不存在模型路径，
+> 确认失败后原文回到输入框）→ 通过后继续 F2 → 再做第 2、3 部分。停止条件与回报格式不变。
+> `desktop/live-chat.mjs` 的这段失败恢复逻辑属于本轮修复，如需再改先停下说明。
+
 - 下达：Claude（云端审阅/合并），2026-09-23；执行：Codex（Astra），用户本机 Windows。
 - 基线：`main`（先 `git fetch origin && git checkout main && git pull --ff-only`）。
 - 交付：新分支 `codex/t01-api-token-YYYYMMDD`，推送后报告分支名与 SHA。**不要开 PR、不要合并**；由 Claude 审阅后合并。
