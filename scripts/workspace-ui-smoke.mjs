@@ -26,6 +26,7 @@ const server=http.createServer(async(req,res)=>{
     let input={};if(req.method==='POST'){const chunks=[];for await(const chunk of req)chunks.push(chunk);input=JSON.parse(Buffer.concat(chunks));}
     if(url.pathname==='/api/status')return send({available:true,saveProvider:false,tokenStreaming:true});
     if(url.pathname==='/api/providers')return send({providers:[]});
+    if(url.pathname==='/api/research-input/draft')return send(req.method==='POST'?{saved:true}:{attachmentIds:[],messageQuotes:[],annotations:[],contextRefs:[]});
     if(url.pathname==='/api/profile')return send(req.method==='POST'?await profileStore.updateProfile(input):profileStore.getProfile());
     if(url.pathname==='/api/workspace')return send(req.method==='POST'?await store.updateWorkspace(input):await store.getWorkspace());
     if(url.pathname==='/api/chats')return send({chats:store.listChats()});
@@ -49,7 +50,7 @@ const server=http.createServer(async(req,res)=>{
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 let context;
 try {
-  context=await chromium.launchPersistentContext(path.join(root,'edge'),{executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,viewport:{width:1440,height:960},env:{...process.env,TEMP:root,TMP:root}});
+  context=await chromium.launchPersistentContext(path.join(root,'edge'),{executablePath:process.env.SCIENCESCOPE_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,viewport:{width:1440,height:960},env:{...process.env,TEMP:root,TMP:root}});
   const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
   await page.waitForFunction(()=>window.ScienceScopeWorkspace);
@@ -106,8 +107,9 @@ try {
   assert.equal(await page.locator('.chatcol.summary-docked').count(),1);
   await page.screenshot({path:path.join(artifacts,'summary-docked.png')});
   await page.locator('.mainhead [data-v="secretary"]').click();await page.waitForTimeout(250);
-  const line=await page.locator('.panelbottom .composerbar').evaluate(el=>{
-    const send=el.querySelector('.sendbtn').getBoundingClientRect(),model=el.querySelector('[data-v="model-menu"]').getBoundingClientRect();
+  await page.waitForSelector('.assistant-composer .composerbar');
+  const line=await page.locator('.assistant-composer .composerbar').first().evaluate(el=>{
+    const send=el.querySelector('.sendbtn:not([hidden])').getBoundingClientRect(),model=el.querySelector('[data-assistant-action="model"]').getBoundingClientRect();
     return {sameRow:Math.abs((send.y+send.height/2)-(model.y+model.height/2))<3,overflow:el.scrollWidth>el.clientWidth};
   });assert.deepEqual(line,{sameRow:true,overflow:false});
   await page.screenshot({path:path.join(artifacts,'sidebar-composer.png')});

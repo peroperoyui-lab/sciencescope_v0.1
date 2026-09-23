@@ -8,7 +8,7 @@ const base=path.resolve('.sciencescope-local/temp');await mkdir(base,{recursive:
 const root=await mkdtemp(path.join(base,'extensions-ui-'));let browser,server;
 try{
   server=await createDesktopServer({dataRoot:root,outputDir:path.join(root,'assets'),runtimeHost:{listProviders:async()=>[],close:async()=>{}}});
-  browser=await chromium.launchPersistentContext(path.join(root,'profile'),{headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',env:{...process.env,TEMP:root,TMP:root}});
+  browser=await chromium.launchPersistentContext(path.join(root,'profile'),{headless:true,executablePath:process.env.SCIENCESCOPE_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',env:{...process.env,TEMP:root,TMP:root}});
   const page=await browser.newPage(),errors=[];await installApiToken(page,server);page.on('pageerror',error=>errors.push(error.message));
   await page.goto(server.url+'#plugins');await page.waitForFunction(()=>window.ScienceScopeWorkspace?.ready);await page.evaluate(async()=>{await window.ScienceScopeWorkspace.ready;go('plugins');});
   await page.locator('[data-extension="new"]').click();await page.locator('#skill-markdown').fill('---\nname: ui-checklist\ndescription: UI saved checklist\n---\n\nCheck the supplied evidence.');

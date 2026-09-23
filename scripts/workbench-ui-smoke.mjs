@@ -33,7 +33,7 @@ try{
   await seed.ensureChat({chatId:'long-chat',title:'双向历史',projectId:'wb-test'});
   for(let i=0;i<160;i++)await seed.appendMessage({chatId:'long-chat',id:'history-'+i,role:i%2?'assistant':'user',text:'历史 '+i+'\n\n'+('可追溯内容。'.repeat(15))});
   seed.close?.();
-  context=await chromium.launchPersistentContext(path.join(root,'edge'),{executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,viewport:{width:1500,height:1000},env:{...process.env,TEMP:root,TMP:root}});
+  context=await chromium.launchPersistentContext(path.join(root,'edge'),{executablePath:process.env.SCIENCESCOPE_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,viewport:{width:1500,height:1000},env:{...process.env,TEMP:root,TMP:root}});
   const page=await context.newPage(),errors=[];await page.addInitScript(({origin,token})=>{if(location.origin===origin)Object.defineProperty(window,'__SCIENCESCOPE_API_TOKEN__',{value:token,writable:false,enumerable:false,configurable:false});},{origin:url,token:apiToken});page.on('pageerror',e=>{errors.push(e.message);console.log('UI error:',e.message);});
   await page.goto(url);await page.waitForFunction(()=>window.ScienceScopeWorkbench?.ready);
   await page.evaluate(()=>loadThread('long-chat'));

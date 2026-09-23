@@ -21,7 +21,7 @@ const host={capabilities:{tokenStreaming:true},listProviders:async()=>[],close:a
 const server=await createDesktopServer({dataRoot:root,outputDir:path.join(root,'assets'),runtimeHost:host});
 try{
   browser=await chromium.launchPersistentContext(path.join(root,'profile'),{
-    executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,
+    executablePath:process.env.SCIENCESCOPE_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true,
     viewport:{width:1440,height:960},env:{...process.env,TEMP:root,TMP:root},
   });
   const page=await browser.newPage(),errors=[];
