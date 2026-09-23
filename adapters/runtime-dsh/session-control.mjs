@@ -66,8 +66,63 @@ export function apply(ctx) {
       currentPersona = value;
     });
   };
+  // Expert discussion: each expert is a fresh in-process DSH child (spawn
+  // provider) with its own persona and model route, all answering the same
+  // frozen prompt concurrently. The Main agent's history is not changed.
+  const expertRuns = new Map();
+  const EXPERT_ID = /^[A-Za-z0-9_-]{1,80}$/u;
+  const runExperts = async (value) => {
+    const subagents = ctx.get('subagents');
+    if (!subagents?.start) throw new Error('DSH subagent service is unavailable');
+    if (typeof value.runId !== 'string' || !EXPERT_ID.test(value.runId) || expertRuns.has(value.runId)) throw new Error('invalid expert run id');
+    if (typeof value.prompt !== 'string' || !value.prompt.trim() || value.prompt.length > 400000) throw new Error('expert prompt is required');
+    const experts = Array.isArray(value.experts) ? value.experts : [];
+    if (!experts.length || experts.length > 8) throw new Error('between 1 and 8 experts are required');
+    for (const expert of experts) {
+      if (!expert || typeof expert.id !== 'string' || !EXPERT_ID.test(expert.id)) throw new Error('invalid expert id');
+      if (typeof expert.persona !== 'string' || !expert.persona.trim() || expert.persona.length > 16000) throw new Error('expert persona is required');
+      if (expert.model !== undefined && (typeof expert.model?.providerId !== 'string' || typeof expert.model?.modelId !== 'string')) throw new Error('invalid expert model');
+      if (expert.prompt !== undefined && (typeof expert.prompt !== 'string' || !expert.prompt.trim() || expert.prompt.length > 400000)) throw new Error('invalid expert prompt');
+    }
+    if (new Set(experts.map((expert) => expert.id)).size !== experts.length) throw new Error('duplicate expert id');
+    const controller = new AbortController();
+    expertRuns.set(value.runId, controller);
+    try {
+      return await Promise.all(experts.map(async (expert) => {
+        const agentOptions = {
+          ...(expert.model ? { provider: expert.model.providerId, model: expert.model.modelId } : {}),
+          ...(typeof expert.reasoningEffort === 'string' ? { reasoningEffort: expert.reasoningEffort } : {}),
+        };
+        const startedAt = Date.now();
+        void postEvent({ type: 'expert-start', runId: value.runId, expertId: expert.id });
+        let run;
+        try {
+          run = await subagents.start('spawn', {
+            label: String(expert.label || expert.id).slice(0, 80),
+            // The shared prompt is the frozen common input; an optional
+            // per-expert prompt (e.g. "this block is your own answer") follows it.
+            prompt: [{ type: 'text', text: expert.prompt ? `${value.prompt}\n\n${expert.prompt}` : value.prompt }],
+            parent: handle.agent,
+            signal: controller.signal,
+            persona: expert.persona,
+            ...(Object.keys(agentOptions).length ? { agentOptions } : {}),
+            ...(expert.tools === 'none' ? { toolFilter: { allow: [] } } : {}),
+          });
+          const outcome = await run.result;
+          const text = outcome.output.filter((block) => block?.type === 'text').map((block) => block.text).join('');
+          const entry = { expertId: expert.id, stopReason: outcome.stopReason, text, ...(outcome.diagnostic ? { diagnostic: outcome.diagnostic.slice(0, 500) } : {}), ms: Date.now() - startedAt };
+          void postEvent({ type: 'expert-end', runId: value.runId, ...entry });
+          return entry;
+        } catch (error) {
+          const entry = { expertId: expert.id, stopReason: controller.signal.aborted ? 'aborted' : 'error', text: '', diagnostic: String(error?.message ?? error).slice(0, 500), ms: Date.now() - startedAt };
+          void postEvent({ type: 'expert-end', runId: value.runId, ...entry });
+          return entry;
+        } finally { await run?.dispose().catch(() => {}); }
+      }));
+    } finally { expertRuns.delete(value.runId); }
+  };
   const server = createServer(async (req, res) => {
-    if (req.method !== 'POST' || !['/prompt', '/goal', '/policy', '/reasoning', '/model', '/persona', '/interrupt', '/approval/reply', '/context-usage'].includes(req.url)) { res.writeHead(404); res.end(); return; }
+    if (req.method !== 'POST' || !['/prompt', '/goal', '/policy', '/reasoning', '/model', '/persona', '/interrupt', '/approval/reply', '/context-usage', '/experts', '/experts/cancel'].includes(req.url)) { res.writeHead(404); res.end(); return; }
     let body = ''; req.setEncoding('utf8'); req.on('data', (chunk) => { body += chunk; if(Buffer.byteLength(body)>2*1024*1024)req.destroy(); });
     req.on('end', async () => {
       try {
@@ -96,6 +151,15 @@ export function apply(ctx) {
           if (!pending || !['allowed-once', 'rejected', 'cancelled', 'unavailable'].includes(value.outcome)) throw new Error('invalid approval reply');
           const entry = pendingApprovals.get(value.requestId); pendingApprovals.delete(value.requestId); entry?.signal?.removeEventListener('abort', entry.onAbort); entry?.resolve(value.outcome);
           res.writeHead(204); res.end(); return;
+        }
+        if (req.url === '/experts/cancel') {
+          const run = expertRuns.get(value.runId);
+          if (run) run.abort(new Error('experts cancelled by user'));
+          res.writeHead(204); res.end(); return;
+        }
+        if (req.url === '/experts') {
+          const result = await runExperts(value);
+          res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ result })); return;
         }
         if(req.url==='/interrupt'){
           handle.agent.cancel({kind:'user'});
@@ -181,7 +245,7 @@ export function apply(ctx) {
     if (String(eventSession.id) !== sessionId) return;
     if (['goal/change', 'approval/asked', 'approval/decided', 'sandbox/mode'].includes(event.type)) void postEvent({ type: 'session-event', eventType: event.type, data: event.data });
   });
-  ctx.effect(() => async () => { for (const entry of pendingApprovals.values()) entry.resolve('cancelled'); pendingApprovals.clear(); await handle?.dispose().catch(() => {}); await new Promise((resolve) => server.close(() => resolve())); }, 'sciencescope.session-control');
+  ctx.effect(() => async () => { for (const run of expertRuns.values()) run.abort(new Error('session closing')); for (const entry of pendingApprovals.values()) entry.resolve('cancelled'); pendingApprovals.clear(); await handle?.dispose().catch(() => {}); await new Promise((resolve) => server.close(() => resolve())); }, 'sciencescope.session-control');
 }
 
 export default { name, inject, apply };
