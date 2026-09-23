@@ -1,5 +1,20 @@
 # Desktop implementation — first increment
 
+## 2026-09-23 Research material as tagged blocks (Claude, cloud)
+
+`scripts/research-input.mjs` now renders material inside the existing
+`[User-provided research material]` markers as `<material>`, `<quote>` and
+`<annotation>` blocks with escaped attributes and verbatim bodies, instead of one
+JSON-escaped string. A literal closing tag inside a body is neutralised. The
+snapshot/receipt structure and all limits are unchanged; the size limit now
+applies to the rendered blocks.
+
+Evidence (real OpenCode Go `deepseek-v4.1-flash`, `scripts/evals/material-format-ab.mjs`):
+accuracy was identical for both formats (20/20 each on ~58k/51k-char material,
+four exact-retrieval questions × 5). The change saves ~12% characters per send;
+it is not a measured accuracy gain. `npm test` 108/108;
+`research-input-ui-smoke` passes on Linux Chromium with the new block assertions.
+
 ## 2026-09-23 No stray console window (Claude, cloud) — pending native check
 
 User report: launching ScienceScope left a terminal window open. Cause: the

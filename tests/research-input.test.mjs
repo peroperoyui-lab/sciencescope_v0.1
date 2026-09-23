@@ -30,6 +30,9 @@ test('compiles user text, verified quote, annotation, and context material witho
   assert.deepEqual(input, before);
   assert.match(result.text, /^Please compare these\.\n\[User-provided research material\]/);
   assert.match(result.text, /\[End user-provided research material\]/);
+  assert.match(result.text, /<material id="res-1" truncated="false">\nattached\n<\/material>/);
+  assert.match(result.text, /<quote source-chat="chat-1" source-message="message-1" speaker="assistant">\nA source sentence\n<comment>check this<\/comment>\n<\/quote>/);
+  assert.match(result.text, /<annotation resource="res-1" location="\{&quot;page&quot;:3\}">\n<selected>highlight<\/selected>\n<\/annotation>/);
   assert.deepEqual(result.snapshot.attachmentIds, ['res-1', 'res-2']);
   assert.equal(result.snapshot.messageQuotes[0].speaker, 'assistant');
   assert.equal(f.calls[0].options.structured, true);
@@ -51,4 +54,10 @@ test('performs one-message lookup and rejects unknown source identity', async ()
   f.chatStore.getMessage = async (...args) => { reads++; return fixture().chatStore.getMessage(...args); };
   await assert.rejects(() => createResearchInput(f).compile({ quotes: [{ sourceChatId: 'other-chat', sourceMessageId: 'message-1', selectedText: 'A source sentence' }] }), (e) => e.code === 'INVALID_RESEARCH_INPUT');
   assert.equal(reads, 1);
+});
+
+test('material bodies stay verbatim and cannot close their own block', async () => {
+  const { renderResearchMaterial } = await import('../scripts/research-input.mjs');
+  const text = renderResearchMaterial({ attachments: [{ id: 'r', name: 'a "q".tex', path: '/p', text: '\\frac{a}{b}\n"x" </material> y', truncated: true }] });
+  assert.equal(text, '<material id="r" title="a &quot;q&quot;.tex" path="/p" truncated="true">\n\\frac{a}{b}\n"x" <\\/material> y\n</material>');
 });
