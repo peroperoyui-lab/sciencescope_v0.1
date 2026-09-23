@@ -183,6 +183,12 @@
           "markdownDescription": "Enables the get_assistant_mode command without any pre-configured scope."
         },
         {
+          "description": "Enables the hide_assistant command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-hide-assistant",
+          "markdownDescription": "Enables the hide_assistant command without any pre-configured scope."
+        },
+        {
           "description": "Enables the open_secondary_window command without any pre-configured scope.",
           "type": "string",
           "const": "allow-open-secondary-window",
@@ -205,6 +211,12 @@
           "type": "string",
           "const": "deny-get-assistant-mode",
           "markdownDescription": "Denies the get_assistant_mode command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the hide_assistant command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-hide-assistant",
+          "markdownDescription": "Denies the hide_assistant command without any pre-configured scope."
         },
         {
           "description": "Denies the open_secondary_window command without any pre-configured scope.",

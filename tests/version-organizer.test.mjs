@@ -36,6 +36,22 @@ test('version organizer uses independent no-tools session and writes a real note
     assert.match(calls[1][1].text, /不要替用户决定研究方向/); assert.match(await readFile(path.join(f.root, 'paper.txt.notes.md'), 'utf8'), /Added result/); assert.equal(result.status, 'organized'); await f.cleanup();
 });
 
+test('includes the persisted secretary template in the actual host prompt', async () => {
+    const f = await fixture();
+    const customTemplate = '# Custom notes\nResearch impact';
+    let sentText = '';
+    const host = {
+      async startSession() { return 'secretary-session'; },
+      async send(options) { sentText = options.text; return { finalResponse: 'ok' }; },
+      async releaseSession() {},
+    };
+    const organizer = createVersionOrganizer({ host, store: f.store, getPreferences: async () => ({ notesTemplate: customTemplate }) });
+    await organizer.organize({ projectId: 'p', versionId: 'v2', model: { providerId: 'x', modelId: 'y' } });
+    assert.match(sentText, /# Custom notes/);
+    assert.match(sentText, /Research impact/);
+    await f.cleanup();
+});
+
 test('marks unsupported files without starting a model session', async () => {
     const f = await fixture(); f.version.name = 'paper.pdf'; f.version.relativePath = 'paper.pdf';
     await writeFile(path.join(f.root, 'paper.pdf'), 'binary-ish', 'utf8');

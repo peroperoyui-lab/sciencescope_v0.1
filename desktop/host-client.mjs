@@ -11,8 +11,8 @@ export async function hostRequest(route, body) {
   return result;
 }
 
-export async function streamChat(body, onEvent) {
-  const response = await fetch('/api/chat', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+export async function streamChat(body, onEvent, endpoint='/api/chat') {
+  const response = await fetch(endpoint, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
   if (!response.ok) { const result = await response.json(); throw new Error(result.message || '发送失败'); }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -27,7 +27,7 @@ export async function streamChat(body, onEvent) {
         if (!line.trim()) continue;
         const event = JSON.parse(line);
         if (event.type === 'failed') throw new Error(event.message || '运行失败');
-        if (event.type === 'completed') completed = true;
+        if (event.type === 'completed' || event.type === 'cancelled') completed = true;
         onEvent(event);
       }
       if (done) break;

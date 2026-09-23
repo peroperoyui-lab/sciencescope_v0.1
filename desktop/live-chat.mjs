@@ -1,6 +1,41 @@
-import { streamChat } from './host-client.mjs';
+import { streamChat, hostRequest } from './host-client.mjs';
 import { renderMarkdown } from './markdown.mjs';
 import './workspace.mjs';
+import { recordTool, paintActivity } from './turn-activity.mjs';
+import './main-outbox.mjs';
+import './background-activity.mjs';
+import './research-input.mjs';
+
+const stopping = new Set();
+const originalComposer = composer;
+composer = function(scope='main', ...args) {
+  const html = originalComposer(scope,...args);
+  if(scope!=='main'||!V.pending.has(V.chat))return html;
+  return html.replace(/(<button\b[^>]*data-v="send"[^>]*>)[\s\S]*?(<\/button>)/,(_whole,start,end)=>
+    start.replace('data-v="send"','data-main-stop').replace(/aria-label="[^"]*"/,'aria-label="停止当前回复"')+'■'+end)
+    .replace('正在提交',stopping.has(V.chat)?'正在停止':'正在运行');
+};
+function syncRunButton() {
+  const button=document.querySelector('[data-composer="main"] .sendbtn');
+  const busy=V.pending.has(V.chat);
+  if(!button)return;
+  button.toggleAttribute('data-main-stop',busy);
+  if(busy)delete button.dataset.v;else button.dataset.v='send';
+  button.innerHTML=busy?'■':ic('arrow');
+  button.setAttribute('aria-label',busy?'停止当前回复':'发送');
+  button.disabled=stopping.has(V.chat);
+  window.ScienceScopeOutbox?.paint();
+}
+window.addEventListener('click',async event=>{
+  if(!event.target.closest('[data-main-stop]'))return;
+  event.preventDefault();event.stopImmediatePropagation();
+  const chatId=V.chat;
+  if(stopping.has(chatId))return;
+  stopping.add(chatId);syncRunButton();
+  try {await hostRequest('chat/stop',{chatId,temporary:!!activeThread()?.temporary});}
+  catch(error){toast(error.message);}
+  finally {stopping.delete(chatId);syncRunButton();}
+},true);
 
 // Only Main text is wired in this increment. Do not pretend demo discussion or
 // secretary actions execute real agents. The original design remains untouched.
@@ -15,20 +50,24 @@ window.addEventListener('click', event => {
   if(button.dataset.v==='reasoning-menu')return window.ScienceScopeReasoning?.open(button);
 },true);
 submitMain = async function(text, annotations = S.annotations, options = {}) {
-  const model = window.ScienceScopeModels?.selected();
+  const model = options.snapshot?.model || window.ScienceScopeModels?.selected();
   if (!model || !window.ScienceScopeModels.available()) { toast('请先在模型与 API 中连接服务并选择模型。'); go('models'); return false; }
   const chatId = options.targetChat || V.chat;
   const thread = window.ScienceScopeWorkspace?.resolveThread(chatId) || S.threads.find(t => t.id === chatId);
   if (!thread || V.pending.has(chatId)) return false;
-  if (annotations.length || (getThreadData(chatId).contextRefs || []).length) { toast('材料与批注的真实发送尚未接通；本次请先使用纯文本。'); return false; }
+  let researchInput;
+try{researchInput=options.outboxId?{attachmentIds:[],messageQuotes:[],annotations:[],contextRefs:[]}:await window.ScienceScopeResearchInput.capture('main',chatId);if(!options.outboxId){const legacy=getThreadData(chatId).contextRefs||[];for(const ref of legacy){if(ref.messageId&&ref.chatId&&ref.text)researchInput.messageQuotes.push({id:ref.id,revision:0,sourceChatId:ref.chatId,sourceMessageId:ref.messageId,selectedText:ref.text});else throw new Error('旧材料引用没有真实原件标识，请移除后重新附加；草稿已保留。');}researchInput.annotations.push(...await window.ScienceScopeResearchInput.legacyAnnotations(annotations,thread.projectId));}}catch(error){toast(error.message);return false;}
   if (!text.trim()) return false;
+  const inputBefore = chatId===V.chat ? S.drafts.main : chatData[chatId]?.draft;
+  const reasoningEffort=options.snapshot?.reasoningEffort??window.ScienceScopeReasoning?.value();
+  const executionMode=options.snapshot?.executionMode||window.ScienceScopeExecution?.mode()||'ask';
   try { await window.ScienceScopeWorkspace?.beforeSend(chatId); }
   catch(error) {toast(error.message);return false;}
-  const inputBefore = S.drafts.main;
-  const userId = uid('msg'); const answerId = uid('msg');
+  if(V.pending.has(chatId))return false;
+  const userId = options.snapshot?.userMessageId || uid('msg'); const answerId = options.snapshot?.assistantMessageId || uid('msg');
   saveThread(); V.pending.add(chatId);
   let accepted = false;
-  const toolNames = new Map();
+  syncRunButton();
   const data = () => chatId === V.chat ? S : chatData[chatId];
   const refresh = () => { if (chatId === V.chat) { saveThread(); render(); } };
   let paintTimer;
@@ -45,20 +84,37 @@ submitMain = async function(text, annotations = S.annotations, options = {}) {
     if (follow) box.scrollTop = box.scrollHeight;
   };
   try {
-    await streamChat({projectId:thread.projectId || null, chatId, model, text,reasoningEffort:window.ScienceScopeReasoning?.value(),executionMode:window.ScienceScopeExecution?.mode()||'ask', title:thread.title==='新对话'?text.trim().slice(0,40):thread.title, userMessageId:userId, assistantMessageId:answerId, temporary:!!thread.temporary}, event => {
+    await streamChat({projectId:thread.projectId || null, chatId, model, text,researchInput,reasoningEffort,executionMode, title:thread.title==='新对话'?text.trim().slice(0,40):thread.title, userMessageId:userId, assistantMessageId:answerId, temporary:!!thread.temporary,...(options.outboxId?{outboxId:options.outboxId}:{})}, event => {
       if (event.type === 'accepted' && !accepted) {
+        const previousBox=chatId===V.chat?document.querySelector('.messages'):null;
+        const previousTop=previousBox?.scrollTop || 0;
+        const follow=previousBox&&previousBox.scrollHeight-previousBox.scrollTop-previousBox.clientHeight<90;
         accepted = true;
+        if(!options.outboxId)void window.ScienceScopeResearchInput.accepted('main',chatId,researchInput).catch(error=>toast(error.message));
+        void window.ScienceScopeActivity?.refresh();
         thread.model=model;
         window.ScienceScopeWorkspace?.accepted(thread,text);
         const d = data(); d.messages ??= [];
-        d.messages.push({id:userId,role:'user',text,time:vtime()});
+        if(!options.outboxId)d.contextRefs=(d.contextRefs||[]).filter(ref=>!researchInput.messageQuotes.some(q=>q.id===ref.id&&q.selectedText===ref.text));
+        if(!options.outboxId)d.annotations=(d.annotations||[]).filter(a=>!researchInput.annotations.some(sent=>sent.id===a.id&&sent.revision===a.rev));
+        d.messages.push({id:userId,role:'user',text,researchInput,time:vtime()});
         d.messages.push({id:answerId,role:'assistant',name:'主专家',label:model.modelId,text:'',streaming:true,time:vtime()});
         d.messages=d.messages.slice(-60);
-        if (chatId === V.chat && S.drafts.main === inputBefore) S.drafts.main = '';
-        else if (d.draft === inputBefore) d.draft = '';
-        refresh(); paint();
+        if (!options.outboxId) {
+          if (chatId === V.chat && S.drafts.main === inputBefore) S.drafts.main = '';
+          else if (d.draft === inputBefore) d.draft = '';
+        }
+        if(previousBox) {
+          previousBox.insertAdjacentHTML('beforeend',d.messages.slice(-2).map(messageHTML).join(''));
+          const retained=new Set(d.messages.map(message=>message.id));
+          for(const node of previousBox.querySelectorAll(':scope > .message'))if(!retained.has(node.dataset.messageId))node.remove();
+          const input=document.querySelector('[data-draft="main"]');
+          if(!options.outboxId&&input&&input.value===inputBefore)input.value=S.drafts.main;
+          saveThread();syncRunButton();
+        }else refresh();
+        paint();
         const box = document.querySelector('.messages');
-        if (chatId === V.chat && box) box.scrollTop = box.scrollHeight;
+        if (chatId === V.chat && box) box.scrollTop = !options.outboxId||follow ? box.scrollHeight : previousTop;
       }
       if(event.type==='goal-started'){
         data().messages=data().messages.filter(m=>m.id!==answerId);
@@ -77,26 +133,33 @@ submitMain = async function(text, annotations = S.annotations, options = {}) {
         paintTimer ??= setTimeout(paint, 50);
       }
       if (event.type === 'tool-call' || event.type === 'tool-result') {
-        if (event.type === 'tool-call') toolNames.set(event.callId,event.name);
-        const receipt={id:uid('tool'),role:'system',text:event.type==='tool-call'
-          ? `工具调用：${event.name}` : `工具${event.isError?'失败':'完成'}：${toolNames.get(event.callId)||'调用'}`,time:vtime()};
-        data().messages.push(receipt);
-        while(data().messages.length>60){
-          const index=data().messages.findIndex(m=>m.id!==answerId);
-          const [removed]=data().messages.splice(index,1);
-          if(chatId===V.chat)document.getElementById('message-'+removed.id)?.remove();
-        }
+        const answer=data().messages?.find(m=>m.id===answerId);
+        if(!answer)return;
+        recordTool(answer,event);
         if(chatId===V.chat){
           const box=document.querySelector('.messages');
           const follow=box&&box.scrollHeight-box.scrollTop-box.clientHeight<90;
-          box?.insertAdjacentHTML('beforeend',messageHTML(receipt));
+          paintActivity(answer);
           if(follow)box.scrollTop=box.scrollHeight;
         }
+      }
+      if(event.type==='cancelled') {
+        const answer=data().messages?.find(m=>m.id===answerId);
+        if(answer) {
+          if(typeof event.text==='string')answer.text=event.text;
+          if(!answer.text)answer.text='已停止。';
+          answer.cancelled=true;
+        }
+      }
+      if(event.type==='completed' && typeof event.text==='string' && !event.background) {
+        const answer=data().messages?.find(m=>m.id===answerId);
+        if(answer)answer.text=event.text;
       }
     });
     thread.updated = vtime();
     return true;
   } catch(error) {
+    if(accepted&&!options.outboxId)await window.ScienceScopeResearchInput.restore('main',chatId,researchInput).catch(()=>toast('材料草稿恢复失败；已发送快照仍保留在消息记录中，请检查后重试。'));
     if (accepted) {
       const receipt = {id:uid('error'),role:'system',text:error.message,time:vtime()};
       data().messages.push(receipt);
@@ -107,10 +170,17 @@ submitMain = async function(text, annotations = S.annotations, options = {}) {
   } finally {
     clearTimeout(paintTimer); V.pending.delete(chatId);
     const answer = data().messages?.find(m => m.id === answerId);
-    if (answer) answer.streaming = false;
+    if (answer) {
+      answer.streaming = false;
+      for(const call of answer.toolActivity || [])if(call.status==='running')call.status='interrupted';
+    }
+    if(answer && chatId===V.chat)paintActivity(answer);
     paint(); saveThread();
+    syncRunButton();
     if (chatId === V.chat) document.querySelector('[data-composer="main"] .queue-badge')?.remove();
     if(accepted)await window.ScienceScopeWorkspace?.settled(chatId);
+    void window.ScienceScopeActivity?.refresh();
+    if(accepted&&!options.outboxId)void window.ScienceScopeOutbox?.settled(chatId);
   }
 };
 window.SS.submitMain = submitMain;

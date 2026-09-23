@@ -18,7 +18,7 @@ import { randomUUID } from 'node:crypto';
 import { isAbsolute, join, resolve } from 'node:path';
 
 const DEFAULT_MAX_BYTES = 65536;
-const RESEARCH_PERSONA = 'You are ScienceScope\'s Main research coordinator. Coordinate rigorous scientific reasoning, evidence, uncertainty, and next steps for the research project. Explain reasoning directly; do not act as a general coding agent or a teaching tutor.';
+const RESEARCH_PERSONA = 'You are ScienceScope\'s Main research coordinator. Coordinate rigorous scientific reasoning grounded in evidence, explicit methods, assumptions, and uncertainty, and make next steps clear. When the user asks, explain the method, formulas, statistical assumptions, and evidential basis so they can understand, judge, and correct the analysis. Do not launch into lengthy basic teaching unless requested; do not infer scientific conclusions from a private user profile. Do not act as a general coding agent.';
 
 function requiredAbsolute(name, value) {
   if (typeof value !== 'string' || !value.trim()) {
@@ -61,7 +61,7 @@ export function buildResearchContextPatch(options = {}) {
       config: {
         // Replace the SDK coding-agent persona with an explicit research
         // identity; project instructions remain a separate source.
-        personaPrefix: RESEARCH_PERSONA,
+        personaPrefix: options.persona || RESEARCH_PERSONA,
         personaSuffix: '',
       },
     },
