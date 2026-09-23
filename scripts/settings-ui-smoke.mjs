@@ -8,7 +8,7 @@ const base=path.resolve('.sciencescope-local/temp');await mkdir(base,{recursive:
 const root=await mkdtemp(path.join(base,'settings-ui-'));let browser,server;
 try{
   server=await createDesktopServer({dataRoot:root,outputDir:path.join(root,'assets'),runtimeHost:{listProviders:async()=>[{id:'fixture',name:'Fixture',models:['one']}],getModelInfo:async()=>({reasoning:{efforts:[{id:'high',name:'High'}]}}),close:async()=>{}}});
-  browser=await chromium.launchPersistentContext(path.join(root,'profile'),{headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',env:{...process.env,TEMP:root,TMP:root}});
+  browser=await chromium.launchPersistentContext(path.join(root,'profile'),{headless:true,executablePath:process.env.SCIENCESCOPE_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',env:{...process.env,TEMP:root,TMP:root}});
   const page=await browser.newPage(),errors=[];await installApiToken(page,server);page.on('pageerror',error=>errors.push(error.message));
   const seeded=await apiFetch(server,'api/workspace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projects:[{id:'settings-project',name:'Settings fixture',desc:'',archived:false}],pins:[],projectExpanded:{},lastChatId:null})});assert.equal(seeded.status,200);
   await page.goto(server.url+'#general');await page.waitForFunction(()=>window.ScienceScopeWorkspace?.ready&&window.ScienceScopePreferences?.ready);

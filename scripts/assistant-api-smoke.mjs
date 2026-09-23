@@ -99,7 +99,7 @@ try{
       native=spawn(executable,[],{cwd:root,windowsHide:true,stdio:'ignore',env:{...process.env,SCIENCESCOPE_NODE:process.execPath,SCIENCESCOPE_HOST_SCRIPT:path.resolve('scripts/native-fixture-host.mjs'),SCIENCESCOPE_TEST_HOST_URL:origin.replace('/api/',''),SCIENCESCOPE_TEST_API_TOKEN:apiToken,WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS:'--remote-debugging-port=9228',TEMP:root,TMP:root}});
       for(let retry=0;retry<60;retry++){try{browser=await chromium.connectOverCDP('http://127.0.0.1:9228');break;}catch{await new Promise(r=>setTimeout(r,500));}}
       assert.ok(browser,'Native debug bridge did not become ready');context=browser.contexts()[0];
-    }else{context=await chromium.launchPersistentContext(path.join(root,'browser'),{headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',viewport:{width:1440,height:960},env:{...process.env,TEMP:root,TMP:root}});browser=context;}
+    }else{context=await chromium.launchPersistentContext(path.join(root,'browser'),{headless:true,executablePath:process.env.SCIENCESCOPE_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',viewport:{width:1440,height:960},env:{...process.env,TEMP:root,TMP:root}});browser=context;}
     const page=nativeMode?context.pages()[0]:await context.newPage(),errors=[];if(!nativeMode)await page.addInitScript(({origin,token})=>{if(location.origin===origin)Object.defineProperty(window,'__SCIENCESCOPE_API_TOKEN__',{value:token,writable:false,enumerable:false,configurable:false});},{origin:origin.replace('/api/','').replace(/\/$/,''),token:apiToken});page.on('pageerror',e=>errors.push(e.message));
     await page.goto(origin.replace('/api/',''));
     await page.waitForFunction(()=>window.ScienceScopeAssistants);
