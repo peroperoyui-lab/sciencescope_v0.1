@@ -1,5 +1,48 @@
 # Desktop implementation — first increment
 
+## 2026-09-23 T01 Windows native acceptance — STOPPED at F1 draft retention
+
+Baseline: `ca9865f47fdfb07537c75121b3e5e64d5512858f` (latest fetched main).
+The main branch belongs to the clean `<工作区>` worktree; it was
+fast-forwarded there, then this desktop worktree created
+`codex/t01-api-token-20260923` from it. No reset or existing-work overwrite.
+
+Part 1 ran against the actual Windows Tauri development executable launched by
+`scripts/windows/launch-client.ps1`, with the updated source-backed desktop host
+at `http://127.0.0.1:65329/`. This was native-window Computer Use, not a browser
+fixture or an API-only substitute. The existing native executable was reused;
+Rust was not rebuilt and this is not installed-release acceptance.
+
+F1: **FAILED overall; host survival and error display passed, draft retention failed.**
+
+1. In the native Provider UI, temporarily added `sciencescope-t01-does-not-exist`
+   to the existing OpenCode Go model list; left its credential field empty to
+   preserve the stored key. Selected this nonexistent model in the native UI.
+2. Entered `T01_F1_DRAFT_20260923: Do not use tools. Reply exactly OK.` and clicked
+   Send once. No real research material or tools were involved.
+3. The native UI displayed `模型服务找不到所选模型；请在模型设置中确认模型 ID 仍然可用。`.
+   The Send button returned. The same API host answered `/api/status` HTTP 200,
+   available=true, and `/api/chat/activity` reported the test chat as failed.
+4. Both native accessibility state and the screenshot showed the composer empty
+   after failure. The text survived as a sent user message, **not as the required
+   retryable draft**. Source inspection agrees: `desktop/live-chat.mjs` clears
+   text on acceptance, while its error handler restores research inputs but not
+   the composer text. No fix was made because T01 requires stopping on failure.
+5. Restored the Provider model list through the local application API, removing
+   only the temporary test ID. All 30 original models and configured credential
+   remain. Test conversation retained as local evidence; no keys/logs added to Git.
+
+Request accounting: one native application send to the real OpenCode Go route,
+using a deliberately nonexistent model. No successful generation or usage was
+returned. No wire-level counter was installed, so Provider retry count and actual
+charge are not asserted. No other paid model request was intentionally sent.
+
+F2: **NOT RUN**, per the Part 1 stop condition. H1/H2: **NOT IMPLEMENTED**.
+No `npm test`, native smoke or `cargo build --offline` was run after this failure;
+this documentation-only result must not be reported as completion of T01.
+`git diff --check` passed. Next review decision: authorize the narrow failed-send
+draft restoration repair, then rerun F1 before proceeding to F2 and API hardening.
+
 ## 2026-09-20 Real Provider acceptance — partial pass, startup failure remains
 
 Tested source baseline: `00b6b035e9d7bcd17b18af6697afdeb3374b2ad6`.
