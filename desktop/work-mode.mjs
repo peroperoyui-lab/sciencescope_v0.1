@@ -16,7 +16,7 @@ window.addEventListener('click',async event=>{
   event.preventDefault();event.stopImmediatePropagation();
   if(V.pending.has(V.chat)||saving)return toast('请等待当前操作完成后切换工作方式。');
   if(!button.dataset.workMode){
-    composerMenu(button,'工作方式',Object.entries(labels).map(([id,label])=>({label,selected:(choices.get(V.chat)||'work')===id,action:'desktop-work-mode',attrs:`data-work-mode="${id}"`,description:id==='work'?'由主专家持续处理当前任务。':'保存讨论意图；当前客户端仍由主专家执行，尚未接入多专家调度。'})));
+    composerMenu(button,'工作方式',Object.entries(labels).map(([id,label])=>({label,selected:(choices.get(V.chat)||'work')===id,action:'desktop-work-mode',attrs:`data-work-mode="${id}"`,description:id==='work'?'由主专家持续处理当前任务。':id==='ordered'?'全部启用的专家并行独立作答，按名册顺序展示。':'用 @专家名 点名，只有被点名的专家作答。'})));
     return;
   }
   const id=V.chat,next=button.dataset.workMode;
@@ -30,7 +30,9 @@ window.addEventListener('click',async event=>{
       if(id===V.chat)await window.ScienceScopeWorkspace.appendNotice(result.message);
     }else toast('此设置将用于本次界面；发送首条消息后才创建对话。');
     choices.set(id,next);if(id===V.chat)paint();
+    window.dispatchEvent(new CustomEvent('sciencescope-work-mode',{detail:{chatId:id,mode:next}}));
   }catch(error){toast(error.message);}finally{saving=false;}
 },true);
+window.ScienceScopeWorkMode=Object.freeze({get:id=>choices.get(id)||'work'});
 const after=window.ScienceScopeWorkspace.afterRender;
 window.ScienceScopeWorkspace.afterRender=(...args)=>{after?.(...args);paint();};

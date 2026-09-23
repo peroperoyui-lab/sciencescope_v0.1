@@ -4,6 +4,7 @@ import {extensionsContent} from './extensions.mjs';
 import {secretaryPreferencesContent} from './secretary-settings.mjs';
 import {shortcutsContent} from './shortcuts.mjs';
 import {assistantWindowSettingsContent} from './assistant-window-settings.mjs';
+import {expertSettingsContent} from './expert-settings.mjs';
 
 let values={theme:'light',density:'standard',codeFontSize:14,chatFontSize:16,sendKey:'enter',reduceMotion:false,showScrollbars:false},loaded=false,diagnostics=null;
 const channel=new BroadcastChannel('sciencescope-desktop-preferences');
@@ -17,7 +18,8 @@ export function settingsContent(target){
   if(target==='shortcuts')return shortcutsContent();
   if(target==='general'&&loaded)return `<form id="desktop-preferences-form"><h2>阅读与操作</h2>${appearanceControls()}${row('聊天正文字号','主对话、任务秘书及全局助手统一生效。',select('chatFontSize',[14,15,16,18,20].map(size=>[size,`${size}px`])))}${row('发送快捷键','Shift + Enter 始终换行；不改变导图编辑键位。',select('sendKey',[['enter','Enter 发送'],['ctrl-enter','Ctrl + Enter 发送']]))}${row('减少过渡动画','即时生效。',select('reduceMotion',[[false,'关闭'],[true,'开启']]))}${row('显示滚动条','聊天和设置滚动区域。',select('showScrollbars',[[false,'自动隐藏'],[true,'始终显示']]))}<p data-settings-feedback role="status"></p><div class="saverow"><button class="btn primary" type="submit">保存并应用</button></div></form>`;
   if(target==='plugins'||target==='plugin')return extensionsContent();
-  if(['persona','experts','secretary-settings','assistant-settings'].includes(target))return roleSettingsContent(target)+(target==='secretary-settings'?secretaryPreferencesContent():target==='assistant-settings'?assistantWindowSettingsContent():'');
+  if(target==='experts')return expertSettingsContent();
+  if(['persona','secretary-settings','assistant-settings'].includes(target))return roleSettingsContent(target)+(target==='secretary-settings'?secretaryPreferencesContent():target==='assistant-settings'?assistantWindowSettingsContent():'');
   if(target==='general')return '<p>正在读取设置…</p>';
   if(target==='models')return modelsPage();
   if(target==='provider')return providerPage();

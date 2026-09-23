@@ -54,7 +54,7 @@ try{
   await page.waitForSelector('[name="notesTemplate"]:enabled');
   assert.equal(await page.locator('[name="notesTemplate"]').inputValue(),'# Custom persisted version template');
   assert.equal(await page.locator('[data-role-form] textarea[name="prompt"]').inputValue(),'Secretary saved from real settings UI.');
-  await page.evaluate(()=>go('experts'));await page.waitForSelector('[data-role-form="main"]');
+  await page.evaluate(()=>go('persona'));await page.waitForSelector('[data-role-form="main"]');
   await page.locator('[data-role-form] select[name="model"]').selectOption(JSON.stringify({providerId:'fixture',modelId:'one'}));
   await page.waitForFunction(()=>document.querySelector('[name="effort"] option[value="high"]'));
   await page.locator('[data-role-form] select[name="effort"]').selectOption('high');

@@ -1,6 +1,8 @@
 import { hostRequest } from './host-client.mjs';
 import './workspace-layout.mjs';
 
+// Expert discussion answers carry their real author and model from the host.
+const authorOf=(m,chatModel)=>m.role!=='assistant'?{}:m.expert?{name:m.expert.label,label:m.expert.model?.modelId||chatModel,expert:m.expert}:{name:'主专家',...(chatModel===undefined?{}:{label:chatModel})};
 const CHAT_ROUTES=new Set(['work','free','ordered','secretary','compose','preview','diff','context','browser','overview']);
 const PROJECT_ROUTES=new Set(['workbench','journal','versions','files','changes','map','map-rich','map-history']);
 const PAGE_LIMIT=60;
@@ -88,7 +90,7 @@ loadThread=async function(id,navigate=true) {
     state.draft=null;
     if(thread.projectId)setProject(thread.projectId);
     const data=chatData[id] || {};
-    if(page) {data.messages=page.messages.map(m=>({...m,time:m.time||m.created,name:m.role==='assistant'?'主专家':undefined,label:thread.model?.modelId}));state.pages.set(id,page);}
+    if(page) {data.messages=page.messages.map(m=>({...m,time:m.time||m.created,...authorOf(m,thread.model?.modelId)}));state.pages.set(id,page);}
     chatData[id]=data;restoreChat(id,data);S.chatName=thread.title;
     if(thread.model)window.ScienceScopeModels?.select(thread.model);
     if(navigate)go('work');render();capMemory();scheduleSave();scrollLatest();
@@ -108,7 +110,7 @@ async function pageHistory(direction) {
   const page=await hostRequest(`chats/${encodeURIComponent(id)}/messages?${cursor}limit=${direction==='latest'?PAGE_LIMIT:30}`);
   if(id!==V.chat)return;
   const thread=activeThread();
-  const incoming=page.messages.map(m=>({...m,time:m.time||m.created,name:m.role==='assistant'?'主专家':undefined,label:thread.model?.modelId}));
+  const incoming=page.messages.map(m=>({...m,time:m.time||m.created,...authorOf(m,thread.model?.modelId)}));
   S.messages=direction==='latest'?incoming:direction==='before'?[...incoming,...previous].slice(0,PAGE_LIMIT):[...previous,...incoming].slice(-PAGE_LIMIT);
   const start=direction==='before'?Number(page.before??0):direction==='after'?Number(page.after??page.total)-S.messages.length:Math.max(0,page.total-S.messages.length);
   const end=start+S.messages.length;
@@ -336,7 +338,7 @@ window.ScienceScopeWorkspace={
     if(V.pending.has(chatId)){toast('此对话正在运行，已打开最新进度。');return;}
     const page=await hostRequest(`chats/${encodeURIComponent(chatId)}/messages?around=${encodeURIComponent(messageId)}`);
     if(V.chat!==chatId||!page)return;
-    S.messages=page.messages.map(m=>({...m,time:m.created,name:m.role==='assistant'?'主专家':undefined}));
+    S.messages=page.messages.map(m=>({...m,time:m.created,...authorOf(m)}));
     state.pages.set(chatId,page);saveThread();render();
     requestAnimationFrame(()=>{
       const element=document.querySelector(`[data-message-id="${CSS.escape(messageId)}"]`)||document.querySelector(`[data-id="${CSS.escape(messageId)}"]`);
@@ -363,7 +365,7 @@ window.ScienceScopeWorkspace={
     const page=await hostRequest(`chats/${encodeURIComponent(id)}/messages?limit=${PAGE_LIMIT}`);
     if(id!==V.chat||page.total===state.pages.get(id)?.total)return;
     const box=document.querySelector('.messages'),follow=box&&box.scrollHeight-box.scrollTop-box.clientHeight<100,top=box?.scrollTop||0;
-    S.messages=page.messages.map(m=>({...m,time:m.created,name:m.role==='assistant'?'主专家':undefined,label:activeThread()?.model?.modelId}));
+    S.messages=page.messages.map(m=>({...m,time:m.created,...authorOf(m,activeThread()?.model?.modelId)}));
     state.pages.set(id,page);saveThread();render();if(follow)scrollLatest();else if(document.querySelector('.messages'))document.querySelector('.messages').scrollTop=top;
   },
   resolveThread:id=>state.draft?.id===id?state.draft:S.threads.find(t=>t.id===id),
