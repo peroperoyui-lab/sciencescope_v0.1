@@ -76,7 +76,7 @@ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 let browser;
 try {
   browser = await chromium.launchPersistentContext(path.join(output,'edge-profile'), {
-    executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+    executablePath:process.env.SCIENCESCOPE_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
     headless:true, viewport:{width:1440,height:960},
     env:{...process.env,TEMP:output,TMP:output},
   });
