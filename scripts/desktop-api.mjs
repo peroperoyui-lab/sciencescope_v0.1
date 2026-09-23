@@ -13,7 +13,7 @@ import {createRoleSettings,RoleSettingsError} from './role-settings.mjs';
 import {createSkillManager,SkillManagerError} from '../adapters/runtime-dsh/skill-manager.mjs';
 import { createVersionOrganizer } from './version-organizer.mjs';
 import { createLibraryService } from './library-service.mjs';
-import {randomUUID} from 'node:crypto';
+import {randomUUID, timingSafeEqual} from 'node:crypto';
 import {createExecutionService} from './execution-service.mjs';
 import { readFile as readFileBytes } from 'node:fs/promises';
 import {createAssistantConversations,AssistantConversationError} from './assistant-conversations.mjs';
@@ -34,7 +34,7 @@ function publicRuntimeMessage(error) {
   return '运行时请求失败；请检查模型配置和网络连接。';
 }
 
-export async function createDesktopApi({onError, dataRoot = defaultRoot, runtimeHost = null, runtimeWeb = null} = {}) {
+export async function createDesktopApi({onError, dataRoot = defaultRoot, runtimeHost = null, runtimeWeb = null, apiToken = null} = {}) {
   let host = runtimeHost;
   let web = runtimeWeb;
   const bindings = new Map();
@@ -148,6 +148,16 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     if (!route.startsWith('/api/')) return false;
     if (request.headers.host !== `127.0.0.1:${request.socket.localPort}`) { json(response,403,{message:'仅允许本地客户端访问。'}); return true; }
     if (request.headers.origin && request.headers.origin !== `http://${request.headers.host}`) { json(response,403,{message:'请求来源不匹配。'}); return true; }
+    if (apiToken !== null) {
+      const supplied = request.headers.authorization?.startsWith('Bearer ')
+        ? request.headers.authorization.slice('Bearer '.length)
+        : '';
+      const expected = Buffer.from(String(apiToken));
+      const actual = Buffer.from(supplied);
+      if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
+        json(response,401,{message:'本地 API 口令无效。'}); return true;
+      }
+    }
       if (route === '/api/status' && request.method === 'GET') { json(response,200,capabilities); return true; }
       try {
       const chatMatch = route.match(/^\/api\/chats\/([^/]+)(?:\/messages)?$/u);

@@ -325,7 +325,7 @@ window.addEventListener('keydown',event=>{
   if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='n') {event.preventDefault();event.stopImmediatePropagation();newThread(event.altKey?null:focusedProject());}
 },true);
 window.addEventListener('pagehide',()=>{
-  if(temporary&&V.chat)navigator.sendBeacon('/api/chats/temporary-close',new Blob([JSON.stringify({chatId:V.chat})],{type:'application/json'}));
+  if(temporary&&V.chat)void hostRequest('chats/temporary-close',{chatId:V.chat},{keepalive:true}).catch(()=>{});
 });
 
 window.ScienceScopeWorkspace={

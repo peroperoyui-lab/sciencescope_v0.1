@@ -9,7 +9,8 @@ import { createDesktopApi } from './desktop-api.mjs';
 export async function createDesktopServer({dataRoot,outputDir,runtimeHost}={}) {
 const entry = await buildDesktop({outputDir});
 const root = path.dirname(entry);
-const api = await createDesktopApi({dataRoot,runtimeHost});
+const apiToken = randomBytes(32).toString('hex');
+const api = await createDesktopApi({dataRoot,runtimeHost,apiToken});
 const routes = new Map([
   ['/', ['index.html','text/html; charset=utf-8']],
   ['/desktop/vendor/marked.mjs',['desktop/vendor/marked.mjs','text/javascript; charset=utf-8']],
@@ -53,11 +54,11 @@ async function close() {
   await api.close();
   server.closeAllConnections();
 }
-return {url,close,shutdownPath,shutdownToken};
+return {url,close,shutdownPath,shutdownToken,apiToken};
 }
 if(process.argv[1]&&import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href) {
   const desktop=await createDesktopServer();
-  console.log(process.argv.includes('--desktop') ? JSON.stringify({url:desktop.url,shutdownPath:desktop.shutdownPath,shutdownToken:desktop.shutdownToken}) : `ScienceScope UI preview: ${desktop.url}#models`);
+  console.log(process.argv.includes('--desktop') ? JSON.stringify({url:desktop.url,shutdownPath:desktop.shutdownPath,shutdownToken:desktop.shutdownToken,apiToken:desktop.apiToken}) : `ScienceScope UI preview: ${desktop.url}#models`);
   process.on('SIGINT',()=>void desktop.close());
   process.on('SIGTERM',()=>void desktop.close());
 }

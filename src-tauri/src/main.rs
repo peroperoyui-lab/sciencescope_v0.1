@@ -33,6 +33,19 @@ struct ShutdownTarget {
 
 struct WebviewDataDirectory(PathBuf);
 
+// Per-launch authority, never persisted or derived from a navigated window URL.
+struct HostAccess {
+    url: url::Url,
+    api_token: String,
+}
+
+fn api_initialization(app: &AppHandle) -> String {
+    let Some(access) = app.try_state::<HostAccess>() else { return String::new() };
+    let origin = serde_json::to_string(&access.url.origin().ascii_serialization()).expect("origin serializes");
+    let token = serde_json::to_string(&access.api_token).expect("token serializes");
+    format!("if (window.location.origin === {origin}) {{ Object.defineProperty(window, '__SCIENCESCOPE_API_TOKEN__', {{ value: {token}, enumerable: false, writable: false, configurable: false }}); }}")
+}
+
 struct AssistantState {
     mode: Mutex<AssistantMode>,
     dimensions_path: PathBuf,
@@ -245,12 +258,8 @@ async fn open_secondary_window(
         if let Some(existing)=app.get_webview_window(&label) {let _=existing.show();let _=existing.set_focus();return Ok(label);}
     }
     let base_url = app
-        .get_webview_window("main")
-        .and_then(|window| window.url().ok())
-        .filter(|url| {
-            matches!(url.scheme(), "http" | "https")
-                && matches!(url.host_str(), Some("127.0.0.1" | "localhost"))
-        })
+        .try_state::<HostAccess>()
+        .map(|access| access.url.clone())
         .unwrap_or_else(|| url::Url::parse("tauri://localhost/index.html").expect("static app URL"));
     let mut url = base_url;
     url.set_path("/");
@@ -267,6 +276,7 @@ async fn open_secondary_window(
             existing
         } else {
             WebviewWindowBuilder::new(&app, ASSISTANT_LABEL, WebviewUrl::External(url.clone()))
+                .initialization_script(api_initialization(&app))
                 .devtools(false)
                 .title("ScienceScope · 全局助手")
                 .visible(false)
@@ -282,6 +292,7 @@ async fn open_secondary_window(
             existing
         } else {
             WebviewWindowBuilder::new(&app, ASSISTANT_ORB_LABEL, WebviewUrl::External(orb_url))
+                .initialization_script(api_initialization(&app))
                 .devtools(false)
                 .title("ScienceScope · 助手")
                 .inner_size(f64::from(ASSISTANT_ORB), f64::from(ASSISTANT_ORB))
@@ -313,6 +324,7 @@ async fn open_secondary_window(
     let assistant_dimensions = app.state::<AssistantState>().dimensions_path.clone();
     let initial_dimensions = if assistant { read_assistant_dimensions(&assistant_dimensions) } else { AssistantDimensions { width: 800, height: 740 } };
     WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(url))
+        .initialization_script(api_initialization(&app))
         .devtools(false)
         .title(match surface {
             "assistant" => "ScienceScope · 全局助手",
@@ -396,7 +408,7 @@ impl Drop for HostProcess {
     }
 }
 
-fn host_url() -> Result<Option<(String, ChildHandle)>, Box<dyn std::error::Error>> {
+fn host_url() -> Result<Option<(String, String, ChildHandle)>, Box<dyn std::error::Error>> {
     let node = match std::env::var_os("SCIENCESCOPE_NODE") {
         Some(value) if !value.is_empty() => value,
         _ => return Ok(None),
@@ -440,6 +452,9 @@ fn host_url() -> Result<Option<(String, ChildHandle)>, Box<dyn std::error::Error
         .recv_timeout(Duration::from_secs(45))
         .map_err(|_| "timed out waiting for desktop host")??;
     let parsed: serde_json::Value = serde_json::from_str(line.trim())?;
+    let api_token = parsed.get("apiToken").and_then(serde_json::Value::as_str)
+        .filter(|value| !value.trim().is_empty() && value.len() <= 256)
+        .ok_or("desktop host API capability was invalid")?;
     let url = parsed
         .get("url")
         .and_then(serde_json::Value::as_str)
@@ -466,7 +481,7 @@ fn host_url() -> Result<Option<(String, ChildHandle)>, Box<dyn std::error::Error
             token: shutdown_token.to_owned(),
         });
     }
-    Ok(Some((url.to_owned(), owned)))
+    Ok(Some((url.to_owned(), api_token.to_owned(), owned)))
 }
 
 #[cfg(windows)]
@@ -619,13 +634,21 @@ fn main() {
 
             let hosted = host_url()?;
             let mut config = app.config().app.windows[0].clone();
-            if let Some((url, child)) = hosted {
-                config.url = tauri::WebviewUrl::External(url::Url::parse(&url)?);
+            if let Some((url, api_token, child)) = hosted {
+                let parsed_url = url::Url::parse(&url)?;
+                let mut capability: serde_json::Value = serde_json::from_str(include_str!("../capabilities/main.json"))?;
+                capability["identifier"] = serde_json::json!("host-window-controls");
+                capability["local"] = serde_json::json!(false);
+                capability["remote"] = serde_json::json!({"urls": [format!("{}/*", parsed_url.origin().ascii_serialization())]});
+                app.add_capability(serde_json::to_string(&capability)?)?;
+                config.url = tauri::WebviewUrl::External(parsed_url.clone());
+                app.manage(HostAccess { url: parsed_url, api_token });
                 app.manage(HostProcess {
                     child: Mutex::new(Some(child)),
                 });
             }
             WebviewWindowBuilder::from_config(app.handle(), &config)?
+                .initialization_script(api_initialization(app.handle()))
                 .data_directory(webview_data)
                 .build()?;
             Ok(())

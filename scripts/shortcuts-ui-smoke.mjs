@@ -3,12 +3,13 @@ import path from 'node:path';
 import {mkdir,mkdtemp,rm} from 'node:fs/promises';
 import {chromium} from 'playwright-core';
 import {createDesktopServer} from './preview-desktop.mjs';
+import {installApiToken} from './smoke-auth.mjs';
 const base=path.resolve('.sciencescope-local/temp');await mkdir(base,{recursive:true});
 const root=await mkdtemp(path.join(base,'shortcuts-ui-'));let browser,server;
 try{
   server=await createDesktopServer({dataRoot:root,outputDir:path.join(root,'assets'),runtimeHost:{listProviders:async()=>[],close:async()=>{}}});
   browser=await chromium.launchPersistentContext(path.join(root,'profile'),{headless:true,executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',env:{...process.env,TEMP:root,TMP:root}});
-  const page=await browser.newPage(),errors=[];page.on('pageerror',error=>errors.push(error.message));
+  const page=await browser.newPage(),errors=[];await installApiToken(page,server);page.on('pageerror',error=>errors.push(error.message));
   await page.goto(server.url+'#shortcuts');await page.waitForSelector('[data-shortcut-input]:enabled');
   await page.locator('[name="search"]').press('Control+Shift+F');
   assert.equal(await page.locator('[name="search"]').inputValue(),'Ctrl+Shift+F');
@@ -28,7 +29,7 @@ try{
   await page.keyboard.press('Control+Shift+k');await page.waitForFunction(()=>route==='projects');
   await page.keyboard.press('Control+Alt+n');await page.waitForSelector('[data-draft="main"]');
   assert.equal(await page.evaluate(()=>S.threads.length),0,'new draft does not create a persisted chat');
-  const second=await browser.newPage();await second.goto(server.url+'#shortcuts');await second.waitForSelector('[data-shortcut-input]:enabled');
+  const second=await browser.newPage();await installApiToken(second,server);await second.goto(server.url+'#shortcuts');await second.waitForSelector('[data-shortcut-input]:enabled');
   await page.evaluate(()=>go('shortcuts'));await page.locator('[data-shortcut-reset]').click();
   await page.locator('dialog button[value="confirm"]').click();
   await second.waitForFunction(()=>window.ScienceScopeShortcuts.get().search==='Ctrl+K');

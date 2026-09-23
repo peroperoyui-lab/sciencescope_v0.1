@@ -3,6 +3,7 @@ import {mkdir,mkdtemp,rm} from 'node:fs/promises';
 import path from 'node:path';
 import {chromium} from 'playwright-core';
 import {createDesktopServer} from './preview-desktop.mjs';
+import {installApiToken} from './smoke-auth.mjs';
 const base=path.resolve('.sciencescope-local/temp');await mkdir(base,{recursive:true});
 const root=await mkdtemp(path.join(base,'background-ui-'));
 let release,more,browser;
@@ -25,6 +26,7 @@ try{
   });
   const page=await browser.newPage(),errors=[];
   page.on('pageerror',error=>errors.push(error.message));
+  await installApiToken(page,server);
   await page.goto(server.url);
   await page.waitForFunction(()=>window.ScienceScopeActivity&&window.ScienceScopeWorkspace?.ready);
   await page.evaluate(()=>window.ScienceScopeWorkspace.ready);

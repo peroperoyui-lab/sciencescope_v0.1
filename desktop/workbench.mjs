@@ -1,16 +1,38 @@
 import './workspace.mjs';
-import {hostRequest} from './host-client.mjs';
+import {hostRequest,hostBlob} from './host-client.mjs';
 import {renderMarkdown} from './markdown.mjs';
 
 // The prototype remains the visual baseline; disk state replaces its examples.
 const cache=new Map(), loading=new Set(), channel=new BroadcastChannel('sciencescope-workbench');
+const assetUrls=new Map();
+const pendingAssets=new Map();
 let ready=false, viewKey='', folder='', entries=[], allLogs=false, dirty=false;
 const mapUndo=[],mapRedo=[];
 const mapSnapshot=()=>structuredClone({nodes:S.nodes,edges:S.mapEdges||[]});
 captureMap=()=>{mapUndo.push(mapSnapshot());if(mapUndo.length>50)mapUndo.shift();mapRedo.length=0;};
 const current=()=>cache.get(S.projectId);
 const button=(label,action,extra='')=>`<button class="btn tiny" data-wb="${action}" ${extra}>${label}</button>`;
-const assetUrl=(relative)=>`/api/workbench/asset?projectId=${encodeURIComponent(S.projectId)}&path=${encodeURIComponent(relative)}`;
+const assetRoute=(projectId,relative)=>`workbench/asset?projectId=${encodeURIComponent(projectId)}&path=${encodeURIComponent(relative)}`;
+function revokeAssets(){for(const url of assetUrls.values())URL.revokeObjectURL(url);assetUrls.clear();}
+async function hydrateAssets(){
+  const projectId=S.projectId;
+  for(const image of document.querySelectorAll('img[data-asset-path]')){
+    const relative=image.dataset.assetPath,key=`${projectId}:${relative}`;
+    if(assetUrls.has(key)){image.src=assetUrls.get(key);continue;}
+    let pending=pendingAssets.get(key);
+    if(!pending){
+      pending=hostBlob(assetRoute(projectId,relative)).then(blob=>URL.createObjectURL(blob));
+      pendingAssets.set(key,pending);
+      pending.finally(()=>{if(pendingAssets.get(key)===pending)pendingAssets.delete(key);}).catch(()=>{});
+    }
+    try {
+      const url=await pending;
+      if(projectId!==S.projectId){URL.revokeObjectURL(url);return;}
+      assetUrls.set(key,url);
+      for(const target of document.querySelectorAll(`img[data-asset-path="${CSS.escape(relative)}"]`))target.src=url;
+    } catch { image.removeAttribute('src'); }
+  }
+}
 const organizing=new Set();
 async function organize(versionId){
   if(organizing.has(versionId))return;
@@ -22,7 +44,6 @@ async function organize(versionId){
 }
 function apply(value){
   S.nodes=structuredClone(value.map.nodes); S.mapEdges=structuredClone(value.map.edges||[]);
-  for(const node of S.nodes)for(const image of node.images||[])if(image.path)image.src=assetUrl(image.path);
   S.collapsed=value.map.collapsed||{}; S.mapHistory=value.map.history||[];
   S.journals=structuredClone(value.logs); S.versions=structuredClone(value.versions);
   S.mapSelected=S.nodes.some(n=>n.id===S.mapSelected)?S.mapSelected:S.nodes[0]?.id;
@@ -65,10 +86,11 @@ window.ScienceScopeWorkspace.afterRender=function(...args){
   const key=S.projectId+':'+route;
   if(key!==viewKey){
     const changedProject=viewKey.split(':')[0]!==S.projectId;viewKey=key;
-    if(changedProject){folder='';entries=[];if(current()){apply(current());files('').then(()=>render()).catch(e=>toast(e.message));}else load();}
+    if(changedProject){revokeAssets();folder='';entries=[];if(current()){apply(current());files('').then(()=>render()).catch(e=>toast(e.message));}else load();}
     else if(['workbench','versions','map','map-rich'].includes(route)&&!dirty)load();
     if(['workbench','map','map-rich'].includes(route))requestAnimationFrame(fitMap);
   }
+  void hydrateAssets();
 };
 const baseWorkbench=workbench;
 workbench=()=>{
@@ -136,7 +158,7 @@ mapViewport=edit=>{
   let lines=edges.map(e=>{const a=byId.get(e.from),b=byId.get(e.to);return a&&b?`<path d="M${a.x+a.w} ${a.y+a.h/2} L${b.x} ${b.y+b.h/2}" ${e.directed?'marker-end="url(#wb-arrow)"':''}/>`:'';}).join('');
   const roots=positions.filter(p=>p.root&&!p.node.floating);for(let i=1;i<roots.length;i++){const a=roots[i-1],b=roots[i];lines+=`<path d="M${a.x+a.w/2} ${a.y+a.h} L${b.x+b.w/2} ${b.y-5}" marker-end="url(#wb-arrow)"/>`;}
   for(const parent of positions){const children=positions.filter(p=>p.parent===parent.node.id);if(!children.length)continue;const x=parent.x+parent.w+30,first=children[0],last=children.at(-1),mid=parent.y+parent.h/2;lines+=`<path d="M${parent.x+parent.w} ${mid} H${x} M${x+12} ${first.y+18} Q${x} ${first.y+18} ${x} ${first.y+30} V${last.y+last.h-18} Q${x} ${last.y+last.h-6} ${x+12} ${last.y+last.h-6}"/>`;for(const child of children)lines+=`<path d="M${x} ${child.y+child.h/2} H${child.x}"/>`;}
-  return `<div class="mapviewport" id="mapviewport" data-edit="${edit}">${edit?'':'<span class="readbadge">缩放 / 拖动 / 展开 · 内容只读</span>'}<div class="mapscene" id="mapscene"><svg class="connections"><defs><marker id="wb-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="#9bac8f"/></marker></defs><g fill="none" stroke="#9bac8f" stroke-width="1.5">${lines}</g></svg>${positions.map(p=>`<div class="mapnode ${p.root?'root':'secondary'} ${S.mapSelected===p.node.id?'selected':''}" style="left:${p.x}px;top:${p.y}px;width:${p.w}px;height:${p.h}px" data-node="${esc(p.node.id)}" data-action="select-node" ${edit?'data-drop="map"':''} tabindex="0"><div class="nodetext">${renderMarkdown(p.node.text)}</div>${(p.node.images||[]).map(image=>`<img class="nodeimg" src="${esc(image.path?assetUrl(image.path):image.src)}" alt="${esc(image.name)}">`).join('')}<button class="nodeplus" data-action="node-toggle" data-id="${esc(p.node.id)}">${S.nodes.some(n=>n.parent===p.node.id)&&!S.collapsed[p.node.id]?'−':'+'}</button></div>`).join('')}</div></div>`;
+  return `<div class="mapviewport" id="mapviewport" data-edit="${edit}">${edit?'':'<span class="readbadge">缩放 / 拖动 / 展开 · 内容只读</span>'}<div class="mapscene" id="mapscene"><svg class="connections"><defs><marker id="wb-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8" fill="#9bac8f"/></marker></defs><g fill="none" stroke="#9bac8f" stroke-width="1.5">${lines}</g></svg>${positions.map(p=>`<div class="mapnode ${p.root?'root':'secondary'} ${S.mapSelected===p.node.id?'selected':''}" style="left:${p.x}px;top:${p.y}px;width:${p.w}px;height:${p.h}px" data-node="${esc(p.node.id)}" data-action="select-node" ${edit?'data-drop="map"':''} tabindex="0"><div class="nodetext">${renderMarkdown(p.node.text)}</div>${(p.node.images||[]).map(image=>`<img class="nodeimg" src="${esc(image.path?(assetUrls.get(`${S.projectId}:${image.path}`)||''):image.src||'')}" ${image.path?`data-asset-path="${esc(image.path)}"`:''} alt="${esc(image.name)}">`).join('')}<button class="nodeplus" data-action="node-toggle" data-id="${esc(p.node.id)}">${S.nodes.some(n=>n.parent===p.node.id)&&!S.collapsed[p.node.id]?'−':'+'}</button></div>`).join('')}</div></div>`;
 };
 fitMap=()=>{const vp=document.querySelector('#mapviewport'),p=mapPositions();if(!vp||!p.length||!vp.clientWidth)return;const minX=Math.min(...p.map(n=>n.x)),minY=Math.min(...p.map(n=>n.y)),width=Math.max(...p.map(n=>n.x+n.w))-minX,height=Math.max(...p.map(n=>n.y+n.h))-minY;const scale=Math.max(.1,Math.min(1,(vp.clientWidth-60)/width,(vp.clientHeight-60)/height));mapView={scale,x:(vp.clientWidth-width*scale)/2-minX*scale,y:(vp.clientHeight-height*scale)/2-minY*scale};applyMapView();};
 const baseMapEditor=mapEditor;
@@ -214,6 +236,7 @@ window.addEventListener('pointerdown',event=>{const element=event.target.closest
 window.addEventListener('pointermove',event=>{if(!nodeDrag)return;const d=nodeDrag;d.node.x=d.originalX+(event.clientX-d.x)/mapView.scale;d.node.y=d.originalY+(event.clientY-d.y)/mapView.scale;d.element.style.left=d.node.x+'px';d.element.style.top=d.node.y+'px';},true);
 window.addEventListener('pointerup',event=>{if(!nodeDrag)return;const d=nodeDrag;nodeDrag=null;if(Math.abs(event.clientX-d.x)+Math.abs(event.clientY-d.y)>4)mapChanged('移动游离节点');},true);
 window.addEventListener('keydown',event=>{if(event.isComposing)return;if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='s'&&['map','map-rich'].includes(route)){event.preventDefault();event.stopImmediatePropagation();saveMap().catch(e=>toast(e.message));}},true);
+window.addEventListener('pagehide',revokeAssets);
 
 await window.ScienceScopeWorkspace.ready;
 try {S.plans=await hostRequest('workbench/plans');if(!Array.isArray(S.plans))S.plans=S.plans.plans||[];}catch{S.plans=[];}

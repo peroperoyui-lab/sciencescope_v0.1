@@ -10,7 +10,7 @@ import { buildDesktop } from './build-desktop.mjs';
 import { defaultRoot } from './prepare-desktop.mjs';
 
 const entry = await buildDesktop();
-const output = path.join(defaultRoot,'.sciencescope-local','ui-smoke');
+const output = path.join(defaultRoot,'.sciencescope-local','temp','failed-send-draft-smoke');
 await mkdir(output,{recursive:true});
 process.env.TEMP=output;process.env.TMP=output;
 const failure = '模型服务找不到所选模型；请在模型设置中确认模型 ID 仍然可用。';
