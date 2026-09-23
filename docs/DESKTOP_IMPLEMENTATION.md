@@ -1,5 +1,54 @@
 # Desktop implementation — first increment
 
+## 2026-09-23 Slice B: expert discussion (Claude, cloud)
+
+Implemented the contract's discussion semantics on top of DSH's own subagent
+service, without a new agent loop or one process per expert.
+
+- **Runtime** (`adapters/runtime-dsh/session-control.mjs` `/experts`, `host.mjs`
+  `runExperts`/`cancelExperts`): each expert is a fresh in-process `spawn` child of
+  the chat's DSH session, with its own persona and optional provider/model/effort.
+  All experts get one frozen shared prompt concurrently; an optional per-expert
+  suffix tells an expert which earlier answer is its own. Main's history is untouched.
+- **Roster** (`scripts/expert-roster.mjs`, SQLite `experts`): stable ids are the
+  execution identity, labels are display only; model `null` = the chat's model.
+  Seeded once with 方法学家 / 统计审稿人 / 魔鬼代言人. `GET/POST /api/experts`.
+- **Rounds** (`scripts/discussion-service.mjs`, `POST /api/discussion`): `independent`
+  (no expert sees another) and `critique` (each sees the previous round, marked by
+  name, plus optional user addition). Each answer is a normal assistant message;
+  `discussion_entries` records author, model and stop reason, and the messages
+  page returns it as `message.expert`. Stop in the composer cancels a running round
+  (`/api/chat/stop` → discussion cancel). Chat/project/model binding rules equal Main.
+- **UI** (`desktop/discussion.mjs`): in "有序讨论" all enabled experts answer and are
+  shown in roster order; in "自由讨论" only `@label`/`@id` mentions are sent, and no
+  mention means no request. A participants strip in the approved panelhead style
+  offers "互相质询". "工作" mode is unchanged. The work-mode menu text now states
+  the real behaviour.
+
+Live progress: each expert's text streams into its own card, and a running tool
+call shows as "正在使用工具：…" (per-expert `expert-delta`/`expert-tool` events,
+serialised in order). Settings → 专家角色 edits the roster.
+
+Not yet done: per-chat persistence of the selected work mode (resets to 工作 on reload), the
+`@` candidate menu, streaming expert text (answers appear when each expert
+finishes), a secretary-built disagreement matrix, and passing a discussion into
+Main's own history (use quotes for now).
+
+Live end-to-end result (`scripts/evals/discussion-api-live.mjs`, OpenCode Go): roster
+saved with glm-5.3-flash / qwen3.8-flash / mimo-v2.6-flash; independent round 351s,
+critique round 405s, all six answers completed and read back with correct author and
+model. The statistician used the bash tool seven times to recompute effect sizes and
+power, and in the critique round corrected its own earlier sample-size figure. Stored
+answers are in completion order; the messages API reorders each round by roster
+position, as the contract requires a fixed display order.
+
+Tests: `tests/expert-discussion-runtime.test.mjs` (real DSH + fixture: concurrency,
+per-expert model/persona isolation), `tests/discussion-api.test.mjs` (roster, rounds,
+records, errors), `scripts/discussion-ui-smoke.mjs` (Linux Chromium: ordered, critique,
+free @, work mode unchanged). Live evidence: `scripts/evals/expert-discussion-live.mjs`
+and `scripts/evals/discussion-api-live.mjs` with glm-5.3-flash / qwen3.8-flash /
+mimo-v2.6-flash on OpenCode Go.
+
 ## 2026-09-23 Research material as tagged blocks (Claude, cloud)
 
 `scripts/research-input.mjs` now renders material inside the existing
