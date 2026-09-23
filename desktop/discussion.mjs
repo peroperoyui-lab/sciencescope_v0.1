@@ -54,7 +54,7 @@ async function submitDiscussion(text, {kind = 'independent'} = {}) {
   const userId = uid('msg');
   const data = () => chatId === V.chat ? S : chatData[chatId];
   saveThread(); V.pending.add(chatId); window.ScienceScopeMainRun?.sync();
-  let accepted = false; const placeholders = new Map();
+  let accepted = false; const placeholders = new Map(); const pendingPaint = new Set();
   const paintAnswer = (messageId) => {
     if (chatId !== V.chat) return;
     const node = document.getElementById(`message-${messageId}`);
@@ -62,7 +62,7 @@ async function submitDiscussion(text, {kind = 'independent'} = {}) {
     if (!node || !answer) return;
     const box = document.querySelector('.messages');
     const follow = box && box.scrollHeight - box.scrollTop - box.clientHeight < 90;
-    node.querySelector('.message-text').innerHTML = renderMarkdown(answer.text || (answer.streaming ? '正在作答…' : ''));
+    node.querySelector('.message-text').innerHTML = renderMarkdown(answer.text || (answer.streaming ? (answer.activity ? `正在使用工具：${answer.activity}…` : '正在作答…') : ''));
     node.toggleAttribute('data-streaming', !!answer.streaming);
     if (follow) box.scrollTop = box.scrollHeight;
   };
@@ -92,6 +92,15 @@ async function submitDiscussion(text, {kind = 'independent'} = {}) {
           for (const message of added) if (message.role === 'assistant') paintAnswer(message.id);
           box.scrollTop = box.scrollHeight; saveThread();
         } else if (chatId === V.chat) { saveThread(); render(); }
+      }
+      if (event.type === 'expert-delta' || event.type === 'expert-reset' || event.type === 'expert-tool') {
+        const answer = data().messages?.find(m => m.id === event.messageId);
+        if (answer && answer.streaming) {
+          if (event.type === 'expert-delta') answer.text += event.delta;
+          else if (event.type === 'expert-reset') answer.text = '';
+          else answer.activity = event.name;
+          if (!pendingPaint.has(event.messageId)) { pendingPaint.add(event.messageId); setTimeout(() => { pendingPaint.delete(event.messageId); paintAnswer(event.messageId); }, 60); }
+        }
       }
       if (event.type === 'expert-end') {
         const answer = data().messages?.find(m => m.id === event.messageId);

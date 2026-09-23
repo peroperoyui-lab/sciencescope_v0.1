@@ -25,8 +25,11 @@ service, without a new agent loop or one process per expert.
   offers "互相质询". "工作" mode is unchanged. The work-mode menu text now states
   the real behaviour.
 
-Not yet done: expert roster editing page (P30 still shows the prototype),
-per-chat persistence of the selected work mode (resets to 工作 on reload), the
+Live progress: each expert's text streams into its own card, and a running tool
+call shows as "正在使用工具：…" (per-expert `expert-delta`/`expert-tool` events,
+serialised in order). Settings → 专家角色 edits the roster.
+
+Not yet done: per-chat persistence of the selected work mode (resets to 工作 on reload), the
 `@` candidate menu, streaming expert text (answers appear when each expert
 finishes), a secretary-built disagreement matrix, and passing a discussion into
 Main's own history (use quotes for now).

@@ -81,6 +81,9 @@ export function createDiscussionService({ host, chatStore, db }) {
         })),
         onEvent: (event) => {
           if (event.type === 'expert-start') onEvent({ type: 'expert-start', runId, expertId: event.expertId });
+          if (!seen.has(event.expertId) && event.type === 'expert-delta' && typeof event.delta === 'string') onEvent({ type: 'expert-delta', runId, expertId: event.expertId, messageId: ids.get(event.expertId), delta: event.delta });
+          if (!seen.has(event.expertId) && event.type === 'expert-reset') onEvent({ type: 'expert-reset', runId, expertId: event.expertId, messageId: ids.get(event.expertId) });
+          if (!seen.has(event.expertId) && event.type === 'expert-tool') onEvent({ type: 'expert-tool', runId, expertId: event.expertId, messageId: ids.get(event.expertId), name: event.name });
           if (event.type === 'expert-end' && !seen.has(event.expertId)) { seen.add(event.expertId); record(event); }
         },
       });
