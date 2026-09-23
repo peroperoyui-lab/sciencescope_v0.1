@@ -43,6 +43,22 @@ this documentation-only result must not be reported as completion of T01.
 `git diff --check` passed. Next review decision: authorize the narrow failed-send
 draft restoration repair, then rerun F1 before proceeding to F2 and API hardening.
 
+## 2026-09-23 Failed-send draft restoration (Claude, cloud) — fix for T01 F1
+
+Addresses the T01 F1 failure above. `desktop/live-chat.mjs` cleared the Main
+composer on `accepted` but only restored research inputs on a later failure.
+The failure path now puts the sent text back into the composer (current chat:
+`S.drafts.main` and the textarea; background chat: `chatData[id].draft`) only
+when that composer is still empty, so text typed during the run is never
+overwritten. The already-persisted user message and failure receipt stay in the
+transcript as the record of the attempt.
+
+Tested (Linux Chromium, offline fixture, zero provider requests):
+`SCIENCESCOPE_BROWSER=<chromium> node scripts/failed-send-draft-smoke.mjs` passes
+(restores text; keeps newer text). The same smoke on the previous source fails
+with an empty composer, matching the native observation. `scripts/chat-ui-smoke.mjs`
+still passes; `npm test` 104/104. **Native Windows re-run of F1 is still pending (T01 round 2).**
+
 ## 2026-09-20 Real Provider acceptance — partial pass, startup failure remains
 
 Tested source baseline: `00b6b035e9d7bcd17b18af6697afdeb3374b2ad6`.
