@@ -47,6 +47,36 @@ function normalizeMaterial(compiled) {
   invalid('Invalid attachment compilation');
 }
 
+// Attribute values are escaped; bodies stay verbatim so the model reads the
+// original newlines, LaTeX backslashes and quotes. Only a literal closing tag of
+// the enclosing element is neutralised, so material cannot end its own block.
+const attr = (value) => String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/[\r\n]+/g, ' ');
+const attrs = (pairs) => pairs.filter(([, v]) => v !== undefined && v !== null && v !== '').map(([k, v]) => ` ${k}="${attr(v)}"`).join('');
+const body = (text, tag) => String(text).replace(new RegExp(`</(${tag})`, 'gi'), '<\\/$1');
+const element = (tag, pairs, text) => `<${tag}${attrs(pairs)}>\n${body(text, tag)}\n</${tag}>`;
+const locationText = (location) => location === undefined ? undefined
+  : typeof location.description === 'string' && Object.keys(location).length === 1 ? location.description : JSON.stringify(location);
+
+export function renderResearchMaterial({ attachments = [], messageQuotes = [], annotations = [], annotationResources = {} } = {}) {
+  const blocks = [];
+  if (typeof attachments === 'string') { if (attachments) blocks.push(element('material', [], attachments)); }
+  else for (const item of attachments) {
+    const pairs = [['id', item.id], ['title', item.name], ['path', item.path]];
+    if (typeof item.text === 'string') blocks.push(element('material', [...pairs, ['truncated', item.truncated ? 'true' : 'false']], item.text));
+    else blocks.push(element('material', [...pairs, ['extracted', 'false']], item.note || 'Contents were not extracted into this message.'));
+  }
+  for (const quote of messageQuotes) {
+    const inner = quote.comment ? `${body(quote.selectedText, 'quote')}\n<comment>${body(quote.comment, 'comment')}</comment>` : quote.selectedText;
+    blocks.push(`<quote${attrs([['source-chat', quote.sourceChatId], ['source-message', quote.sourceMessageId], ['speaker', quote.speaker]])}>\n${quote.comment ? inner : body(inner, 'quote')}\n</quote>`);
+  }
+  for (const note of annotations) {
+    const resource = annotationResources[note.resourceId] || {};
+    const inner = [`<selected>${body(note.selectedText, 'selected')}</selected>`, ...(note.comment ? [`<comment>${body(note.comment, 'comment')}</comment>`] : [])].join('\n');
+    blocks.push(`<annotation${attrs([['resource', note.resourceId], ['title', resource.title], ['path', resource.path], ['version', note.versionId], ['location', locationText(note.location)]])}>\n${body(inner, 'annotation')}\n</annotation>`);
+  }
+  return blocks.join('\n');
+}
+
 export function createResearchInput({ attachments, chatStore, getResource } = {}) {
   if (!attachments || typeof attachments.compile !== 'function') throw new TypeError('attachments.compile is required');
   const resourceReader = getResource || (async (id) => {
@@ -113,7 +143,7 @@ export function createResearchInput({ attachments, chatStore, getResource } = {}
     if (allAttachmentIds.length > MAX_ATTACHMENTS) invalid('Too many attachments');
     const compiled = await attachments.compile(allAttachmentIds, { structured: true });
     const material = normalizeMaterial(compiled);
-    const materialPayload = JSON.stringify({ attachments: material ? compiled : [], attachmentIds: allAttachmentIds, messageQuotes, annotations, annotationResources, contextRefs });
+    const materialPayload = renderResearchMaterial({ attachments: material ? compiled : [], messageQuotes, annotations, annotationResources });
     if (materialPayload.length > MAX_MATERIAL) invalid('Research material is too long');
     const materialText = allAttachmentIds.length || messageQuotes.length || annotations.length || contextRefs.length
       ? `[User-provided research material]\n${materialPayload}\n[End user-provided research material]\n` : '';

@@ -25,10 +25,10 @@ try{
   await page.locator('[data-composer="main"] [data-v="send"]').click();
   await page.waitForFunction(()=>!V.pending.has(V.chat)&&S.messages.some(m=>m.role==='user'&&m.text==='Analyze attached evidence'));
   assert.equal(calls.length,2);
-  const block=JSON.parse(calls[1].split('[User-provided research material]\n')[1].split('\n[End user-provided research material]')[0]);
-  assert.equal(block.messageQuotes[0].selectedText,'Research bold source tail');
-  assert.equal(block.messageQuotes[0].sourceMessageId,'source-answer');
-  assert.equal(block.annotations[0].comment,'Verify this row');assert.match(block.attachments[0].text,/EVIDENCE_ROW_42/);
+  const block=calls[1].split('[User-provided research material]\n')[1].split('\n[End user-provided research material]')[0];
+  assert.match(block,/<quote source-chat="[^"]+" source-message="source-answer" speaker="assistant">\nResearch bold source tail\n<comment>Check this exact excerpt<\/comment>\n<\/quote>/);
+  assert.match(block,/<annotation [^>]*location="line 1">\n<selected>EVIDENCE_ROW_42<\/selected>\n<comment>Verify this row<\/comment>\n<\/annotation>/);
+  assert.match(block,/<material [^>]*title="研究 材料\.csv"[^>]*truncated="false">\nEVIDENCE_ROW_42\n<\/material>/);
   await page.waitForFunction(async()=>{const input=await window.ScienceScopeResearchInput.capture('main',V.chat);return input.annotations.length===0&&input.messageQuotes.length===0&&input.attachmentIds.length===0;});
   await page.reload();await page.waitForFunction(()=>window.ScienceScopeWorkspace?.ready);await page.evaluate(async()=>{await window.ScienceScopeWorkspace.ready;await window.SSV2.loadThread('source');});await page.waitForSelector('.research-receipt');
   assert.deepEqual(errors,[]);console.log(JSON.stringify({productionRouter:true,realSelectionAcrossMarkdown:true,unicodeAttachment:true,annotation:true,actualHostInput:true,ackClearedCaptured:true,receiptReopened:true,paidRequests:0}));
