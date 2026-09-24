@@ -106,7 +106,16 @@ try {
   await page.waitForTimeout(200);
   assert.equal(calls.length, 2);
   assert.equal(await page.locator('[data-draft="main"]').inputValue(), '没有点名的问题');
-  await page.locator('[data-draft="main"]').fill('@统计审稿人 样本量够吗？');
+  // Typing @ offers enabled experts; Enter picks one and never sends.
+  await page.locator('[data-draft="main"]').fill('');
+  await page.locator('[data-draft="main"]').pressSequentially('@统');
+  await page.waitForSelector('.mention-menu [data-mention]');
+  assert.equal(await page.locator('.mention-menu [data-mention]').count(), 1);
+  await page.keyboard.press('Enter');
+  assert.equal(calls.length, 2, 'choosing a mention does not send');
+  assert.equal(await page.locator('[data-draft="main"]').inputValue(), '@统计审稿人 ');
+  assert.equal(await page.locator('.mention-menu').count(), 0);
+  await page.locator('[data-draft="main"]').pressSequentially('样本量够吗？');
   await page.locator('[data-composer="main"] [data-v="send"]').click();
   await page.waitForFunction(() => S.messages.filter(m => m.expert && !m.streaming).length === 5 && !V.pending.has(V.chat));
   assert.deepEqual(calls[2].body.expertIds, ['statistician']);
@@ -136,5 +145,5 @@ try {
   assert.deepEqual(savedCall.body.experts[2].model, {providerId: 'offline', modelId: 'model-b'});
   assert.equal(savedCall.body.experts[1].id, 'statistician', 'rename keeps the stable id');
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({liveExpertText: true, rosterEditor: true, orderedAllEnabled: true, rosterOrderDisplay: true, realAuthors: true, critiqueRound: true, freeMentionsOnly: true, workModeUnchanged: true, localRequests: calls.length, paidRequests: 0}));
+  console.log(JSON.stringify({liveExpertText: true, rosterEditor: true, orderedAllEnabled: true, rosterOrderDisplay: true, realAuthors: true, critiqueRound: true, freeMentionsOnly: true, mentionMenu: true, workModeUnchanged: true, localRequests: calls.length, paidRequests: 0}));
 } finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }
