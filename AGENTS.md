@@ -8,6 +8,16 @@ against the development server. Display publisher: peroperoyui; credit Codex as
 AI-assisted development and Claude (Anthropic) as AI-assisted review and
 development, without fabricating GitHub identities or signatures.
 
+## System spec: read first, keep current
+
+At the start of every task, read `docs/SYSTEM_SPEC.md`. It records what each
+feature currently does, its status, how it is implemented and how it was
+verified. When a change alters a feature's behaviour, API, storage or
+verification status, update the relevant section (and its "最近核对" line) in
+the same commit. The spec is a record of the present, not a constraint: a
+better design may replace what it describes; update the spec when you do.
+Dated history and acceptance details stay in `docs/DESKTOP_IMPLEMENTATION.md`.
+
 Read CODEX_START.md and the relevant design/interaction documents before edits.
 The approved ScienceScope.html, Logo, colors and layout are the visual baseline;
 do not redesign them or import the rejected old GUI.
