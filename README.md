@@ -3,6 +3,7 @@
 ## 桌面客户端开发状态
 
 本轮试用与网页端讨论入口：[2026-09-20 交接清单](docs/WEB_REVIEW_HANDOFF.md)。
+**系统功能与技术说明（现状记录，每次开发先读）：[SYSTEM_SPEC](docs/SYSTEM_SPEC.md)。**
 Claude 深度审阅、已修复缺陷与路线建议：[2026-09-23 审阅](docs/REVIEW_CLAUDE_2026-09-23.md)。
 列明已实现、实际验证、未完成项和建议试用路径；不代表 alpha 已发布。
 
