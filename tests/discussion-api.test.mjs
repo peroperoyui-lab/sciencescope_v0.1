@@ -15,10 +15,11 @@ async function fixture() {
     observeSession: () => () => {},
     startSession: async ({ sessionId }) => { state.starts += 1; return sessionId || `session-${state.starts}`; },
     configureReasoning: async () => {}, configurePolicy: async () => {}, releaseSession: async () => {}, close: async () => {},
-    send: async () => { throw new Error('Main send must not run for a discussion'); },
+    send: async ({ text, onEvent }) => { state.mainPrompts = [...(state.mainPrompts || []), text]; onEvent({ type: 'text-delta', delta: 'MAIN_REPLY' }); onEvent({ type: 'completed', text: 'MAIN_REPLY' }); return { finalResponse: 'MAIN_REPLY' }; },
     runExperts: async ({ runId, prompt, experts, onEvent }) => {
-      state.runs.push({ prompt, experts });
+      state.runs.push({ runId, prompt, experts });
       const result = experts.map((expert) => ({ expertId: expert.id, stopReason: 'completed', text: `${expert.id.toUpperCase()}_VIEW`, ms: 5 }));
+      if (experts[0].id === 'methodologist') onEvent({ type: 'expert-tool', runId, expertId: 'methodologist', callId: 'call-1', name: 'read', argumentsPreview: '{"path":"paper_versions/draft.md"}', preamble: 'Let me read the draft.' });
       // Finish in reverse roster order, as real experts finish in any order.
       for (const entry of [...result].reverse()) { onEvent({ type: 'expert-start', runId, expertId: entry.expertId }); onEvent({ type: 'expert-end', runId, ...entry }); }
       return result;
@@ -41,43 +42,85 @@ async function fixture() {
 
 const model = { providerId: 'fixture', modelId: 'main-model' };
 
-test('expert discussion: roster defaults, independent round, authored records, cross-critique', async () => {
+test('ordered panel: shared transcript, roster order, reviewer after all, adoption, invites and Main catch-up', async () => {
   const f = await fixture();
   try {
     const roster = (await f.send('GET', '/api/experts')).events[0];
     assert.equal(roster.available, true);
     assert.deepEqual(roster.experts.map((e) => e.id), ['methodologist', 'statistician', 'red-team']);
 
-    const early = await f.send('POST', '/api/discussion', { chatId: 'chat-d', projectId: null, model, kind: 'critique', expertIds: ['statistician'] });
-    assert.equal(early.status, 409); assert.equal(early.events[0].code, 'NO_PREVIOUS_ROUND');
+    // A Main turn first, so the panel has earlier conversation to read.
+    const main1 = await f.send('POST', '/api/chat', { chatId: 'chat-d', projectId: null, model, text: 'Summarise the study.', userMessageId: 'msg-u0', assistantMessageId: 'msg-a0' });
+    assert.equal(main1.status, 200);
 
-    const first = await f.send('POST', '/api/discussion', { chatId: 'chat-d', projectId: null, model, text: 'Is the causal claim justified?', expertIds: ['red-team', 'methodologist'], userMessageId: 'msg-q1' });
+    const first = await f.send('POST', '/api/discussion', { chatId: 'chat-d', projectId: null, model, kind: 'ordered', text: 'Is the causal claim justified?', expertIds: ['red-team', 'methodologist'], reviewerId: 'statistician', userMessageId: 'msg-q1' });
     assert.equal(first.status, 200);
-    assert.deepEqual(first.events.map((e) => e.type), ['accepted', 'expert-start', 'expert-end', 'expert-start', 'expert-end', 'completed']);
-    assert.deepEqual(first.events[0].experts.map((e) => e.id), ['methodologist', 'red-team'], 'roster order, not request order');
-    assert.match(f.state.runs[0].prompt, /Is the causal claim justified\?[\s\S]*independent assessment/);
-    assert.match(f.state.runs[0].experts[0].persona, /research design validity/);
-    assert.equal(f.state.runs[0].experts[0].prompt, undefined);
+    const types = first.events.map((e) => e.type);
+    assert.equal(types[0], 'accepted'); assert.equal(types.at(-1), 'completed');
+    assert.deepEqual(first.events[0].experts.map((e) => [e.id, e.review]), [['methodologist', false], ['red-team', false], ['statistician', true]], 'roster order, reviewer last');
+    const panelEnds = first.events.map((e, i) => e.type === 'expert-end' && !e.review ? i : -1).filter((i) => i >= 0);
+    assert.equal(panelEnds.length, 2);
+    assert.ok(types.indexOf('review-start') > Math.max(...panelEnds), 'review starts after every panel answer');
+    const toolEvent = first.events.find((e) => e.type === 'tool-call');
+    assert.equal(toolEvent.preamble, 'Let me read the draft.');
+    // Everyone on the panel gets the same frozen input, including earlier turns.
+    const panelRun = f.state.runs[0];
+    assert.deepEqual(panelRun.experts.map((e) => e.id), ['methodologist', 'red-team']);
+    assert.match(panelRun.prompt, /<message speaker="用户">\nSummarise the study\.\n<\/message>\n<message speaker="主专家" role="Main expert">\nMAIN_REPLY\n<\/message>[\s\S]*\[The user's new message\]\nIs the causal claim justified\?/);
+    assert.match(panelRun.experts[0].prompt, /You are "方法学家" \(研究设计\)[\s\S]*"魔鬼代言人"[\s\S]*independently and in parallel/);
+    assert.match(panelRun.experts[0].persona, /research design validity/);
+    // The reviewer sees the answers (and files), never the tool calls.
+    const reviewRun = f.state.runs[1];
+    assert.deepEqual(reviewRun.experts.map((e) => e.id), ['statistician']);
+    assert.match(reviewRun.prompt, /<answer speaker="方法学家" role="研究设计">\nMETHODOLOGIST_VIEW\n<\/answer>/);
+    assert.doesNotMatch(reviewRun.prompt, /Let me read the draft|"read"/);
+    assert.match(reviewRun.experts[0].prompt, /reviewing expert/);
 
     const page = (await f.send('GET', '/api/chats/chat-d/messages')).events[0];
-    assert.deepEqual(page.messages.map((m) => [m.role, m.text, m.expert?.label ?? null]), [
-      ['user', 'Is the causal claim justified?', null],
-      ['assistant', 'METHODOLOGIST_VIEW', '方法学家'],
-      ['assistant', 'RED-TEAM_VIEW', '魔鬼代言人'],
+    assert.deepEqual(page.messages.slice(2).map((m) => [m.role, m.text, m.expert?.label ?? null, m.expert?.review ?? null]), [
+      ['user', 'Is the causal claim justified?', null, null],
+      ['assistant', 'METHODOLOGIST_VIEW', '方法学家', false],
+      ['assistant', 'RED-TEAM_VIEW', '魔鬼代言人', false],
+      ['assistant', 'STATISTICIAN_VIEW', '统计审稿人', true],
     ]);
-    assert.deepEqual(page.messages[1].expert.model, model);
+    const review = page.messages[5];
+    assert.equal(review.expert.adopted, false);
+    assert.equal(page.messages[3].toolActivity[0].preamble, 'Let me read the draft.');
 
-    const second = await f.send('POST', '/api/discussion', { chatId: 'chat-d', projectId: null, model, kind: 'critique', text: 'focus on confounding', expertIds: ['methodologist', 'red-team', 'statistician'] });
-    assert.equal(second.status, 200);
-    const critique = f.state.runs[1];
-    assert.match(critique.prompt, /Is the causal claim justified\?[\s\S]*<expert name="方法学家">\nMETHODOLOGIST_VIEW\n<\/expert>[\s\S]*The user adds: focus on confounding[\s\S]*cross-critique/);
-    assert.match(critique.experts.find((e) => e.id === 'methodologist').prompt, /your own previous answer/);
-    assert.match(critique.experts.find((e) => e.id === 'statistician').prompt, /did not answer the previous round/);
+    // Main's next turn carries the expert answers and touched files, not the
+    // unadopted review and not tool calls; then they are not repeated.
+    await f.send('POST', '/api/chat', { chatId: 'chat-d', projectId: null, model, text: 'What next?', userMessageId: 'msg-u1', assistantMessageId: 'msg-a1' });
+    const catchUp = f.state.mainPrompts[1];
+    assert.match(catchUp, /<message speaker="方法学家" role="研究设计" files="paper_versions\/draft.md">\nMETHODOLOGIST_VIEW/);
+    assert.match(catchUp, /RED-TEAM_VIEW/);
+    assert.doesNotMatch(catchUp, /STATISTICIAN_VIEW|Let me read the draft/);
+    assert.match(catchUp, /What next\?$/);
+
+    // Adopting the review delivers it once.
+    const adopted = await f.send('POST', '/api/discussion/adopt', { chatId: 'chat-d', messageId: review.id, adopted: true });
+    assert.equal(adopted.events[0].entry.adopted, true);
+    await f.send('POST', '/api/chat', { chatId: 'chat-d', projectId: null, model, text: 'And now?', userMessageId: 'msg-u2', assistantMessageId: 'msg-a2' });
+    assert.match(f.state.mainPrompts[2], /speaker="统计审稿人" role="统计与数据 reviewer"[^>]*>\nSTATISTICIAN_VIEW/);
+    assert.doesNotMatch(f.state.mainPrompts[2], /METHODOLOGIST_VIEW/);
+    const late = await f.send('POST', '/api/discussion/adopt', { chatId: 'chat-d', messageId: review.id, adopted: false });
+    assert.equal(late.status, 409);
+    const notReview = await f.send('POST', '/api/discussion/adopt', { chatId: 'chat-d', messageId: page.messages[3].id, adopted: false });
+    assert.equal(notReview.status, 404);
+
+    // @-invited experts: no reviewer, identity says they were invited.
+    const invited = await f.send('POST', '/api/discussion', { chatId: 'chat-d', projectId: null, model, kind: 'invited', text: '@魔鬼代言人 any alternative?', expertIds: ['red-team'], reviewerId: 'statistician' });
+    assert.equal(invited.status, 200);
+    const invitedRun = f.state.runs.at(-1);
+    assert.deepEqual(invitedRun.experts.map((e) => e.id), ['red-team']);
+    assert.match(invitedRun.experts[0].prompt, /invited you \(@魔鬼代言人\)/);
+    assert.match(invitedRun.prompt, /STATISTICIAN_VIEW/, 'adopted review is part of later context');
 
     const dup = await f.send('POST', '/api/discussion', { chatId: 'chat-d', projectId: null, model, text: 'again', expertIds: ['methodologist'], userMessageId: 'msg-q1' });
     assert.equal(dup.status, 409);
     const unknown = await f.send('POST', '/api/discussion', { chatId: 'chat-d', projectId: null, model, text: 'x', expertIds: ['nobody'] });
     assert.equal(unknown.status, 400);
+    const onlyReviewer = await f.send('POST', '/api/discussion', { chatId: 'chat-d', projectId: null, model, text: 'x', expertIds: ['statistician'], reviewerId: 'statistician' });
+    assert.equal(onlyReviewer.status, 400); assert.equal(onlyReviewer.events[0].code, 'NO_EXPERTS');
     const otherModel = await f.send('POST', '/api/discussion', { chatId: 'chat-d', projectId: null, model: { providerId: 'fixture', modelId: 'other' }, text: 'x', expertIds: ['methodologist'] });
     assert.equal(otherModel.status, 409);
   } finally { await f.close(); }

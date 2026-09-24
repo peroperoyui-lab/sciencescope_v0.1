@@ -135,7 +135,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     const {meta}=await workbench.project(id);return {name:meta.name,goal:meta.desc||''};
   }}):null;
   const execution=host?createExecutionService({host,database,chatStore,bindings}):null;
-  const discussions=host?.runExperts?createDiscussionService({host,chatStore,db:database.db}):null;
+  const discussions=host?.runExperts?createDiscussionService({host,chatStore,db:database.db,toolActivity}):null;
   const assistants=createAssistantChatService({host,conversations,chatStore,dataRoot,roleSettings});
   async function restoreExecution(chatId){
     if(bindings.has(chatId))return bindings.get(chatId);
@@ -164,16 +164,18 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   // experts run as DSH subagents of this chat's session.
   async function handleDiscussion(input,response){
     if(!discussions)throw new DiscussionError('RUNTIME_UNAVAILABLE','当前运行时不支持专家讨论。',503);
-    const kind=input.kind==='critique'?'critique':'independent';
+    // 'independent' is the pre-2026-09-24 name of an ordered panel round.
+    const kind=input.kind==='invited'?'invited':'ordered';
     const text=typeof input.text==='string'?input.text:'';
     if(typeof input.chatId!=='string'||!/^[A-Za-z0-9_-]{1,160}$/u.test(input.chatId))throw new DiscussionError('INVALID_CHAT','对话标识无效。');
-    if(kind==='independent'&&!text.trim())throw new DiscussionError('TEXT_REQUIRED','请输入要讨论的问题。');
+    if(!text.trim())throw new DiscussionError('TEXT_REQUIRED','请输入要讨论的问题。');
     if(text.length>64000)throw new DiscussionError('TEXT_TOO_LONG','问题不能超过 64000 个字符。');
     if(!input.model?.providerId||!input.model?.modelId)throw new DiscussionError('MODEL_REQUIRED','请选择模型。');
     const userMessageId=input.userMessageId??'msg-'+randomUUID();
     if(typeof userMessageId!=='string'||!/^[A-Za-z0-9_-]{1,160}$/u.test(userMessageId))throw new DiscussionError('INVALID_MESSAGE_ID','消息标识无效。');
     const panel=experts.resolve(input.expertIds);
-    if(kind==='critique'&&!discussions.lastRound(input.chatId)?.entries.length)throw new DiscussionError('NO_PREVIOUS_ROUND','请先进行一轮独立讨论，再让专家互相质询。',409);
+    const reviewer=kind==='ordered'&&typeof input.reviewerId==='string'&&input.reviewerId?experts.resolve([input.reviewerId])[0]:null;
+    if(!panel.some(expert=>expert.id!==reviewer?.id))throw new DiscussionError('NO_EXPERTS','请至少选择一位作答专家（审核专家不单独作答）。');
     const executionMode=input.executionMode==='full'?'full':'ask';
     const workspaceState=await chatStore.getWorkspace();
     const projectId=input.projectId??null;
@@ -189,14 +191,14 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     pending.add(input.chatId);
     try{
       const projectFolder=currentProject?(await workbench.call(currentProject.id,'get')).folder:undefined;
-      const compiled=kind==='independent'?await researchInput.compile({...input.researchInput,text}):{text,snapshot:null};
+      const compiled=await researchInput.compile({...input.researchInput,text});
       const binding=await ensureMainBinding({key:input.chatId,input:{...input,projectId,text:text||'专家讨论'},projectFolder,modelRoute,modelKey,reasoningEffort:undefined});
       await execution.configure(input.chatId,binding,executionMode);
       const context=currentProject?`[ScienceScope project context]\nProject: ${currentProject.name}\nResearch goal: ${currentProject.desc||''}\nProject directory: ${projectFolder}\n\n`:'';
       response.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store'});
       const emit=event=>{if(!response.destroyed)response.write(JSON.stringify(event)+'\n');};
-      await discussions.run({chatId:input.chatId,sessionId:binding.sessionId,experts:panel,kind,context,requestText:compiled.text,chatModel:modelRoute,
-        userMessage:{id:userMessageId,text:kind==='critique'?(text.trim()?`请专家互相质询：${text}`:'请专家互相质询。'):text},
+      await discussions.run({chatId:input.chatId,sessionId:binding.sessionId,experts:panel,reviewer,kind,context,requestText:compiled.text,chatModel:modelRoute,
+        userMessage:{id:userMessageId,text},
         onEvent:event=>{if(event.type==='accepted'&&compiled.snapshot)researchDrafts.accepted('main',input.chatId,input.chatId,userMessageId,compiled.snapshot);emit(event);}});
       binding.lastUsed=Date.now();
       response.end();
@@ -258,6 +260,8 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         json(response,200,await host.getModelInfo({providerId:requestUrl.searchParams.get('providerId'),modelId:requestUrl.searchParams.get('modelId')}));return true;
       }
       if(route==='/api/library'&&request.method==='GET'){json(response,200,{resources:await library.list({projectId:requestUrl.searchParams.get('projectId')||undefined,query:requestUrl.searchParams.get('query')||''})});return true;}
+      // Preview shows exactly what the research-input compiler would extract (same path and 64000-char budget).
+      if(route==='/api/library/preview'&&request.method==='GET'){const id=requestUrl.searchParams.get('id')||'',resource=id?await database.getResource(id):null;if(!resource)throw new WorkbenchApiError('NOT_FOUND','资料不存在。',404);const [item]=await attachments.compile([id],{structured:true});json(response,200,{id,title:resource.title,kind:resource.kind,text:typeof item.text==='string'?item.text:null,truncated:!!item.truncated,note:item.note||''});return true;}
       if(route==='/api/knowledge'&&request.method==='GET'){const projectId=requestUrl.searchParams.get('projectId')||undefined;if(projectId)await workbench.project(projectId);json(response,200,{knowledge:database.listKnowledge({projectId,namespace:requestUrl.searchParams.get('namespace')||undefined,query:requestUrl.searchParams.get('query')||''})});return true;}
       if (route === '/api/workbench' && request.method === 'GET') { json(response,200,await workbench.call(requestUrl.searchParams.get('projectId'),'get')); return true; }
       if (route === '/api/workbench/files' && request.method === 'GET') { json(response,200,{entries:await workbench.call(requestUrl.searchParams.get('projectId'),'listFiles',requestUrl.searchParams.get('path') || '')}); return true; }
@@ -389,7 +393,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         json(response,200,{closed:true});return true;
       }
       if (route === '/api/chats/mode') {
-        const modeLabels = { work: '工作模式', free: '自由讨论', ordered: '有序讨论' };
+        const modeLabels = { work: '工作模式', ordered: '有序讨论' };
         if (typeof input.chatId !== 'string' || !Object.hasOwn(modeLabels, input.mode) || typeof input.messageId !== 'string') {
           json(response,400,{message:'对话工作方式参数无效。'}); return true;
         }
@@ -467,6 +471,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if (route === '/api/providers/remove' && typeof host.removeProvider === 'function') {
         await host.removeProvider(input); json(response,200,{removed:true}); return true;
       }
+      if (route === '/api/discussion/adopt') { if(!discussions)throw new DiscussionError('RUNTIME_UNAVAILABLE','当前运行时不支持专家讨论。',503); json(response,200,{entry:discussions.adopt(String(input.chatId||''),String(input.messageId||''),input.adopted===true)}); return true; }
       if (route === '/api/discussion/cancel') { json(response,200,discussions?await discussions.cancel(input.chatId):{stopped:false}); return true; }
       if (route === '/api/discussion') { await handleDiscussion(input,response); return true; }
       if (route !== '/api/chat') { json(response,501,{message:'当前 DSH 接口尚未开放此操作。'}); return true; }
@@ -557,13 +562,16 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
           return true;
         }
         const contextPrefix = currentProject ? `[ScienceScope ${input.temporary?'temporary ':''}project context]\nProject: ${currentProject.name}\nResearch goal: ${currentProject.desc || ''}\nProject ID: ${currentProject.id}\nProject directory: ${projectFolder}\nSession working directory: ${input.temporary?path.join(dataRoot,'.sciencescope-local','temp','quick',input.chatId):chatStore.getRuntimeWorkspace(input.chatId)}\n${input.temporary?'This is a separate temporary question, not the Main conversation.':''}\n\n` : '';
+        // Expert answers the Main expert has not read yet travel with this turn.
+        const panelNews=!input.temporary&&discussions?discussions.pendingForMain(input.chatId):{text:'',commit(){}};
         if(executionMode==='auto'){
-          const goal=await execution.start(key,bindings.get(key),contextPrefix+compiled.text,input.goalMaxRounds);
+          const goal=await execution.start(key,bindings.get(key),contextPrefix+panelNews.text+compiled.text,input.goalMaxRounds);panelNews.commit();
           emit({type:'goal-started',goal});emit({type:'completed',text:'',background:true});response.end();return true;
         }
         try {
           if(run)run.sending=true;
-          await host.send({sessionId:bindings.get(key).sessionId,text:contextPrefix + compiled.text,onEvent});
+          await host.send({sessionId:bindings.get(key).sessionId,text:contextPrefix + panelNews.text + compiled.text,onEvent});
+          panelNews.commit();
           await receipts;
         } catch (error) {
           await receipts;

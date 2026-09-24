@@ -184,6 +184,12 @@ input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
 .turn-activity{margin:0 0 10px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--paper);font-size:12.5px;overflow:hidden}
 .turn-activity>summary{height:32px;padding:0 12px;display:flex;align-items:center;gap:8px;color:var(--muted);cursor:pointer;list-style:none}
 .turn-activity>summary::-webkit-details-marker{display:none}
+.turn-activity>summary>b{font-weight:500;flex:none}
+.turn-activity>summary>span{margin-left:auto;flex:none}
+.turn-activity-caption{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:normal;color:var(--faint)}
+.turn-activity[open] .turn-activity-caption{visibility:hidden}
+.tool-preamble{margin:0;padding:8px 12px 2px;border-top:1px solid var(--line);color:var(--ink-2);font-size:12.5px;line-height:1.6;white-space:pre-wrap}
+.tool-preamble+[data-tool-call]{border-top:0}
 .turn-activity>summary:hover{background:var(--hover);color:var(--ink)}
 .turn-activity[open]>summary{border-bottom:1px solid var(--line)}
 .turn-activity [data-tool-call]{border-top:1px solid var(--line)}
@@ -354,3 +360,27 @@ dialog::backdrop{background:color-mix(in srgb,#0d110e 32%,transparent);backdrop-
 .recent>button:not(.linklike):hover{background:var(--hover)}
 .recent>button:not(.linklike) small{color:var(--faint);font-variant-numeric:tabular-nums}
 .recent>button:not(.linklike) .ico{color:var(--muted)}
+
+/* experts: live state pill, reviewer badge, adopt bar, ordered-panel chips */
+.expert-state{margin-left:6px;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:500;line-height:18px;background:var(--sunken);color:var(--muted)}
+.expert-state[data-state="running"],.expert-state[data-state="tool"]{background:var(--accent-soft);color:var(--accent-ink)}
+.expert-state[data-state="running"]::before,.expert-state[data-state="tool"]::before{content:"";display:inline-block;width:6px;height:6px;margin-right:5px;border-radius:50%;background:currentColor;vertical-align:1px;animation:ss-pulse 1.2s var(--ease) infinite}
+.expert-state[data-state="failed"],.expert-state[data-state="stopped"]{background:color-mix(in srgb,#b4534b 12%,transparent);color:#a4473f}
+.expert-state[data-state="done"]{background:transparent;color:var(--faint);padding:0 2px}
+.expert-badge{margin-left:6px;padding:1px 7px;border-radius:var(--r-sm);font-size:11px;font-weight:600;line-height:18px;border:1px solid var(--accent-line);color:var(--accent-ink)}
+.review-message .messagebody{border-left:2px solid var(--accent-line);padding-left:14px}
+.review-adopt{display:flex;align-items:center;gap:10px;margin:10px 0 0;padding:8px 10px 8px 12px;border:1px dashed var(--line-strong);border-radius:var(--r-md);font-size:12.5px;color:var(--muted)}
+.review-adopt .btn{margin-left:auto}
+.panel-chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px 0 4px;border:1px solid var(--line);border-radius:999px;background:var(--raised);color:var(--ink);font-size:12.5px;cursor:pointer;transition:background var(--t-fast) var(--ease),border-color var(--t-fast),opacity var(--t-fast)}
+.panel-chip b{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:600;background:var(--accent);color:var(--paper)}
+.panel-chip[aria-pressed="false"]{opacity:.55;border-style:dashed}
+.panel-chip[aria-pressed="false"] b{background:var(--sunken);color:var(--muted)}
+.panel-chip:hover:not(:disabled){border-color:var(--accent-line);background:var(--accent-soft)}
+.panel-chip:disabled{cursor:default}
+.panel-chip i{width:7px;height:7px;border-radius:50%;background:var(--faint)}
+.panel-chip i[data-state="running"],.panel-chip i[data-state="tool"]{background:var(--accent);animation:ss-pulse 1.2s var(--ease) infinite}
+.reviewer-chip{padding-left:12px;gap:4px}
+.reviewer-chip .ico{width:12px;height:12px}
+.mention-title{padding:4px 8px 6px;font-size:11.5px;font-weight:600;color:var(--muted)}
+@keyframes ss-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.expert-state::before,.panel-chip i{animation:none!important}}

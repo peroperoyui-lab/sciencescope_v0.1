@@ -1,4 +1,4 @@
-// Settings → 专家角色: the persisted expert panel used by 有序/自由讨论.
+// Settings → 专家角色: the persisted expert panel used by 有序讨论 and @ invitations.
 // Ids stay stable when a label changes; the host validates every field.
 import {hostRequest} from './host-client.mjs';
 
@@ -37,7 +37,7 @@ export function expertSettingsContent() {
   const models = new Set(active.map(expert => expert.model ? expert.model.modelId : '(对话模型)'));
   const sameModel = active.length > 1 && models.size === 1;
   return `<form data-expert-roster><h2>专家角色</h2>
-    <p>有序讨论时，所有“参加讨论”的专家并行独立作答，按下面的顺序展示；自由讨论时用 @名称 点名。专家的侧重由提示词决定，工具权限仍由对话的执行策略决定。</p>
+    <p>有序讨论时，所选专家读取同一份前文后并行独立作答，按下面的顺序展示，可指定一位审核专家最后核查；工作模式中用 @名称 邀请专家回答。专家的侧重由提示词决定，工具权限仍由对话的执行策略决定。</p>
     ${sameModel ? '<p class="hint" role="note">当前参加讨论的专家都使用同一个模型。为不同专家选择不同厂商的模型，分歧通常更有信息量。</p>' : ''}
     ${roster.map((expert, index) => card(expert, index, roster.length)).join('') || '<p class="hint">名册为空；讨论前请至少添加一位专家。</p>'}
     <div class="saverow"><button type="button" class="btn" data-expert-add ${roster.length >= 8 ? 'disabled' : ''}>添加专家</button><span class="spacer"></span><button type="submit" class="btn primary">保存名册</button></div>

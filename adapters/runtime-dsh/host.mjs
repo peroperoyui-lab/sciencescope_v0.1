@@ -194,6 +194,7 @@ export async function createDshHost(options = {}) {
     let running = false;
     let visibleText = '';
     let beforeAttempt = '';
+    let toolBoundary = 0;
     let lastFailure;
     receiver.onMessage = (message) => {
       if (message.type === 'attempt-failed') lastFailure = message;
@@ -202,7 +203,16 @@ export async function createDshHost(options = {}) {
         return;
       }
       if (message.type === 'run-start') { running = true; drained = false; }
-      if(message.type==='tool-call')onEvent?.({type:'tool-call',turn:message.turn,step:message.step,callId:message.callId,name:message.name,argumentsPreview:message.argumentsPreview});
+      // Text the model wrote right before a tool call is an execution preamble
+      // ("I'll read the draft first"): it belongs to that call's activity card,
+      // not to the answer. The answer keeps only text outside such preambles.
+      if(message.type==='tool-call'){
+        const start=Math.max(beforeAttempt.length,toolBoundary);
+        const preamble=visibleText.slice(start).trim();
+        if(preamble){visibleText=visibleText.slice(0,start);onEvent?.({type:'text-replace',text:visibleText});}
+        toolBoundary=visibleText.length;
+        onEvent?.({type:'tool-call',turn:message.turn,step:message.step,callId:message.callId,name:message.name,argumentsPreview:message.argumentsPreview,...(preamble?{preamble:preamble.slice(0,4000)}:{})});
+      }
       if(message.type==='tool-result')onEvent?.({type:'tool-result',turn:message.turn,step:message.step,callId:message.callId,isError:message.isError,resultPreview:message.resultPreview});
       if (message.type === 'stream-start') beforeAttempt = visibleText;
       if (message.type === 'text-delta') {
@@ -211,6 +221,7 @@ export async function createDshHost(options = {}) {
       }
       if (message.type === 'stream-end' && message.outcome?.eventType !== 'assistant/message') {
         visibleText = beforeAttempt;
+        toolBoundary = Math.min(toolBoundary, visibleText.length);
         onEvent?.({type:'text-replace',text:visibleText});
       }
       // This queued barrier is after ALL attempts/tool-loop steps, not merely
@@ -309,7 +320,7 @@ export async function createDshHost(options = {}) {
   async function runExperts({ sessionId, runId, prompt, experts, onEvent } = {}) {
     const stop = typeof onEvent === 'function' ? observeSession(sessionId, (frame) => {
       const event = frame.type === 'control-event' ? frame.event : frame;
-      if (event?.runId === runId && ['expert-start', 'expert-end', 'expert-delta', 'expert-reset', 'expert-tool'].includes(event.type)) onEvent(event);
+      if (event?.runId === runId && ['expert-start', 'expert-end', 'expert-delta', 'expert-reset', 'expert-tool', 'expert-tool-result'].includes(event.type)) onEvent(event);
     }) : () => {};
     try { return await control(sessionId, '/experts', { runId, prompt, experts }, { timeout: 0 }); }
     finally { stop(); }

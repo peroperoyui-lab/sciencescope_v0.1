@@ -10,9 +10,12 @@ export function activityHTML(message) {
   if (!calls.length) return '';
   const count = calls.length;
   const running = calls.filter(call => call.status === 'running').length;
+  // The model's own pre-call words ("先读取研究稿…") explain what it is doing;
+  // the latest one doubles as the collapsed card's caption.
+  const caption = calls.findLast(call => call.preamble)?.preamble || '';
   return `<details class="turn-activity" data-turn-activity="${esc(message.id)}" ${openCards.has(message.id)?'open':''}>
-    <summary>${running ? `正在使用工具 · ${running}` : `工具记录 · ${count}`}<span>${message.streaming ? '执行中' : '展开查看'}</span></summary>
-    <div class="turn-activity-calls">${calls.map(call => `<details data-tool-call="${esc(key(message.id,call.callId))}" ${openCalls.has(key(message.id,call.callId))?'open':''}>
+    <summary><b>${running ? `正在使用工具 · ${running}` : `工具记录 · ${count}`}</b>${caption ? `<em class="turn-activity-caption">${esc(caption.replace(/\s+/g,' ').slice(0,140))}</em>` : ''}<span>${message.streaming ? '执行中' : '展开查看'}</span></summary>
+    <div class="turn-activity-calls">${calls.map(call => `${call.preamble ? `<p class="tool-preamble">${esc(call.preamble)}</p>` : ''}<details data-tool-call="${esc(key(message.id,call.callId))}" ${openCalls.has(key(message.id,call.callId))?'open':''}>
       <summary><span>${esc(call.name || '工具')}</span><small>${call.status==='running'?'进行中':call.status==='interrupted'?'未完成':call.isError?'失败':'完成'}</small></summary>
       ${call.argumentsPreview === undefined ? '' : `<div class="tool-detail-label">输入</div><pre>${esc(display(call.argumentsPreview))}</pre>`}
       ${call.resultPreview === undefined ? '' : `<div class="tool-detail-label">结果</div><pre>${esc(display(call.resultPreview))}</pre>`}
