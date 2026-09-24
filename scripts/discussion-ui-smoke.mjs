@@ -34,17 +34,28 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/api/status') return json(res, {available: true});
   if (url.pathname.startsWith('/api/chat/outbox')) return json(res, {paused: false, items: []});
   if (url.pathname === '/api/chat') { calls.push({route: 'chat', body}); res.writeHead(200, {'Content-Type': 'application/x-ndjson'}); res.write(JSON.stringify({type: 'accepted'}) + '\n'); res.end(JSON.stringify({type: 'completed', text: 'MAIN_REPLY'}) + '\n'); return; }
+  if (url.pathname === '/api/discussion/adopt') { calls.push({route: 'adopt', body}); return json(res, {entry: {adopted: body.adopted, mainSeen: false, review: true}}); }
   if (url.pathname === '/api/discussion') {
     calls.push({route: 'discussion', body});
-    const panel = roster.filter(expert => body.expertIds.includes(expert.id));
+    const ids = [...body.expertIds.filter(id => id !== body.reviewerId), ...(body.kind === 'ordered' && body.reviewerId ? [body.reviewerId] : [])];
+    const panel = ids.map(id => roster.find(expert => expert.id === id));
     res.writeHead(200, {'Content-Type': 'application/x-ndjson'});
-    const experts = panel.map(expert => ({id: expert.id, label: expert.label, role: expert.role, model: {providerId: 'offline', modelId: `model-${expert.id}`}, messageId: `msg-${body.kind}-${expert.id}-${calls.length}`}));
+    const experts = panel.map(expert => ({id: expert.id, label: expert.label, role: expert.role, model: {providerId: 'offline', modelId: `model-${expert.id}`}, messageId: `msg-${body.kind}-${expert.id}-${calls.length}`, review: expert.id === body.reviewerId && body.kind === 'ordered'}));
+    const answering = experts.filter(expert => !expert.review); const reviewer = experts.find(expert => expert.review);
     res.write(JSON.stringify({type: 'accepted', runId: 'r', kind: body.kind, userMessageId: body.userMessageId, experts}) + '\n');
-    // Finish in reverse order: display must still follow the roster.
-    for (const expert of experts) res.write(JSON.stringify({type: 'expert-tool', runId: 'r', expertId: expert.id, messageId: expert.messageId, name: 'bash'}) + '\n');
-    for (const expert of experts) res.write(JSON.stringify({type: 'expert-delta', runId: 'r', expertId: expert.id, messageId: expert.messageId, delta: `PARTIAL_${expert.id}`}) + '\n');
+    for (const expert of answering) res.write(JSON.stringify({type: 'expert-start', runId: 'r', expertId: expert.id, messageId: expert.messageId}) + '\n');
+    for (const expert of answering) res.write(JSON.stringify({type: 'expert-delta', runId: 'r', expertId: expert.id, messageId: expert.messageId, delta: `PREAMBLE_${expert.id}`}) + '\n');
+    await new Promise(r => setTimeout(r, 200));
+    for (const expert of answering) res.write(JSON.stringify({type: 'tool-call', runId: 'r', expertId: expert.id, messageId: expert.messageId, callId: `c-${expert.id}`, name: 'read', argumentsPreview: '{"file_path":"draft.md"}', preamble: `PREAMBLE_${expert.id}`}) + '\n');
+    for (const expert of answering) res.write(JSON.stringify({type: 'expert-delta', runId: 'r', expertId: expert.id, messageId: expert.messageId, delta: `PARTIAL_${expert.id}`}) + '\n');
     await new Promise(r => setTimeout(r, 400));
-    for (const expert of [...experts].reverse()) { await new Promise(r => setTimeout(r, 120)); res.write(JSON.stringify({type: 'expert-end', runId: 'r', expertId: expert.id, messageId: expert.messageId, text: `**${expert.label}** ${body.kind} ANSWER`, stopReason: 'completed'}) + '\n'); }
+    // Finish in reverse order: display must still follow the roster.
+    for (const expert of [...answering].reverse()) { await new Promise(r => setTimeout(r, 120)); res.write(JSON.stringify({type: 'tool-result', runId: 'r', expertId: expert.id, messageId: expert.messageId, callId: `c-${expert.id}`, isError: false}) + '\n'); res.write(JSON.stringify({type: 'expert-end', runId: 'r', expertId: expert.id, messageId: expert.messageId, text: `**${expert.label}** ${body.kind} ANSWER`, stopReason: 'completed'}) + '\n'); }
+    if (reviewer) {
+      await new Promise(r => setTimeout(r, 300));
+      res.write(JSON.stringify({type: 'review-start', runId: 'r', expertId: reviewer.id, messageId: reviewer.messageId}) + '\n');
+      res.write(JSON.stringify({type: 'expert-end', runId: 'r', expertId: reviewer.id, messageId: reviewer.messageId, text: 'REVIEW_SUMMARY', stopReason: 'completed', review: true}) + '\n');
+    }
     res.end(JSON.stringify({type: 'completed', runId: 'r', failed: 0}) + '\n'); return;
   }
   try {
@@ -79,53 +90,64 @@ try {
   await page.locator('[data-composer="main"] [data-v="send"]').click();
   await page.waitForFunction(() => !V.pending.has(V.chat) && S.messages.some(m => m.text === 'MAIN_REPLY'));
   assert.equal(calls[0].route, 'chat'); calls.length = 0;
-  // Ordered: every enabled expert, roster order, real authors.
+  // 自由讨论 no longer exists.
+  await page.locator('[data-v="work-mode"],[data-action="work-mode"]').first().click();
+  assert.equal(await page.locator('[data-work-mode]').count(), 2);
+  assert.equal(await page.locator('[data-work-mode]', {hasText: '自由讨论'}).count(), 0);
+  await page.keyboard.press('Escape'); await page.evaluate(() => closeMenu());
+  // Ordered: the strip shows order; a reviewer leaves the answering panel.
   await chooseMode('有序讨论');
   await page.waitForSelector('[data-discussion-strip]');
-  assert.match(await page.locator('[data-discussion-strip]').innerText(), /1 方法学家[\s\S]*2 统计审稿人/);
+  assert.match(await page.locator('[data-discussion-strip]').innerText(), /1\s*方法学家[\s\S]*2\s*统计审稿人[\s\S]*审核：无/);
+  await page.locator('[data-panel-reviewer-menu]').click();
+  await page.locator('[data-panel-reviewer="statistician"]').click();
+  await page.waitForFunction(() => document.querySelector('[data-discussion-strip]')?.textContent.includes('审核：统计审稿人'));
+  assert.equal(await page.locator('[data-panel-toggle]').count(), 1, 'the reviewer is not an answering chip');
   await page.locator('[data-draft="main"]').fill('这个因果结论成立吗？');
   await page.locator('[data-composer="main"] [data-v="send"]').click();
   await page.waitForFunction(() => document.querySelector('.message[data-streaming] .message-text')?.textContent.includes('PARTIAL_'));
+  // Live state: the reviewer waits while the panel answers.
+  assert.equal(await page.locator('.review-message .expert-state').innerText(), '等待其他专家');
+  // The preamble streamed before the tool call moved into the tool card.
+  assert.doesNotMatch(await page.locator('.message[data-streaming] .message-text').first().innerText(), /PREAMBLE_/);
+  assert.match(await page.locator('.turn-activity-caption').first().innerText(), /PREAMBLE_methodologist/);
   await page.waitForFunction(() => S.messages.filter(m => m.expert && !m.streaming).length === 2 && !V.pending.has(V.chat));
   assert.equal(await page.locator('.message:not(.user) .message-text', {hasText: 'PARTIAL_'}).count(), 0, 'final text replaces the partial stream');
-  assert.deepEqual(calls[0].body.expertIds, ['methodologist', 'statistician']);
-  assert.equal(calls[0].body.kind, 'independent');
+  assert.deepEqual(calls[0].body.expertIds, ['methodologist']);
+  assert.equal(calls[0].body.reviewerId, 'statistician');
+  assert.equal(calls[0].body.kind, 'ordered');
   const heads = (await page.locator('.message:not(.user) .messagehead').allInnerTexts()).slice(1);
-  assert.match(heads[0], /方法学家[\s\S]*model-methodologist/); assert.match(heads[1], /统计审稿人[\s\S]*model-statistician/);
+  assert.match(heads[0], /方法学家[\s\S]*model-methodologist/); assert.match(heads[1], /统计审稿人[\s\S]*审核/);
   assert.equal(await page.locator('.message:not(.user) .message-text strong').first().innerText(), '方法学家');
   assert.equal(await page.locator('[data-draft="main"]').inputValue(), '');
-  // Cross-critique uses the strip button, no composer text.
-  await page.locator('[data-discussion-critique]').click();
-  await page.waitForFunction(() => S.messages.filter(m => m.expert && !m.streaming).length === 4 && !V.pending.has(V.chat));
-  assert.equal(calls[1].body.kind, 'critique'); assert.equal(calls[1].body.text, '');
-  assert.match(await page.locator('.message.user').last().innerText(), /请专家互相质询/);
-  // Free: only @-named experts; none named is refused without a request.
-  await chooseMode('自由讨论');
-  await page.locator('[data-draft="main"]').fill('没有点名的问题');
-  await page.locator('[data-composer="main"] [data-v="send"]').click();
-  await page.waitForTimeout(200);
-  assert.equal(calls.length, 2);
-  assert.equal(await page.locator('[data-draft="main"]').inputValue(), '没有点名的问题');
-  // Typing @ offers enabled experts; Enter picks one and never sends.
+  // The review joins later context only when the user adopts it.
+  const adopt = page.locator('[data-review-adopt]');
+  assert.equal(await adopt.getAttribute('aria-pressed'), 'false');
+  await adopt.click();
+  await page.waitForFunction(() => document.querySelector('[data-review-adopt]')?.getAttribute('aria-pressed') === 'true');
+  assert.deepEqual(calls.at(-1), {route: 'adopt', body: {chatId: calls[0].body.chatId, messageId: 'msg-ordered-statistician-1', adopted: true}});
+  // Work mode: typing @ offers enabled experts; Enter picks one and never sends.
+  await chooseMode('工作');
+  assert.equal(await page.locator('[data-discussion-strip]').count(), 0);
+  const before = calls.length;
   await page.locator('[data-draft="main"]').fill('');
   await page.locator('[data-draft="main"]').pressSequentially('@统');
   await page.waitForSelector('.mention-menu [data-mention]');
   assert.equal(await page.locator('.mention-menu [data-mention]').count(), 1);
   await page.keyboard.press('Enter');
-  assert.equal(calls.length, 2, 'choosing a mention does not send');
+  assert.equal(calls.length, before, 'choosing a mention does not send');
   assert.equal(await page.locator('[data-draft="main"]').inputValue(), '@统计审稿人 ');
   assert.equal(await page.locator('.mention-menu').count(), 0);
   await page.locator('[data-draft="main"]').pressSequentially('样本量够吗？');
   await page.locator('[data-composer="main"] [data-v="send"]').click();
-  await page.waitForFunction(() => S.messages.filter(m => m.expert && !m.streaming).length === 5 && !V.pending.has(V.chat));
-  assert.deepEqual(calls[2].body.expertIds, ['statistician']);
-  // Back to work mode: the ordinary Main path, strip removed.
-  await chooseMode('工作');
-  assert.equal(await page.locator('[data-discussion-strip]').count(), 0);
+  await page.waitForFunction(() => S.messages.filter(m => m.expert && !m.streaming).length === 3 && !V.pending.has(V.chat));
+  const invite = calls.find(call => call.route === 'discussion' && call.body.kind === 'invited');
+  assert.deepEqual(invite.body.expertIds, ['statistician']);
+  // Without a mention the ordinary Main path runs.
   await page.locator('[data-draft="main"]').fill('回到工作模式');
   await page.locator('[data-composer="main"] [data-v="send"]').click();
   await page.waitForFunction(() => !V.pending.has(V.chat) && S.messages.filter(m => m.text === 'MAIN_REPLY').length === 2);
-  assert.equal(calls[3].route, 'chat');
+  assert.equal(calls.at(-1).route, 'chat');
   await page.screenshot({path: path.join(output, 'discussion.png')});
   // Settings → 专家角色: edit, add, reorder, save; the discussion strip follows.
   await page.evaluate(() => go('experts'));
@@ -145,5 +167,5 @@ try {
   assert.deepEqual(savedCall.body.experts[2].model, {providerId: 'offline', modelId: 'model-b'});
   assert.equal(savedCall.body.experts[1].id, 'statistician', 'rename keeps the stable id');
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({liveExpertText: true, rosterEditor: true, orderedAllEnabled: true, rosterOrderDisplay: true, realAuthors: true, critiqueRound: true, freeMentionsOnly: true, mentionMenu: true, workModeUnchanged: true, localRequests: calls.length, paidRequests: 0}));
+  console.log(JSON.stringify({liveExpertText: true, rosterEditor: true, orderedPanel: true, reviewerAfterPanel: true, reviewAdoption: true, toolPreambleInCard: true, rosterOrderDisplay: true, realAuthors: true, workModeMentionInvite: true, mentionMenu: true, noFreeMode: true, workModeUnchanged: true, localRequests: calls.length, paidRequests: 0}));
 } finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); }

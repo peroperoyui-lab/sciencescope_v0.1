@@ -8,6 +8,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools';
 import { randomUUID } from 'node:crypto';
 import { PERSONA_PREFIX_SECTION } from '@deepseek-ai/dsh-system-prompt';
 import { isTokenDelta } from '@deepseek-ai/dsh-llm';
+import { previewValue } from '../../scripts/tool-activity.mjs';
 
 export const name = 'sciencescope-session-control';
 export const inject = ['agents', 'goals', 'approval', 'sandboxPolicy', 'llm'];
@@ -124,7 +125,7 @@ export function apply(ctx) {
           const entry = { expertId: expert.id, stopReason: controller.signal.aborted ? 'aborted' : 'error', text: '', diagnostic: String(error?.message ?? error).slice(0, 500), ms: Date.now() - startedAt };
           void postEvent({ type: 'expert-end', runId: value.runId, ...entry });
           return entry;
-        } finally { if (run) expertChildren.delete(String(run.id)); await run?.dispose().catch(() => {}); }
+        } finally { if (run) { expertChildren.delete(String(run.id)); childText.delete(String(run.id)); } await run?.dispose().catch(() => {}); }
       }));
     } finally { expertRuns.delete(value.runId); }
   };
@@ -234,15 +235,28 @@ export function apply(ctx) {
       await postHost({ type: 'control-ready', controlEndpoint: `http://127.0.0.1:${address.port}/prompt`, resumed: true });
     } catch (error) { await postHost({ type: 'control-error', error: error.message }); }
   });
+  // Text an expert streams in the step that ends in a tool call is its
+  // execution preamble; it travels with the tool call, not the answer.
+  const childText = new Map();
   ctx.on('agent/assistant-stream', ({ agent, frame }) => {
-    const child = expertChildren.get(String(agent?.session?.id));
+    const id = String(agent?.session?.id);
+    const child = expertChildren.get(id);
     if (!child) return;
-    if (frame.type === 'start') void postEvent({ type: 'expert-reset', ...child });
-    if (frame.type === 'chunk' && isTokenDelta(frame.chunk) && frame.chunk.type === 'text-delta' && frame.chunk.text) void postEvent({ type: 'expert-delta', ...child, delta: frame.chunk.text });
+    if (frame.type === 'start') { childText.set(id, ''); void postEvent({ type: 'expert-reset', ...child }); }
+    if (frame.type === 'chunk' && isTokenDelta(frame.chunk) && frame.chunk.type === 'text-delta' && frame.chunk.text) { childText.set(id, (childText.get(id) || '') + frame.chunk.text); void postEvent({ type: 'expert-delta', ...child, delta: frame.chunk.text }); }
   });
   ctx.on('session/event', (eventSession, event) => {
-    const child = expertChildren.get(String(eventSession?.id));
-    if (child && event.type === 'tool/call') void postEvent({ type: 'expert-tool', ...child, name: String(event.data?.name || 'tool').slice(0, 120) });
+    const id = String(eventSession?.id);
+    const child = expertChildren.get(id);
+    if (!child) return;
+    if (event.type === 'tool/call') {
+      const preamble = (childText.get(id) || '').trim().slice(0, 4000); childText.set(id, '');
+      void postEvent({ type: 'expert-tool', ...child, callId: String(event.data?.callId ?? ''), name: String(event.data?.name || 'tool').slice(0, 120), argumentsPreview: previewValue(event.data?.arguments), ...(preamble ? { preamble } : {}) });
+    }
+    if (event.type === 'tool/result') {
+      const result = event.data?.message?.content?.find((block) => block.type === 'tool-result');
+      if (result) void postEvent({ type: 'expert-tool-result', ...child, callId: String(result.toolCallId), isError: !!result.isError });
+    }
   });
   ctx.on('goal/activation-changed', (event) => {
     if (String(event.sessionId) === sessionId) void postEvent({ type: 'goal-activation', ...event });

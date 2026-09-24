@@ -30,7 +30,7 @@ multipletests([0.041, 0.048] + [0.3]*22, method="fdr_bh")
 建议先把结论降级为"相关"，再决定是否补做随机对照。`;
 const experts = {
   methodologist: '**结论先行：不能得出因果结论。**\n\n- 自选择：志愿者来自跑步社，对照组是非社团学生，两组在基线运动量上就不同。\n- 缺少组间对比：只报告了组内前后变化。\n\n修正建议：同一招募框内随机分组，并以 ANCOVA 比较组间差异。',
-  statistician: '用文中的 p 值反推：d≈0.47，95% CI [0.02, 0.92]。在 24 项检验下做 Bonferroni 校正，阈值约为 0.0021，两个结果都不显著。\n\n若要以 80% 功效检出 d=0.45，每组约需 155 人。',
+  statistician: '**审核结论**\n\n- 方法学家：自选择与缺少组间比较的判断成立，依据是招募描述；ANCOVA 建议合理。\n- 魔鬼代言人：急性炎症解释有文献支持，但"采血时点不同"在材料中没有直接证据，属推测。\n\n**总结**：两位专家一致认为不能下因果结论；另需补充多重比较校正（24 项检验下 Bonferroni 阈值约 0.0021，两个结果都不显著）。',
   'red-team': '最强的替代解释：**训练引起的急性炎症**。跑步社成员采血时点若在训练后 24–48 小时内，CRP 会被短期推高，"改善"可能只是采血时间不同。\n\n能区分它的证据：统一采血时点并记录前 48 小时训练量。',
 };
 const host = {
@@ -42,12 +42,15 @@ const host = {
   configurePolicy: async () => {}, configureReasoning: async () => {}, releaseSession: async () => {}, getGoal: async () => null,
   getContextUsage: async () => ({usedTokens: 46080, contextWindow: 128000, estimated: false}),
   send: async ({onEvent}) => {
-    onEvent({type: 'tool-call', callId: 'c1', name: 'read', argumentsPreview: '{"path":"paper_versions/研究稿_v3.md"}'});
+    onEvent({type: 'text-delta', delta: '我先读取研究稿第三部分，确认原文怎么表述因果结论。'});
+    onEvent({type: 'text-replace', text: ''});
+    onEvent({type: 'tool-call', callId: 'c1', name: 'read', argumentsPreview: '{"path":"paper_versions/研究稿_v3.md"}', preamble: '我先读取研究稿第三部分，确认原文怎么表述因果结论。'});
     onEvent({type: 'tool-result', callId: 'c1', isError: false, resultPreview: '已读取 214 行'});
     onEvent({type: 'text-delta', delta: reply}); onEvent({type: 'completed', text: reply});
     return {finalResponse: reply};
   },
   runExperts: async ({runId, experts: panel, onEvent}) => panel.map(expert => {
+    if (expert.id === 'methodologist') onEvent({type: 'expert-tool', runId, expertId: expert.id, callId: 'm1', name: 'read', argumentsPreview: '{"file_path":"paper_versions/研究稿_v3.md"}', preamble: '先核对研究稿里招募与分组的原文。'});
     const text = experts[expert.id] || '（示例回答）';
     onEvent({type: 'expert-end', runId, expertId: expert.id, text, stopReason: 'completed', ms: 30000});
     return {expertId: expert.id, stopReason: 'completed', text, ms: 30000};
@@ -64,7 +67,7 @@ await post('/api/chat', {chatId: 'chat-main', projectId: 'p-fasting', text: '先
 await post('/api/chat', {chatId: 'chat-2', projectId: 'p-fasting', text: '整理一下样本量计算。', model, title: '样本量与功效'});
 await post('/api/chat', {chatId: 'chat-3', projectId: 'p-sleep', text: '列出主要文献。', model, title: '文献梳理'});
 await post('/api/chat', {chatId: 'chat-4', projectId: null, text: '帮我润色摘要。', model, title: '摘要润色'});
-await post('/api/discussion', {chatId: 'chat-main', projectId: 'p-fasting', model, text: '三位专家各自判断：能否得出"间歇性禁食改善代谢健康"的因果结论？', expertIds: ['methodologist', 'statistician', 'red-team']});
+await post('/api/discussion', {chatId: 'chat-main', projectId: 'p-fasting', model, kind: 'ordered', text: '请各自判断：能否得出"间歇性禁食改善代谢健康"的因果结论？', expertIds: ['methodologist', 'red-team'], reviewerId: 'statistician'});
 for (const [name, text] of [['研究稿_v2.md', '# 研究稿\n\n第二版正文。'], ['研究稿_v3.md', '# 研究稿\n\n第三版正文，修订了方法部分。']]) await post('/api/workbench/import', {projectId: 'p-fasting', name, base64: b64(text), group: '研究稿'});
 const wb = JSON.parse(await (await apiFetch(server, '/api/workbench?projectId=p-fasting')).text());
 await post('/api/workbench/save', {projectId: 'p-fasting', revision: wb.revision, logs: [
@@ -101,7 +104,12 @@ try {
   await page.evaluate(() => window.SSV2.loadThread('chat-2')); await page.waitForSelector('.message'); await shot(page, '02-chat');
   if (process.env.DUMP_DOM) { const {writeFile} = await import('node:fs/promises'); await writeFile(path.join(out, 'dom-chat.html'), await page.evaluate(() => document.body.innerHTML)); }
   await page.evaluate(() => window.SSV2.loadThread('chat-main')); await page.waitForSelector('.message');
+  await page.evaluate(() => { localStorage.setItem('sciencescope-panel:chat-main', JSON.stringify({excluded: [], reviewer: 'statistician'})); });
+  await page.locator('[data-v="work-mode"],[data-action="work-mode"]').first().click().catch(() => {}); await page.locator('[data-work-mode="ordered"]').click().catch(() => {}); await page.waitForTimeout(400);
   await page.evaluate(() => { const box = document.querySelector('.messages'); box.scrollTop = box.scrollHeight; }); await shot(page, '03-discussion');
+  await page.evaluate(() => { const box = document.querySelector('.messages'); box.scrollTop = Math.max(0, box.scrollHeight - box.clientHeight * 2); }); await shot(page, '03b-discussion-top');
+  await page.locator('[data-v="work-mode"],[data-action="work-mode"]').first().click().catch(() => {}); await page.locator('[data-work-mode="work"]').click().catch(() => {}); await page.waitForTimeout(300);
+  await page.locator('[data-draft="main"]').pressSequentially('@'); await shot(page, '03c-mention'); await page.keyboard.press('Escape'); await page.locator('[data-draft="main"]').fill('');
   await page.locator('.mainhead [data-v="secretary"]').click().catch(() => {}); await shot(page, '04-secretary');
   await page.locator('.mainhead [data-v="secretary"]').click().catch(() => {});
   await page.evaluate(() => { selectProject('p-fasting'); go('workbench'); }); await page.waitForTimeout(900); await shot(page, '05-workbench');

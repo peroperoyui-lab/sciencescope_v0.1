@@ -6,7 +6,7 @@
 > 不应因为本文档写过某种实现就拒绝更好的设计。产品意图与交互规则的依据仍是
 > `00_MASTER_FUNCTIONS.md`、`02_INTERACTION_CONTRACTS.md` 与已批准的 `ScienceScope.html`。
 >
-> - 最近核对：2026-09-24，基线 `main@98e560a`（Claude 对照代码逐项核对）；2.5、2.16 于同日随界面刷新（分支 `claude/determined-pasteur-jxpzw8`，未合并）更新。
+> - 最近核对：2026-09-24，基线 `main@98e560a`（Claude 对照代码逐项核对）；2.2、2.5、2.16 于同日随界面刷新与专家讨论修订（分支 `claude/determined-pasteur-jxpzw8`，未合并）更新。
 > - 历史过程与每次验收细节见 `DESKTOP_IMPLEMENTATION.md`（按日期的开发日志）；本文件只写当前结果。
 
 **状态标记**
@@ -99,6 +99,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 
 - **用途与操作**：向主专家发送消息，逐字显示回答（Markdown、代码块复制、表格）；运行中发送键变为"停止"，
   已生成的内容保留；运行中可继续输入，并显式加入发送队列；工具调用按本次回复归组，可展开参数和结果；
+  模型在工具调用前写的执行性前导语（如"先读取研究稿"）不留在正文，归入对应工具调用，并作为折叠卡片的说明；正文只保留面向用户的回答和工具执行后的结论；
   切换对话不影响后台运行，侧栏显示运行、完成、失败、等待审批等状态；发送失败时原文回到输入框。
 - **状态**：✅（单元、界面、DSH、真实模型、原生）。
 - **技术实现**：
@@ -112,6 +113,8 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   - 运行时（`adapters/runtime-dsh/host.mjs`）：每个会话一个 `DeepSeekHarness` SDK 子进程，加载两个自有插件：
     `session-control.mjs`（本地 HTTP 控制端点：`/prompt`、`/interrupt`、`/policy`、`/reasoning`、`/model`、`/persona`、`/goal`、`/approval/reply`、`/context-usage`、`/experts`）
     与 `assistant-stream-bridge.mjs`（把 DSH 的文字流和工具事件推回宿主）。`/prompt` 没有空闲超时，一轮可以持续任意长，由"停止"或子进程退出结束。
+  - 前导语：`host.mjs` 在收到 `tool-call` 时，把本次尝试中上一个工具边界之后写出的文字从可见回答中移出（发 `text-replace`），
+    作为该调用的 `preamble` 字段；`tool_activity` 新增 `preamble` 列；DSH 自身的会话历史保持完整。
   - Provider 错误被归类为固定中文提示（认证、限流、网络、找不到模型、超出上下文），原始 Provider 文本不进界面。
   - 记录：用户与助手消息写入 `messages`；工具记录写入 `tool_activity`（有界、脱敏的展示投影；完整历史在 DSH）。
 - **验证**：`main-interrupt`、`main-outbox-api`、`chat-outbox`、`tool-activity`、`provider-failure-surface`、`reasoning-effort-wire` 单元测试；
@@ -152,27 +155,41 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 
 ### 2.5 专家讨论（多模型）
 
-- **用途与操作**：发出首条消息后，可在输入框上方把"工作"切换为：
-  - **有序讨论**：所有启用的专家并行独立作答，按名册顺序展示。
-  - **自由讨论**：只有用 `@名称` 点名的专家作答，没有点名则不发送。
-  自由讨论下输入 `@` 会弹出启用专家的候选菜单（↑↓ 选择，Enter/Tab 插入 `@名称 `，Esc 关闭；选择不会发送）。
-  讨论条上有"互相质询"按钮：专家读到上一轮全部回答后再次发言，并被告知哪段是自己的回答。
-  每位专家的文字实时出现，调用工具时显示"正在使用工具：…"；"停止"可取消整轮。
-- **状态**：🟡。单元、界面、DSH、真实三模型端到端均通过（2026-09-23）；尚未在 Windows 原生客户端实测（`docs/tasks/T03`）。
+- **用途与操作**（2026-09-24 语义修订；"自由讨论"与"互相质询"已取消，历史记录仍可阅读）：
+  - **工作模式中 @专家**：在普通"工作"模式里输入 `@` 弹出启用专家的候选菜单（↑↓ 选择，Enter/Tab 插入 `@名称 `，Esc 关闭；选择不会发送）。
+    消息里出现名册中专家的完整名称或标识时，这条消息由被 @ 的专家回答，主专家本轮不回答；没有 @ 时照常交给主专家。不做模糊猜测。
+  - **有序讨论**：输入框上方的讨论条列出发言顺序，可点选本轮参加的专家，并可选一位**审核专家**（审核专家本轮不单独作答）。
+    发送后，所选专家读取同一份前文与项目上下文，然后并行独立工作，本轮看不到彼此的回答；界面按顺序显示每位专家的状态
+    （等待中 / 作答中 / 使用工具 / 已完成 / 未完成）和回答。若设了审核专家，它在其他专家全部完成后核查各回复的事实、依据、方法和结论并总结。
+    审核结论默认**不进入**后续上下文；用户点击"加入后续上下文"后才会提供给之后的主专家轮次和专家；主专家已读取后不能撤回。
+  - **上下文可见性**：其他参与者（主专家、其他专家、审核专家）看到的是每条回答的最终文字，以及该回答的工具读写过的文件路径；
+    工具调用本身（参数、结果、前导语）不进入任何其他参与者的上下文。
+  - **身份**：每位专家被告知自己的名称与职责、在场的其他参与者（用户、主专家、其他专家），以及前文中只有标注为自己名字的消息才是自己说的。
+  - 每位专家的文字实时出现；工具调用前的执行性前导语归入该回答的工具记录卡片（见 2.2）；"停止"取消整轮（含审核）。
+- **状态**：🟡。单元、界面 smoke、真实 DSH（本地模拟模型，含工具前导语）已通过；真实模型端到端见"验证"；尚未在 Windows 原生客户端实测。
 - **技术实现**：
   - 运行时：`session-control.mjs` 的 `/experts`。每位专家是 DSH 自带 `dsh-subagent` 服务的一个进程内 `spawn` 子代理，
-    作为当前对话会话的子代理运行，有自己的人设（persona）和可选的模型/推理强度；所有专家拿到同一份冻结输入，
-    并行执行，不额外开进程；主专家的历史不受影响。文字和工具事件按顺序（`postEvent` 串行化）以 `expert-delta/expert-tool/expert-end` 回传。
-    `host.mjs` 提供 `runExperts`、`cancelExperts`。
-  - 应用层：`scripts/discussion-service.mjs`（生成两种轮次的提示、保存记录）、`desktop-api.mjs` 的 `POST /api/discussion`（NDJSON 流）
-    与 `/api/discussion/cancel`（也可由 `/api/chat/stop` 触发）。每条专家回答是普通 assistant 消息，作者、模型和结束原因存在
-    `discussion_entries`，读消息时作为 `message.expert` 返回，并按名册顺序重排；每轮问题存在 `discussion_rounds`。
-  - 前端：`desktop/discussion.mjs`（在工作模式非"工作"时接管发送、渲染专家卡片、参与者条）、`work-mode.mjs`（模式菜单）、
-    `workspace.mjs` 的 `authorOf`（显示真实作者）。
-- **验证**：`expert-discussion-runtime`（DSH + 本地模拟模型：并发、人设与模型隔离、实时文字）、`discussion-api` 单元测试；
-  `discussion-ui-smoke`（含 `@` 菜单：Enter 只插入不发送）；`scripts/evals/expert-discussion-live.mjs`、`discussion-api-live.mjs`（glm-5.3-flash / qwen3.8-flash / mimo-v2.6-flash）。
-- **已知限制**：工作模式不随对话保存（重启回到"工作"）；新对话首条消息前看不到模式按钮；
-  没有秘书整理的分歧矩阵；讨论内容不会自动进入主专家的记忆（可用引用带过去）；临时对话不支持讨论。
+    挂在当前对话会话下，有自己的人设（persona）和可选的模型/推理强度；同一轮所有专家拿到同一份冻结输入，并行执行。
+    文字、工具调用（带参数预览与前导语）和工具结果按顺序以 `expert-delta/expert-tool/expert-tool-result/expert-end` 回传。
+  - 应用层 `scripts/discussion-service.mjs`：
+    - `transcript()` 把对话前文（用户、主专家、专家的最终文字，未采纳的审核除外；每条附 `files="…"`，取自该回答的 `tool_activity` 参数中的路径）
+      组成 `<message speaker=… role=… files=…>` 块，最多 48k 字符，从最新往前取。
+    - `identityPrompt()` 生成每位专家的身份与本轮任务说明（有序 / 被邀请 / 审核）。
+    - 审核专家在第一次 `runExperts` 全部结束后单独运行，输入为同一前文 + 本轮各专家回答（`<answer speaker=…>`）。
+    - `pendingForMain()`：主专家下一轮发送时，把它还没读过的、已采纳的专家回答作为一段"其他参与者的消息"放在用户消息前，发送成功后标记 `main_seen`。
+    - `adopt()`：切换审核结论是否进入后续上下文。
+  - 接口：`POST /api/discussion`（NDJSON 流；`kind: 'ordered' | 'invited'`，`expertIds`，可选 `reviewerId`；旧值 `independent` 视为 `ordered`）、
+    `POST /api/discussion/adopt`、`POST /api/discussion/cancel`（也可由 `/api/chat/stop` 触发）。
+    专家回答是普通 assistant 消息，元数据在 `discussion_entries`（新增 `review`、`adopted`、`main_seen` 列），读消息时作为 `message.expert` 返回并按顺序重排；
+    专家的工具记录写入 `tool_activity`（以专家消息 id 为键）。
+  - 前端：`desktop/discussion.mjs`（@ 邀请、有序讨论条：参加者开关与审核选择（按对话存本机偏好）、状态标签、审核结论采纳按钮、专家工具卡片）、
+    `work-mode.mjs`（"工作 / 有序讨论"两项）、`workspace.mjs` 的 `authorOf`（显示真实作者）。
+- **验证**：`discussion-api` 单元测试（前文共享、顺序、审核在后、工具不外泄、采纳、@ 邀请、主专家补读且不重复）、
+  `tool-preamble-runtime`（真实 DSH + 本地模拟模型：主专家与专家的前导语都进入工具调用、不留在回答里）、`expert-discussion-runtime`；
+  `discussion-ui-smoke`（无自由讨论、审核选择、等待状态、前导语进卡片、采纳按钮、@ 菜单与邀请、无 @ 走主专家）；
+  `scripts/evals/discussion-api-live.mjs`（真实 OpenCode Go 小模型，见 DESKTOP_IMPLEMENTATION 2026-09-24）。
+- **已知限制**：工作模式和有序讨论的参加者/审核选择不随对话保存到应用数据库（模式重启回到"工作"，参加者选择存在本机浏览器存储）；
+  新对话首条消息前看不到模式按钮；临时对话不支持讨论；前文只含文字与文件路径，附件原文需要专家自己用工具读取。
 
 ### 2.6 专家名册（设置 → 专家角色）
 
@@ -324,7 +341,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 | 工作区与对话 | `GET/POST /api/workspace`、`GET /api/chats`、`GET /api/chats/:id/messages`、`POST /api/chats/update|move|delete|mode|temporary-close` |
 | 主对话 | `POST /api/chat`（流）、`POST /api/chat/stop`、`GET/POST /api/chat/outbox`、`GET /api/chat/activity`、`GET /api/chat/search` |
 | 执行 | `GET /api/execution`、`POST /api/execution/goal|approval` |
-| 专家讨论 | `GET/POST /api/experts`、`POST /api/discussion`（流）、`POST /api/discussion/cancel` |
+| 专家讨论 | `GET/POST /api/experts`、`POST /api/discussion`（流）、`POST /api/discussion/adopt`、`POST /api/discussion/cancel` |
 | 秘书与全局助手 | `GET /api/assistant`、`POST /api/assistant/chat`（流）、`/assistant/draft|model|approval|stop|proposal/resolve` |
 | 研究输入与资料 | `GET/POST /api/research-input/draft`、`GET /api/library`、`POST /api/library/import|open`、`GET /api/knowledge`、`POST /api/knowledge/propose|accept` |
 | 工作站 | `GET /api/workbench`、`GET /api/workbench/files|asset|plans`、`POST /api/workbench/save|bind|import|asset|version|plans|open|organize` |
@@ -339,7 +356,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 |---|---|---|
 | `schema_migrations`、`workspaces`、`projects`、`profile` | 版本、工作区快照、项目、个人资料 | `application-database.mjs`、`chat-store.mjs` |
 | `chats`、`messages`、`runtime_bindings` | 对话、消息（按序号分页）、对话与 DSH 会话的绑定 | `chat-store.mjs` |
-| `tool_activity` | 工具调用的展示投影 | `tool-activity.mjs` |
+| `tool_activity` | 工具调用的展示投影（含工具前导语；专家回答也记录） | `tool-activity.mjs` |
 | `chat_outbox`、`chat_outbox_state` | 主对话发送队列（重启后暂停） | `chat-outbox.mjs` |
 | `execution_sessions` | 每个对话的执行策略与自动化目标 | `execution-service.mjs` |
 | `research_input_drafts`、`research_input_receipts`、`research_input_consumed` | 研究输入草稿、发送回执、已消费版本 | `research-input-store.mjs` |
@@ -347,7 +364,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 | `assistant_conversations`、`assistant_drafts`、`assistant_settings`、`assistant_draft_proposals`、`assistant_attachment_drafts` | 秘书与全局助手 | `assistant-conversations.mjs`、`chat-attachments.mjs` |
 | `role_settings`、`role_bindings`、`role_prompt_receipts` | 角色提示词、会话快照、应用记录 | `role-settings.mjs` |
 | `experts`、`expert_roster_state` | 专家名册 | `expert-roster.mjs` |
-| `discussion_rounds`、`discussion_entries` | 讨论轮次与专家回答元数据 | `discussion-service.mjs` |
+| `discussion_rounds`、`discussion_entries` | 讨论轮次与专家回答元数据（含审核、采纳、主专家已读标记） | `discussion-service.mjs` |
 | `desktop_preferences`、`shortcut_settings`、`secretary_preferences`、`assistant_window_preferences` | 各类设置 | 同名模块 |
 
 DSH 自己的数据（会话历史、Provider 配置、凭据、技能）在 `.sciencescope-local/dsh/`，由 DSH 管理。

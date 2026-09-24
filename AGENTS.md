@@ -106,6 +106,11 @@ actual remote branch and SHA; failed pushes are not delivery.
 - Ordered discussion now means concurrent independent expert execution with fixed
   display order, not sequential execution. Record this semantic revision explicitly;
   do not reinterpret historical records or silently infer ambiguous @ assignments.
+- 2026-09-24 revision: free discussion is removed; @expert in work mode invites
+  experts. Ordered discussion shares the same prior transcript, runs selected
+  experts in parallel and may end with a reviewer whose result enters later
+  context only when the user adopts it. Peers see answers and touched files,
+  never tool calls. Tool preambles belong to the tool card, not the answer.
 - Secretary-to-Main drafting is a registered proposal tool, not a button attached
   to every assistant response. Tool invocation opens an editable proposal; only
   user confirmation sends to its explicitly bound Main chat. Do not claim the

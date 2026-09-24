@@ -2,7 +2,8 @@ import './workspace.mjs';
 import {hostRequest} from './host-client.mjs';
 import {composerMenu} from './composer-menu.mjs';
 
-const labels={work:'工作',free:'自由讨论',ordered:'有序讨论'};
+// 2026-09-24: 自由讨论 was folded into 工作: @专家 invites experts there.
+const labels={work:'工作',ordered:'有序讨论'};
 const choices=new Map();
 let saving=false;
 function paint(){
@@ -16,7 +17,7 @@ window.addEventListener('click',async event=>{
   event.preventDefault();event.stopImmediatePropagation();
   if(V.pending.has(V.chat)||saving)return toast('请等待当前操作完成后切换工作方式。');
   if(!button.dataset.workMode){
-    composerMenu(button,'工作方式',Object.entries(labels).map(([id,label])=>({label,selected:(choices.get(V.chat)||'work')===id,action:'desktop-work-mode',attrs:`data-work-mode="${id}"`,description:id==='work'?'由主专家持续处理当前任务。':id==='ordered'?'全部启用的专家并行独立作答，按名册顺序展示。':'用 @专家名 点名，只有被点名的专家作答。'})));
+    composerMenu(button,'工作方式',Object.entries(labels).map(([id,label])=>({label,selected:(choices.get(V.chat)||'work')===id,action:'desktop-work-mode',attrs:`data-work-mode="${id}"`,description:id==='work'?'主专家持续处理当前任务；输入 @专家名 可邀请专家回答。':'所选专家读取同一份前文后并行独立作答，按顺序展示；可设审核专家在最后核查。'})));
     return;
   }
   const id=V.chat,next=button.dataset.workMode;
