@@ -401,7 +401,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         if (pending.has(input.chatId) || execution?.busy(input.chatId)) {
           json(response,409,{message:'这个对话仍在运行，请等待当前请求结束后再切换工作方式。'}); return true;
         }
-        const suffix = input.mode === 'work' ? '。' : input.mode === 'ordered' ? '：启用的专家将并行独立作答。' : '：用 @专家名 点名作答的专家。';
+        const suffix = input.mode === 'work' ? '；可用 @专家名 邀请专家回答。' : '：所选专家将读取同一份前文并行独立作答。';
         const message = await chatStore.appendMessage({
           chatId: input.chatId,
           id: input.messageId,

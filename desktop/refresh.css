@@ -197,7 +197,7 @@ input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px}
 .turn-activity pre{margin:0 12px 10px;font-family:var(--ss-mono);font-size:12px;background:var(--sunken);border-radius:var(--r-sm);padding:8px 10px;white-space:pre-wrap}
 
 /* discussion strip */
-.discussion-strip{margin:12px max(24px,calc((100% - 760px)/2)) 0;padding:8px 8px 8px 14px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--raised);box-shadow:var(--shadow-1)}
+.discussion-strip{min-height:0!important;margin:12px max(24px,calc((100% - 760px)/2)) 4px;padding:6px 6px 6px 14px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--raised);box-shadow:var(--shadow-1)}
 .discussion-strip .row{gap:6px;flex-wrap:wrap;align-items:center}
 .discussion-strip small{font-size:12px;font-weight:600;color:var(--muted);margin-right:4px}
 

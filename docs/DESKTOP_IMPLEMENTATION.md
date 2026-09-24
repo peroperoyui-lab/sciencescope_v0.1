@@ -1,5 +1,41 @@
 # Desktop implementation — first increment
 
+## 2026-09-24 Experts, marks and tool preambles (Claude, cloud) — review branch, not merged
+
+User revision (recorded in `02_INTERACTION_CONTRACTS.md`, 2026-09-24 section):
+ordered panel with shared prior context and optional reviewer; marks from chat
+and file preview with a "标记 N" popover; tool preambles move into the tool
+card; free discussion removed in favour of @expert invites in work mode. Peers
+see answers and touched files, never tool calls.
+
+Implemented: `scripts/discussion-service.mjs` (transcript digest, identity
+prompts, reviewer run, adopt, Main catch-up), `desktop-api.mjs`
+(`/api/discussion` kinds ordered/invited + reviewerId, `/api/discussion/adopt`,
+Main prefix), `host.mjs` + `session-control.mjs` (preamble split for Main and
+experts, expert tool calls/results with argument previews), `tool-activity.mjs`
+(`preamble` column), `desktop/discussion.mjs`, `work-mode.mjs`,
+`turn-activity.mjs`. Marks and the real file preview (`research-input.mjs`,
+`file-preview.mjs`, `marks.css`, `/api/library/preview`) were implemented by a
+Claude subagent under a file-scoped brief and reviewed/re-run by the primary
+agent.
+
+Verification (cloud): `npm test` all pass, including new
+`tool-preamble-runtime` (real DSH + local fixture model: Main and expert
+preambles leave the answer and ride on the tool call) and rewritten
+`discussion-api`, plus `library-preview`. Browser smokes: discussion-ui,
+marks-ui, research-input-ui, chat-ui, workspace-ui, settings-ui,
+failed-send-draft, desktop-navigation, workbench-ui, shortcuts-ui,
+extensions-ui, background-chat pass.
+
+Real provider (OpenCode Go, `scripts/evals/discussion-api-live.mjs`): Main
+(deepseek-v4.1-flash) read `study.md` with preamble "I'll read the file first."
+kept out of the answer; ordered panel methodologist (glm-5.3-flash) +
+red-team (mimo-v2.6-flash) with reviewer statistician (qwen3.8-flash) ran in
+534 s (the reviewer made ~14 tool calls); adopt → 200; @red-team invite
+answered in 19 s and identified itself correctly while citing the adopted
+review; Main's next turn cited the experts and the review (catch-up worked,
+`mainSeen=true`). Not yet: Windows native acceptance.
+
 ## 2026-09-24 GUI refresh (Claude, cloud) — review branch, not merged
 
 User request: refresh every user-facing surface (main window and secondary
