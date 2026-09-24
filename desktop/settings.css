@@ -1,10 +1,4 @@
-/* Default light palette stays in the approved prototype; only opt-in overrides. */
-:root[data-theme="dark"]{color-scheme:dark;--bg:#202420;--side:#252a25;--surface:#292e29;--ink:#e2e7df;--muted:#acb5a9;--line:#424b40;--soft:#333d31;--accent:#b9ceae;--danger:#e3a29a}
-:root[data-theme="dark"] body,
-:root[data-theme="dark"] :is(.topbar,.main,.card,.composer,.panel,.modal,.settingscontent,.settingform,.btn,input,textarea,select){background:var(--bg);color:var(--ink);border-color:var(--line)}
-:root[data-theme="dark"] :is(.sidebar,.settingsnav){background:var(--side)}
-:root[data-theme="dark"] .btn.primary{background:var(--accent);color:#202420}
-:root[data-theme="dark"] :is(pre,code){background:var(--soft);color:var(--ink)}
+/* Theme tokens (light and dark) live in refresh.css; only density/size hooks stay here. */
 :root[data-density="compact"] .settingsnav .nav{padding-top:6px;padding-bottom:6px;min-height:32px}
 :root[data-density="compact"] .settingrow{padding-top:12px;padding-bottom:12px}
 :root[data-density="compact"] .navsection{margin-top:12px;margin-bottom:6px}

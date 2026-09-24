@@ -6,7 +6,7 @@
 > 不应因为本文档写过某种实现就拒绝更好的设计。产品意图与交互规则的依据仍是
 > `00_MASTER_FUNCTIONS.md`、`02_INTERACTION_CONTRACTS.md` 与已批准的 `ScienceScope.html`。
 >
-> - 最近核对：2026-09-24，基线 `main@98e560a`（Claude 对照代码逐项核对）。
+> - 最近核对：2026-09-24，基线 `main@98e560a`（Claude 对照代码逐项核对）；2.5、2.16 于同日随界面刷新（分支 `claude/determined-pasteur-jxpzw8`，未合并）更新。
 > - 历史过程与每次验收细节见 `DESKTOP_IMPLEMENTATION.md`（按日期的开发日志）；本文件只写当前结果。
 
 **状态标记**
@@ -155,6 +155,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 - **用途与操作**：发出首条消息后，可在输入框上方把"工作"切换为：
   - **有序讨论**：所有启用的专家并行独立作答，按名册顺序展示。
   - **自由讨论**：只有用 `@名称` 点名的专家作答，没有点名则不发送。
+  自由讨论下输入 `@` 会弹出启用专家的候选菜单（↑↓ 选择，Enter/Tab 插入 `@名称 `，Esc 关闭；选择不会发送）。
   讨论条上有"互相质询"按钮：专家读到上一轮全部回答后再次发言，并被告知哪段是自己的回答。
   每位专家的文字实时出现，调用工具时显示"正在使用工具：…"；"停止"可取消整轮。
 - **状态**：🟡。单元、界面、DSH、真实三模型端到端均通过（2026-09-23）；尚未在 Windows 原生客户端实测（`docs/tasks/T03`）。
@@ -169,8 +170,8 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   - 前端：`desktop/discussion.mjs`（在工作模式非"工作"时接管发送、渲染专家卡片、参与者条）、`work-mode.mjs`（模式菜单）、
     `workspace.mjs` 的 `authorOf`（显示真实作者）。
 - **验证**：`expert-discussion-runtime`（DSH + 本地模拟模型：并发、人设与模型隔离、实时文字）、`discussion-api` 单元测试；
-  `discussion-ui-smoke`；`scripts/evals/expert-discussion-live.mjs`、`discussion-api-live.mjs`（glm-5.3-flash / qwen3.8-flash / mimo-v2.6-flash）。
-- **已知限制**：工作模式不随对话保存（重启回到"工作"）；新对话首条消息前看不到模式按钮；没有 `@` 候选菜单；
+  `discussion-ui-smoke`（含 `@` 菜单：Enter 只插入不发送）；`scripts/evals/expert-discussion-live.mjs`、`discussion-api-live.mjs`（glm-5.3-flash / qwen3.8-flash / mimo-v2.6-flash）。
+- **已知限制**：工作模式不随对话保存（重启回到"工作"）；新对话首条消息前看不到模式按钮；
   没有秘书整理的分歧矩阵；讨论内容不会自动进入主专家的记忆（可用引用带过去）；临时对话不支持讨论。
 
 ### 2.6 专家名册（设置 → 专家角色）
@@ -294,6 +295,25 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 
 ---
 
+### 2.16 界面外观层（界面刷新）
+
+- **用途**：在不改动已批准原型结构和交互的前提下统一视觉：设计令牌（颜色、圆角、阴影、动效时长）、浅色/深色两套主题、
+  按钮/输入框/菜单/对话框/表格/卡片/导图节点的统一样式，以及几个小交互：
+  - 消息操作（复制、分支…）悬停或聚焦时才显示；复制后按钮就地显示"已复制"1.6 秒。
+  - 流式回复末尾有闪烁光标；等待首字时显示三点动画。
+  - Esc 停止正在运行的回复（菜单、对话框、命令面板打开或输入框有文字时不拦截）。
+  - 底部状态栏显示真实运行时状态（`/api/status`，每 30 秒刷新，绿点/灰点），不再是原型文字。
+  - 置顶项目只作为快捷入口，保持折叠，不再重复列出它的对话。
+  - 秘书与全局助手空白时显示用途说明。
+  - 正文/代码字号仍由设置中的 `--chat-font-size`、`--code-font-size` 决定；"减少动画"设置照常生效。
+- **状态**：🟡。浏览器界面 smoke 全部通过、截图走查完成；尚未在 Windows 原生客户端目视验收。
+- **技术实现**：`desktop/refresh.css`（最后加载的样式表，令牌定义在 `:root` 与 `:root[data-theme="dark"]`，
+  深色令牌已从 `settings.css` 移入这里），`desktop/refresh.mjs`（上述小交互，只附加监听，不替换已有处理函数；
+  `projectRow` 仅对置顶行做包装）。二者在 `scripts/build-desktop.mjs` 的资源白名单与页面注入中登记。
+- **验证**：`chat-ui-smoke`、`settings-ui-smoke`（断言已更新为新令牌值）及其余界面 smoke；
+  `scripts/ui-gallery.mjs <输出目录>` 用离线模拟数据生成 17 张截图（主页、对话、讨论、秘书、工作站、导图、数据库、
+  设置四页、命令面板、右键菜单、输入框菜单、深色、全局助手窗口、悬浮球），用于前后对比。
+
 ## 3. 接口索引（`scripts/desktop-api.mjs`）
 
 所有接口需携带口令（2.15）。流式接口返回 NDJSON。
@@ -337,7 +357,7 @@ DSH 自己的数据（会话历史、Provider 配置、凭据、技能）在 `.s
 | 类型 | 运行方式 | 说明 |
 |---|---|---|
 | 离线单元测试 | `npm test`（并发 2） | 34 个文件、111 项（2026-09-24）；部分启动真实 DSH，配合本地模拟模型 |
-| 浏览器 smoke | `SCIENCESCOPE_BROWSER=<chromium 路径> node scripts/<name>-smoke.mjs` | 默认使用 Windows Edge；走生产资源路由。chat-ui、failed-send-draft、research-input-ui、settings-ui、shortcuts-ui、extensions-ui、workbench-ui、workspace-ui、desktop-navigation、discussion-ui |
+| 浏览器 smoke | `SCIENCESCOPE_BROWSER=<chromium 路径> node scripts/<name>-smoke.mjs` | 默认使用 Windows Edge；走生产资源路由。chat-ui、failed-send-draft、research-input-ui、settings-ui、shortcuts-ui、extensions-ui、workbench-ui、workspace-ui、desktop-navigation、discussion-ui。`desktop-interaction-smoke` 在 main 上同样失败（未走 API 令牌，待修）；`ui-gallery.mjs` 生成截图集 |
 | DSH smoke | `node scripts/dsh-*-smoke.mjs`、`skills-runtime-smoke`、`assistant-api-smoke` | 真实 DSH + 本地模拟模型 |
 | 原生 smoke | `native-*-smoke`、`assistant-window-smoke`、`shutdown-smoke` | 仅 Windows，需要已构建的 exe |
 | 真实模型（付费，需主动运行） | `real-provider-smoke`、`real-stream-smoke`、`runtime-hardening-live-smoke`、`scripts/evals/*` | key 从环境变量或不进 Git 的 `.sciencescope-local/secret/` 读取 |

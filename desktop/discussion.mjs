@@ -160,5 +160,64 @@ const after = window.ScienceScopeWorkspace.afterRender;
 window.ScienceScopeWorkspace.afterRender = (...args) => { after?.(...args); paintStrip(); };
 // Mode changes happen in work-mode.mjs without a full render.
 window.addEventListener('sciencescope-work-mode', () => { void loadRoster().then(paintStrip); });
+// @ candidate menu (自由讨论): lists enabled experts by stable id; the chosen
+// expert is inserted as "@名称 ". Arrow keys move, Enter/Tab choose, Esc closes.
+let mention = null;
+function closeMention() { mention?.menu.remove(); mention = null; }
+function mentionQuery(input) {
+  const before = input.value.slice(0, input.selectionStart);
+  const match = before.match(/@([^\s@]*)$/u);
+  return match ? {query: match[1], start: before.length - match[0].length, end: input.selectionStart} : null;
+}
+function paintMention() {
+  if (!mention) return;
+  mention.menu.innerHTML = mention.items.map((expert, index) => `<button type="button" role="option" data-mention="${esc(expert.id)}" aria-selected="${index === mention.active}"><span class="mention-avatar">${esc(expert.label.slice(0, 1))}</span><span class="mention-name">${esc(expert.label)}</span><small>${esc(expert.role || expert.model?.modelId || '')}</small></button>`).join('') || '<div class="mention-empty">没有匹配的专家</div>';
+}
+function openMention(input) {
+  if (mode() !== 'free') return closeMention();
+  const hit = mentionQuery(input);
+  if (!hit) return closeMention();
+  const q = hit.query.toLocaleLowerCase();
+  const items = enabled().filter(expert => !q || expert.label.toLocaleLowerCase().includes(q) || expert.id.toLocaleLowerCase().includes(q));
+  if (!mention) {
+    const menu = document.createElement('div'); menu.className = 'mention-menu'; menu.setAttribute('role', 'listbox'); menu.setAttribute('aria-label', '点名专家');
+    input.closest('[data-composer="main"]')?.append(menu);
+    mention = {menu, items: [], active: 0, input};
+  }
+  mention.items = items; mention.hit = hit; mention.active = Math.min(mention.active, Math.max(0, items.length - 1));
+  paintMention();
+}
+function chooseMention(expert) {
+  if (!mention || !expert) return;
+  const {input, hit} = mention;
+  const insert = `@${expert.label} `;
+  input.value = input.value.slice(0, hit.start) + insert + input.value.slice(hit.end);
+  const caret = hit.start + insert.length; input.setSelectionRange(caret, caret);
+  closeMention();
+  input.dispatchEvent(new Event('input', {bubbles: true}));
+  input.focus();
+}
+window.addEventListener('input', event => {
+  if (!event.target.matches?.('textarea[data-draft="main"]') || event.isComposing) return;
+  if (!roster.length) void loadRoster().then(() => openMention(event.target)); else openMention(event.target);
+}, true);
+window.addEventListener('compositionend', event => { if (event.target.matches?.('textarea[data-draft="main"]')) openMention(event.target); }, true);
+window.addEventListener('keydown', event => {
+  if (!mention || event.target !== mention.input || event.isComposing) return;
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault(); event.stopImmediatePropagation();
+    const n = mention.items.length; if (!n) return;
+    mention.active = (mention.active + (event.key === 'ArrowDown' ? 1 : n - 1)) % n; paintMention();
+  } else if ((event.key === 'Enter' || event.key === 'Tab') && mention.items.length) {
+    event.preventDefault(); event.stopImmediatePropagation(); chooseMention(mention.items[mention.active]);
+  } else if (event.key === 'Escape') { event.preventDefault(); event.stopImmediatePropagation(); closeMention(); }
+}, true);
+window.addEventListener('mousedown', event => {
+  const option = event.target.closest('[data-mention]');
+  if (option && mention) { event.preventDefault(); chooseMention(mention.items.find(expert => expert.id === option.dataset.mention)); return; }
+  if (mention && !event.target.closest('.mention-menu')) closeMention();
+}, true);
+window.addEventListener('blur', closeMention);
+
 window.ScienceScopeDiscussion = Object.freeze({roster: () => roster, reload: async () => { await loadRoster(); paintStrip(); return roster; }, mentionedExperts});
 void loadRoster().then(paintStrip);
