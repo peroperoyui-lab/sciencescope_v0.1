@@ -1,5 +1,34 @@
 # Desktop implementation — first increment
 
+## 2026-09-24 GUI refresh (Claude, cloud) — review branch, not merged
+
+User request: refresh every user-facing surface (main window and secondary
+windows), keep or change the style, and polish button/alignment/animation
+details against frontier harness designs. Structure and interactions of the
+approved prototype are unchanged; this is a visual/detail layer.
+
+- `desktop/refresh.css`: design tokens for light and dark (dark tokens moved out
+  of `settings.css`), centered 760px reading column, user bubbles, hover-revealed
+  message actions, streaming caret and waiting dots, markdown tables/code, turn
+  activity, composer focus ring and 32px send button, menus/palette/dialogs/toasts,
+  secretary and global assistant panels (composer no longer overflows), home
+  spacing (composer no longer clipped at 900px height), quiet recent-work list,
+  compact library rows, workbench/map/settings/expert cards, orb. Font sizes keep
+  honouring `--chat-font-size`/`--code-font-size`.
+- `desktop/refresh.mjs`: copy feedback, Esc stops the running reply, real runtime
+  status in the footer, pinned project row stays collapsed (no duplicate chats).
+- `desktop/discussion.mjs`: `@` candidate menu in free discussion (Enter/Tab picks
+  and never sends).
+- `scripts/ui-gallery.mjs`: seeded offline screenshot gallery (17 screens).
+
+Verification (cloud, Linux Chromium): `npm test` 111/111; smokes chat-ui,
+discussion-ui (new @ menu assertions), settings-ui, workspace-ui,
+desktop-navigation, research-input-ui, failed-send-draft, workbench-ui,
+shortcuts-ui, extensions-ui, background-chat pass. chat-ui/settings-ui style
+assertions updated to the new token values (code radius 12px, dark paper
+rgb(22,25,23)). `desktop-interaction-smoke` fails identically on main (stale).
+Not yet: Windows native visual acceptance.
+
 ## 2026-09-23 Slice B: expert discussion (Claude, cloud)
 
 Implemented the contract's discussion semantics on top of DSH's own subagent

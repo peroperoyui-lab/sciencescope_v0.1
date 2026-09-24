@@ -27,7 +27,7 @@ try{
   assert.equal(await page.locator('[name="chatFontSize"]').inputValue(),'18');
   assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),'dark');
   assert.equal(await page.evaluate(()=>document.documentElement.dataset.density),'compact');
-  assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(32, 36, 32)');
+  assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(22, 25, 23)');
   assert.equal(await page.evaluate(()=>document.documentElement.style.getPropertyValue('--code-font-size')),'15px');
   assert.equal(await page.evaluate(()=>document.documentElement.style.getPropertyValue('--chat-font-size')),'18px');
   assert.equal(await page.evaluate(()=>document.documentElement.hasAttribute('data-reduce-motion')),true);

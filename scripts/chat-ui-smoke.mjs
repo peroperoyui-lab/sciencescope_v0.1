@@ -99,7 +99,7 @@ try {
   assert.equal(await page.locator('.rendered-markdown pre code').innerText(),'print("SCIENCESCOPE_OK")\n');
   assert.equal(await page.locator('.rendered-markdown table tbody tr').count(),1);
   assert.equal(await page.locator('.rendered-markdown li').count(),2);
-  assert.equal(await page.locator('.rendered-markdown pre').evaluate(el=>getComputedStyle(el).borderRadius),'8px');
+  assert.equal(await page.locator('.rendered-markdown pre').evaluate(el=>getComputedStyle(el).borderRadius),'12px');
   assert.equal(await page.locator('.message[data-streaming]').count(),1);
   assert.equal(await page.locator('[data-main-stop]').count(),1);
   await page.locator('.messagebody').last().evaluate(el=>el.style.minHeight='1800px');
