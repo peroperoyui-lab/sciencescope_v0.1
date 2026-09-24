@@ -1,0 +1,77 @@
+/* Marks (标记): selection popover, composer "标记 N" popover, receipts and the
+   real file preview panel. Uses refresh.css tokens; loaded after refresh.css. */
+
+/* ---- selection popover ---- */
+.mark-selection-popover{position:fixed;z-index:60;width:340px;max-width:calc(100vw - 16px);padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--raised);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-3);color:var(--ink);font-size:13px;animation:ss-pop var(--t-med) var(--ease)}
+.mark-selection-popover>.mark-text{margin:0;-webkit-line-clamp:3}
+.mark-selection-popover textarea{width:100%;min-height:52px;max-height:160px;resize:vertical;padding:7px 9px;font-size:13px;line-height:1.45;box-sizing:border-box}
+.mark-selection-actions{display:flex;align-items:center;gap:2px;flex-wrap:wrap}
+.mark-selection-actions .spacer{flex:1}
+.mark-secondary{height:26px;padding:0 7px;border:0;border-radius:var(--r-sm);background:none;color:var(--muted);font-size:12px;cursor:pointer;transition:background var(--t-fast),color var(--t-fast)}
+.mark-secondary:hover{background:var(--hover);color:var(--ink)}
+.mark-selection-actions .btn.tiny{height:28px}
+
+/* ---- shared mark item ---- */
+.mark-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.mark-item{padding:9px 10px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--paper);display:flex;flex-direction:column;gap:6px;min-width:0}
+.mark-source{display:flex;align-items:center;gap:6px;min-width:0;font-size:12px;color:var(--ink-2)}
+.mark-origin{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mark-where{color:var(--muted)}
+.mark-index{min-width:18px;height:18px;padding:0 4px;border-radius:9px;background:var(--accent-soft);color:var(--accent-ink);font-size:11px;font-weight:600;display:inline-grid;place-items:center;box-sizing:border-box}
+.mark-kind{padding:0 5px;border:1px solid var(--line);border-radius:4px;font-size:11px;color:var(--muted);line-height:16px}
+.mark-text{margin:0;padding:1px 0 1px 10px;border-left:2px solid var(--accent-line);color:var(--ink);font-size:13px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:4;overflow:hidden;cursor:pointer}
+.mark-text.is-expanded{display:block;-webkit-line-clamp:unset;max-height:none}
+.mark-note{font-size:12.5px;color:var(--ink-2);white-space:pre-wrap;overflow-wrap:anywhere}
+.mark-note.is-empty{color:var(--faint)}
+.mark-actions{display:flex;gap:2px;justify-content:flex-end}
+.mark-actions button:not(.btn){height:24px;padding:0 8px;border:0;border-radius:var(--r-sm);background:none;color:var(--muted);font-size:12px;cursor:pointer;transition:background var(--t-fast),color var(--t-fast)}
+.mark-actions button:not(.btn):hover{background:var(--hover);color:var(--ink)}
+.mark-actions button.danger:hover{background:var(--danger-soft);color:var(--danger)}
+.mark-actions .btn.tiny{height:26px}
+.mark-edit{width:100%;box-sizing:border-box;resize:vertical;min-height:56px;padding:7px 9px;font-size:13px}
+
+/* ---- composer button + popover ---- */
+.marks-toggle{display:inline-flex;align-items:center;gap:4px;padding:0 9px;cursor:pointer;background:var(--accent-soft)!important;border-color:var(--accent-line)!important;color:var(--accent-ink)}
+.marks-toggle b{font-weight:600}
+.marks-toggle[aria-expanded="true"]{box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 25%,transparent)}
+.marks-toggle.is-bumped{animation:ss-mark-bump 360ms var(--ease)}
+@keyframes ss-mark-bump{40%{transform:scale(1.08)}}
+.marks-popover{position:fixed;z-index:55;max-height:50vh;display:flex;flex-direction:column;background:var(--raised);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-3);color:var(--ink);font-size:13px;animation:ss-pop var(--t-med) var(--ease);box-sizing:border-box}
+.marks-popover-head{display:flex;align-items:center;gap:8px;padding:9px 10px 8px 14px;border-bottom:1px solid var(--line)}
+.marks-popover-head strong{font-weight:600;font-size:13px}
+.marks-popover-head small{font-size:11.5px}
+.marks-popover-head .spacer{flex:1}
+.marks-clear,.marks-close{height:26px;padding:0 8px;border:0;border-radius:var(--r-sm);background:none;color:var(--muted);font-size:12px;cursor:pointer}
+.marks-close{font-size:16px;width:26px;padding:0}
+.marks-clear:hover{background:var(--danger-soft);color:var(--danger)}
+.marks-close:hover{background:var(--hover);color:var(--ink)}
+.marks-popover>.mark-list{overflow:auto;padding:8px;overscroll-behavior:contain}
+.attachment-menu{position:fixed;z-index:60;min-width:200px}
+
+/* ---- receipt on sent messages ---- */
+.research-receipt{margin-top:8px;font-size:12.5px}
+.research-receipt>summary{cursor:pointer;color:var(--muted);width:max-content;padding:2px 6px;margin-left:-6px;border-radius:var(--r-sm)}
+.research-receipt>summary:hover{background:var(--hover);color:var(--ink)}
+.research-receipt>.mark-list{margin-top:6px}
+.research-receipt .mark-item{background:var(--raised)}
+.receipt-materials{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.receipt-materials .ref-chip{display:inline-flex;align-items:center;padding:0 8px}
+
+/* ---- highlights ---- */
+::highlight(ss-pending){background:color-mix(in srgb,var(--accent) 22%,transparent)}
+::highlight(ss-marks){background:color-mix(in srgb,var(--warn) 22%,transparent)}
+::highlight(ss-mark-focus){background:color-mix(in srgb,var(--accent) 40%,transparent)}
+.message.msg-target .messagebody,[data-assistant-message].msg-target{animation:ss-msg-target 1.6s var(--ease)}
+@keyframes ss-msg-target{0%,40%{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent);border-radius:var(--r-lg)}100%{box-shadow:0 0 0 3px transparent}}
+
+/* ---- file preview panel ---- */
+.file-preview-body{display:flex;flex-direction:column;gap:10px}
+.file-preview-toolbar{display:flex;gap:8px;align-items:center}
+.file-preview-toolbar select{flex:1;min-width:0;height:32px;padding:0 8px}
+.file-preview-hint{margin:0;font-size:12px}
+.file-preview-note{margin:0;font-size:12px;color:var(--warn)}
+.file-preview-doc{padding:16px 18px;min-height:200px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--raised);font-size:13.5px;line-height:1.65;overflow-wrap:anywhere}
+.file-preview-doc .rendered-markdown>:first-child{margin-top:0}
+.file-preview-plain{margin:0;white-space:pre-wrap;font-family:var(--ss-mono);font-size:12.5px;line-height:1.6;background:none;border:0;padding:0}
+.file-preview-empty{padding:28px 16px;text-align:center;color:var(--muted);font-size:13px;border:1px dashed var(--line-strong);border-radius:var(--r-lg)}
+.file-preview-empty p{margin:0 0 8px}

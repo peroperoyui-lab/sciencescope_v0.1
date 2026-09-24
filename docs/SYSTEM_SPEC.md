@@ -6,7 +6,7 @@
 > 不应因为本文档写过某种实现就拒绝更好的设计。产品意图与交互规则的依据仍是
 > `00_MASTER_FUNCTIONS.md`、`02_INTERACTION_CONTRACTS.md` 与已批准的 `ScienceScope.html`。
 >
-> - 最近核对：2026-09-24，基线 `main@98e560a`（Claude 对照代码逐项核对）；2.2、2.5、2.16 于同日随界面刷新与专家讨论修订（分支 `claude/determined-pasteur-jxpzw8`，未合并）更新。
+> - 最近核对：2026-09-24，基线 `main@98e560a`（Claude 对照代码逐项核对）；2.2、2.4、2.5、2.16 于同日随界面刷新、标记与专家讨论修订（分支 `claude/determined-pasteur-jxpzw8`，未合并）更新。
 > - 历史过程与每次验收细节见 `DESKTOP_IMPLEMENTATION.md`（按日期的开发日志）；本文件只写当前结果。
 
 **状态标记**
@@ -134,24 +134,34 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   自动化 → DSH goal 服务（`/goal`）。
 - **验证**：`dsh-approval-smoke`、`dsh-goal-smoke`、`dsh-policy-smoke`。
 
-### 2.4 研究输入：附件、引用与批注
+### 2.4 研究输入：附件与标记
 
-- **用途与操作**：
-  - 附件：可选择、拖入或粘贴文件，原件存入资料库，输入框显示可编辑的引用。
-  - 引用：选中任意聊天正文后，可"引用至主对话 / 任务秘书 / 全局助手 / 复制"，并附批注。
-  - 批注：可为附件填写原文片段、位置和批注。
-  - 回执：发送后，消息下可展开"已发送研究材料与引用"。
-- **状态**：✅（单元、界面、DSH）。
+- **用途与操作**（2026-09-24 起"引用/批注"统一为"标记"）：
+  - 附件：可选择、拖入或粘贴文件，原件存入资料库，输入框显示附件条；点击附件可"预览并标记 / 手动添加文本标记 / 移除附件"。
+  - 标记：在聊天消息或右侧**文件预览**中划选文字，弹出贴着选区的小窗，可写备注，Enter"添加标记"（Shift+Enter 换行，Esc 关闭）；
+    不弹对话框，可以连续标记多处。消息里的标记进入该对话自己的输入框（主对话 → 主输入框；秘书/全局助手 → 各自输入框）；
+    小窗里另有"引用至任务秘书 / 引用至全局助手 / 复制"。
+  - "标记 N"按钮：在输入框的附件条中，N>0 时出现；点击展开二级快捷窗口，按顺序列出每个标记的来源（对话发言人或文件名+段落）、原文和备注，
+    支持定位（滚动并闪烁到原消息，或打开文件预览并高亮原文）、修改备注、移除、全部清除；Esc 或点外部关闭，不重挂正文和输入框。
+  - 发送：正文与当前全部标记、附件一起组成下一轮输入；发送后消息下显示可读回执"标记 N 条 · 材料 M 份"。
+  - 文件预览（右侧栏"文件预览与标记"）：显示资料库资源经同一提取路径得到的文本（与发送给模型的一致，最多 64000 字），
+    可切换当前项目的资料；已有标记在预览中高亮；数据库材料行有"预览"按钮。
+- **状态**：✅（单元、界面）；原生客户端未实测。
 - **技术实现**：
-  - 前端 `desktop/research-input.mjs`；后端 `scripts/research-input.mjs`（编译器）、`research-input-store.mjs`（草稿、回执、已消费版本）、
+  - 前端 `desktop/research-input.mjs`（草稿、选区小窗、"标记 N"窗口、回执）、`desktop/file-preview.mjs`（真实预览栏，替换原型的演示预览；
+    `window.ScienceScopePreview.open(id,{highlight})`；原型中按版本打开预览时映射到 `metadata.versionId` 相同的资源）、`desktop/marks.css`。
+    后端 `scripts/research-input.mjs`（编译器）、`research-input-store.mjs`（草稿、回执、已消费版本）、
     `chat-attachments.mjs`（读取原件；txt/md/csv/json/tex/log 按 UTF-8 最多提取 64000 字符，其他格式只给路径）。
+  - 数据：消息标记存为 `messageQuotes`（来源对话、消息、原文、备注），文件标记存为 `annotations`（资源、原文、位置"第 N 段/行"、备注）；上限沿用 16 / 32 条。
   - 送给模型的格式：在 `[User-provided research material]` 标记内放 `<material>`、`<quote>`、`<annotation>` 标签块，
     正文保持原样，属性转义（2026-09-23 起，原为 JSON 字符串；对照实验见 `scripts/evals/material-format-ab.mjs`）。
-  - 接口：`GET/POST /api/research-input/draft`、`POST /api/library/import`；Main、秘书、全局助手共用同一编译器。
+  - 接口：`GET/POST /api/research-input/draft`、`POST /api/library/import`、`GET /api/library/preview?id=`；Main、秘书、全局助手共用同一编译器。
   - 表：`research_input_drafts`、`research_input_receipts`、`research_input_consumed`、`resources`。
-  - 语义：发送确认后只清除本次捕获的批注版本；发送失败时恢复材料；秘书问答不消耗批注。
-- **验证**：`research-input`、`research-input-store`、`research-input-api` 单元测试；`research-input-ui-smoke`。
-- **已知限制**：**不解析 PDF、DOCX、图片**；多份附件共享 64000 字符预算，先到先得。
+  - 语义：发送确认后只清除本次捕获的标记版本；发送失败时恢复材料；秘书问答不消耗标记。
+- **验证**：`research-input`、`research-input-store`、`research-input-api`、`library-preview` 单元测试；`research-input-ui-smoke`、`marks-ui-smoke`
+  （连续标记不弹框不重挂、预览标记、窗口内容、修改、两种定位、Esc/外部关闭、移除、发送携带全部标记、回执、秘书目标、全部清除）。
+- **已知限制**：**不解析 PDF、DOCX、图片**（预览显示"未提取"，可打开原件或手动添加文本标记）；多份附件共享 64000 字符预算；
+  只处理鼠标选区（键盘选区未接）；从独立全局助手窗口标记、数据库"预览"按钮、原型按版本预览的映射未被自动测试覆盖。
 
 ### 2.5 专家讨论（多模型）
 
@@ -343,7 +353,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 | 执行 | `GET /api/execution`、`POST /api/execution/goal|approval` |
 | 专家讨论 | `GET/POST /api/experts`、`POST /api/discussion`（流）、`POST /api/discussion/adopt`、`POST /api/discussion/cancel` |
 | 秘书与全局助手 | `GET /api/assistant`、`POST /api/assistant/chat`（流）、`/assistant/draft|model|approval|stop|proposal/resolve` |
-| 研究输入与资料 | `GET/POST /api/research-input/draft`、`GET /api/library`、`POST /api/library/import|open`、`GET /api/knowledge`、`POST /api/knowledge/propose|accept` |
+| 研究输入与资料 | `GET/POST /api/research-input/draft`、`GET /api/library`、`GET /api/library/preview`、`POST /api/library/import|open`、`GET /api/knowledge`、`POST /api/knowledge/propose|accept` |
 | 工作站 | `GET /api/workbench`、`GET /api/workbench/files|asset|plans`、`POST /api/workbench/save|bind|import|asset|version|plans|open|organize` |
 | 模型与角色 | `GET /api/providers`、`POST /api/providers/save|discover|remove`、`GET /api/model-info`、`GET /api/roles`、`GET /api/roles/history`、`POST /api/roles/save|apply` |
 | 设置 | `/api/profile`、`/api/preferences`（+`/reset`）、`/api/shortcuts`（+`/reset`）、`/api/secretary/preferences`、`/api/assistant-window/preferences` |
@@ -374,7 +384,7 @@ DSH 自己的数据（会话历史、Provider 配置、凭据、技能）在 `.s
 | 类型 | 运行方式 | 说明 |
 |---|---|---|
 | 离线单元测试 | `npm test`（并发 2） | 34 个文件、111 项（2026-09-24）；部分启动真实 DSH，配合本地模拟模型 |
-| 浏览器 smoke | `SCIENCESCOPE_BROWSER=<chromium 路径> node scripts/<name>-smoke.mjs` | 默认使用 Windows Edge；走生产资源路由。chat-ui、failed-send-draft、research-input-ui、settings-ui、shortcuts-ui、extensions-ui、workbench-ui、workspace-ui、desktop-navigation、discussion-ui。`desktop-interaction-smoke` 在 main 上同样失败（未走 API 令牌，待修）；`ui-gallery.mjs` 生成截图集 |
+| 浏览器 smoke | `SCIENCESCOPE_BROWSER=<chromium 路径> node scripts/<name>-smoke.mjs` | 默认使用 Windows Edge；走生产资源路由。chat-ui、failed-send-draft、research-input-ui、marks-ui、settings-ui、shortcuts-ui、extensions-ui、workbench-ui、workspace-ui、desktop-navigation、discussion-ui。`desktop-interaction-smoke` 在 main 上同样失败（未走 API 令牌，待修）；`ui-gallery.mjs` 生成截图集 |
 | DSH smoke | `node scripts/dsh-*-smoke.mjs`、`skills-runtime-smoke`、`assistant-api-smoke` | 真实 DSH + 本地模拟模型 |
 | 原生 smoke | `native-*-smoke`、`assistant-window-smoke`、`shutdown-smoke` | 仅 Windows，需要已构建的 exe |
 | 真实模型（付费，需主动运行） | `real-provider-smoke`、`real-stream-smoke`、`runtime-hardening-live-smoke`、`scripts/evals/*` | key 从环境变量或不进 Git 的 `.sciencescope-local/secret/` 读取 |
