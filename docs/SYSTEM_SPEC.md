@@ -6,7 +6,7 @@
 > 不应因为本文档写过某种实现就拒绝更好的设计。产品意图与交互规则的依据仍是
 > `00_MASTER_FUNCTIONS.md`、`02_INTERACTION_CONTRACTS.md` 与已批准的 `ScienceScope.html`。
 >
-> - 最近核对：2026-09-24，基线 `main@98e560a`（Claude 对照代码逐项核对）；2.2、2.4、2.5、2.16 于同日随界面刷新、标记与专家讨论修订（分支 `claude/determined-pasteur-jxpzw8`，未合并）更新。
+> - 最近核对：2026-09-24，基线 `main@98e560a`（Claude 对照代码逐项核对）；2.2、2.4、2.5、2.16 于同日随界面刷新、标记与专家讨论修订（分支 `claude/determined-pasteur-jxpzw8`，未合并）更新；2026-09-25 新增 2.17 研究资料库（同一分支）。
 > - 历史过程与每次验收细节见 `DESKTOP_IMPLEMENTATION.md`（按日期的开发日志）；本文件只写当前结果。
 
 **状态标记**
@@ -341,6 +341,34 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   `scripts/ui-gallery.mjs <输出目录>` 用离线模拟数据生成 17 张截图（主页、对话、讨论、秘书、工作站、导图、数据库、
   设置四页、命令面板、右键菜单、输入框菜单、深色、全局助手窗口、悬浮球），用于前后对比。
 
+### 2.17 研究资料库（后端框架，界面待 T05）
+
+- **用途**：统一的科研数据后端，存放文献与资料（来源和按页、按章节的段落）、提炼的知识、理论模型/公式/算法、结论与主张、长期记忆和笔记，
+  可互相链接（证据、引用、取代等），供人和智能体检索与引用。设计与分工见 `docs/design/RESEARCH_BASE.md`，调研见 `docs/design/RESEARCH_MEMO_2026-09-25.md`。
+- **现在能做的**（均通过接口，**尚无专门界面**）：
+  - 资料解析与索引：txt / csv / 代码、Markdown、LaTeX 已支持；PDF、DOCX 标为"不支持"，待 T04。
+  - 中英文检索（FTS5 + 中文二元组，两字词可命中）、阅读窗口、引用标签解析（`[S3]`、`[S3 p.4]`、`[@a1b2c3d4]`）。
+  - 条目的新建、修改（修订历史 + `expectedRevision` 防覆盖）、**取代**（旧记录保留并标为失效）、置顶、私有。
+  - 智能体工具：主专家与每位专家子代理都有 `research_search`、`research_read`、`research_propose`。
+    写入只能以提议形式进入"记忆收件箱"，由用户接受、修改或拒绝；工具的项目和角色由会话决定。
+  - **项目简报**（常驻记忆）：从有效的共享条目生成，约 3500 字符预算；主专家每轮发送前如有变化就更新为系统提示中的一个分段，
+    有序讨论和 @ 邀请的专家通过共享输入获得同一份简报；私有条目不给任何智能体，专家经验只给对应专家。
+  - 使用回执：每轮记录用到了哪些记录（brief / search / read）。
+  - 旧的 `knowledge` 表逐行镜像为条目（`legacy_id`）；原有的 `/api/knowledge` 和资料库页面暂时不变。
+- **状态**：🟡 后端与智能体工具已实现并测试（单元、真实 DSH、真实模型）；界面（T05）、PDF/DOCX 解析与阅读器（T04）、文献元数据（T06）、
+  证据台账界面（T07）、浏览器（T08）、自动整理（T09）、向量检索（T10）未实现，任务书在 `docs/tasks/`。
+- **技术实现**：`scripts/research-base/`
+  - `schema.mjs`（表）、`store.mjs`（校验、FTS 维护、提议、修订、回执）、`text-index.mjs`（中文二元组）、`search.mjs`（检索、阅读、引用、简报）、
+    `ingest.mjs`（后台解析队列、分段）、`parsers/`（注册表 + text / markdown / latex）、`index.mjs`（路由与工具入口）。
+  - 运行时：`host.mjs` 新增 `/host-call`（DSH 子进程回调宿主）、`setToolHandler`、`configureBrief`；
+    `session-control.mjs` 注册三个工具（专家子代理在 `agent/created` 时注册），增加 `/brief` 系统提示分段。
+  - `desktop-api.mjs`：挂载 `/api/research/*`；`toolContext` 把会话映射为对话、项目和角色（主专家 / 秘书 / 全局 / 专家）；
+    发送前调用 `refreshBrief`；讨论的共享输入附上简报。
+- **验证**：`research-base`、`research-api` 单元测试；`research-tools-runtime`（真实 DSH + 本地模拟模型：主专家与专家都能调用工具、简报进入系统提示、没有处理器时工具报告不可用）；
+  `scripts/evals/research-base-live.mjs`（真实 OpenCode Go，2026-09-25：主专家自行检索、阅读并引用 [S1] / [S2] / [@…]，公式原样引用；提议进入收件箱；被 @ 的专家检索并提议主张）。
+- **已知限制**：不支持 PDF / DOCX；没有界面；没有向量检索；在完全接管模式下，智能体的 bash 能读到应用数据目录（记录在设计文档 §8，需要单独处理 DSH 沙箱）；
+  会话 ↔ 使用回执只覆盖主专家轮次（专家的回执待补）。
+
 ## 3. 接口索引（`scripts/desktop-api.mjs`）
 
 所有接口需携带口令（2.15）。流式接口返回 NDJSON。
@@ -351,6 +379,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 | 工作区与对话 | `GET/POST /api/workspace`、`GET /api/chats`、`GET /api/chats/:id/messages`、`POST /api/chats/update|move|delete|mode|temporary-close` |
 | 主对话 | `POST /api/chat`（流）、`POST /api/chat/stop`、`GET/POST /api/chat/outbox`、`GET /api/chat/activity`、`GET /api/chat/search` |
 | 执行 | `GET /api/execution`、`POST /api/execution/goal|approval` |
+| 研究资料库 | `/api/research/*`：sources、source、sources/update|remove|ingest、sync、search、read、items、item、items/update|supersede、links、links/remove、proposals、proposals/decide、brief、cite、usage、formats（见 2.17 与设计文档 §6） |
 | 专家讨论 | `GET/POST /api/experts`、`POST /api/discussion`（流）、`POST /api/discussion/adopt`、`POST /api/discussion/cancel` |
 | 秘书与全局助手 | `GET /api/assistant`、`POST /api/assistant/chat`（流）、`/assistant/draft|model|approval|stop|proposal/resolve` |
 | 研究输入与资料 | `GET/POST /api/research-input/draft`、`GET /api/library`、`GET /api/library/preview`、`POST /api/library/import|open`、`GET /api/knowledge`、`POST /api/knowledge/propose|accept` |
@@ -374,6 +403,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 | `assistant_conversations`、`assistant_drafts`、`assistant_settings`、`assistant_draft_proposals`、`assistant_attachment_drafts` | 秘书与全局助手 | `assistant-conversations.mjs`、`chat-attachments.mjs` |
 | `role_settings`、`role_bindings`、`role_prompt_receipts` | 角色提示词、会话快照、应用记录 | `role-settings.mjs` |
 | `experts`、`expert_roster_state` | 专家名册 | `expert-roster.mjs` |
+| `rb_sources`、`rb_chunks`、`rb_items`、`rb_links`、`rb_proposals`、`rb_revisions`、`rb_usage`、`rb_fts`、`rb_meta` | 研究资料库 | `research-base/schema.mjs` |
 | `discussion_rounds`、`discussion_entries` | 讨论轮次与专家回答元数据（含审核、采纳、主专家已读标记） | `discussion-service.mjs` |
 | `desktop_preferences`、`shortcut_settings`、`secretary_preferences`、`assistant_window_preferences` | 各类设置 | 同名模块 |
 
@@ -383,7 +413,7 @@ DSH 自己的数据（会话历史、Provider 配置、凭据、技能）在 `.s
 
 | 类型 | 运行方式 | 说明 |
 |---|---|---|
-| 离线单元测试 | `npm test`（并发 2） | 34 个文件、111 项（2026-09-24）；部分启动真实 DSH，配合本地模拟模型 |
+| 离线单元测试 | `npm test`（并发 2） | 39 个文件、120 项（2026-09-25）；部分启动真实 DSH，配合本地模拟模型。`expert-discussion-runtime` 的并发断言在满负载时偶发失败（单独运行和多次整套运行均通过），待加固 |
 | 浏览器 smoke | `SCIENCESCOPE_BROWSER=<chromium 路径> node scripts/<name>-smoke.mjs` | 默认使用 Windows Edge；走生产资源路由。chat-ui、failed-send-draft、research-input-ui、marks-ui、settings-ui、shortcuts-ui、extensions-ui、workbench-ui、workspace-ui、desktop-navigation、discussion-ui。`desktop-interaction-smoke` 在 main 上同样失败（未走 API 令牌，待修）；`ui-gallery.mjs` 生成截图集 |
 | DSH smoke | `node scripts/dsh-*-smoke.mjs`、`skills-runtime-smoke`、`assistant-api-smoke` | 真实 DSH + 本地模拟模型 |
 | 原生 smoke | `native-*-smoke`、`assistant-window-smoke`、`shutdown-smoke` | 仅 Windows，需要已构建的 exe |

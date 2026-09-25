@@ -75,7 +75,28 @@ export async function createDshHost(options = {}) {
   const sessions = new Map();
   const observers = new Map();
   const streamReceivers = new Map();
+  // Application tools (e.g. research_search) run inside the DSH child but need
+  // host data. The child posts {token, sessionId, name, args} to /host-call and
+  // waits for the JSON answer; the host application installs the handler.
+  let toolHandler = null;
   const streamServer = createServer((request, response) => {
+    if (request.method === 'POST' && request.url === '/host-call') {
+      let body = ''; request.setEncoding('utf8');
+      request.on('data', (chunk) => { body += chunk; if (body.length > 1024*1024) request.destroy(); });
+      request.on('end', async () => {
+        const reply = (status, value) => { response.writeHead(status, { 'content-type': 'application/json' }); response.end(JSON.stringify(value)); };
+        try {
+          const message = JSON.parse(body);
+          const receiver = streamReceivers.get(message.sessionId);
+          if (!receiver || message.token !== receiver.token) { reply(401, { error: 'unauthorized' }); return; }
+          if (!toolHandler) { reply(503, { error: 'This application tool is not available in this session.' }); return; }
+          if (typeof message.name !== 'string' || !/^[a-z_]{1,60}$/u.test(message.name)) throw new Error('invalid tool name');
+          const result = await toolHandler({ sessionId: message.sessionId, name: message.name, args: message.args ?? {}, callId: typeof message.callId === 'string' ? message.callId.slice(0, 200) : undefined, expertId: typeof message.expertId === 'string' ? message.expertId.slice(0, 80) : undefined });
+          reply(200, { result });
+        } catch (error) { reply(200, { error: String(error?.message ?? error).slice(0, 2000) }); }
+      });
+      return;
+    }
     if (request.method !== 'POST' || request.url !== '/assistant-stream') { response.writeHead(404); response.end(); return; }
     let body = '';
     request.setEncoding('utf8');
@@ -161,7 +182,7 @@ export async function createDshHost(options = {}) {
         patches,
         dshHome: options.home,
         processCwd: workspace ?? cwd,
-        env: { ...env, SCIENCESCOPE_STREAM_ENDPOINT: streamEndpoint, SCIENCESCOPE_STREAM_TOKEN: streamToken, SCIENCESCOPE_STREAM_SESSION: sessionId, SCIENCESCOPE_PROVIDER: model.providerId, SCIENCESCOPE_MODEL: model.modelId, ...(persona === undefined ? {} : { SCIENCESCOPE_PERSONA: persona }), ...(proposalTargetChatId ? { SCIENCESCOPE_PROPOSAL_TARGET_CHAT_ID: proposalTargetChatId } : {}), ...(noTools ? { SCIENCESCOPE_NO_TOOLS: '1' } : {}) },
+        env: { ...env, SCIENCESCOPE_STREAM_ENDPOINT: streamEndpoint, SCIENCESCOPE_HOST_CALL_ENDPOINT: streamEndpoint.replace(/\/assistant-stream$/u, '/host-call'), SCIENCESCOPE_STREAM_TOKEN: streamToken, SCIENCESCOPE_STREAM_SESSION: sessionId, SCIENCESCOPE_PROVIDER: model.providerId, SCIENCESCOPE_MODEL: model.modelId, ...(persona === undefined ? {} : { SCIENCESCOPE_PERSONA: persona }), ...(proposalTargetChatId ? { SCIENCESCOPE_PROPOSAL_TARGET_CHAT_ID: proposalTargetChatId } : {}), ...(noTools ? { SCIENCESCOPE_NO_TOOLS: '1' } : {}) },
         cwd: workspace ?? cwd,
         provider: model.providerId,
         model: model.modelId,
@@ -312,6 +333,9 @@ export async function createDshHost(options = {}) {
   async function configureReasoning({sessionId,reasoningEffort}) { return control(sessionId,'/reasoning',{reasoningEffort}); }
   async function configureModel({sessionId,model,reasoningEffort}) { return control(sessionId,'/model',{model,reasoningEffort}); }
   async function configurePersona({sessionId,persona}) { return control(sessionId, '/persona', { persona }); }
+  // Project brief (core memory): a system-prompt section, replaced between turns.
+  async function configureBrief({sessionId,text}) { return control(sessionId, '/brief', { text: typeof text === 'string' ? text : '' }); }
+  function setToolHandler(handler) { toolHandler = typeof handler === 'function' ? handler : null; }
   async function interrupt(sessionId) {return control(sessionId,'/interrupt');}
   async function replyApproval({sessionId,requestId,outcome}) {return control(sessionId,'/approval/reply',{requestId,outcome});}
   async function getContextUsage({ sessionId } = {}) { return control(sessionId, '/context-usage'); }
@@ -329,7 +353,7 @@ export async function createDshHost(options = {}) {
 
   const pause = pauseGoal;
   const resume = resumeGoal;
-  return { startSession, send, releaseSession, close, observeSession, sessionGoal, getGoal, pause, resume, pauseGoal, resumeGoal, completeGoal,clearGoal, configurePolicy,configureReasoning,configureModel,configurePersona,interrupt,replyApproval,getContextUsage,runExperts,cancelExperts, capabilities: DSH_CAPABILITIES };
+  return { startSession, send, releaseSession, close, observeSession, sessionGoal, getGoal, pause, resume, pauseGoal, resumeGoal, completeGoal,clearGoal, configurePolicy,configureReasoning,configureModel,configurePersona,configureBrief,setToolHandler,interrupt,replyApproval,getContextUsage,runExperts,cancelExperts, capabilities: DSH_CAPABILITIES };
 }
 
 export default { createDshHost, DSH_CAPABILITIES };

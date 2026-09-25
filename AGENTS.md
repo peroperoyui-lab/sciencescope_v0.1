@@ -111,6 +111,11 @@ actual remote branch and SHA; failed pushes are not delivery.
   experts in parallel and may end with a reviewer whose result enters later
   context only when the user adopts it. Peers see answers and touched files,
   never tool calls. Tool preambles belong to the tool card, not the answer.
+- Research Base (docs/design/RESEARCH_BASE.md, 2026-09-25): literature, knowledge,
+  models/formulas, claims and memory share one store. Agents write only through
+  research_propose into the user's inbox; the session, never model arguments,
+  decides project and role. Private items never reach agents; superseded records
+  are kept, not deleted. Research Base work follows docs/tasks/RB_COMMON.md.
 - Secretary-to-Main drafting is a registered proposal tool, not a button attached
   to every assistant response. Tool invocation opens an editable proposal; only
   user confirmation sends to its explicitly bound Main chat. Do not claim the

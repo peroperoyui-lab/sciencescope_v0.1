@@ -1,5 +1,43 @@
 # Desktop implementation — first increment
 
+## 2026-09-25 Research Base framework (Claude, cloud) — review branch, not merged
+
+User request: parse/display PDF, Word, Markdown, text and LaTeX (and an in-app
+browser) with mature tools; a memory system designed for this project; a
+claim–evidence ledger; one database backend for literature, distilled
+knowledge, theory models/formulas/algorithms and memories, with retrieval.
+Design, framework and interfaces by Claude; UI and edge work handed to GPT via
+`docs/tasks/T04`–`T10` (shared rules `docs/tasks/RB_COMMON.md`).
+
+Implemented: `scripts/research-base/` (schema, store with proposals,
+revisions, supersession and usage receipts; CJK-bigram FTS5 index; search,
+reader, citation labels and the project brief; ingest queue and parser registry
+with text/markdown/LaTeX parsers), `/api/research/*` in `desktop-api.mjs`,
+`host.mjs` `/host-call` + `setToolHandler` + `configureBrief`,
+`session-control.mjs` tools `research_search/read/propose` for Main and each
+expert subagent (registered on `agent/created`) and the `/brief` prompt
+section. Research notes: `docs/design/RESEARCH_MEMO_2026-09-25.md` (research
+subagent; network-verified items marked).
+
+Verification (cloud): `npm test` 120/120 (the concurrency assertion in
+`expert-discussion-runtime` failed intermittently under full load in 2 of 6
+runs; passes alone). New: `research-base`, `research-api`,
+`research-tools-runtime` (real DSH: Main and expert tool calls reach the host
+with session/expert identity; brief in the system prompt; brief removal;
+tool unavailable without handler).
+
+Real provider (OpenCode Go, `scripts/evals/research-base-live.mjs`, two runs):
+deepseek-v4.1-flash Main searched and read the base unprompted, cited [S1]/[S2]
+and the brief decision [@…], quoted the Matsuda formula from the LaTeX source
+(23 s); asked to remember a convention it called `research_propose`. First run
+exposed two faults, both fixed and re-verified in run 2: (1) a project-scoped
+proposal in a chat without a project was rejected and the model then used bash
+to inspect the app data directory and SQLite file — the tool now falls back to
+personal scope and says so, run 2 proposed on the first call with no bash;
+(2) evidence given as cite labels is now accepted. An @-invited expert
+(statistician) searched, read and proposed a claim. Remaining risk: in full
+access mode DSH bash can read the app state directory (design doc §8).
+
 ## 2026-09-24 Experts, marks and tool preambles (Claude, cloud) — review branch, not merged
 
 User revision (recorded in `02_INTERACTION_CONTRACTS.md`, 2026-09-24 section):
