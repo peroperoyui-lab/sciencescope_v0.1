@@ -99,6 +99,63 @@ try {
   };
   const shot = async (page, name) => { await page.waitForTimeout(450); await page.screenshot({path: path.join(out, name + '.png')}); console.log('shot', name); };
   const page = await open();
+  if (process.env.AUDIT_COPY) {
+    // Copy audit: every route's visible prose outside the sidebar, for review.
+    const {writeFile} = await import('node:fs/promises');
+    await page.evaluate(() => selectProject('p-fasting'));
+    const routes = new Set(process.env.AUDIT_COPY.split(',').filter(r => r !== '1'));
+    for (const r of await page.evaluate(() => [...document.querySelectorAll('[data-route]')].map(e => e.dataset.route))) routes.add(r);
+    const report = {};
+    for (const route of routes) {
+      await page.evaluate(r => { try { go(r); } catch (e) { console.warn(e); } }, route); await page.waitForTimeout(500);
+      for (const r of await page.evaluate(() => [...document.querySelectorAll('[data-route]')].map(e => e.dataset.route))) if (!routes.has(r)) { routes.add(r); }
+      report[route] = await page.evaluate(() => {
+        const out = new Set();
+        for (const el of document.querySelectorAll('p, small, .hint, .muted, .note, li, h1, h2, h3, label, td, .notice, .banner, span.sub, .desc, .empty, div.callout')) {
+          if (el.closest('.sidebar, .side, nav, #v-menu, .info-pop') || !el.offsetParent) continue;
+          const text = el.innerText.trim().replace(/\s+/g, ' ');
+          if (text && text.length > 1 && text.length < 400) out.add(`${el.tagName.toLowerCase()}${el.className ? '.' + String(el.className).split(' ')[0] : ''}: ${text}`);
+        }
+        for (const el of document.querySelectorAll('[data-action],[data-v],[data-route]')) {
+          if (el.closest('#v-menu') || !el.offsetParent) continue;
+          out.add(`@${el.dataset.action ? 'action=' + el.dataset.action : el.dataset.v ? 'v=' + el.dataset.v : 'route=' + el.dataset.route} ${el.innerText.trim().slice(0, 30)}`);
+        }
+        return [...out];
+      });
+    }
+    await page.evaluate(() => window.SSV2.loadThread('chat-2')); await page.waitForTimeout(500);
+    for (const selector of ['[data-v="top-menu"]', '[data-v="export-menu"]', '[data-v="workspace-menu"]', '[data-v="window-info"]', '[data-v="sites-menu"]', '[data-v="attach-menu"]', '.message:not(.user) [data-v]']) {
+      const count = await page.locator(selector).count();
+      for (let i = 0; i < count; i++) {
+        const el = page.locator(selector).nth(i); if (!await el.isVisible()) continue;
+        const label = `${selector}#${i} ${(await el.innerText()).trim().slice(0, 20)} ${await el.getAttribute('data-v') || ''}`;
+        await el.click().catch(() => {}); await page.waitForTimeout(250);
+        report['menu ' + label] = await page.evaluate(() => [...document.querySelectorAll('#v-menu button, #modal button, #modal p, #modal .hint, .contextmenu button')].map(b => `${b.dataset.v ? 'v=' + b.dataset.v : b.dataset.action ? 'action=' + b.dataset.action : b.dataset.route ? 'route=' + b.dataset.route : b.tagName}: ${b.innerText.trim().replace(/\s+/g, ' ').slice(0, 120)}`));
+        await page.keyboard.press('Escape'); await page.evaluate(() => { try { closeMenu(); } catch {} document.getElementById('modal')?.remove(); }); await page.waitForTimeout(100);
+      }
+    }
+    // Trigger each menu item once and record the visible outcome.
+    await page.evaluate(() => { window.__toasts = []; const orig = window.toast; window.toast = (...a) => { window.__toasts.push(String(a[0])); return orig?.(...a); }; });
+    const outcome = async () => page.evaluate(() => ({route, toasts: window.__toasts.splice(0), modal: document.querySelector('#modal h2, dialog[open] h2')?.innerText || null, modalText: (document.querySelector('#modal, dialog[open]')?.innerText || '').replace(/\s+/g, ' ').slice(0, 200), surface: document.querySelector('.rightpanel h2')?.innerText || null}));
+    const triggers = [['[data-v="top-menu"]', 4], ['[data-v="workspace-menu"]', 1], ['[data-v="attach-menu"]', 1], ['.message:not(.user) [data-v="message-menu"]', 1]];
+    for (const [selector, n] of triggers) for (let i = 0; i < n; i++) {
+      await page.evaluate(() => window.SSV2.loadThread('chat-2')); await page.waitForTimeout(400);
+      const count = await (async () => { await page.locator(selector).nth(i).click(); await page.waitForTimeout(200); return page.locator('#v-menu .menu-line').count(); })();
+      await page.keyboard.press('Escape'); await page.evaluate(() => closeMenu());
+      for (let j = 0; j < count; j++) {
+        await page.evaluate(() => { document.getElementById('modal')?.remove(); for (const d of document.querySelectorAll('dialog[open]')) d.close(); }); await page.evaluate(() => window.SSV2.loadThread('chat-2')); await page.waitForTimeout(300);
+        await page.locator(selector).nth(i).click(); await page.waitForTimeout(200);
+        const item = page.locator('#v-menu .menu-line').nth(j); const text = (await item.innerText()).trim().replace(/\s+/g, ' ');
+        const pages = browser.pages().length;
+        await item.click().catch(() => {}); await page.waitForTimeout(600);
+        report[`do ${selector}#${i} ${text}`] = {...await outcome(), newWindow: browser.pages().length > pages};
+        for (const extra of browser.pages().slice(pages)) await extra.close();
+      }
+    }
+    await writeFile(path.join(out, 'copy-audit.json'), JSON.stringify(report, null, 1));
+    console.log('audit', Object.keys(report).length, 'routes');
+    await browser.close(); await server.close(); await rm(root, {recursive: true, force: true}); process.exit(0);
+  }
   await page.evaluate(() => { window.ScienceScopeModels?.select?.({providerId: 'sciencescope-demo', modelId: 'deepseek-v4.1-flash'}); });
   await page.evaluate(() => newThread(null)); await shot(page, '01-home');
   await page.evaluate(() => window.SSV2.loadThread('chat-2')); await page.waitForSelector('.message'); await shot(page, '02-chat');

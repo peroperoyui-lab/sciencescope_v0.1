@@ -32,6 +32,22 @@ export async function openLocalDocument(resolved) {
   return {opened:true};
 }
 
+// Opens an http(s) address in the user's default browser. Only called from the
+// token-protected local API; never exposed to web content.
+export function externalUrl(value) {
+  let url;
+  try { url = new URL(String(value || '')); } catch { return null; }
+  return url.protocol === 'http:' || url.protocol === 'https:' ? url.href : null;
+}
+export async function openExternalUrl(value) {
+  const href = externalUrl(value);
+  if (!href) throw new WorkbenchApiError('INVALID_URL', '只能打开 http 或 https 网址。');
+  if (process.platform === 'win32') {
+    await execFile(path.join(process.env.SystemRoot||'C:/Windows','System32/WindowsPowerShell/v1.0/powershell.exe'),['-NoProfile','-NonInteractive','-Command','Start-Process -FilePath $env:SCOPESCOPE_OPEN_URL'],{windowsHide:true,env:{...process.env,SCOPESCOPE_OPEN_URL:href}});
+  } else await execFile(process.platform === 'darwin' ? 'open' : 'xdg-open', [href]);
+  return {opened: true};
+}
+
 export async function createWorkbenchApi({ stateDir, projectsDir, getWorkspace }) {
   const store = await createWorkbenchStore({ stateDir, projectsDir });
   async function project(projectId) {

@@ -61,3 +61,9 @@
   4. 询问模式下让模型需要一个没有的包（例如 `tabulate`）：出现审批卡片，同意后装好并继续，拒绝后模型正常收尾。
   5. 切换镜像源后安装仍然成功。
 - 更新 `docs/SYSTEM_SPEC.md`（新小节"Python 运行环境"）和 `docs/DESKTOP_IMPLEMENTATION.md`。
+
+## 开关（2026-09-25 补充，见 `FEATURE_FLAGS.md`）
+- 界面上已删除"Python 环境管理即将提供""等待更新"等提示。没有 `/api/python/envs` 时，Python 字段只有"系统 Python"一个选项（这就是实际使用的解释器），不发送 `pythonEnvId`。
+  接口上线后字段自动列出托管环境；`capabilities.features.pythonEnvs` 返回接口是否可用。
+- 文件夹选择按钮（新建窗口的"选择…"、创建项目页的"选择已有文件夹"）在开关 `folderPicker` 打开前不显示。
+  Tauri 实现 `pick_folder` 后，启动宿主时设置环境变量 `SCIENCESCOPE_NATIVE_FEATURES=pickFolder`（宿主已读取），按钮随即出现。

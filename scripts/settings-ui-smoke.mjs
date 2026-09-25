@@ -31,11 +31,12 @@ try{
   assert.equal(await page.evaluate(()=>document.documentElement.style.getPropertyValue('--code-font-size')),'15px');
   assert.equal(await page.evaluate(()=>document.documentElement.style.getPropertyValue('--chat-font-size')),'18px');
   assert.equal(await page.evaluate(()=>document.documentElement.hasAttribute('data-reduce-motion')),true);
-  for(const target of ['general','behavior','secretary-settings','assistant-settings','library-settings','environment','shortcuts','persona','experts','plugins','browser-settings','usage']){
+  for(const target of ['general','behavior','secretary-settings','assistant-settings','library-settings','environment','shortcuts','persona','experts','plugins']){
     await page.evaluate(target=>go(target),target);await page.waitForFunction(target=>route===target,target);
     assert.equal(await page.locator('[data-setting],[data-action="save-settings"],[data-action="toggle-setting"]').count(),0,target+' has no prototype controls');
-    assert.doesNotMatch(await page.locator('.settingscontent').innerText(),/自定义模型 A|<安装目录>|DSH 默认模型/);
+    assert.doesNotMatch(await page.locator('.settingscontent').innerText(),/自定义模型 A|<安装目录>|DSH 默认模型|尚未开放/);
   }
+  for(const hidden of ['browser-settings','usage']){await page.evaluate(target=>go(target),hidden);assert.notEqual(await page.evaluate(()=>route),hidden,hidden+' stays hidden until its feature is ready');}
   await page.evaluate(()=>go('environment'));await page.waitForFunction(()=>route==='environment');
   assert.ok((await page.locator('.settingscontent').innerText()).includes(root));
   await page.evaluate(()=>go('secretary-settings'));await page.waitForSelector('[data-role-form="secretary"]');
@@ -44,7 +45,7 @@ try{
   await page.waitForFunction(async()=>{const {hostRequest}=await import('/desktop/host-client.mjs');const result=await hostRequest('workbench?projectId=settings-project');return result.autoOrganize===true;});
   await page.waitForSelector('[name="notesTemplate"]:enabled');
   await page.locator('[name="notesTemplate"]').fill('# Custom persisted version template');
-  await page.locator('[data-secretary-template] button').click();
+  await page.locator('[data-secretary-template] button[type="submit"]').click();
   await page.waitForFunction(()=>document.querySelector('[data-template-feedback]')?.textContent.includes('已保存'));
   await page.locator('[data-role-form] textarea[name="prompt"]').fill('Secretary saved from real settings UI.');
   await page.locator('[data-role-form] button[type="submit"]').click();

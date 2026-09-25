@@ -60,7 +60,7 @@ try {
      return event.defaultPrevented;
    }),true);
   await page.evaluate(()=>openPanel('browser'));
-  assert.match(await page.locator('.browser-panel').innerText(),/尚未接入/);
+  assert.doesNotMatch(await page.locator('.browser-panel').innerText(),/尚未|示例|原型/,'no notice or sample page');
   assert.equal(await page.locator('.browser-document').count(),0);
   await page.evaluate(()=>openPalette());
   await page.locator('#command-query').fill('LOCAL_REPLY');

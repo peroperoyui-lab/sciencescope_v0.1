@@ -46,8 +46,11 @@ window.addEventListener('submit', async event => {
 window.ScienceScopeProfile.ready = hostRequest('profile').then(value=>{profile=value;render();}).catch(()=>{});
 
 const basePaletteItems = paletteItems;
-paletteItems = () => [...settingsEntries.map(([target,label])=>({label,category:'设置',act:()=>go(target)})),
-  ...basePaletteItems().filter(item=>item.label!=='模型与 API 设置')];
+// Entries whose page belongs to a hidden optional feature are not offered.
+const PROTOTYPE_PALETTE_ROUTES = {'查看修改记录': 'changes'};
+const offered = route => !window.ScienceScopeFeatures?.hiddenRoute(route);
+paletteItems = () => [...settingsEntries.filter(([target])=>offered(target)).map(([target,label])=>({label,category:'设置',act:()=>go(target)})),
+  ...basePaletteItems().filter(item=>item.label!=='模型与 API 设置'&&offered(PROTOTYPE_PALETTE_ROUTES[item.label]))];
 let searchTicket=0,searchTimer;
 updatePalette = function(query) {
   const ticket=++searchTicket;clearTimeout(searchTimer);

@@ -163,7 +163,10 @@ mapViewport=edit=>{
 };
 fitMap=()=>{const vp=document.querySelector('#mapviewport'),p=mapPositions();if(!vp||!p.length||!vp.clientWidth)return;const minX=Math.min(...p.map(n=>n.x)),minY=Math.min(...p.map(n=>n.y)),width=Math.max(...p.map(n=>n.x+n.w))-minX,height=Math.max(...p.map(n=>n.y+n.h))-minY;const scale=Math.max(.1,Math.min(1,(vp.clientWidth-60)/width,(vp.clientHeight-60)/height));mapView={scale,x:(vp.clientWidth-width*scale)/2-minX*scale,y:(vp.clientHeight-height*scale)/2-minY*scale};applyMapView();};
 const baseMapEditor=mapEditor;
-mapEditor=()=>baseMapEditor().replace(/<button[^>]*(?:data-action="back-workbench"|data-v="back-workbench-v2")[\s\S]*?<\/button>/,'')
+mapEditor=()=>baseMapEditor()
+  .replace('<label class="label">节点内容 · Markdown</label>',`<label class="label">节点内容 · Markdown${infoTip('Enter 新建同级；Shift+Enter 块内换行。\n右键、拖入或粘贴图片 / Markdown。',{label:'节点编辑说明'})}</label>`)
+  .replace('<div class="hint">Enter 新建同级 · Shift+Enter 块内换行<br>右键、拖入或粘贴图片 / Markdown</div>','')
+  .replace('<div class="hint">用户与各级 Agent 都可管理。会议秘书负责日常整理，并与版本说明 MD 互相引用。</div>','').replace(/<button[^>]*(?:data-action="back-workbench"|data-v="back-workbench-v2")[\s\S]*?<\/button>/,'')
   .replace('当前为浏览器内存原型 · 保存后同步预览',dirty?'尚未保存 · 保存后更新预览':'项目文件 · 保存后更新预览')
   .replace('<div class="toolbar-scroll">',`<div class="toolbar-scroll">${button('游离节点','floating')}${button('连线','connect')}`);
 mapChanged=(label='编辑导图')=>{dirty=true;S.mapHistory.unshift({label,source:window.ScienceScopeProfile?.name()||'用户',time:new Date().toLocaleString()});render();const status=document.querySelector('#mapsavestate');if(status)status.textContent='尚未保存 · 保存后更新预览';};

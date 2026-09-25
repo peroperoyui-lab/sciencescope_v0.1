@@ -2,7 +2,7 @@ import path from 'node:path';
 import { mkdir, readFile, realpath } from 'node:fs/promises';
 import { defaultRoot } from './prepare-desktop.mjs';
 import { createChatStore, ProfileStore } from './chat-store.mjs';
-import { createWorkbenchApi, WorkbenchApiError, openLocalDocument } from './workbench-api.mjs';
+import { createWorkbenchApi, WorkbenchApiError, openLocalDocument, openExternalUrl, externalUrl } from './workbench-api.mjs';
 import {createDesktopPreferences} from './desktop-preferences.mjs';
 import {createSecretaryPreferences} from './secretary-preferences.mjs';
 import {createShortcutSettings} from './shortcut-settings.mjs';
@@ -38,7 +38,7 @@ function publicRuntimeMessage(error) {
   return '运行时请求失败；请检查模型配置和网络连接。';
 }
 
-export async function createDesktopApi({onError, dataRoot = defaultRoot, runtimeHost = null, runtimeWeb = null, apiToken = null} = {}) {
+export async function createDesktopApi({onError, dataRoot = defaultRoot, runtimeHost = null, runtimeWeb = null, apiToken = null, openUrl = openExternalUrl} = {}) {
   let host = runtimeHost;
   let web = runtimeWeb;
   const bindings = new Map();
@@ -143,6 +143,21 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     discoverModels:typeof host?.discoverModels === 'function',
     tokenStreaming:host?.capabilities?.tokenStreaming === true,
     reasoningEffort:host?.capabilities?.reasoningEffort === true,
+    // Optional features: the desktop shows an entry point only when its feature
+    // is true (desktop/features.mjs). Each task that implements one turns it on
+    // here; docs/tasks/FEATURE_FLAGS.md lists owner tasks and interfaces.
+    features:{
+      pythonEnvs:false,        // T11 /api/python/*
+      folderPicker:(process.env.SCIENCESCOPE_NATIVE_FEATURES||'').split(',').includes('pickFolder'), // T11 Tauri pick_folder
+      inAppBrowser:false,      // T08
+      branch:false,            // T12 runtime branch from a message
+      usage:false,             // T13 usage analytics
+      materialsPanel:false,    // T05 project materials & references panel
+      mapHistory:false,        // T14 map history, version notes, diff
+      changeLog:false,         // T14 per-chat change log
+      pluginManagement:false,  // T15 DSH plugin install/update/enable
+      dataRelocation:false,    // T16 change data folders and migrate
+    },
   };
   const organizer=host?createVersionOrganizer({host,store:workbench.store,getPreferences:()=>secretaryPreferences.get(),getProject:async id=>{
     const {meta}=await workbench.project(id);return {name:meta.name,goal:meta.desc||''};
@@ -347,6 +362,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       const uploadRoute = ['/api/workbench/import','/api/workbench/asset','/api/library/import'].includes(route);
       for await (const chunk of request) { length += chunk.length; if(length > (uploadRoute ? 20*1024*1024 : 1024*1024)) throw new WorkbenchApiError('REQUEST_TOO_LARGE', uploadRoute ? '上传文件不能超过 20MiB。' : '请求内容过大。', 413); chunks.push(chunk); }
       let input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      if (route === '/api/open-url') { const href=externalUrl(input?.url); if(!href)throw new WorkbenchApiError('INVALID_URL','只能打开 http 或 https 网址。'); json(response,200,await openUrl(href)); return true; }
       if(!input||typeof input!=='object'||Array.isArray(input)){json(response,400,{message:'请求格式无效。'});return true;}
       if(input.researchInput!==undefined&&(!input.researchInput||typeof input.researchInput!=='object'||Array.isArray(input.researchInput))){json(response,400,{code:'INVALID_RESEARCH_INPUT',message:'研究输入格式无效，未发送。'});return true;}
       if(route.startsWith('/api/research/')){const body=await research.handlePost(route,input);if(body!==undefined){json(response,200,body);return true;}}

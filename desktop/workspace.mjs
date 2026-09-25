@@ -17,14 +17,11 @@ const baseMainhead=mainhead;
 const baseThreadRow=threadRow;
 const baseObjectMenu=objectMenu;
 const baseGo=go;
-// Retain the panel location, but never present the prototype article as a website.
-browserPanel=()=>`<aside class="rightpanel browser-panel"><div class="panel-resizer" data-v-resize></div><div class="panelhead between"><h2>浏览器</h2>${vib('close','close-panel','关闭浏览器')}</div><div class="empty" style="padding:32px 20px">网页浏览尚未接入。</div></aside>`;
-window.addEventListener('click',event=>{
-  const action=event.target.closest('[data-v]')?.dataset.v;
-  if(!['browser-go','browser-back','browser-forward','browser-refresh','browser-newtab','browser-add','cite-page','external-browser'].includes(action))return;
-  event.preventDefault();event.stopImmediatePropagation();toast('网页浏览尚未接入。');
-},true);
-branchAt=()=>toast('运行时分支尚未接通；不会伪造已继承的模型历史。可以先创建新对话。');
+// The in-app browser (T08) and runtime branching (T12) are optional features:
+// their entry points stay hidden until the host enables them (features.mjs).
+// Never present the prototype article as a website or fake an inherited history.
+browserPanel=()=>`<aside class="rightpanel browser-panel"><div class="panel-resizer" data-v-resize></div><div class="panelhead between"><h2>浏览器</h2>${vib('close','close-panel','关闭浏览器')}</div></aside>`;
+branchAt=()=>{};
 const historyNav=page=>page&&(page.before||page.after)?`<div class="history-navigation"><button data-ws="history" data-direction="before" ${!page.before?'disabled':''}>向上加载 30 条</button><span>滚动加载 · 共 ${Number(page.total)} 条</span><button data-ws="history" data-direction="after" ${!page.after?'disabled':''}>向下加载 30 条</button><button data-ws="history" data-direction="latest">回到最新</button></div>`:'';
 function scrollLatest(){state.scrollLock=true;requestAnimationFrame(()=>{const box=document.querySelector('.messages');if(box)box.scrollTop=box.scrollHeight;requestAnimationFrame(()=>{state.scrollLock=false;});});}
 
@@ -132,7 +129,6 @@ home=function() {
   greeting.textContent=`${window.ScienceScopeProfile?.name()||'用户'}，从一个问题开始，和你的研究小组一起推进。`;
   template.content.querySelector('.homehero').append(greeting);
   if(!S.threads.some(t=>!t.archived))template.content.querySelector('.recent').insertAdjacentHTML('beforeend','<div class="inline-empty">还没有最近工作，发送第一条消息开始。</div>');
-  template.content.querySelector('.home').insertAdjacentHTML('beforeend','<small style="text-align:center">选择材料、提出问题，或者从最近工作继续。</small>');
   return template.innerHTML;
 };
 chat=function() {
@@ -257,7 +253,7 @@ detachedContent=function() {
     V.orb=false;baseDetached();
     document.documentElement.classList.add('assistant-panel');
     document.querySelector('.detached-shell > .panelhead')?.remove();
-    const foot=document.querySelector('.detach-foot');if(foot)foot.textContent='全局助手对话尚未连接模型';
+    document.querySelector('.detach-foot')?.remove();
     return;
   }
   if(!temporary)return baseDetached();
@@ -285,7 +281,7 @@ window.addEventListener('click',async event=>{
       try{await window.ScienceScopeCreation?.applyProjectChoice(project,choice);}
       catch(error){toast('项目已创建，但工作文件夹或 Python 环境未能应用：'+error.message+'（可在工作站中重新绑定目录）');}
     } else if(action==='release-notes') {
-      modal('桌面版更新 · 聊天工作区',`<ul><li>发送首条消息后创建对话，支持独立对话加入项目。</li><li>聊天分页保存，重启后从 DSH 持久会话接续。</li><li>原生辅助窗口、摘要与侧栏联动、窄栏输入优化。</li><li>移除操作需要确认，保留本地聊天历史。</li></ul><p>材料导入与默认程序打开、工具调用展示、助手完整功能仍待接线。</p>`);
+      modal('本轮更新',`<ul><li>新建独立对话时选择工作文件夹与 Python 环境；新建项目可以绑定已有文件夹。</li><li>有序讨论：专家读取同一份前文并行作答，可指定审核专家；审核结论由你决定是否加入后续上下文。</li><li>工作模式中用 @ 邀请专家；工具调用前的说明归入工具记录。</li><li>聊天和文件预览中的文字可以添加为标记，随下一条消息一起发送。</li><li>界面中的说明统一收进"i"提示。</li></ul>`);
     } else if(isNew) {
       closeMenu();
       if(action==='ws-new-window')await openDetached('quick');
@@ -295,7 +291,7 @@ window.addEventListener('click',async event=>{
     else if(action==='delete-object') {closeMenu();await removeObject(target.dataset.kind,id);}
     else if(action==='delete-record') {
       if(await confirmAction('删除记录','确定删除这条计划或日志？','删除'))deleteRecord(target.dataset.kind,id);
-    } else if(action==='reset-demo')toast('桌面工作区不执行原型重置；请逐项移除需要删除的内容。');
+    } else if(action==='reset-demo'){/* prototype-only: the desktop never resets user data */}
     else if(action==='save-rename') {
       const title=document.getElementById('v-rename')?.value.trim();if(!title)return;
       if(target.dataset.kind==='chat') {const updated=await hostRequest('chats/update',{chatId:id,title});Object.assign(S.threads.find(t=>t.id===id),updated);}

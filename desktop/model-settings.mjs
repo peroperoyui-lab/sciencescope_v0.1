@@ -27,16 +27,23 @@ function providerRow(p,index) {
   return `<article class="card api-provider"><div class="between"><div><h2>${escape(p.name)}</h2><small class="muted">${escape(PROTOCOLS.find(x=>x.id===p.protocol)?.label)}</small></div><span class="tag">${status}</span></div><p class="api-address">${escape(p.baseUrl)}</p><div class="api-models">${models}</div><div class="saverow">${action('编辑','edit',`data-index="${index}"`)}${action(p.saved?'移除服务':'移除草稿','remove',`data-index="${index}"`)}</div></article>`;
 }
 
+// Only status goes in the notice box: operation feedback, or a runtime that is
+// not ready (drafts then live only in this window).
+const apiNotice = () => {
+  const text = notice || (host.saveProvider ? '' : '本地运行时未就绪：配置只保存在本窗口，刷新后清空。请勿输入真实密钥。');
+  return text ? `<div class="api-notice">${escape(text)}</div>` : '';
+};
+
 modelsPage = function () {
-  return `<div class="api-settings">${pageintro('模型与 API', '添加服务，再选择需要的模型。', action('＋ 添加服务', 'new', '', 'primary'))}
-  <div class="api-notice">${escape(notice || (host.saveProvider ? '配置由本地 DSH 管理。保存后尚需实际请求验证模型可用。' : '宿主尚未就绪 · 草稿仅保留在本次窗口，刷新会清空。请勿输入真实密钥。'))}</div>
+  return `<div class="api-settings">${pageintro('模型与 API' + infoTip('配置由本地 DSH 管理。保存后，模型是否可用以实际请求结果为准。', {label: '模型与 API 说明'}), '', action('＋ 添加服务', 'new', '', 'primary'))}
+  ${apiNotice()}
   ${drafts.length ? `<div class="stack">${drafts.map(providerRow).join('')}</div>` : `<div class="api-empty card"><div class="api-empty-icon">${ic('key')}</div><h2>连接你的模型服务</h2><p class="muted">使用自己的 API 服务；没有模型列表的服务，也可以手动添加。</p>${action('添加第一个服务', 'new', '', 'primary')}</div>`}
   </div>`;
 };
 
 providerPage = function () {
-  return `<div class="settingform api-settings">${action('← 模型与 API', 'back')}${pageintro(editing === null ? '添加模型服务' : '编辑模型服务', '填写服务地址，明确选择协议。')}
-  <div class="api-notice">${escape(notice || (host.saveProvider ? '保存到本地 DSH。密钥不进入聊天或研究材料。' : '当前只编辑配置草稿。真实凭证保存、连接测试与模型发现将在 DSH 接通后开放。'))}</div>
+  return `<div class="settingform api-settings">${action('← 模型与 API', 'back')}${pageintro((editing === null ? '添加模型服务' : '编辑模型服务') + infoTip('保存到本地 DSH；密钥不进入聊天或研究材料。保存服务不等于模型已可用，以实际请求结果为准。', {label: '模型服务说明'}), '')}
+  ${apiNotice()}
   <form id="api-provider-form" novalidate>
   ${input('name', '服务名称', '例如：我的研究模型')}
   <div class="field"><label class="label" for="api-protocol">API 格式</label><select id="api-protocol" data-api-field="protocol" aria-describedby="api-error-protocol" aria-invalid="${!!errors.protocol}"><option value="">选择服务明确支持的协议</option>${PROTOCOLS.map(p => `<option value="${p.id}" ${draft.protocol === p.id ? 'selected' : ''}>${escape(p.label)}</option>`).join('')}</select>${error('protocol')}</div>
@@ -46,7 +53,6 @@ providerPage = function () {
   <div class="field"><label class="label" for="api-models">模型 ID${infoTip('每行一个，可直接手动填写服务商提供的准确模型 ID。',{label:'模型 ID 说明'})}</label><textarea id="api-models" data-api-field="models" rows="4" placeholder="服务商提供的准确模型 ID" aria-describedby="api-error-models" aria-invalid="${!!errors.models}">${escape(draft.models)}</textarea>${error('models')}</div>
   <details class="card subtle"><summary>连接说明</summary><p class="muted">地址请按服务商文档填写；协议不会根据模型名自动猜测。模型列表由 DSH 查询，不支持列表的服务可直接手填模型 ID。编辑时留空密钥会保留原密钥。</p></details>
   <div class="saverow">${action('取消', 'back')}<button type="submit" class="btn primary" ${busy ? 'disabled' : ''}>${busy ? '保存中…' : host.saveProvider ? '保存服务' : '保存草稿'}</button></div>
-  <p class="muted api-footnote">保存草稿 ≠ 已连接 ≠ 模型可用</p>
   </form></div>`;
 };
 

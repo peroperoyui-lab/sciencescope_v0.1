@@ -40,7 +40,10 @@ try {
   await page.evaluate(() => window.ScienceScopeCreation.newChat(null));
   await page.waitForSelector('#modal .creation-dialog');
   assert.equal(await page.locator('.creation-choice').count(), 3);
-  assert.match(await page.locator('.creation-python .info-tip').getAttribute('data-info-tip'), /即将提供/, 'without the Python API the tip says so');
+  // Without the Python API the only (truthful) choice is the system Python; no pending notice anywhere.
+  assert.deepEqual(await page.locator('#chat-python option').allInnerTexts(), ['系统 Python']);
+  assert.doesNotMatch(await page.locator('#modal').innerText(), /即将|待接入|尚未|等待更新/);
+  assert.equal(await page.locator('[data-creation-pick]').isVisible(), false, 'no folder picker button without the native picker');
   assert.equal(await page.locator('#modal .hint, #modal small').count(), 0, 'explanations live in info tips, not page text');
   // Info tip: click pins it; clicking the "i" inside an option does not select it; Esc closes.
   const sharedTip = page.locator('.creation-choice:has(input[value="shared"]) .info-tip');
@@ -54,7 +57,6 @@ try {
   await page.keyboard.press('Escape');
   assert.equal(await page.locator('.info-pop').count(), 0);
   assert.equal(await page.locator('#modal').count(), 1, 'Esc closes only the tip');
-  assert.equal(await page.locator('#chat-python').isDisabled(), true);
   const before = await page.evaluate(() => V.chat);
   await page.locator('[data-creation-cancel]').click();
   assert.equal(await page.locator('#modal').count(), 0);
@@ -137,5 +139,5 @@ try {
   await page.keyboard.press('Escape');
   assert.equal(await page.evaluate(() => document.getElementById('tip-dialog').open), true, 'Esc closes the tip before the dialog');
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({dialog: true, cancel: true, existingFolder: true, defaultNewFolder: true, projectFolderBound: true, projectChatNoDialog: true, pythonPending: true, infoTips: true, screenshot: path.join(base, 'creation-dialog.png')}));
+  console.log(JSON.stringify({dialog: true, cancel: true, existingFolder: true, defaultNewFolder: true, projectFolderBound: true, projectChatNoDialog: true, pythonSystemOnly: true, infoTips: true, screenshot: path.join(base, 'creation-dialog.png')}));
 } finally { await browser?.close(); await server.close(); await rm(root, {recursive: true, force: true}); }

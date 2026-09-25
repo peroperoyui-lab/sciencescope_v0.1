@@ -94,13 +94,15 @@ try {
   await page.locator('#overview-trigger').click();
   await page.waitForTimeout(250);
   assert.equal(await page.locator('.chatcol.summary-docked').count(),1);
-  await page.locator('.mainhead [data-v="browser"]').click();
+  // Any right panel docks beside the summary; the in-app browser is hidden until T08.
+  assert.equal(await page.locator('.mainhead [data-v="browser"]').isVisible(),false);
+  await page.locator('.mainhead [data-v="secretary"]').click();
   await page.waitForTimeout(250);
   assert.equal(await page.locator('#project-flyout').count(),0);
   await page.locator('#overview-trigger').click();
   assert.equal(await page.locator('.chatcol.summary-docked').count(),0);
   const overlayX=(await page.locator('#project-flyout').boundingBox()).x;
-  await page.locator('.browser-panel .panelhead [data-v="close-panel"]').click();
+  await page.locator('.rightpanel .panelhead [data-v="close-panel"]').first().click();
   await page.waitForTimeout(250);
   assert.equal(await page.locator('#project-flyout').count(),1);
   assert.ok((await page.locator('#project-flyout').boundingBox()).x>overlayX);
