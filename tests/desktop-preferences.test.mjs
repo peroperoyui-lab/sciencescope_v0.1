@@ -22,16 +22,16 @@ function closeStore({ dataRoot, db }) {
 test('returns defaults and persists partial updates across reopen', () => {
   const first = openStore();
   try {
-    assert.deepEqual(first.store.get(), { theme: 'light', density: 'standard', codeFontSize: 14, chatFontSize: 16, sendKey: 'enter', reduceMotion: false, showScrollbars: false });
-    assert.deepEqual(first.store.save({ chatFontSize: 20, reduceMotion: true }), { theme: 'light', density: 'standard', codeFontSize: 14, chatFontSize: 20, sendKey: 'enter', reduceMotion: true, showScrollbars: false });
-    assert.deepEqual(first.store.get(), { theme: 'light', density: 'standard', codeFontSize: 14, chatFontSize: 20, sendKey: 'enter', reduceMotion: true, showScrollbars: false });
+    assert.deepEqual(first.store.get(), { theme: 'light', density: 'standard', codeFontSize: 14, chatFontSize: 16, sendKey: 'enter', reduceMotion: false, showScrollbars: false, uiFont: 'default' });
+    assert.deepEqual(first.store.save({ chatFontSize: 20, reduceMotion: true }), { theme: 'light', density: 'standard', codeFontSize: 14, chatFontSize: 20, sendKey: 'enter', reduceMotion: true, showScrollbars: false, uiFont: 'default' });
+    assert.deepEqual(first.store.get(), { theme: 'light', density: 'standard', codeFontSize: 14, chatFontSize: 20, sendKey: 'enter', reduceMotion: true, showScrollbars: false, uiFont: 'default' });
   } finally {
     const { dataRoot } = first;
     first.db.close();
     const reopenedDb = new DatabaseSync(join(dataRoot, 'desktop.sqlite'));
     try {
       const reopened = createDesktopPreferences({ db: reopenedDb, dataRoot });
-      assert.deepEqual(reopened.get(), { theme: 'light', density: 'standard', codeFontSize: 14, chatFontSize: 20, sendKey: 'enter', reduceMotion: true, showScrollbars: false });
+      assert.deepEqual(reopened.get(), { theme: 'light', density: 'standard', codeFontSize: 14, chatFontSize: 20, sendKey: 'enter', reduceMotion: true, showScrollbars: false, uiFont: 'default' });
     } finally {
       reopenedDb.close();
       rmSync(dataRoot, { recursive: true, force: true });
@@ -42,8 +42,8 @@ test('returns defaults and persists partial updates across reopen', () => {
 test('partial saves preserve existing values', () => {
   const context = openStore();
   try {
-    context.store.save({ sendKey: 'ctrl-enter', showScrollbars: true });
-    assert.deepEqual(context.store.save({ chatFontSize: 14 }), { theme: 'light', density: 'standard', codeFontSize: 14, chatFontSize: 14, sendKey: 'ctrl-enter', reduceMotion: false, showScrollbars: true });
+    context.store.save({ sendKey: 'ctrl-enter', showScrollbars: true, uiFont: 'default' });
+    assert.deepEqual(context.store.save({ chatFontSize: 14 }), { theme: 'light', density: 'standard', codeFontSize: 14, chatFontSize: 14, sendKey: 'ctrl-enter', reduceMotion: false, showScrollbars: true, uiFont: 'default' });
   } finally { closeStore(context); }
 });
 
@@ -73,7 +73,7 @@ test('migrates an existing old table without overwriting its settings', () => {
       INSERT INTO desktop_preferences VALUES (1, 18, 'ctrl-enter', 1, 1);
     `);
     const store = createDesktopPreferences({ db, dataRoot });
-    assert.deepEqual(store.get(), { theme: 'light', density: 'standard', codeFontSize: 14, chatFontSize: 18, sendKey: 'ctrl-enter', reduceMotion: true, showScrollbars: true });
+    assert.deepEqual(store.get(), { theme: 'light', density: 'standard', codeFontSize: 14, chatFontSize: 18, sendKey: 'ctrl-enter', reduceMotion: true, showScrollbars: true, uiFont: 'default' });
   } finally {
     db.close();
     rmSync(dataRoot, { recursive: true, force: true });
@@ -83,8 +83,10 @@ test('migrates an existing old table without overwriting its settings', () => {
 test('reset restores and persists all preference defaults', () => {
   const context = openStore();
   try {
-    context.store.save({ theme: 'dark', density: 'compact', codeFontSize: 18, chatFontSize: 20, sendKey: 'ctrl-enter', reduceMotion: true, showScrollbars: true });
-    const defaults = { theme: 'light', density: 'standard', codeFontSize: 14, chatFontSize: 16, sendKey: 'enter', reduceMotion: false, showScrollbars: false };
+    context.store.save({ theme: 'dark', density: 'compact', codeFontSize: 18, chatFontSize: 20, sendKey: 'ctrl-enter', reduceMotion: true, showScrollbars: true, uiFont: '微软雅黑' });
+    assert.equal(context.store.get().uiFont, '微软雅黑');
+    assert.throws(() => context.store.save({ uiFont: 'x"; color:red' }), /uiFont/);
+    const defaults = { theme: 'light', density: 'standard', codeFontSize: 14, chatFontSize: 16, sendKey: 'enter', reduceMotion: false, showScrollbars: false, uiFont: 'default' };
     assert.deepEqual(context.store.reset(), defaults);
     assert.deepEqual(context.store.get(), defaults);
     const reopenedDb = new DatabaseSync(join(context.dataRoot, 'desktop.sqlite'));

@@ -6,6 +6,8 @@ const DEFAULT_PREFERENCES = Object.freeze({
   sendKey: 'enter',
   reduceMotion: false,
   showScrollbars: false,
+  // 'default' = the bundled 思源黑体 (Noto Sans SC); otherwise an installed font family name.
+  uiFont: 'default',
 });
 
 const THEMES = new Set(['light', 'dark', 'system']);
@@ -57,6 +59,15 @@ function validatePatch(patch) {
   if ('showScrollbars' in patch && typeof patch.showScrollbars !== 'boolean') {
     throw invalidPreferences('showScrollbars must be a boolean');
   }
+  if ('uiFont' in patch && !validFontFamily(patch.uiFont)) {
+    throw invalidPreferences("uiFont must be 'default' or an installed font family name");
+  }
+}
+
+// A family name is later placed inside a quoted CSS string; refuse anything
+// that could end the string or the declaration.
+export function validFontFamily(value) {
+  return typeof value === 'string' && value.trim() === value && value.length > 0 && value.length <= 120 && !/[\u0000-\u001f\u007f"'\\;{}<>]/u.test(value);
 }
 
 function readRow(statement) {
@@ -70,6 +81,7 @@ function readRow(statement) {
     sendKey: row.send_key,
     reduceMotion: row.reduce_motion === 1,
     showScrollbars: row.show_scrollbars === 1,
+    uiFont: row.ui_font || 'default',
   };
 }
 
@@ -92,14 +104,15 @@ export function createDesktopPreferences({ db, dataRoot } = {}) {
   if (!columns.has('theme')) db.exec("ALTER TABLE desktop_preferences ADD COLUMN theme TEXT NOT NULL DEFAULT 'light'");
   if (!columns.has('density')) db.exec("ALTER TABLE desktop_preferences ADD COLUMN density TEXT NOT NULL DEFAULT 'standard'");
   if (!columns.has('code_font_size')) db.exec('ALTER TABLE desktop_preferences ADD COLUMN code_font_size INTEGER NOT NULL DEFAULT 14');
+  if (!columns.has('ui_font')) db.exec("ALTER TABLE desktop_preferences ADD COLUMN ui_font TEXT NOT NULL DEFAULT 'default'");
   const select = db.prepare(`
-    SELECT theme, density, code_font_size, chat_font_size, send_key, reduce_motion, show_scrollbars
+    SELECT theme, density, code_font_size, chat_font_size, send_key, reduce_motion, show_scrollbars, ui_font
     FROM desktop_preferences WHERE id = 1
   `);
   const upsert = db.prepare(`
     INSERT INTO desktop_preferences
-      (id, theme, density, code_font_size, chat_font_size, send_key, reduce_motion, show_scrollbars)
-    VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+      (id, theme, density, code_font_size, chat_font_size, send_key, reduce_motion, show_scrollbars, ui_font)
+    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       theme = excluded.theme,
       density = excluded.density,
@@ -107,7 +120,8 @@ export function createDesktopPreferences({ db, dataRoot } = {}) {
       chat_font_size = excluded.chat_font_size,
       send_key = excluded.send_key,
       reduce_motion = excluded.reduce_motion,
-      show_scrollbars = excluded.show_scrollbars
+      show_scrollbars = excluded.show_scrollbars,
+      ui_font = excluded.ui_font
   `);
 
   return Object.freeze({
@@ -117,7 +131,7 @@ export function createDesktopPreferences({ db, dataRoot } = {}) {
       db.exec('BEGIN IMMEDIATE');
       try {
         const next = { ...readRow(select), ...patch };
-        upsert.run(next.theme, next.density, next.codeFontSize, next.chatFontSize, next.sendKey, next.reduceMotion ? 1 : 0, next.showScrollbars ? 1 : 0);
+        upsert.run(next.theme, next.density, next.codeFontSize, next.chatFontSize, next.sendKey, next.reduceMotion ? 1 : 0, next.showScrollbars ? 1 : 0, next.uiFont);
         db.exec('COMMIT');
         return { ...next };
       } catch (error) {
@@ -128,7 +142,7 @@ export function createDesktopPreferences({ db, dataRoot } = {}) {
     reset() {
       db.exec('BEGIN IMMEDIATE');
       try {
-        upsert.run(DEFAULT_PREFERENCES.theme, DEFAULT_PREFERENCES.density, DEFAULT_PREFERENCES.codeFontSize, DEFAULT_PREFERENCES.chatFontSize, DEFAULT_PREFERENCES.sendKey, DEFAULT_PREFERENCES.reduceMotion ? 1 : 0, DEFAULT_PREFERENCES.showScrollbars ? 1 : 0);
+        upsert.run(DEFAULT_PREFERENCES.theme, DEFAULT_PREFERENCES.density, DEFAULT_PREFERENCES.codeFontSize, DEFAULT_PREFERENCES.chatFontSize, DEFAULT_PREFERENCES.sendKey, DEFAULT_PREFERENCES.reduceMotion ? 1 : 0, DEFAULT_PREFERENCES.showScrollbars ? 1 : 0, DEFAULT_PREFERENCES.uiFont);
         db.exec('COMMIT');
         return { ...DEFAULT_PREFERENCES };
       } catch (error) {

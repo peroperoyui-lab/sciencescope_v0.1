@@ -26,6 +26,7 @@ import {createExpertRoster,ExpertRosterError} from './expert-roster.mjs';
 import {createDiscussionService,DiscussionError} from './discussion-service.mjs';
 import {createResearchBase,ResearchBaseError} from './research-base/index.mjs';
 import {validateWorkFolder,WorkFolderError} from './workspace-folders.mjs';
+import {listSystemFonts} from './system-fonts.mjs';
 
 function publicRuntimeMessage(error) {
   const raw = String(error?.message || '').toLowerCase();
@@ -38,7 +39,7 @@ function publicRuntimeMessage(error) {
   return '运行时请求失败；请检查模型配置和网络连接。';
 }
 
-export async function createDesktopApi({onError, dataRoot = defaultRoot, runtimeHost = null, runtimeWeb = null, apiToken = null, openUrl = openExternalUrl} = {}) {
+export async function createDesktopApi({onError, dataRoot = defaultRoot, runtimeHost = null, runtimeWeb = null, apiToken = null, openUrl = openExternalUrl, listFonts = listSystemFonts} = {}) {
   let host = runtimeHost;
   let web = runtimeWeb;
   const bindings = new Map();
@@ -338,6 +339,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if (route === '/api/workbench/plans' && request.method === 'GET') { json(response,200,await workbench.store.getPlans()); return true; }
       if (route === '/api/profile' && request.method === 'GET') { json(response,200,profileStore.getProfile()); return true; }
       if(route==='/api/preferences'&&request.method==='GET'){json(response,200,preferences.get());return true;}
+      if(route==='/api/fonts'&&request.method==='GET'){json(response,200,await listFonts({refresh:requestUrl.searchParams.get('refresh')==='1'}));return true;}
       if(route==='/api/secretary/preferences'&&request.method==='GET'){json(response,200,secretaryPreferences.get());return true;}
       if(route==='/api/shortcuts'&&request.method==='GET'){json(response,200,shortcuts.get());return true;}
       if(route==='/api/assistant-window/preferences'&&request.method==='GET'){json(response,200,assistantWindowPreferences.get());return true;}

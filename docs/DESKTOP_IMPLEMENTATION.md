@@ -1,5 +1,32 @@
 # Desktop implementation — first increment
 
+## 2026-09-25 Global interface font; bundled 思源黑体 (Claude, cloud)
+
+User request: a global GUI font setting; install and use a 黑体 by default;
+list the computer's own fonts (garbled names are acceptable); Windows first.
+- Default: 思源黑体 = Noto Sans SC variable (SIL OFL 1.1) from
+  `@fontsource-variable/noto-sans-sc@5.3.0` (exact pin): 101 unicode-range
+  woff2 subsets (4.6 MB), loaded per character range, so every machine gets
+  the same 黑体 regardless of installed fonts. `VENDOR_ASSETS` in
+  build-desktop is now the single list for copying and for the production
+  router allowlist (marked, DOMPurify, the font CSS, LICENSE and subsets).
+- Setting: Settings → 个人资料与常规 → 界面字体 (with "i"), persisted as
+  `desktop_preferences.ui_font` (migration adds the column; validation
+  refuses characters that could leave a CSS string), applied on 保存 and
+  synced to other windows through the existing BroadcastChannel. A preview
+  line shows the choice before saving; 重新读取 refreshes the list.
+- Font list: `GET /api/fonts` (`scripts/system-fonts.mjs`). Windows:
+  PowerShell `System.Drawing.Text.InstalledFontCollection` with UTF-8 output
+  (localized names, per-user fonts), falling back to the HKLM/HKCU font
+  registry keys; other systems: fontconfig. Deduplicated, vertical "@"
+  variants dropped, names kept as reported.
+- Verified here: unit tests (preferences incl. persistence and rejection,
+  registry parsing, normalization); settings-ui-smoke (default computed font
+  is the bundled one and its CJK subset loads through the production router;
+  list, preview, save, global application, persistence after reload);
+  fontconfig listing on Linux returned 32 families. Not run: the Windows
+  PowerShell/registry path on a real machine; native window screenshot.
+
 ## 2026-09-25 No "not developed" notices; feature flags; prototype copy (Claude, cloud)
 
 User direction: prototype explanations also go behind "i" or are deleted; all
