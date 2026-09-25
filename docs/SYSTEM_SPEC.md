@@ -112,6 +112,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   - 后端尚未处理 `pythonEnvId`（T11）。
 - **验证**：`tests/workspace-folders.test.mjs`；`scripts/creation-details-smoke.mjs`（窗口、取消、非法路径原地提示、已有文件夹成为 `startSession` 工作区、
   默认新建文件夹、项目页校验与绑定、项目内对话不弹窗、Python 待接入状态，浅色 / 深色截图）。
+- 说明文字在"i"提示中（见 2.16）；窗口里只显示校验错误和警告。
 - **最近核对**：2026-09-25（Claude，云端，浏览器 smoke；原生窗口未测）。
 
 ### 2.2 主对话（主专家）
@@ -351,12 +352,18 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   - 底部状态栏显示真实运行时状态（`/api/status`，每 30 秒刷新，绿点/灰点），不再是原型文字。
   - 置顶项目只作为快捷入口，保持折叠，不再重复列出它的对话。
   - 秘书与全局助手空白时显示用途说明。
+  - 说明性文字统一放在"i"提示后面（2026-09-25，`desktop/info-tip.mjs`，标准见 `02_INTERACTION_CONTRACTS.md`）：
+    悬停/聚焦预览，点击固定，Esc、点击别处或滚动关闭；在 `<dialog>` 中挂到对话框内部；在菜单项和选项里点击"i"不会选中该项。
+    模块最先加载，使它的捕获监听先于菜单和操作处理。设置行 `row()` 的说明进入提示，路径和版本等数据用 `valueRow()` 直接显示。
+    已转换：新建窗口、创建项目页、设置（常规、执行策略、运行环境/数据库、快捷键、个人资料、角色、模型 API）、插件与技能、
+    文件预览、资料库、工作站绑定目录、审核结论条、标记弹层与材料文本标记对话框、输入框菜单。
   - 正文/代码字号仍由设置中的 `--chat-font-size`、`--code-font-size` 决定；"减少动画"设置照常生效。
 - **状态**：🟡。浏览器界面 smoke 全部通过、截图走查完成；尚未在 Windows 原生客户端目视验收。
 - **技术实现**：`desktop/refresh.css`（最后加载的样式表，令牌定义在 `:root` 与 `:root[data-theme="dark"]`，
   深色令牌已从 `settings.css` 移入这里），`desktop/refresh.mjs`（上述小交互，只附加监听，不替换已有处理函数；
   `projectRow` 仅对置顶行做包装）。二者在 `scripts/build-desktop.mjs` 的资源白名单与页面注入中登记。
 - **验证**：`chat-ui-smoke`、`settings-ui-smoke`（断言已更新为新令牌值）及其余界面 smoke；
+  `creation-details-smoke` 覆盖"i"提示（点击固定、不选中选项、Esc、菜单项）；
   `scripts/ui-gallery.mjs <输出目录>` 用离线模拟数据生成 17 张截图（主页、对话、讨论、秘书、工作站、导图、数据库、
   设置四页、命令面板、右键菜单、输入框菜单、深色、全局助手窗口、悬浮球），用于前后对比。
 

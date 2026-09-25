@@ -1,3 +1,4 @@
+import {infoTip} from './info-tip.mjs';
 import {hostRequest} from './host-client.mjs';
 import {settingsContent,settingsNavigation,settingsEntries} from './settings.mjs';
 
@@ -19,8 +20,7 @@ profileChannel.onmessage=async()=>{try{profile=await hostRequest('profile');refr
 settingsPage = function() {
   const shell=content=>`<div class="settings">${settingsNavigation()}<div class="settingscontent"><div class="settingform">${content}</div></div></div>`;
   if (route !== 'general') return shell(settingsContent(route));
-  const form = `<section class="card profile-settings"><h2>个人资料</h2>
-    <p class="hint">仅用于本机界面显示，不会自动发送给专家或写入研究上下文。</p>
+  const form = `<section class="card profile-settings"><h2>个人资料${infoTip('仅用于本机界面显示，不会自动发送给专家或写入研究上下文。',{label:'个人资料说明'})}</h2>
     <form id="local-profile-form"><div class="field"><label for="profile-name">显示名称</label><input id="profile-name" maxlength="80" required value="${esc(profile.displayName)}"></div>
     <div class="field"><label for="profile-bio">个人简介</label><textarea id="profile-bio" maxlength="2000">${esc(profile.bio)}</textarea></div>
     <p id="profile-feedback" role="status"></p><button class="btn primary" type="submit">保存个人资料</button></form></section>`;

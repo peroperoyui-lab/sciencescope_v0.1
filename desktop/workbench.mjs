@@ -1,3 +1,4 @@
+import {infoTip} from './info-tip.mjs';
 import './workspace.mjs';
 import {hostRequest,hostBlob} from './host-client.mjs';
 import {renderMarkdown} from './markdown.mjs';
@@ -216,7 +217,7 @@ window.addEventListener('click',async event=>{
     else if(action==='undo-map'||action==='redo-map'){const source=action==='undo-map'?mapUndo:mapRedo,target=action==='undo-map'?mapRedo:mapUndo;if(source.length){target.push(mapSnapshot());const snapshot=source.pop();S.nodes=snapshot.nodes;S.mapEdges=snapshot.edges;mapChanged(action==='undo-map'?'撤销导图编辑':'重做导图编辑');}}
     else if(action==='complete-plan'){const plans=structuredClone(S.plans),plan=plans.find(p=>p.id===el.dataset.id);if(plan)plan.done=!plan.done;await persistRecords('plan',plans);render();}
     else if(action==='logs'){allLogs=true;go('journal');}
-    else if(action==='bind')modal('绑定项目目录',`<p class="hint">不会移动已有文件。已有聊天保留原执行目录；新聊天使用新目录。</p><input id="wb-folder" value="${esc(current()?.folder||'')}" placeholder="绝对目录路径">${button('绑定','bind-save')}`);
+    else if(action==='bind')modal('绑定项目目录',`<label class="label" for="wb-folder">项目目录${infoTip('不会移动已有文件。已有聊天保留原执行目录；新聊天使用新目录。',{label:'绑定目录说明'})}</label><input id="wb-folder" value="${esc(current()?.folder||'')}" placeholder="绝对目录路径">${button('绑定','bind-save')}`);
     else if(action==='bind-save'){await hostRequest('workbench/bind',{projectId:S.projectId,folder:document.querySelector('#wb-folder').value});document.querySelector('#modal')?.remove();await load();}
     else if(action==='refresh'){if(dirty)throw new Error('请先保存导图草稿，再刷新项目。');await load();}
     else if(['up','folder'].includes(action)){await files(action==='up'?folder.split('/').slice(0,-1).join('/'):el.dataset.path);render();}

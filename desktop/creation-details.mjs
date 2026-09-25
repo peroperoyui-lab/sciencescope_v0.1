@@ -9,6 +9,7 @@
 // pretends an environment was applied.
 import './workspace.mjs';
 import {hostRequest} from './host-client.mjs';
+import {infoTip} from './info-tip.mjs';
 
 const PROTOTYPE_PATH = '<安装目录>/data/projects/新项目';
 
@@ -16,12 +17,13 @@ async function pythonEnvs() {
   try { return await hostRequest('python/envs'); } catch { return null; }
 }
 
+const pythonLabel = (id, tip) => `<label class="label" for="${id}">Python 环境${infoTip(tip, {label: 'Python 环境说明'})}</label>`;
 function envField(id, envs) {
-  if (!envs?.envs) return `<div class="field creation-python"><label class="label" for="${id}">Python 环境</label><select id="${id}" disabled><option>系统 Python</option></select><p class="hint">Python 环境管理即将提供；在此之前，模型使用这台电脑上已安装的 Python。</p></div>`;
+  if (!envs?.envs) return `<div class="field creation-python">${pythonLabel(id, 'Python 环境管理即将提供；在此之前，模型使用这台电脑上已安装的 Python。')}<select id="${id}" disabled><option>系统 Python（环境管理待接入）</option></select></div>`;
   const selected = envs.defaultEnvId || envs.envs[0]?.id || 'system';
   const options = envs.envs.map(env => `<option value="${esc(env.id)}" ${env.id === selected ? 'selected' : ''}>${esc(env.name)}${env.version ? ` · Python ${esc(env.version)}` : ''}</option>`).join('');
   const system = `<option value="system" ${selected === 'system' ? 'selected' : ''}>系统 Python${envs.system?.available ? ` · ${esc(envs.system.version || '')}` : '（未检测到）'}</option>`;
-  return `<div class="field creation-python"><label class="label" for="${id}">Python 环境</label><select id="${id}">${options}${system}</select><p class="hint">模型运行 Python 时使用这个环境。以后可以在对话菜单中更换。</p></div>`;
+  return `<div class="field creation-python">${pythonLabel(id, '模型运行 Python 时使用这个环境。以后可以在对话菜单中更换。')}<select id="${id}">${options}${system}</select></div>`;
 }
 
 // Native folder picker (Tauri command `pick_folder`, T11). Never falls back to a
@@ -45,9 +47,11 @@ async function enhanceProjectPage() {
   input.dataset.enhanced = '1';
   if (input.value === PROTOTYPE_PATH) input.value = '';
   input.placeholder = '默认：在 ScienceScope 数据目录下新建';
-  const row = input.closest('.field')?.nextElementSibling;
-  const note = document.createElement('p'); note.className = 'hint creation-note'; note.dataset.projectFolderNote = '';
-  note.textContent = '留空则自动新建；选择已有文件夹时，其中的文件不会被移动或覆盖。';
+  const field = input.closest('.field'); const row = field?.nextElementSibling;
+  const label = field?.querySelector('label, .label');
+  if (label && !label.querySelector('.info-tip')) label.insertAdjacentHTML('beforeend', infoTip('留空则在 ScienceScope 数据目录下自动新建。\n选择已有文件夹时，其中的文件不会被移动或覆盖；"询问"模式下模型只能写这个文件夹。', {label: '工作目录说明'}));
+  // Only validation results appear here; explanations live in the info tip.
+  const note = document.createElement('p'); note.className = 'creation-note'; note.dataset.projectFolderNote = ''; note.setAttribute('role', 'status');
   (row || input).after(note);
   projectEnvs = await pythonEnvs();
   if (!document.getElementById('new-project-python')) note.insertAdjacentHTML('afterend', envField('new-project-python', projectEnvs));
@@ -87,12 +91,12 @@ async function applyProjectChoice(project, choice) {
 async function openChatDialog() {
   const envs = await pythonEnvs();
   modal('新建独立对话', `<div class="creation-dialog-body">
-    <div class="field"><span class="label">工作文件夹</span>
-      <label class="creation-choice"><input type="radio" name="chat-folder" value="new" checked><span><b>为这个对话新建文件夹</b><small>在 ScienceScope 数据目录下，与其他对话互不干扰</small></span></label>
-      <label class="creation-choice"><input type="radio" name="chat-folder" value="shared"><span><b>独立对话公共文件夹</b><small>所有独立对话共用一个文件夹</small></span></label>
-      <label class="creation-choice"><input type="radio" name="chat-folder" value="existing"><span><b>使用已有文件夹</b><small>文件不会被移动或覆盖；"询问"模式下模型只能写这个文件夹</small></span></label>
+    <div class="field"><span class="label">工作文件夹${infoTip('模型在这个文件夹中读写文件；"询问"模式下只能写入这里。', {label: '工作文件夹说明'})}</span>
+      <label class="creation-choice"><input type="radio" name="chat-folder" value="new" checked><b>为这个对话新建文件夹</b>${infoTip('在 ScienceScope 数据目录下新建，与其他对话互不干扰。')}</label>
+      <label class="creation-choice"><input type="radio" name="chat-folder" value="shared"><b>独立对话公共文件夹</b>${infoTip('所有独立对话共用这一个文件夹，便于互相取用文件。')}</label>
+      <label class="creation-choice"><input type="radio" name="chat-folder" value="existing"><b>使用已有文件夹</b>${infoTip('文件不会被移动或覆盖。')}</label>
       <div class="creation-folder-row"><input id="chat-folder-path" placeholder="完整路径，例如 D:\\研究\\资料" aria-label="已有文件夹路径" disabled><button type="button" class="btn tiny" data-creation-pick disabled>选择…</button></div>
-      <p class="hint creation-note" data-chat-folder-note></p>
+      <p class="creation-note" data-chat-folder-note role="status"></p>
     </div>
     ${envField('chat-python', envs)}
     <div class="saverow"><button type="button" class="btn" data-creation-cancel>取消</button><button type="button" class="btn primary" data-creation-start>开始对话</button></div>

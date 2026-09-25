@@ -1,3 +1,4 @@
+import {infoTip} from './info-tip.mjs';
 import {hostRequest} from './host-client.mjs';
 import {renderMarkdown} from './markdown.mjs';
 import './research-input.mjs';
@@ -21,9 +22,9 @@ function docHTML(){
 }
 function bodyHTML(){
   const options=state.resources.map(r=>`<option value="${esc(r.id)}" ${r.id===state.resourceId?'selected':''}>${esc(r.title)}</option>`).join('');
-  return `<div class="file-preview-toolbar"><select data-preview-resource aria-label="选择要预览的资料" ${state.resources.length?'':'disabled'}>${options||'<option>暂无资料</option>'}</select><button type="button" class="btn tiny" data-preview-open ${state.resourceId?'':'disabled'}>打开原件</button></div><p class="hint file-preview-hint">选中文字即可添加标记，可连续添加；标记随下一条消息一起发送。</p><div class="file-preview-content">${docHTML()}</div>`;
+  return `<div class="file-preview-toolbar"><select data-preview-resource aria-label="选择要预览的资料" ${state.resources.length?'':'disabled'}>${options||'<option>暂无资料</option>'}</select><button type="button" class="btn tiny" data-preview-open ${state.resourceId?'':'disabled'}>打开原件</button></div><div class="file-preview-content">${docHTML()}</div>`;
 }
-const panelHTML=()=>`<aside class="rightpanel file-preview-panel"><div class="panel-resizer" data-v-resize></div><div class="panelhead between"><h2>文件预览与标记</h2>${vib('close','close-panel','关闭侧栏')}</div><div class="panelbody file-preview-body">${bodyHTML()}</div></aside>`;
+const panelHTML=()=>`<aside class="rightpanel file-preview-panel"><div class="panel-resizer" data-v-resize></div><div class="panelhead between"><h2>文件预览与标记${infoTip('选中文字即可添加标记，可连续添加；标记随下一条消息一起发送。',{label:'标记说明'})}</h2>${vib('close','close-panel','关闭侧栏')}</div><div class="panelbody file-preview-body">${bodyHTML()}</div></aside>`;
 
 const baseRightPanel=rightPanel;
 rightPanel=function(type){

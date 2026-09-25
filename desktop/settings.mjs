@@ -1,3 +1,4 @@
+import {infoTip} from './info-tip.mjs';
 import {hostRequest} from './host-client.mjs';
 import {roleSettingsContent} from './role-settings.mjs';
 import {extensionsContent} from './extensions.mjs';
@@ -10,10 +11,12 @@ let values={theme:'light',density:'standard',codeFontSize:14,chatFontSize:16,sen
 const channel=new BroadcastChannel('sciencescope-desktop-preferences');
 export const settingsEntries=[['general','个人资料与常规'],['models','模型与 API'],['persona','人格与记忆'],['experts','专家角色'],['behavior','执行策略'],['secretary-settings','任务秘书'],['assistant-settings','全局助手'],['library-settings','数据库与文件'],['environment','运行环境'],['shortcuts','快捷键'],['plugins','插件与技能'],['browser-settings','内置浏览器'],['usage','用量分析']];
 export function settingsNavigation(){const groups=[['个人偏好',['general','shortcuts','usage']],['科研协作',['models','persona','experts','behavior','secretary-settings','assistant-settings']],['工具与环境',['library-settings','plugins','environment','browser-settings']]];return `<nav class="settingsnav"><button class="nav" data-route="home">${ic('back')}返回工作区</button>${groups.map(([name,ids])=>`<div class="navsection">${name}</div>${ids.map(id=>`<button class="nav ${route===id?'active':''}" data-route="${id}">${esc(settingsEntries.find(entry=>entry[0]===id)[1])}</button>`).join('')}`).join('')}</nav>`;}
-const row=(name,description,control)=>`<div class="settingrow"><div class="description"><h3>${name}</h3><p>${description}</p></div><div class="control">${control}</div></div>`;
+// Explanations go behind an info tip; valueRow shows data (paths, versions) as text.
+const row=(name,tip,control)=>`<div class="settingrow"><div class="description"><h3>${name}${tip?infoTip(tip,{label:`${name}说明`}):''}</h3></div><div class="control">${control}</div></div>`;
+const valueRow=(name,value,control)=>`<div class="settingrow"><div class="description"><h3>${name}</h3><p>${value}</p></div><div class="control">${control}</div></div>`;
 const select=(name,options)=>`<select name="${name}">${options.map(([value,label])=>`<option value="${value}" ${String(values[name])===String(value)?'selected':''}>${label}</option>`).join('')}</select>`;
 function appearanceControls(){return `${row('主题','浅色保留原设计；跟随系统会响应系统主题变化。',select('theme',[['light','浅色'],['dark','深色'],['system','跟随系统']]))}${row('界面密度','调整导航和设置间距，不缩放聊天正文。',select('density',[['standard','标准'],['compact','紧凑']]))}${row('代码字号','仅调整消息里的代码块，不改变正文。',select('codeFontSize',[12,13,14,15,16,18].map(size=>[size,`${size}px`])))}<button class="btn tiny" type="button" data-preferences-reset>恢复阅读与操作默认设置</button>`;}
-function paths(){return diagnostics?Object.entries(diagnostics.paths).map(([id,item])=>row(esc(item.label),`<code class="settings-path">${esc(item.path)}</code>`,`<button class="btn tiny" data-settings-open="${id}">打开文件夹</button>`)).join(''):'<p role="status">正在读取本机路径…</p>';}
+function paths(){return diagnostics?Object.entries(diagnostics.paths).map(([id,item])=>valueRow(esc(item.label),`<code class="settings-path">${esc(item.path)}</code>`,`<button class="btn tiny" data-settings-open="${id}">打开文件夹</button>`)).join(''):'<p role="status">正在读取本机路径…</p>';}
 export function settingsContent(target){
   if(target==='shortcuts')return shortcutsContent();
   if(target==='general'&&loaded)return `<form id="desktop-preferences-form"><h2>阅读与操作</h2>${appearanceControls()}${row('聊天正文字号','主对话、任务秘书及全局助手统一生效。',select('chatFontSize',[14,15,16,18,20].map(size=>[size,`${size}px`])))}${row('发送快捷键','Shift + Enter 始终换行；不改变导图编辑键位。',select('sendKey',[['enter','Enter 发送'],['ctrl-enter','Ctrl + Enter 发送']]))}${row('减少过渡动画','即时生效。',select('reduceMotion',[[false,'关闭'],[true,'开启']]))}${row('显示滚动条','聊天和设置滚动区域。',select('showScrollbars',[[false,'自动隐藏'],[true,'始终显示']]))}<p data-settings-feedback role="status"></p><div class="saverow"><button class="btn primary" type="submit">保存并应用</button></div></form>`;
@@ -23,8 +26,8 @@ export function settingsContent(target){
   if(target==='general')return '<p>正在读取设置…</p>';
   if(target==='models')return modelsPage();
   if(target==='provider')return providerPage();
-  if(target==='environment'||target==='library-settings')return `<h2>${target==='environment'?'运行环境':'数据库与文件'}</h2><p class="hint">以下是此客户端实际使用的位置。更改目录和迁移数据尚未开放；不会把编辑路径当成已完成迁移。</p>${paths()}${diagnostics?row('运行时',`Node ${esc(diagnostics.node)} · ${esc(diagnostics.platform)} · ${esc(diagnostics.arch)}`,`<span>${diagnostics.runtimeAvailable?'DSH 已加载':'DSH 不可用'}</span>`):''}<p class="hint">SQLite 保存应用记录，DSH 保存运行历史；原始材料保存在资料库。此处不提供清空历史或索引的一键操作。</p>`;
-  if(target==='behavior')return `<h2>执行策略</h2><p>执行权限在每个对话的输入框中选择，不由角色名称或人格提示词授予。</p>${row('询问','运行时对需要额外授权的操作请求确认；不意味着每个读取操作都弹窗。','默认策略')}${row('完全接管','工具按当前用户与运行时能力执行，不逐次询问。','输入框显式启用')}${row('自动化','主专家依据目标继续执行；助手与秘书不提供此选项。','仅主对话')}<button class="btn" data-settings-chat>返回当前对话</button>`;
+  if(target==='environment'||target==='library-settings')return `<h2>${target==='environment'?'运行环境':'数据库与文件'}${infoTip('以下是此客户端实际使用的位置。更改目录和迁移数据尚未开放。\nSQLite 保存应用记录，DSH 保存运行历史；原始材料保存在资料库。此处不提供清空历史或索引的一键操作。',{label:'位置说明'})}</h2>${paths()}${diagnostics?valueRow('运行时',`Node ${esc(diagnostics.node)} · ${esc(diagnostics.platform)} · ${esc(diagnostics.arch)}`,`<span>${diagnostics.runtimeAvailable?'DSH 已加载':'DSH 不可用'}</span>`):''}`;
+  if(target==='behavior')return `<h2>执行策略${infoTip('执行权限在每个对话的输入框中选择，不由角色名称或人格提示词授予。',{label:'执行策略说明'})}</h2>${row('询问','运行时对需要额外授权的操作请求确认；不意味着每个读取操作都弹窗。','默认策略')}${row('完全接管','工具按当前用户与运行时能力执行，不逐次询问。','输入框显式启用')}${row('自动化','主专家依据目标继续执行；助手与秘书不提供此选项。','仅主对话')}<button class="btn" data-settings-chat>返回当前对话</button>`;
   return '<h2>此设置尚未开放</h2><p>此页的配置尚未连接实际服务，因此不提供保存或启用操作。</p><button class="btn" data-route="general">返回常规设置</button>';
 }
 const systemTheme=window.matchMedia('(prefers-color-scheme: dark)');

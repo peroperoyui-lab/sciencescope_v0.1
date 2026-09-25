@@ -65,6 +65,10 @@ actual remote branch and SHA; failed pushes are not delivery.
   composition until its first message is accepted, without a separate route.
   Creating an independent chat first shows a small in-app details dialog
   (working folder, Python environment); the welcome draft after it is unchanged.
+- Explanatory text goes behind the shared "i" info tip (`desktop/info-tip.mjs`)
+  beside the heading, label or option it explains, not as page text. Errors,
+  warnings, status, empty states and data stay visible (standard in
+  docs/02_INTERACTION_CONTRACTS.md, 2026-09-25).
   User-facing identity comes from the local profile, never the prototype's Joy.
 
 - Keep production interactions in readable `desktop/*.mjs` and styles, not edits

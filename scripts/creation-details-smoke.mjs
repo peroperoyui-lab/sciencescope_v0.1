@@ -24,7 +24,7 @@ const server = await createDesktopServer({dataRoot: path.join(root, 'app'), outp
 let browser;
 try {
   browser = await chromium.launchPersistentContext(path.join(root, 'profile'), {executablePath: process.env.SCIENCESCOPE_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe', headless: true, viewport: {width: 1280, height: 860}, env: {...process.env, TEMP: root, TMP: root}});
-  const page = await browser.newPage(); const errors = []; page.on('pageerror', e => errors.push(e.message));
+  const page = await browser.newPage(); const errors = []; page.on('pageerror', e => errors.push(e.message)); 
   await installApiToken(page, server);
   await page.goto(server.url);
   await page.waitForFunction(() => window.ScienceScopeWorkspace?.ready && window.ScienceScopeCreation);
@@ -40,7 +40,20 @@ try {
   await page.evaluate(() => window.ScienceScopeCreation.newChat(null));
   await page.waitForSelector('#modal .creation-dialog');
   assert.equal(await page.locator('.creation-choice').count(), 3);
-  assert.match(await page.locator('.creation-python').innerText(), /即将提供/, 'without the Python API the field says so');
+  assert.match(await page.locator('.creation-python .info-tip').getAttribute('data-info-tip'), /即将提供/, 'without the Python API the tip says so');
+  assert.equal(await page.locator('#modal .hint, #modal small').count(), 0, 'explanations live in info tips, not page text');
+  // Info tip: click pins it; clicking the "i" inside an option does not select it; Esc closes.
+  const sharedTip = page.locator('.creation-choice:has(input[value="shared"]) .info-tip');
+  await sharedTip.click();
+  await page.waitForSelector('.info-pop');
+  assert.match(await page.locator('.info-pop').innerText(), /共用/);
+  assert.equal(await sharedTip.getAttribute('aria-expanded'), 'true');
+  assert.equal(await page.locator('input[value="shared"]').isChecked(), false, 'the tip does not select its option');
+  await page.mouse.move(5, 5); await page.waitForTimeout(300);
+  assert.equal(await page.locator('.info-pop').count(), 1, 'a clicked tip stays open');
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('.info-pop').count(), 0);
+  assert.equal(await page.locator('#modal').count(), 1, 'Esc closes only the tip');
   assert.equal(await page.locator('#chat-python').isDisabled(), true);
   const before = await page.evaluate(() => V.chat);
   await page.locator('[data-creation-cancel]').click();
@@ -94,14 +107,35 @@ try {
   await page.evaluate(id => window.ScienceScopeCreation.newChat(id), projectId);
   await page.waitForTimeout(200);
   assert.equal(await page.locator('#modal').count(), 0);
+  // 4b. A tip inside a menu item explains without choosing the item.
+  await page.locator('[data-v="mode-menu"]').first().click();
+  await page.waitForSelector('#v-menu .menu-line .info-tip');
+  const menuTip = page.locator('#v-menu .menu-line .info-tip').last();
+  const policyBefore = await page.locator('[data-v="mode-menu"]').first().innerText();
+  await menuTip.click();
+  await page.waitForSelector('.info-pop');
+  assert.equal(await page.locator('#v-menu').count(), 1, 'the menu stays open');
+  assert.equal(await page.locator('[data-v="mode-menu"]').first().innerText(), policyBefore, 'the item was not chosen');
+  await page.keyboard.press('Escape'); await page.keyboard.press('Escape'); await page.evaluate(() => closeMenu());
+
   await page.evaluate(() => { document.documentElement.dataset.theme = 'light'; window.ScienceScopeCreation.newChat(null); });
   await page.waitForSelector('#modal .creation-dialog');
   await page.locator('input[name="chat-folder"][value="existing"]').check();
-  await page.mouse.move(5, 5);
+  await page.locator('.creation-python .info-tip').click();
+  await page.waitForSelector('.info-pop');
+  await page.waitForTimeout(250); // let the pop-in animation finish
   await page.screenshot({path: path.join(base, 'creation-dialog.png')});
   await page.evaluate(() => { document.documentElement.dataset.theme = 'dark'; });
   await page.waitForTimeout(400); // let theme transitions settle
   await page.screenshot({path: path.join(base, 'creation-dialog-dark.png')});
+  // A tip inside a modal <dialog> (top layer) mounts in the dialog and is visible there.
+  await page.evaluate(() => { const d = document.createElement('dialog'); d.id = 'tip-dialog'; d.innerHTML = `<h2>标题${window.ScienceScopeInfoTip.infoTip('对话框中的说明')}</h2>`; document.body.append(d); d.showModal(); });
+  await page.locator('#tip-dialog .info-tip').click();
+  await page.waitForSelector('#tip-dialog .info-pop');
+  const inside = await page.evaluate(() => { const r = document.querySelector('.info-pop').getBoundingClientRect(), t = document.querySelector('#tip-dialog .info-tip').getBoundingClientRect(); const hit = document.elementFromPoint(r.left + 5, r.top + 5); return {near: Math.abs(r.top - t.bottom) < 12, visible: !!hit?.closest('.info-pop')}; });
+  assert.deepEqual(inside, {near: true, visible: true});
+  await page.keyboard.press('Escape');
+  assert.equal(await page.evaluate(() => document.getElementById('tip-dialog').open), true, 'Esc closes the tip before the dialog');
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({dialog: true, cancel: true, existingFolder: true, defaultNewFolder: true, projectFolderBound: true, projectChatNoDialog: true, pythonPending: true, screenshot: path.join(base, 'creation-dialog.png')}));
+  console.log(JSON.stringify({dialog: true, cancel: true, existingFolder: true, defaultNewFolder: true, projectFolderBound: true, projectChatNoDialog: true, pythonPending: true, infoTips: true, screenshot: path.join(base, 'creation-dialog.png')}));
 } finally { await browser?.close(); await server.close(); await rm(root, {recursive: true, force: true}); }

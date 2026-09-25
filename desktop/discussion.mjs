@@ -7,6 +7,7 @@
 //   only when the user adopts it.
 // Experts run as DSH subagents of this chat's session (see /api/discussion).
 // Answers are ordinary transcript messages whose author is the expert.
+import {infoTip} from './info-tip.mjs';
 import './live-chat.mjs';
 import './work-mode.mjs';
 import {hostRequest, streamChat} from './host-client.mjs';
@@ -70,7 +71,7 @@ function reviewBar(message) {
   const expert = message.expert;
   if (!expert?.review || message.streaming || expert.stopReason && expert.stopReason !== 'completed') return '';
   const label = expert.mainSeen ? '已加入后续上下文 · 主专家已读取' : expert.adopted ? '已加入后续上下文' : '加入后续上下文';
-  return `<div class="review-adopt" data-review-bar="${esc(message.id)}"><span>审核结论默认不进入后续上下文。</span><button class="btn tiny ${expert.adopted ? 'soft' : 'primary'}" data-review-adopt="${esc(message.id)}" aria-pressed="${!!expert.adopted}" ${expert.mainSeen ? 'disabled' : ''}>${label}</button></div>`;
+  return `<div class="review-adopt" data-review-bar="${esc(message.id)}"><span>审核结论${infoTip('审核结论默认不进入后续上下文。\n点击"加入后续上下文"后，它会随下一轮一起提供给主专家和各位专家。',{label:'审核结论说明'})}</span><button class="btn tiny ${expert.adopted ? 'soft' : 'primary'}" data-review-adopt="${esc(message.id)}" aria-pressed="${!!expert.adopted}" ${expert.mainSeen ? 'disabled' : ''}>${label}</button></div>`;
 }
 const baseMessageHTML = messageHTML;
 messageHTML = function(message) {

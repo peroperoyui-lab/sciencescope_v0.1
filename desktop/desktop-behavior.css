@@ -14,9 +14,4 @@ input, textarea, [contenteditable="true"], .message-text, .message-text *,
 .composer-choice-menu { width:270px; min-width:0; overflow:visible; border-radius:12px; }
 .composer-choice-menu .menu-line { position:relative; min-height:40px; }
 .composer-choice-menu .policy-caution { color:#9b5653; }
-.choice-info { margin-left:auto; color:#838981; cursor:help; padding:3px; }
-.choice-tooltip { display:none; position:absolute; z-index:2; left:8px; right:8px;
-  bottom:calc(100% + 4px); padding:10px 12px; border:1px solid var(--line);
-  border-radius:8px; background:#f6f7f3; color:#4e574e; white-space:normal;
-  font-size:12px; line-height:1.6; box-shadow:0 5px 18px #0001; pointer-events:none; }
-.choice-info:hover .choice-tooltip, .choice-info:focus .choice-tooltip { display:block; }
+.composer-choice-menu .info-tip { margin-left:auto; }

@@ -1,5 +1,28 @@
 # Desktop implementation — first increment
 
+## 2026-09-25 Info tips replace explanatory page text (Claude, cloud)
+
+User direction: explanatory text should not be written into the pages; use one
+consistent, clickable "i" and keep pages coordinated.
+- `desktop/info-tip.mjs`: `infoTip(text, {label, tag})` renders the "i";
+  hover/focus previews, click pins, click again / outside / Esc / scroll
+  closes. Loaded first so its capture listeners run before menu and action
+  handlers (an "i" inside a menu item or option explains without choosing).
+  Inside an open `<dialog>` the tip mounts in the dialog (top layer) and
+  corrects its position for transformed containers. Node tests can import it.
+- Converted: creation dialog and project page, settings rows (`row()` ->
+  tip; `valueRow()` keeps paths/versions visible), execution policy,
+  shortcuts, profile, role, model API fields, extensions, file preview,
+  library, workbench bind dialog, review-adopt bar, marks popover and marks
+  dialog, composer choice menus (replacing the hover-only `.choice-tooltip`).
+- Kept visible on purpose: errors, warnings, status, empty states, the
+  "not yet available" page, data values. The approved prototype's own copy
+  (welcome text, the project page's green note) is unchanged pending the user.
+- Verified: `npm test` 121/121; all browser smokes except the known
+  `desktop-interaction` failure (its policy-tip assertion was updated);
+  `creation-details-smoke` covers pin, option-not-selected, Esc and a menu
+  item; gallery screenshots reviewed.
+
 ## 2026-09-25 Creation details dialog: working folder and Python environment (Claude, cloud)
 
 User request: creating a project or an independent chat asks for the working
