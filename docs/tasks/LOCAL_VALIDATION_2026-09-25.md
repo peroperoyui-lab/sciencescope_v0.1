@@ -64,7 +64,8 @@
    **标准答案由用户确认**（可以先由你起草，再请用户审核），标注放 `tests/fixtures/retrieval-eval/`。
 3. 先只测**现有的关键词检索**：直接检索的 R@1、R@5、R@10，以及"由模型检索"时最终引用是否正确（便宜模型）。
 4. 然后在本机运行 `scripts/evals/embedding-bench.mjs` 的方法（按脚本头部说明安装依赖，用 `--ignore-scripts`），用同一批论文和问题测：
-   multilingual-e5-large 与 bge-m3（能下载到哪个就测哪个，把下载来源写清楚），每种都测单问法和双语问法。
+   默认模型 multilingual-e5-small（用户 2026-09-25 决定先用轻量默认模型；下载地址见 T10 §1，写清实际下载来源），测单问法和双语问法。
+   如果时间允许，再用 e5-large 做一次对比（来源可用 fastembed 的 Google 存储，见 `design/RESEARCH_BASE.md` §3.1）。
    记录每段嵌入耗时、500 篇规模的推算时间、查询 P50 / P95、内存峰值，以及本机 CPU、内存、系统版本。
 5. 把结果写进 DESKTOP_IMPLEMENTATION，形成数据表格，并明确哪些是实测、哪些是推算。**不要实现 T10 的混合检索**，等用户和 Claude 看过数据再决定。
 

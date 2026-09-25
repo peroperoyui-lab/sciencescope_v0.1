@@ -1,5 +1,31 @@
 # Desktop implementation — first increment
 
+## 2026-09-25 Retrieval decision, Python environments design, docs map (Claude, cloud) — docs only
+
+Decisions recorded with the user today (no product code changed):
+- **Retrieval**: keyword-only search is the degraded fallback; the main system
+  is hybrid (local dense embeddings first, keyword second, several phrasings
+  including Chinese and English), used for literature and long-term memory,
+  plus per-turn memory recall. A minimum hardware spec replaces "support every
+  old PC". Default embedding model: lightweight multilingual-e5-small; no model
+  switching UI for now. See `design/RESEARCH_BASE.md` §3 and `tasks/T10`.
+- Measurements behind it (cloud, 4-core Xeon, AVX-512): multilingual-e5-large
+  int8 via onnxruntime-node: query 28 ms, 177–223 ms per passage (4 threads),
+  ~1.4 GB RSS. Hand-written 15-question mini set (Claude wrote passages,
+  questions, gold answers and translations; fictional content): top-3 hits
+  keyword 1/15, dense 6/15, dense with bilingual queries 13/15. Direction only;
+  e5-small could not be downloaded here and is unmeasured.
+- **Python environments** (`design/PYTHON_ENVIRONMENTS.md`, `tasks/T11`): bundled
+  Python 3.14 via uv, environments sharing one package cache through hardlinks
+  (verified here: same inode across two environments, ~1.5 MB per env),
+  per-project/per-chat assignment, system Python when unassigned, installs
+  through an approved tool. Open question for the user: whether new tasks
+  default to the bundled environment (assumed) or to system Python.
+- **Docs**: `docs/ROADMAP.md` now holds the 1.0.0-alpha A/B/C plan (previously
+  inside this log at "1.0.0-alpha 内测交付计划"), task queue and branch status;
+  `docs/README.md` maps every document and states upkeep rules; AGENTS.md points
+  to both. `tasks/LOCAL_VALIDATION_2026-09-25.md` is the pre-merge Windows check.
+
 ## 2026-09-25 Research Base framework (Claude, cloud) — review branch, not merged
 
 User request: parse/display PDF, Word, Markdown, text and LaTeX (and an in-app
