@@ -31,6 +31,71 @@ export function apply(ctx) {
   const pendingApprovals = new Map();
   const agentOptions = { provider: process.env.SCIENCESCOPE_PROVIDER, model: process.env.SCIENCESCOPE_MODEL };
   const noTools = process.env.SCIENCESCOPE_NO_TOOLS === '1';
+  // Research Base tools. They run here but answer from the host application
+  // (scripts/research-base), which binds each call to this session's chat,
+  // project and role; an expert's calls also carry its expert id.
+  const hostCallEndpoint = process.env.SCIENCESCOPE_HOST_CALL_ENDPOINT;
+  const hostCall = (name, args, exec, agent) => new Promise((resolve, reject) => {
+    const child = expertChildren.get(String(agent?.session?.id ?? ''));
+    const body = JSON.stringify({ token, sessionId, name, args, callId: exec?.callId, expertId: child?.expertId });
+    const target = new URL(hostCallEndpoint);
+    const req = request({ hostname: target.hostname, port: target.port, path: target.pathname, method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) }, timeout: 120000 }, (res) => {
+      let text = ''; res.setEncoding('utf8'); res.on('data', (chunk) => { text += chunk; });
+      res.on('end', () => { try { const value = JSON.parse(text); if (value.error) reject(new Error(value.error)); else resolve(value.result); } catch { reject(new Error(`host tool call failed (HTTP ${res.statusCode})`)); } });
+    });
+    req.on('error', reject); req.on('timeout', () => req.destroy(new Error('host tool call timed out'))); req.end(body);
+  });
+  const jsonOutput = { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] };
+  const refParam = { type: 'object', additionalProperties: false, description: 'A record reference returned by research_search.', properties: { type: { type: 'string', required: true, enum: ['source', 'chunk', 'item'] }, id: { type: 'string', required: true } } };
+  const registerResearchTools = (tools, agent) => {
+    tools.register(defineTool({
+      name: 'research_search',
+      description: "Search the user's research base for this project: parsed papers and files (passages with page numbers), sources, and confirmed knowledge, theory models/formulas/algorithms, claims and long-term memory. Returns cite labels such as [S3 p.4] or [@a1b2c3d4]; cite them verbatim in your answer. Search before answering questions about the project's literature or earlier decisions.",
+      parameters: {
+        query: { type: 'string', required: true, description: 'Keywords in the language of the material (Chinese or English); 1-2000 characters.' },
+        types: { type: 'array', items: { type: 'string', enum: ['chunk', 'source', 'item'] }, description: 'Restrict to passages (chunk), bibliographic sources, or distilled items.' },
+        itemTypes: { type: 'array', items: { type: 'string', enum: ['knowledge', 'model', 'memory', 'claim', 'note'] } },
+        limit: { type: 'integer', description: 'Maximum hits, 1-20 (default 8).' },
+      },
+      output: jsonOutput,
+      async execute(args, exec) { return hostCall('research_search', args, exec, agent); },
+    }));
+    tools.register(defineTool({
+      name: 'research_read',
+      description: 'Read the full text around a research_search hit, a whole source page by page, or a distilled item with its evidence links. Give either ref (from a search hit) or cite (a label like [S3 p.4] or [@a1b2c3d4]).',
+      parameters: {
+        ref: refParam,
+        cite: { type: 'string', description: 'A cite label such as [S3], [S3 p.4] or [@a1b2c3d4].' },
+        page: { type: 'integer', description: 'For a source: read this page.' },
+        fromOrdinal: { type: 'integer', description: 'For a source: continue from this passage number (nextOrdinal of the previous read).' },
+        maxChars: { type: 'integer', description: '500-20000, default 6000.' },
+      },
+      output: jsonOutput,
+      async execute(args, exec) { return hostCall('research_read', args, exec, agent); },
+    }));
+    tools.register(defineTool({
+      name: 'research_propose',
+      description: "Propose a change to the user's long-term research base: a new knowledge item, theory model/formula/algorithm, research claim, or memory (decision, convention, goal, open question, preference, lesson); an update or supersession of an existing item; or an evidence link. Nothing is saved until the user accepts it in the memory inbox. Propose only durable, project-relevant information, with evidence refs when you have them.",
+      parameters: {
+        op: { type: 'string', required: true, enum: ['create', 'update', 'supersede', 'archive', 'link'] },
+        item: { type: 'object', additionalProperties: false, description: 'For create/update/supersede.', properties: {
+          type: { type: 'string', enum: ['knowledge', 'model', 'memory', 'claim', 'note'] },
+          subtype: { type: 'string', description: 'knowledge: finding|definition|method|fact; model: theory|formula|algorithm|statistical-model|protocol; memory: preference|goal|decision|convention|open-question|lesson; claim: hypothesis|claim|conclusion.' },
+          title: { type: 'string' }, body: { type: 'string', description: 'Markdown; LaTeX math allowed.' },
+          scope: { type: 'string', enum: ['project', 'personal'], description: 'Default: the current project; personal when the chat has no project.' },
+          payload: { type: 'json', description: 'Typed details. model: {latex, variables:[{symbol,meaning,unit}], assumptions:[], steps:[], domain}; claim: {statement, claimStatus: hypothesis|supported|contested|refuted|uncertain}.' },
+          importance: { type: 'integer', description: '1-5.' },
+        } },
+        targetId: { type: 'string', description: 'For update/supersede/archive: the item id or its [@handle].' },
+        evidence: { type: 'array', items: { type: 'object', additionalProperties: false, properties: { ref: refParam, cite: { type: 'string', description: 'Instead of ref: a cite label such as [S3 p.4] or [@a1b2c3d4].' }, relation: { type: 'string', enum: ['supports', 'contradicts', 'qualifies', 'derived-from', 'about', 'cites'] }, quote: { type: 'string' } } } },
+        from: refParam, to: refParam,
+        relation: { type: 'string', enum: ['supports', 'contradicts', 'qualifies', 'derived-from', 'defines', 'uses', 'about', 'cites', 'same-as'] },
+        rationale: { type: 'string', required: true, description: 'Why this should be remembered; one or two sentences.' },
+      },
+      output: jsonOutput,
+      async execute(args, exec) { return hostCall('research_propose', args, exec, agent); },
+    }));
+  };
   const selection={current:{...agentOptions},assembled:undefined};
   let promptContext;
   let personaEntry;
@@ -48,6 +113,7 @@ export function apply(ctx) {
         return {status:'awaiting_user_review',proposalId};
       }
     }));
+    if(hostCallEndpoint)registerResearchTools(agentCtx.tools, null);
     if(noTools)agentCtx.tools.restrict({allow:[]});
   };
   let handle;
@@ -68,6 +134,20 @@ export function apply(ctx) {
         personaEntry = { dispose };
       }
       currentPersona = value;
+    });
+  };
+  // Project brief: a second system-prompt section after the persona, empty
+  // until the host sets it. Changed only while idle, like the persona.
+  let briefEntry; let currentBrief = '';
+  const configureBrief = async (value) => {
+    if (handle.agent.status !== 'idle') throw new Error('brief can only change while idle');
+    return handle.agent.runMaintenance(async () => {
+      if (!briefEntry) {
+        if (!promptContext?.systemPrompt) throw new Error('DSH system-prompt service is unavailable');
+        const order = promptContext.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_PREFIX');
+        briefEntry = promptContext.systemPrompt.section({ name: 'sciencescope.project-brief', order: typeof order === 'number' ? order + 1 : order, text: () => currentBrief });
+      }
+      currentBrief = value;
     });
   };
   // Expert discussion: each expert is a fresh in-process DSH child (spawn
@@ -130,7 +210,7 @@ export function apply(ctx) {
     } finally { expertRuns.delete(value.runId); }
   };
   const server = createServer(async (req, res) => {
-    if (req.method !== 'POST' || !['/prompt', '/goal', '/policy', '/reasoning', '/model', '/persona', '/interrupt', '/approval/reply', '/context-usage', '/experts', '/experts/cancel'].includes(req.url)) { res.writeHead(404); res.end(); return; }
+    if (req.method !== 'POST' || !['/prompt', '/goal', '/policy', '/reasoning', '/model', '/persona', '/brief', '/interrupt', '/approval/reply', '/context-usage', '/experts', '/experts/cancel'].includes(req.url)) { res.writeHead(404); res.end(); return; }
     let body = ''; req.setEncoding('utf8'); req.on('data', (chunk) => { body += chunk; if(Buffer.byteLength(body)>2*1024*1024)req.destroy(); });
     req.on('end', async () => {
       try {
@@ -185,6 +265,11 @@ export function apply(ctx) {
           if(handle.agent.status!=='idle')throw new Error('model can only change while idle');
           const next={provider:value.model?.providerId,model:value.model?.modelId,...(value.reasoningEffort===undefined?{}:{reasoningEffort:value.reasoningEffort})};
           await ctx.llm.resolveCallConfig(next); Object.assign(agentOptions,next); selection.current=next; if(value.reasoningEffort===undefined) { delete agentOptions.reasoningEffort; delete selection.current.reasoningEffort; } res.writeHead(204);res.end();return;
+        }
+        if (req.url === '/brief') {
+          if (typeof value.text !== 'string' || value.text.length > 40000) throw new Error('brief text must be a string up to 40000 characters');
+          await configureBrief(value.text);
+          res.writeHead(204); res.end(); return;
         }
         if (req.url === '/persona') {
           await configurePersona(value.persona);
@@ -257,6 +342,12 @@ export function apply(ctx) {
       const result = event.data?.message?.content?.find((block) => block.type === 'tool-result');
       if (result) void postEvent({ type: 'expert-tool-result', ...child, callId: String(result.toolCallId), isError: !!result.isError });
     }
+  });
+  // Expert subagents are separate agents that do not inherit the parent's
+  // registered tools: give each child the research tools when it is created.
+  ctx.on('agent/created', ({ agent }) => {
+    if (!hostCallEndpoint || String(agent?.session?.id) === sessionId || !agent?.ctx?.tools) return;
+    try { registerResearchTools(agent.ctx.tools, agent); } catch { /* a child without a tool registry keeps its defaults */ }
   });
   ctx.on('goal/activation-changed', (event) => {
     if (String(event.sessionId) === sessionId) void postEvent({ type: 'goal-activation', ...event });
