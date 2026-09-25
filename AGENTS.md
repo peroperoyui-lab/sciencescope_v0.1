@@ -1,7 +1,7 @@
 # ScienceScope v0.1 development
 
-The next release target is 1.0.0-alpha. Follow the staged plan at the top of
-docs/DESKTOP_IMPLEMENTATION.md. Keep prototype, implemented, tested and released
+The next release target is 1.0.0-alpha. Follow the staged plan in
+docs/ROADMAP.md (documentation map and upkeep rules: docs/README.md). Keep prototype, implemented, tested and released
 states distinct. An alpha release requires real role/material wiring plus an
 installed-package startup and data-preserving upgrade rehearsal, not only tests
 against the development server. Display publisher: peroperoyui; credit Codex as
@@ -17,6 +17,8 @@ verification status, update the relevant section (and its "最近核对" line) i
 the same commit. The spec is a record of the present, not a constraint: a
 better design may replace what it describes; update the spec when you do.
 Dated history and acceptance details stay in `docs/DESKTOP_IMPLEMENTATION.md`.
+Direction, task queue and branch status live in `docs/ROADMAP.md`; update it
+when a task starts or finishes or a branch is merged.
 
 Read CODEX_START.md and the relevant design/interaction documents before edits.
 The approved ScienceScope.html, Logo, colors and layout are the visual baseline;
