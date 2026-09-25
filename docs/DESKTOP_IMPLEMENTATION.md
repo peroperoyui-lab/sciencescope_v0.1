@@ -19,8 +19,11 @@ Decisions recorded with the user today (no product code changed):
   Python 3.14 via uv, environments sharing one package cache through hardlinks
   (verified here: same inode across two environments, ~1.5 MB per env),
   per-project/per-chat assignment, system Python when unassigned, installs
-  through an approved tool. Open question for the user: whether new tasks
-  default to the bundled environment (assumed) or to system Python.
+  through an approved tool. Settled later the same day: creating a project or
+  an independent chat opens a details dialog to choose the working folder
+  (native picker for existing folders) and the Python environment (bundled
+  preselected, system Python allowed); added to T11 and to the revision
+  section of `02_INTERACTION_CONTRACTS.md`.
 - **Docs**: `docs/ROADMAP.md` now holds the 1.0.0-alpha A/B/C plan (previously
   inside this log at "1.0.0-alpha 内测交付计划"), task queue and branch status;
   `docs/README.md` maps every document and states upkeep rules; AGENTS.md points
