@@ -69,6 +69,11 @@ actual remote branch and SHA; failed pushes are not delivery.
   beside the heading, label or option it explains, not as page text. Errors,
   warnings, status, empty states and data stay visible (standard in
   docs/02_INTERACTION_CONTRACTS.md, 2026-09-25).
+- No "not yet developed / coming soon / prototype / sample" text in the UI. An
+  unfinished feature's entry points stay hidden behind its flag in
+  `/api/status` `features` (desktop/features.mjs) until it works end to end;
+  flags and owner tasks: docs/tasks/FEATURE_FLAGS.md. This supersedes showing
+  pending controls with a notice; hiding is not deletion (the task remains).
   User-facing identity comes from the local profile, never the prototype's Joy.
 
 - Keep production interactions in readable `desktop/*.mjs` and styles, not edits

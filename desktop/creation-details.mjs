@@ -5,8 +5,8 @@
 // - Independent chats open a small in-app dialog first; confirming enters the
 //   unchanged welcome draft. Chats created inside a project inherit it.
 // Python environments are managed by the host (/api/python/*, T11). Until that
-// API exists the field says so and the system Python is used — nothing here
-// pretends an environment was applied.
+// API exists the only choice is the system Python, which is what actually runs;
+// the folder picker button appears once the native shell provides it.
 import './workspace.mjs';
 import {hostRequest} from './host-client.mjs';
 import {infoTip} from './info-tip.mjs';
@@ -19,20 +19,18 @@ async function pythonEnvs() {
 
 const pythonLabel = (id, tip) => `<label class="label" for="${id}">Python 环境${infoTip(tip, {label: 'Python 环境说明'})}</label>`;
 function envField(id, envs) {
-  if (!envs?.envs) return `<div class="field creation-python">${pythonLabel(id, 'Python 环境管理即将提供；在此之前，模型使用这台电脑上已安装的 Python。')}<select id="${id}" disabled><option>系统 Python（环境管理待接入）</option></select></div>`;
+  if (!envs?.envs) return `<div class="field creation-python">${pythonLabel(id, '模型运行 Python 时使用这台电脑上已安装的 Python。')}<select id="${id}" data-system-only><option value="system">系统 Python</option></select></div>`;
   const selected = envs.defaultEnvId || envs.envs[0]?.id || 'system';
   const options = envs.envs.map(env => `<option value="${esc(env.id)}" ${env.id === selected ? 'selected' : ''}>${esc(env.name)}${env.version ? ` · Python ${esc(env.version)}` : ''}</option>`).join('');
   const system = `<option value="system" ${selected === 'system' ? 'selected' : ''}>系统 Python${envs.system?.available ? ` · ${esc(envs.system.version || '')}` : '（未检测到）'}</option>`;
   return `<div class="field creation-python">${pythonLabel(id, '模型运行 Python 时使用这个环境。以后可以在对话菜单中更换。')}<select id="${id}">${options}${system}</select></div>`;
 }
 
-// Native folder picker (Tauri command `pick_folder`, T11). Never falls back to a
-// browser dialog; pasting a full path always works.
+// Native folder picker (Tauri command `pick_folder`, T11); its buttons are shown
+// only when the host reports the folderPicker feature. Never a browser dialog.
 async function pickFolder() {
-  const invoke = window.__TAURI__?.core?.invoke;
-  if (typeof invoke !== 'function') { toast('文件夹选择框只在桌面客户端中可用；也可以直接粘贴完整路径。'); return null; }
-  try { return await invoke('pick_folder', {title: '选择工作文件夹'}); }
-  catch { toast('当前桌面客户端还不支持文件夹选择框（等待更新），请直接粘贴完整路径。'); return null; }
+  try { return await window.__TAURI__.core.invoke('pick_folder', {title: '选择工作文件夹'}); }
+  catch (error) { toast(`无法打开文件夹选择框：${error?.message || error}`); return null; }
 }
 
 async function checkFolder(folder) {
@@ -47,6 +45,8 @@ async function enhanceProjectPage() {
   input.dataset.enhanced = '1';
   if (input.value === PROTOTYPE_PATH) input.value = '';
   input.placeholder = '默认：在 ScienceScope 数据目录下新建';
+  // The prototype's explanatory callout is covered by the field's info tip.
+  input.closest('.content, .card, form, main')?.querySelector('.callout')?.remove();
   const field = input.closest('.field'); const row = field?.nextElementSibling;
   const label = field?.querySelector('label, .label');
   if (label && !label.querySelector('.info-tip')) label.insertAdjacentHTML('beforeend', infoTip('留空则在 ScienceScope 数据目录下自动新建。\n选择已有文件夹时，其中的文件不会被移动或覆盖；"询问"模式下模型只能写这个文件夹。', {label: '工作目录说明'}));
@@ -79,7 +79,7 @@ async function projectChoice() {
     } catch (error) { if (note) { note.textContent = error.message; note.dataset.error = ''; } toast(error.message); return null; }
   }
   const select = document.getElementById('new-project-python');
-  return {folder, envId: select && !select.disabled ? select.value : null};
+  return {folder, envId: select && !select.hasAttribute('data-system-only') ? select.value : null};
 }
 /** Called after the project exists on the host. */
 async function applyProjectChoice(project, choice) {
@@ -130,7 +130,7 @@ async function openChatDialog() {
     document.getElementById('modal')?.remove();
     const draft = newThread(null);
     draft.workspaceChoice = choice;
-    draft.pythonEnvId = select && !select.disabled ? select.value : null;
+    draft.pythonEnvId = select && !select.hasAttribute('data-system-only') ? select.value : null;
   });
 }
 

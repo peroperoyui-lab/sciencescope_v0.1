@@ -26,3 +26,10 @@
 ## 验收
 - 单元测试：内网地址拦截（包括 DNS 解析到回环的情况）、跳转到内网被拒、大小和超时限制、元数据提取顺序（使用本地 HTTP 夹具）。
 - 原生验证（Windows，需要 Codex 本机执行）：远程页面中调用 `window.__TAURI__` 为 undefined；远程页面向宿主 API 发送的 fetch 请求被拒（401 或 CORS）；截图。
+
+## 开关与过渡（2026-09-25 补充）
+- 开关 `inAppBrowser`（见 `FEATURE_FLAGS.md`）：关闭时顶栏按钮、视图菜单"内置浏览器"、设置"内置浏览器"页、路由 `browser` / `browser-settings` 都不可见。
+  实现完成后在 `capabilities.features.inAppBrowser` 返回真实检测结果。
+- 过渡方案已实现：学术站点（首页和"外部资源"）通过 `POST /api/open-url` 用系统浏览器打开（只接受 http/https）。开关打开后，`desktop/features.mjs` 不再拦截 `open-site`，站点改在应用内打开。
+- `desktop/workspace.mjs` 中的 `browserPanel` 目前只有标题和关闭按钮，由本任务替换为真实浏览器栏。
+- 设置 → 内置浏览器：站点列表管理、下载保存位置、清除浏览数据（Cookie、缓存，只针对浏览器窗口的数据目录）。

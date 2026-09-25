@@ -101,8 +101,8 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   取消不创建任何东西，确定后进入原有欢迎页草稿。项目内新对话继承项目，不弹窗；经窗口创建、尚未发送的草稿再次打开时不重复询问。
   "创建研究项目"页的"工作目录"不再预填原型路径，留空=在数据目录下新建；填写后先校验再建项目，并绑定到该文件夹；下方增加 Python 环境字段。
 - **状态**：🟡 前端与文件夹校验、绑定 ✅（单元、界面）；Python 环境后端与原生文件夹选择框 ⬜（T11，Astra）。
-  在 `/api/python/*` 出现之前，Python 字段显示为不可选的"系统 Python"并说明原因，不假装已应用；
-  没有 Tauri `pick_folder` 命令时，"选择…"只提示粘贴完整路径，不退回浏览器对话框。
+  在 `/api/python/*` 出现之前，Python 字段只有"系统 Python"一个选项（即实际使用的解释器），不发送 `pythonEnvId`；
+  文件夹选择按钮在 `folderPicker` 开关打开前不显示（见 2.18），不退回浏览器对话框。
 - **技术实现**：
   - 前端 `desktop/creation-details.mjs`；选择保存在草稿（`workspaceChoice`、`pythonEnvId`），首条消息随 `/api/chat`、`/api/discussion` 发送。
   - 宿主 `scripts/workspace-folders.mjs` 的 `validateWorkFolder`：必须是已存在的绝对路径文件夹；拒绝磁盘根、系统目录、
@@ -282,7 +282,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 - **用途与操作**：
   - "当前项目材料"与"我的资料"：列出原件和项目版本，可搜索、打开、查看详情、导入（单个文件 ≤14 MB）。
   - 知识条目：可从材料提出知识候选（研究经验 / 规范知识 / 私有），确认后变为"已采用"，并保留来源。
-- **状态**：✅（界面）；"外部资源"页为 ⬜ 原型。
+- **状态**：✅（界面）；"外部资源"页的站点用系统浏览器打开（`/api/open-url`），站点增删仍是原型的本地状态、不持久化（⬜）。
 - **技术实现**：`desktop/library.mjs`；`scripts/library-service.mjs`（项目版本会自动登记为资源）；接口 `GET /api/library`、`POST /api/library/import|open`、
   `GET /api/knowledge`、`POST /api/knowledge/propose|accept`；表 `resources`、`knowledge`（命名空间 canonical/heuristic/private，状态 candidate/accepted）。
 - **已知限制**：没有全文索引或检索工具；知识条目目前不会自动提供给模型。
@@ -337,6 +337,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 | 模型输出 | Markdown 经 DOMPurify 白名单过滤；链接只允许 http(s)，以新窗口打开；不渲染远程图片 |
 | 密钥 | 只进 DSH 凭据库；补丁文件只含 `apiKeyEnv` 引用；Provider 错误原文不显示 |
 | 文件访问 | 项目路径解析限制在项目根内，跳过符号链接；资料库原件路径用 realpath 校验；打开文件只接受已解析的本地路径 |
+| 打开网址 | `POST /api/open-url` 只接受 http/https，经口令保护，用系统默认浏览器打开；网页内容不能调用 |
 
 验证：`desktop-server` 单元测试（无口令/错误口令 401）；`native-api-token-smoke`（原生，六类窗口）。
 
@@ -395,13 +396,30 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 - **已知限制**：不支持 PDF / DOCX；没有界面；目前只有关键词检索（实测对换说法和跨语言问题几乎无效，见设计文档 §3.1），混合检索待 T10；在完全接管模式下，智能体的 bash 能读到应用数据目录（记录在设计文档 §8，需要单独处理 DSH 沙箱）；
   会话 ↔ 使用回执只覆盖主专家轮次（专家的回执待补）。
 
+### 2.18 可选功能开关与原型页面（2026-09-25）
+- **用途**：界面上不出现"尚未开发 / 即将提供 / 原型 / 示例"一类提示。未完成功能的入口隐藏，完成后由宿主打开开关；原型设计包的页面目录和演示页不可达。
+- **状态**：✅（界面 smoke、文案审计）。
+- **技术实现**：
+  - 宿主 `GET /api/status` 返回 `features`（`scripts/desktop-api.mjs` 的 `capabilities.features`）：
+    `pythonEnvs`、`folderPicker`（由原生外壳通过 `SCIENCESCOPE_NATIVE_FEATURES=pickFolder` 声明）、`inAppBrowser`、`branch`、`usage`、`materialsPanel`、`mapHistory`、`changeLog`、`pluginManagement`、`dataRelocation`，目前全部为 false。
+  - 前端 `desktop/features.mjs`（在 `info-tip.mjs` 之后最先加载）：按 `FEATURES` 表注入 CSS 隐藏入口（默认隐藏，状态返回后再显示）；
+    包装原型的 `menu()` 去掉隐藏功能的菜单项和指向隐藏路由的链接；包装 `go()` 使隐藏路由不可导航；命令面板同样过滤（`preferences.mjs`）。
+  - 原型专属、永远不可达：`help`（页面目录）、`page-doc`（逐页开发说明）、`resume`、`run`、`compose`、`free`、`welcome`。
+  - 学术站点在 `inAppBrowser` 关闭时用系统浏览器打开（`POST /api/open-url`）。
+  - 同时清理了原型页面上的说明文字：创建项目页的说明框、导图编辑器的两段提示（进入"i"）、外部资源卡片的副标题、首页输入框下的提示行；
+    "本轮更新说明"改为本轮实际完成的内容；设置"用量分析""内置浏览器"不再显示"此设置尚未开放"页。
+- **验证**：`scripts/ui-gallery.mjs` 的文案审计模式（`AUDIT_COPY=<路由,…>`）遍历全部路由与菜单并记录每个菜单项的结果；
+  `creation-details-smoke` 断言窗口中没有"即将 / 待接入 / 尚未"并且没有文件夹选择按钮；`features-smoke`（开关、菜单、路由、站点打开）。
+- **任务**：开关与任务书对应表见 `docs/tasks/FEATURE_FLAGS.md`。
+- **最近核对**：2026-09-25（Claude，云端，浏览器 smoke）。
+
 ## 3. 接口索引（`scripts/desktop-api.mjs`）
 
 所有接口需携带口令（2.15）。流式接口返回 NDJSON。
 
 | 分组 | 接口 |
 |---|---|
-| 状态 | `GET /api/status`、`GET /api/settings/info`、`POST /api/settings/open-folder` |
+| 状态 | `GET /api/status`（含 `features`，见 2.18）、`POST /api/open-url`、`GET /api/settings/info`、`POST /api/settings/open-folder` |
 | 工作区与对话 | `GET/POST /api/workspace`、`GET /api/chats`、`GET /api/chats/:id/messages`、`POST /api/chats/update|move|delete|mode|temporary-close` |
 | 主对话 | `POST /api/chat`（流）、`POST /api/chat/stop`、`GET/POST /api/chat/outbox`、`GET /api/chat/activity`、`GET /api/chat/search` |
 | 执行 | `GET /api/execution`、`POST /api/execution/goal|approval` |
@@ -446,11 +464,12 @@ DSH 自己的数据（会话历史、Provider 配置、凭据、技能）在 `.s
 | 原生 smoke | `native-*-smoke`、`assistant-window-smoke`、`shutdown-smoke` | 仅 Windows，需要已构建的 exe |
 | 真实模型（付费，需主动运行） | `real-provider-smoke`、`real-stream-smoke`、`runtime-hardening-live-smoke`、`scripts/evals/*` | key 从环境变量或不进 Git 的 `.sciencescope-local/secret/` 读取 |
 
-## 6. 原型中尚未接入真实功能的部分（⬜）
+## 6. 尚未接入真实功能的部分（⬜）
 
-内置浏览器与浏览器设置、外部资源页、用量分析、记忆管理、通知、语言切换、目录迁移、截图快捷键、系统全局热键、
-插件包安装与更新、导图导出、日志"定位到消息"、从消息分支的运行时分叉、PDF/DOCX 解析、资料全文检索、
-安装包与数据保留升级。这些入口多数保留在界面上，并按规范显示"尚未开放"，而不是假装成功。
+界面上不再显示"尚未开放"一类提示（2026-09-25 用户要求）。未完成功能的入口由功能开关隐藏（2.18），各有任务书：
+内置浏览器与浏览器设置（T08）、从消息分支（T12）、用量分析（T13）、项目材料面板（T05）、导图历史 / 版本说明页 / 版本比较 / 修改记录（T14）、
+插件安装与更新（T15）、目录迁移（T16）、Python 运行环境与原生文件夹选择（T11）、PDF/DOCX 解析（T04）。
+另有尚无任务书的：记忆管理界面（并入 T05/T09）、通知、语言切换、截图快捷键、系统全局热键、导图导出、日志"定位到消息"、安装包与数据保留升级（ROADMAP 阶段 B）。
 
 ## 7. 如何维护本文档
 

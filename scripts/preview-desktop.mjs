@@ -6,11 +6,11 @@ import {pathToFileURL} from 'node:url';
 import { buildDesktop, DESKTOP_ASSETS } from './build-desktop.mjs';
 import { createDesktopApi } from './desktop-api.mjs';
 
-export async function createDesktopServer({dataRoot,outputDir,runtimeHost}={}) {
+export async function createDesktopServer({dataRoot,outputDir,runtimeHost,openUrl}={}) {
 const entry = await buildDesktop({outputDir});
 const root = path.dirname(entry);
 const apiToken = randomBytes(32).toString('hex');
-const api = await createDesktopApi({dataRoot,runtimeHost,apiToken});
+const api = await createDesktopApi({dataRoot,runtimeHost,apiToken,...(openUrl?{openUrl}:{})});
 const routes = new Map([
   ['/', ['index.html','text/html; charset=utf-8']],
   ['/desktop/vendor/marked.mjs',['desktop/vendor/marked.mjs','text/javascript; charset=utf-8']],

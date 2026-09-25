@@ -1,5 +1,6 @@
 // Settings → 专家角色: the persisted expert panel used by 有序讨论 and @ invitations.
 // Ids stay stable when a label changes; the host validates every field.
+import {infoTip} from './info-tip.mjs';
 import {hostRequest} from './host-client.mjs';
 
 let roster = null, providers = [], failure = '', feedback = '';
@@ -20,7 +21,7 @@ function card(expert, index, count) {
       <div class="field" style="flex:1 1 160px"><label>职责标签</label><input name="role" maxlength="40" value="${esc(expert.role || '')}"></div>
       <div class="field" style="flex:2 1 260px"><label>模型</label><select name="model">${modelChoices(expert.model)}</select></div>
     </div>
-    <div class="field"><label>角色提示词（职责、侧重、必查清单；不授予权限）</label><textarea name="persona" maxlength="16000" required style="min-height:120px">${esc(expert.persona)}</textarea></div>
+    <div class="field"><label>角色提示词${infoTip('写明职责、侧重和必查清单。提示词不授予工具权限。', {label: '角色提示词说明'})}</label><textarea name="persona" maxlength="16000" required style="min-height:120px">${esc(expert.persona)}</textarea></div>
     <div class="row" style="gap:8px;align-items:center">
       <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" name="enabled" ${expert.enabled !== false ? 'checked' : ''}>参加讨论</label>
       <span class="spacer"></span>
@@ -36,8 +37,7 @@ export function expertSettingsContent() {
   const active = roster.filter(expert => expert.enabled !== false);
   const models = new Set(active.map(expert => expert.model ? expert.model.modelId : '(对话模型)'));
   const sameModel = active.length > 1 && models.size === 1;
-  return `<form data-expert-roster><h2>专家角色</h2>
-    <p>有序讨论时，所选专家读取同一份前文后并行独立作答，按下面的顺序展示，可指定一位审核专家最后核查；工作模式中用 @名称 邀请专家回答。专家的侧重由提示词决定，工具权限仍由对话的执行策略决定。</p>
+  return `<form data-expert-roster><h2>专家角色${infoTip('有序讨论时，所选专家读取同一份前文后并行独立作答，按下面的顺序展示，可指定一位审核专家最后核查。\n工作模式中用 @名称 邀请专家回答。\n专家的侧重由提示词决定，工具权限仍由对话的执行策略决定。', {label: '专家角色说明'})}</h2>
     ${sameModel ? '<p class="hint" role="note">当前参加讨论的专家都使用同一个模型。为不同专家选择不同厂商的模型，分歧通常更有信息量。</p>' : ''}
     ${roster.map((expert, index) => card(expert, index, roster.length)).join('') || '<p class="hint">名册为空；讨论前请至少添加一位专家。</p>'}
     <div class="saverow"><button type="button" class="btn" data-expert-add ${roster.length >= 8 ? 'disabled' : ''}>添加专家</button><span class="spacer"></span><button type="submit" class="btn primary">保存名册</button></div>

@@ -1,5 +1,41 @@
 # Desktop implementation — first increment
 
+## 2026-09-25 No "not developed" notices; feature flags; prototype copy (Claude, cloud)
+
+User direction: prototype explanations also go behind "i" or are deleted; all
+"not yet developed" notices are removed and the missing features become task
+briefs with interfaces.
+- Audit first: `scripts/ui-gallery.mjs` gained a copy-audit mode
+  (`AUDIT_COPY=<routes>`): visits every route, dumps visible prose and action
+  buttons, opens the top-bar, workspace, attachment and message menus and
+  triggers every item, recording toasts, route and modal. That showed the
+  Help menu reaching the prototype page catalog and per-page dev notes, the
+  in-app browser / branch / materials panel / change log entries ending in a
+  notice or sample content, and two settings pages saying "尚未开放".
+- Feature flags: `/api/status` returns `features` (all false today;
+  `folderPicker` comes from `SCIENCESCOPE_NATIVE_FEATURES=pickFolder` set by
+  the native shell). `desktop/features.mjs` hides each flag's CSS entry points
+  (hidden by default until the status arrives), filters prototype `menu()`
+  items and links to hidden routes (`data-route-to`), blocks `go()` to hidden
+  routes, and the command palette filters the same routes. Prototype-only
+  pages (`help`, `page-doc`, `resume`, `run`, `compose`, `free`, `welcome`)
+  are never reachable.
+- Academic sites open in the system browser through `POST /api/open-url`
+  (http/https only, token-protected) until the in-app browser exists.
+- Notices removed: in-app browser panel text and toasts, branch toast, "此设置
+  尚未开放" page, data-migration and plugin-CLI sentences, Python "即将提供"
+  (the field now offers only 系统 Python, which is what runs), folder picker
+  "等待更新" (button hidden until the flag), unparsed-format preview notice,
+  assistant-window footer, reset-demo toast; release notes rewritten.
+- Prototype copy: project page callout removed, map editor hints to "i",
+  source card subtitles and the home hint line removed; settings copy in
+  experts, roles, secretary, assistant window and model settings moved to
+  "i" (model notice box now shows only status).
+- Briefs: `docs/tasks/FEATURE_FLAGS.md`, T12 (branch via DSH
+  `session.fork`), T13 (usage), T14 (map history, version notes, diff, change
+  log), T15 (plugin management), T16 (data relocation); flag sections added
+  to T04, T05, T08, T11.
+
 ## 2026-09-25 Info tips replace explanatory page text (Claude, cloud)
 
 User direction: explanatory text should not be written into the pages; use one

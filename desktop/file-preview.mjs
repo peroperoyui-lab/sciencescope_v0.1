@@ -16,7 +16,7 @@ function docHTML(){
   if(!state.resourceId)return `<div class="file-preview-empty">${state.listPromise?'正在读取资料…':'当前项目还没有可预览的资料。可在输入框添加附件，或在数据库导入材料。'}</div>`;
   const doc=state.doc;
   if(!doc||doc.id!==state.resourceId)return '<div class="file-preview-empty">正在读取…</div>';
-  if(typeof doc.text!=='string')return `<div class="file-preview-empty"><p>此格式的文本尚未提取（${esc(doc.kind||'文件')}），暂不能在此选择文字。</p><p>可打开原件查看，或在输入框中点击该附件，手动添加文本标记。</p><button type="button" class="btn tiny" data-preview-open>打开原件</button></div>`;
+  if(typeof doc.text!=='string')return `<div class="file-preview-empty"><p>${esc(doc.title||'')} · ${esc(String(doc.kind||'文件').toUpperCase())}</p><button type="button" class="btn tiny" data-preview-open>打开原件</button></div>`;
   const body=MARKDOWN_KINDS.includes(String(doc.kind).toLowerCase())?`<div class="rendered-markdown">${renderMarkdown(doc.text)}</div>`:`<pre class="file-preview-plain">${esc(doc.text)}</pre>`;
   return `${doc.truncated?'<p class="hint file-preview-note">仅显示前 64000 字，与发送给模型的提取范围一致。</p>':''}<div class="docpaper file-preview-doc" data-preview-doc data-resource-id="${esc(doc.id)}">${body}</div>`;
 }
