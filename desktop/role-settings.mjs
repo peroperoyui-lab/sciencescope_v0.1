@@ -1,3 +1,4 @@
+import {infoTip} from './info-tip.mjs';
 import {hostRequest} from './host-client.mjs';
 const labels={main:'主专家',secretary:'任务秘书',global:'全局助手'};
 let roles=[],providers=[],failure='';
@@ -10,7 +11,7 @@ export function roleSettingsContent(target){
   const modelValue=config.model?JSON.stringify(config.model):'';
   const choices=providers.flatMap(p=>p.models.map(modelId=>({value:JSON.stringify({providerId:p.id,modelId}),label:p.name+' / '+modelId})));
   if(modelValue&&!choices.some(c=>c.value===modelValue))choices.push({value:modelValue,label:config.model.modelId+'（当前服务列表中不存在）'});
-  return `<form data-role-form="${id}"><h2>${labels[id]}设置</h2><p>${id==='main'?'它是统筹者，不建议给予主专家特定角色。':'提示词描述职责，不代替工具权限设置。'}</p>
+  return `<form data-role-form="${id}"><h2>${labels[id]}设置${infoTip(id==='main'?'它是统筹者，不建议给予主专家特定角色。':'提示词描述职责，不代替工具权限设置。',{label:'角色说明'})}</h2>
     <div class="field"><label>角色 system prompt</label><textarea name="prompt" maxlength="16000" required style="min-height:240px">${esc(config.prompt)}</textarea></div>
     <div class="field"><label>新对话默认模型</label><select name="model">${option('','由输入框选择',!modelValue)}${choices.map(c=>option(c.value,c.label,c.value===modelValue)).join('')}</select></div>
     <div class="field"><label>默认思考强度</label><select name="effort">${option('','模型默认',!config.reasoningEffort)}${config.reasoningEffort?option(config.reasoningEffort,config.reasoningEffort,true):''}</select><small data-effort-note>仅使用模型公开支持的强度。</small></div>

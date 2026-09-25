@@ -1,3 +1,4 @@
+import {infoTip} from './info-tip.mjs';
 import { PROTOCOLS, validateProviderDraft } from './provider-draft.mjs';
 import { hostRequest } from './host-client.mjs';
 
@@ -40,9 +41,9 @@ providerPage = function () {
   ${input('name', '服务名称', '例如：我的研究模型')}
   <div class="field"><label class="label" for="api-protocol">API 格式</label><select id="api-protocol" data-api-field="protocol" aria-describedby="api-error-protocol" aria-invalid="${!!errors.protocol}"><option value="">选择服务明确支持的协议</option>${PROTOCOLS.map(p => `<option value="${p.id}" ${draft.protocol === p.id ? 'selected' : ''}>${escape(p.label)}</option>`).join('')}</select>${error('protocol')}</div>
   ${input('baseUrl', '接口地址 · Base URL', 'https://api.example.com/v1')}
-  <div class="field"><label class="label" for="api-key-preview">API Key</label><input id="api-key-preview" type="password" ${host.saveProvider ? '' : 'disabled'} placeholder="${host.saveProvider ? '输入 API Key（不回显已存密钥）' : '凭证存储接通后可填写'}" autocomplete="off"><small class="muted">密钥不会保存在页面草稿或研究文件中。</small></div>
+  <div class="field"><label class="label" for="api-key-preview">API Key${infoTip('密钥不会保存在页面草稿或研究文件中。',{label:'API Key 说明'})}</label><input id="api-key-preview" type="password" ${host.saveProvider ? '' : 'disabled'} placeholder="${host.saveProvider ? '输入 API Key（不回显已存密钥）' : '凭证存储接通后可填写'}" autocomplete="off"></div>
   <div class="between api-model-heading"><h3>模型</h3><button type="button" class="btn" data-api-action="discover" ${!host.discoverModels || busy ? 'disabled' : ''}>${busy ? '处理中…' : '获取模型列表'}</button></div>
-  <div class="field"><label class="label" for="api-models">模型 ID <small class="muted">每行一个，可直接手动填写</small></label><textarea id="api-models" data-api-field="models" rows="4" placeholder="服务商提供的准确模型 ID" aria-describedby="api-error-models" aria-invalid="${!!errors.models}">${escape(draft.models)}</textarea>${error('models')}</div>
+  <div class="field"><label class="label" for="api-models">模型 ID${infoTip('每行一个，可直接手动填写服务商提供的准确模型 ID。',{label:'模型 ID 说明'})}</label><textarea id="api-models" data-api-field="models" rows="4" placeholder="服务商提供的准确模型 ID" aria-describedby="api-error-models" aria-invalid="${!!errors.models}">${escape(draft.models)}</textarea>${error('models')}</div>
   <details class="card subtle"><summary>连接说明</summary><p class="muted">地址请按服务商文档填写；协议不会根据模型名自动猜测。模型列表由 DSH 查询，不支持列表的服务可直接手填模型 ID。编辑时留空密钥会保留原密钥。</p></details>
   <div class="saverow">${action('取消', 'back')}<button type="submit" class="btn primary" ${busy ? 'disabled' : ''}>${busy ? '保存中…' : host.saveProvider ? '保存服务' : '保存草稿'}</button></div>
   <p class="muted api-footnote">保存草稿 ≠ 已连接 ≠ 模型可用</p>

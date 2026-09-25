@@ -95,7 +95,7 @@ try {
   assert.ok(menuBox && triggerBox && menuBox.y < triggerBox.y, 'execution policy menu opens above composer');
   assert.equal(await page.locator('#v-menu').evaluate(el => el.closest('dialog,.modal') === null), true);
   assert.equal(await page.locator('#v-menu .menu-line').count(), 3);
-  const policy = await page.locator('#v-menu .menu-line').evaluateAll(items => items.map(item => ({ text: item.innerText, color: getComputedStyle(item).color, tip: item.querySelector('.choice-tooltip')?.innerText || '' })));
+  const policy = await page.locator('#v-menu .menu-line').evaluateAll(items => items.map(item => ({ text: item.innerText, color: getComputedStyle(item).color, tip: item.querySelector('.info-tip')?.dataset.infoTip || '' })));
   assert.match(policy[1].text, /完全接管/); assert.match(policy[2].text, /自动化/);
   assert.match(policy[1].color, /rgb\(155, 86, 83\)|rgb\(155, 86, 83\)/); assert.ok(policy[1].tip && policy[2].tip);
   const before = await page.evaluate(() => {window.originalComposer=document.querySelector('[data-draft="main"]');window.originalTranscript=document.querySelector('.messages');return {scrollY};});

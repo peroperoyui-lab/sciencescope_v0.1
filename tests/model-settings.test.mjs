@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createContext, Script } from 'node:vm';
 import { PROTOCOLS, validateProviderDraft } from '../desktop/provider-draft.mjs';
+import { infoTip } from '../desktop/info-tip.mjs';
 
 async function mount() {
   const handlers = {};
   const context = createContext({
-    PROTOCOLS, validateProviderDraft,
+    PROTOCOLS, validateProviderDraft, infoTip,
     hostRequest: async () => { throw new Error('No host in offline UI test'); },
     modelsPage() {}, providerPage() {}, pageintro: (title, note, button = '') => title + note + button,
     ic: () => '', S: {settings:{}}, render() {}, closeMenu() {},
