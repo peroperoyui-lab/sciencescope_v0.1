@@ -314,7 +314,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 
 | 设置页 | 状态 | 说明 |
 |---|---|---|
-| 个人资料与常规 | ✅ | 用户名、简介（只用于界面，不发给模型）；主题（浅色/深色/跟随系统）、密度、正文与代码字号、发送键、减少动画、滚动条、恢复默认。表 `profile`、`desktop_preferences`；接口 `/api/profile`、`/api/preferences`；跨窗口用 BroadcastChannel 同步 |
+| 个人资料与常规 | ✅ | 用户名、简介（只用于界面，不发给模型）；界面字体、主题（浅色/深色/跟随系统）、密度、正文与代码字号、发送键、减少动画、滚动条、恢复默认。表 `profile`、`desktop_preferences`；接口 `/api/profile`、`/api/preferences`；跨窗口用 BroadcastChannel 同步 |
 | 执行策略 | ✅ | 说明页，策略在每个对话的输入框里选 |
 | 任务秘书 | ✅ | 角色设置 + 版本说明模板（表 `secretary_preferences`） |
 | 全局助手 | ✅ | 角色设置 + 启动行为 |
@@ -322,7 +322,18 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 | 快捷键 | ✅ | 四项导航快捷键可录制重映射（冲突校验、恢复默认、跨窗口同步），旧键失效；表 `shortcut_settings`；`desktop/shortcuts.mjs` 是唯一派发入口 |
 | 插件与技能 | ✅ | 本地 SKILL.md 的添加、编辑、启停、可恢复的移除（`adapters/runtime-dsh/skill-manager.mjs`，技能目录 `dsh/skills`）；DSH 插件清单只读（`/api/plugins/inventory`）。不支持安装插件包 |
 | 专家角色 | ✅ | 见 2.6 |
-| 内置浏览器、用量分析 | ⬜ | 显示"此设置尚未开放"，不提供假开关 |
+| 内置浏览器、用量分析 | ⬜ | 入口隐藏（功能开关 `inAppBrowser`、`usage`，见 2.18） |
+
+**界面字体**（2026-09-25）：默认使用随客户端安装的思源黑体（Noto Sans SC 可变字体，SIL OFL 1.1，npm `@fontsource-variable/noto-sans-sc` 5.3.0，
+101 个按 unicode-range 拆分的 woff2，共约 4.6 MB，用到哪些字才加载哪些）。设置 → 个人资料与常规 → 界面字体可选择本机已安装的任何字体：
+- 字体列表 `GET /api/fonts[?refresh=1]`（`scripts/system-fonts.mjs`）：Windows 通过 PowerShell 读取系统字体集合（UTF-8 输出，保留"微软雅黑"等本地化名称，含当前用户安装的字体），
+  失败时读取注册表 HKLM/HKCU 的字体列表；其他系统用 fontconfig。去重、去掉竖排 "@" 字体，名称按原样列出（字体自身名称异常时会显示为乱码，仍可选择）。
+- 保存到 `desktop_preferences.ui_font`（`'default'` 或字体名；拒绝可能跳出 CSS 字符串的字符）；点击"保存"后立即应用并同步到其他窗口：
+  根元素 `--ss-font` = `"所选字体", var(--ss-font-default)`，默认栈为 思源黑体 → 微软雅黑 → 黑体 → 苹方 → Noto Sans CJK → 系统字体；代码字体不变。
+  原型中内联的 Georgia 装饰标题也跟随界面字体。选择前的"研究 ScienceScope…"一行是即时预览，不代表已保存。
+- 打包：`scripts/build-desktop.mjs` 的 `VENDOR_ASSETS` 同时决定复制的文件和生产路由的白名单（`scripts/preview-desktop.mjs`），字体许可证随之复制到 `desktop/vendor/noto-sans-sc/LICENSE`。
+- 验证：`desktop-preferences`、`system-fonts` 单元测试；`settings-ui-smoke`（默认字体为内置思源黑体且中文子集经生产路由加载、列表显示、预览、保存后全局生效、重启后保持）。
+  Windows 上的 PowerShell 读取路径尚未在真机上运行。
 
 验证：`desktop-preferences`、`profile-store`、`shortcut-settings`、`secretary-preferences`、`skill-manager` 单元测试；
 `settings-ui-smoke`、`shortcuts-ui-smoke`、`extensions-ui-smoke`、`skills-runtime-smoke`。
@@ -430,7 +441,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 | 工作文件夹 | `POST /api/folders/check`（校验，见 2.1a） |
 | 工作站 | `GET /api/workbench`、`GET /api/workbench/files|asset|plans`、`POST /api/workbench/save|bind|import|asset|version|plans|open|organize` |
 | 模型与角色 | `GET /api/providers`、`POST /api/providers/save|discover|remove`、`GET /api/model-info`、`GET /api/roles`、`GET /api/roles/history`、`POST /api/roles/save|apply` |
-| 设置 | `/api/profile`、`/api/preferences`（+`/reset`）、`/api/shortcuts`（+`/reset`）、`/api/secretary/preferences`、`/api/assistant-window/preferences` |
+| 设置 | `/api/profile`、`/api/preferences`（+`/reset`）、`/api/fonts`、`/api/shortcuts`（+`/reset`）、`/api/secretary/preferences`、`/api/assistant-window/preferences` |
 | 技能与插件 | `GET /api/skills`、`GET /api/skills/read`、`POST /api/skills/save|enabled|remove`、`GET /api/plugins/inventory` |
 | 宿主控制 | `POST /__host_shutdown`（独立的关闭口令，只由 Tauri 调用） |
 

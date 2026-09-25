@@ -11,6 +11,7 @@
   "dependencies": {
     "@deepseek-ai/dsh": "0.1.6-alpha.1",
     "@deepseek-ai/dsh-sdk-client": "0.1.6-alpha.1",
+    "@fontsource-variable/noto-sans-sc": "5.3.0",
     "dompurify": "3.4.15",
     "marked": "18.0.13"
   },

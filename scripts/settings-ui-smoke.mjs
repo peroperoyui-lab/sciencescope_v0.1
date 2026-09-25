@@ -7,13 +7,21 @@ import {apiFetch,installApiToken} from './smoke-auth.mjs';
 const base=path.resolve('.sciencescope-local/temp');await mkdir(base,{recursive:true});
 const root=await mkdtemp(path.join(base,'settings-ui-'));let browser,server;
 try{
-  server=await createDesktopServer({dataRoot:root,outputDir:path.join(root,'assets'),runtimeHost:{listProviders:async()=>[{id:'fixture',name:'Fixture',models:['one']}],getModelInfo:async()=>({reasoning:{efforts:[{id:'high',name:'High'}]}}),close:async()=>{}}});
+  server=await createDesktopServer({dataRoot:root,outputDir:path.join(root,'assets'),listFonts:async()=>({fonts:['SimHei','DejaVu Sans','微软雅黑'],source:'fixture'}),runtimeHost:{listProviders:async()=>[{id:'fixture',name:'Fixture',models:['one']}],getModelInfo:async()=>({reasoning:{efforts:[{id:'high',name:'High'}]}}),close:async()=>{}}});
   browser=await chromium.launchPersistentContext(path.join(root,'profile'),{headless:true,executablePath:process.env.SCIENCESCOPE_BROWSER||'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',env:{...process.env,TEMP:root,TMP:root}});
   const page=await browser.newPage(),errors=[];await installApiToken(page,server);page.on('pageerror',error=>errors.push(error.message));
   const seeded=await apiFetch(server,'api/workspace',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({projects:[{id:'settings-project',name:'Settings fixture',desc:'',archived:false}],pins:[],projectExpanded:{},lastChatId:null})});assert.equal(seeded.status,200);
   await page.goto(server.url+'#general');await page.waitForFunction(()=>window.ScienceScopeWorkspace?.ready&&window.ScienceScopePreferences?.ready);
   await page.evaluate(async()=>{await window.ScienceScopeWorkspace.ready;await window.ScienceScopePreferences.ready;go('general');});
   await page.waitForSelector('#desktop-preferences-form');
+  // Interface font: bundled 思源黑体 by default, served through the production router.
+  assert.match(await page.evaluate(()=>getComputedStyle(document.body).fontFamily),/^"Noto Sans SC Variable"/);
+  assert.ok((await page.evaluate(async()=>(await document.fonts.load('16px "Noto Sans SC Variable"','研究')).length))>0,'bundled CJK subset loads');
+  await page.waitForFunction(()=>document.querySelectorAll('select[name="uiFont"] option').length===4);
+  assert.deepEqual(await page.locator('select[name="uiFont"] option').allInnerTexts(),['思源黑体（内置）','SimHei','DejaVu Sans','微软雅黑']);
+  await page.locator('[name="uiFont"]').selectOption('DejaVu Sans');
+  assert.match(await page.locator('[data-font-preview]').evaluate(el=>el.style.fontFamily),/DejaVu Sans/,'preview follows the choice before saving');
+  assert.match(await page.evaluate(()=>getComputedStyle(document.body).fontFamily),/^"Noto Sans SC Variable"/,'not applied until saved');
   await page.locator('[name="chatFontSize"]').selectOption('18');
   await page.locator('[name="theme"]').selectOption('dark');
   await page.locator('[name="density"]').selectOption('compact');
@@ -25,6 +33,8 @@ try{
   await page.waitForFunction(()=>window.ScienceScopePreferences.get().sendKey==='ctrl-enter');
   await page.reload();await page.waitForSelector('#desktop-preferences-form');
   assert.equal(await page.locator('[name="chatFontSize"]').inputValue(),'18');
+  assert.equal(await page.locator('[name="uiFont"]').inputValue(),'DejaVu Sans');
+  assert.match(await page.evaluate(()=>getComputedStyle(document.body).fontFamily),/^"DejaVu Sans", "Noto Sans SC Variable"/,'saved font applies globally with the bundled fallback');
   assert.equal(await page.evaluate(()=>document.documentElement.dataset.theme),'dark');
   assert.equal(await page.evaluate(()=>document.documentElement.dataset.density),'compact');
   assert.equal(await page.evaluate(()=>getComputedStyle(document.body).backgroundColor),'rgb(22, 25, 23)');

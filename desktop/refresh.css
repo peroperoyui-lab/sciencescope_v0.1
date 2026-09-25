@@ -4,7 +4,10 @@
    Tokens: type 12/13/14/15, spacing 4-based, radius 6/8/12/16, motion 120-240ms. */
 
 :root{
-  --ss-font:"Inter","Segoe UI Variable","Segoe UI","PingFang SC","Noto Sans CJK SC","Microsoft YaHei",system-ui,sans-serif;
+  /* Default interface font: bundled 思源黑体 (Noto Sans SC, desktop/vendor/noto-sans-sc),
+     then installed 黑体 families. Settings → 界面字体 puts a chosen family in front. */
+  --ss-font-default:"Noto Sans SC Variable","Microsoft YaHei","SimHei","PingFang SC","Noto Sans CJK SC",system-ui,sans-serif;
+  --ss-font:var(--ss-font-default);
   --ss-mono:"JetBrains Mono","Cascadia Code","SFMono-Regular",Consolas,"Noto Sans Mono CJK SC",monospace;
   --paper:#fbfbf9; --side:#f4f4f0; --raised:#ffffff; --sunken:#f1f2ee; --hover:#ecede8; --press:#e4e6df;
   --ink:#1f2420; --ink-2:#4a524b; --muted:#6f766e; --faint:#9aa098;
@@ -412,3 +415,9 @@ h1 .info-tip,h2 .info-tip,h3 .info-tip{vertical-align:2px}
 .creation-note[data-error]{color:var(--danger)}
 .creation-python select{width:100%}
 .creation-python select:disabled{opacity:.7}
+
+/* Interface font setting: the prototype's decorative inline serif titles follow it too */
+[style*="font-family:Georgia"]{font-family:var(--ss-font)!important}
+.font-choice{display:flex;flex-direction:column;align-items:stretch;gap:6px;min-width:240px}
+.font-choice-row{display:flex;gap:6px;align-items:center}.font-choice-row select{flex:1;min-width:0}
+.font-preview{font-size:13px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
