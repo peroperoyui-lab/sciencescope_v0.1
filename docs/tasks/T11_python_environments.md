@@ -26,6 +26,15 @@
 - 在工具说明和会话的运行时上下文中告诉模型："当前 Python 环境是 X；需要新包时用 python_env_install，不要直接用 pip"。
 
 ## 新建详情窗口（用户 2026-09-25 要求，见设计文档"新建时的详情窗口"一节）
+
+> **状态更新（Claude，2026-09-25）**：下面 1、2、4、5 的前端与文件夹部分已完成并有测试（`desktop/creation-details.mjs`、
+> `scripts/workspace-folders.mjs`、`/api/folders/check`、`scripts/creation-details-smoke.mjs`，见 SYSTEM_SPEC 2.1a）。**不要重写这部分界面**。Astra 要做的：
+> - `GET /api/python/envs` 返回 `{envs:[{id,name,version}], defaultEnvId, system:{available,version}}`：前端一旦拿到就自动启用 Python 字段；
+>   `POST /api/python/bind {scope:'project'|'chat', targetId, envId}`（`envId:'system'` 表示不分配）。
+> - 对话首条消息的请求体里已带 `pythonEnvId`（`/api/chat` 与 `/api/discussion`）：在 `ensureMainBinding` 中写入 `python_env_bindings` 并用于 `resolve`。
+> - 第 3 条：Tauri 命令 `pick_folder({title}) -> Option<String>`（用户取消返回 null），用官方 `tauri-plugin-dialog` 实现，只授予主窗口；
+>   前端已直接 `invoke('pick_folder')`，不需要改 `native-window.mjs`。
+> - 真实验收 0：在原生窗口中验证。
 1. 新建项目弹窗：在现有的名称和研究目标下方增加"工作文件夹"和"Python 环境"。确定后创建项目：选择已有文件夹时调用现有的 `workbench.bind`，并写入环境绑定。
 2. 新建独立对话（侧栏"独立新对话"、快捷键、命令面板，所有入口都走同一个函数）：先弹出只含"工作文件夹"和"Python 环境"的窗口，确定后进入现有欢迎页草稿。
    选择保存在草稿中，首条消息被接受时写入：对话的运行工作区用 `chatStore.markRuntimeBinding`，并写入 `python_env_bindings`。

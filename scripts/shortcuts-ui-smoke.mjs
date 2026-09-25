@@ -27,7 +27,8 @@ try{
   await page.keyboard.press('Control+Shift+f');await page.waitForSelector('#command-query');
   await page.keyboard.press('Escape');
   await page.keyboard.press('Control+Shift+k');await page.waitForFunction(()=>route==='projects');
-  await page.keyboard.press('Control+Alt+n');await page.waitForSelector('[data-draft="main"]');
+  await page.keyboard.press('Control+Alt+n');await page.waitForSelector('#modal .creation-dialog');
+  await page.locator('[data-creation-start]').click();await page.waitForSelector('[data-draft="main"]');
   assert.equal(await page.evaluate(()=>S.threads.length),0,'new draft does not create a persisted chat');
   const second=await browser.newPage();await installApiToken(second,server);await second.goto(server.url+'#shortcuts');await second.waitForSelector('[data-shortcut-input]:enabled');
   await page.evaluate(()=>go('shortcuts'));await page.locator('[data-shortcut-reset]').click();

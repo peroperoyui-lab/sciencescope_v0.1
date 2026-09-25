@@ -116,6 +116,7 @@ try {
   await page.locator('[data-route="quick"]').click({button:'right'});
   assert.equal(await page.locator('#v-menu button').count(),3);
   await page.locator('[data-v="ws-new-independent"]').click();
+  await page.locator('#modal [data-creation-start]').click();await page.waitForFunction(()=>!document.querySelector('#modal'));
   assert.equal(await page.evaluate(()=>activeThread().projectId),null);
   await page.locator('[data-route="quick"]').click({button:'right'});
   assert.equal(await page.locator('#v-menu button').count(),2);await page.keyboard.press('Escape');

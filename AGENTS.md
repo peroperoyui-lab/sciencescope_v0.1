@@ -63,6 +63,8 @@ actual remote branch and SHA; failed pushes are not delivery.
   relevant user screenshot. Change only the explicitly requested behavior;
   preserve surrounding layout. A draft chat keeps the approved home/welcome
   composition until its first message is accepted, without a separate route.
+  Creating an independent chat first shows a small in-app details dialog
+  (working folder, Python environment); the welcome draft after it is unchanged.
   User-facing identity comes from the local profile, never the prototype's Joy.
 
 - Keep production interactions in readable `desktop/*.mjs` and styles, not edits

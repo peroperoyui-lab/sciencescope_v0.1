@@ -25,8 +25,8 @@ function handleKey(event){
   if(new URLSearchParams(location.search).has('surface'))return true;
   if(action==='search')openPalette();
   else if(action==='browse')go('projects');
-  else if(action==='newChat')window.SSV2?.newThread();
-  else if(action==='independentChat')window.SSV2?.newThread(null);
+  else if(action==='newChat')window.ScienceScopeCreation?window.ScienceScopeCreation.newChat(window.ScienceScopeWorkspace?.focusedProject?.()):window.SSV2?.newThread();
+  else if(action==='independentChat')window.ScienceScopeCreation?window.ScienceScopeCreation.newChat(null):window.SSV2?.newThread(null);
   return true;
 }
 window.ScienceScopeShortcuts={handleKey,get:()=>({...bindings})};

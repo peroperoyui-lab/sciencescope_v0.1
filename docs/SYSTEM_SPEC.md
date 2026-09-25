@@ -95,6 +95,25 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 - **验证**：`chat-store`、`application-database` 单元测试；`workspace-ui-smoke`、`desktop-navigation-smoke`。
 - **已知限制**：删除为软删除，没有"回收站"界面。
 
+#### 2.1a 新建详情：工作文件夹与 Python 环境（2026-09-25）
+- **用途与操作**：新建独立对话（侧栏"新对话"在没有聚焦项目时、右键"独立新对话"、Alt+Ctrl+N、命令面板，全部走 `ScienceScopeCreation.newChat`）
+  先弹出应用内"新建独立对话"窗口：工作文件夹三选一（为这个对话新建 / 独立对话公共文件夹 / 使用已有文件夹 + 路径与"选择…"）和 Python 环境；
+  取消不创建任何东西，确定后进入原有欢迎页草稿。项目内新对话继承项目，不弹窗；经窗口创建、尚未发送的草稿再次打开时不重复询问。
+  "创建研究项目"页的"工作目录"不再预填原型路径，留空=在数据目录下新建；填写后先校验再建项目，并绑定到该文件夹；下方增加 Python 环境字段。
+- **状态**：🟡 前端与文件夹校验、绑定 ✅（单元、界面）；Python 环境后端与原生文件夹选择框 ⬜（T11，Astra）。
+  在 `/api/python/*` 出现之前，Python 字段显示为不可选的"系统 Python"并说明原因，不假装已应用；
+  没有 Tauri `pick_folder` 命令时，"选择…"只提示粘贴完整路径，不退回浏览器对话框。
+- **技术实现**：
+  - 前端 `desktop/creation-details.mjs`；选择保存在草稿（`workspaceChoice`、`pythonEnvId`），首条消息随 `/api/chat`、`/api/discussion` 发送。
+  - 宿主 `scripts/workspace-folders.mjs` 的 `validateWorkFolder`：必须是已存在的绝对路径文件夹；拒绝磁盘根、系统目录、
+    ScienceScope 自己的 `.sciencescope-local`（及包含它的文件夹）；整个用户目录给出警告，需再次确认。
+  - `desktop-api.mjs` `ensureMainBinding`：独立对话首条消息时按选择确定运行工作区——新建 → `projects/independent/<chatId>`，
+    公共 → `projects/independent`，已有 → 校验后的文件夹；`/api/workbench/bind` 也先校验；新增 `POST /api/folders/check`。
+  - 后端尚未处理 `pythonEnvId`（T11）。
+- **验证**：`tests/workspace-folders.test.mjs`；`scripts/creation-details-smoke.mjs`（窗口、取消、非法路径原地提示、已有文件夹成为 `startSession` 工作区、
+  默认新建文件夹、项目页校验与绑定、项目内对话不弹窗、Python 待接入状态，浅色 / 深色截图）。
+- **最近核对**：2026-09-25（Claude，云端，浏览器 smoke；原生窗口未测）。
+
 ### 2.2 主对话（主专家）
 
 - **用途与操作**：向主专家发送消息，逐字显示回答（Markdown、代码块复制、表格）；运行中发送键变为"停止"，
@@ -383,6 +402,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 | 专家讨论 | `GET/POST /api/experts`、`POST /api/discussion`（流）、`POST /api/discussion/adopt`、`POST /api/discussion/cancel` |
 | 秘书与全局助手 | `GET /api/assistant`、`POST /api/assistant/chat`（流）、`/assistant/draft|model|approval|stop|proposal/resolve` |
 | 研究输入与资料 | `GET/POST /api/research-input/draft`、`GET /api/library`、`GET /api/library/preview`、`POST /api/library/import|open`、`GET /api/knowledge`、`POST /api/knowledge/propose|accept` |
+| 工作文件夹 | `POST /api/folders/check`（校验，见 2.1a） |
 | 工作站 | `GET /api/workbench`、`GET /api/workbench/files|asset|plans`、`POST /api/workbench/save|bind|import|asset|version|plans|open|organize` |
 | 模型与角色 | `GET /api/providers`、`POST /api/providers/save|discover|remove`、`GET /api/model-info`、`GET /api/roles`、`GET /api/roles/history`、`POST /api/roles/save|apply` |
 | 设置 | `/api/profile`、`/api/preferences`（+`/reset`）、`/api/shortcuts`（+`/reset`）、`/api/secretary/preferences`、`/api/assistant-window/preferences` |
@@ -413,8 +433,8 @@ DSH 自己的数据（会话历史、Provider 配置、凭据、技能）在 `.s
 
 | 类型 | 运行方式 | 说明 |
 |---|---|---|
-| 离线单元测试 | `npm test`（并发 2） | 39 个文件、120 项（2026-09-25）；部分启动真实 DSH，配合本地模拟模型。`expert-discussion-runtime` 的并发断言在满负载时偶发失败（单独运行和多次整套运行均通过），待加固 |
-| 浏览器 smoke | `SCIENCESCOPE_BROWSER=<chromium 路径> node scripts/<name>-smoke.mjs` | 默认使用 Windows Edge；走生产资源路由。chat-ui、failed-send-draft、research-input-ui、marks-ui、settings-ui、shortcuts-ui、extensions-ui、workbench-ui、workspace-ui、desktop-navigation、discussion-ui。`desktop-interaction-smoke` 在 main 上同样失败（未走 API 令牌，待修）；`ui-gallery.mjs` 生成截图集 |
+| 离线单元测试 | `npm test`（并发 2） | 40 个文件、121 项（2026-09-25）；部分启动真实 DSH，配合本地模拟模型。`expert-discussion-runtime` 的并发断言在满负载时偶发失败（单独运行和多次整套运行均通过），待加固 |
+| 浏览器 smoke | `SCIENCESCOPE_BROWSER=<chromium 路径> node scripts/<name>-smoke.mjs` | 默认使用 Windows Edge；走生产资源路由。chat-ui、failed-send-draft、research-input-ui、marks-ui、settings-ui、shortcuts-ui、extensions-ui、workbench-ui、workspace-ui、desktop-navigation、discussion-ui、creation-details。`desktop-interaction-smoke` 在 main 上同样失败（未走 API 令牌，待修）；`ui-gallery.mjs` 生成截图集 |
 | DSH smoke | `node scripts/dsh-*-smoke.mjs`、`skills-runtime-smoke`、`assistant-api-smoke` | 真实 DSH + 本地模拟模型 |
 | 原生 smoke | `native-*-smoke`、`assistant-window-smoke`、`shutdown-smoke` | 仅 Windows，需要已构建的 exe |
 | 真实模型（付费，需主动运行） | `real-provider-smoke`、`real-stream-smoke`、`runtime-hardening-live-smoke`、`scripts/evals/*` | key 从环境变量或不进 Git 的 `.sciencescope-local/secret/` 读取 |

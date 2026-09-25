@@ -25,6 +25,7 @@ import {createChatAttachments} from './chat-attachments.mjs';
 import {createExpertRoster,ExpertRosterError} from './expert-roster.mjs';
 import {createDiscussionService,DiscussionError} from './discussion-service.mjs';
 import {createResearchBase,ResearchBaseError} from './research-base/index.mjs';
+import {validateWorkFolder,WorkFolderError} from './workspace-folders.mjs';
 
 function publicRuntimeMessage(error) {
   const raw = String(error?.message || '').toLowerCase();
@@ -180,7 +181,10 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   async function ensureMainBinding({key,input,projectFolder,modelRoute,modelKey,reasoningEffort}) {
     if (bindings.has(key)) return bindings.get(key);
     const originalWorkspace = chatStore.getRuntimeWorkspace(input.chatId);
-    const workspace = input.temporary ? path.join(dataRoot,'.sciencescope-local','temp','quick',input.chatId) : (originalWorkspace || projectFolder || path.join(projects,'independent'));
+    // An independent chat's working folder is chosen once, in the creation
+    // dialog, and applies when the chat is first created.
+    const chosen = !input.temporary && !originalWorkspace && !input.projectId ? await independentFolder(input.chatId, input.workspaceChoice) : null;
+    const workspace = input.temporary ? path.join(dataRoot,'.sciencescope-local','temp','quick',input.chatId) : (originalWorkspace || projectFolder || chosen || path.join(projects,'independent'));
     await mkdir(workspace,{recursive:true});
     const persona=input.temporary?roleSettings.get('main').prompt:roleSettings.bind(input.chatId,'main',{existing:!!chatStore.getBinding(input.chatId)}).prompt;
     const session = await host.startSession({model:{...modelRoute,...(reasoningEffort === undefined ? {} : {reasoningEffort})},workspace,runtimeConfig:host.getRuntimeConfig ? await host.getRuntimeConfig() : undefined,sessionId:input.temporary ? undefined : chatStore.getBinding(input.chatId) ?? undefined,persona});
@@ -190,6 +194,13 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       await chatStore.markRuntimeBinding(input.chatId,bindings.get(key).sessionId,workspace);
     }
     return bindings.get(key);
+  }
+  async function independentFolder(chatId, choice) {
+    if (!choice || typeof choice !== 'object') return null;
+    if (choice.mode === 'new') return path.join(projects,'independent',chatId);
+    if (choice.mode === 'shared') return path.join(projects,'independent');
+    if (choice.mode === 'existing') return (await validateWorkFolder(choice.folder,{dataRoot})).folder;
+    throw new WorkFolderError('工作文件夹选项无效。');
   }
   // Expert discussion turn. Same chat, project and session rules as Main; the
   // experts run as DSH subagents of this chat's session.
@@ -450,7 +461,8 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         json(response,200,await chatStore.updateWorkspace(input)); return true;
       }
       if (route === '/api/workbench/save') { json(response,200,await workbench.call(input.projectId,'save',{revision:input.revision,map:input.map,logs:input.logs,autoOrganize:input.autoOrganize})); return true; }
-      if (route === '/api/workbench/bind') { json(response,200,await workbench.call(input.projectId,'bind',input.folder)); return true; }
+      if (route === '/api/workbench/bind') { const {folder}=await validateWorkFolder(input.folder,{dataRoot}); json(response,200,await workbench.call(input.projectId,'bind',folder)); return true; }
+      if (route === '/api/folders/check') { json(response,200,await validateWorkFolder(input.folder,{dataRoot})); return true; }
       if (route === '/api/workbench/import') {
         if (typeof input.base64 !== 'string' || Buffer.byteLength(input.base64,'base64') > workbench.MAX_UPLOAD) throw new WorkbenchApiError('REQUEST_TOO_LARGE','上传文件不能超过 20MiB。',413);
         json(response,200,await workbench.call(input.projectId,'importFile',{name:input.name,base64:input.base64,group:input.group})); return true;
@@ -649,6 +661,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       onError?.(error);
       if(!response.headersSent&&(error.code==='INVALID_RESEARCH_INPUT'||['INVALID_RESEARCH_DRAFT','ATTACHMENT_UNAVAILABLE','INVALID_ATTACHMENTS','INVALID_ATTACHMENT_PATH'].includes(error.message))){json(response,400,{code:error.code||error.message,message:'研究材料或引用不可用，请检查来源；草稿和原件保留。'});return true;}
       if(!response.headersSent&&(error instanceof AssistantChatError||error instanceof AssistantConversationError)){json(response,Number.isInteger(error.status)?error.status:400,{code:error.code,message:error.message});return true;}
+      if(!response.headersSent&&error instanceof WorkFolderError){json(response,400,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof ResearchBaseError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&(error instanceof ExpertRosterError||error instanceof DiscussionError)){json(response,error.status,{code:error.code,message:error.message});return true;}
       if (error instanceof WorkbenchApiError||error instanceof RoleSettingsError||error instanceof SkillManagerError) { json(response,error.status,{code:error.code,message:error.message}); return true; }
