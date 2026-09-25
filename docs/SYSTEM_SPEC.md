@@ -356,7 +356,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   - 使用回执：每轮记录用到了哪些记录（brief / search / read）。
   - 旧的 `knowledge` 表逐行镜像为条目（`legacy_id`）；原有的 `/api/knowledge` 和资料库页面暂时不变。
 - **状态**：🟡 后端与智能体工具已实现并测试（单元、真实 DSH、真实模型）；界面（T05）、PDF/DOCX 解析与阅读器（T04）、文献元数据（T06）、
-  证据台账界面（T07）、浏览器（T08）、自动整理（T09）、向量检索（T10）未实现，任务书在 `docs/tasks/`。
+  证据台账界面（T07）、浏览器（T08）、自动整理（T09）、检索实测（T10）未完成；按用户决定只用关键词全文检索这一套，不做向量检索，任务书在 `docs/tasks/`。
 - **技术实现**：`scripts/research-base/`
   - `schema.mjs`（表）、`store.mjs`（校验、FTS 维护、提议、修订、回执）、`text-index.mjs`（中文二元组）、`search.mjs`（检索、阅读、引用、简报）、
     `ingest.mjs`（后台解析队列、分段）、`parsers/`（注册表 + text / markdown / latex）、`index.mjs`（路由与工具入口）。
@@ -366,7 +366,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
     发送前调用 `refreshBrief`；讨论的共享输入附上简报。
 - **验证**：`research-base`、`research-api` 单元测试；`research-tools-runtime`（真实 DSH + 本地模拟模型：主专家与专家都能调用工具、简报进入系统提示、没有处理器时工具报告不可用）；
   `scripts/evals/research-base-live.mjs`（真实 OpenCode Go，2026-09-25：主专家自行检索、阅读并引用 [S1] / [S2] / [@…]，公式原样引用；提议进入收件箱；被 @ 的专家检索并提议主张）。
-- **已知限制**：不支持 PDF / DOCX；没有界面；没有向量检索；在完全接管模式下，智能体的 bash 能读到应用数据目录（记录在设计文档 §8，需要单独处理 DSH 沙箱）；
+- **已知限制**：不支持 PDF / DOCX；没有界面；检索是关键词式的（语义由模型换词和中英文分别检索来弥补，尚未用真实论文实测）；在完全接管模式下，智能体的 bash 能读到应用数据目录（记录在设计文档 §8，需要单独处理 DSH 沙箱）；
   会话 ↔ 使用回执只覆盖主专家轮次（专家的回执待补）。
 
 ## 3. 接口索引（`scripts/desktop-api.mjs`）

@@ -50,9 +50,9 @@ export function apply(ctx) {
   const registerResearchTools = (tools, agent) => {
     tools.register(defineTool({
       name: 'research_search',
-      description: "Search the user's research base for this project: parsed papers and files (passages with page numbers), sources, and confirmed knowledge, theory models/formulas/algorithms, claims and long-term memory. Returns cite labels such as [S3 p.4] or [@a1b2c3d4]; cite them verbatim in your answer. Search before answering questions about the project's literature or earlier decisions.",
+      description: "Search the user's research base for this project: parsed papers and files (passages with page numbers), sources, and confirmed knowledge, theory models/formulas/algorithms, claims and long-term memory. Keyword search (not semantic): use specific terms, synonyms and abbreviations, and search again with keywords in the other language (Chinese and English) because papers are often in English. Returns cite labels such as [S3 p.4] or [@a1b2c3d4]; cite them verbatim in your answer. Search before answering questions about the project's literature or earlier decisions.",
       parameters: {
-        query: { type: 'string', required: true, description: 'Keywords in the language of the material (Chinese or English); 1-2000 characters.' },
+        query: { type: 'string', required: true, description: 'Keywords, 1-2000 characters. Several short terms work better than a sentence.' },
         types: { type: 'array', items: { type: 'string', enum: ['chunk', 'source', 'item'] }, description: 'Restrict to passages (chunk), bibliographic sources, or distilled items.' },
         itemTypes: { type: 'array', items: { type: 'string', enum: ['knowledge', 'model', 'memory', 'claim', 'note'] } },
         limit: { type: 'integer', description: 'Maximum hits, 1-20 (default 8).' },
