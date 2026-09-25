@@ -34,6 +34,7 @@ try{
   await page.waitForFunction(()=>S.messages.some(message=>message.text==='FIRST_PART'));
   const chatId=await page.evaluate(()=>V.chat);
   await page.locator('[data-route="quick"]').first().click();
+  await page.locator('#modal [data-creation-start]').click();await page.waitForFunction(()=>!document.querySelector('#modal'));
   await page.locator('[data-draft="main"]').fill('B_DRAFT_KEEP');
   const row=page.locator(`[data-object="chat"][data-object-id="${chatId}"]`).first();
   await page.waitForFunction(id=>document.querySelector(`[data-object-id="${id}"] .chat-activity-badge`)?.dataset.state==='running',chatId);

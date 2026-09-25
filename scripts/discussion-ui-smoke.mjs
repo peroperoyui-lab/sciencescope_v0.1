@@ -123,7 +123,12 @@ try {
   // The review joins later context only when the user adopts it.
   const adopt = page.locator('[data-review-adopt]');
   assert.equal(await adopt.getAttribute('aria-pressed'), 'false');
-  await adopt.click();
+  // One real click once the transcript has settled. Locator.click() retries when
+  // its hit-target check races the final layout, and the page's capture
+  // listener sees both attempts, toggling the review twice.
+  let box = null;
+  for (let i = 0; i < 20; i++) { const next = await adopt.boundingBox(); if (box && next && box.x === next.x && box.y === next.y) break; box = next; await page.waitForTimeout(50); }
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
   await page.waitForFunction(() => document.querySelector('[data-review-adopt]')?.getAttribute('aria-pressed') === 'true');
   assert.deepEqual(calls.at(-1), {route: 'adopt', body: {chatId: calls[0].body.chatId, messageId: 'msg-ordered-statistician-1', adopted: true}});
   // Work mode: typing @ offers enabled experts; Enter picks one and never sends.

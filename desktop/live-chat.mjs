@@ -85,7 +85,7 @@ try{researchInput=options.outboxId?{attachmentIds:[],messageQuotes:[],annotation
     if (follow) box.scrollTop = box.scrollHeight;
   };
   try {
-    await streamChat({projectId:thread.projectId || null, chatId, model, text,researchInput,reasoningEffort,executionMode, title:thread.title==='新对话'?text.trim().slice(0,40):thread.title, userMessageId:userId, assistantMessageId:answerId, temporary:!!thread.temporary,...(options.outboxId?{outboxId:options.outboxId}:{})}, event => {
+    await streamChat({projectId:thread.projectId || null, chatId, model, text,researchInput,reasoningEffort,executionMode, title:thread.title==='新对话'?text.trim().slice(0,40):thread.title, userMessageId:userId, assistantMessageId:answerId, temporary:!!thread.temporary, workspaceChoice:thread.workspaceChoice||{mode:'new'}, ...(thread.pythonEnvId?{pythonEnvId:thread.pythonEnvId}:{}),...(options.outboxId?{outboxId:options.outboxId}:{})}, event => {
       if (event.type === 'accepted' && !accepted) {
         const previousBox=chatId===V.chat?document.querySelector('.messages'):null;
         const previousTop=previousBox?.scrollTop || 0;

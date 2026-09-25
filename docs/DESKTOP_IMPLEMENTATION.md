@@ -1,5 +1,34 @@
 # Desktop implementation — first increment
 
+## 2026-09-25 Creation details dialog: working folder and Python environment (Claude, cloud)
+
+User request: creating a project or an independent chat asks for the working
+folder and the Python environment. Interaction implemented here; the Python
+backend and the native folder picker belong to T11 (Astra).
+- Every independent-chat entry (sidebar, context menu, Alt+Ctrl+N, command
+  palette) calls `ScienceScopeCreation.newChat`, which opens an in-app dialog:
+  new folder for this chat (default, `projects/independent/<chatId>`), shared
+  independent folder, or an existing folder. Cancel creates nothing; confirm
+  enters the unchanged welcome draft. Project chats inherit and do not ask;
+  an unsent draft made through the dialog reopens without asking again (the
+  startup welcome draft has no choices yet, so it asks).
+- The approved "创建研究项目" page no longer submits the prototype placeholder
+  path; its 工作目录 field is validated by the host before the project exists,
+  then bound through `/api/workbench/bind`. A Python field sits below it.
+- Host: `scripts/workspace-folders.mjs` refuses relative/missing paths, files,
+  drive roots, system folders and the app's own data; the whole home folder
+  needs a second confirmation. `/api/folders/check` is new; `workbench/bind`
+  validates too.
+- Placeholder honesty: without `/api/python/envs` the Python field is a
+  disabled "系统 Python" with an explanation; without the Tauri `pick_folder`
+  command "选择…" asks the user to paste a path (no browser dialogs).
+- Verified: `npm test` 121/121; `creation-details-smoke` and the updated
+  workspace-ui, desktop-navigation, shortcuts-ui, background-chat smokes. `discussion-ui-smoke`
+  was flaky (also on the previous commit): Playwright's hit-target retry
+  delivered two clicks to the adopt toggle's capture listener. The smoke now
+  clicks once after the button's position settles; 10/10 passes. Native window
+  not tested.
+
 ## 2026-09-25 Retrieval decision, Python environments design, docs map (Claude, cloud) — docs only
 
 Decisions recorded with the user today (no product code changed):

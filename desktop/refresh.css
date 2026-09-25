@@ -384,3 +384,22 @@ dialog::backdrop{background:color-mix(in srgb,#0d110e 32%,transparent);backdrop-
 .mention-title{padding:4px 8px 6px;font-size:11.5px;font-weight:600;color:var(--muted)}
 @keyframes ss-pulse{0%,100%{opacity:1}50%{opacity:.35}}
 @media (prefers-reduced-motion:reduce){.expert-state::before,.panel-chip i{animation:none!important}}
+
+/* creation details: working folder + Python environment */
+.creation-dialog{width:min(520px,calc(100vw - 32px))}
+.creation-dialog-body{display:flex;flex-direction:column;gap:6px}
+.creation-dialog-body .field{margin:0 0 10px}
+.creation-choice{display:flex!important;flex-direction:row!important;gap:10px;align-items:flex-start;text-align:left;padding:9px 12px;margin:0 0 6px;border:1px solid var(--line);border-radius:var(--r-md);cursor:pointer;transition:border-color var(--t-fast),background var(--t-fast)}
+.creation-choice[data-selected]{border-color:var(--accent-line);background:var(--accent-soft)}
+.creation-choice input{display:inline-block!important;width:auto!important;height:auto!important;flex:none;margin:3px 0 0!important;accent-color:var(--accent)}
+.creation-choice:not([data-selected]):hover{background:var(--hover)}
+.creation-choice span{display:flex;flex-direction:column;gap:2px}
+.creation-choice b{font-weight:500;font-size:13.5px;color:var(--ink)}
+.creation-choice small{font-size:12px;color:var(--muted)}
+.creation-folder-row{display:flex;gap:8px;margin:2px 0 0 24px}
+.creation-folder-row input{flex:1;min-width:0}
+.creation-folder-row input:disabled,.creation-folder-row button:disabled{opacity:.5}
+.creation-note{min-height:18px;margin:6px 0 0}
+.creation-note[data-error]{color:#a4473f}
+.creation-python select{width:100%}
+.creation-python select:disabled{opacity:.7}

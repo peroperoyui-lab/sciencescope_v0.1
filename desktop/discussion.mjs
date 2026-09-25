@@ -124,7 +124,7 @@ async function submitDiscussion(text, {kind, expertIds, reviewerId = null}) {
   const schedule = messageId => { if (!pendingPaint.has(messageId)) { pendingPaint.add(messageId); setTimeout(() => { pendingPaint.delete(messageId); paintAnswer(messageId); }, 60); } };
   const setState = (messageId, state) => { live.set(messageId, state); paintStrip(); schedule(messageId); };
   try {
-    await streamChat({chatId, projectId: thread.projectId || null, model, text, kind, expertIds, reviewerId, researchInput, userMessageId: userId,
+    await streamChat({chatId, projectId: thread.projectId || null, model, text, kind, expertIds, reviewerId, researchInput, userMessageId: userId, workspaceChoice: thread.workspaceChoice || {mode: 'new'}, ...(thread.pythonEnvId ? {pythonEnvId: thread.pythonEnvId} : {}),
       executionMode: window.ScienceScopeExecution?.mode() === 'full' ? 'full' : 'ask', title: thread.title === '新对话' ? text.trim().slice(0, 40) : thread.title}, event => {
       if (event.type === 'accepted' && !accepted) {
         accepted = true;

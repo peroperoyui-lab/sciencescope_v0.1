@@ -216,6 +216,10 @@ async function removeObject(kind,id) {
 }
 
 function snapshot() {return {projects:S.projects.map(({id,name,desc,archived})=>({id,name,desc,archived})),pins:S.pins,projectExpanded:S.projectExpanded,lastChatId:S.threads.some(t=>t.id===V.chat)?V.chat:null};}
+async function saveNow() {
+  clearTimeout(state.saving);
+  const payload=snapshot();await hostRequest('workspace',payload);state.lastSaved=JSON.stringify(payload);state.saveError=false;
+}
 function scheduleSave() {
   if(!state.ready||V.surface)return;
   clearTimeout(state.saving);
@@ -271,14 +275,21 @@ window.addEventListener('click',async event=>{
   try {
     if(action==='create-project'||action==='create-project-v2') {
       const name=document.getElementById('new-project-name')?.value.trim();if(!name)return toast('请输入项目名称。');
+      // Working folder and Python environment come from the creation page
+      // (creation-details.mjs); a folder the host rejects keeps the page open.
+      const choice=window.ScienceScopeCreation?await window.ScienceScopeCreation.projectChoice():{folder:null,envId:null};
+      if(!choice)return;
       const project={id:'project-'+crypto.randomUUID(),name,desc:document.getElementById('new-project-goal')?.value || ''};
-      S.projects.push(project);S.projectExpanded[project.id]=true;selectProject(project.id);scheduleSave();
+      S.projects.push(project);S.projectExpanded[project.id]=true;selectProject(project.id);
+      await saveNow();
+      try{await window.ScienceScopeCreation?.applyProjectChoice(project,choice);}
+      catch(error){toast('项目已创建，但工作文件夹或 Python 环境未能应用：'+error.message+'（可在工作站中重新绑定目录）');}
     } else if(action==='release-notes') {
       modal('桌面版更新 · 聊天工作区',`<ul><li>发送首条消息后创建对话，支持独立对话加入项目。</li><li>聊天分页保存，重启后从 DSH 持久会话接续。</li><li>原生辅助窗口、摘要与侧栏联动、窄栏输入优化。</li><li>移除操作需要确认，保留本地聊天历史。</li></ul><p>材料导入与默认程序打开、工具调用展示、助手完整功能仍待接线。</p>`);
     } else if(isNew) {
       closeMenu();
       if(action==='ws-new-window')await openDetached('quick');
-      else newThread(action==='ws-new-independent'?null:target.dataset.project || focusedProject());
+      else (window.ScienceScopeCreation?.newChat||newThread)(action==='ws-new-independent'?null:target.dataset.project || focusedProject());
     } else if(action==='history')await pageHistory(target.dataset.direction);
     else if(action==='choose-project')menu(S.projects.filter(p=>!p.archived).map(p=>({text:p.name,act:'ws-move',attrs:`data-id="${esc(id)}" data-project="${esc(p.id)}"`,icon:'folder'})),target,'加入项目');
     else if(action==='delete-object') {closeMenu();await removeObject(target.dataset.kind,id);}
@@ -369,6 +380,8 @@ window.ScienceScopeWorkspace={
     state.pages.set(id,page);saveThread();render();if(follow)scrollLatest();else if(document.querySelector('.messages'))document.querySelector('.messages').scrollTop=top;
   },
   resolveThread:id=>state.draft?.id===id?state.draft:S.threads.find(t=>t.id===id),
+  focusedProject:()=>focusedProject(),
+  draftFor:key=>state.drafts.get(key)||null,
   async beforeSend(id) {
     await window.ScienceScopeWorkspace.ready;
     if(!state.ready)throw new Error('工作区尚未就绪，暂不能发送。');
