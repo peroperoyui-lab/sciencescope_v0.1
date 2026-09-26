@@ -525,6 +525,13 @@ DSH 自己的数据（会话历史、Provider 配置、凭据、技能）在 `.s
 
 ## 5. 测试与验收索引
 
+最近核对：2026-09-26（Astra，Windows 11，基线 `b875ac7`，本地验收阶段 0）。
+`npm ci`、桌面资源构建和 `npm test` 126/126 通过；chat-ui、discussion-ui、marks-ui、research-input-ui 通过。
+settings-ui 首次在重载后的字体值断言失败（`default`，预期 `DejaVu Sans`），原断言复跑通过，尚不能据此确认根因或稳定性。
+desktop-interaction 的认证/路由夹具改用生产宿主后，仍在旧选区颜色断言失败：实际为刷新样式的半透明 accent，预期为旧灰色。
+未修改生产样式或测试预期。按 LOCAL_VALIDATION 的停止条件，阶段 1–3 未测，不据此升级任何原生验收状态。
+详细命令、截图与未执行项见 DESKTOP_IMPLEMENTATION 顶部同日小节。
+
 | 类型 | 运行方式 | 说明 |
 |---|---|---|
 | 离线单元测试 | `npm test`（并发 2） | 40 个文件、121 项（2026-09-25）；部分启动真实 DSH，配合本地模拟模型。`expert-discussion-runtime` 的并发断言在满负载时偶发失败（单独运行和多次整套运行均通过），待加固 |

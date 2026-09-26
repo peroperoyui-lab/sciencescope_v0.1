@@ -1,5 +1,52 @@
 # Desktop implementation — first increment
 
+## 2026-09-26 Batch 1 Windows local validation — STOPPED / stage 0 FAILED (Astra)
+
+### Baseline and scope
+- Workspace: `H:\ScienceScope_v0.1-desktop`; external H drive available. Initial worktree clean.
+- Fetched `origin/claude/determined-pasteur-jxpzw8` at `b875ac715f6f45db1b52f4622ad0bb6d414cfef2`.
+- Review branch: `codex/local-validation-20260926`. No reset, PR or merge. The previously created T17/T18 branch has no implementation changes; batch 2 was not started.
+- Environment: Windows 11 Home Chinese, 10.0.26100; Intel Core Ultra 9 275HX (24 cores); 33,737,986,048 bytes RAM; Node 25.8.1, npm 11.11.0; installed Edge 153.0.4234.48.
+- Process-local PATH includes `D:\nodejs`; npm cache remains under this H workspace's `.sciencescope-local/cache/npm`, TEMP/TMP under `.sciencescope-local/temp`. No global configuration changed.
+
+### Results
+| Stage | Result | Evidence |
+|---|---|---|
+| 0: sync / dependency install / build / regression | **FAILED, stopped** | Installation/build/unit tests passed; interaction smoke still fails; settings first run failed, one reproduction passed |
+| 1: native Windows acceptance, including current T03 checks | NOT TESTED | Stage 0 stop condition; no native rebuild/restart performed |
+| 2: T04 parsers/readers | NOT STARTED | Stage gate not passed |
+| 3: T10 retrieval evaluation only | NOT STARTED | Stage gate not passed; no embedding or hybrid retrieval implementation |
+
+Actual commands (from this workspace; outputs in `.sciencescope-local/temp/local-validation/`):
+- `npm ci`: PASS, 447 packages added, 448 audited, 0 reported vulnerabilities (about 5 minutes). `npm-ci.log`.
+- `node scripts/build-desktop.mjs`: PASS. `build-desktop.log`.
+- `npm test`: **126 PASS, 0 FAIL, 0 skipped**, 114.2 seconds. Includes real DSH with local model fixtures; not paid-provider evidence. `npm-test.log`.
+- `node scripts/chat-ui-smoke.mjs`: PASS; 4 local requests, no paid requests.
+- `node scripts/discussion-ui-smoke.mjs`: PASS; 5 local requests, no paid requests.
+- `node scripts/marks-ui-smoke.mjs`: PASS.
+- `node scripts/research-input-ui-smoke.mjs`: PASS.
+- `node scripts/settings-ui-smoke.mjs`: first run FAIL at line 36; one unchanged-assertion reproduction PASS after adding failure screenshot capture. Logs: `settings-ui-smoke.log`, `settings-ui-reproduction.log`.
+- `node scripts/desktop-interaction-smoke.mjs`: FAIL after repairing the explicitly authorized fixture. Luna run and independent primary-agent reproduction both fail at the original selection-color assertion. `desktop-interaction-smoke.log`.
+- `git diff --check`: PASS.
+- Not run after the first failure: workspace-ui, desktop-navigation, failed-send-draft, workbench-ui, shortcuts-ui, extensions-ui, background-chat, cargo build and all native/paid acceptance steps. They are not reported as PASS.
+
+### Reproduction and remaining problems
+1. **Interaction smoke — deterministic stale expectation / design conflict.** Run `node scripts/desktop-interaction-smoke.mjs` with installed Edge. It opens the real desktop router, sends a local fixture message, then checks shell/text selection. `::selection` actually returns `color(srgb 0.247059 0.376471 0.286275 / 0.22)`; the original assertion requires `rgb(222, 222, 219)`. `desktop/refresh.css:42` defines `color-mix(in srgb,var(--accent) 22%,transparent)`. The next, not-reached part also clicks `[data-work-mode="free"]`, although the current specification removes free discussion. Neither expectation was changed and the old mode was not restored. Requires review direction on updating the obsolete acceptance, rather than quietly weakening it.
+2. **Settings smoke — intermittent reload assertion.** Run `node scripts/settings-ui-smoke.mjs`: choose DejaVu Sans, save settings, reload, assert the font select value. First run saw `default` instead of `DejaVu Sans`; one reproduction passed without production changes or assertion changes. Root cause not established; asynchronous font-list loading is only a lead, not a proven diagnosis. First run had no failure screenshot hook. The newly added hook did not produce a screenshot because the reproduction passed; the original error log is retained. Do not represent this as a fixed product defect.
+
+### Small scoped changes
+- `scripts/desktop-interaction-smoke.mjs`: replace obsolete ad-hoc HTTP routes with `createDesktopServer` + `installApiToken` and an offline runtime fixture. Production Research Input routes now participate. Preserve every assertion; capture failure screenshot; fixtures and screenshots under temp. No production code changes.
+- `scripts/settings-ui-smoke.mjs`: capture a screenshot on failure and rethrow the original failure; no changed expected values or waits.
+- `scripts/chat-ui-smoke.mjs`, `scripts/workspace-ui-smoke.mjs`, `scripts/workbench-ui-smoke.mjs`: one-line output-directory changes placing artifacts under `.sciencescope-local/temp`.
+- Documentation: this dated result, SYSTEM_SPEC verification note, ROADMAP gate status. No dependency or lockfile changes.
+
+### Screenshots / real-model separation
+- Failure screenshot (browser, Chinese/light, not native): `H:\ScienceScope_v0.1-desktop\.sciencescope-local\temp\local-validation\desktop-interaction-failure.png`.
+- Passing streaming screenshot: `H:\ScienceScope_v0.1-desktop\.sciencescope-local\temp\ui-smoke\streaming-markdown.png`.
+- Dark/English/native screenshots: NOT TAKEN because execution stopped in stage 0. No fabricated native evidence.
+- Real paid-model calls: **0**. No key was read; no user research files were read or modified. All model responses in this stage used local test fixtures.
+- No recommendation to merge yet: stage 0 has unresolved failures and native acceptance has not started. Push this checkpoint for review; wait for confirmation before resuming. No work on batch 2.
+
 ## 2026-09-26 Conversation minutes, history recall, no expert input cap (Claude, cloud)
 
 User decision on the long-context proposal: the secretary keeps the minutes and

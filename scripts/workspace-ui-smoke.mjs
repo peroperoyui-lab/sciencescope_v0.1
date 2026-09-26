@@ -11,7 +11,7 @@ import {createChatStore,ProfileStore} from './chat-store.mjs';
 const base=path.join(defaultRoot,'.sciencescope-local','temp');await mkdir(base,{recursive:true});
 const root=await mkdtemp(path.join(base,'workspace-ui-'));
 process.env.TEMP=root;process.env.TMP=root;
-const artifacts=path.join(defaultRoot,'.sciencescope-local','workspace-ui');await mkdir(artifacts,{recursive:true});
+const artifacts=path.join(defaultRoot,'.sciencescope-local','temp','workspace-ui');await mkdir(artifacts,{recursive:true});
 const store=await createChatStore({stateDir:path.join(root,'state')});
 const profileStore=await new ProfileStore({stateDir:path.join(root,'state')}).init();
 await store.updateWorkspace({projects:[{id:'project-a',name:'真实交互验收项目',desc:'比较方法与证据'},{id:'project-b',name:'第二个项目'}],pins:[],projectExpanded:{'project-a':true},lastChatId:null});

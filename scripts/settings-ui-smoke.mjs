@@ -86,4 +86,8 @@ try{
   assert.equal(await page.evaluate(()=>document.documentElement.dataset.density),'standard');
   assert.deepEqual(errors,[]);
   console.log(JSON.stringify({settingsPersist:true,rolePromptSavedFromUI:true,crossWindowApply:true,realPaths:true,prototypeControlsRemoved:true,enterNewline:true,paidRequests:0}));
+}catch(error){
+  const artifacts=path.join(base,'local-validation');await mkdir(artifacts,{recursive:true});
+  await browser?.pages().find(page=>page.url().startsWith(server?.url))?.screenshot({path:path.join(artifacts,'settings-ui-failure.png'),fullPage:true}).catch(()=>{});
+  throw error;
 }finally{await browser?.close();await server?.close();await rm(root,{recursive:true,force:true});}
