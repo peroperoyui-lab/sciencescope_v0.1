@@ -38,6 +38,17 @@ try {
   await page.waitForFunction(() => document.documentElement.lang === 'en');
   const settingsText = await page.locator('body').innerText();
   for (const word of ['Reading and interaction', 'Language', 'Interface font', 'Theme', 'Profile and general']) assert.match(settingsText, new RegExp(word));
+
+  // Native window controls still work with translated titles (the × did
+  // nothing in English on Windows, 2026-09-26). Fake Tauri window API.
+  await page.evaluate(() => go('home'));
+  await page.evaluate(() => { window.__windowCalls = []; const w = {close: async () => __windowCalls.push('close'), minimize: async () => __windowCalls.push('minimize'), toggleMaximize: async () => __windowCalls.push('maximize')}; window.__TAURI__ = {...(window.__TAURI__ || {}), window: {getCurrentWindow: () => w}}; });
+  const controls = page.locator('.windowctl [data-v="window-info"]');
+  assert.deepEqual(await controls.evaluateAll(list => list.map(b => b.title)), ['Minimize', 'Maximize', 'Close main window'], 'titles are translated');
+  for (let i = 0; i < 3; i++) await controls.nth(i).click();
+  assert.deepEqual(await page.evaluate(() => window.__windowCalls), ['minimize', 'maximize', 'close']);
+  await page.evaluate(() => { delete window.__TAURI__.window; });
+  await page.evaluate(() => go('general')); await page.waitForSelector('#desktop-preferences-form');
   assert.equal(await page.locator('[name="language"] option[value="zh-CN"]').innerText(), '中文', 'a language keeps its own name');
   assert.match(await page.locator('.settingrow h3 .info-tip').first().getAttribute('data-info-tip'), /^[^\u3400-\u9fff]+$/u, 'info tips are English');
 
@@ -67,5 +78,5 @@ try {
   assert.doesNotMatch(await page.locator('.settingsnav').innerText(), /[A-Za-z]{4,}/, 'no English left in the settings navigation');
   await page.screenshot({path: path.join(base, 'i18n-zh-restored.png')});
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({switchToEnglish: true, persists: true, attributesAndTips: true, userDataKept: true, toasts: true, defaultTemplate: true, restoresChinese: true}));
+  console.log(JSON.stringify({switchToEnglish: true, windowControlsInEnglish: true, persists: true, attributesAndTips: true, userDataKept: true, toasts: true, defaultTemplate: true, restoresChinese: true}));
 } finally { await browser?.close(); await server.close(); await rm(root, {recursive: true, force: true}); }

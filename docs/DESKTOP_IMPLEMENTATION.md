@@ -1,5 +1,26 @@
 # Desktop implementation — first increment
 
+## 2026-09-26 Review of batch 1 r2 stage 1 failure (Claude, cloud)
+
+Reviewed `codex/local-validation-20260926-r2@508dc66` (fast-forwarded). Astra's
+two small fixes are kept: dark map inspector/preview use colour tokens;
+Windows font list adds Chinese family names (`GetName(2052)`, deduplicated).
+- **English title-bar × did nothing — fixed.** `desktop/native-window.mjs`
+  chose the window action by the button's Chinese `title`, which the English
+  interface translates. It now dispatches on the button glyph (− / □ / ×),
+  which is never translated. A scan of desktop modules and the prototype found
+  no other dispatch on translatable interface text (the remaining matches
+  compare chat titles, which are data).
+- Regression: `i18n-smoke` now clicks the three window controls in English
+  with a fake Tauri window API and asserts minimize / maximize / close; it
+  fails on the old code and passes on the fix.
+- Verified (Linux Chromium): `npm test` 126/126; i18n, desktop-interaction,
+  settings-ui, workbench-ui, desktop-navigation smokes pass. Native: not
+  re-run here; stage 1 must be repeated on Windows.
+- Note for paid evaluations on Windows: the key file
+  `.sciencescope-local/secret/opencode.key` does not exist in the H-drive
+  workspace; the user provides it before stage 3 or any live eval.
+
 ## 2026-09-26 Batch 1 local validation r2 — STOPPED / stage 1 FAILED (Astra, Windows)
 
 ### Delivery and stage gates
