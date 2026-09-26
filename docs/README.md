@@ -22,6 +22,7 @@
 | `docs/design/RESEARCH_BASE.md` | 研究资料库：统一数据后端、长期记忆、混合检索、文档解析、浏览器、最低配置 |
 | `docs/design/RESEARCH_MEMO_2026-09-25.md` | 调研备忘：记忆系统、知识管理、检索、文档工具、浏览器（每项标明核实方式） |
 | `docs/design/PYTHON_ENVIRONMENTS.md` | Python 运行环境：内置 3.14、uv 共享缓存、按任务分配 |
+| `docs/design/EXPERT_CONTEXT.md` | 专家的长上下文：共享纪要 + 近期原文 + 按需回查（建议方案，待确认） |
 | `docs/DSH_CONNECTION.md` | 与 DeepSeek Harness 的连接方式 |
 | `docs/NATIVE_SETUP.md` | Windows 原生构建环境 |
 

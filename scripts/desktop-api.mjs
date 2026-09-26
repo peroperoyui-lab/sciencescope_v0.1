@@ -27,6 +27,7 @@ import {createDiscussionService,DiscussionError} from './discussion-service.mjs'
 import {createResearchBase,ResearchBaseError} from './research-base/index.mjs';
 import {validateWorkFolder,WorkFolderError} from './workspace-folders.mjs';
 import {listSystemFonts} from './system-fonts.mjs';
+import {createDeliverables,DeliverableError} from './deliverables.mjs';
 
 function publicRuntimeMessage(error) {
   const raw = String(error?.message || '').toLowerCase();
@@ -101,6 +102,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   const profileStore = await new ProfileStore({stateDir:path.join(dataRoot,'.sciencescope-local','state')}).init();
   const database=chatStore.db;
   const preferences=createDesktopPreferences({db:database.db,dataRoot});
+  const deliverables=createDeliverables({db:database.db,openLocal:openLocalDocument});
   const secretaryPreferences=createSecretaryPreferences({db:database.db});
   const shortcuts=createShortcutSettings({db:database.db});
   const assistantWindowPreferences=createAssistantWindowPreferences({db:database.db});
@@ -296,7 +298,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         const scope=requestUrl.searchParams.get('scope'),ownerId=requestUrl.searchParams.get('ownerId');
         json(response,200,{...await assistants.snapshot(scope,ownerId,{before:requestUrl.searchParams.get('before')??undefined,after:requestUrl.searchParams.get('after')??undefined,limit:requestUrl.searchParams.get('limit')||60}),attachments:attachments.listDraft(scope,ownerId)});return true;
       }
-      if(route==='/api/execution'&&request.method==='GET'){json(response,200,execution?await execution.status(requestUrl.searchParams.get('chatId')):{mode:'ask',goal:null,approvals:[],unavailable:true});return true;}
+      if(route==='/api/execution'&&request.method==='GET'){const chatId=requestUrl.searchParams.get('chatId');const status=execution?await execution.status(chatId):{mode:'ask',goal:null,approvals:[],unavailable:true};json(response,200,{...status,expertContexts:discussions&&chatId?discussions.contexts(chatId):[]});return true;}
       if (route === '/api/chats' && request.method === 'GET') {
         json(response,200,{chats:chatStore.listChats(requestUrl.searchParams.has('projectId') ? requestUrl.searchParams.get('projectId') : undefined).filter(chat=>!conversations.isAssistant(chat.id))}); return true;
       }
@@ -339,6 +341,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if (route === '/api/workbench/plans' && request.method === 'GET') { json(response,200,await workbench.store.getPlans()); return true; }
       if (route === '/api/profile' && request.method === 'GET') { json(response,200,profileStore.getProfile()); return true; }
       if(route==='/api/preferences'&&request.method==='GET'){json(response,200,preferences.get());return true;}
+      if(route==='/api/chats/deliverable'&&request.method==='GET'){const image=await deliverables.image(requestUrl.searchParams.get('chatId')||'',requestUrl.searchParams.get('path')||'');binary(response,200,image.bytes,image.type);return true;}
       if(route==='/api/fonts'&&request.method==='GET'){json(response,200,await listFonts({refresh:requestUrl.searchParams.get('refresh')==='1'}));return true;}
       if(route==='/api/secretary/preferences'&&request.method==='GET'){json(response,200,secretaryPreferences.get());return true;}
       if(route==='/api/shortcuts'&&request.method==='GET'){json(response,200,shortcuts.get());return true;}
@@ -364,6 +367,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       const uploadRoute = ['/api/workbench/import','/api/workbench/asset','/api/library/import'].includes(route);
       for await (const chunk of request) { length += chunk.length; if(length > (uploadRoute ? 20*1024*1024 : 1024*1024)) throw new WorkbenchApiError('REQUEST_TOO_LARGE', uploadRoute ? '上传文件不能超过 20MiB。' : '请求内容过大。', 413); chunks.push(chunk); }
       let input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      if (route === '/api/chats/deliverable/open') { json(response,200,await deliverables.open(String(input.chatId||''),String(input.path||''))); return true; }
       if (route === '/api/open-url') { const href=externalUrl(input?.url); if(!href)throw new WorkbenchApiError('INVALID_URL','只能打开 http 或 https 网址。'); json(response,200,await openUrl(href)); return true; }
       if(!input||typeof input!=='object'||Array.isArray(input)){json(response,400,{message:'请求格式无效。'});return true;}
       if(input.researchInput!==undefined&&(!input.researchInput||typeof input.researchInput!=='object'||Array.isArray(input.researchInput))){json(response,400,{code:'INVALID_RESEARCH_INPUT',message:'研究输入格式无效，未发送。'});return true;}
@@ -680,6 +684,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(!response.headersSent&&(error.code==='INVALID_RESEARCH_INPUT'||['INVALID_RESEARCH_DRAFT','ATTACHMENT_UNAVAILABLE','INVALID_ATTACHMENTS','INVALID_ATTACHMENT_PATH'].includes(error.message))){json(response,400,{code:error.code||error.message,message:'研究材料或引用不可用，请检查来源；草稿和原件保留。'});return true;}
       if(!response.headersSent&&(error instanceof AssistantChatError||error instanceof AssistantConversationError)){json(response,Number.isInteger(error.status)?error.status:400,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof WorkFolderError){json(response,400,{code:error.code,message:error.message});return true;}
+      if(!response.headersSent&&error instanceof DeliverableError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof ResearchBaseError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&(error instanceof ExpertRosterError||error instanceof DiscussionError)){json(response,error.status,{code:error.code,message:error.message});return true;}
       if (error instanceof WorkbenchApiError||error instanceof RoleSettingsError||error instanceof SkillManagerError) { json(response,error.status,{code:error.code,message:error.message}); return true; }

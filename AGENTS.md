@@ -122,8 +122,9 @@ actual remote branch and SHA; failed pushes are not delivery.
 - 2026-09-24 revision: free discussion is removed; @expert in work mode invites
   experts. Ordered discussion shares the same prior transcript, runs selected
   experts in parallel and may end with a reviewer whose result enters later
-  context only when the user adopts it. Peers see answers and touched files,
-  never tool calls. Tool preambles belong to the tool card, not the answer.
+  context only when the user adopts it. Peers see answers and the files those
+  answers presented (DSH `present` deliverables), never tool calls, tool
+  results, preambles or files only read along the way (2026-09-26). Tool preambles belong to the tool card, not the answer.
 - Research Base (docs/design/RESEARCH_BASE.md, 2026-09-25): literature, knowledge,
   models/formulas, claims and memory share one store. Agents write only through
   research_propose into the user's inbox; the session, never model arguments,

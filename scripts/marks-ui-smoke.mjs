@@ -75,6 +75,8 @@ try{
   await page.locator('[data-composer="main"] [data-marks-toggle]').click();
   await page.locator('.marks-popover .mark-item').nth(1).locator('[data-mark-action="remove"]').click();
   await page.waitForFunction(()=>document.querySelectorAll('.marks-popover .mark-item').length===2);
+  // The toggle label repaints after the removal is saved.
+  await page.waitForFunction(()=>document.querySelector('[data-composer="main"] [data-marks-toggle]')?.textContent.includes('2'));
   assert.equal(await count(page),'标记 2');
   await page.keyboard.press('Escape');
   // Send: text + all current marks.

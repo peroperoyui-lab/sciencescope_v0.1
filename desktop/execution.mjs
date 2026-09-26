@@ -7,7 +7,7 @@ const labels={ask:'询问',full:'完全接管',auto:'自动化'};
 const modes=new Map();let currentId='',state={mode:'ask',goal:null,approvals:[]},fetching=false;
 const mode=()=>modes.get(V.chat)||state.mode||'ask';
 function paint(){
-  window.ScienceScopeContext?.update(V.chat,state.contextUsage);
+  window.ScienceScopeContext?.update(V.chat,state.contextUsage,state.expertContexts);
   S.settings.mode=labels[mode()];
   for(const el of document.querySelectorAll('[data-v="mode-menu"]'))el.textContent='◉ '+S.settings.mode;
   const column=document.querySelector('.chatcol');if(!column)return;
@@ -51,5 +51,5 @@ window.addEventListener('click',async event=>{
 },true);
 const after=window.ScienceScopeWorkspace.afterRender;
 window.ScienceScopeWorkspace.afterRender=(...args)=>{after?.(...args);if(currentId!==V.chat){state={mode:modes.get(V.chat)||'ask',goal:null,approvals:[]};currentId=V.chat;void poll();}paint();};
-window.ScienceScopeExecution={mode,openMenu,started(id,goal){if(id===V.chat){state={...state,goal,mode:'auto'};paint();}void poll();}};
+window.ScienceScopeExecution={mode,openMenu,refresh:()=>poll(),started(id,goal){if(id===V.chat){state={...state,goal,mode:'auto'};paint();}void poll();}};
 setInterval(()=>{if(!document.hidden||state.goal||V.pending.has(V.chat))void poll();},1800);
