@@ -1,5 +1,53 @@
 # Desktop implementation — first increment
 
+## 2026-09-27 User-requested pause — stage 2 delivered, stage 3 keyword checkpoint
+
+- User requested a pause after this checkpoint. **Do not automatically resume
+  stage 3 or start Batch 2.** Branch: `codex/local-validation-20260927-r4`.
+  Stage 0: `7f7118728317257dc08918cb5dd4308554c7a7f7`; stage 1:
+  `884790920271b283175f62cd7a66699e6498e5fc`; stage 2:
+  `05dea6eb72e650444a37c480a3a2911c8d5387e1`. No PR or merge.
+- Stage 3 is **PARTIAL**. Approved 52 paper questions and 8 separate synthetic
+  memory cases are tracked in `tests/fixtures/retrieval-eval/`; historical DRAFT
+  labels remain, with user approval recorded in its README. Gold bytes unchanged.
+  Mapping: `.sciencescope-local/temp/local-validation-r4/final-eval/mapping-frozen.json`.
+  Primary read all 25 manual decisions, validated source/page/evidence identities,
+  and spot-checked eight questions against chunk text. `phys-03` uses adjacent
+  full-name/abbreviation chunks c20+c21. Approved excerpts for `phys-06` and
+  `talent-02` are narrower than their full answers; preserve and disclose this
+  limitation. Evidence-hit recall does not prove complete answer support.
+- **Measured keyword baseline**, fixed Chinese wording, denominator 52:
+  R@1 **3/52 (5.77%)**, R@5 **6/52 (11.54%)**, R@10 **9/52 (17.31%)**;
+  query P50 **3.236 ms**, P95 **6.266 ms**. Synthetic memory positive
+  R@1/R@5/R@10 **0/5**, negative no-match accuracy **3/3**. These weak results
+  are preserved; production ranking was not changed to improve the scores.
+- First keyword attempt failed opening a new memory-case DB because its state
+  directory did not exist. The eval helper now creates its owned directory;
+  complete rerun exits 0, writes `final-eval/keyword-results.json` and
+  `keyword-run.log`. Other pre-run eval fixes separate R@1 from top-10 matches,
+  map confirmed/candidate/superseded states, isolate each case, use actual agent
+  visibility, and reject duplicate/missing mapping rows. Eval unit tests: **2/2**.
+  Production code remains the stage-2 checkpoint (136/136 unit tests and 20 smokes).
+- Local e5-small downloaded to `.sciencescope-local/models/multilingual-e5-small`,
+  Xenova revision `761b726dd34fb83930e26aab4e9ac3899aa1fa78`, int8 ONNX;
+  isolated `.sciencescope-local/bench` dependencies installed with `--ignore-scripts`.
+  Direct ONNX setup smoke: 384 dimensions, finite, L2 **0.9999999973**.
+  This is setup only: **full dense scores, P50/P95 and 500-paper estimates have
+  not run**. No hybrid retrieval was implemented.
+- Stage-3 paid requests: **0**. Counting-proxy helper exists in ignored
+  `.sciencescope-local/temp/local-validation-r4/live-retrieval/`; its live
+  application/DSH runner is not yet implemented. No proxy/DSH/native test process
+  or diagnostic port remains. Temporary `.sciencescope-local/secret/opencode.key`
+  was deleted at this pause after a no-match tracked/candidate-file secret scan.
+  User-saved Provider configuration was not deleted. Resuming paid evaluation
+  needs a new temporary credential.
+- Resume only on user confirmation: verify branch/checkpoint; inspect frozen
+  mapping and keyword evidence; run local dense benchmark; finish/review the live
+  runner; obtain credential and run capped three-question pilot before remaining
+  paper questions; independently audit answers/citations; record actual requests,
+  usage, final stage-3 SHA and batch report. Do not call this partial checkpoint
+  complete Batch-1 delivery or begin T17/T18/T19.
+
 ## 2026-09-27 T04 / Batch 1 stage 2 — PASS with documented parser limits
 
 - Delivery branch: `codex/local-validation-20260927-r4`, following stage 1
