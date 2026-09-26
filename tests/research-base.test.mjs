@@ -53,7 +53,7 @@ test('ingest, search, read and cite across markdown, LaTeX and CSV', async () =>
     assert.equal(byTitle['r-tex'].title, 'Insulin Model');
     assert.deepEqual(byTitle['r-tex'].authors.map((a) => a.literal), ['Ada Lovelace', 'Alan Turing']);
     assert.match(byTitle['r-tex'].abstract, /minimal model/);
-    assert.equal(byTitle['r-pdf'].contentStatus, 'unsupported', 'PDF waits for the T04 parser');
+    assert.equal(byTitle['r-pdf'].contentStatus, 'failed', 'corrupted PDF is reported as a failed parse after T04 parser registration');
     assert.deepEqual(sources.map((s) => s.label).sort(), ['S1', 'S2', 'S3', 'S4']);
 
     const hits = f.rb.retrieval.search({ query: '随机', projectId: 'p1' });

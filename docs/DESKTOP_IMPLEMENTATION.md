@@ -1,5 +1,74 @@
 # Desktop implementation — first increment
 
+## 2026-09-27 T04 / Batch 1 stage 2 — PASS with documented parser limits
+
+- Delivery branch: `codex/local-validation-20260927-r4`, following stage 1
+  `884790920271b283175f62cd7a66699e6498e5fc`; no PR and no merge.
+- Final verification: **npm test 136/136**, existing browser smokes **19/19**,
+  new viewer smoke PASS (32 screenshots), native Tauri viewer PASS (8 screenshots).
+  Final unit log: `.sciencescope-local/temp/local-validation-r4/viewer-ui/regression/npm-test-final.log`.
+  Native results/screens: `.sciencescope-local/temp/local-validation-r4/viewer-ui/native/`.
+  Primary read the native results and sampled actual native PDF/formula screenshots;
+  window close removed all 10 owned processes and closed diagnostic port 9246.
+- Final real-corpus diagnostic: 8 papers (4 Chinese / 4 English), 101 pages,
+  2017 blocks / 1412 production chunks; 4/4 Chinese literal queries hit top 1,
+  all page counts match, all emitted coordinates valid, no NUL text.
+  Evidence: `.sciencescope-local/temp/local-validation-r4/corpus-parser-check/final/`.
+  These are not the approved 52-question retrieval scores; stage 3 is next.
+- Parser fixes verified with focused regressions: local CMaps/standard fonts,
+  Han fragment joining, text-weighted body-font baseline, running page-number
+  filtering, and narrow central gutter column separation. Native originals
+  were not changed; original PDFs and test logs remain outside Git.
+- Limits: title/section inference remains heuristic, including table/affiliation
+  false positives. PDF formula tokens are searchable but superscripts/subscripts
+  are linearized and equations are not reconstructed as structured LaTeX.
+  Source pages 4/7 of the digital-economy paper were visually checked; formulas
+  now stay substantially within their column. Legacy embedded-font substitution
+  warnings remain. Scan rejection was tested with an image-only fixture because
+  none of the eight user PDFs is scanned. No OCR, hybrid retrieval, or original
+  document editing was implemented. Stage 2 made **0 paid requests**.
+
+- User approved the 52-paper-question + 8-synthetic-memory evaluation set in
+  `.sciencescope-local/temp/local-validation-r4/retrieval-draft/review.md`.
+  Scores will remain separate; approved answers will not be changed to fit results.
+- Reader wiring uses local PDF.js, mammoth/docx-preview, CodeMirror, KaTeX and
+  highlight.js, not a new document engine or a CDN. Parser/viewer dependencies
+  are pinned; esbuild bundles browser-only dependencies, pdf-lib/fontkit make
+  test fixtures. JSZip is a production dependency because DOCX metadata reads
+  the existing OOXML core properties. DSH dependencies are unchanged.
+- New authenticated document/content endpoints separate complete read-only
+  preview from the existing 64k model attachment budget. No originals or model
+  credentials are placed in Git; no source-editing feature or OCR is added.
+- Initial checks: document-preview API and parser tests 5/5; i18n unit tests
+  2/2; marks-ui and chat-ui pass. Further parser regressions, viewer smoke,
+  real-paper inspections and native screenshots are still running.
+- Found: research-input-ui expected a CSV `pre` element. T04 explicitly calls
+  for a table reader. Updated only its selection target to a real cell, retaining
+  selected-byte, line-provenance, outgoing-input and persisted-receipt checks;
+  the reader now computes CSV row provenance. Revalidation passed.
+- Viewer smoke passed after retaining failed-run evidence: PDF.js disposal raced
+  its initial page promise; initializing its cached first page/metadata before
+  returning a disposable viewer fixed rapid PDF/DOCX switching without ignoring
+  page errors. DOCX page chrome now uses trusted local CSS after sanitization;
+  reader content is excluded from UI translation, while generated Copy code
+  controls follow language changes. The smoke checks all these regressions.
+- Browser reader evidence: `local-validation-r4/viewer-ui/viewer-ui-smoke-seventh.log`
+  under `.sciencescope-local/temp`, 6 formats, 8 screenshot matrices / 32 images,
+  PDF page-2 quote and rectangles, 0 page errors / failed asset requests,
+  1 localhost model request / 0 paid requests. Primary reviewed updated DOCX,
+  LaTeX and chat screenshots. Full regressions: npm test 134/134, existing
+  browser smokes 19/19 (including assistant-api --ui), plus the new viewer smoke.
+  Logs/index: `local-validation-r4/viewer-ui/regression/`. Primary additionally
+  reran parser/Research Base/document API tests, 11/11. Native checks remain
+  in progress; none of these localhost results are paid-model evidence.
+- Real-corpus initial quality checks did not pass merely because 8/8 PDFs parsed:
+  missing local CMaps lost Chinese text, fragmented Han spacing affected search,
+  and heading heuristics overclassified body lines. Corrections and before/after
+  inspections are in progress; no claim of exact PDF formula reconstruction.
+- The following progress notes preserve the discovery sequence. Native acceptance
+  has since passed as recorded above; stage 3 scores are still pending.
+  Installation/signing are outside this batch.
+
 ## 2026-09-27 Batch 1 local validation r4 — IN PROGRESS (Astra, Windows)
 
 - **Stage 1 final result: PASS after repairs/revalidation.** Stage 0 is

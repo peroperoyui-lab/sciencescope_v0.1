@@ -8,7 +8,7 @@
 >
 > - 最近核对：2026-09-24，基线 `main@98e560a`（Claude 对照代码逐项核对）；2.2、2.4、2.5、2.16 于同日随界面刷新、标记与专家讨论修订（分支 `claude/determined-pasteur-jxpzw8`，未合并）更新；2026-09-25 新增 2.17 研究资料库（同一分支）；2026-09-26 新增 2.5b 对话纪要与历史回查，2.5 专家前文改为纪要 + 其后原文（同一分支）。
 > - 历史过程与每次验收细节见 `DESKTOP_IMPLEMENTATION.md`（按日期的开发日志）；本文件只写当前结果。
-> - 最近核对补充：2026-09-27，Astra 在 Windows 原生客户端完成 r4 阶段 1（审批修复、标记、多模型讨论、执行策略/自动化、界面与退出），128/128 测试、19/19 smoke；T04 与检索评测仍待本批后续阶段，不代表安装包验收。
+> - 最近核对补充：2026-09-27，Astra 在 Windows 完成 r4 阶段 1 与 T04（阶段 2），最终 136/136 测试、19 项原有 smoke 和新 viewer smoke，原生 PDF/标记/公式验收通过。真实 PDF 解析启发式限制见 2.17；阶段 3 正式检索评测尚待完成，不代表安装包验收。
 
 **状态标记**
 
@@ -168,23 +168,24 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   - "标记 N"按钮：在输入框的附件条中，N>0 时出现；点击展开二级快捷窗口，按顺序列出每个标记的来源（对话发言人或文件名+段落）、原文和备注，
     支持定位（滚动并闪烁到原消息，或打开文件预览并高亮原文）、修改备注、移除、全部清除；Esc 或点外部关闭，不重挂正文和输入框。
   - 发送：正文与当前全部标记、附件一起组成下一轮输入；发送后消息下显示可读回执"标记 N 条 · 材料 M 份"。
-  - 文件预览（右侧栏"文件预览与标记"）：显示资料库资源经同一提取路径得到的文本（与发送给模型的一致，最多 64000 字），
+  - 文件预览（右侧栏"文件预览与标记"）：T04 将阅读投影与模型附件预算分开；阅读器读取完整文本（文件大小上限 100 MB），模型附件仍共享 64000 字符预算，
     可切换当前项目的资料；已有标记在预览中高亮；数据库材料行有"预览"按钮。
 - **状态**：✅（单元、界面、Windows 原生）；2026-09-27 r4 原生连续三处对话标记及一处 Markdown 标记、编辑/定位/移除/回执通过；真实 DeepSeek V4.1 Flash 的回答逐项使用四处标记，持久化为 3 quotes + 1 annotation。
 - **技术实现**：
   - 前端 `desktop/research-input.mjs`（草稿、选区小窗、"标记 N"窗口、回执）、`desktop/file-preview.mjs`（真实预览栏，替换原型的演示预览；
-    `window.ScienceScopePreview.open(id,{highlight})`；原型中按版本打开预览时映射到 `metadata.versionId` 相同的资源）、`desktop/marks.css`。
+    `window.ScienceScopePreview.open(id,{page,highlight})`；原型中按版本打开预览时映射到 `metadata.versionId` 相同的资源）、`desktop/marks.css`。
     后端 `scripts/research-input.mjs`（编译器）、`research-input-store.mjs`（草稿、回执、已消费版本）、
     `chat-attachments.mjs`（读取原件；txt/md/csv/json/tex/log 按 UTF-8 最多提取 64000 字符，其他格式只给路径）。
   - 数据：消息标记存为 `messageQuotes`（来源对话、消息、原文、备注），文件标记存为 `annotations`（资源、原文、位置"第 N 段/行"、备注）；上限沿用 16 / 32 条。
   - 送给模型的格式：在 `[User-provided research material]` 标记内放 `<material>`、`<quote>`、`<annotation>` 标签块，
     正文保持原样，属性转义（2026-09-23 起，原为 JSON 字符串；对照实验见 `scripts/evals/material-format-ab.mjs`）。
-  - 接口：`GET/POST /api/research-input/draft`、`POST /api/library/import`、`GET /api/library/preview?id=`；Main、秘书、全局助手共用同一编译器。
+  - 接口：`GET/POST /api/research-input/draft`、`POST /api/library/import`、`GET /api/library/preview?id=`；Main、秘书、全局助手共用同一编译器。T04 阅读器新增受同一 Bearer 边界保护的 `GET /api/library/document?id=`（阅读投影和解析状态）、`GET /api/library/content?id=`（PDF/DOCX 原件），旧 preview 契约不变。
   - 表：`research_input_drafts`、`research_input_receipts`、`research_input_consumed`、`resources`。
   - 语义：发送确认后只清除本次捕获的标记版本；发送失败时恢复材料；秘书问答不消耗标记。
 - **验证**：`research-input`、`research-input-store`、`research-input-api`、`library-preview` 单元测试；`research-input-ui-smoke`、`marks-ui-smoke`
   （连续标记不弹框不重挂、预览标记、窗口内容、修改、两种定位、Esc/外部关闭、移除、发送携带全部标记、回执、秘书目标、全部清除）。
-- **已知限制**：**不解析 PDF、DOCX、图片**（预览显示"未提取"，可打开原件或手动添加文本标记）；多份附件共享 64000 字符预算；
+- **T04 最近核对（2026-09-27，Windows r4）**：PDF.js 阅读/文字层及页码标记、DOCX 正文/只读版式、CodeMirror 只读源码、CSV 前 500 行、KaTeX 公式及语法高亮已接线。新增 viewer smoke 和原有 19 项 smoke 通过；原生 PDF 跳页/高亮/标记和聊天公式通过中英、深浅色 8 张截图验收，10 个 owned PID 关闭后全部消失。API 原件与阅读投影均有鉴权回归，旧附件预算不变。DOCX 版式是 docx-preview 的近似呈现，不是 Word 排版引擎。
+- **已知限制**：不做 OCR，不编辑原件；PDF/DOCX 附件不会隐式将整份提取文本塞入 prompt，检索使用 Research Base 解析结果；多份文本附件共享 64000 字符预算；
   只处理鼠标选区（键盘选区未接）；从独立全局助手窗口标记、数据库"预览"按钮、原型按版本预览的映射未被自动测试覆盖。
 
 ### 2.5 专家讨论（多模型）
@@ -432,7 +433,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 - **用途**：统一的科研数据后端，存放文献与资料（来源和按页、按章节的段落）、提炼的知识、理论模型/公式/算法、结论与主张、长期记忆和笔记，
   可互相链接（证据、引用、取代等），供人和智能体检索与引用。设计与分工见 `docs/design/RESEARCH_BASE.md`，调研见 `docs/design/RESEARCH_MEMO_2026-09-25.md`。
 - **现在能做的**（均通过接口，**尚无专门界面**）：
-  - 资料解析与索引：txt / csv / 代码、Markdown、LaTeX 已支持；PDF、DOCX 标为"不支持"，待 T04。
+  - 资料解析与索引：txt / csv / 代码、Markdown、LaTeX、PDF（pdfjs-dist legacy）及 DOCX（mammoth）已支持；定向单元/API、浏览器与原生阅读器测试通过。扫描件返回 unsupported，不伪造 OCR 文本。
   - 中英文检索（FTS5 + 中文二元组，两字词可命中）、阅读窗口、引用标签解析（`[S3]`、`[S3 p.4]`、`[@a1b2c3d4]`）。
   - 条目的新建、修改（修订历史 + `expectedRevision` 防覆盖）、**取代**（旧记录保留并标为失效）、置顶、私有。
   - 智能体工具：主专家与每位专家子代理都有 `research_search`、`research_read`、`research_propose`。
@@ -441,19 +442,19 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
     有序讨论和 @ 邀请的专家通过共享输入获得同一份简报；私有条目不给任何智能体，专家经验只给对应专家。
   - 使用回执：每轮记录用到了哪些记录（brief / search / read）。
   - 旧的 `knowledge` 表逐行镜像为条目（`legacy_id`）；原有的 `/api/knowledge` 和资料库页面暂时不变。
-- **状态**：🟡 后端与智能体工具已实现并测试（单元、真实 DSH、真实模型）；界面（T05）、PDF/DOCX 解析与阅读器（T04）、文献元数据（T06）、
+- **状态**：🟡 后端与智能体工具已实现并测试（单元、真实 DSH、真实模型）；T04 文档解析/阅读器已验证，界面（T05）、文献元数据（T06）、
   证据台账界面（T07）、浏览器（T08）、自动整理（T09）、混合检索（T10：本地向量为主、关键词为辅、多问法，另加每轮记忆召回；默认模型为轻量的 multilingual-e5-small，更换入口以后再做）未完成；当前只有关键词检索，按用户决定这只是降级方案，任务书在 `docs/tasks/`。
 - **技术实现**：`scripts/research-base/`
   - `schema.mjs`（表）、`store.mjs`（校验、FTS 维护、提议、修订、回执）、`text-index.mjs`（中文二元组）、`search.mjs`（检索、阅读、引用、简报）、
-    `ingest.mjs`（后台解析队列、分段）、`parsers/`（注册表 + text / markdown / latex）、`index.mjs`（路由与工具入口）。
+    `ingest.mjs`（后台解析队列、分段）、`parsers/`（注册表 + text / markdown / latex / pdf / docx）、`index.mjs`（路由与工具入口）。
   - 运行时：`host.mjs` 新增 `/host-call`（DSH 子进程回调宿主）、`setToolHandler`、`configureBrief`；
     `session-control.mjs` 注册三个工具（专家子代理在 `agent/created` 时注册），增加 `/brief` 系统提示分段。
   - `desktop-api.mjs`：挂载 `/api/research/*`；`toolContext` 把会话映射为对话、项目和角色（主专家 / 秘书 / 全局 / 专家）；
     发送前调用 `refreshBrief`；讨论的共享输入附上简报。
 - **验证**：`research-base`、`research-api` 单元测试；`research-tools-runtime`（真实 DSH + 本地模拟模型：主专家与专家都能调用工具、简报进入系统提示、没有处理器时工具报告不可用）；
   `scripts/evals/research-base-live.mjs`（真实 OpenCode Go，2026-09-25：主专家自行检索、阅读并引用 [S1] / [S2] / [@…]，公式原样引用；提议进入收件箱；被 @ 的专家检索并提议主张）。
-- **最近核对**：2026-09-27 r4 原生/真实模型复验 MD/TeX 检索、阅读、引用与 brief/search/read 使用回执，项目绑定的 memory/convention 提议进入待确认状态；测试没有用文件/数据库工具绕过研究资料库接口。PDF/DOCX 与正式检索指标尚待 T04/阶段 3。
-- **已知限制**：不支持 PDF / DOCX；没有界面；目前只有关键词检索（实测对换说法和跨语言问题几乎无效，见设计文档 §3.1），混合检索待 T10；在完全接管模式下，智能体的 bash 能读到应用数据目录（记录在设计文档 §8，需要单独处理 DSH 沙箱）；
+- **最近核对**：2026-09-27 r4：阶段 1 真实模型复验 MD/TeX 检索/引用/提议；阶段 2 对 8 篇真实中英文论文解析 101 页、2017 blocks、1412 chunks，页码一致、坐标有效，4 篇中文指定检索均 top1。此项不是正式 52 题的召回评分，阶段 3 尚未评分。原件未修改或提交。
+- **已知限制**：PDF 标题/章节是字号和布局启发式，表格与复杂分式不能保证语义重建；部分嵌入字体有替换警告，原页可在阅读器查看；没有研究资料库专门界面；目前只有关键词检索（实测对换说法和跨语言问题几乎无效，见设计文档 §3.1），混合检索待 T10；在完全接管模式下，智能体的 bash 能读到应用数据目录（记录在设计文档 §8，需要单独处理 DSH 沙箱）；
   会话 ↔ 使用回执只覆盖主专家轮次（专家的回执待补）。
 
 ### 2.18 可选功能开关与原型页面（2026-09-25）
@@ -507,7 +508,7 @@ r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，
 | 对话纪要 | `GET/POST /api/chats/minutes`、`POST /api/chats/minutes/refresh`（2.5b） |
 | 专家讨论 | `GET/POST /api/experts`、`POST /api/discussion`（流）、`POST /api/discussion/adopt`、`POST /api/discussion/cancel` |
 | 秘书与全局助手 | `GET /api/assistant`、`POST /api/assistant/chat`（流）、`/assistant/draft|model|approval|stop|proposal/resolve` |
-| 研究输入与资料 | `GET/POST /api/research-input/draft`、`GET /api/library`、`GET /api/library/preview`、`POST /api/library/import|open`、`GET /api/knowledge`、`POST /api/knowledge/propose|accept` |
+| 研究输入与资料 | `GET/POST /api/research-input/draft`、`GET /api/library`、`GET /api/library/preview|document|content`、`POST /api/library/import|open`、`GET /api/knowledge`、`POST /api/knowledge/propose|accept` |
 | 工作文件夹 | `POST /api/folders/check`（校验，见 2.1a） |
 | 工作站 | `GET /api/workbench`、`GET /api/workbench/files|asset|plans`、`POST /api/workbench/save|bind|import|asset|version|plans|open|organize` |
 | 模型与角色 | `GET /api/providers`、`POST /api/providers/save|discover|remove`、`GET /api/model-info`、`GET /api/roles`、`GET /api/roles/history`、`POST /api/roles/save|apply` |
@@ -568,7 +569,7 @@ desktop-interaction 的认证/路由夹具改用生产宿主后，仍在旧选�
 
 界面上不再显示"尚未开放"一类提示（2026-09-25 用户要求）。未完成功能的入口由功能开关隐藏（2.18），各有任务书：
 内置浏览器与浏览器设置（T08）、从消息分支（T12）、用量分析（T13）、项目材料面板（T05）、导图历史 / 版本说明页 / 版本比较 / 修改记录（T14）、
-插件安装与更新（T15）、目录迁移（T16）、Python 运行环境与原生文件夹选择（T11）、PDF/DOCX 解析（T04）。
+插件安装与更新（T15）、目录迁移（T16）、Python 运行环境与原生文件夹选择（T11）。
 另有尚无任务书的：记忆管理界面（并入 T05/T09）、通知、截图快捷键、系统全局热键、导图导出、日志"定位到消息"、安装包与数据保留升级（ROADMAP 阶段 B）。
 
 ## 7. 如何维护本文档
