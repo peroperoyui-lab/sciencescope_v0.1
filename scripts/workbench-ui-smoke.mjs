@@ -89,7 +89,7 @@ try{
   const overflow=await page.locator('[data-node="root"] .nodetext').evaluate(el=>el.scrollWidth>el.clientWidth+2);
   assert.equal(overflow,false,'long text wraps horizontally');
   await page.evaluate(()=>go('workbench'));
-  const artifacts=path.join(defaultRoot,'.sciencescope-local/workbench-ui');await mkdir(artifacts,{recursive:true});
+  const artifacts=path.join(defaultRoot,'.sciencescope-local/temp/workbench-ui');await mkdir(artifacts,{recursive:true});
   await page.screenshot({path:path.join(artifacts,'workbench.png')});
   await page.evaluate(()=>go('map'));await page.screenshot({path:path.join(artifacts,'map.png')});
   const resource=await post('library/import',{projectId:'wb-test',name:'evidence.txt',base64:Buffer.from('Original source, not accepted knowledge.').toString('base64')});

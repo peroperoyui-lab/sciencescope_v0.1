@@ -1,66 +1,52 @@
 // Offline browser acceptance for the generated desktop shell. No provider or credentials.
-import http from 'node:http';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import { readFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { chromium } from 'playwright-core';
-import { buildDesktop } from './build-desktop.mjs';
-import { defaultRoot } from './prepare-desktop.mjs';
+import { createDesktopServer } from './preview-desktop.mjs';
+import { installApiToken } from './smoke-auth.mjs';
 import { createChatStore, ProfileStore } from './chat-store.mjs';
 
-const tempBase = path.join(defaultRoot, '.sciencescope-local', 'temp');
+const tempBase = path.resolve('.sciencescope-local', 'temp');
 await mkdir(tempBase, { recursive: true });
 const tempRoot = await mkdtemp(path.join(tempBase, 'desktop-interaction-'));
 process.env.TEMP = tempRoot; process.env.TMP = tempRoot;
-const artifacts = path.join(defaultRoot, '.sciencescope-local', 'desktop-interaction-smoke');
+const artifacts = path.join(tempBase, 'desktop-interaction-smoke');
 await mkdir(artifacts, { recursive: true });
-const store = await createChatStore({ stateDir: path.join(tempRoot, 'state') });
-const profileStore = await new ProfileStore({ stateDir: path.join(tempRoot, 'state') }).init();
+const store = await createChatStore({ stateDir: path.join(tempRoot, '.sciencescope-local', 'state') });
+const profileStore = await new ProfileStore({ stateDir: path.join(tempRoot, '.sciencescope-local', 'state') }).init();
 await store.updateWorkspace({ projects: [{ id: 'p1', name: '交互验收项目', desc: '离线 fixture' }], pins: [], projectExpanded: { p1: true }, lastChatId: null });
-const entry = await buildDesktop();
-
-const server = http.createServer(async (req, res) => {
-  try {
-    const url = new URL(req.url, 'http://localhost');
-    const send = value => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(value)); };
-    let input = {};
-    if (req.method === 'POST') { const chunks = []; for await (const chunk of req) chunks.push(chunk); input = JSON.parse(Buffer.concat(chunks)); }
-    if (url.pathname === '/api/status') return send({ available: true, saveProvider: false, tokenStreaming: true });
-    if (url.pathname === '/api/providers') return send({ providers: [] });
-    if (url.pathname === '/api/profile') return send(req.method === 'POST' ? await profileStore.updateProfile(input) : profileStore.getProfile());
-    if (url.pathname === '/api/workspace') return send(req.method === 'POST' ? await store.updateWorkspace(input) : await store.getWorkspace());
-    if (url.pathname === '/api/chats') return send({ chats: store.listChats() });
-    const messages = url.pathname.match(/^\/api\/chats\/(.+)\/messages$/);
-    if (messages) return send(await store.pageMessages(messages[1], Object.fromEntries(url.searchParams)));
-    if (url.pathname === '/api/chats/update') return send(await store.updateMetadata(input.chatId, input));
-    if (url.pathname === '/api/chats/mode') return send({mode:input.mode,message:await store.appendMessage({chatId:input.chatId,id:input.messageId,role:'system',text:'工作方式已切换为自由讨论（当前仍由主专家执行，尚未接入多专家调度）。'})});
-    if (url.pathname === '/api/chats/move') return send(await store.move(input.chatId, input.projectId));
-    if (url.pathname === '/api/chat') {
-      if (!input.temporary) { await store.ensureChat(input); await store.appendMessage({ chatId: input.chatId, id: input.userMessageId, role: 'user', text: input.text }); }
-      res.writeHead(200, { 'Content-Type': 'application/x-ndjson' });
-      res.write(JSON.stringify({ type: 'accepted' }) + '\n');
-      res.write(JSON.stringify({ type: 'text-delta', delta: '离线验收回复。' }) + '\n');
-      if (!input.temporary) await store.appendMessage({ chatId: input.chatId, id: input.assistantMessageId, role: 'assistant', text: '离线验收回复。' });
-      res.end(JSON.stringify({ type: 'completed', text: '离线验收回复。' }) + '\n'); return;
-    }
-    const relative = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
-    const file = path.resolve(path.dirname(entry), relative);
-    if (!file.startsWith(path.dirname(entry) + path.sep)) throw new Error('Invalid asset');
-    res.setHeader('Content-Type', file.endsWith('.html') ? 'text/html; charset=utf-8' : file.endsWith('.css') ? 'text/css' : 'text/javascript');
-    res.end(await readFile(file));
-  } catch (error) { res.writeHead(500); res.end(JSON.stringify({ message: error.message })); }
+// Close the seed handles before the production API opens the same state files.
+store.close?.(); profileStore.close?.();
+const server = await createDesktopServer({
+  dataRoot: tempRoot,
+  outputDir: path.join(tempRoot, 'assets'),
+  runtimeHost: {
+    capabilities: { tokenStreaming: true },
+    listProviders: async () => [],
+    startSession: async ({ sessionId }) => sessionId || 'offline-session',
+    configurePolicy: async () => {}, configureReasoning: async () => {},
+    observeSession: () => () => {}, releaseSession: async () => {},
+    getGoal: async () => null, getContextUsage: async () => null,
+    send: async ({ onEvent }) => {
+      onEvent({ type: 'text-delta', delta: '离线验收回复。' });
+      onEvent({ type: 'completed', text: '离线验收回复。' });
+    },
+    close: async () => {},
+  },
 });
-await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 
 let context;
+let page;
 try {
   context = await chromium.launchPersistentContext(path.join(tempRoot, 'edge-profile'), {
     executablePath: process.env.SCIENCESCOPE_BROWSER || 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
     headless: true, viewport: { width: 1440, height: 960 }, env: { ...process.env, TEMP: tempRoot, TMP: tempRoot },
   });
-  const page = await context.newPage();
+  page = await context.newPage();
+  await installApiToken(page, server);
   const errors = []; page.on('pageerror', error => errors.push(error.message));
-  await page.goto(`http://127.0.0.1:${server.address().port}/`);
+  await page.goto(server.url);
   await page.waitForFunction(() => window.ScienceScopeWorkspace && window.ScienceScopeExecution);
   await page.evaluate(() => window.ScienceScopeWorkspace.ready);
   await page.evaluate(() => { window.ScienceScopeModels = { available: () => true, selected: () => ({ providerId: 'offline', modelId: 'offline' }) }; newThread('p1'); });
@@ -124,7 +110,10 @@ try {
   assert.deepEqual(errors, []);
   await page.screenshot({ path: path.join(artifacts, 'desktop-interaction.png') });
   console.log(JSON.stringify({ browserContextmenuPrevented: true, f12Prevented: true, shellSelection: 'none', textSelection: 'text', selectionGray: '#dededb', customContextMenu: true, executionMenuAboveComposer: true, policyTooltips: true, modePreservedDomAndScroll: true, nativeConfirmCancel: true, modalXRight: true, realProviderRequests: 0 }));
+} catch (error) {
+  await mkdir(path.join(tempBase, 'local-validation'), { recursive: true });
+  await page?.screenshot({ path: path.join(tempBase, 'local-validation', 'desktop-interaction-failure.png'), fullPage: true }).catch(() => {});
+  throw error;
 } finally {
-  await context?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));
-  store.close?.(); profileStore.close?.(); await rm(tempRoot, { recursive: true, force: true });
+  await context?.close(); await server.close(); await rm(tempRoot, { recursive: true, force: true });
 }

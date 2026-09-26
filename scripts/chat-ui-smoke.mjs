@@ -8,7 +8,7 @@ import { buildDesktop } from './build-desktop.mjs';
 import { defaultRoot } from './prepare-desktop.mjs';
 
 const entry = await buildDesktop();
-const output = path.join(defaultRoot,'.sciencescope-local','ui-smoke');
+const output = path.join(defaultRoot,'.sciencescope-local','temp','ui-smoke');
 await mkdir(output,{recursive:true});
 process.env.TEMP=output;process.env.TMP=output;
 let finishReply;
