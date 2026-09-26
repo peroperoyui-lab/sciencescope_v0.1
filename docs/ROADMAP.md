@@ -40,10 +40,10 @@
 用候选包按真实研究项目走完整流程；核心阻塞问题清零、签名 / 安装 / 升级都通过后才能称为 alpha。
 
 ## 当前任务队列（`docs/tasks/`）
-> 执行顺序与分批见 `docs/tasks/QUEUE.md`。2026-09-26：第 1 批在阶段 0 失败后停止，其余阶段与任务未开始。
+> 执行顺序与分批见 `docs/tasks/QUEUE.md`。2026-09-26：第 1 批在阶段 0 失败后停止；两处失败已由 Claude 复核处理（过时断言对齐、设置页重绘丢失未保存选择的缺陷已修），第 1 批需从阶段 0 重跑。
 | 任务 | 内容 | 状态 | 依赖 |
 |---|---|---|---|
-| LOCAL_VALIDATION_2026-09-25 | 合并前在 Windows 上完整验收 claude/determined-pasteur-jxpzw8 | 阶段 0 FAILED：126/126 单元通过；交互 smoke 选区颜色断言失败，设置 smoke 首次失败、复跑通过。结果分支 `codex/local-validation-20260926`（SHA 见交付报告）；阶段 1–3 未测 | — |
+| LOCAL_VALIDATION_2026-09-25 | 合并前在 Windows 上完整验收 claude/determined-pasteur-jxpzw8 | 第 1 次：阶段 0 FAILED（`codex/local-validation-20260926@d14616f`）；失败已处理，待从阶段 0 重跑 | — |
 | T03 | 原生：讨论与控制台窗口 | 待执行（被本地验收覆盖一部分） | — |
 | T04 | 文档解析器与阅读器 | 待执行（在本地验收的阶段 2 中） | — |
 | T05 | 研究资料库界面 | 待执行 | T04 |

@@ -65,10 +65,13 @@ try {
     const table = document.createElement('table'); table.innerHTML = '<tbody><tr><td>fixture</td></tr></tbody>'; document.body.append(table);
     const css = selector => getComputedStyle(document.querySelector(selector)).userSelect;
     const selection = getComputedStyle(document.documentElement, '::selection').backgroundColor;
-    return { shell: css('.topbar'), message: css('.message-text'), table: css('table'), selection };
+    // Interface refresh (2026-09-24): selection is the accent at 22%, not the old #dededb gray.
+    const probe = document.createElement('i'); probe.style.background = 'color-mix(in srgb, var(--accent) 22%, transparent)'; document.body.append(probe);
+    const expected = getComputedStyle(probe).backgroundColor; probe.remove();
+    return { shell: css('.topbar'), message: css('.message-text'), table: css('table'), selection, expected };
   });
   assert.equal(selectability.shell, 'none'); assert.equal(selectability.message, 'text'); assert.equal(selectability.table, 'text');
-  assert.match(selectability.selection, /rgb\(222, 222, 219\)|rgba\(222, 222, 219/);
+  assert.equal(selectability.selection, selectability.expected, 'selection uses the refreshed accent tint');
 
   await page.locator('[data-route="quick"]').click({ button: 'right' });
   assert.ok(await page.locator('#v-menu').isVisible(), 'application context menu survives browser guard');
@@ -90,7 +93,7 @@ try {
   assert.equal(await page.evaluate(y => scrollY, before.scrollY), before.scrollY, 'mode change preserves scroll');
   assert.equal(await page.evaluate(() => window.originalComposer===document.querySelector('[data-draft="main"]')&&window.originalTranscript===document.querySelector('.messages')), true, 'policy choice keeps exact composer/transcript nodes');
   await page.locator('[data-v="work-mode"]').click();
-  await page.locator('[data-work-mode="free"]').click();
+  await page.locator('[data-work-mode="ordered"]').click(); // free discussion was removed (2026-09-24)
   await page.waitForFunction(()=>S.messages.at(-1)?.text.includes('工作方式已切换'));
   assert.equal(await page.evaluate(()=>window.originalComposer===document.querySelector('[data-draft="main"]')&&window.originalTranscript===document.querySelector('.messages')),true);
   assert.equal(await page.evaluate(()=>{const box=document.querySelector('.messages');return box.scrollHeight-box.clientHeight-box.scrollTop<3;}),true);
@@ -109,7 +112,7 @@ try {
   assert.equal(xPlacement, true, 'modal X is right aligned');
   assert.deepEqual(errors, []);
   await page.screenshot({ path: path.join(artifacts, 'desktop-interaction.png') });
-  console.log(JSON.stringify({ browserContextmenuPrevented: true, f12Prevented: true, shellSelection: 'none', textSelection: 'text', selectionGray: '#dededb', customContextMenu: true, executionMenuAboveComposer: true, policyTooltips: true, modePreservedDomAndScroll: true, nativeConfirmCancel: true, modalXRight: true, realProviderRequests: 0 }));
+  console.log(JSON.stringify({ browserContextmenuPrevented: true, f12Prevented: true, shellSelection: 'none', textSelection: 'text', selectionAccentTint: true, customContextMenu: true, executionMenuAboveComposer: true, policyTooltips: true, modePreservedDomAndScroll: true, nativeConfirmCancel: true, modalXRight: true, realProviderRequests: 0 }));
 } catch (error) {
   await mkdir(path.join(tempBase, 'local-validation'), { recursive: true });
   await page?.screenshot({ path: path.join(tempBase, 'local-validation', 'desktop-interaction-failure.png'), fullPage: true }).catch(() => {});

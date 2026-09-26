@@ -1,5 +1,32 @@
 # Desktop implementation — first increment
 
+## 2026-09-26 Review of batch 1 stage 0 failures (Claude, cloud)
+
+Reviewed Astra's `codex/local-validation-20260926@d14616f` (fast-forwarded into
+`claude/determined-pasteur-jxpzw8`); its fixture changes are sound (production
+router, API token, temp artifact paths) and are kept.
+1. **Interaction smoke — stale expectations, not a product defect.** The
+   `::selection` tint is the approved interface refresh
+   (`desktop/refresh.css`, accent at 22%) and free discussion was removed on
+   2026-09-24. The smoke now compares the selection with the same
+   `color-mix` resolved in the page and switches to 有序讨论
+   (`data-work-mode="ordered"`). Every other assertion is unchanged.
+2. **Settings smoke — real product defect, fixed.** Any module that finishes a
+   slow load calls the global `render()`, which rebuilt the settings page from
+   saved values and discarded unsaved choices; on a slow first Windows run it
+   landed between choosing the font and saving. Reproduced deterministically
+   by calling `render()` after choosing values (the font fell back to
+   `default`). `desktop/settings.mjs` now keeps edited controls of settings
+   forms across re-renders on the same page; a successful save, reset or
+   leaving the page drops them. The regression step stays in
+   `settings-ui-smoke`.
+- Verified (Linux Chromium): `npm test` 126/126; all 23 browser smokes pass,
+  including desktop-interaction, settings-ui (6 runs before the fix without
+  the new step, then with it), workspace-ui, desktop-navigation,
+  failed-send-draft, workbench-ui, shortcuts-ui, extensions-ui,
+  background-chat. Windows and native not re-run; batch 1 should restart from
+  stage 0.
+
 ## 2026-09-26 Batch 1 Windows local validation — STOPPED / stage 0 FAILED (Astra)
 
 ### Baseline and scope

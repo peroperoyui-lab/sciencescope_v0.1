@@ -29,6 +29,11 @@ try{
   await page.locator('[name="sendKey"]').selectOption('ctrl-enter');
   await page.locator('[name="reduceMotion"]').selectOption('true');
   await page.locator('[name="showScrollbars"]').selectOption('true');
+  // Another module finishing a slow load re-renders the page (seen on a first
+  // Windows run, 2026-09-26): unsaved choices must survive it.
+  await page.evaluate(()=>render());
+  assert.equal(await page.locator('[name="uiFont"]').inputValue(),'DejaVu Sans','unsaved font survives a re-render');
+  assert.equal(await page.locator('[name="chatFontSize"]').inputValue(),'18','unsaved size survives a re-render');
   await page.locator('#desktop-preferences-form button[type="submit"]').click();
   await page.waitForFunction(()=>window.ScienceScopePreferences.get().sendKey==='ctrl-enter');
   await page.reload();await page.waitForSelector('#desktop-preferences-form');
