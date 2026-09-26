@@ -40,6 +40,7 @@
 用候选包按真实研究项目走完整流程；核心阻塞问题清零、签名 / 安装 / 升级都通过后才能称为 alpha。
 
 ## 当前任务队列（`docs/tasks/`）
+> 执行顺序与分批见 `docs/tasks/QUEUE.md`（2026-09-26：以下任务均未开始）。
 | 任务 | 内容 | 状态 | 依赖 |
 |---|---|---|---|
 | LOCAL_VALIDATION_2026-09-25 | 合并前在 Windows 上完整验收 claude/determined-pasteur-jxpzw8 | 待执行 | — |
