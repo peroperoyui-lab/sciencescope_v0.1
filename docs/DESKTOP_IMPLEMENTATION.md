@@ -1,5 +1,70 @@
 # Desktop implementation — first increment
 
+## 2026-09-27 Batch 1 local validation r3 — STOPPED / stage 1 FAILED (Astra, Windows)
+
+### Branch, baseline and stage gates
+- Workspace `<工作区>`; baseline `56be32d646f3d42422b7685105679e939f0ed3b1`. Branch `codex/local-validation-20260927-r3`.
+- Stage 0 quick confirmation: **PASS**, pushed checkpoint `b962e414fce208b455910a885be78fdb81744819` (126/126 tests + i18n/settings-ui/desktop-interaction). See the next section for commands.
+- Stage 1: **FAILED at item 12a**, Main/expert approval mismatch. Stop condition applied; no runtime/framework repair attempted.
+- Stage 2/T04 and stage 3: **NOT STARTED**, because stage 1 failed. Stage 3 paid evaluation is additionally **untested: missing credentials** (`.sciencescope-local/secret/opencode.key` absent). No hybrid retrieval or batch 2 work.
+- No PR or merge. Stage 1 checkpoint SHA is reported after push; this commit contains the findings and the tiny copy-feedback fix below.
+
+### Blocking failure — native expert approval differs from Main
+This is **real Windows native UI + real DSH + a localhost fixture model**, not a paid-model evaluation. Only isolated test content was used.
+
+Reproduction:
+1. In a project chat, select **询问**. From Main, have the model call `pwsh` with `command: "Write-Output 'R3_APPROVAL_ONLY'"`, `sandbox_permissions: "danger-full-access"`, `description: "Isolated native approval fixture"`, `justification: "R3 acceptance requests one harmless command approval."`.
+2. Main displays a native approval card. Click **仅允许这次**. It completes with `isError:false` and result `R3_APPROVAL_ONLY`.
+3. In the same chat/policy, invite `@统计审稿人` and emit the **same tool name and arguments** from its configured model.
+4. No approval card is offered. The expert's tool is shown as **失败**; the persisted tool record has `status:"completed", isError:true` and no result preview. The expert then finishes (`stopReason:"completed"`) because the fixture provides a final response after the failed tool. Neither a user approval nor rejection was possible.
+
+The paired evidence is `approval-comparison.json`; the rows are Main message `msg-zezicwv` and expert message `msg-b145b5c4-03b1-4b6e-ab4f-6d11163bb04d` in isolated chat `chat-050e402a-d885-439c-8a13-3405f5ac701d`. Main and expert requests intentionally have the same `callId` in different message/run scopes; they are not treated as one invocation.
+
+Code-review lead, **not a claim that the complete upstream failure cause has been proven**: `adapters/runtime-dsh/session-control.mjs` forwards `approval/request` only when `requestEvent.agent.session.id === sessionId` (the Main session); experts are spawned children. Child approval identity/routing needs review and a real-runtime regression. The displayed/persisted expert result omits the original error text, so no more specific error category is invented here. Do not "fix" this by changing ask to full access. The runtime adapter is a protected framework file in RB_COMMON; this is outside a one/two-line native acceptance repair.
+
+### Previous blocker and small repair
+- Claude's English titlebar fix **passes actual native checks**: minimize, maximize/restore and close in both light and dark themes. Win32 `IsIconic`/`IsZoomed` verified actual state on the original main HWND. Tauri's read-only state query was not enabled by the capability; the test used OS observation, without expanding permissions.
+- Each English close removed all 11 recorded owned PIDs and diagnostic port 9236. After model/child work another close removed 14 PIDs; final cleanup removed 12. Native main, host, DSH and WebViews exited; no force-kill was needed. These are completed/idle-session shutdown checks, not active-tool shutdown acceptance.
+- One-line product fix in `desktop/refresh.mjs`: copy feedback listener uses capture, because the inherited document handler stops propagation before a bubbling window listener can see it. Clipboard text was correct but the button stayed **复制**; after the fix it shows **已复制**, and the actual OS clipboard matches the test message. No prototype changes.
+- Added two assertions/actions in `scripts/chat-ui-smoke.mjs` to check this feedback. The first test placement itself stole focus before the existing focus-preservation assertion; moved the new check **after** that assertion, retaining all original expectations. That first local smoke failure was a test-ordering error, not a product focus regression.
+
+### Stage 1 item-by-item result
+| Item | Result | Evidence and limits |
+|---|---|---|
+| 1: pages / settings / menus / assistant / orb, light and dark | PARTIAL | 44 settings-page combinations (11 pages × 2 languages × 2 themes), 20 primary-page combinations, secretary/command/context menus and actual native assistant/orb screenshots; no horizontal overflow or forbidden placeholder copy detected. Representative screenshots inspected. Approval-failure flow prevents complete acceptance. |
+| 2: body/code font size, reduced motion | PASS | Actual native message/code computed sizes 20px/18px; reduced motion on, button transition 0.000001s. |
+| 3: Esc / copy / runtime footer | PASS, local model | Pending true before Esc, false after; copy feedback and actual clipboard verified after small fix; runtime footer connected. |
+| 4: @ menu / targeted response / identity | PARTIAL | Arrow/Enter inserts `@统计审稿人 ` without sending; only statistician replies, using fixture-beta. Real model self-identification untested. |
+| 5: ordered / reviewer / adoption | PARTIAL | Participant toggle, reviewer selection, alpha/beta experts then gamma reviewer, status observations, explicit adoption and persisted `mainSeen:true` after subsequent Main turn. Actual model reasoning/reference to review untested. |
+| 6: tool preamble | PASS, local model + real DSH | Only isolated project `note.md` read; `R3_PREAMBLE` is in tool card, absent from answer. Parameters/result expand normally. |
+| 7: no free discussion / cross-question menu | PASS | Native work-mode menu contains only 工作 / 有序讨论. T03's old cancelled modes were not restored. |
+| 8: three consecutive message marks | PASS | Three selections/comments, no dialog; mark count, inline edit, locate and remove verified. |
+| 9: file preview mark / locate | PASS | Imported isolated Markdown through application API; preview selection, `ss-marks` and locate `ss-mark-focus` verified. |
+| 10: use marks / readable receipt | PARTIAL | Real DSH request contains research input; native receipt shows 标记 3 条. A real model's semantic use of marks is untested. |
+| 11: research sync / citations / usage | NOT TESTED | Stage stopped; no live retrieval claims. |
+| 12: memory proposal / no app-data shell access | NOT TESTED | Stage stopped. |
+| 12a: expert approval + Main control | **FAILED** | Same tool payload: Main approval works, expert has no card and tool errors. Reject path not continued after failure. |
+| 12b: ask/full + real automation | NOT TESTED | No paid credentials; stage failed before this check. |
+| 12c: installed fonts / persistence / fallback / reset | PASS | 322 actual family names, 287 ms refresh; includes 黑体/微软雅黑 and user's 方正书宋简体 (HKCU). 黑体 saved and restored after native restart. Arial uses bundled CJK fallback; reset renders with bundled Noto Sans SC. Renderer font evidence in font-validation.json. |
+| 12d: copy / Help / academic sites | PASS for checked pages | Help has only 键盘快捷键 and 本轮更新说明. Elsevier action returns 200 through actual open-url handler and a Chrome window with Elsevier title appears. Page sweeps find no 尚未开发/即将提供/原型/示例 copy. |
+| 13: shutdown / console windows | PARTIAL | Native process-tree cleanup passed as above. Continuous console-flash observation during paid discussion and active-tool shutdown not completed. |
+
+T03 supplementary: three **local fixture model IDs**, not three paid models, saved via the native roster form and restored on reopening. After native restart the four expert answers retain author/model/order, and the adopted review is shown as read by Main. The normal `Start-ScienceScope.cmd` entry and real-model console-flash checks were not separately accepted: the isolated native launcher was used to avoid user state.
+
+### Environment, evidence and model accounting
+- Post-copy-fix checks: `npm test` **126/126 PASS**, 144.2 seconds, no skips/cancellations; `node scripts/{chat-ui,i18n,settings-ui,desktop-interaction,discussion-ui,marks-ui}-smoke.mjs` all PASS (run individually). `git diff --check` PASS. Logs are `npm-test-copy-fix.log` and `*-final-rerun.log`. These checks do not cover the newly observed expert approval failure, which remains open; no expected result was weakened to make it pass.
+- Windows 11 10.0.26100, Node 25.8.1, npm 11.11.0, installed Edge/WebView. Rust sources/dependencies unchanged from r2; reused its successfully built executable, rebuilding production frontend assets into the isolated host output on each start.
+- Evidence root: `<工作区>\.sciencescope-local\temp\local-validation-r3\` (109 PNGs plus JSON/logs; ignored, not committed). The r3 suffix preserves prior-round evidence.
+- Failure: `main-approval-ask-light-zh.png`, `expert-approval-failure-dark-zh.png`, `approval-comparison.json`, `expert-approval-failure.json`.
+- Previous fix: `titlebar-light-en-maximized.png`, `titlebar-dark-en-maximized.png`, `titlebar-actions.json`, `process-tree-light-after.json`, `process-tree-dark-after.json`; final cleanup `process-tree-final-after.json`.
+- Interface: `settings-<route>-<light|dark>-<zh-CN|en>.png`, `surface-<route>-<light|dark>-<zh-CN|en>.png`, `assistant-<light|dark>-<zh|en>.png`, `orb-<light|dark>-<zh|en>.png`.
+- Chat: `three-marks-dark-zh.png`, `file-mark-dark-zh.png`, `tool-details-dark-zh.png`, `ordered-running-dark-zh.png`, `ordered-complete-adopted-dark-zh.png`, `copy-feedback-failure.png` / `copy-feedback-fixed.png`.
+- The misleadingly named `ordered-missing-controls.png` is a **successful settled strip screenshot**, not a defect: an immediate read happened before the async mode update. No missing-strip failure is claimed.
+- One launcher retry was needed because copying the owned exe immediately after close hit EBUSY before shutdown completed; retry after exit succeeded. No product workaround was added.
+- The initial expert approval fixture inspected only the last user message, while DSH appends another user message; it did not request the intended tool. Corrected the **test-only** trigger to inspect the provided messages, then reproduced the real tool failure. The failing evidence above contains an actual `pwsh` tool invocation, not the ineffective first attempt.
+- Native local fixture HTTP requests: **28 total** (16 + 4 + 8 in the three `local-model-requests*.json` files), including automatic minutes requests. Models: fixture-alpha/beta/gamma, actual DSH; **paid model requests/tokens/cost: 0**. No real API key read or provider removed. Browser/unit fixture traffic is separate from this native count.
+- No research user data accessed. Test clients and diagnostic port are closed. Only the copy listener, its regression smoke and these three documents changed; no dependency/lock/runtime changes. Stage 1 is not PROVEN, and merging remains the user's decision after fixes/revalidation.
+
 ## 2026-09-27 Batch 1 local validation r3 — stage 0 quick confirmation PASS (Astra, Windows)
 
 - H-drive workspace `<工作区>`, initial worktree clean. Fetched baseline `56be32d646f3d42422b7685105679e939f0ed3b1`, including both r2 checkpoints and Claude's glyph-based native titlebar fix.

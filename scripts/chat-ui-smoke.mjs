@@ -127,6 +127,8 @@ try {
   assert.match(await page.locator('.rendered-markdown').last().innerText(),/最后一段/);
   assert.equal(await page.locator('[data-main-stop]').count(),0);
   assert.equal(await page.locator('.turn-activity[open]').count(),1,'user-expanded details stay open after completion');
+  await page.locator('[data-v="copy-message"]').first().click();
+  await page.waitForFunction(()=>document.querySelector('[data-v="copy-message"][data-copied]')?.textContent.includes('已复制'));
   await page.evaluate(()=>{window.smokeSecond=window.SS.submitMain('请等待停止。');});
   await page.waitForSelector('[data-main-stop]');
   await page.waitForFunction(()=>S.messages.filter(m=>m.role==='assistant').length===2);

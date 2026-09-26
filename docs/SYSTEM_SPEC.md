@@ -153,6 +153,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   策略的实际映射：询问 → DSH 审批策略 `ask` + 沙箱 `workspace-write`；完全接管 → `never` + `danger-full-access`；
   自动化 → DSH goal 服务（`/goal`）。
 - **验证**：`dsh-approval-smoke`、`dsh-goal-smoke`、`dsh-policy-smoke`。
+- **Windows 原生核对（2026-09-27）**：阶段 1/12a FAILED。询问模式下，同样的 `pwsh` danger-full-access 请求，Main 显示审批卡并在批准后成功，@ 专家没有卡且工具 `isError:true`；专家原始错误未出现在结果预览。真实 DSH + 本地模型对照，非付费验收。尚未修改运行时审批路由；详见 DESKTOP_IMPLEMENTATION r3。
 
 ### 2.4 研究输入：附件与标记
 
@@ -374,7 +375,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   原型中内联的 Georgia 装饰标题也跟随界面字体。选择前的"研究 ScienceScope…"一行是即时预览，不代表已保存。
 - 打包：`scripts/build-desktop.mjs` 的 `VENDOR_ASSETS` 同时决定复制的文件和生产路由的白名单（`scripts/preview-desktop.mjs`），字体许可证随之复制到 `desktop/vendor/noto-sans-sc/LICENSE`。
 - 验证：`desktop-preferences`、`system-fonts` 单元测试；`settings-ui-smoke`（默认字体为内置思源黑体且中文子集经生产路由加载、列表显示、预览、保存后全局生效、重启后保持）。
-  Windows 上的 PowerShell 读取路径尚未在真机上运行。
+  Windows PowerShell 路径已于 2026-09-27 原生实测：322 个字体名、287 ms，包含中文名称与 HKCU 用户字体；黑体重启保持、英文字体中文回退与恢复默认通过。
 
 验证：`desktop-preferences`、`profile-store`、`shortcut-settings`、`secretary-preferences`、`skill-manager` 单元测试；
 `settings-ui-smoke`、`shortcuts-ui-smoke`、`extensions-ui-smoke`、`skills-runtime-smoke`。
@@ -400,6 +401,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 - **用途**：在不改动已批准原型结构和交互的前提下统一视觉：设计令牌（颜色、圆角、阴影、动效时长）、浅色/深色两套主题、
   按钮/输入框/菜单/对话框/表格/卡片/导图节点的统一样式，以及几个小交互：
   - 消息操作（复制、分支…）悬停或聚焦时才显示；复制后按钮就地显示"已复制"1.6 秒。
+    2026-09-27 原生小修：反馈监听器改为捕获阶段，避免原有 document 处理器停止冒泡导致反馈不显示；系统剪贴板及原生提示已复验，并加入 chat-ui smoke。
   - 流式回复末尾有闪烁光标；等待首字时显示三点动画。
   - Esc 停止正在运行的回复（菜单、对话框、命令面板打开或输入框有文字时不拦截）。
   - 底部状态栏显示真实运行时状态（`/api/status`，每 30 秒刷新，绿点/灰点），不再是原型文字。
@@ -411,7 +413,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
     已转换：新建窗口、创建项目页、设置（常规、执行策略、运行环境/数据库、快捷键、个人资料、角色、模型 API）、插件与技能、
     文件预览、资料库、工作站绑定目录、审核结论条、标记弹层与材料文本标记对话框、输入框菜单。
   - 正文/代码字号仍由设置中的 `--chat-font-size`、`--code-font-size` 决定；"减少动画"设置照常生效。
-- **状态**：🟡。浏览器界面 smoke 全部通过；2026-09-26 Windows 原生部分页面已走查，深色导图属性栏/预览的固定白底改用现有颜色令牌并原生复验。完整原生验收在阶段 1 的英文关闭失败处停止，不能视为通过。
+- **状态**：🟡。浏览器界面 smoke 全部通过；深色导图白底已修复。2026-09-27 原生深浅色/中英文页面重新走查，英文关闭已通过；完整阶段 1 在专家审批不一致处停止，不能视为通过。
 - **技术实现**：`desktop/refresh.css`（最后加载的样式表，令牌定义在 `:root` 与 `:root[data-theme="dark"]`，
   深色令牌已从 `settings.css` 移入这里），`desktop/refresh.mjs`（上述小交互，只附加监听，不替换已有处理函数；
   `projectRow` 仅对置顶行做包装）。二者在 `scripts/build-desktop.mjs` 的资源白名单与页面注入中登记。
@@ -481,7 +483,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   `scripts/ui-gallery.mjs`（`GALLERY_LANG=en` 生成英文截图；`AUDIT_LANG=en AUDIT_COPY=<路由>` 遍历全部可达页面与菜单，列出仍未翻译的文字——目前只剩用户 / 演示数据）。
 - **最近核对**：2026-09-26（Claude，云端）。
 
-界面语言原生核对补充（2026-09-26，Astra）：英文标题栏 `×` 点击无效（浅/深色均复现）。`native-window.mjs` 以中文 `title` 判断动作，与翻译后的属性冲突；同日 Claude 已修复（改按按钮字形 − / □ / × 判断，`i18n-smoke` 用模拟的 Tauri 窗口接口覆盖三个按钮），待 Windows 原生复验。切回中文关闭后，13 个已记录的应用/宿主/DSH/WebView 后代 PID 全部退出。详见 DESKTOP_IMPLEMENTATION 本轮 FAILED 记录，不把浏览器 i18n smoke 视为原生关闭验收。
+界面语言原生核对补充（2026-09-27，Astra）：r2 的英文标题栏失败由 Claude 改为按按钮字形派发；r3 已在真实 Windows 原生窗口分别通过深浅色 − / □ / ×，两次英文关闭后各 11 个已记录进程全部退出。此项已有原生证据，不再仅依赖模拟 Tauri 的 i18n smoke；完整阶段 1 仍因专家审批失败而停止。
 
 ## 3. 接口索引（`scripts/desktop-api.mjs`）
 
@@ -527,6 +529,8 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 DSH 自己的数据（会话历史、Provider 配置、凭据、技能）在 `.sciencescope-local/dsh/`，由 DSH 管理。
 
 ## 5. 测试与验收索引
+
+2026-09-27 r3 原生补充：英文 − / □ / × 在深浅色下通过，黑体重启恢复、中文字体/回退/重置、标记、工具卡片及本地 DSH 专家调度已检查；阶段 1 在专家审批与 Main 不一致处 FAILED / 停止，2–3 未开始。模拟请求与真实模型结果分开；真实凭据缺失，付费请求为 0。原生测试进程已全部退出。详细逐项状态见 DESKTOP_IMPLEMENTATION 顶部。
 
 2026-09-27 r3 快速基线核对（Astra，Windows，`56be32d`）：`npm test` 126/126；i18n（含英文标题栏动作回归）、settings-ui、desktop-interaction 三个浏览器 smoke 全部通过。阶段 1 原生重新验收待执行；不以模拟 Tauri 窗口调用代替实机证据。
 
