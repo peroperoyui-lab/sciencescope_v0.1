@@ -3,6 +3,23 @@
 // --missing` lists strings still untranslated. Model-facing prompts, user data
 // and the prototype's demo content are intentionally absent.
 export const EN = {
+"源码": "Source",
+"公式": "Formulas",
+"正文": "Readable text",
+"原始版式": "Original layout",
+"上一页": "Previous page",
+"下一页": "Next page",
+"页码": "Page number",
+"缩小": "Zoom out",
+"放大": "Zoom in",
+"已解析": "Parsed",
+"部分解析": "Partially parsed",
+"不支持": "Unsupported",
+"解析失败": "Parsing failed",
+"未解析": "Not parsed",
+"等待解析": "Queued for parsing",
+"正在解析": "Parsing",
+"重新解析": "Parse again",
 "对话纪要": "Conversation minutes",
 "由你编辑": "Edited by you",
 "任务秘书整理": "Kept by the secretary",

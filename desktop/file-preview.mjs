@@ -1,6 +1,7 @@
 import {infoTip} from './info-tip.mjs';
 import {hostRequest} from './host-client.mjs';
 import {renderMarkdown} from './markdown.mjs';
+import {readerHTML,mountReader} from './document-readers.mjs';
 import './research-input.mjs';
 
 // Real right-side file preview (replaces the prototype's demo 'preview' panel).
@@ -9,6 +10,7 @@ import './research-input.mjs';
 const state={resourceId:null,resources:[],listKey:null,listPromise:null,doc:null,docPromise:null,error:'',pendingVersion:null,lastVersion:S.selectedVersion,highlight:null};
 const MARKDOWN_KINDS=['md','markdown'];
 const research=()=>window.ScienceScopeResearchInput;
+let reader=null,readerRoot=null,readerMount=0;
 const projectOf=()=>activeThread()?.projectId||(S.projectId&&S.projectId!=='default'?S.projectId:null);
 
 function docHTML(){
@@ -16,6 +18,10 @@ function docHTML(){
   if(!state.resourceId)return `<div class="file-preview-empty">${state.listPromise?'正在读取资料…':'当前项目还没有可预览的资料。可在输入框添加附件，或在数据库导入材料。'}</div>`;
   const doc=state.doc;
   if(!doc||doc.id!==state.resourceId)return '<div class="file-preview-empty">正在读取…</div>';
+  if(doc.format&&doc.format!=='original'){
+    const labels={parsed:'已解析',partial:'部分解析',unsupported:'不支持',failed:'解析失败',none:'未解析',unparsed:'未解析',queued:'等待解析',parsing:'正在解析'};
+    return `<div class="reader-status"><span>${labels[doc.parseStatus]||esc(doc.parseStatus)}</span><button class="btn tiny" data-preview-reparse>重新解析</button>${doc.parseError?`<span role="alert">${esc(doc.parseError)}</span>`:''}</div>${readerHTML(doc)}`;
+  }
   if(typeof doc.text!=='string')return `<div class="file-preview-empty"><p>${esc(doc.title||'')} · ${esc(String(doc.kind||'文件').toUpperCase())}</p><button type="button" class="btn tiny" data-preview-open>打开原件</button></div>`;
   const body=MARKDOWN_KINDS.includes(String(doc.kind).toLowerCase())?`<div class="rendered-markdown">${renderMarkdown(doc.text)}</div>`:`<pre class="file-preview-plain">${esc(doc.text)}</pre>`;
   return `${doc.truncated?'<p class="hint file-preview-note">仅显示前 64000 字，与发送给模型的提取范围一致。</p>':''}<div class="docpaper file-preview-doc" data-preview-doc data-resource-id="${esc(doc.id)}">${body}</div>`;
@@ -48,7 +54,7 @@ function loadList(){
 function loadDoc(id){
   if(state.doc?.id===id)return Promise.resolve();
   if(state.docPromise?.id===id)return state.docPromise;
-  const promise=hostRequest('library/preview?'+new URLSearchParams({id})).then(doc=>{
+  const promise=hostRequest('library/document?'+new URLSearchParams({id})).then(doc=>{
     if(state.resourceId!==id)return;
     state.doc=doc;research()?.rememberTitle(doc.id,doc.title);
     if(!state.resources.some(r=>r.id===doc.id))state.resources=[{id:doc.id,title:doc.title,kind:doc.kind},...state.resources];
@@ -66,7 +72,16 @@ function paintBody(){
   const html=bodyHTML();if(body._html===html)return refreshMarks();
   const scroller=body,top=scroller.scrollTop,same=body.querySelector('[data-preview-doc]')?.dataset.resourceId===state.resourceId;
   body.innerHTML=html;body._html=html;if(same)scroller.scrollTop=top;
+  void ensureReader();
   refreshMarks();
+}
+async function ensureReader(){
+  const root=document.querySelector('.file-preview-panel .document-reader');
+  if(root===readerRoot)return;
+  reader?.dispose();reader=null;readerRoot=root;const generation=++readerMount;
+  if(!root||!state.doc)return;
+  const mounted=await mountReader(root,state.doc,{page:state.page||1,highlight:state.highlight,onReady:refreshMarks});
+  if(generation!==readerMount||!root.isConnected)mounted.dispose();else reader=mounted;
 }
 async function hydrate(){
   if(!document.querySelector('.file-preview-panel'))return;
@@ -75,7 +90,9 @@ async function hydrate(){
   state.resourceId=await defaultResource();
   if(state.resourceId){state.error='';paintBody();await loadDoc(state.resourceId);}
   paintBody();
-  if(state.highlight&&state.doc?.id===state.resourceId){const needle=state.highlight;state.highlight=null;focusText(needle);}
+  await ensureReader();
+  if(state.highlight&&state.doc?.id===state.resourceId&&state.doc.format!=='pdf'){const needle=state.highlight;state.highlight=null;focusText(needle);}
+  if(state.doc?.format==='pdf')reader?.focus({page:state.page,highlight:state.highlight});
 }
 function focusText(needle){
   const doc=document.querySelector('.file-preview-panel [data-preview-doc]'),api=research();if(!doc||!api)return false;
@@ -92,9 +109,10 @@ function refreshMarks(){
   api.setHighlight('ss-marks',annotations.filter(a=>a.resourceId===doc.dataset.resourceId).map(a=>api.findTextRange(doc,a.selectedText)));
 }
 
-async function open(resourceId,{highlight}={}){
+async function open(resourceId,{highlight,page,location}={}){
   if(V.surface){toast('请在主窗口中预览文件。');return;}
   state.resourceId=resourceId||state.resourceId;state.highlight=highlight||null;state.pendingVersion=null;state.lastVersion=S.selectedVersion;state.error='';
+  state.page=page||location?.page||1;
   if(V.panel!=='preview'||!document.querySelector('.file-preview-panel'))openPanel('preview');
   await hydrate();
 }
@@ -104,6 +122,8 @@ window.addEventListener('change',event=>{
   event.stopImmediatePropagation();state.resourceId=event.target.value;state.highlight=null;state.error='';void hydrate();
 },true);
 window.addEventListener('click',event=>{
+  const reparse=event.target.closest('.file-preview-panel [data-preview-reparse]');
+  if(reparse){event.preventDefault();event.stopImmediatePropagation();reparse.disabled=true;hostRequest('research/sources/ingest',{resourceId:state.resourceId,wait:true}).then(()=>{state.doc=null;return hydrate();}).catch(error=>toast(error.message)).finally(()=>{reparse.disabled=false;});return;}
   const button=event.target.closest('.file-preview-panel [data-preview-open]');if(!button)return;
   event.preventDefault();event.stopImmediatePropagation();
   hostRequest('library/open',{id:state.resourceId}).catch(error=>toast(error.message));
@@ -111,6 +131,9 @@ window.addEventListener('click',event=>{
 
 // Paragraph (rendered markdown) or line (plain text) of the selection start.
 function locationOf(doc,range){
+  const pdfLocation=reader?.location(range);if(pdfLocation)return pdfLocation;
+  const node=range.startContainer.nodeType===1?range.startContainer:range.startContainer.parentElement;
+  if(state.doc?.format==='csv'){const row=node?.closest('tr');const index=[...doc.querySelectorAll('tr')].indexOf(row);return {description:`第 ${index+1} 行`};}
   const pre=doc.querySelector('.file-preview-plain');
   if(pre){const before=document.createRange();before.setStart(pre,0);before.setEnd(range.startContainer,range.startOffset);return {description:`第 ${before.toString().split('\n').length} 行`};}
   const selector='p,li,h1,h2,h3,h4,h5,h6,pre,blockquote,tr';
@@ -134,3 +157,4 @@ window.addEventListener('mouseup',event=>{
 },true);
 
 window.ScienceScopePreview=Object.freeze({open,refreshMarks,current:()=>state.resourceId});
+new MutationObserver(()=>{if(readerRoot&&!readerRoot.isConnected){reader?.dispose();reader=null;readerRoot=null;readerMount++;}}).observe(document.body,{childList:true,subtree:true});
