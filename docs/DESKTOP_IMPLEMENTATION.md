@@ -1,5 +1,30 @@
 # Desktop implementation — first increment
 
+## 2026-09-26 Batch 1 local validation r2 — stage 0 PASS (Astra, Windows)
+
+- Workspace `H:\ScienceScope_v0.1-desktop`, external drive available, initial worktree clean.
+- Baseline `115f6b725f0311937887fa361d9fcfe5dde1d4e6` from `origin/claude/determined-pasteur-jxpzw8`; contains the earlier `d14616f` checkpoint and Claude's fixes. New branch `codex/local-validation-20260926-r2`. No reset, PR or merge.
+- Direct fetch failed with connection reset; a single-command `git -c http.proxy=http://127.0.0.1:10808 fetch origin` succeeded. No persistent proxy configuration changed.
+- Environment: Windows 11 10.0.26100, Node 25.8.1, npm 11.11.0, installed Edge 153.0.4234.48; project-local Rust/Cargo/cache/temp. No tool upgrades or production-code modifications.
+
+### Stage 0 commands and results
+- `npm ci`: PASS (447 installed, 448 audited, 0 reported vulnerabilities, about 4 minutes).
+- `node scripts/build-desktop.mjs`: PASS.
+- `npm test`: **126/126 PASS**, no skips/cancellations, 118.5 s. Expert concurrency test passed first time, no isolated retry needed.
+- Each `node scripts/<name>-smoke.mjs` below passed on installed Windows Edge (sequential execution):
+  `chat-ui`, `discussion-ui`, `marks-ui`, `research-input-ui`, `settings-ui`, `workspace-ui`, `desktop-navigation`, `failed-send-draft`, `workbench-ui`, `shortcuts-ui`, `extensions-ui`, `background-chat`, `desktop-interaction`, `creation-details`, `features`, `deliverables`, `i18n`, `minutes`.
+- `node scripts/assistant-api-smoke.mjs --ui`: PASS; real DSH and local fixture provider, 12 requests, **0 paid requests**. Covers secretary/global UI, proposal, isolation, restart history and stopping one identity. This is not live-provider evidence.
+- Settings smoke includes Claude's deterministic unsaved-selection re-render regression. Interaction smoke uses Claude's approved accent-selection and ordered-mode expectations. No assertions changed in r2.
+- `cargo build --offline --manifest-path src-tauri/Cargo.toml` after `scripts/windows/setup-rust.ps1` and MSVC `VsDevCmd.bat -arch=x64`: PASS, 55.73 s.
+- Isolated native startup: copied the rebuilt executable beneath `.sciencescope-local/temp/local-validation-r2/native-client/`; a test-only host entry delegates to production `createDesktopServer` using `native-data/` and `native-assets/` in that same temp directory. No fake runtime was supplied. The native process owns the actual host. Startup succeeded; `/api/status` reports `available`, `saveProvider`, `discoverModels`, `tokenStreaming`, `reasoningEffort` true. No paid model was called or secret read.
+
+### Evidence and next gate
+- Logs: `H:\ScienceScope_v0.1-desktop\.sciencescope-local\temp\local-validation-r2\` (`npm-ci.log`, `build-desktop.log`, `npm-test.log`, each smoke log, `cargo-build.log`, `native-start.log`).
+- Native startup screenshot: `H:\ScienceScope_v0.1-desktop\.sciencescope-local\temp\local-validation-r2\native-start-light.png`.
+- Existing smoke screenshots remain under `.sciencescope-local/temp/` (including creation-dialog, discussion, streaming, workbench, map and interaction).
+- Native diagnostic CDP port 9236 is process-local and temporary for the owned test client, not a release setting; remove by closing this test client after acceptance.
+- Stage 1: pending actual native interaction checks. Stage 2/T04 and stage 3/retrieval evaluation: not started. No claim of full native acceptance or Alpha readiness. Stage 0 checkpoint is committed/pushed before continuing.
+
 ## 2026-09-26 Review of batch 1 stage 0 failures (Claude, cloud)
 
 Reviewed Astra's `codex/local-validation-20260926@d14616f` (fast-forwarded into

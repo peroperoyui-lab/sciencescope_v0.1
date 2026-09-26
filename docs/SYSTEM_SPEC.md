@@ -525,6 +525,12 @@ DSH 自己的数据（会话历史、Provider 配置、凭据、技能）在 `.s
 
 ## 5. 测试与验收索引
 
+最近核对补充：2026-09-26（Astra，Windows 第 2 次本地验收，基线 `115f6b7`）。阶段 0 PASS：
+重新 `npm ci`、桌面资源构建、`npm test` 126/126；18 个纯浏览器 smoke 和 `assistant-api-smoke --ui` 全部通过。
+助手检查使用真实 DSH + 本地模拟模型，12 次本地请求、0 付费请求。`cargo build --offline` 通过，
+独立 temp 数据目录中的原生客户端启动成功，生产宿主状态 available=true。原生功能逐项验收尚未执行，不等同阶段 1 通过。
+逐项清单及证据见 DESKTOP_IMPLEMENTATION 顶部 r2 小节。
+
 最近核对：2026-09-26（Astra，Windows 11，基线 `b875ac7`，本地验收阶段 0）。
 `npm ci`、桌面资源构建和 `npm test` 126/126 通过；chat-ui、discussion-ui、marks-ui、research-input-ui 通过。
 settings-ui 首次在重载后的字体值断言失败（`default`，预期 `DejaVu Sans`），原断言复跑通过，尚不能据此确认根因或稳定性。
