@@ -247,7 +247,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 - **技术实现**：
   - `scripts/chat-minutes.mjs`：表 `chat_minutes(chat_id, revision, text, through_ordinal, author 'secretary'|'user', updated_at)`，每版保留。
     更新 = 上一版纪要 + 新消息（每步 ≤6 万字符，可多步），用秘书角色的模型（未设置时用对话模型），`noTools` 会话，用完释放；
-    主对话轮次持久化后与讨论结束后调度（防抖 1.5 秒）；更新期间用户保存了修改则停止，不覆盖。消息编号为对话序号 +1。
+    主对话轮次持久化后与讨论结束后调度（防抖 1.5 秒）。**每轮主对话后更新用量偏高，将由 T18 改为按规则触发（讨论后 / 每 n 条 / 每 n token / 进出项目，设置可调）**；更新期间用户保存了修改则停止，不覆盖。消息编号为对话序号 +1。
   - `scripts/project-memory.mjs`：`MEMORY_GUIDE`（查找规则）与两个工具的实现。对话与项目由会话上下文决定；临时对话与全局助手拒绝。
     `chat_recall` 按编号一次最多 40 条 / 6 万字符并返回 `next`；检索返回最多 12 条带编号片段。
   - `session-control.mjs` 在 `registerResearchTools` 中为主专家和专家注册两个工具，经 `/host-call` 交给宿主；`desktop-api.mjs` 路由并把规则附到简报。
