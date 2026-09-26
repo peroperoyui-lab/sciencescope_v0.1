@@ -43,7 +43,7 @@
 > 执行顺序与分批见 `docs/tasks/QUEUE.md`。2026-09-26：第 1 批在阶段 0 失败后停止；两处失败已由 Claude 复核处理（过时断言对齐、设置页重绘丢失未保存选择的缺陷已修），第 1 批需从阶段 0 重跑。
 | 任务 | 内容 | 状态 | 依赖 |
 |---|---|---|---|
-| LOCAL_VALIDATION_2026-09-25 | 合并前在 Windows 上完整验收 claude/determined-pasteur-jxpzw8 | 第 1 次：阶段 0 FAILED（`codex/local-validation-20260926@d14616f`）；失败已处理，待从阶段 0 重跑 | — |
+| LOCAL_VALIDATION_2026-09-25 | 合并前在 Windows 上完整验收 claude/determined-pasteur-jxpzw8 | 第 2 次阶段 0 PASS：126/126、19 项浏览器/助手 UI 检查、原生构建启动；`codex/local-validation-20260926-r2`（SHA 见阶段交付报告）。阶段 1 待验收，阶段 2–3 未开始；保留第 1 次 FAILED 记录 `d14616f` | — |
 | T03 | 原生：讨论与控制台窗口 | 待执行（被本地验收覆盖一部分） | — |
 | T04 | 文档解析器与阅读器 | 待执行（在本地验收的阶段 2 中） | — |
 | T05 | 研究资料库界面 | 待执行 | T04 |
