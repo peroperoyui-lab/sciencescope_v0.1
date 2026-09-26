@@ -279,7 +279,8 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   表 `assistant_conversations`、`assistant_drafts`、`assistant_settings`、`assistant_draft_proposals`、`assistant_attachment_drafts`。
   提案工具由 `session-control.mjs` 在秘书会话中注册（值 schema 使用 DSH 的 DSL）。每个助手会话一个 DSH 进程，空闲时最多保留 2 个。
 - **验证**：`assistant-chat-service`、`assistant-conversations` 单元测试；`assistant-api-smoke`（含 `--native`）。
-- **已知限制**：秘书没有自动读取主对话的能力，只看用户显式引用的内容（这是设计选择）。
+- **已知限制**：秘书目前不自动跟进主对话，只看用户显式引用的内容；引用整段对话时只取最近 20 条（每条截到 3000 字）。
+  2026-09-26 起改为自动跟进（每次作答前附上自上次以来的进展，长期未用时附纪要），设计见 `design/CONTEXT_ACCESS.md`，任务 T17（待执行）。
 
 ### 2.8 全局助手与悬浮球
 
@@ -291,6 +292,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   启动偏好存表 `assistant_window_preferences`（接口 `/api/assistant-window/preferences`）；对话复用第 2.7 节的助手服务（scope=`global`）。
 - **验证**：`assistant-window-preferences` 单元测试；`assistant-window-smoke`、`native-windows-smoke`、`native-assistant-geometry-smoke`。
 - **已知限制**：截图快捷键和操作系统级全局热键未实现。
+  全局助手目前不能查阅其他项目的对话、纪要、日志与计划（查阅工具对它关闭）；跨项目查阅见 `design/CONTEXT_ACCESS.md`，任务 T17（待执行）。
 
 ### 2.9 搜索
 

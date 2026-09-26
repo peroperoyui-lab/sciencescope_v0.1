@@ -136,6 +136,13 @@ actual remote branch and SHA; failed pushes are not delivery.
   cap and no silent truncation (a safety bound must name what it omitted).
   Lookup rules for minutes/log/plans/map/recall live in each expert's system
   prompt and the Main brief, not in agent.md.
+- Context access (docs/design/CONTEXT_ACCESS.md, proposed 2026-09-26, T17): all
+  roles share one read-only lookup mechanism; roles differ only by a scope
+  table (secretary: its Main chat and project, auto catch-up before each turn;
+  global assistant: all projects, overview plus drill-down). Temporary chats,
+  assistant private chats and private items stay invisible. Background jobs
+  subscribe to host events; tool schemas come from a host manifest, not the
+  DSH adapter; lookup rules are versioned brief sections, not user personas.
 - Research Base (docs/design/RESEARCH_BASE.md, 2026-09-25): literature, knowledge,
   models/formulas, claims and memory share one store. Agents write only through
   research_propose into the user's inbox; the session, never model arguments,

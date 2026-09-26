@@ -1,3 +1,4 @@
+<!-- 2026-09-26 补充（Claude）：`chat_recall` 的关键词检索（scripts/project-memory.mjs，T17 后在 scripts/context/sources/conversation.mjs）在本任务完成后改用混合检索。 -->
 # T10 · 混合检索主方案（本地向量 + 关键词 + 多问法）与每轮记忆召回
 
 共同规则见 `docs/tasks/RB_COMMON.md`。设计与实测数据见 `docs/design/RESEARCH_BASE.md` §3（**先读**）；测速与小评测脚本为 `scripts/evals/embedding-bench.mjs`。

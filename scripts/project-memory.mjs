@@ -73,7 +73,7 @@ export function createProjectMemory({ db, minutes, workbench }) {
       const nodes = snapshot.map?.nodes || [];
       const children = (id) => nodes.filter((node) => node.parent === id);
       const lines = [];
-      const walk = (node, depth) => { if (depth > 12) return; lines.push(`${'  '.repeat(depth)}- ${String(node.text || '').replace(/\s+/g, ' ').slice(0, 400)}${node.progress ? ` [${node.progress}]` : ''}`); for (const child of children(node.id)) walk(child, depth + 1); };
+      const walk = (node, depth) => { if (depth > 12) return; lines.push(`${'  '.repeat(depth)}- ${String(node.text || '').replace(/\s+/g, ' ').slice(0, 400)}${node.status ? ` [${node.status}]` : ''}`); for (const child of children(node.id)) walk(child, depth + 1); };
       for (const root of nodes.filter((node) => !node.parent)) walk(root, 0);
       return { map: lines.join('\n') };
     }
