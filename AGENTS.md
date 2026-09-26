@@ -32,6 +32,12 @@ do not redesign them or import the rejected old GUI.
   2026-09-19); they are not required for every task. Delegate bounded runtime
   implementation and non-UI helpers; each brief names allowed files.
 - The primary agent reviews actual diffs and reruns checks; a child report is not acceptance.
+- User revision 2026-09-27: Astra (the delegated implementer) may decide and
+  fix clear, root-caused defects with a regression test, including runtime and
+  framework files, then continue and report each fix; stop only for product
+  trade-offs or unknown root causes. Repetitive execution (smokes, test
+  matrices, screenshots) may go to GPT-5.6 Sol at high reasoning; its report
+  still needs Astra's confirmation and Claude's review.
 - Prioritize working features; use proportionate smoke/regression checks, not
   speculative test matrices or new frameworks just for testing.
 
