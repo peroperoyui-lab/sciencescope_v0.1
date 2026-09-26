@@ -43,7 +43,7 @@
 > 执行顺序与分批见 `docs/tasks/QUEUE.md`。2026-09-26：第 1 批在阶段 0 失败后停止；两处失败已由 Claude 复核处理（过时断言对齐、设置页重绘丢失未保存选择的缺陷已修），第 1 批需从阶段 0 重跑。
 | 任务 | 内容 | 状态 | 依赖 |
 |---|---|---|---|
-| LOCAL_VALIDATION_2026-09-25 | 合并前在 Windows 上完整验收 claude/determined-pasteur-jxpzw8 | r3 进行中：`56be32d` → `codex/local-validation-20260927-r3`，阶段 0 快速确认 PASS（126/126 + i18n/settings-ui/desktop-interaction）；阶段 1 待原生重跑，2–3 未开始。r2 的 `140f8d8`/`508dc66` 及 r1 失败证据保留 | 原生复验英文 − / □ / ×、深浅色与完整阶段 1；指定 key 当前缺失，真实模型结果不得用模拟结果代替 |
+| LOCAL_VALIDATION_2026-09-25 | 合并前在 Windows 上完整验收 claude/determined-pasteur-jxpzw8 | r3：阶段 0 PASS `b962e41`；阶段 1 **FAILED / 已停止**，询问模式 Main 审批正常、专家同样请求无审批卡且工具报错（真实 DSH + 本地模型）。英文标题栏深浅色原生复验通过；复制反馈小修。分支 `codex/local-validation-20260927-r3`。2–3 未开始，历史证据保留 | 审查专家子会话审批路由；指定 key 缺失，真实模型评测仍未测 |
 | T03 | 原生：讨论与控制台窗口 | 待执行（被本地验收覆盖一部分） | — |
 | T04 | 文档解析器与阅读器 | 待执行（在本地验收的阶段 2 中） | — |
 | T05 | 研究资料库界面 | 待执行 | T04 |

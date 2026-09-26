@@ -42,7 +42,7 @@ window.addEventListener('click', event => {
     if (!button.classList.contains('code-copy')) label.textContent = '已复制';
     setTimeout(() => { delete button.dataset.copied; if (!button.classList.contains('code-copy')) label.textContent = before; }, 1600);
   }, 0);
-});
+}, true);
 
 // 4. Esc stops the running reply when nothing else (menu, dialog, palette,
 //    text being composed) wants the key.
