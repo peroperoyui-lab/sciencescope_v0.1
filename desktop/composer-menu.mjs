@@ -13,7 +13,13 @@ export function composerMenu(trigger, label, items) {
     }
   }
   const anchor = trigger.getBoundingClientRect();
-  popup.style.maxHeight = `${Math.max(100, anchor.top - 16)}px`;
-  popup.style.top = `${Math.max(8, anchor.top - popup.offsetHeight - 8)}px`;
+  // Open above the trigger (composer menus) unless there is less room there
+  // than below (e.g. the reviewer picker in the discussion bar at the top);
+  // the menu scrolls rather than letting items spill outside its box.
+  const above = anchor.top - 16, below = innerHeight - anchor.bottom - 16;
+  const up = popup.scrollHeight <= above || above >= below;
+  popup.style.maxHeight = `${Math.max(100, up ? above : below)}px`;
+  popup.style.overflowY = 'auto';
+  popup.style.top = up ? `${Math.max(8, anchor.top - popup.offsetHeight - 8)}px` : `${anchor.bottom + 8}px`;
   popup.style.left = `${Math.max(8, Math.min(anchor.left, innerWidth - popup.offsetWidth - 8))}px`;
 }

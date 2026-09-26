@@ -100,6 +100,10 @@ try {
   await page.waitForSelector('[data-discussion-strip]');
   assert.match(await page.locator('[data-discussion-strip]').innerText(), /1\s*方法学家[\s\S]*2\s*统计审稿人[\s\S]*审核：无/);
   await page.locator('[data-panel-reviewer-menu]').click();
+  // The picker sits at the top of the chat: it opens downward and every item
+  // (with its info tip) stays inside the menu box (clipped before 2026-09-27).
+  const contained = await page.evaluate(() => { const box = document.getElementById('v-menu').getBoundingClientRect(); return [...document.querySelectorAll('#v-menu .menu-line, #v-menu .info-tip')].every(el => { const r = el.getBoundingClientRect(); return r.top >= box.top - 1 && r.bottom <= box.bottom + 1 && r.right <= box.right + 1; }) && box.top >= 0; });
+  assert.equal(contained, true, 'reviewer menu items stay inside the menu');
   await page.locator('[data-panel-reviewer="statistician"]').click();
   await page.waitForFunction(() => document.querySelector('[data-discussion-strip]')?.textContent.includes('审核：统计审稿人'));
   assert.equal(await page.locator('[data-panel-toggle]').count(), 1, 'the reviewer is not an answering chip');

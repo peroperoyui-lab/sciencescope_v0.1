@@ -1,5 +1,29 @@
 # Desktop implementation — first increment
 
+## 2026-09-27 Review of batch 1 r3 + user feedback (Claude, cloud)
+
+- Fast-forwarded `codex/local-validation-20260927-r3@1c5cde9` (Astra: "copied"
+  feedback fix with regression; stage 1 blocker recorded).
+- **Blocker delegated to Astra**: in ask mode an expert's out-of-sandbox tool
+  call fails without an approval card (Main gets one). Root cause is in the
+  runtime approval forwarding; under the revised rules Astra fixes it with a
+  regression test and continues.
+- **Reviewer picker clipped (user screenshot) — fixed.** `composerMenu` always
+  opened above its trigger; the discussion strip sits at the top, so the menu
+  got ~130px and items and info tips spilled outside. It now opens below when
+  there is more room there and scrolls when needed. `discussion-ui-smoke`
+  asserts every item stays inside the menu (fails before, passes after);
+  desktop-interaction (composer menus still open above), chat-ui,
+  research-input-ui pass.
+- **Rules (user revision)**: Astra decides and fixes clear defects itself and
+  continues (LOCAL_VALIDATION, QUEUE, AGENTS); repetitive execution may go to
+  GPT-5.6 Sol at high reasoning; the user supplies the OpenCode Go key in the
+  prompt, Astra keeps it only in the ignored secret file and deletes it after.
+- **Conversation branching** is not missing by accident: its entry points are
+  hidden behind the `branch` flag until T12 connects DSH `session.fork`
+  end to end. T12 moved up to batch 3.
+- **Independent reviewers** (user request): brief T19, batch 2 after T18.
+
 ## 2026-09-27 Batch 1 local validation r3 — STOPPED / stage 1 FAILED (Astra, Windows)
 
 ### Branch, baseline and stage gates
