@@ -1,6 +1,7 @@
 # T17 · 上下文访问层：秘书自动跟进、全局助手跨项目查阅、事件总线与工具清单
 
-- 下达：Claude，2026-09-26。执行：Astra（后端）；界面部分由 Claude 在后端交付后完成（见 §6）。
+- 下达：Claude，2026-09-26。执行：Astra（后端，以及 §7 写明规格的界面）；Claude 审阅界面与交互。
+- 后续任务：T18（总结规则与设置），依赖本任务 §1 的事件总线，建议在同一轮连续完成。
 - 设计：`docs/design/CONTEXT_ACCESS.md`（先读完）。前置实现：`docs/design/EXPERT_CONTEXT.md`、`SYSTEM_SPEC.md` 2.5、2.5b、2.7、2.8。
 - 基线：`claude/determined-pasteur-jxpzw8`（已合并进 main 则以 main 为基线）。交付：`codex/t17-context-access-YYYYMMDD`，报告分支与 SHA。**不开 PR、不合并。**
 - 通用工程约定同 `RB_COMMON.md`（测试目录、许可、截图、文档更新）。
@@ -20,8 +21,11 @@
 
 - 进程内的简单发布 / 订阅：`emit(type, payload)`、`on(type, handler) → off`。处理函数出错时只记录，不影响发出方；`close()` 等待进行中的处理函数完成。
 - 事件：`chat.turn.persisted {chatId}`、`discussion.finished {chatId}`、`workbench.changed {projectId}`、`version.stored {projectId, versionId}`、`assistant.opened {scope, ownerId}`，
+  `project.entered {projectId}`、`project.left {projectId}`、`app.started`（由 T18 使用），
   以及 `chat.idle {chatId}`（给 T09 用，本任务只实现发出，空闲时长默认 10 分钟）。
-- 把现有直接调用改为订阅：`minutes.schedule`（主专家一轮、讨论结束）、版本自动整理（`autoOrganize`）。`desktop-api.mjs` 只负责 `emit`。
+- 把现有直接调用改为订阅：版本自动整理（`autoOrganize`）、纪要更新。`desktop-api.mjs` 只负责 `emit`。
+  **注意**："每轮主对话后更新纪要"是要废除的旧行为（用户 2026-09-26：太耗用量），纪要何时更新由 T18 的规则决定；
+  只做 T17 时，暂时保留讨论结束后的更新，去掉每轮主对话后的更新。
 
 ## 2. 资料源注册表与范围表 `scripts/context/`（新）
 
@@ -59,6 +63,7 @@
   - 超过时，先让纪要补齐（`minutes.refresh`，最多等 60 秒，超时则用现有版本并注明）。然后附最新纪要，加上纪要覆盖之后的原文，并写明"#a–#b 可用 chat_recall 读取"；
   - 状态（`status` 资料源）的哈希变化时附一段工作站状态；
   - 没有任何变化时不附任何内容。
+  - 跟进包第一行写明对话进度："主对话共 N 条；纪要第 r 版覆盖到 #T；你上次读到 #S"。用户问"进行到哪了"时，秘书据此回答，缺的部分用 `chat_recall` 读，不凭印象回答（用户说的"table 的进度"指的就是这个）。
 - **发送被接受（`accepted`）后**才推进游标；发送失败或被停止时不推进。
 - 删除 `contextFor` 的 20 条截断摘录。`contextChatId` 对秘书不再使用；对全局助手改为"以此对话为准"的提示：只附对话标识与标题，由助手自己用工具读。
 - 秘书的规则节：纪要是它维护的记录，用户修改的版本优先；可以回查；可以请求更新纪要（新增工具 `minutes_refresh`，只对秘书开放，返回新版本号）。
@@ -76,7 +81,7 @@
 - 应用升级（规则版本变化）后，已有会话下一轮用上新规则；不写入 `role_prompt_receipts`，不改用户编辑过的人设。
 - `configureBrief`（`/brief` 控制端点）对每个 DSH 会话通用，秘书与全局助手会话可直接使用；只在会话空闲时可改，所以放在发送前调用。
 
-## 7. 界面（Claude 在后端交付后完成，Astra 不做）
+## 7. 界面（按此规格实现，Claude 审阅；新文字都加英文词条）
 
 - 秘书面板显示一条状态：已跟进到主对话第 n 条 · 纪要第 r 版；有"i"说明。
 - 去掉秘书的"引用对话"菜单；全局助手的菜单改名为"以此对话为准"。
@@ -96,7 +101,7 @@
 - **真实 DSH**：四种角色拿到的工具清单与参数正确，工具调用经 `/host-call` 返回正确范围的数据。
 - **真实便宜模型评测** `scripts/evals/context-access-live.mjs`：
   - 主对话约 20 轮，其间不使用秘书，并在工作站里改导图状态、加计划；
-  - 然后直接问秘书："第 3 轮定的主要终点是什么？现在导图哪些节点还没完成？"
+  - 然后直接问秘书："对话现在进行到哪一步了？第 3 轮定的主要终点是什么？现在导图哪些节点还没完成？"
   - 再在另一个项目里问全局助手第一个项目的待办；
   - 规则判断，结果写进 DESKTOP_IMPLEMENTATION。
 - `npm test` 与现有 smoke 全部通过（chat-ui、discussion-ui、minutes、assistant-api-smoke、research-input-ui）。

@@ -143,6 +143,11 @@ actual remote branch and SHA; failed pushes are not delivery.
   assistant private chats and private items stay invisible. Background jobs
   subscribe to host events; tool schemas come from a host manifest, not the
   DSH adapter; lookup rules are versioned brief sections, not user personas.
+- Summaries (2026-09-26, T18): never summarize after every Main turn. Minutes
+  update on user-configurable rules (after discussion, every n messages or n
+  tokens, entering/leaving a project, manual) and only when there is new
+  content. Updating map/versions/plans/log with a summary is separate, off by
+  default (off/propose/apply), append-or-mark only, and undoable.
 - Research Base (docs/design/RESEARCH_BASE.md, 2026-09-25): literature, knowledge,
   models/formulas, claims and memory share one store. Agents write only through
   research_propose into the user's inbox; the session, never model arguments,
