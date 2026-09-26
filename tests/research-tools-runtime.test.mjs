@@ -51,6 +51,11 @@ test('research tools reach the host from Main and experts; the brief enters the 
     assert.equal(panel[0].text,'ANSWER_WITH [S1 p.2]');
     assert.equal(calls[1].expertId,'statistician','expert calls carry the expert id');
     assert.equal(calls[1].sessionId,sessionId);
+    // History tools are offered to the Main session and to experts alike.
+    const toolNames=request=>(request.tools||[]).map(t=>t.function?.name);
+    for(const name of ['chat_recall','project_memory'])assert.ok(toolNames(requests[0]).includes(name),`Main is offered ${name}`);
+    const expertRequest=requests.find(r=>JSON.stringify(r.messages.filter(m=>m.role==='system')).includes('PERSONA_STAT'));
+    for(const name of ['chat_recall','project_memory'])assert.ok(toolNames(expertRequest).includes(name),`experts are offered ${name}`);
 
     host.setToolHandler(null);
     await host.configureBrief({sessionId,text:''});

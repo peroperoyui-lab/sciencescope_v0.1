@@ -48,6 +48,28 @@ export function apply(ctx) {
   const jsonOutput = { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] };
   const refParam = { type: 'object', additionalProperties: false, description: 'A record reference returned by research_search.', properties: { type: { type: 'string', required: true, enum: ['source', 'chunk', 'item'] }, id: { type: 'string', required: true } } };
   const registerResearchTools = (tools, agent) => {
+    // Project history (read-only): the complete conversation and the secretary's
+    // minutes, project log, plans, map and versions. Answered by the host for
+    // this session's chat and project only.
+    tools.register(defineTool({
+      name: 'chat_recall',
+      description: 'Read this conversation\'s history exactly as written. Give query to search every earlier message (returns message numbers with excerpts), or from/to to read messages #from–#to in full, including very old ones. Use it whenever the minutes or a message refers to something you have not seen.',
+      parameters: {
+        query: { type: 'string', description: 'Words to search for, 1-400 characters.' },
+        from: { type: 'integer', description: 'First message number to read.' },
+        to: { type: 'integer', description: 'Last message number to read.' },
+        limit: { type: 'integer', description: 'Maximum search hits, 1-30 (default 12).' },
+      },
+      output: jsonOutput,
+      async execute(args, exec) { return hostCall('chat_recall', args, exec, agent); },
+    }));
+    tools.register(defineTool({
+      name: 'project_memory',
+      description: 'Read the project record: "minutes" (the secretary\'s running minutes of this conversation: goals, decisions, rejected options, open questions, positions, manuscript state, to-dos), "log" (project log), "plans", "map" (research map outline) or "versions" (manuscript versions and their notes).',
+      parameters: { section: { type: 'string', required: true, enum: ['minutes', 'log', 'plans', 'map', 'versions'] } },
+      output: jsonOutput,
+      async execute(args, exec) { return hostCall('project_memory', args, exec, agent); },
+    }));
     tools.register(defineTool({
       name: 'research_search',
       description: "Search the user's research base for this project: parsed papers and files (passages with page numbers), sources, and confirmed knowledge, theory models/formulas/algorithms, claims and long-term memory. Currently keyword search: use specific terms, synonyms and abbreviations, and search again in the other language (Chinese and English) because papers are often in English. Returns cite labels such as [S3 p.4] or [@a1b2c3d4]; cite them verbatim in your answer. Search before answering questions about the project's literature or earlier decisions.",

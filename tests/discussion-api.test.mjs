@@ -70,7 +70,9 @@ test('ordered panel: shared transcript, roster order, reviewer after all, adopti
     // Everyone on the panel gets the same frozen input, including earlier turns.
     const panelRun = f.state.runs[0];
     assert.deepEqual(panelRun.experts.map((e) => e.id), ['methodologist', 'red-team']);
-    assert.match(panelRun.prompt, /<message speaker="用户">\nSummarise the study\.\n<\/message>\n<message speaker="主专家" role="Main expert">\nMAIN_REPLY\n<\/message>[\s\S]*\[The user's new message\]\nIs the causal claim justified\?/);
+    assert.match(panelRun.prompt, /\[Conversation, verbatim: messages #1–#2 of 2\.\]\n<message n="1" speaker="User">\nSummarise the study\.\n<\/message>\n<message n="2" speaker="Main expert">\nMAIN_REPLY\n<\/message>[\s\S]*\[The user's new message\]\nIs the causal claim justified\?/);
+    // Every expert's system prompt carries the history lookup rules; its identity stays its own.
+    assert.match(panelRun.experts[0].persona, /research design validity[\s\S]*chat_recall[\s\S]*project_memory/);
     assert.match(panelRun.experts[0].prompt, /You are "方法学家" \(研究设计\)[\s\S]*"魔鬼代言人"[\s\S]*independently and in parallel/);
     assert.match(panelRun.experts[0].persona, /research design validity/);
     // The reviewer sees the answers (and files), never the tool calls.

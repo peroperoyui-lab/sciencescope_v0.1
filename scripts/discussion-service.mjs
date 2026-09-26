@@ -16,9 +16,13 @@ import { randomUUID } from 'node:crypto';
 // documents), never its tool calls, tool results or tool preambles; files it
 // only read or edited along the way are not listed. A reviewer's check enters
 // later context only when the user adopts it.
-const MAX_DIGEST = 48000;
-const MAX_MESSAGE = 6000;
-const MAX_ANSWER_FOR_REVIEW = 12000;
+// Experts see the secretary's minutes plus the conversation after them verbatim
+// (2026-09-26: no token cap). Only if that verbatim part is enormous (minutes
+// lagging far behind) are older messages left out, and the input says so.
+const VERBATIM_CHARS = 240000;
+const OVERLAP = 4; // messages before the minutes' coverage, kept for continuity
+const MAX_MESSAGE = 200000; // safety bound only; answers are passed whole
+const MAX_ANSWER_FOR_REVIEW = 200000; // safety bound only
 const MAX_FILES = 12;
 const PRESENT_TOOLS = new Set(['present']);
 
@@ -44,7 +48,7 @@ export function identityPrompt(expert, { kind, participants }) {
   const others = participants.filter((item) => item.id !== expert.id).map((item) => `"${item.label}"`);
   const lines = [
     `You are "${expert.label}"${expert.role ? ` (${expert.role})` : ''}, an expert the user consults in this ScienceScope conversation.`,
-    `Participants: the user; the Main expert ("主专家"), the user's primary agent with its own tools and history${others.length ? `; the other experts ${others.join(', ')}` : ''}.`,
+    `Participants: the user (speaker "User"); the Main expert (speaker "Main expert"), the user's primary agent with its own tools and history${others.length ? `; the other experts ${others.join(', ')}` : ''}.`,
     `In the conversation below every message is labelled with its speaker. Only messages labelled "${expert.label}" are yours; speak only for yourself, never as the Main expert or another expert.`,
   ];
   if (kind === 'review') lines.push('You are the reviewing expert of this panel round. The experts\' answers for this round follow the user\'s message. For each answer check facts, evidence, methods and conclusions against the conversation and the material; name specific errors or unsupported claims per expert, note where they agree and disagree, then give a short overall judgement. Do not simply restate the answers.');
@@ -53,7 +57,7 @@ export function identityPrompt(expert, { kind, participants }) {
   return lines.join('\n');
 }
 
-export function createDiscussionService({ host, chatStore, db, toolActivity }) {
+export function createDiscussionService({ host, chatStore, db, toolActivity, minutes = null, memoryGuide = '' }) {
   db.exec(`CREATE TABLE IF NOT EXISTS discussion_rounds(run_id TEXT PRIMARY KEY, chat_id TEXT NOT NULL, kind TEXT NOT NULL, question TEXT NOT NULL, created_at TEXT NOT NULL);
     CREATE INDEX IF NOT EXISTS discussion_rounds_chat ON discussion_rounds(chat_id, created_at);
     CREATE TABLE IF NOT EXISTS discussion_entries(chat_id TEXT NOT NULL, message_id TEXT NOT NULL, run_id TEXT NOT NULL, expert_id TEXT NOT NULL, label TEXT NOT NULL, role TEXT NOT NULL, model_json TEXT, stop_reason TEXT NOT NULL, position INTEGER NOT NULL, PRIMARY KEY(chat_id, message_id));`);
@@ -87,25 +91,33 @@ export function createDiscussionService({ host, chatStore, db, toolActivity }) {
   // The answer as its peers see it: final text, then the files it presented.
   const answerBlock = (tag, text, files) => `<message ${tag}>\n${text}${files.length ? `\n[Files presented with this answer]\n${files.map((file) => `- ${file.path}${file.description ? ` — ${file.description}` : ''}`).join('\n')}` : ''}\n</message>`;
 
-  // The conversation so far as every participant may see it: final texts of the
-  // user, Main expert and experts (unadopted reviews left out), newest kept first
-  // when the budget runs out.
+  // The conversation so far as every participant may see it: the secretary's
+  // minutes of the whole conversation, then every later message verbatim (user,
+  // Main expert, experts; unadopted reviews left out; presented files listed).
+  // Messages are numbered so any earlier one can be read with chat_recall.
   function transcript(chatId) {
-    const rows = db.prepare("SELECT id, role, text FROM messages WHERE chat_id=? AND role IN ('user','assistant') ORDER BY ordinal DESC LIMIT 200").all(chatId);
-    const authors = entriesFor(chatId, rows.filter((row) => row.role === 'assistant').map((row) => row.id));
-    const files = filesOf(chatId, rows.filter((row) => row.role === 'assistant').map((row) => row.id));
-    const blocks = []; let used = 0;
-    for (const row of rows) {
-      const author = authors.get(row.id);
-      if (author?.review && !author.adopted) continue;
-      const text = clip(String(row.text || ''), MAX_MESSAGE);
-      if (!text.trim()) continue;
-      const tag = row.role === 'user' ? 'speaker="用户"' : speakerTag(author || { label: '主专家', role: 'Main expert' });
-      const block = answerBlock(tag, text, row.role === 'user' ? [] : files.get(row.id) || []);
-      if (used + block.length > MAX_DIGEST) break;
-      blocks.push(block); used += block.length;
+    if (!minutes) return '';
+    const all = minutes.messagesAfter(chatId, 0);
+    if (!all.length) return '';
+    const record = minutes.get(chatId);
+    const covered = record?.throughOrdinal ?? 0;
+    let start = all.findIndex((message) => message.ordinal > covered);
+    if (start < 0) start = all.length;
+    start = Math.max(0, start - OVERLAP);
+    const blocks = []; let used = 0, first = all.length;
+    for (let index = all.length - 1; index >= start; index -= 1) {
+      const block = minutes.format(all[index]);
+      if (blocks.length && used + block.length > VERBATIM_CHARS) break;
+      blocks.push(block); used += block.length; first = index;
     }
-    return blocks.reverse().join('\n');
+    blocks.reverse();
+    const parts = [];
+    if (record) parts.push(`[Conversation minutes — kept by the secretary, revision ${record.revision}${record.author === 'user' ? ', edited by the user' : ''}, covering messages #1–#${record.throughOrdinal}]\n${record.text}\n[End of minutes]`);
+    const omitted = first > 0 ? all[first - 1].ordinal : 0;
+    const shown = blocks.length ? `#${all[first].ordinal}–#${all.at(-1).ordinal}` : '';
+    const note = omitted ? ` Messages #1–#${omitted} are ${record && omitted <= record.throughOrdinal ? 'summarized in the minutes above' : 'not shown here'}; read any of them verbatim with chat_recall.` : '';
+    if (blocks.length) parts.push(`[Conversation, verbatim: messages ${shown} of ${all.at(-1).ordinal}.${note}]\n${blocks.join('\n')}\n[End of conversation so far]`);
+    return parts.join('\n\n');
   }
 
   /**
@@ -119,7 +131,7 @@ export function createDiscussionService({ host, chatStore, db, toolActivity }) {
     experts = experts.filter((expert) => expert.id !== reviewer?.id);
     if (!experts.length) throw new DiscussionError('NO_EXPERTS', '请至少选择一位作答专家（审核专家不单独作答）。');
     const history = transcript(chatId);
-    const shared = `${context}${history ? `[Conversation so far]\n${history}\n[End of conversation so far]\n\n` : ''}[The user's new message]\n${requestText}`;
+    const shared = `${context}${history ? `${history}\n\n` : ''}[The user's new message]\n${requestText}`;
 
     const runId = `discussion-${randomUUID().replaceAll('-', '')}`;
     active.set(chatId, { runId, sessionId });
@@ -158,7 +170,8 @@ export function createDiscussionService({ host, chatStore, db, toolActivity }) {
         if (event.type === 'expert-end') { seen.add(event.expertId); record(event); }
       };
       const expertSpec = (expert, prompt) => ({
-        id: expert.id, label: expert.label, persona: expert.persona, prompt,
+        // The lookup rules are part of every expert's system prompt; its identity stays its own.
+        id: expert.id, label: expert.label, persona: memoryGuide ? `${expert.persona}\n\n${memoryGuide}` : expert.persona, prompt,
         ...(expert.model ? { model: expert.model } : {}),
         ...(expert.reasoningEffort ? { reasoningEffort: expert.reasoningEffort } : {}),
       });

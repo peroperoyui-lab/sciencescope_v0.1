@@ -130,6 +130,12 @@ actual remote branch and SHA; failed pushes are not delivery.
   context only when the user adopts it. Peers see answers and the files those
   answers presented (DSH `present` deliverables), never tool calls, tool
   results, preambles or files only read along the way (2026-09-26). Tool preambles belong to the tool card, not the answer.
+- Expert long context (docs/design/EXPERT_CONTEXT.md, 2026-09-26): the task
+  secretary keeps versioned conversation minutes; a user edit is authoritative.
+  Experts receive the minutes plus every message after them verbatim; no token
+  cap and no silent truncation (a safety bound must name what it omitted).
+  Lookup rules for minutes/log/plans/map/recall live in each expert's system
+  prompt and the Main brief, not in agent.md.
 - Research Base (docs/design/RESEARCH_BASE.md, 2026-09-25): literature, knowledge,
   models/formulas, claims and memory share one store. Agents write only through
   research_propose into the user's inbox; the session, never model arguments,

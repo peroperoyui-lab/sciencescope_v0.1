@@ -28,6 +28,8 @@ import {createResearchBase,ResearchBaseError} from './research-base/index.mjs';
 import {validateWorkFolder,WorkFolderError} from './workspace-folders.mjs';
 import {listSystemFonts} from './system-fonts.mjs';
 import {createDeliverables,DeliverableError} from './deliverables.mjs';
+import {createChatMinutes,MinutesError} from './chat-minutes.mjs';
+import {createProjectMemory,MemoryToolError,MEMORY_GUIDE} from './project-memory.mjs';
 
 function publicRuntimeMessage(error) {
   const raw = String(error?.message || '').toLowerCase();
@@ -166,7 +168,14 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     const {meta}=await workbench.project(id);return {name:meta.name,goal:meta.desc||''};
   }}):null;
   const execution=host?createExecutionService({host,database,chatStore,bindings}):null;
-  const discussions=host?.runExperts?createDiscussionService({host,chatStore,db:database.db,toolActivity}):null;
+  // The secretary's running minutes of each conversation, and read-only
+  // history tools for the Main expert and every expert (2026-09-26).
+  const minutes=createChatMinutes({db:database.db,host,chatStore,onError,modelFor:chatId=>roleSettings.get('secretary').model||chatStore.getChat(chatId)?.model||null});
+  const projectMemory=createProjectMemory({db:database.db,minutes,workbench:{
+    get:async projectId=>{const {meta}=await workbench.project(projectId);return {...await workbench.store.get(projectId,meta.name),projectName:meta.name};},
+    plans:()=>workbench.store.getPlans(),
+  }});
+  const discussions=host?.runExperts?createDiscussionService({host,chatStore,db:database.db,toolActivity,minutes,memoryGuide:MEMORY_GUIDE}):null;
   const assistants=createAssistantChatService({host,conversations,chatStore,dataRoot,roleSettings});
   // Agent tools answered by the Research Base. The session decides the chat,
   // project and role; nothing in the model's arguments can widen that scope.
@@ -176,15 +185,17 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     if(!chatId)return {role:'temporary',projectId:null};
     const assistant=database.db.prepare('SELECT scope,owner_id FROM assistant_conversations WHERE chat_id=?').get(chatId);
     const projectChat=assistant?.scope==='secretary'?assistant.owner_id:assistant?null:chatId;
-    return {chatId,projectId:projectChat?chatStore.getChat(projectChat)?.projectId??null:null,role:expertId?'expert':assistant?assistant.scope:'main',...(expertId?{expertId}:{}),messageId:turnMessages.get(sessionId)};
+    return {chatId,mainChatId:projectChat||null,projectId:projectChat?chatStore.getChat(projectChat)?.projectId??null:null,role:expertId?'expert':assistant?assistant.scope:'main',...(expertId?{expertId}:{}),messageId:turnMessages.get(sessionId)};
   }
-  host?.setToolHandler?.(async({sessionId,name,args,callId,expertId})=>research.toolCall(name,args,{...toolContext(sessionId,expertId),callId}));
+  host?.setToolHandler?.(async({sessionId,name,args,callId,expertId})=>{const ctx={...toolContext(sessionId,expertId),callId};return projectMemory.names.has(name)?projectMemory.call(name,args??{},ctx):research.toolCall(name,args,ctx);});
   // The project brief (confirmed long-term memory) is a system-prompt section
   // of the Main session, refreshed before a turn when it changed.
   async function refreshBrief(binding,projectId,chatId,messageId){
     if(!host?.configureBrief)return;
     const brief=research.retrieval.brief({projectId:projectId??null});
-    if(binding.briefText!==brief.text){await host.configureBrief({sessionId:binding.sessionId,text:brief.text});binding.briefText=brief.text;}
+    // The history lookup rules are a stable part of the Main expert's system prompt.
+    const text=`${brief.text?`${brief.text}\n\n`:''}${MEMORY_GUIDE}`;
+    if(binding.briefText!==text){await host.configureBrief({sessionId:binding.sessionId,text});binding.briefText=text;}
     if(brief.refs.length&&messageId)research.store.recordUsage({chatId,messageId,refs:brief.refs,how:'brief'});
   }
   async function restoreExecution(chatId){
@@ -263,6 +274,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         userMessage:{id:userMessageId,text},
         onEvent:event=>{if(event.type==='accepted'&&compiled.snapshot)researchDrafts.accepted('main',input.chatId,input.chatId,userMessageId,compiled.snapshot);emit(event);}});
       binding.lastUsed=Date.now();
+      minutes.schedule(input.chatId);
       response.end();
     }finally{pending.delete(input.chatId);}
   }
@@ -341,6 +353,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if (route === '/api/workbench/plans' && request.method === 'GET') { json(response,200,await workbench.store.getPlans()); return true; }
       if (route === '/api/profile' && request.method === 'GET') { json(response,200,profileStore.getProfile()); return true; }
       if(route==='/api/preferences'&&request.method==='GET'){json(response,200,preferences.get());return true;}
+      if(route==='/api/chats/minutes'&&request.method==='GET'){const chatId=requestUrl.searchParams.get('chatId')||'';json(response,200,{minutes:minutes.get(chatId),history:minutes.history(chatId),updating:minutes.updating(chatId),latestMessage:minutes.messagesAfter(chatId,0).at(-1)?.ordinal??0});return true;}
       if(route==='/api/chats/deliverable'&&request.method==='GET'){const image=await deliverables.image(requestUrl.searchParams.get('chatId')||'',requestUrl.searchParams.get('path')||'');binary(response,200,image.bytes,image.type);return true;}
       if(route==='/api/fonts'&&request.method==='GET'){json(response,200,await listFonts({refresh:requestUrl.searchParams.get('refresh')==='1'}));return true;}
       if(route==='/api/secretary/preferences'&&request.method==='GET'){json(response,200,secretaryPreferences.get({language:preferences.get().language}));return true;}
@@ -367,6 +380,8 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       const uploadRoute = ['/api/workbench/import','/api/workbench/asset','/api/library/import'].includes(route);
       for await (const chunk of request) { length += chunk.length; if(length > (uploadRoute ? 20*1024*1024 : 1024*1024)) throw new WorkbenchApiError('REQUEST_TOO_LARGE', uploadRoute ? '上传文件不能超过 20MiB。' : '请求内容过大。', 413); chunks.push(chunk); }
       let input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      if (route === '/api/chats/minutes') { if(!chatStore.getChat(String(input.chatId||'')))throw new MinutesError('CHAT_NOT_FOUND','对话不存在。',404); json(response,200,{minutes:minutes.edit(String(input.chatId),input.text,Number(input.expectedRevision)||0)}); return true; }
+      if (route === '/api/chats/minutes/refresh') { if(!chatStore.getChat(String(input.chatId||'')))throw new MinutesError('CHAT_NOT_FOUND','对话不存在。',404); json(response,200,{minutes:await minutes.refresh(String(input.chatId))}); return true; }
       if (route === '/api/chats/deliverable/open') { json(response,200,await deliverables.open(String(input.chatId||''),String(input.path||''))); return true; }
       if (route === '/api/open-url') { const href=externalUrl(input?.url); if(!href)throw new WorkbenchApiError('INVALID_URL','只能打开 http 或 https 网址。'); json(response,200,await openUrl(href)); return true; }
       if(!input||typeof input!=='object'||Array.isArray(input)){json(response,400,{message:'请求格式无效。'});return true;}
@@ -660,7 +675,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
           await persistPartial(run.currentText);
           emit({type:'cancelled',chatId:input.chatId,text:run.currentText}); return true;
         }
-        if (!input.temporary && finalEvent && typeof finalEvent.text === 'string') { if(run) run.persisted=true; await chatStore.appendMessage({chatId:input.chatId,id:input.assistantMessageId,role:'assistant',text:finalEvent.text}); }
+        if (!input.temporary && finalEvent && typeof finalEvent.text === 'string') { if(run) run.persisted=true; await chatStore.appendMessage({chatId:input.chatId,id:input.assistantMessageId,role:'assistant',text:finalEvent.text}); minutes.schedule(input.chatId); }
         successful=!!finalEvent;
         if(run) run.state='completed';
         if(run&&!input.temporary&&successful) touchActivity(input.chatId,{state:'completed',toolName:undefined});
@@ -685,6 +700,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(!response.headersSent&&(error instanceof AssistantChatError||error instanceof AssistantConversationError)){json(response,Number.isInteger(error.status)?error.status:400,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof WorkFolderError){json(response,400,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof DeliverableError){json(response,error.status,{code:error.code,message:error.message});return true;}
+      if(!response.headersSent&&error instanceof MinutesError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof ResearchBaseError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&(error instanceof ExpertRosterError||error instanceof DiscussionError)){json(response,error.status,{code:error.code,message:error.message});return true;}
       if (error instanceof WorkbenchApiError||error instanceof RoleSettingsError||error instanceof SkillManagerError) { json(response,error.status,{code:error.code,message:error.message}); return true; }
@@ -695,5 +711,5 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     }
     return true;
   }
-  return {handle,close:async()=>{await assistants.close();await Promise.allSettled([host?.close(),web?.close(),skills.close()]);await execution?.close();await chatStore.queue;await profileStore.queue;chatStore.close?.();profileStore.close?.();}};
+  return {handle,close:async()=>{await minutes.close();await assistants.close();await Promise.allSettled([host?.close(),web?.close(),skills.close()]);await execution?.close();await chatStore.queue;await profileStore.queue;chatStore.close?.();profileStore.close?.();}};
 }
