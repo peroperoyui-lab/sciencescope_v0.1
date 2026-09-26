@@ -2,6 +2,63 @@
 
 ## 2026-09-27 Batch 1 local validation r4 — IN PROGRESS (Astra, Windows)
 
+- **Stage 1 final result: PASS after repairs/revalidation.** Stage 0 is
+  delivered; stages 2 (T04) and 3 (retrieval evaluation only) are next. No PR
+  or merge; this is development-client evidence, not signed installer evidence.
+- Stage-1 acceptance index (all PASS): native surfaces/menus/themes/languages
+  (1); font sizes/reduced motion (2); Esc/copy/runtime footer (3); native @
+  insertion/identity (4); three-model ordered/reviewer/adoption/Main (5);
+  preamble in tool card (6); obsolete modes absent (7); chat and file marks,
+  edit/locate/remove/actual-model use/receipts (8–10); research search/read,
+  citations/usage and project-scoped proposal (11–12); Main/expert approvals
+  (12a); real Ask/Full and bounded Auto pause/resume/stop/reopen (12b);
+  fonts and persistence (12c); Help/visible copy/system-browser link (12d);
+  active-turn process-tree shutdown (13). T03 supplements include three
+  distinct models saved/reopened through the native roster, real authors and
+  ordering, and no remaining owned native/host/DSH/WebView processes.
+- Corrected paid Auto acceptance: five admitted rounds, of which two were
+  cancelled by native Pause, and three complete assistant messages persisted.
+  Native Resume and Stop worked; after restart message IDs/text were identical,
+  goal was null and five seconds of observation produced no new request.
+  The test request used the existing `goalMaxRounds:5` API field via a scoped
+  interceptor (applied once), not a production default change. The explicit
+  pre-continuation assertions for that cap were added after this run; its
+  recorded cap injection/round count are result evidence, not a claim those
+  assertions ran. Earlier failed Auto evidence remains below.
+- **Paid stage-1 accounting:** 61 forwarded completion HTTP requests, including
+  cancellations, tool continuations, failed reviewer attempts and background
+  minutes; five additional attempts blocked locally (66 attempts total).
+  Separately: one model-list request. Models: `deepseek-v4.1-flash`,
+  `glm-5.3-flash`, `qwen3.8-flash`. DSH's 29 unique session projections total
+  102,373 output tokens (totals only; never add the `last` field again). Input
+  tokens/model-attributed billing were unavailable. At the selected models'
+  [published output rates](https://opencode.ai/docs/go/), that is roughly
+  USD 0.05–0.13 of **output-side usage only**, not the provider bill or total
+  spend; input/cache/subscription accounting is not measured.
+- Paid evidence index: `live/R4_LIVE_SUMMARY.md`,
+  `live/evidence/auto-live-pre-restart.json`, `auto-live-restart-result.json`,
+  `provider-request-count.json`, `dsh-usage-snapshot.json`. Final native PID
+  exited and ports 9254/9255 closed; isolated credentials absent. The temporary
+  key remains ignored for stage 3 and must be deleted when this batch finishes.
+- Stage 0 + approval repair checkpoint pushed:
+  `7f7118728317257dc08918cb5dd4308554c7a7f7` (remote SHA verified).
+- Stage 1 live first attempt: invited expert answered, ordered participants
+  completed, but the GLM reviewer exhausted this fixture's 4096 output-token
+  limit (`max-tokens`, no conclusion). This is **FAILED**, not a successful
+  review/adoption. The test erroneously called the adoption API directly even
+  though the UI correctly hid its button. That exposed a real API gap: it
+  accepted an incomplete review while later context correctly excluded it.
+  Added `REVIEW_NOT_COMPLETED` / HTTP 409 without mutating adoption state;
+  existing UI semantics stay unchanged. New regression failed with 200 before
+  the guard and passed afterwards (discussion API + i18n 5/5). The test-only
+  output budget was raised to the prior live-evaluation range. The retry used
+  the actual native adoption button; the completed review remained adopted,
+  and Main quoted its conclusion (counter 11→17). A later UI-state observation
+  round again ended in reviewer `max-tokens` (confirmed in stored entries),
+  correctly displayed failure, and was not adopted. That round consumed five
+  HTTP attempts (17→22), not three application-level expert invocations.
+  Eleven
+  HTTP attempts were used in the first attempt, retained in cumulative counts.
 - Baseline `ad54b791acd96ce863510c1d0c7a2160bd6939e2`, including r3; branch
   `codex/local-validation-20260927-r4`, H-drive workspace preserved.
 - Expert approval: r3 failure reproduced with real DSH and a localhost model.
@@ -52,11 +109,80 @@
 - User authorized selecting PDFs from `<下载文件夹>` and `<用户文件夹>`.
   Eight candidate papers (four Chinese/four English) were copied into the
   ignored r4 corpus directory; originals unchanged. These are not yet parser
-  acceptance or user-approved retrieval gold answers.
+  acceptance. User subsequently approved the prepared retrieval question set:
+  52 paper questions and eight synthetic memory cases, scored separately.
+  The original gold remains fixed under `retrieval-draft/`; approval is
+  recorded in `USER_APPROVAL.md`. No retrieval scores have been calculated yet.
+- Additional native checks completed with the localhost model: 64 combinations
+  of 11 settings pages and five workspace surfaces across Chinese/English and
+  light/dark; global assistant and orb each have four combinations. Font list
+  contained 323 entries (304 ms), including Chinese and user-installed fonts;
+  黑体, Latin fallback, body/code sizes, reduced motion, persistence and reset
+  passed. Three chat marks plus a file-preview mark, edit/locate, receipt,
+  Esc, copy feedback and policy switching passed. These are **local-model**
+  results, not paid-provider results. Astra inspected result JSON and sampled
+  screenshots. Hydrated project workbench/map screenshots replaced the initial
+  loading-state captures. That review found another missing English dictionary
+  entry, `暂无计划`: its regression returned null before repair and passes as
+  `No plans` after repair; native recapture pending. Evidence:
+  `validation/native-approval/`.
+- `node scripts/i18n-extract.mjs --missing` ran (exit 0): the broad extractor
+  reports 1,760 untranslated fragments across prototype/spec strings and
+  dynamic fragments as well as live modules. This is not a zero-missing
+  translation claim. Newly introduced strings have dictionary entries and
+  tests; the approved prototype is not edited to clear the scanner.
+- Paid-provider mark check passed separately: three native chat selections
+  plus one Markdown selection reached Main's actual response and the stored
+  research-input receipt (3 quotes + 1 annotation). Counter 22→24; one trailing
+  minutes call followed. Research tools then passed actual search/read/propose,
+  source citations and brief/search/read usage with imported test MD/TeX,
+  with no filesystem/database-traversal tool calls. The first proposal was
+  correctly personal because its test chat was independent; this did **not**
+  prove the project-scoped convention check. The separate native policy test
+  subsequently produced a `memory/convention` proposal with
+  `projectId=r4-validation-project` and `scope=project`, pending user adoption.
+  Cumulative completion HTTP attempts after that segment: 30, including its
+  background minutes. Evidence: `live/evidence/marks-live-result.json` and
+  `research-live-result.json`.
+- Paid policy comparison passed: the expert's first outside-workspace marker
+  write was denied by the actual Windows sandbox; escalation then displayed
+  the expert-labelled native approval card. Clicking allow wrote the marker.
+  The next Full-mode Main turn wrote another controlled outside-workspace
+  marker without a card and submitted the project proposal above. All marker
+  paths remain under r4 temp. A preceding harmless `Write-Output` probe needed
+  no approval, correctly; that fixture mistake consumed three requests and is
+  not labelled an approval success. Counter after policy/late minutes: 43.
+  Evidence: `live/evidence/policy-escalated-live-result.json` and screenshots,
+  inspected by Astra. No production policy change was needed for these tests.
+- Final stage-1 offline regression at this point: `npm test` 128/128, zero
+  failures/skips/cancellations (128.498 s), 19/19 browser/API smokes exit 0;
+  index `validation/phase1-final-smokes.json`. Native shutdown during an active
+  partial reply left none of 14 recorded owned processes after five seconds;
+  CDP 9245 closed. The WOS button opened the system Chrome browser and reached
+  Clarivate's login redirect; no user browser was closed. English title-bar
+  minus/maximize/close and `No plans` were subsequently rechecked in both
+  light/dark using Win32 state of the actual HWND, not a simulated Tauri API;
+  both owned process trees (11 processes each) exited. The first observer used
+  an unavailable Tauri inspection permission; only the test observer changed,
+  not application capabilities.
+- First paid automation run is **FAILED as an acceptance run**: pause correctly
+  aborted admitted round 1 (HTTP 499 at the counting proxy). After resume,
+  the first persisted output was `ROUND_2`. The test wrongly asserted it must
+  be `ROUND_1`; that assertion threw before native Stop and its helper lacked
+  finally cleanup. The goal continued until the proxy cap: 56 cumulative
+  forwarded requests, five additional attempts blocked locally (not billed
+  provider calls). Native Stop then cleared the goal; 12 outputs numbered
+  2–13 remained stored. This is not a passing 3–5-round test. The test helper
+  is being corrected to stop before final assertions and guarantee cleanup;
+  verify with real DSH/local model before minimal paid revalidation. Production
+  pause behaviour is not being changed to accommodate the flawed assertion.
 - Evidence root: `.sciencescope-local/temp/local-validation-r4/`.
   One real OpenCode Go catalog query returned the three selected Flash model
   IDs; paid stage 1 evaluation is in progress with a test-only counting proxy
-  (40-request cap across retries/tool continuations/background minutes/restarts).
+  (initial 40-request cap, raised to 44, then 56 to finish automation after the
+  actual policy/tool-continuation count exceeded its estimate; cumulative
+  across retries/tool continuations/
+  background minutes/restarts).
   It still uses the application API and real DSH, not direct model calls.
   Actual usage/counts will be reported after completion. Native stage 1 as a
   whole, T04/stage 2 and stage 3 are not claimed complete; no PR, merge, or
