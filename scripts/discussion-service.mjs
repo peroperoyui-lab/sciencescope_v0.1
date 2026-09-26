@@ -217,6 +217,7 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
   function adopt(chatId, messageId, adopted) {
     const row = db.prepare('SELECT * FROM discussion_entries WHERE chat_id=? AND message_id=?').get(chatId, messageId);
     if (!row || row.review !== 1) throw new DiscussionError('NOT_A_REVIEW', '只有审核专家的结论需要选择是否加入上下文。', 404);
+    if (adopted && row.stop_reason !== 'completed') throw new DiscussionError('REVIEW_NOT_COMPLETED', '审核尚未完成，不能加入后续上下文。', 409);
     if (!adopted && row.main_seen === 1) throw new DiscussionError('ALREADY_SHARED', '主专家已读取这份审核结论，无法撤回；可在下一条消息中说明不采纳。', 409);
     db.prepare('UPDATE discussion_entries SET adopted=? WHERE chat_id=? AND message_id=?').run(adopted ? 1 : 0, chatId, messageId);
     return entriesFor(chatId, [messageId]).get(messageId);
