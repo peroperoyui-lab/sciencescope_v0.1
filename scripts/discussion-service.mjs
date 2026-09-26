@@ -163,7 +163,7 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
         if (event.type === 'expert-delta' && typeof event.delta === 'string') onEvent({ type: 'expert-delta', runId, expertId: event.expertId, messageId, delta: event.delta });
         if (event.type === 'expert-reset') onEvent({ type: 'expert-reset', runId, expertId: event.expertId, messageId });
         if ((event.type === 'expert-tool' || event.type === 'expert-tool-result') && event.callId) {
-          const call = { type: event.type === 'expert-tool' ? 'tool-call' : 'tool-result', callId: event.callId, ...(event.name ? { name: event.name } : {}), ...(event.argumentsPreview !== undefined ? { argumentsPreview: event.argumentsPreview } : {}), ...(event.preamble ? { preamble: event.preamble } : {}), ...(event.isError !== undefined ? { isError: event.isError } : {}) };
+          const call = { type: event.type === 'expert-tool' ? 'tool-call' : 'tool-result', callId: event.callId, ...(event.name ? { name: event.name } : {}), ...(event.argumentsPreview !== undefined ? { argumentsPreview: event.argumentsPreview } : {}), ...(event.resultPreview !== undefined ? { resultPreview: event.resultPreview } : {}), ...(event.preamble ? { preamble: event.preamble } : {}), ...(event.isError !== undefined ? { isError: event.isError } : {}) };
           if (toolActivity) receipts.push(toolActivity.record({ chatId, assistantMessageId: messageId, ...call }).catch(() => {}));
           onEvent({ runId, expertId: event.expertId, messageId, ...call });
         } else if (event.type === 'expert-tool') onEvent({ type: 'tool-call', runId, expertId: event.expertId, messageId, callId: `${event.expertId}-${Date.now()}`, name: event.name });

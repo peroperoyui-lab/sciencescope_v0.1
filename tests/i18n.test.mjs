@@ -5,6 +5,7 @@ import { EN, EN_PATTERNS } from '../desktop/i18n-en.mjs';
 
 test('i18n: interface text translates, user data never half-translates', () => {
   assert.equal(translate('设置'), 'Settings');
+  assert.equal(translate('暂无置顶'), 'No pinned items');
   assert.equal(translate('  新对话 '), '  New chat ', 'surrounding whitespace is kept');
   assert.equal(translate('工具记录 · 3'), 'Tool activity · 3', 'known fragments around numbers');
   assert.equal(translate('4 个对话'), '4 chats');
