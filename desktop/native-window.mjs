@@ -96,8 +96,11 @@ window.addEventListener('click', async event => {
   event.preventDefault(); event.stopImmediatePropagation();
   try {
     const current = native.getCurrentWindow();
-    if (closeButton || button.title === '关闭主窗口') await current.close();
-    else if (button.title === '最小化') await current.minimize();
-    else if (button.title === '最大化') await current.toggleMaximize();
+    // Dispatch on the glyph, not the title: the title is translated in the
+    // English interface (the × did nothing there, found 2026-09-26).
+    const glyph = button?.textContent.trim();
+    if (closeButton || glyph === '×') await current.close();
+    else if (glyph === '−') await current.minimize();
+    else if (glyph === '□') await current.toggleMaximize();
   } catch { toast('窗口操作未完成，请重试。'); }
 }, true);

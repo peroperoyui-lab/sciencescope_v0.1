@@ -481,7 +481,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   `scripts/ui-gallery.mjs`（`GALLERY_LANG=en` 生成英文截图；`AUDIT_LANG=en AUDIT_COPY=<路由>` 遍历全部可达页面与菜单，列出仍未翻译的文字——目前只剩用户 / 演示数据）。
 - **最近核对**：2026-09-26（Claude，云端）。
 
-界面语言原生核对补充（2026-09-26，Astra）：英文标题栏 `×` 点击无效（浅/深色均复现）。`native-window.mjs` 以中文 `title` 判断动作，与翻译后的属性冲突；尚未修复。切回中文关闭后，13 个已记录的应用/宿主/DSH/WebView 后代 PID 全部退出。详见 DESKTOP_IMPLEMENTATION 本轮 FAILED 记录，不把浏览器 i18n smoke 视为原生关闭验收。
+界面语言原生核对补充（2026-09-26，Astra）：英文标题栏 `×` 点击无效（浅/深色均复现）。`native-window.mjs` 以中文 `title` 判断动作，与翻译后的属性冲突；同日 Claude 已修复（改按按钮字形 − / □ / × 判断，`i18n-smoke` 用模拟的 Tauri 窗口接口覆盖三个按钮），待 Windows 原生复验。切回中文关闭后，13 个已记录的应用/宿主/DSH/WebView 后代 PID 全部退出。详见 DESKTOP_IMPLEMENTATION 本轮 FAILED 记录，不把浏览器 i18n smoke 视为原生关闭验收。
 
 ## 3. 接口索引（`scripts/desktop-api.mjs`）
 
