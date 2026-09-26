@@ -629,6 +629,7 @@ export const EN = {
 "暂停队列": "Pause queue",
 "暂无修改": "No changes",
 "暂无数据": "No data",
+"暂无置顶": "No pinned items",
 "暂无材料。导入原件，或在工作站添加文献版本。": "No materials yet. Import an original or add a manuscript version in the workstation.",
 "暂无知识条目。材料详情中可以保存有来源的候选；不会自动把聊天总结当成知识。": "No knowledge items yet. Save sourced candidates from material details; chat summaries never become knowledge automatically.",
 "暂无资料": "No materials",

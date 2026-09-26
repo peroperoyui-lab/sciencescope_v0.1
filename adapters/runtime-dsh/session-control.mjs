@@ -6,6 +6,8 @@ import { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy';
 import { installModelSelection } from '@deepseek-ai/dsh-agent';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { randomUUID } from 'node:crypto';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { setApprovalPolicy } from '@deepseek-ai/dsh-user-approval';
 import { PERSONA_PREFIX_SECTION } from '@deepseek-ai/dsh-system-prompt';
 import { isTokenDelta } from '@deepseek-ai/dsh-llm';
 import { previewValue } from '../../scripts/tool-activity.mjs';
@@ -29,6 +31,9 @@ export function apply(ctx) {
   let eventTail = Promise.resolve();
   const postEvent = (event) => { const sequence = ++eventSequence; eventTail = eventTail.then(() => postHost({ type: 'control-event', sequence, event })); return eventTail; };
   const pendingApprovals = new Map();
+  // Correlate concurrent expert creation before DSH starts its first turn.
+  // A model-created ordinary subagent must not inherit this application seam.
+  const expertCreation = new AsyncLocalStorage();
   const agentOptions = { provider: process.env.SCIENCESCOPE_PROVIDER, model: process.env.SCIENCESCOPE_MODEL };
   const noTools = process.env.SCIENCESCOPE_NO_TOOLS === '1';
   // Research Base tools. They run here but answer from the host application
@@ -222,7 +227,8 @@ export function apply(ctx) {
         void postEvent({ type: 'expert-start', runId: value.runId, expertId: expert.id });
         let run;
         try {
-          run = await subagents.start('spawn', {
+          const creation = { binding: { runId: value.runId, expertId: expert.id, expertLabel: String(expert.label || expert.id).slice(0, 80) }, policy: ctx.approval.effectivePolicy(handle.agent.session), claimed: false };
+          run = await expertCreation.run(creation, () => subagents.start('spawn', {
             label: String(expert.label || expert.id).slice(0, 80),
             // The shared prompt is the frozen common input; an optional
             // per-expert prompt (e.g. "this block is your own answer") follows it.
@@ -232,8 +238,7 @@ export function apply(ctx) {
             persona: expert.persona,
             ...(Object.keys(agentOptions).length ? { agentOptions } : {}),
             ...(expert.tools === 'none' ? { toolFilter: { allow: [] } } : {}),
-          });
-          expertChildren.set(String(run.id), { runId: value.runId, expertId: expert.id });
+          }));
           const outcome = await run.result;
           const text = outcome.output.filter((block) => block?.type === 'text').map((block) => block.text).join('');
           // The expert's context at the end of its answer (its input plus its own tool work).
@@ -369,22 +374,47 @@ export function apply(ctx) {
     }
     if (event.type === 'tool/result') {
       const result = event.data?.message?.content?.find((block) => block.type === 'tool-result');
-      if (result) void postEvent({ type: 'expert-tool-result', ...child, callId: String(result.toolCallId), isError: !!result.isError });
+      if (result) void postEvent({ type: 'expert-tool-result', ...child, callId: String(result.toolCallId), isError: !!result.isError, resultPreview: previewValue(result.content) });
     }
   });
   // Expert subagents are separate agents that do not inherit the parent's
   // registered tools: give each child the research tools when it is created.
   ctx.on('agent/created', ({ agent }) => {
+    const creation = expertCreation.getStore();
+    if (creation && !creation.claimed && agent.session.header.parentSession === sessionId) {
+      creation.claimed = true;
+      expertChildren.set(String(agent.session.id), creation.binding);
+      // DSH pins generic subagents to never. These application-owned experts
+      // instead inherit the user's policy, with individual approvals via UI.
+      setApprovalPolicy(agent.session, creation.policy);
+      agent.ctx.on('system-prompt/assemble', async (assembly, context, next) => {
+        const result = await next();
+        if (context.agent !== agent) return result;
+        return { ...result, contexts: result.contexts.map((entry) => entry.name !== 'subagent:delegation' ? entry : {
+          ...entry,
+          text: 'You are a ScienceScope discussion expert. Your execution policy was set by the user for this discussion. When the runtime requires approval, wait for the user decision in ScienceScope. Never bypass a rejection. This does not grant permissions to any subagents you create.',
+        }) };
+      });
+    }
     if (!hostCallEndpoint || String(agent?.session?.id) === sessionId || !agent?.ctx?.tools) return;
     try { registerResearchTools(agent.ctx.tools, agent); } catch { /* a child without a tool registry keeps its defaults */ }
+  });
+  ctx.on('agent/disposed', ({ agent }) => {
+    const id = String(agent.session.id);
+    expertChildren.delete(id);
+    childText.delete(id);
   });
   ctx.on('goal/activation-changed', (event) => {
     if (String(event.sessionId) === sessionId) void postEvent({ type: 'goal-activation', ...event });
   });
   ctx.on('approval/request', (requestEvent, next) => {
-    if (String(requestEvent.agent?.session?.id) !== sessionId) return next();
+    const requestingSessionId = String(requestEvent.agent?.session?.id);
+    const child = expertChildren.get(requestingSessionId);
+    // Only this Main session and its registered, active expert children use
+    // this UI approval channel. Unrelated agents keep DSH's normal handling.
+    if (requestingSessionId !== sessionId && !child) return next();
     const requestId = `approval-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    void postEvent({ type: 'approval-request', requestId, toolName: requestEvent.toolName, callId: requestEvent.callId, reason: requestEvent.reason });
+    void postEvent({ type: 'approval-request', requestId, toolName: requestEvent.toolName, callId: requestEvent.callId, reason: requestEvent.reason, ...(child || {}) });
     return new Promise((resolve) => {
       const onAbort = () => { pendingApprovals.delete(requestId);void postEvent({type:'approval-cancelled',requestId}); resolve('cancelled'); };
       if(requestEvent.signal?.aborted){onAbort();return;}

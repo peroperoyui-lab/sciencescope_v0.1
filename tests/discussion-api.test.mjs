@@ -22,7 +22,7 @@ async function fixture() {
       if (experts[0].id === 'methodologist') onEvent({ type: 'expert-tool', runId, expertId: 'methodologist', callId: 'call-1', name: 'read', argumentsPreview: '{"path":"paper_versions/draft.md"}', preamble: 'Let me read the draft.' });
       if (experts[0].id === 'methodologist') {
         onEvent({ type: 'expert-tool', runId, expertId: 'methodologist', callId: 'call-2', name: 'present', argumentsPreview: '{"files":[{"path":"figures/fig1.png","description":"Effect sizes"}]}' });
-        onEvent({ type: 'expert-tool-result', runId, expertId: 'methodologist', callId: 'call-2', isError: false });
+        onEvent({ type: 'expert-tool-result', runId, expertId: 'methodologist', callId: 'call-2', isError: false, resultPreview: 'Presented figure successfully.' });
       }
       // Finish in reverse roster order, as real experts finish in any order.
       for (const entry of [...result].reverse()) { onEvent({ type: 'expert-start', runId, expertId: entry.expertId }); onEvent({ type: 'expert-end', runId, ...entry }); }
@@ -67,6 +67,7 @@ test('ordered panel: shared transcript, roster order, reviewer after all, adopti
     assert.ok(types.indexOf('review-start') > Math.max(...panelEnds), 'review starts after every panel answer');
     const toolEvent = first.events.find((e) => e.type === 'tool-call');
     assert.equal(toolEvent.preamble, 'Let me read the draft.');
+    assert.equal(first.events.find((e) => e.type === 'tool-result' && e.callId === 'call-2').resultPreview, 'Presented figure successfully.');
     // Everyone on the panel gets the same frozen input, including earlier turns.
     const panelRun = f.state.runs[0];
     assert.deepEqual(panelRun.experts.map((e) => e.id), ['methodologist', 'red-team']);
@@ -92,6 +93,7 @@ test('ordered panel: shared transcript, roster order, reviewer after all, adopti
     const review = page.messages[5];
     assert.equal(review.expert.adopted, false);
     assert.equal(page.messages[3].toolActivity[0].preamble, 'Let me read the draft.');
+    assert.equal(page.messages[3].toolActivity.find((call) => call.callId === 'call-2').resultPreview, 'Presented figure successfully.');
 
     // Main's next turn carries the expert answers and the files they presented,
     // not files they only read, not the unadopted review and not tool calls.

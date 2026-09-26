@@ -12,11 +12,14 @@ const base = path.resolve('.sciencescope-local/temp'); await mkdir(base, {recurs
 const root = await mkdtemp(path.join(base, 'creation-smoke-'));
 const existing = path.join(root, 'user-research', '已有文件夹'); await mkdir(existing, {recursive: true});
 const starts = [];
+let nextSession = 0;
 const host = {
   capabilities: {tokenStreaming: true}, close: async () => {}, observeSession: () => () => {},
   listProviders: async () => [{id: 'offline', name: '离线', models: ['m'], configured: true, saved: true}],
   getRuntimeConfig: async () => ({}), getModelInfo: async () => ({}), getContextUsage: async () => null,
-  startSession: async ({sessionId, workspace}) => { starts.push(workspace); return sessionId || `session-s${starts.length}`; },
+  // Minutes also start noTools sessions in the originating chat's workspace.
+  // Observe Main bindings, not whichever background summary happened last.
+  startSession: async ({sessionId, workspace, noTools}) => { if (!noTools) starts.push(workspace); return sessionId || `session-s${++nextSession}`; },
   configurePolicy: async () => {}, configureReasoning: async () => {}, releaseSession: async () => {}, getGoal: async () => null,
   send: async ({onEvent}) => { onEvent({type: 'completed', text: 'OK'}); return {finalResponse: 'OK'}; },
 };

@@ -1,5 +1,67 @@
 # Desktop implementation — first increment
 
+## 2026-09-27 Batch 1 local validation r4 — IN PROGRESS (Astra, Windows)
+
+- Baseline `ad54b791acd96ce863510c1d0c7a2160bd6939e2`, including r3; branch
+  `codex/local-validation-20260927-r4`, H-drive workspace preserved.
+- Expert approval: r3 failure reproduced with real DSH and a localhost model.
+  Main allow/reject passed; expert emitted zero approval requests. Two causes:
+  the adapter only forwarded Main, and DSH pins generic delegated agents to
+  `never`. Application-owned discussion experts now inherit the user's policy
+  in their creation window, before their first model turn. A scoped creation
+  association identifies only those experts; ordinary subagents retain DSH's
+  policy. DSH's public policy setter and prompt-assembly hook are used; no
+  upstream files are changed. Approvals carry expert identity; the existing
+  Main approval/reply path is unchanged. Expert tool results now use the same
+  bounded, redacted preview as Main and reach both stream and stored activity.
+- Regression evidence: `tests/expert-approval-runtime.test.mjs` failed before
+  repair (expert approval count 0 instead of 1), then passed Main/expert
+  allow/reject with eight localhost model requests. Each approved operation
+  created its dedicated marker and each rejected operation left no marker.
+  The test also passes cancellation while awaiting approval and concurrent
+  experts with opposite decisions (13 localhost requests total).
+  `tests/discussion-api.test.mjs` failed on the missing result preview before
+  repair, then passed 2/2 including persisted preview.
+- Baseline `npm test`: 126/126. Browser matrix found a creation smoke race:
+  `starts.at(-1)` could observe the prior chat's background minutes session.
+  Instrumentation confirmed both Main workspaces were correct. The fixture
+  now counts Main bindings only (`!noTools`); expected workspace unchanged.
+  Stage 0 post-fix validation is **PASS**: `npm ci` (447 packages, zero reported
+  vulnerabilities), `node scripts/build-desktop.mjs`, `cargo build --offline`
+  (49.11 s), frozen-code `npm test` 127/127 (122.256 s), 18/18 browser smokes
+  and `assistant-api-smoke --ui` (12 localhost requests, zero paid). Commands
+  used Node 25.8.1/npm 11.11.0 and Windows Edge 153.0.4234.48; logs are in
+  `validation/`. Cargo succeeded despite an earlier environment-command path
+  warning; no system/user environment was changed. Stage checkpoint SHA will
+  be recorded after push.
+- Native reviewer picker: four language/theme combinations fit the viewport
+  and select correctly. Screenshots were recaptured after the entry animation
+  finished (opacity 1); the initial intermediate-opacity images were not used
+  as final visual evidence. Manual review also found the sidebar empty-pins
+  text untranslated in English: missing dictionary entry, added with a
+  regression (`translate` returned null before; i18n tests now 2/2).
+- Native item 12a **PASS**: Main allow/reject and invited expert allow/reject
+  show their approval cards, finish without pending approvals, and retain the
+  corresponding tool result after reload. The expert card identifies the
+  requester. Actual `pwsh` output appears only for allowed operations; rejected
+  results say the user rejected escalation. Evidence: `validation/native-approval/`
+  JSON and screenshots, independently inspected by Astra. This fixture made
+  23 localhost requests, not paid requests. Its 12 recorded owned processes
+  exited after closing the window; diagnostic port 9245 closed. Reviewer-only
+  native runs likewise left none of their nine recorded processes.
+- User authorized selecting PDFs from `D:\chromedownload` and `H:\文件`.
+  Eight candidate papers (four Chinese/four English) were copied into the
+  ignored r4 corpus directory; originals unchanged. These are not yet parser
+  acceptance or user-approved retrieval gold answers.
+- Evidence root: `.sciencescope-local/temp/local-validation-r4/`.
+  One real OpenCode Go catalog query returned the three selected Flash model
+  IDs; paid stage 1 evaluation is in progress with a test-only counting proxy
+  (40-request cap across retries/tool continuations/background minutes/restarts).
+  It still uses the application API and real DSH, not direct model calls.
+  Actual usage/counts will be reported after completion. Native stage 1 as a
+  whole, T04/stage 2 and stage 3 are not claimed complete; no PR, merge, or
+  batch 2 work.
+
 ## 2026-09-27 Review of batch 1 r3 + user feedback (Claude, cloud)
 
 - Fast-forwarded `codex/local-validation-20260927-r3@1c5cde9` (Astra: "copied"
