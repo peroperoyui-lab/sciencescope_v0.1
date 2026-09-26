@@ -69,6 +69,11 @@ actual remote branch and SHA; failed pushes are not delivery.
   beside the heading, label or option it explains, not as page text. Errors,
   warnings, status, empty states and data stay visible (standard in
   docs/02_INTERACTION_CONTRACTS.md, 2026-09-25).
+- The GUI is bilingual (中文 / English, desktop/i18n.mjs, 2026-09-26). Every new
+  interface string needs an English entry in desktop/i18n-en.mjs (check with
+  `node scripts/i18n-extract.mjs --missing`); never translate user or model
+  content; built-in defaults the user sees (e.g. the notes template) follow the
+  language until the user edits them.
 - No "not yet developed / coming soon / prototype / sample" text in the UI. An
   unfinished feature's entry points stay hidden behind its flag in
   `/api/status` `features` (desktop/features.mjs) until it works end to end;

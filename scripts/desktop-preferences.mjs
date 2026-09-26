@@ -8,6 +8,7 @@ const DEFAULT_PREFERENCES = Object.freeze({
   showScrollbars: false,
   // 'default' = the bundled 思源黑体 (Noto Sans SC); otherwise an installed font family name.
   uiFont: 'default',
+  language: 'zh-CN',
 });
 
 const THEMES = new Set(['light', 'dark', 'system']);
@@ -15,6 +16,7 @@ const DENSITIES = new Set(['standard', 'compact']);
 const CODE_FONT_SIZES = new Set([12, 13, 14, 15, 16, 18]);
 const CHAT_FONT_SIZES = new Set([14, 15, 16, 18, 20]);
 const SEND_KEYS = new Set(['enter', 'ctrl-enter']);
+const LANGUAGES = new Set(['zh-CN', 'en']);
 
 function invalidPreferences(message) {
   const error = new Error(message);
@@ -59,6 +61,9 @@ function validatePatch(patch) {
   if ('showScrollbars' in patch && typeof patch.showScrollbars !== 'boolean') {
     throw invalidPreferences('showScrollbars must be a boolean');
   }
+  if ('language' in patch && !LANGUAGES.has(patch.language)) {
+    throw invalidPreferences("language must be 'zh-CN' or 'en'");
+  }
   if ('uiFont' in patch && !validFontFamily(patch.uiFont)) {
     throw invalidPreferences("uiFont must be 'default' or an installed font family name");
   }
@@ -82,6 +87,7 @@ function readRow(statement) {
     reduceMotion: row.reduce_motion === 1,
     showScrollbars: row.show_scrollbars === 1,
     uiFont: row.ui_font || 'default',
+    language: row.language || 'zh-CN',
   };
 }
 
@@ -105,14 +111,15 @@ export function createDesktopPreferences({ db, dataRoot } = {}) {
   if (!columns.has('density')) db.exec("ALTER TABLE desktop_preferences ADD COLUMN density TEXT NOT NULL DEFAULT 'standard'");
   if (!columns.has('code_font_size')) db.exec('ALTER TABLE desktop_preferences ADD COLUMN code_font_size INTEGER NOT NULL DEFAULT 14');
   if (!columns.has('ui_font')) db.exec("ALTER TABLE desktop_preferences ADD COLUMN ui_font TEXT NOT NULL DEFAULT 'default'");
+  if (!columns.has('language')) db.exec("ALTER TABLE desktop_preferences ADD COLUMN language TEXT NOT NULL DEFAULT 'zh-CN'");
   const select = db.prepare(`
-    SELECT theme, density, code_font_size, chat_font_size, send_key, reduce_motion, show_scrollbars, ui_font
+    SELECT theme, density, code_font_size, chat_font_size, send_key, reduce_motion, show_scrollbars, ui_font, language
     FROM desktop_preferences WHERE id = 1
   `);
   const upsert = db.prepare(`
     INSERT INTO desktop_preferences
-      (id, theme, density, code_font_size, chat_font_size, send_key, reduce_motion, show_scrollbars, ui_font)
-    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, theme, density, code_font_size, chat_font_size, send_key, reduce_motion, show_scrollbars, ui_font, language)
+    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       theme = excluded.theme,
       density = excluded.density,
@@ -121,7 +128,8 @@ export function createDesktopPreferences({ db, dataRoot } = {}) {
       send_key = excluded.send_key,
       reduce_motion = excluded.reduce_motion,
       show_scrollbars = excluded.show_scrollbars,
-      ui_font = excluded.ui_font
+      ui_font = excluded.ui_font,
+      language = excluded.language
   `);
 
   return Object.freeze({
@@ -131,7 +139,7 @@ export function createDesktopPreferences({ db, dataRoot } = {}) {
       db.exec('BEGIN IMMEDIATE');
       try {
         const next = { ...readRow(select), ...patch };
-        upsert.run(next.theme, next.density, next.codeFontSize, next.chatFontSize, next.sendKey, next.reduceMotion ? 1 : 0, next.showScrollbars ? 1 : 0, next.uiFont);
+        upsert.run(next.theme, next.density, next.codeFontSize, next.chatFontSize, next.sendKey, next.reduceMotion ? 1 : 0, next.showScrollbars ? 1 : 0, next.uiFont, next.language);
         db.exec('COMMIT');
         return { ...next };
       } catch (error) {
@@ -139,12 +147,14 @@ export function createDesktopPreferences({ db, dataRoot } = {}) {
         throw error;
       }
     },
+    // Restores the reading and display settings; the interface language stays.
     reset() {
       db.exec('BEGIN IMMEDIATE');
       try {
-        upsert.run(DEFAULT_PREFERENCES.theme, DEFAULT_PREFERENCES.density, DEFAULT_PREFERENCES.codeFontSize, DEFAULT_PREFERENCES.chatFontSize, DEFAULT_PREFERENCES.sendKey, DEFAULT_PREFERENCES.reduceMotion ? 1 : 0, DEFAULT_PREFERENCES.showScrollbars ? 1 : 0, DEFAULT_PREFERENCES.uiFont);
+        const { language } = readRow(select);
+        upsert.run(DEFAULT_PREFERENCES.theme, DEFAULT_PREFERENCES.density, DEFAULT_PREFERENCES.codeFontSize, DEFAULT_PREFERENCES.chatFontSize, DEFAULT_PREFERENCES.sendKey, DEFAULT_PREFERENCES.reduceMotion ? 1 : 0, DEFAULT_PREFERENCES.showScrollbars ? 1 : 0, DEFAULT_PREFERENCES.uiFont, language);
         db.exec('COMMIT');
-        return { ...DEFAULT_PREFERENCES };
+        return { ...DEFAULT_PREFERENCES, language };
       } catch (error) {
         try { db.exec('ROLLBACK'); } catch { /* preserve original error */ }
         throw error;

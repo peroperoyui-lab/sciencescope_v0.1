@@ -1,4 +1,9 @@
 export const DEFAULT_NOTES_TEMPLATE = '# 版本说明\n比较对象\n本次变化\n与当前研究的关系\n待用户决定\n相关导图节点与文件';
+// The built-in template follows the interface language until the user saves their own.
+export const DEFAULT_NOTES_TEMPLATES = Object.freeze({
+  'zh-CN': DEFAULT_NOTES_TEMPLATE,
+  en: '# Version notes\nCompared with\nWhat changed\nRelation to the current research\nFor the user to decide\nRelated map nodes and files',
+});
 
 function invalidPreferences(message) {
   const error = new Error(message);
@@ -36,9 +41,9 @@ export function createSecretaryPreferences({ db } = {}) {
     ON CONFLICT(id) DO UPDATE SET notes_template = excluded.notes_template
   `);
 
-  function get() {
+  function get({ language = 'zh-CN' } = {}) {
     const row = select.get();
-    return { notesTemplate: row?.notes_template ?? DEFAULT_NOTES_TEMPLATE };
+    return { notesTemplate: row?.notes_template ?? DEFAULT_NOTES_TEMPLATES[language] ?? DEFAULT_NOTES_TEMPLATE };
   }
 
   function save(patch) {
