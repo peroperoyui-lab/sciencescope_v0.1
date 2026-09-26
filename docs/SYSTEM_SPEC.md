@@ -531,11 +531,12 @@ settings-ui 首次在重载后的字体值断言失败（`default`，预期 `Dej
 desktop-interaction 的认证/路由夹具改用生产宿主后，仍在旧选区颜色断言失败：实际为刷新样式的半透明 accent，预期为旧灰色。
 未修改生产样式或测试预期。按 LOCAL_VALIDATION 的停止条件，阶段 1–3 未测，不据此升级任何原生验收状态。
 详细命令、截图与未执行项见 DESKTOP_IMPLEMENTATION 顶部同日小节。
+**同日 Claude 复核**：交互 smoke 的两处断言已对齐当前批准的界面（选区为刷新后的主题色、自由讨论已取消）；设置 smoke 的失败是真实缺陷——其他模块加载完成时的整页重绘会丢掉设置页尚未保存的选择，已修复并加入回归步骤。云端 `npm test` 126/126、全部 23 个浏览器 smoke 通过；Windows 需从阶段 0 重跑。
 
 | 类型 | 运行方式 | 说明 |
 |---|---|---|
 | 离线单元测试 | `npm test`（并发 2） | 40 个文件、121 项（2026-09-25）；部分启动真实 DSH，配合本地模拟模型。`expert-discussion-runtime` 的并发断言在满负载时偶发失败（单独运行和多次整套运行均通过），待加固 |
-| 浏览器 smoke | `SCIENCESCOPE_BROWSER=<chromium 路径> node scripts/<name>-smoke.mjs` | 默认使用 Windows Edge；走生产资源路由。chat-ui、failed-send-draft、research-input-ui、marks-ui、settings-ui、shortcuts-ui、extensions-ui、workbench-ui、workspace-ui、desktop-navigation、discussion-ui、creation-details。`desktop-interaction-smoke` 在 main 上同样失败（未走 API 令牌，待修）；`ui-gallery.mjs` 生成截图集 |
+| 浏览器 smoke | `SCIENCESCOPE_BROWSER=<chromium 路径> node scripts/<name>-smoke.mjs` | 默认使用 Windows Edge；走生产资源路由。chat-ui、failed-send-draft、research-input-ui、marks-ui、settings-ui、shortcuts-ui、extensions-ui、workbench-ui、workspace-ui、desktop-navigation、discussion-ui、creation-details。`desktop-interaction-smoke`（2026-09-26 改走生产路由并对齐当前界面，通过）；`ui-gallery.mjs` 生成截图集 |
 | DSH smoke | `node scripts/dsh-*-smoke.mjs`、`skills-runtime-smoke`、`assistant-api-smoke` | 真实 DSH + 本地模拟模型 |
 | 原生 smoke | `native-*-smoke`、`assistant-window-smoke`、`shutdown-smoke` | 仅 Windows，需要已构建的 exe |
 | 真实模型（付费，需主动运行） | `real-provider-smoke`、`real-stream-smoke`、`runtime-hardening-live-smoke`、`scripts/evals/*` | key 从环境变量或不进 Git 的 `.sciencescope-local/secret/` 读取 |

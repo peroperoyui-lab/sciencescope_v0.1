@@ -64,7 +64,7 @@ window.addEventListener('submit',async event=>{
   if(event.target.id!=='desktop-preferences-form')return;
   event.preventDefault();event.stopImmediatePropagation();const form=event.target,button=form.querySelector('button[type="submit"]'),data=new FormData(form);
   button.disabled=true;
-  try{values=await hostRequest('preferences',{theme:data.get('theme'),density:data.get('density'),codeFontSize:Number(data.get('codeFontSize')),chatFontSize:Number(data.get('chatFontSize')),sendKey:data.get('sendKey'),reduceMotion:data.get('reduceMotion')==='true',showScrollbars:data.get('showScrollbars')==='true',uiFont:data.get('uiFont')||'default',language:data.get('language')||'zh-CN'});apply();channel.postMessage('changed');form.querySelector('[data-settings-feedback]').textContent='已保存并应用；其它窗口同步生效。';}
+  try{values=await hostRequest('preferences',{theme:data.get('theme'),density:data.get('density'),codeFontSize:Number(data.get('codeFontSize')),chatFontSize:Number(data.get('chatFontSize')),sendKey:data.get('sendKey'),reduceMotion:data.get('reduceMotion')==='true',showScrollbars:data.get('showScrollbars')==='true',uiFont:data.get('uiFont')||'default',language:data.get('language')||'zh-CN'});forget(form.id);apply();channel.postMessage('changed');form.querySelector('[data-settings-feedback]').textContent='已保存并应用；其它窗口同步生效。';}
   catch{form.querySelector('[data-settings-feedback]').textContent='未保存，请重试。';}finally{button.disabled=false;}
 },true);
 window.addEventListener('change',event=>{
@@ -81,7 +81,7 @@ window.addEventListener('click',async event=>{
   if(!event.target.closest('[data-preferences-reset]'))return;
   event.preventDefault();event.stopImmediatePropagation();
   if(!await window.ScienceScopeWorkspace.confirmAction('恢复阅读与操作默认设置','仅恢复界面字体、主题、密度、字号、发送方式和动画设置；保留个人资料、模型、对话与材料。','恢复默认'))return;
-  try{values=await hostRequest('preferences/reset',{});apply();channel.postMessage('changed');render();toast('已恢复阅读与操作默认设置。');}catch{toast('恢复失败，设置未更新。');}
+  try{values=await hostRequest('preferences/reset',{});forget('desktop-preferences-form');apply();channel.postMessage('changed');render();toast('已恢复阅读与操作默认设置。');}catch{toast('恢复失败，设置未更新。');}
 },true);
 window.addEventListener('click',async event=>{
   const button=event.target.closest('[data-settings-open],[data-settings-chat],[data-settings-role]');if(!button)return;
@@ -92,4 +92,26 @@ window.addEventListener('click',async event=>{
     go('work');if(button.dataset.settingsRole==='secretary')openPanel('secretary');
   }catch{toast('操作未完成，请检查客户端状态。');}
 },true);
+// Any module finishing a load calls render(), which rebuilds the settings page
+// from saved values. Keep the user's unsaved choices across such re-renders
+// (lost mid-edit on a slow first Windows run, 2026-09-26); saving or leaving
+// the page drops them.
+const unsaved=new Map();
+function forget(formId){for(const key of [...unsaved.keys()])if(key.startsWith(formId+'\u0000'))unsaved.delete(key);}
+function noteEdit(event){const el=event.target,form=el?.form;if(!form?.id||!el.name||!settingsEntries.some(([id])=>id===route))return;unsaved.set(form.id+'\u0000'+el.name,el.type==='checkbox'?el.checked:el.value);}
+window.addEventListener('input',noteEdit,true);window.addEventListener('change',noteEdit,true);
+if(typeof render==='function'){
+  const baseRender=render;
+  render=function(...args){
+    const before=route,result=baseRender.apply(this,args);
+    if(route!==before){unsaved.clear();return result;}
+    for(const [key,value] of unsaved){
+      const [formId,name]=key.split('\u0000'),el=document.getElementById(formId)?.elements?.[name];
+      if(!el)continue;
+      if(el.type==='checkbox')el.checked=value;else el.value=value;
+      if(name==='uiFont'){const preview=document.querySelector('[data-font-preview]');if(preview)preview.style.fontFamily=fontStack(el.value);}
+    }
+    return result;
+  };
+}
 window.ScienceScopePreferences.ready=Promise.all([hostRequest('preferences').then(result=>{values=result;loaded=true;apply();}),hostRequest('settings/info').then(result=>{diagnostics=result;})]).then(()=>{if(settingsEntries.some(([id])=>id===route))render();}).catch(()=>{loaded=false;});
