@@ -43,7 +43,7 @@
 > 执行顺序与分批见 `docs/tasks/QUEUE.md`。2026-09-26：第 1 批在阶段 0 失败后停止；两处失败已由 Claude 复核处理（过时断言对齐、设置页重绘丢失未保存选择的缺陷已修），第 1 批需从阶段 0 重跑。
 | 任务 | 内容 | 状态 | 依赖 |
 |---|---|---|---|
-| LOCAL_VALIDATION_2026-09-25 | 合并前在 Windows 上完整验收 claude/determined-pasteur-jxpzw8 | 第 2 次阶段 0 PASS：`140f8d8`，126/126、19 项浏览器/助手 UI 检查、原生构建启动。阶段 1 **FAILED / 已停止**：英文标题栏关闭按钮无效；深色导图与中文字体名做了小修复。`codex/local-validation-20260926-r2`（阶段 1 SHA 见交付报告）。阶段 2–3 未开始；保留第 1 次 FAILED 记录 `d14616f` | 英文 × 已修复（Claude，同日），从阶段 1 继续；真实评测需要用户在 H 盘工作区放入 `.sciencescope-local/secret/opencode.key` |
+| LOCAL_VALIDATION_2026-09-25 | 合并前在 Windows 上完整验收 claude/determined-pasteur-jxpzw8 | r3 进行中：`56be32d` → `codex/local-validation-20260927-r3`，阶段 0 快速确认 PASS（126/126 + i18n/settings-ui/desktop-interaction）；阶段 1 待原生重跑，2–3 未开始。r2 的 `140f8d8`/`508dc66` 及 r1 失败证据保留 | 原生复验英文 − / □ / ×、深浅色与完整阶段 1；指定 key 当前缺失，真实模型结果不得用模拟结果代替 |
 | T03 | 原生：讨论与控制台窗口 | 待执行（被本地验收覆盖一部分） | — |
 | T04 | 文档解析器与阅读器 | 待执行（在本地验收的阶段 2 中） | — |
 | T05 | 研究资料库界面 | 待执行 | T04 |

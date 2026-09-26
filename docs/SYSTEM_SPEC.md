@@ -528,6 +528,8 @@ DSH 自己的数据（会话历史、Provider 配置、凭据、技能）在 `.s
 
 ## 5. 测试与验收索引
 
+2026-09-27 r3 快速基线核对（Astra，Windows，`56be32d`）：`npm test` 126/126；i18n（含英文标题栏动作回归）、settings-ui、desktop-interaction 三个浏览器 smoke 全部通过。阶段 1 原生重新验收待执行；不以模拟 Tauri 窗口调用代替实机证据。
+
 最近核对补充：2026-09-26（Astra，Windows 第 2 次本地验收，基线 `115f6b7`）。阶段 0 PASS：
 重新 `npm ci`、桌面资源构建、`npm test` 126/126；18 个纯浏览器 smoke 和 `assistant-api-smoke --ui` 全部通过。
 助手检查使用真实 DSH + 本地模拟模型，12 次本地请求、0 付费请求。`cargo build --offline` 通过，
