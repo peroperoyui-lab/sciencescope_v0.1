@@ -16,7 +16,7 @@ let cached = null;
 const powershell = () => path.join(process.env.SystemRoot || 'C:/Windows', 'System32/WindowsPowerShell/v1.0/powershell.exe');
 
 async function windowsCollection() {
-  const script = '[Console]::OutputEncoding=[Text.Encoding]::UTF8; Add-Type -AssemblyName System.Drawing; (New-Object System.Drawing.Text.InstalledFontCollection).Families | ForEach-Object { $_.Name }';
+  const script = '[Console]::OutputEncoding=[Text.Encoding]::UTF8; Add-Type -AssemblyName System.Drawing; (New-Object System.Drawing.Text.InstalledFontCollection).Families | ForEach-Object { $_.Name; $_.GetName(2052) }';
   const {stdout} = await execFile(powershell(), ['-NoProfile', '-NonInteractive', '-Command', script], {windowsHide: true, timeout: TIMEOUT, maxBuffer: 8 << 20, encoding: 'utf8'});
   return stdout.split(/\r?\n/);
 }

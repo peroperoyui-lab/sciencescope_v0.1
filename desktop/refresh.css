@@ -292,6 +292,8 @@ dialog::backdrop{background:color-mix(in srgb,#0d110e 32%,transparent);backdrop-
 .wb-bottom{gap:12px}
 .wb-left,.wb-map,.wb-right{background:var(--raised);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1)}
 .mapviewport{background:radial-gradient(circle at 1px 1px,color-mix(in srgb,var(--ink) 9%,transparent) 1px,transparent 0) 0 0/18px 18px,var(--paper);border-radius:var(--r-md)}
+:root[data-theme="dark"] .editorinspector{background:var(--raised)}
+:root[data-theme="dark"] .editorinspector .mdview,:root[data-theme="dark"] .readbadge{background:var(--sunken)}
 .mapnode{background:var(--raised);border:1px solid var(--line-strong);border-radius:var(--r-lg);box-shadow:var(--shadow-1);outline:0;transition:box-shadow var(--t-fast),border-color var(--t-fast)}
 .mapnode.root{border:1.5px solid var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
 .mapnode.selected{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}

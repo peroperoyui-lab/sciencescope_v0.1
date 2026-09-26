@@ -1,5 +1,63 @@
 # Desktop implementation — first increment
 
+## 2026-09-26 Batch 1 local validation r2 — STOPPED / stage 1 FAILED (Astra, Windows)
+
+### Delivery and stage gates
+- Workspace `H:\ScienceScope_v0.1-desktop`; baseline `115f6b725f0311937887fa361d9fcfe5dde1d4e6`.
+- Branch `codex/local-validation-20260926-r2`. Stage 0 was committed and pushed as `140f8d89efad040605b302d77b25fb56d5317cf3` before stage 1. Stage 1 findings and the small fixes below are a separate checkpoint (its SHA is in the delivery report).
+- Stage 0: **PASS** — 126/126 tests, all 18 browser-only smokes plus `assistant-api-smoke --ui`, native build/startup. Full command list is in the next dated section. The other Playwright smoke entry points are native-client tests, not omitted browser-only tests.
+- Stage 1: **FAILED / stopped** at the English native close button. No further functional acceptance or paid evaluation continued after reproduction.
+- Stages 2 (T04) and 3 (retrieval evaluation): **NOT STARTED**. Batch 2/T17/T18 not started. No PR, merge, reset, or changed test expectations.
+
+### Blocking failure: translated title disables native close
+Reproduction on the rebuilt native Windows executable, using an isolated production host/data directory:
+1. Open Settings → Personal profile & general, choose English, save and apply.
+2. Click the main title bar's `×` button, whose tooltip is now `Close main window`.
+3. The click does nothing. The main window, host and DSH processes remain running. Reproduced in both light and dark themes.
+
+Root cause: `desktop/native-window.mjs` compares `button.title` with Chinese strings (`关闭主窗口`, `最小化`, `最大化`). `desktop/i18n.mjs` translates the title attribute; the handler then consumes the click without invoking a native action. Minimize/maximize have the same code pattern, but were **not separately tested**. This is not a failure of Rust's shutdown path. Leave this blocker for a bounded interaction fix with locale-independent action identity and regression coverage; do not hide the control or relax the acceptance.
+
+For cleanup only, switched back to Chinese and clicked the same close button. The app closed; **all 13 recorded owned PIDs disappeared** (main executable, host, DSH, conhost and WebViews), and diagnostic port 9236 stopped listening. No force-kill was needed. This proves idle Chinese-close cleanup, not shutdown during an active model/tool execution.
+
+### Two permitted small fixes before the blocker
+- `desktop/refresh.css`: two dark-theme overrides replace hardcoded light backgrounds on the map inspector, its Markdown preview and the workbench preview badge with existing theme tokens. Before: inspector background `rgb(253,254,250)` with light foreground; after rebuilding assets/reloading the real native window: background `rgb(33,38,34)`, foreground `rgb(230,234,228)`. No layout/prototype changes.
+- `scripts/system-fonts.mjs`: one-line addition emits the installed font's `GetName(2052)` alongside its existing name. The actual Windows PowerShell subprocess reports `en-US` and `.Name` alone omitted all Chinese family names. Preserve existing English names/settings rather than rename them. Real Windows enumeration after the fix: **322 names in 210 ms**, including `Microsoft YaHei`, `SimHei`, `微软雅黑`, `黑体` (previously 292 names, no Chinese system names). Native end-to-end selection of the newly added aliases after host restart remains untested because the stage stopped.
+
+### Stage 1 per-item evidence (partial is not an acceptance pass)
+| Item | Result | Actual evidence / remaining checks |
+|---|---|---|
+| 1: all native surfaces, light/dark | PARTIAL / NOT FULLY TESTED | Opened home, chat draft, 11 settings pages, command/context menus, database, workbench/map, secretary, real assistant/orb windows; saved screenshots. Inspected representative screenshots; fixed map white blocks. No populated real discussion/tool/approval view accepted yet. |
+| 2: font sizes, reduced motion | PARTIAL | Native save applied `--chat-font-size:18px`, `--code-font-size:16px` and reduced-motion attribute. Actual long-chat/code rendering and restart not tested. |
+| 3: Esc, copy, runtime footer | PARTIAL | Native footer and production `/api/status` show connected. Esc during generation and copy feedback not tested natively. |
+| 4: @ invitation / identity | NOT TESTED | Stage stopped before live model configuration. |
+| 5: ordered participants / reviewer / adoption | NOT TESTED | No native model discussion run. |
+| 6: tool preamble card | NOT TESTED | No native filesystem tool turn run. |
+| 7: removed free/cross-question modes | NOT TESTED natively | Stage 0 discussion/interaction smoke passed; not substituted for native acceptance. |
+| 8: three message marks / edit / remove | NOT TESTED natively | Stage 0 marks smoke passed. |
+| 9: preview mark / locate / highlight | NOT TESTED natively | Stage stopped. |
+| 10: marked input used / receipt | NOT TESTED | No paid model calls. |
+| 11: import / sync / citations / usage | NOT TESTED | No research import or live lookup performed. |
+| 12: memory proposal / no app-data shell lookup | NOT TESTED | No paid model calls. |
+| 12a: expert approval approve/deny + Main comparison | NOT TESTED | Stage stopped. |
+| 12b: ask/full + real automation pause/resume/end | NOT TESTED | Stage stopped. |
+| 12c: installed fonts and persistence | PARTIAL | 292 original system names in native list; saved `SimHei` applied globally. Fixed missing Chinese aliases (322 names, 210 ms in real helper). Font glyph comparison, native restart, user-font verification, English fallback and reset still untested. |
+| 12d: copy audit / Help / external academic sites | NOT TESTED as a complete item | Native screenshots captured but no complete menu/copy/OS browser acceptance. |
+| 13: close and process tree | **FAILED** | English titlebar close has no effect. Chinese cleanup removes all 13 owned PIDs; active-tool shutdown/console-flash observation untested. |
+
+T03 supplementary checks (three distinct cheap expert models, settings/restart persistence, author/model/order restoration, no flashing consoles during discussion) remain **NOT TESTED**. T03's old free-discussion/cross-question steps are superseded by the approved 2.5 work-mode @/ordered semantics, not restored for testing.
+
+### Evidence, model use and scope
+- Post-fix regression: `npm test` **126/126 PASS**, no skipped/cancelled tests, 181.0 s; `node scripts/settings-ui-smoke.mjs`, `node scripts/workbench-ui-smoke.mjs`, `node scripts/i18n-smoke.mjs` all **PASS**. Logs: `npm-test-stage1-fixes.log`, `settings-ui-stage1-fixes.log`, `workbench-ui-stage1-fixes.log`, `i18n-stage1-fixes.log`. `git diff --check` PASS. Other browser smoke results are the unchanged stage 0 baseline runs, not claimed as re-run after these fixes.
+- Evidence root: `H:\ScienceScope_v0.1-desktop\.sciencescope-local\temp\local-validation-r2\` (ignored; 49 native screenshots at this checkpoint).
+- Evidence uses the `local-validation-r2` sibling directory rather than overwriting round 1's `local-validation` evidence; it remains beneath the task-required project temp root.
+- Blocker: `native-en-close-failure.json`, `native-en-close-failure.png` (dark), `native-en-close-light-failure.png` (light). Before/after owned PID lists: `native-tree-before-close.json`, `native-tree-after-close.json`.
+- Map fix: `native-dark-map-failure.png` → `native-dark-map-fixed.png`; light baseline `native-light-map.png`.
+- Chinese: `native-light-general.png`, `native-dark-general.png`, `native-light-global-assistant.png`, `native-dark-global-assistant.png`, `native-light-orb.png`, `native-dark-orb.png` and other named route images. English: `native-light-general-en.png`, `native-dark-general-en.png`.
+- `native-settings-dark.png` is an intermediate theme-transition frame; use `native-settings-dark-settled.png` for settled appearance. It is not a failure artifact.
+- **Paid requests: 0; paid tokens/cost: 0.** Stage 0's 12 assistant requests used real DSH with a localhost fixture, not OpenCode Go. No key was read. The requested `.sciencescope-local/secret/` directory is absent in this checkout; live evaluation will need credentials there before a later retry. Did not search the D backup or copy historical credentials.
+- No user research files were read or changed. All test state/assets/evidence are under the owned temp directory; native diagnostic client is closed. No global environment/config changes.
+- Recommendation: **do not approve the native acceptance/merge gate yet**. Fix/review the English native action bug and retry stage 1; paid acceptance and stages 2–3 remain outstanding. Merge decision belongs to the user.
+
 ## 2026-09-26 Batch 1 local validation r2 — stage 0 PASS (Astra, Windows)
 
 - Workspace `H:\ScienceScope_v0.1-desktop`, external drive available, initial worktree clean.
