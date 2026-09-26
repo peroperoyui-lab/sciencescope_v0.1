@@ -367,6 +367,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 **界面字体**（2026-09-25）：默认使用随客户端安装的思源黑体（Noto Sans SC 可变字体，SIL OFL 1.1，npm `@fontsource-variable/noto-sans-sc` 5.3.0，
 101 个按 unicode-range 拆分的 woff2，共约 4.6 MB，用到哪些字才加载哪些）。设置 → 个人资料与常规 → 界面字体可选择本机已安装的任何字体：
 - 字体列表 `GET /api/fonts[?refresh=1]`（`scripts/system-fonts.mjs`）：Windows 通过 PowerShell 读取系统字体集合（UTF-8 输出，保留"微软雅黑"等本地化名称，含当前用户安装的字体），
+  2026-09-26 原生验收小修：同时读取 `.Name` 与 `GetName(2052)`，避免英文 PowerShell UI culture 丢失中文名称；保留原英文名称，不改变已有偏好。
   失败时读取注册表 HKLM/HKCU 的字体列表；其他系统用 fontconfig。去重、去掉竖排 "@" 字体，名称按原样列出（字体自身名称异常时会显示为乱码，仍可选择）。
 - 保存到 `desktop_preferences.ui_font`（`'default'` 或字体名；拒绝可能跳出 CSS 字符串的字符）；点击"保存"后立即应用并同步到其他窗口：
   根元素 `--ss-font` = `"所选字体", var(--ss-font-default)`，默认栈为 思源黑体 → 微软雅黑 → 黑体 → 苹方 → Noto Sans CJK → 系统字体；代码字体不变。
@@ -410,7 +411,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
     已转换：新建窗口、创建项目页、设置（常规、执行策略、运行环境/数据库、快捷键、个人资料、角色、模型 API）、插件与技能、
     文件预览、资料库、工作站绑定目录、审核结论条、标记弹层与材料文本标记对话框、输入框菜单。
   - 正文/代码字号仍由设置中的 `--chat-font-size`、`--code-font-size` 决定；"减少动画"设置照常生效。
-- **状态**：🟡。浏览器界面 smoke 全部通过、截图走查完成；尚未在 Windows 原生客户端目视验收。
+- **状态**：🟡。浏览器界面 smoke 全部通过；2026-09-26 Windows 原生部分页面已走查，深色导图属性栏/预览的固定白底改用现有颜色令牌并原生复验。完整原生验收在阶段 1 的英文关闭失败处停止，不能视为通过。
 - **技术实现**：`desktop/refresh.css`（最后加载的样式表，令牌定义在 `:root` 与 `:root[data-theme="dark"]`，
   深色令牌已从 `settings.css` 移入这里），`desktop/refresh.mjs`（上述小交互，只附加监听，不替换已有处理函数；
   `projectRow` 仅对置顶行做包装）。二者在 `scripts/build-desktop.mjs` 的资源白名单与页面注入中登记。
@@ -480,6 +481,8 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   `scripts/ui-gallery.mjs`（`GALLERY_LANG=en` 生成英文截图；`AUDIT_LANG=en AUDIT_COPY=<路由>` 遍历全部可达页面与菜单，列出仍未翻译的文字——目前只剩用户 / 演示数据）。
 - **最近核对**：2026-09-26（Claude，云端）。
 
+界面语言原生核对补充（2026-09-26，Astra）：英文标题栏 `×` 点击无效（浅/深色均复现）。`native-window.mjs` 以中文 `title` 判断动作，与翻译后的属性冲突；尚未修复。切回中文关闭后，13 个已记录的应用/宿主/DSH/WebView 后代 PID 全部退出。详见 DESKTOP_IMPLEMENTATION 本轮 FAILED 记录，不把浏览器 i18n smoke 视为原生关闭验收。
+
 ## 3. 接口索引（`scripts/desktop-api.mjs`）
 
 所有接口需携带口令（2.15）。流式接口返回 NDJSON。
@@ -528,7 +531,7 @@ DSH 自己的数据（会话历史、Provider 配置、凭据、技能）在 `.s
 最近核对补充：2026-09-26（Astra，Windows 第 2 次本地验收，基线 `115f6b7`）。阶段 0 PASS：
 重新 `npm ci`、桌面资源构建、`npm test` 126/126；18 个纯浏览器 smoke 和 `assistant-api-smoke --ui` 全部通过。
 助手检查使用真实 DSH + 本地模拟模型，12 次本地请求、0 付费请求。`cargo build --offline` 通过，
-独立 temp 数据目录中的原生客户端启动成功，生产宿主状态 available=true。原生功能逐项验收尚未执行，不等同阶段 1 通过。
+独立 temp 数据目录中的原生客户端启动成功，生产宿主状态 available=true。阶段 1 随后部分执行，在英文标题栏关闭按钮无效处 FAILED / 停止；阶段 2–3 未开始。
 逐项清单及证据见 DESKTOP_IMPLEMENTATION 顶部 r2 小节。
 
 最近核对：2026-09-26（Astra，Windows 11，基线 `b875ac7`，本地验收阶段 0）。
