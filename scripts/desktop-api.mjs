@@ -162,7 +162,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       dataRelocation:false,    // T16 change data folders and migrate
     },
   };
-  const organizer=host?createVersionOrganizer({host,store:workbench.store,getPreferences:()=>secretaryPreferences.get(),getProject:async id=>{
+  const organizer=host?createVersionOrganizer({host,store:workbench.store,getPreferences:()=>secretaryPreferences.get({language:preferences.get().language}),getProject:async id=>{
     const {meta}=await workbench.project(id);return {name:meta.name,goal:meta.desc||''};
   }}):null;
   const execution=host?createExecutionService({host,database,chatStore,bindings}):null;
@@ -343,7 +343,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(route==='/api/preferences'&&request.method==='GET'){json(response,200,preferences.get());return true;}
       if(route==='/api/chats/deliverable'&&request.method==='GET'){const image=await deliverables.image(requestUrl.searchParams.get('chatId')||'',requestUrl.searchParams.get('path')||'');binary(response,200,image.bytes,image.type);return true;}
       if(route==='/api/fonts'&&request.method==='GET'){json(response,200,await listFonts({refresh:requestUrl.searchParams.get('refresh')==='1'}));return true;}
-      if(route==='/api/secretary/preferences'&&request.method==='GET'){json(response,200,secretaryPreferences.get());return true;}
+      if(route==='/api/secretary/preferences'&&request.method==='GET'){json(response,200,secretaryPreferences.get({language:preferences.get().language}));return true;}
       if(route==='/api/shortcuts'&&request.method==='GET'){json(response,200,shortcuts.get());return true;}
       if(route==='/api/assistant-window/preferences'&&request.method==='GET'){json(response,200,assistantWindowPreferences.get());return true;}
       if(route==='/api/research-input/draft'&&request.method==='GET'){const value=researchDrafts.get(requestUrl.searchParams.get('scope'),requestUrl.searchParams.get('ownerId'));value.labels={};for(const id of value.attachmentIds){const resource=await database.getResource(id);if(resource)value.labels[id]=resource.title;}json(response,200,value);return true;}

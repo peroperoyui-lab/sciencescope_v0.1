@@ -329,7 +329,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 
 | 设置页 | 状态 | 说明 |
 |---|---|---|
-| 个人资料与常规 | ✅ | 用户名、简介（只用于界面，不发给模型）；界面字体、主题（浅色/深色/跟随系统）、密度、正文与代码字号、发送键、减少动画、滚动条、恢复默认。表 `profile`、`desktop_preferences`；接口 `/api/profile`、`/api/preferences`；跨窗口用 BroadcastChannel 同步 |
+| 个人资料与常规 | ✅ | 用户名、简介（只用于界面，不发给模型）；界面语言（2.19）、界面字体、主题（浅色/深色/跟随系统）、密度、正文与代码字号、发送键、减少动画、滚动条、恢复默认。表 `profile`、`desktop_preferences`；接口 `/api/profile`、`/api/preferences`；跨窗口用 BroadcastChannel 同步 |
 | 执行策略 | ✅ | 说明页，策略在每个对话的输入框里选 |
 | 任务秘书 | ✅ | 角色设置 + 版本说明模板（表 `secretary_preferences`） |
 | 全局助手 | ✅ | 角色设置 + 启动行为 |
@@ -438,6 +438,22 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   `creation-details-smoke` 断言窗口中没有"即将 / 待接入 / 尚未"并且没有文件夹选择按钮；`features-smoke`（开关、菜单、路由、站点打开）。
 - **任务**：开关与任务书对应表见 `docs/tasks/FEATURE_FLAGS.md`。
 - **最近核对**：2026-09-25（Claude，云端，浏览器 smoke）。
+
+### 2.19 界面语言（中文 / English，2026-09-26）
+- **用途与操作**：设置 → 个人资料与常规 → 界面语言，选"中文"或"English"，保存后立即生效并同步到其他窗口，重启后保持。
+  菜单、按钮、设置、"i"提示、提示条（toast）、宿主返回的错误信息、占位文字都会切换；对话内容、渲染后的 Markdown、输入框内容、项目 / 对话 / 专家等用户输入的名称保持原样。
+  任务秘书的内置版本说明模板随语言切换（用户保存过自己的模板后不再变化）。角色与专家的内置提示词本来就是英文，面向模型，不随界面语言变化。
+- **状态**：✅（单元、界面 smoke）；原生客户端未测。
+- **技术实现**：
+  - 已批准的原型 HTML 不改，所以翻译在显示层完成：`desktop/i18n.mjs` 在文字节点和界面属性（`placeholder`、`title`、`aria-label`、`data-info-tip`、`alt`）上按词典改写，
+    用 MutationObserver 跟随后续渲染；切回中文时逐一恢复原文。跳过区域：消息正文、渲染的 Markdown、文件预览正文、`textarea`（只翻译它的占位文字）、`pre/code`、可编辑区域、`[data-i18n-skip]`。
+  - 规则：整句命中 → 模式命中（`EN_PATTERNS`，处理带数字或名称的句子，捕获的名称若不是界面文字则原样保留）→ 已知片段拼接；只要还剩任何不认识的中文，整段保持原样（用户数据不会被翻一半）。
+  - 词典 `desktop/i18n-en.mjs`（约 1160 条）；`node scripts/i18n-extract.mjs --missing` 列出桌面模块、宿主消息和原型脚本中尚未翻译的片段（原型演示内容和面向模型的提示词有意不译）。
+  - CSS 生成的文字（助手空白页说明、等待模型回复）用 `:root[lang="en"]` 覆盖。
+  - 偏好 `desktop_preferences.language`（`zh-CN` / `en`，"恢复默认"不改变语言）；上次的语言同时缓存在本机，启动时先应用，避免闪现中文。
+- **验证**：`tests/i18n.test.mjs`（翻译规则、词典格式）；`scripts/i18n-smoke.mjs`（设置切换、重启保持、属性与"i"提示、新建窗口、toast、用户数据不变、内置模板随语言切换、切回中文完全恢复）；
+  `scripts/ui-gallery.mjs`（`GALLERY_LANG=en` 生成英文截图；`AUDIT_LANG=en AUDIT_COPY=<路由>` 遍历全部可达页面与菜单，列出仍未翻译的文字——目前只剩用户 / 演示数据）。
+- **最近核对**：2026-09-26（Claude，云端）。
 
 ## 3. 接口索引（`scripts/desktop-api.mjs`）
 

@@ -102,6 +102,11 @@ try {
   if (process.env.AUDIT_COPY) {
     // Copy audit: every route's visible prose outside the sidebar, for review.
     const {writeFile} = await import('node:fs/promises');
+    if (process.env.AUDIT_LANG === 'en') {
+      await post('/api/preferences', {language: 'en'});
+      await page.evaluate(() => { try { localStorage.setItem('sciencescope-language', 'en'); } catch {} });
+      await page.reload(); await page.waitForFunction(() => window.ScienceScopeWorkspace?.ready); await page.evaluate(() => window.ScienceScopeWorkspace.ready); await page.waitForTimeout(500);
+    }
     await page.evaluate(() => selectProject('p-fasting'));
     const routes = new Set(process.env.AUDIT_COPY.split(',').filter(r => r !== '1'));
     for (const r of await page.evaluate(() => [...document.querySelectorAll('[data-route]')].map(e => e.dataset.route))) routes.add(r);
@@ -152,9 +157,23 @@ try {
         for (const extra of browser.pages().slice(pages)) await extra.close();
       }
     }
+    if (process.env.AUDIT_LANG === 'en') {
+      // Dialogs and overlays the menus above do not open.
+      await page.evaluate(() => window.ScienceScopeCreation?.openChatDialog()); await page.waitForTimeout(400); await page.evaluate(() => document.getElementById('modal')?.remove());
+      await page.keyboard.press('Control+K'); await page.waitForTimeout(300); await page.keyboard.press('Escape');
+      await page.evaluate(() => window.SSV2.loadThread('chat-main')); await page.waitForTimeout(600);
+      for (const tip of await page.locator('[data-info-tip]').all()) await tip.getAttribute('data-info-tip');
+      report.misses = await page.evaluate(() => window.ScienceScopeI18n.misses());
+    }
     await writeFile(path.join(out, 'copy-audit.json'), JSON.stringify(report, null, 1));
     console.log('audit', Object.keys(report).length, 'routes');
     await browser.close(); await server.close(); await rm(root, {recursive: true, force: true}); process.exit(0);
+  }
+  if (process.env.GALLERY_LANG === 'en') {
+    // English gallery: same screens with the interface language set to English.
+    await post('/api/preferences', {language: 'en'});
+    await page.evaluate(() => { try { localStorage.setItem('sciencescope-language', 'en'); } catch {} });
+    await page.reload(); await page.waitForFunction(() => window.ScienceScopeWorkspace?.ready); await page.evaluate(() => window.ScienceScopeWorkspace.ready); await page.waitForTimeout(500);
   }
   await page.evaluate(() => { window.ScienceScopeModels?.select?.({providerId: 'sciencescope-demo', modelId: 'deepseek-v4.1-flash'}); });
   await page.evaluate(() => newThread(null)); await shot(page, '01-home');

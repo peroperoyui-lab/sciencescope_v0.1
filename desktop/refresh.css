@@ -439,3 +439,7 @@ h1 .info-tip,h2 .info-tip,h3 .info-tip{vertical-align:2px}
 .usage-pop .usage-experts{margin-top:10px;padding-top:8px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px;max-height:min(46vh,360px);overflow:auto}
 .usage-pop .usage-experts-head{font-size:11.5px;color:var(--muted)}
 .usage-pop .usage-expert small{color:var(--muted);font-size:11px;margin-left:4px}
+/* English interface (desktop/i18n.mjs): texts drawn by CSS */
+:root[lang="en"] .assistant-surface[data-scope="secretary"] .assistant-messages > .hint:only-child:empty::before{content:"Secretary\A Get the question clear first: explain materials, sort out everyone's views, or have the secretary draft the next instruction for you to confirm before it goes to the Main expert."}
+:root[lang="en"] .assistant-surface[data-scope="global"] .assistant-messages > .hint:only-child:empty::before{content:"Global assistant\A Quick questions without interrupting the main chat. Quote selected text from any chat when needed."}
+:root[lang="en"] .message[data-streaming] .message-text:empty::before{content:"Waiting for the model…"}

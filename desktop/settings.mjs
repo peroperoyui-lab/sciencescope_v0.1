@@ -1,4 +1,5 @@
 import {infoTip} from './info-tip.mjs';
+import {LANGUAGES,setLanguage} from './i18n.mjs';
 import {hostRequest} from './host-client.mjs';
 import {roleSettingsContent} from './role-settings.mjs';
 import {extensionsContent} from './extensions.mjs';
@@ -7,7 +8,7 @@ import {shortcutsContent} from './shortcuts.mjs';
 import {assistantWindowSettingsContent} from './assistant-window-settings.mjs';
 import {expertSettingsContent} from './expert-settings.mjs';
 
-let values={theme:'light',density:'standard',codeFontSize:14,chatFontSize:16,sendKey:'enter',reduceMotion:false,showScrollbars:false,uiFont:'default'},loaded=false,diagnostics=null;
+let values={theme:'light',density:'standard',codeFontSize:14,chatFontSize:16,sendKey:'enter',reduceMotion:false,showScrollbars:false,uiFont:'default',language:'zh-CN'},loaded=false,diagnostics=null;
 // Interface font: 'default' is the bundled 思源黑体; any installed family can be chosen.
 let systemFonts=null,fontsLoading=null;
 const BUNDLED_FONT='思源黑体（内置）';
@@ -38,7 +39,7 @@ export function settingsNavigation(){const groups=[['个人偏好',['general','s
 const row=(name,tip,control)=>`<div class="settingrow"><div class="description"><h3>${name}${tip?infoTip(tip,{label:`${name}说明`}):''}</h3></div><div class="control">${control}</div></div>`;
 const valueRow=(name,value,control)=>`<div class="settingrow"><div class="description"><h3>${name}</h3><p>${value}</p></div><div class="control">${control}</div></div>`;
 const select=(name,options)=>`<select name="${name}">${options.map(([value,label])=>`<option value="${value}" ${String(values[name])===String(value)?'selected':''}>${label}</option>`).join('')}</select>`;
-function appearanceControls(){return `${row('界面字体','全局界面字体。默认使用随客户端安装的思源黑体；也可以选择这台电脑已安装的任何字体。字体不含中文时，中文会显示为替代字形。',fontControl())}${row('主题','浅色保留原设计；跟随系统会响应系统主题变化。',select('theme',[['light','浅色'],['dark','深色'],['system','跟随系统']]))}${row('界面密度','调整导航和设置间距，不缩放聊天正文。',select('density',[['standard','标准'],['compact','紧凑']]))}${row('代码字号','仅调整消息里的代码块，不改变正文。',select('codeFontSize',[12,13,14,15,16,18].map(size=>[size,`${size}px`])))}<button class="btn tiny" type="button" data-preferences-reset>恢复阅读与操作默认设置</button>`;}
+function appearanceControls(){return `${row('界面语言','界面文字、菜单和提示的语言。对话内容、资料和你输入的名称保持原样。',select('language',LANGUAGES))}${row('界面字体','全局界面字体。默认使用随客户端安装的思源黑体；也可以选择这台电脑已安装的任何字体。字体不含中文时，中文会显示为替代字形。',fontControl())}${row('主题','浅色保留原设计；跟随系统会响应系统主题变化。',select('theme',[['light','浅色'],['dark','深色'],['system','跟随系统']]))}${row('界面密度','调整导航和设置间距，不缩放聊天正文。',select('density',[['standard','标准'],['compact','紧凑']]))}${row('代码字号','仅调整消息里的代码块，不改变正文。',select('codeFontSize',[12,13,14,15,16,18].map(size=>[size,`${size}px`])))}<button class="btn tiny" type="button" data-preferences-reset>恢复阅读与操作默认设置</button>`;}
 function paths(){return diagnostics?Object.entries(diagnostics.paths).map(([id,item])=>valueRow(esc(item.label),`<code class="settings-path">${esc(item.path)}</code>`,`<button class="btn tiny" data-settings-open="${id}">打开文件夹</button>`)).join(''):'<p role="status">正在读取本机路径…</p>';}
 export function settingsContent(target){
   if(target==='shortcuts')return shortcutsContent();
@@ -55,7 +56,7 @@ export function settingsContent(target){
   return settingsContent('general');
 }
 const systemTheme=window.matchMedia('(prefers-color-scheme: dark)');
-function apply(){const root=document.documentElement;root.dataset.theme=values.theme==='system'?(systemTheme.matches?'dark':'light'):values.theme;root.dataset.density=values.density;root.style.setProperty('--chat-font-size',values.chatFontSize+'px');root.style.setProperty('--code-font-size',values.codeFontSize+'px');root.toggleAttribute('data-reduce-motion',values.reduceMotion);root.toggleAttribute('data-show-scrollbars',values.showScrollbars);root.style.setProperty('--ss-font',fontStack(values.uiFont));}
+function apply(){const root=document.documentElement;root.dataset.theme=values.theme==='system'?(systemTheme.matches?'dark':'light'):values.theme;root.dataset.density=values.density;root.style.setProperty('--chat-font-size',values.chatFontSize+'px');root.style.setProperty('--code-font-size',values.codeFontSize+'px');root.toggleAttribute('data-reduce-motion',values.reduceMotion);root.toggleAttribute('data-show-scrollbars',values.showScrollbars);root.style.setProperty('--ss-font',fontStack(values.uiFont));setLanguage(values.language);try{localStorage.setItem('sciencescope-language',values.language);}catch{}}
 systemTheme.addEventListener('change',()=>{if(values.theme==='system')apply();});
 window.ScienceScopePreferences={get:()=>({...values})};
 channel.onmessage=async()=>{try{values=await hostRequest('preferences');loaded=true;apply();}catch{}};
@@ -63,7 +64,7 @@ window.addEventListener('submit',async event=>{
   if(event.target.id!=='desktop-preferences-form')return;
   event.preventDefault();event.stopImmediatePropagation();const form=event.target,button=form.querySelector('button[type="submit"]'),data=new FormData(form);
   button.disabled=true;
-  try{values=await hostRequest('preferences',{theme:data.get('theme'),density:data.get('density'),codeFontSize:Number(data.get('codeFontSize')),chatFontSize:Number(data.get('chatFontSize')),sendKey:data.get('sendKey'),reduceMotion:data.get('reduceMotion')==='true',showScrollbars:data.get('showScrollbars')==='true',uiFont:data.get('uiFont')||'default'});apply();channel.postMessage('changed');form.querySelector('[data-settings-feedback]').textContent='已保存并应用；其它窗口同步生效。';}
+  try{values=await hostRequest('preferences',{theme:data.get('theme'),density:data.get('density'),codeFontSize:Number(data.get('codeFontSize')),chatFontSize:Number(data.get('chatFontSize')),sendKey:data.get('sendKey'),reduceMotion:data.get('reduceMotion')==='true',showScrollbars:data.get('showScrollbars')==='true',uiFont:data.get('uiFont')||'default',language:data.get('language')||'zh-CN'});apply();channel.postMessage('changed');form.querySelector('[data-settings-feedback]').textContent='已保存并应用；其它窗口同步生效。';}
   catch{form.querySelector('[data-settings-feedback]').textContent='未保存，请重试。';}finally{button.disabled=false;}
 },true);
 window.addEventListener('change',event=>{

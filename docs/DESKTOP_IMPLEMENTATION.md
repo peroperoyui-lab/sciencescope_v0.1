@@ -1,5 +1,30 @@
 # Desktop implementation — first increment
 
+## 2026-09-26 Bilingual GUI (中文 / English) (Claude, cloud)
+
+User request: a switchable English/Chinese GUI; built-in texts switchable;
+convert the existing language.
+- Approach: the approved prototype HTML stays untouched, so translation is a
+  display layer (`desktop/i18n.mjs`): text nodes and interface attributes are
+  rewritten from `desktop/i18n-en.mjs` as the DOM renders and restored exactly
+  on switching back. Messages, Markdown, inputs, previews and code are never
+  touched; a text is translated only when all its Chinese is known interface
+  text, so user data is never half-translated.
+- Inventory: `scripts/i18n-extract.mjs` lists Chinese fragments in desktop
+  modules, host messages and the prototype script; an English-mode crawl of
+  every reachable route and menu (`AUDIT_LANG=en`) listed what users actually
+  see. About 1160 entries were written plus patterns for numbered and named
+  sentences. The remaining crawl misses are user or demo data only.
+- Setting: `desktop_preferences.language`, Settings → 界面语言 (options shown
+  in their own language), applied on save, synced across windows, cached
+  locally to avoid a Chinese flash at startup; reset leaves the language.
+  CSS-generated texts have `:root[lang="en"]` variants. The secretary's
+  built-in notes template follows the language until the user saves one.
+- Verified: `npm test` 125/125 (incl. `tests/i18n.test.mjs`), `i18n-smoke`
+  and all browser smokes; English gallery reviewed. Native window not tested.
+  `ui-gallery` failed twice on a first run after a rebuild during this work;
+  three later runs passed and it could not be reproduced.
+
 ## 2026-09-26 Peer context = answers + presented files; deliverable cards; expert context popover (Claude, cloud)
 
 User questions: what goes into another expert's input; long-tail context
