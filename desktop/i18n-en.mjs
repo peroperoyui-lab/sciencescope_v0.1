@@ -3,6 +3,21 @@
 // --missing` lists strings still untranslated. Model-facing prompts, user data
 // and the prototype's demo content are intentionally absent.
 export const EN = {
+"对话纪要": "Conversation minutes",
+"由你编辑": "Edited by you",
+"任务秘书整理": "Kept by the secretary",
+"正在更新…": "Updating…",
+"还没有纪要。每轮对话结束后，任务秘书会自动整理。": "No minutes yet. The secretary writes them after each round.",
+"让秘书更新": "Ask the secretary to update",
+"保存纪要": "Save minutes",
+"纪要内容": "Minutes",
+"发送第一条消息后才会有纪要。": "Minutes start after the first message.",
+"纪要已保存；秘书之后会在此基础上继续整理。": "Minutes saved; the secretary will build on your version.",
+"任务秘书正在整理…": "The secretary is updating the minutes…",
+"对话纪要说明": "About conversation minutes",
+"纪要须为 1–100000 个字符。": "Minutes must be 1–100000 characters.",
+"纪要已被更新，请刷新后再编辑。": "The minutes were updated. Please reopen them before editing.",
+"任务秘书在每轮对话后更新纪要：目标、已定结论、被否定的方案、分歧、各方立场、文稿状态与待办。所有专家都能随时读取，并能按编号回查原文。\n你的修改会成为最新一版，秘书之后在此基础上继续整理。": "After each round the secretary updates the minutes: goals, decisions, rejected options, disagreements, positions, manuscript state and to-dos. Every expert can read them at any time and look up the original messages by number.\nYour edit becomes the latest version, and the secretary builds on it.",
 "（未检测到）": " (not detected)",
 "模型运行 Python 时使用这个环境。以后可以在对话菜单中更换。": "Models use this environment when they run Python. You can change it later from the chat menu.",
 "选择工作文件夹": "Choose a working folder",
@@ -1338,6 +1353,14 @@ export const EN_PATTERNS = [
  [
   "([\\s\\S]+) 再点一次\"开始对话\"确认。",
   "$1 Click \"Start chat\" again to confirm."
+ ],
+ [
+  "(任务秘书整理|由你编辑) · 第 (\\d+) 版 · 涵盖第 1–(\\d+) 条（共 (\\d+) 条）",
+  "$1 · revision $2 · covers #1–#$3 (of $4)"
+ ],
+ [
+  "(.+) · 正在更新…",
+  "$1 · Updating…"
  ],
  [
   "(.+)说明",

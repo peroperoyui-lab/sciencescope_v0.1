@@ -6,7 +6,7 @@
 > 不应因为本文档写过某种实现就拒绝更好的设计。产品意图与交互规则的依据仍是
 > `00_MASTER_FUNCTIONS.md`、`02_INTERACTION_CONTRACTS.md` 与已批准的 `ScienceScope.html`。
 >
-> - 最近核对：2026-09-24，基线 `main@98e560a`（Claude 对照代码逐项核对）；2.2、2.4、2.5、2.16 于同日随界面刷新、标记与专家讨论修订（分支 `claude/determined-pasteur-jxpzw8`，未合并）更新；2026-09-25 新增 2.17 研究资料库（同一分支）。
+> - 最近核对：2026-09-24，基线 `main@98e560a`（Claude 对照代码逐项核对）；2.2、2.4、2.5、2.16 于同日随界面刷新、标记与专家讨论修订（分支 `claude/determined-pasteur-jxpzw8`，未合并）更新；2026-09-25 新增 2.17 研究资料库（同一分支）；2026-09-26 新增 2.5b 对话纪要与历史回查，2.5 专家前文改为纪要 + 其后原文（同一分支）。
 > - 历史过程与每次验收细节见 `DESKTOP_IMPLEMENTATION.md`（按日期的开发日志）；本文件只写当前结果。
 
 **状态标记**
@@ -202,7 +202,9 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
     挂在当前对话会话下，有自己的人设（persona）和可选的模型/推理强度；同一轮所有专家拿到同一份冻结输入，并行执行。
     文字、工具调用（带参数预览与前导语）和工具结果按顺序以 `expert-delta/expert-tool/expert-tool-result/expert-end` 回传。
   - 应用层 `scripts/discussion-service.mjs`：
-    - `transcript()` 把对话前文（用户、主专家、专家的最终文字，未采纳的审核除外）组成 `<message speaker=… role=…>` 块，最多 48k 字符，从最新往前取。
+    - `transcript()` 把对话前文（用户、主专家、专家的最终文字，未采纳的审核除外）组成带编号的 `<message n=… speaker=… role=…>` 块：
+      先放任务秘书的最新纪要，再放纪要覆盖范围之后的全部原文（向前多带 4 条衔接；没有纪要时为全部原文）。不按 token 截断；
+      只有 24 万字符的安全边界，触发时写明哪些编号未显示、可用 `chat_recall` 读取（见 2.5b）。
       回答若用 DSH `present` 工具展示了文件（图片、文档等交付物），块末附 `[Files presented with this answer]` 列表（路径与说明）；
       只读取或中途修改过的文件、工具调用、工具结果、前导语都不传（2026-09-26 用户要求；此前传的是所有工具参数里出现过的路径）。
     - `identityPrompt()` 生成每位专家的身份与本轮任务说明（有序 / 被邀请 / 审核）。
@@ -221,7 +223,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   `scripts/evals/discussion-api-live.mjs`（真实 OpenCode Go 小模型，见 DESKTOP_IMPLEMENTATION 2026-09-24）。
 - **已知限制**：工作模式和有序讨论的参加者/审核选择不随对话保存到应用数据库（模式重启回到"工作"，参加者选择存在本机浏览器存储）；
   新对话首条消息前看不到模式按钮；临时对话不支持讨论；前文只含文字与展示过的文件路径，文件内容需要专家自己用工具读取；
-  前文按字符上限截断，长期对话中早期内容会丢失（长上下文方案待定，见 `design/EXPERT_CONTEXT.md`）。
+  长期对话靠纪要与回查保留早期内容（2.5b，设计见 `design/EXPERT_CONTEXT.md`）。
 - **上下文显示**：输入框的上下文圆环显示主专家；悬停或点击时弹出层同时列出本对话中每位作答过的专家在其最近一次作答结束时的上下文占用
   （专家每轮都是新子代理，所以这是该轮实际携带的量）。实现：`session-control.mjs` 的 `measureContext()`（与主专家的 `/context-usage` 同一算法）
   在子代理释放前测量，随 `expert-end` 结果返回，存 `discussion_entries.context_json`；`GET /api/execution` 返回 `expertContexts`；
@@ -234,6 +236,27 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   宿主 `scripts/deliverables.mjs`：`GET /api/chats/deliverable?chatId&path`（只返回图片，≤20 MB）、`POST /api/chats/deliverable/open`。
   只有本对话中某次成功的 `present` 调用声明过的路径才会被读取或打开；相对路径按该对话的运行工作区解析。
 - **验证**：`deliverables-smoke`（缩略图为真实图片、文档卡片、重新加载后仍显示、只读过的文件和任意路径被拒、专家前文只含展示的文件）。
+- **最近核对**：2026-09-26（Claude，云端）。
+
+### 2.5b 对话纪要与历史回查（2026-09-26）
+- **用途与操作**：任务秘书为每个对话维护一份纪要（研究目标、已定结论与出处编号、被否定的方案、分歧、各方立场、文稿与文件状态、待办），
+  每轮结束后在后台增量更新。对话"…"菜单 → 对话纪要：查看、编辑（保存为新一版，秘书之后在此基础上继续）、让秘书立即更新。
+  主专家和所有专家都能随时用只读工具查阅：`project_memory`（纪要、项目日志、计划、导图、稿件版本）和 `chat_recall`（按关键词检索或按编号逐字读取对话原文）。
+  查找规则写在每位专家的系统提示（人设末尾）和主专家的项目简报一节，不使用 agent.md。
+- **状态**：🟡。单元、界面 smoke、真实 DSH 工具注册、真实便宜模型评测已通过；原生客户端未测。
+- **技术实现**：
+  - `scripts/chat-minutes.mjs`：表 `chat_minutes(chat_id, revision, text, through_ordinal, author 'secretary'|'user', updated_at)`，每版保留。
+    更新 = 上一版纪要 + 新消息（每步 ≤6 万字符，可多步），用秘书角色的模型（未设置时用对话模型），`noTools` 会话，用完释放；
+    主对话轮次持久化后与讨论结束后调度（防抖 1.5 秒）；更新期间用户保存了修改则停止，不覆盖。消息编号为对话序号 +1。
+  - `scripts/project-memory.mjs`：`MEMORY_GUIDE`（查找规则）与两个工具的实现。对话与项目由会话上下文决定；临时对话与全局助手拒绝。
+    `chat_recall` 按编号一次最多 40 条 / 6 万字符并返回 `next`；检索返回最多 12 条带编号片段。
+  - `session-control.mjs` 在 `registerResearchTools` 中为主专家和专家注册两个工具，经 `/host-call` 交给宿主；`desktop-api.mjs` 路由并把规则附到简报。
+  - 接口：`GET /api/chats/minutes?chatId`、`POST /api/chats/minutes {chatId,text,expectedRevision}`（版本过期 409）、`POST /api/chats/minutes/refresh`。
+  - 前端 `desktop/minutes.mjs`（菜单项、渲染 Markdown、编辑、刷新；"i"提示说明用途）。
+- **验证**：`tests/chat-minutes.test.mjs`（增量、用户修改优先与 409、回查检索与逐字读取、project_memory、简报与人设带规则、专家输入含纪要与其后原文）；
+  `tests/research-tools-runtime.test.mjs`（真实 DSH 向主专家和专家提供两个工具）；`scripts/minutes-smoke.mjs`（菜单、渲染、编辑、秘书在修改上继续）；
+  `scripts/evals/minutes-live.mjs`（真实便宜模型，PASS，见 DESKTOP_IMPLEMENTATION 2026-09-26）。
+- **已知限制**：检索是关键词匹配（T10 完成后可换混合检索）；纪要质量取决于秘书模型；秘书面板本身不自动读取主对话（2.7 的设计不变，纪要是独立的后台整理）。
 - **最近核对**：2026-09-26（Claude，云端）。
 
 ### 2.6 专家名册（设置 → 专家角色）
@@ -466,6 +489,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 | 主对话 | `POST /api/chat`（流）、`POST /api/chat/stop`、`GET/POST /api/chat/outbox`、`GET /api/chat/activity`、`GET /api/chat/search` |
 | 执行 | `GET /api/execution`、`POST /api/execution/goal|approval` |
 | 研究资料库 | `/api/research/*`：sources、source、sources/update|remove|ingest、sync、search、read、items、item、items/update|supersede、links、links/remove、proposals、proposals/decide、brief、cite、usage、formats（见 2.17 与设计文档 §6） |
+| 对话纪要 | `GET/POST /api/chats/minutes`、`POST /api/chats/minutes/refresh`（2.5b） |
 | 专家讨论 | `GET/POST /api/experts`、`POST /api/discussion`（流）、`POST /api/discussion/adopt`、`POST /api/discussion/cancel` |
 | 秘书与全局助手 | `GET /api/assistant`、`POST /api/assistant/chat`（流）、`/assistant/draft|model|approval|stop|proposal/resolve` |
 | 研究输入与资料 | `GET/POST /api/research-input/draft`、`GET /api/library`、`GET /api/library/preview`、`POST /api/library/import|open`、`GET /api/knowledge`、`POST /api/knowledge/propose|accept` |
@@ -491,6 +515,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 | `role_settings`、`role_bindings`、`role_prompt_receipts` | 角色提示词、会话快照、应用记录 | `role-settings.mjs` |
 | `experts`、`expert_roster_state` | 专家名册 | `expert-roster.mjs` |
 | `rb_sources`、`rb_chunks`、`rb_items`、`rb_links`、`rb_proposals`、`rb_revisions`、`rb_usage`、`rb_fts`、`rb_meta` | 研究资料库 | `research-base/schema.mjs` |
+| `chat_minutes` | 对话纪要（每版保留，作者为秘书或用户） | `chat-minutes.mjs` |
 | `discussion_rounds`、`discussion_entries` | 讨论轮次与专家回答元数据（含审核、采纳、主专家已读标记） | `discussion-service.mjs` |
 | `desktop_preferences`、`shortcut_settings`、`secretary_preferences`、`assistant_window_preferences` | 各类设置 | 同名模块 |
 
@@ -511,7 +536,7 @@ DSH 自己的数据（会话历史、Provider 配置、凭据、技能）在 `.s
 界面上不再显示"尚未开放"一类提示（2026-09-25 用户要求）。未完成功能的入口由功能开关隐藏（2.18），各有任务书：
 内置浏览器与浏览器设置（T08）、从消息分支（T12）、用量分析（T13）、项目材料面板（T05）、导图历史 / 版本说明页 / 版本比较 / 修改记录（T14）、
 插件安装与更新（T15）、目录迁移（T16）、Python 运行环境与原生文件夹选择（T11）、PDF/DOCX 解析（T04）。
-另有尚无任务书的：记忆管理界面（并入 T05/T09）、通知、语言切换、截图快捷键、系统全局热键、导图导出、日志"定位到消息"、安装包与数据保留升级（ROADMAP 阶段 B）。
+另有尚无任务书的：记忆管理界面（并入 T05/T09）、通知、截图快捷键、系统全局热键、导图导出、日志"定位到消息"、安装包与数据保留升级（ROADMAP 阶段 B）。
 
 ## 7. 如何维护本文档
 

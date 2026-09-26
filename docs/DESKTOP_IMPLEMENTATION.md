@@ -1,5 +1,40 @@
 # Desktop implementation — first increment
 
+## 2026-09-26 Conversation minutes, history recall, no expert input cap (Claude, cloud)
+
+User decision on the long-context proposal: the secretary keeps the minutes and
+every expert can read them; on-demand recall is right; no input cap (a 16k cap
+would stop experts that read large files or work in many steps); experts must
+understand the whole project history and be told how to look things up, via
+system prompt rather than agent.md (one shared file blurs role identity).
+- `scripts/chat-minutes.mjs`: versioned per-chat minutes (`chat_minutes`),
+  seven fixed sections with #n message references, updated in the background
+  after each Main turn and discussion from the previous revision plus new
+  messages only (60k-character steps), secretary role model, no-tools session.
+  A user edit becomes the next revision; an update running meanwhile stops.
+- Expert input: minutes + all messages after their coverage verbatim (4
+  messages overlap) + the new message. The 48k-character newest-first cut is
+  gone; a 240k-character safety bound names the omitted numbers and points to
+  `chat_recall`. Messages are numbered (`n`) so minutes, recall and transcript
+  agree.
+- Tools (Main and experts, read-only, chat/project bound by the session):
+  `chat_recall` (search, or read #from–#to verbatim) and `project_memory`
+  (minutes, log, plans, map, versions). `MEMORY_GUIDE` is appended to each
+  expert persona and the Main brief; it ends by stating the records do not
+  change the reader's role.
+- UI: chat "…" menu → 对话纪要 (read, edit, ask the secretary to update).
+- Verified: `tests/chat-minutes.test.mjs`, updated `discussion-api` and
+  `research-tools-runtime` (real DSH offers both tools to Main and experts),
+  `minutes-smoke`; `scripts/evals/minutes-live.mjs` with real cheap models
+  (Main/secretary deepseek-v4.1-flash, methodologist glm-5.3-flash,
+  statistician qwen3.8-flash): RESULT PASS. The minutes recorded the three
+  decisions with #n references; the methodologist answered the history
+  question correctly and called `chat_recall` on its own; the statistician
+  quoted message #1 verbatim through `chat_recall`. One answer invented a
+  participant name (model quality, not context). Native window not tested.
+- Fixed during the eval: a pending minutes timer could fire after the API
+  closed its database; `api.close()` now closes the minutes service first.
+
 ## 2026-09-26 Bilingual GUI (中文 / English) (Claude, cloud)
 
 User request: a switchable English/Chinese GUI; built-in texts switchable;
