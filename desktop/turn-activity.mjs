@@ -1,4 +1,5 @@
 // A bounded presentation of tool activity belonging to one assistant reply.
+import {paintDeliverables} from './deliverables.mjs';
 // DSH remains the runtime history. This module never sends tool output to models.
 const openCards = new Set();
 const openCalls = new Set();
@@ -43,6 +44,7 @@ export function paintActivity(message) {
   const selection = window.getSelection();
   if (selection && !selection.isCollapsed && container.contains(selection.anchorNode)) return;
   container.innerHTML = activityHTML(message);
+  paintDeliverables(message);
 }
 
 document.addEventListener('toggle', event => {

@@ -12,13 +12,15 @@ import { randomUUID } from 'node:crypto';
 // - 'invited': experts @-named in an ordinary work-mode message answer it.
 //
 // What another participant sees of an answer is its final text and the files
-// its tools touched, never the tool calls themselves. A reviewer's check
-// enters later context only when the user adopts it.
+// that answer presented to the user (DSH `present` deliverables: figures,
+// documents), never its tool calls, tool results or tool preambles; files it
+// only read or edited along the way are not listed. A reviewer's check enters
+// later context only when the user adopts it.
 const MAX_DIGEST = 48000;
 const MAX_MESSAGE = 6000;
 const MAX_ANSWER_FOR_REVIEW = 12000;
 const MAX_FILES = 12;
-const PATH_KEY = /^(path|paths|file|files|file_?path|filename|target|source|dir|directory)$/iu;
+const PRESENT_TOOLS = new Set(['present']);
 
 export class DiscussionError extends Error {
   constructor(code, message, status = 400) { super(message); this.code = code; this.status = status; }
@@ -27,19 +29,15 @@ export class DiscussionError extends Error {
 const quoteAttr = (value) => String(value).replace(/"/g, "'").replace(/[\r\n]+/g, ' ');
 const clip = (text, max) => text.length > max ? `${text.slice(0, max)}\n[…truncated]` : text;
 
-// Paths named in a tool call's (redacted) argument preview.
-export function filesFromArguments(preview) {
-  let value = preview;
+// Files a completed `present` call declared as deliverables of its answer:
+// [{path, description?}] from the call's (redacted) argument preview.
+export function presentedFiles(call) {
+  if (!call || !PRESENT_TOOLS.has(call.name) || call.isError || call.status !== 'completed') return [];
+  let value = call.argumentsPreview;
   if (typeof value === 'string') { try { value = JSON.parse(value); } catch { return []; } }
-  const found = [];
-  const visit = (item, key, depth) => {
-    if (depth > 3 || item == null) return;
-    if (typeof item === 'string') { if (key && PATH_KEY.test(key) && item.length <= 400) found.push(item); return; }
-    if (Array.isArray(item)) { for (const entry of item) visit(entry, key, depth + 1); return; }
-    if (typeof item === 'object') for (const [name, entry] of Object.entries(item)) visit(entry, name, depth + 1);
-  };
-  visit(value, '', 0);
-  return found;
+  const files = Array.isArray(value?.files) ? value.files : [];
+  return files.filter((file) => typeof file?.path === 'string' && file.path && file.path.length <= 400)
+    .map((file) => ({ path: file.path, ...(typeof file.description === 'string' && file.description.trim() ? { description: file.description.trim().slice(0, 200) } : {}) }));
 }
 
 export function identityPrompt(expert, { kind, participants }) {
@@ -62,7 +60,8 @@ export function createDiscussionService({ host, chatStore, db, toolActivity }) {
   // review: reviewer entry; adopted: may enter later context; main_seen: already
   // handed to the Main expert's session.
   const columns = new Set(db.prepare('PRAGMA table_info(discussion_entries)').all().map((column) => column.name));
-  for (const [name, definition] of [['review', 'INTEGER NOT NULL DEFAULT 0'], ['adopted', 'INTEGER NOT NULL DEFAULT 1'], ['main_seen', 'INTEGER NOT NULL DEFAULT 0']])
+  // context_json: the expert's measured context at the end of its answer.
+  for (const [name, definition] of [['review', 'INTEGER NOT NULL DEFAULT 0'], ['adopted', 'INTEGER NOT NULL DEFAULT 1'], ['main_seen', 'INTEGER NOT NULL DEFAULT 0'], ['context_json', 'TEXT']])
     if (!columns.has(name)) db.exec(`ALTER TABLE discussion_entries ADD COLUMN ${name} ${definition}`);
   const active = new Map();
 
@@ -79,12 +78,14 @@ export function createDiscussionService({ host, chatStore, db, toolActivity }) {
     for (let i = 0; i < messageIds.length; i += 500) {
       for (const call of toolActivity.list({ chatId, assistantMessageIds: messageIds.slice(i, i + 500), limit: 200 })) {
         const list = files.get(call.assistantMessageId);
-        for (const file of filesFromArguments(call.argumentsPreview)) if (!list.includes(file) && list.length < MAX_FILES) list.push(file);
+        for (const file of presentedFiles(call)) if (!list.some((item) => item.path === file.path) && list.length < MAX_FILES) list.push(file);
       }
     }
     return files;
   };
-  const speakerTag = (entry, files) => `speaker="${quoteAttr(entry.label)}"${entry.role ? ` role="${quoteAttr(entry.role)}"` : ''}${files.length ? ` files="${quoteAttr(files.join(', '))}"` : ''}`;
+  const speakerTag = (entry) => `speaker="${quoteAttr(entry.label)}"${entry.role ? ` role="${quoteAttr(entry.role)}"` : ''}`;
+  // The answer as its peers see it: final text, then the files it presented.
+  const answerBlock = (tag, text, files) => `<message ${tag}>\n${text}${files.length ? `\n[Files presented with this answer]\n${files.map((file) => `- ${file.path}${file.description ? ` — ${file.description}` : ''}`).join('\n')}` : ''}\n</message>`;
 
   // The conversation so far as every participant may see it: final texts of the
   // user, Main expert and experts (unadopted reviews left out), newest kept first
@@ -99,8 +100,8 @@ export function createDiscussionService({ host, chatStore, db, toolActivity }) {
       if (author?.review && !author.adopted) continue;
       const text = clip(String(row.text || ''), MAX_MESSAGE);
       if (!text.trim()) continue;
-      const tag = row.role === 'user' ? 'speaker="用户"' : author ? speakerTag(author, files.get(row.id) || []) : speakerTag({ label: '主专家', role: 'Main expert' }, files.get(row.id) || []);
-      const block = `<message ${tag}>\n${text}\n</message>`;
+      const tag = row.role === 'user' ? 'speaker="用户"' : speakerTag(author || { label: '主专家', role: 'Main expert' });
+      const block = answerBlock(tag, text, row.role === 'user' ? [] : files.get(row.id) || []);
       if (used + block.length > MAX_DIGEST) break;
       blocks.push(block); used += block.length;
     }
@@ -137,8 +138,8 @@ export function createDiscussionService({ host, chatStore, db, toolActivity }) {
         const messageId = ids.get(expert.id); const review = expert === reviewer;
         if (entry.stopReason === 'completed' && entry.text) texts.set(expert.id, entry.text);
         writes.push(chatStore.appendMessage({ chatId, id: messageId, role: 'assistant', text }).then(() => {
-          db.prepare('INSERT OR REPLACE INTO discussion_entries(chat_id,message_id,run_id,expert_id,label,role,model_json,stop_reason,position,review,adopted,main_seen) VALUES(?,?,?,?,?,?,?,?,?,?,?,0)')
-            .run(chatId, messageId, runId, expert.id, expert.label, expert.role, JSON.stringify(modelOf(expert)), entry.stopReason, everyone.indexOf(expert), review ? 1 : 0, review ? 0 : 1);
+          db.prepare('INSERT OR REPLACE INTO discussion_entries(chat_id,message_id,run_id,expert_id,label,role,model_json,stop_reason,position,review,adopted,main_seen,context_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,0,?)')
+            .run(chatId, messageId, runId, expert.id, expert.label, expert.role, JSON.stringify(modelOf(expert)), entry.stopReason, everyone.indexOf(expert), review ? 1 : 0, review ? 0 : 1, entry.context ? JSON.stringify(entry.context) : null);
         }));
         onEvent({ type: 'expert-end', runId, expertId: expert.id, messageId, text, stopReason: entry.stopReason, ms: entry.ms, review });
       };
@@ -215,10 +216,22 @@ export function createDiscussionService({ host, chatStore, db, toolActivity }) {
       WHERE e.chat_id=? AND e.adopted=1 AND e.main_seen=0 AND e.stop_reason='completed' ORDER BY m.ordinal`).all(chatId);
     if (!rows.length) return { text: '', commit: () => {} };
     const files = filesOf(chatId, rows.map((row) => row.message_id));
-    const blocks = rows.map((row) => `<message ${speakerTag({ label: row.label, role: row.review ? `${row.role || ''} reviewer`.trim() : row.role }, files.get(row.message_id) || [])}>\n${clip(row.text, MAX_MESSAGE)}\n</message>`);
+    const blocks = rows.map((row) => answerBlock(speakerTag({ label: row.label, role: row.review ? `${row.role || ''} reviewer`.trim() : row.role }), clip(row.text, MAX_MESSAGE), files.get(row.message_id) || []));
     const text = `[Expert messages in this conversation since your last turn. They were written by other participants, not by you; tool calls are not included.]\n${blocks.join('\n')}\n[End of expert messages]\n\n`;
     return { text, commit: () => { const mark = db.prepare('UPDATE discussion_entries SET main_seen=1 WHERE chat_id=? AND message_id=?'); for (const row of rows) mark.run(chatId, row.message_id); } };
   }
 
-  return { run, cancel, adopt, entriesFor, pendingForMain, transcript, busy: (chatId) => active.has(chatId) };
+  // Latest measured context of each expert that has answered in this chat.
+  function contexts(chatId) {
+    const rows = db.prepare(`SELECT e.expert_id, e.label, e.role, e.model_json, e.context_json, e.review, r.created_at FROM discussion_entries e JOIN discussion_rounds r ON r.run_id=e.run_id
+      WHERE e.chat_id=? AND e.context_json IS NOT NULL ORDER BY r.created_at DESC`).all(chatId);
+    const seen = new Set(), out = [];
+    for (const row of rows) {
+      if (seen.has(row.expert_id)) continue; seen.add(row.expert_id);
+      out.push({ expertId: row.expert_id, label: row.label, role: row.role, model: row.model_json ? JSON.parse(row.model_json) : null, context: JSON.parse(row.context_json), review: row.review === 1, at: row.created_at });
+    }
+    return out;
+  }
+
+  return { run, cancel, adopt, entriesFor, pendingForMain, transcript, contexts, busy: (chatId) => active.has(chatId) };
 }

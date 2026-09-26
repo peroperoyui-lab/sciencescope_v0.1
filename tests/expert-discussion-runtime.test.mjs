@@ -28,6 +28,7 @@ test('experts answer one frozen prompt concurrently with their own model and per
     ]});
     assert.deepEqual(result.map(r=>[r.expertId,r.stopReason,r.text]),[['alpha','completed','ANSWER_FROM_model-a'],['beta','completed','ANSWER_FROM_model-b']]);
     assert.equal(requests.length,2);assert.equal(maxInFlight,2,'experts run concurrently');
+    for(const entry of result)assert.ok(Number.isInteger(entry.context?.usedTokens)&&entry.context.usedTokens>0,`${entry.expertId} reports its measured context`);
     const byModel=Object.fromEntries(requests.map(r=>[r.model,JSON.stringify(r.messages)]));
     assert.match(byModel['model-a'],/PERSONA_ALPHA/);assert.doesNotMatch(byModel['model-a'],/PERSONA_BETA|BETA_ONLY_NOTE/);
     assert.match(byModel['model-b'],/PERSONA_BETA/);assert.match(byModel['model-b'],/FROZEN_SHARED_INPUT\\n\\nBETA_ONLY_NOTE/);

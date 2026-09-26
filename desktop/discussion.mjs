@@ -153,6 +153,8 @@ async function submitDiscussion(text, {kind, expertIds, reviewerId = null}) {
         paintStrip();
       }
       const answer = event.messageId ? find(event.messageId) : null;
+      // Refresh the context popover with the experts' measured contexts.
+      if (event.type === 'completed') void window.ScienceScopeExecution?.refresh?.();
       if (!answer) { if (event.type === 'completed' && event.failed) toast(`${event.failed} 位专家本轮未完成，可重试或调整名册。`); return; }
       if (event.type === 'expert-start' && answer.streaming) setState(answer.id, 'running');
       if (event.type === 'review-start' && answer.streaming) setState(answer.id, 'running');

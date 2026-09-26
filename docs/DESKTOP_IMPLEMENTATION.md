@@ -1,5 +1,38 @@
 # Desktop implementation — first increment
 
+## 2026-09-26 Peer context = answers + presented files; deliverable cards; expert context popover (Claude, cloud)
+
+User questions: what goes into another expert's input; long-tail context
+cost; showing every active expert's context window.
+- Peer context: `transcript()` / `pendingForMain()` now carry each answer's
+  final text plus the files it presented with DSH `present` (path and
+  description). Previously every path found in any tool argument was listed,
+  including files only read. Tool calls, results and preambles were already
+  excluded and still are.
+- Deliverable cards (`desktop/deliverables.mjs`, `scripts/deliverables.mjs`):
+  presented images show as thumbnails, other files as document cards; click
+  opens with the default program. The host serves or opens only paths a
+  successful `present` in that chat declared, resolved against the chat's
+  runtime workspace; images only are streamed (≤20 MB).
+- Expert context: `session-control.mjs` measures each expert child's
+  context (same algorithm as the Main `/context-usage`, now shared as
+  `measureContext`) before disposal and returns it with the result; stored in
+  `discussion_entries.context_json`, returned by `/api/execution` as
+  `expertContexts`; the ring still shows the Main expert and its popover
+  lists every expert's last measured context.
+- Long context: recommendation written to `docs/design/EXPERT_CONTEXT.md`
+  (shared incremental minutes + recent verbatim window + on-demand recall
+  tool + per-expert budget + prefix-cache-friendly ordering); not implemented
+  pending the user's decision.
+- Also: marks-ui-smoke waited on the popover list but asserted the toggle
+  label before it repainted (flaky on the previous commit too); it now waits
+  for the label. 5/5 passes.
+- Verified: npm test 123/123 (expert-discussion-runtime asserts a measured
+  context from real DSH); deliverables-smoke (thumbnail, document card,
+  reload, only declared files served, peers see presented files only,
+  popover values); discussion-ui, chat-ui, desktop-navigation, workspace-ui,
+  marks-ui, features smokes.
+
 ## 2026-09-25 Global interface font; bundled 思源黑体 (Claude, cloud)
 
 User request: a global GUI font setting; install and use a 黑体 by default;

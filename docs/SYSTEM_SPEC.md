@@ -192,7 +192,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
     发送后，所选专家读取同一份前文与项目上下文，然后并行独立工作，本轮看不到彼此的回答；界面按顺序显示每位专家的状态
     （等待中 / 作答中 / 使用工具 / 已完成 / 未完成）和回答。若设了审核专家，它在其他专家全部完成后核查各回复的事实、依据、方法和结论并总结。
     审核结论默认**不进入**后续上下文；用户点击"加入后续上下文"后才会提供给之后的主专家轮次和专家；主专家已读取后不能撤回。
-  - **上下文可见性**：其他参与者（主专家、其他专家、审核专家）看到的是每条回答的最终文字，以及该回答的工具读写过的文件路径；
+  - **上下文可见性**：其他参与者（主专家、其他专家、审核专家）看到的是每条回答的最终文字，以及该回答展示给用户的文件（`present` 交付物）；
     工具调用本身（参数、结果、前导语）不进入任何其他参与者的上下文。
   - **身份**：每位专家被告知自己的名称与职责、在场的其他参与者（用户、主专家、其他专家），以及前文中只有标注为自己名字的消息才是自己说的。
   - 每位专家的文字实时出现；工具调用前的执行性前导语归入该回答的工具记录卡片（见 2.2）；"停止"取消整轮（含审核）。
@@ -202,8 +202,9 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
     挂在当前对话会话下，有自己的人设（persona）和可选的模型/推理强度；同一轮所有专家拿到同一份冻结输入，并行执行。
     文字、工具调用（带参数预览与前导语）和工具结果按顺序以 `expert-delta/expert-tool/expert-tool-result/expert-end` 回传。
   - 应用层 `scripts/discussion-service.mjs`：
-    - `transcript()` 把对话前文（用户、主专家、专家的最终文字，未采纳的审核除外；每条附 `files="…"`，取自该回答的 `tool_activity` 参数中的路径）
-      组成 `<message speaker=… role=… files=…>` 块，最多 48k 字符，从最新往前取。
+    - `transcript()` 把对话前文（用户、主专家、专家的最终文字，未采纳的审核除外）组成 `<message speaker=… role=…>` 块，最多 48k 字符，从最新往前取。
+      回答若用 DSH `present` 工具展示了文件（图片、文档等交付物），块末附 `[Files presented with this answer]` 列表（路径与说明）；
+      只读取或中途修改过的文件、工具调用、工具结果、前导语都不传（2026-09-26 用户要求；此前传的是所有工具参数里出现过的路径）。
     - `identityPrompt()` 生成每位专家的身份与本轮任务说明（有序 / 被邀请 / 审核）。
     - 审核专家在第一次 `runExperts` 全部结束后单独运行，输入为同一前文 + 本轮各专家回答（`<answer speaker=…>`）。
     - `pendingForMain()`：主专家下一轮发送时，把它还没读过的、已采纳的专家回答作为一段"其他参与者的消息"放在用户消息前，发送成功后标记 `main_seen`。
@@ -219,7 +220,21 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   `discussion-ui-smoke`（无自由讨论、审核选择、等待状态、前导语进卡片、采纳按钮、@ 菜单与邀请、无 @ 走主专家）；
   `scripts/evals/discussion-api-live.mjs`（真实 OpenCode Go 小模型，见 DESKTOP_IMPLEMENTATION 2026-09-24）。
 - **已知限制**：工作模式和有序讨论的参加者/审核选择不随对话保存到应用数据库（模式重启回到"工作"，参加者选择存在本机浏览器存储）；
-  新对话首条消息前看不到模式按钮；临时对话不支持讨论；前文只含文字与文件路径，附件原文需要专家自己用工具读取。
+  新对话首条消息前看不到模式按钮；临时对话不支持讨论；前文只含文字与展示过的文件路径，文件内容需要专家自己用工具读取；
+  前文按字符上限截断，长期对话中早期内容会丢失（长上下文方案待定，见 `design/EXPERT_CONTEXT.md`）。
+- **上下文显示**：输入框的上下文圆环显示主专家；悬停或点击时弹出层同时列出本对话中每位作答过的专家在其最近一次作答结束时的上下文占用
+  （专家每轮都是新子代理，所以这是该轮实际携带的量）。实现：`session-control.mjs` 的 `measureContext()`（与主专家的 `/context-usage` 同一算法）
+  在子代理释放前测量，随 `expert-end` 结果返回，存 `discussion_entries.context_json`；`GET /api/execution` 返回 `expertContexts`；
+  `desktop/context-meter.mjs` 绘制。验证：`expert-discussion-runtime`（真实 DSH 返回测量值）、`deliverables-smoke`（弹出层数值）。
+
+### 2.5a 回答中展示的文件（交付物）
+- **用途**：模型用 DSH `present` 工具声明的文件显示在该回答下方：图片为缩略图卡片，其他文件为文档卡片；点击用系统默认程序打开。
+- **状态**：✅（界面 smoke）；原生客户端未测。
+- **技术实现**：前端 `desktop/deliverables.mjs`（从回答的工具记录中取成功完成的 `present` 调用；缩略图经带口令的 `hostBlob` 取回，最多缓存 40 个对象 URL）；
+  宿主 `scripts/deliverables.mjs`：`GET /api/chats/deliverable?chatId&path`（只返回图片，≤20 MB）、`POST /api/chats/deliverable/open`。
+  只有本对话中某次成功的 `present` 调用声明过的路径才会被读取或打开；相对路径按该对话的运行工作区解析。
+- **验证**：`deliverables-smoke`（缩略图为真实图片、文档卡片、重新加载后仍显示、只读过的文件和任意路径被拒、专家前文只含展示的文件）。
+- **最近核对**：2026-09-26（Claude，云端）。
 
 ### 2.6 专家名册（设置 → 专家角色）
 
@@ -431,7 +446,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 | 分组 | 接口 |
 |---|---|
 | 状态 | `GET /api/status`（含 `features`，见 2.18）、`POST /api/open-url`、`GET /api/settings/info`、`POST /api/settings/open-folder` |
-| 工作区与对话 | `GET/POST /api/workspace`、`GET /api/chats`、`GET /api/chats/:id/messages`、`POST /api/chats/update|move|delete|mode|temporary-close` |
+| 工作区与对话 | `GET/POST /api/workspace`、`GET /api/chats`、`GET /api/chats/:id/messages`、`GET /api/chats/deliverable`、`POST /api/chats/deliverable/open`、`POST /api/chats/update|move|delete|mode|temporary-close` |
 | 主对话 | `POST /api/chat`（流）、`POST /api/chat/stop`、`GET/POST /api/chat/outbox`、`GET /api/chat/activity`、`GET /api/chat/search` |
 | 执行 | `GET /api/execution`、`POST /api/execution/goal|approval` |
 | 研究资料库 | `/api/research/*`：sources、source、sources/update|remove|ingest、sync、search、read、items、item、items/update|supersede、links、links/remove、proposals、proposals/decide、brief、cite、usage、formats（见 2.17 与设计文档 §6） |

@@ -20,6 +20,10 @@ async function fixture() {
       state.runs.push({ runId, prompt, experts });
       const result = experts.map((expert) => ({ expertId: expert.id, stopReason: 'completed', text: `${expert.id.toUpperCase()}_VIEW`, ms: 5 }));
       if (experts[0].id === 'methodologist') onEvent({ type: 'expert-tool', runId, expertId: 'methodologist', callId: 'call-1', name: 'read', argumentsPreview: '{"path":"paper_versions/draft.md"}', preamble: 'Let me read the draft.' });
+      if (experts[0].id === 'methodologist') {
+        onEvent({ type: 'expert-tool', runId, expertId: 'methodologist', callId: 'call-2', name: 'present', argumentsPreview: '{"files":[{"path":"figures/fig1.png","description":"Effect sizes"}]}' });
+        onEvent({ type: 'expert-tool-result', runId, expertId: 'methodologist', callId: 'call-2', isError: false });
+      }
       // Finish in reverse roster order, as real experts finish in any order.
       for (const entry of [...result].reverse()) { onEvent({ type: 'expert-start', runId, expertId: entry.expertId }); onEvent({ type: 'expert-end', runId, ...entry }); }
       return result;
@@ -87,11 +91,12 @@ test('ordered panel: shared transcript, roster order, reviewer after all, adopti
     assert.equal(review.expert.adopted, false);
     assert.equal(page.messages[3].toolActivity[0].preamble, 'Let me read the draft.');
 
-    // Main's next turn carries the expert answers and touched files, not the
-    // unadopted review and not tool calls; then they are not repeated.
+    // Main's next turn carries the expert answers and the files they presented,
+    // not files they only read, not the unadopted review and not tool calls.
     await f.send('POST', '/api/chat', { chatId: 'chat-d', projectId: null, model, text: 'What next?', userMessageId: 'msg-u1', assistantMessageId: 'msg-a1' });
     const catchUp = f.state.mainPrompts[1];
-    assert.match(catchUp, /<message speaker="方法学家" role="研究设计" files="paper_versions\/draft.md">\nMETHODOLOGIST_VIEW/);
+    assert.match(catchUp, /<message speaker="方法学家" role="研究设计">\nMETHODOLOGIST_VIEW\n\[Files presented with this answer\]\n- figures\/fig1.png — Effect sizes\n<\/message>/);
+    assert.doesNotMatch(catchUp, /draft\.md|"present"|call-2/);
     assert.match(catchUp, /RED-TEAM_VIEW/);
     assert.doesNotMatch(catchUp, /STATISTICIAN_VIEW|Let me read the draft/);
     assert.match(catchUp, /What next\?$/);

@@ -158,6 +158,22 @@ export function apply(ctx) {
   // agent (text and tool calls) reach the UI while the round is running.
   const expertChildren = new Map();
   const EXPERT_ID = /^[A-Za-z0-9_-]{1,80}$/u;
+  // Context pressure of a session (the Main agent or an expert child): what its
+  // next request would carry, against the model's window.
+  const measureContext = (session) => {
+    if (!session) return null;
+    const projections = ctx.get('sessionProjections');
+    const meter = ctx.get('tokenMeter');
+    const pressure = projections?.snapshot(session, ['contextPressure']).values?.contextPressure;
+    const measurement = pressure?.projectedTokens === undefined && pressure?.pressureTokens === undefined ? meter?.measure(session) : undefined;
+    const usedTokens = pressure?.projectedTokens ?? pressure?.pressureTokens ?? measurement?.totalTokens;
+    const contextWindow = pressure?.contextWindow;
+    return {
+      usedTokens: Number.isInteger(usedTokens) ? usedTokens : null,
+      contextWindow: Number.isInteger(contextWindow) ? contextWindow : null,
+      estimated: usedTokens === undefined ? null : pressure?.projectedTokens !== undefined || measurement?.baseline?.kind === 'estimated',
+    };
+  };
   const runExperts = async (value) => {
     const subagents = ctx.get('subagents');
     if (!subagents?.start) throw new Error('DSH subagent service is unavailable');
@@ -198,7 +214,9 @@ export function apply(ctx) {
           expertChildren.set(String(run.id), { runId: value.runId, expertId: expert.id });
           const outcome = await run.result;
           const text = outcome.output.filter((block) => block?.type === 'text').map((block) => block.text).join('');
-          const entry = { expertId: expert.id, stopReason: outcome.stopReason, text, ...(outcome.diagnostic ? { diagnostic: outcome.diagnostic.slice(0, 500) } : {}), ms: Date.now() - startedAt };
+          // The expert's context at the end of its answer (its input plus its own tool work).
+          let context = null; try { context = measureContext(run.localAgent?.session); } catch { /* measurement is best-effort */ }
+          const entry = { expertId: expert.id, stopReason: outcome.stopReason, text, ...(outcome.diagnostic ? { diagnostic: outcome.diagnostic.slice(0, 500) } : {}), ...(context ? { context } : {}), ms: Date.now() - startedAt };
           void postEvent({ type: 'expert-end', runId: value.runId, ...entry });
           return entry;
         } catch (error) {
@@ -219,19 +237,8 @@ export function apply(ctx) {
         await ready;
         const session = handle.agent.session;
         if (req.url === '/context-usage') {
-          const projections = ctx.get('sessionProjections');
-          const meter = ctx.get('tokenMeter');
-          const values = projections?.snapshot(session, ['contextPressure']).values ?? {};
-          const pressure = values.contextPressure;
-          const measurement = pressure?.projectedTokens === undefined && pressure?.pressureTokens === undefined ? meter?.measure(session) : undefined;
-          const usedTokens = pressure?.projectedTokens ?? pressure?.pressureTokens ?? measurement?.totalTokens;
-          const contextWindow = pressure?.contextWindow;
           res.writeHead(200, { 'content-type': 'application/json' });
-          res.end(JSON.stringify({ result: {
-            usedTokens: Number.isInteger(usedTokens) ? usedTokens : null,
-            contextWindow: Number.isInteger(contextWindow) ? contextWindow : null,
-            estimated: usedTokens === undefined ? null : pressure?.projectedTokens !== undefined || measurement?.baseline?.kind === 'estimated',
-          } }));
+          res.end(JSON.stringify({ result: measureContext(session) }));
           return;
         }
         if (req.url === '/approval/reply') {
