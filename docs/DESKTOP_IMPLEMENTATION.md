@@ -1,5 +1,13 @@
 # Desktop implementation — first increment
 
+## 2026-09-27 Batch 1 local validation r3 — stage 0 quick confirmation PASS (Astra, Windows)
+
+- H-drive workspace `H:\ScienceScope_v0.1-desktop`, initial worktree clean. Fetched baseline `56be32d646f3d42422b7685105679e939f0ed3b1`, including both r2 checkpoints and Claude's glyph-based native titlebar fix.
+- Branch `codex/local-validation-20260927-r3` (the run crossed midnight before delivery). No reset, PR or merge.
+- Per the user's r3-specific stage 0 scope: `npm test` **126/126 PASS**, 182.6 seconds, no skip/cancellation/retry; `node scripts/i18n-smoke.mjs`, `node scripts/settings-ui-smoke.mjs`, `node scripts/desktop-interaction-smoke.mjs` all PASS on installed Windows Edge. The i18n regression asserts the three translated-title actions through a fake Tauri API; actual native buttons remain a stage 1 check.
+- Logs and isolated native test data: `.sciencescope-local/temp/local-validation-r3/`. Process-local Node PATH and temp settings only. No dependency/native-source changes since r2; no reinstall or Rust toolchain changes in this quick gate.
+- `.sciencescope-local/secret/opencode.key` is absent; no secret read or paid request. Stage 1 native rerun next; stages 2–3 not started. Stage 3 paid work must be marked untested if credentials remain absent, as the user directed.
+
 ## 2026-09-26 Review of batch 1 r2 stage 1 failure (Claude, cloud)
 
 Reviewed `codex/local-validation-20260926-r2@508dc66` (fast-forwarded). Astra's
