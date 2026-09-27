@@ -41,7 +41,9 @@ try {
     await page.evaluate(() => closeMenu()); return texts.join(' | ');
   };
 
-  const page = await open();
+  // Preserve the hidden-feature contract with an explicit disabled fixture.
+  // Production now enables the connected Research Base materials picker.
+  const page = await open({materialsPanel: false});
   const status = await page.evaluate(() => window.ScienceScopeFeatures.has('branch'));
   assert.equal(status, false);
 
@@ -93,6 +95,16 @@ try {
   assert.match(await menuTexts(enabled, '[data-v="top-menu"]', 2), /内置浏览器/);
   assert.doesNotMatch(await menuTexts(enabled, '[data-v="top-menu"]', 3), /页面目录/, 'prototype pages never return');
 
+  const actual = await open();
+  assert.equal(await actual.evaluate(() => window.ScienceScopeFeatures.has('materialsPanel')), true, 'production enables the working materials picker');
+  await actual.evaluate(async () => {
+    const {hostRequest} = await import('./desktop/host-client.mjs');
+    if(!(await hostRequest('status')).features.materialsPanel)throw Error('Production materials feature must be enabled');
+    const chats = await hostRequest('chats'); await window.SSV2.loadThread(chats.chats[0].id); go('work'); openPanel('context');
+  });
+  await actual.waitForSelector('[data-rb-materials-body]');
+  assert.doesNotMatch(await actual.locator('[data-rb-materials-body]').innerText(), NOTICE, 'working picker contains no prototype notices');
+
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({sitesOpenExternally: true, entryPointsHidden: true, menusFiltered: true, routesBlocked: true, noNotices: true, flagsRestore: true}));
+  console.log(JSON.stringify({sitesOpenExternally: true, entryPointsHidden: true, menusFiltered: true, routesBlocked: true, noNotices: true, flagsRestore: true, productionMaterialsPicker: true}));
 } finally { await browser?.close(); await server.close(); await rm(root, {recursive: true, force: true}); }

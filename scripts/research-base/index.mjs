@@ -34,6 +34,13 @@ export function createResearchBase({ database, resolveResourcePath, onProgress }
   }
   syncLegacyKnowledge();
 
+  /** Catalog existing library resources without re-queuing historical parsing. */
+  async function registerResources() {
+    const rows = database.db.prepare("SELECT r.id FROM resources r WHERE NOT EXISTS (SELECT 1 FROM rb_sources s WHERE s.resource_id=r.id) ORDER BY r.id").all();
+    for (const row of rows) await ingest.ensureSource(row.id);
+    return rows.length;
+  }
+
   const param = (url, name) => url.searchParams.get(name) ?? undefined;
   const projectParam = (url) => (url.searchParams.has('projectId') ? url.searchParams.get('projectId') || null : undefined);
   const bool = (value) => (value === undefined ? undefined : value === 'true' || value === '1');
@@ -41,7 +48,15 @@ export function createResearchBase({ database, resolveResourcePath, onProgress }
   /** GET /api/research/* → body, or undefined when the route is not ours. */
   async function handleGet(route, url) {
     switch (route) {
-      case '/api/research/sources': return { sources: store.listSources({ projectId: projectParam(url), kind: param(url, 'kind'), readStatus: param(url, 'readStatus'), tag: param(url, 'tag'), limit: Number(param(url, 'limit') ?? 100), offset: Number(param(url, 'offset') ?? 0) }) };
+      case '/api/research/sources': {
+        const filters = { projectId: projectParam(url), kind: param(url, 'kind'), readStatus: param(url, 'readStatus'), tag: param(url, 'tag') };
+        const requestedLimit = Number(param(url, 'limit') ?? 100); const requestedOffset = Number(param(url, 'offset') ?? 0);
+        const limit = Math.min(500, Math.max(1, Number.isFinite(requestedLimit) ? Math.floor(requestedLimit) : 100));
+        const offset = Math.max(0, Number.isFinite(requestedOffset) ? Math.floor(requestedOffset) : 0);
+        const sources = store.listSources({ ...filters, limit, offset, sort: param(url, 'sort') ?? 'addedAt', direction: param(url, 'direction') ?? 'desc' });
+        const total = store.countSources(filters);
+        return { sources, total, limit, offset, hasMore: offset + sources.length < total };
+      }
       case '/api/research/source': {
         const source = store.getSource(String(param(url, 'id') ?? ''));
         if (!source) throw new ResearchBaseError('SOURCE_NOT_FOUND', '来源不存在。', 404);
@@ -49,11 +64,11 @@ export function createResearchBase({ database, resolveResourcePath, onProgress }
         return { source, passages, links: store.linksOf({ type: 'source', id: source.id }) };
       }
       case '/api/research/search': return { hits: retrieval.search({ query: String(param(url, 'q') ?? ''), projectId: projectParam(url) ?? null, docTypes: param(url, 'types')?.split(',').filter(Boolean), itemTypes: param(url, 'itemTypes')?.split(',').filter(Boolean), includeSuperseded: bool(param(url, 'includeSuperseded')), k: Number(param(url, 'k') ?? 20) }) };
-      case '/api/research/items': return { items: store.listItems({ projectId: projectParam(url), type: param(url, 'type'), subtype: param(url, 'subtype'), status: param(url, 'status') ?? 'active', scope: param(url, 'scope'), pinned: bool(param(url, 'pinned')), limit: Number(param(url, 'limit') ?? 100), offset: Number(param(url, 'offset') ?? 0) }) };
+      case '/api/research/items': return { items: store.listItems({ projectId: projectParam(url), type: param(url, 'type'), subtype: param(url, 'subtype'), status: param(url, 'status') ?? 'active', scope: param(url, 'scope'), pinned: bool(param(url, 'pinned')), limit: Number(param(url, 'limit') ?? 100), offset: Number(param(url, 'offset') ?? 0) }).map((item) => ({ ...item, evidenceCount: store.evidenceCount(item.id) })) };
       case '/api/research/item': {
         const item = retrieval.resolveItem(String(param(url, 'id') ?? ''));
         if (!item) throw new ResearchBaseError('ITEM_NOT_FOUND', '条目不存在。', 404);
-        return { item, links: store.linksOf({ type: 'item', id: item.id }), revisions: store.revisionsOf(item.id) };
+        return { item: { ...item, evidenceCount: store.evidenceCount(item.id) }, links: store.linksOf({ type: 'item', id: item.id }), revisions: store.revisionsOf(item.id) };
       }
       case '/api/research/proposals': return { proposals: store.listProposals({ projectId: projectParam(url), status: param(url, 'status') ?? 'pending' }) };
       case '/api/research/brief': return retrieval.brief({ projectId: projectParam(url) ?? null, expertId: param(url, 'expertId') ?? null });
@@ -76,11 +91,11 @@ export function createResearchBase({ database, resolveResourcePath, onProgress }
         const job = ingest.enqueue(source.id);
         return { source: input.wait ? await job : store.getSource(source.id) };
       }
-      case '/api/research/sync': { const result = await ingest.syncResources({ projectId: input.projectId ?? null }); if (input.wait) await result.done; return { total: result.total, queued: result.queued }; }
+      case '/api/research/sync': { const result = await ingest.syncResources({ projectId: input.projectId ?? null }); if (input.wait) { await result.done; await ingest.idle(); } return { total: result.total, queued: result.queued }; }
       case '/api/research/read': return retrieval.read({ ref: input.ref, page: input.page, fromOrdinal: input.fromOrdinal, maxChars: input.maxChars });
       case '/api/research/items': return { item: store.createItem(input.item ?? {}, { createdBy: 'user' }) };
       case '/api/research/items/update': return { item: store.updateItem(input.id, input.patch ?? {}, { changedBy: 'user' }) };
-      case '/api/research/items/supersede': return store.supersedeItem(input.id, input.item ?? {}, { createdBy: 'user' });
+      case '/api/research/items/supersede': return store.supersedeItem(input.id, input.item ?? {}, { createdBy: 'user', expectedRevision: input.expectedRevision });
       case '/api/research/links': return { link: store.link(input.link ?? {}, { createdBy: 'user' }) };
       case '/api/research/links/remove': return { removed: store.unlink(input.id) };
       case '/api/research/proposals/decide': return store.decide(input.id, { accept: input.accept === true, edits: input.edits ?? null, decidedBy: 'user' });
@@ -122,7 +137,7 @@ export function createResearchBase({ database, resolveResourcePath, onProgress }
     throw new ResearchBaseError('UNKNOWN_TOOL', `未知的资料库工具：${name}`, 404);
   }
 
-  return { store, retrieval, ingest, handleGet, handlePost, toolCall, syncLegacyKnowledge };
+  return { store, retrieval, ingest, handleGet, handlePost, toolCall, syncLegacyKnowledge, registerResources };
 }
 
 function parseCite(cite, retrieval, projectId) {

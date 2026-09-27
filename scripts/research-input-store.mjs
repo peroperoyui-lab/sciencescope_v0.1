@@ -14,12 +14,12 @@ export function createResearchInputStore({db}){
         current.attachmentIds=current.attachmentIds.filter(id=>!snapshot.attachmentIds.includes(id));
         current.messageQuotes=current.messageQuotes.filter(q=>!snapshot.messageQuotes.some(s=>same(q,s)));
         current.annotations=current.annotations.filter(a=>!snapshot.annotations.some(s=>same(a,s)));
-        current.contextRefs=current.contextRefs.filter(r=>!snapshot.contextRefs.some(s=>s.resourceId===r.resourceId));
+        current.contextRefs=current.contextRefs.filter(r=>!snapshot.contextRefs.some(s=>(s.resourceId&&s.resourceId===r.resourceId)||(s.itemId&&s.itemId===r.itemId)));
         save(scope,owner,current);
       }
       db.exec('COMMIT');
     }catch(error){try{db.exec('ROLLBACK');}catch{}throw error;}
   }
-  function restore(scope,owner,snapshot){key(scope,owner);db.exec('BEGIN IMMEDIATE');try{const current=get(scope,owner);for(const kind of ['annotations','messageQuotes'])for(const item of snapshot[kind]){if(scope==='main'&&item.id&&Number.isInteger(item.revision))db.prepare('DELETE FROM research_input_consumed WHERE owner_id=? AND kind=? AND item_id=? AND revision=?').run(owner,kind,item.id,item.revision);if(!current[kind].some(old=>old.id===item.id))current[kind].push(item);}current.attachmentIds=[...new Set([...current.attachmentIds,...snapshot.attachmentIds])];for(const ref of snapshot.contextRefs)if(!current.contextRefs.some(old=>old.resourceId===ref.resourceId))current.contextRefs.push(ref);save(scope,owner,current);db.exec('COMMIT');return current;}catch(error){try{db.exec('ROLLBACK');}catch{}throw error;}}
+  function restore(scope,owner,snapshot){key(scope,owner);db.exec('BEGIN IMMEDIATE');try{const current=get(scope,owner);for(const kind of ['annotations','messageQuotes'])for(const item of snapshot[kind]){if(scope==='main'&&item.id&&Number.isInteger(item.revision))db.prepare('DELETE FROM research_input_consumed WHERE owner_id=? AND kind=? AND item_id=? AND revision=?').run(owner,kind,item.id,item.revision);if(!current[kind].some(old=>old.id===item.id))current[kind].push(item);}current.attachmentIds=[...new Set([...current.attachmentIds,...snapshot.attachmentIds])];for(const ref of snapshot.contextRefs)if(!current.contextRefs.some(old=>(ref.resourceId&&old.resourceId===ref.resourceId)||(ref.itemId&&old.itemId===ref.itemId)))current.contextRefs.push(ref);save(scope,owner,current);db.exec('COMMIT');return current;}catch(error){try{db.exec('ROLLBACK');}catch{}throw error;}}
   return {get,save,accepted,restore,receipt:(chatId,messageId)=>JSON.parse(db.prepare('SELECT payload FROM research_input_receipts WHERE chat_id=? AND message_id=?').get(chatId,messageId)?.payload||'null')};
 }

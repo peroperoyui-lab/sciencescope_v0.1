@@ -1,5 +1,21 @@
 # Desktop implementation — first increment
 
+## 2026-09-27 · 第 3 批 T05 资料库界面（验收通过，独立分支交付）
+
+- 基线：`claude/determined-pasteur-jxpzw8@a3e79e2`，工作树干净后新建 `codex/t05-research-base-ui-20260927`；没有回退或重做第 2 批。不开 PR、不合并。
+- 实现：沿用已批准外观与 Research Base 存储，增加七个分类/管理页签、服务端来源筛选排序与 50 条分页、条目版本锁编辑/取代/历史、可内联修改和批量决定的收件箱、实际项目简报、回答引用标签/按页预览、按回答归属的使用回执、模型提议入口、真实材料选择面板。新字段 `contextRefs.itemId` 经共同输入编译器校验，私有和其他项目条目不能混入模型输入；原件保持 library 的既有存储。
+- 发现 → 原因 → 修复 → 验证：来源 API 没有排序/总数 → 前端排序会只排当前页 → 服务端白名单排序后分页，新增总数 → 51 条夹具跨页测试；取代缺少版本锁 → 可在旧编辑界面上操作新版本 → 添加 `expectedRevision` → 过期操作不创建替代条目。
+- 联调修复：导入误用 `{resource:{id}}`，实际接口直接返回资源 → 改用 `result.id` 并显式等待 ingest；深色表头继承原型白底、年份断行 → 改用现有令牌并为短字段保留宽度。引用增强避免处理代码/数学/已有按钮，缓存未知引用，避免 MutationObserver 对自身输出循环处理。
+- 回归发现：来源引用同时进入 snapshot 的附件数组 → 失败恢复时出现两份输入芯片 → 编译仍使用资源并集，新回执只保存显式附件与单独 contextRefs，不重写历史回执 → 失败恢复测试证明运行时内容不变、恢复后只有一条来源引用。
+- 专家出处缺口：真实讨论的研究工具回调没有所属回答消息（只有 Main 的映射）→ 原始新回归在 `origin.messageId=null` 处失败 → 复用讨论 `accepted.experts` 的稳定消息身份，以 sessionId/expertId 分别绑定并在 finally 清理，补齐每位专家的使用回执，不改调度 → 两专家的提议/检索回执必须分别指向其真实保存的回答，浏览器验收也改走实际 discussion 路由，不再用 Main 回调中的专家标签代替讨论。
+- 引用范围回归：从项目切到独立聊天后，原型仍保留上一个 `S.projectId` → 引用标签错误借用旧项目 → 只从当前聊天获取 projectId，独立聊天明确传空范围 → 新 smoke 使用同号的个人来源验证引用打开正确原件，而不是上一个项目的资料。
+- 既有工作站 smoke 暴露导入兼容缺口：旧 `/api/library/import` 只写 resources，新资料库看不到它 → 启动时仅登记尚无来源记录的旧资源（保留人工元数据、不重解析历史），新导入登记后排入已有解析队列；关闭数据库前等待解析队列收口，`research/sync` 的 `wait:true` 也等待已排入的任务。旧工作站展示断言不改；新增 API 回归先在旧代码上失败，修复后通过。
+- 自动解析接通后，旧 document-preview 测试仍假定导入资源一律 `unparsed`，完整单测因此 191/192。测试现等待实际解析队列后要求文本 `parsed`、未知二进制 `unsupported`；原件字节、64k 兼容预览边界、完整文本与未知文件不伪造内容的断言均保留。聚焦 document-preview / research-api 回归确认后再跑完整单测；此前失败不删除。
+- 最终验证：`node D:/nodejs/node_modules/npm/bin/npm-cli.js test` 192/192（r6，252150.5915 ms，零失败/取消/跳过）；22 项既有 smoke 全通过（21 项 r4 + 修复后的 workbench r5），新 `research-base-ui-smoke` 浏览器与 `--native` 均通过（r5）。聚焦 document-preview / research-api 3/3。`git diff --check` 通过；i18n-extract 3085 fragments / 1747 历史未翻译片段，新两个 UI 文件仅有一条匹配代码正则的假阳性，没有新增未翻译用户文案。
+- 新 UI 验收使用本地模拟宿主，每端两次 Main 发送、一次专家讨论，零付费请求；不是实际 DSH/Provider 验收。实际原生窗口使用真实 Tauri bridge，最终 PID 62592 正常 exit 0，无测试进程残留，未重启用户窗口。浏览器与原生各 32 张中英文/深浅色截图，Sol 复核、Astra 抽查公式/来源/收件箱等代表图。此前失败日志保留在 regression，最新完整单测为 `npm-test-final-r6.log`，界面为 r5 日志。
+- 原生截图与浏览器截图分别位于 `.sciencescope-local/temp/t05-validation/native/`、`research-base-ui/`。它们、测试数据库和日志不进 Git。
+- 未做：T06 元数据自动发现、T07 证据台账、T09 自动记忆整理、T20 图层、安装包/签名与升级。T10/T11/T12 将分别在后续叠加分支交付；本节不宣称第 3 批完成。
+
 ## 2026-09-27 Review of batch 2 (T17, T18, T19) (Claude, cloud)
 
 Fast-forwarded `codex/t19-reviewers-20260927@7bc1919` (stacked on T17

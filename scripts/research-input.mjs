@@ -57,7 +57,7 @@ const element = (tag, pairs, text) => `<${tag}${attrs(pairs)}>\n${body(text, tag
 const locationText = (location) => location === undefined ? undefined
   : typeof location.description === 'string' && Object.keys(location).length === 1 ? location.description : JSON.stringify(location);
 
-export function renderResearchMaterial({ attachments = [], messageQuotes = [], annotations = [], annotationResources = {} } = {}) {
+export function renderResearchMaterial({ attachments = [], messageQuotes = [], annotations = [], annotationResources = {}, researchItems = [] } = {}) {
   const blocks = [];
   if (typeof attachments === 'string') { if (attachments) blocks.push(element('material', [], attachments)); }
   else for (const item of attachments) {
@@ -74,10 +74,14 @@ export function renderResearchMaterial({ attachments = [], messageQuotes = [], a
     const inner = [`<selected>${body(note.selectedText, 'selected')}</selected>`, ...(note.comment ? [`<comment>${body(note.comment, 'comment')}</comment>`] : [])].join('\n');
     blocks.push(`<annotation${attrs([['resource', note.resourceId], ['title', resource.title], ['path', resource.path], ['version', note.versionId], ['location', locationText(note.location)]])}>\n${body(inner, 'annotation')}\n</annotation>`);
   }
+  for (const item of researchItems) {
+    const content = [item.body, Object.keys(item.payload ?? {}).length ? `Structured data: ${JSON.stringify(item.payload)}` : ''].filter(Boolean).join('\n');
+    blocks.push(element('research-item', [['id', item.id], ['title', item.title], ['type', item.type], ['subtype', item.subtype]], content));
+  }
   return blocks.join('\n');
 }
 
-export function createResearchInput({ attachments, chatStore, getResource } = {}) {
+export function createResearchInput({ attachments, chatStore, getResource, getResearchItem } = {}) {
   if (!attachments || typeof attachments.compile !== 'function') throw new TypeError('attachments.compile is required');
   const resourceReader = getResource || (async (id) => {
     const db = chatStore?.database ?? chatStore?.db;
@@ -132,24 +136,41 @@ export function createResearchInput({ attachments, chatStore, getResource } = {}
     }
     const contextIn = array(input.contextRefs ?? [], 'contextRefs');
     if (contextIn.length > MAX_ATTACHMENTS) invalid('Too many context references');
-    const contextRefs = [];
+    const contextRefs = []; const researchItems = [];
     for (const ref of contextIn) {
       if (!isObject(ref)) invalid('Invalid context reference');
-      const resourceId = string(ref.resourceId, 'context resourceId');
-      if (!await resourceReader(resourceId)) invalid('Context resource is unavailable');
-      if (!contextRefs.some((item) => item.resourceId === resourceId)) contextRefs.push({ resourceId });
+      const hasResource = ref.resourceId !== undefined; const hasItem = ref.itemId !== undefined;
+      if (hasResource === hasItem) invalid('Context reference must contain exactly one resourceId or itemId');
+      if (hasResource) {
+        const resourceId = string(ref.resourceId, 'context resourceId');
+        if (!await resourceReader(resourceId)) invalid('Context resource is unavailable');
+        if (!contextRefs.some((item) => item.resourceId === resourceId)) contextRefs.push({ resourceId });
+      } else {
+        const itemId = string(ref.itemId, 'context itemId');
+        if (typeof getResearchItem !== 'function') invalid('Research item context is unavailable');
+        const item = await getResearchItem(itemId);
+        if (!item || item.id !== itemId || item.status !== 'active' || item.visibility !== 'shared' || String(item.scope ?? '').startsWith('expert:')) invalid('Research item is unavailable to this model');
+        if ((item.projectId ?? null) !== (input.projectId ?? null) && item.projectId !== null) invalid('Research item is outside this project');
+        if (!contextRefs.some((ref) => ref.itemId === itemId)) {
+          contextRefs.push({ itemId });
+          researchItems.push({ id: item.id, title: item.title, type: item.type, subtype: item.subtype, body: item.body ?? '', payload: item.payload ?? {} });
+        }
+      }
     }
-    const allAttachmentIds = [...new Set([...attachmentIds, ...contextRefs.map((r) => r.resourceId)])];
-    if (allAttachmentIds.length > MAX_ATTACHMENTS) invalid('Too many attachments');
+    const allAttachmentIds = [...new Set([...attachmentIds, ...contextRefs.flatMap((r) => r.resourceId ? [r.resourceId] : [])])];
+    if (allAttachmentIds.length + researchItems.length > MAX_ATTACHMENTS) invalid('Too many attachments');
     const compiled = await attachments.compile(allAttachmentIds, { structured: true });
     const material = normalizeMaterial(compiled);
-    const materialPayload = renderResearchMaterial({ attachments: material ? compiled : [], messageQuotes, annotations, annotationResources });
+    const materialPayload = renderResearchMaterial({ attachments: material ? compiled : [], messageQuotes, annotations, annotationResources, researchItems });
     if (materialPayload.length > MAX_MATERIAL) invalid('Research material is too long');
     const materialText = allAttachmentIds.length || messageQuotes.length || annotations.length || contextRefs.length
       ? `[User-provided research material]\n${materialPayload}\n[End user-provided research material]\n` : '';
     const text = `${userText}${userText && materialText ? '\n' : ''}${materialText}`;
     if (text.length > MAX_TEXT + MAX_MATERIAL) invalid('Compiled text is too long');
-    const snapshot = structuredClone({ attachmentIds: allAttachmentIds, messageQuotes, annotations, contextRefs });
+    // Persist each selection only in its own draft field. `allAttachmentIds`
+    // is the compiler input union; putting context resources into attachmentIds
+    // too would restore a failed-send reference as two composer chips.
+    const snapshot = structuredClone({ attachmentIds, messageQuotes, annotations, contextRefs });
     return { text, snapshot };
   }};
 }

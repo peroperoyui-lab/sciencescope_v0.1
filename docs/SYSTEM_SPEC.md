@@ -335,13 +335,15 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
 
 ### 2.11 数据库、资料库与知识
 
+- **T05 接线（2026-09-27，已验收）**：生产资料库列表由 `desktop/research-base.mjs/css` 接管，保留侧栏入口、页签、原件打开与 T04 阅读器。文献表按服务端排序、筛选后每页 50 条；知识/模型/主张/记忆卡片提供修订锁编辑、置顶、归档、取代和历史；记忆收件箱支持修改后接受与批量决定；项目简报直接显示后端原文。下列旧 `library.mjs` 描述保留为兼容接口说明，不再代表新版列表。
+
 - **用途与操作**：
   - "当前项目材料"与"我的资料"：列出原件和项目版本，可搜索、打开、查看详情、导入（单个文件 ≤14 MB）。
   - 知识条目：可从材料提出知识候选（研究经验 / 规范知识 / 私有），确认后变为"已采用"，并保留来源。
 - **状态**：✅（界面）；"外部资源"页的站点用系统浏览器打开（`/api/open-url`），站点增删仍是原型的本地状态、不持久化（⬜）。
 - **技术实现**：`desktop/library.mjs`；`scripts/library-service.mjs`（项目版本会自动登记为资源）；接口 `GET /api/library`、`POST /api/library/import|open`、
   `GET /api/knowledge`、`POST /api/knowledge/propose|accept`；表 `resources`、`knowledge`（命名空间 canonical/heuristic/private，状态 candidate/accepted）。
-- **已知限制**：没有全文索引或检索工具；知识条目目前不会自动提供给模型。
+- **当前接线**：全文索引、检索工具和确认条目的模型简报由 2.17 的 Research Base 提供；旧知识接口仅用于兼容已有数据。
 
 ### 2.12 模型与 Provider（设置 → 模型与 API）
 
@@ -437,11 +439,15 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
   `scripts/ui-gallery.mjs <输出目录>` 用离线模拟数据生成 17 张截图（主页、对话、讨论、秘书、工作站、导图、数据库、
   设置四页、命令面板、右键菜单、输入框菜单、深色、全局助手窗口、悬浮球），用于前后对比。
 
-### 2.17 研究资料库（后端框架，界面待 T05）
+### 2.17 研究资料库
+
+- **T05 最近核对：2026-09-27，验收通过**（npm 192/192、22 既有 smoke、新资料库 browser/native smoke，64 张截图；本次新增界面为模拟宿主，零付费请求）。`desktop/research-base.mjs` 使用既有 Research Base CRUD、提议和简报接口；新增来源排序和分页总数，取代操作也支持 `expectedRevision`。`desktop/research-citations.mjs` 对净化后的助手正文进行引用标签增强，不改变保存的文本，复用 T04 页码阅读器；引用与回执缓存有界。使用回执按条目/记忆及去重来源展示，工具提议保留等待用户确认语义。
+- 材料面板不再使用原型内容：用户显式选择文件资源或共享有效条目写入 `contextRefs`。新增 `{itemId}` 与既有 `{resourceId}` 并存；编译器校验会话项目、有效状态、共享性和非专家私属范围，私有条目不会成为模型输入。条目内容经现有 research input 通道发送；确认、失败恢复、草稿去重使用区分资源/条目的身份。Main 将选择记录在使用回执 `how=context`。不新增表或模型调用。
+- 兼容旧资料：宿主启动时给没有来源记录的 library resources 登记来源，不重解析历史、不覆盖人工元数据；新 `/api/library/import` 保存原件并自动登记、后台解析。解析状态通过来源接口查询；`research/sync` 的 `wait:true` 与宿主关闭均等待既有解析队列完成。引用标签范围取当前聊天，独立聊天不会继承上一个项目的标签空间。
 
 - **用途**：统一的科研数据后端，存放文献与资料（来源和按页、按章节的段落）、提炼的知识、理论模型/公式/算法、结论与主张、长期记忆和笔记，
   可互相链接（证据、引用、取代等），供人和智能体检索与引用。设计与分工见 `docs/design/RESEARCH_BASE.md`，调研见 `docs/design/RESEARCH_MEMO_2026-09-25.md`。
-- **现在能做的**（均通过接口，**尚无专门界面**）：
+- **现在能做的**（既有接口加 T05 分类界面，完整验收状态见本节顶部）：
   - 资料解析与索引：txt / csv / 代码、Markdown、LaTeX、PDF（pdfjs-dist legacy）及 DOCX（mammoth）已支持；定向单元/API、浏览器与原生阅读器测试通过。扫描件返回 unsupported，不伪造 OCR 文本。
   - 中英文检索（FTS5 + 中文二元组，两字词可命中）、阅读窗口、引用标签解析（`[S3]`、`[S3 p.4]`、`[@a1b2c3d4]`）。
   - 条目的新建、修改（修订历史 + `expectedRevision` 防覆盖）、**取代**（旧记录保留并标为失效）、置顶、私有。
@@ -449,9 +455,9 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
     写入只能以提议形式进入"记忆收件箱"，由用户接受、修改或拒绝；工具的项目和角色由会话决定。
   - **项目简报**（常驻记忆）：从有效的共享条目生成，约 3500 字符预算；主专家每轮发送前如有变化就更新为系统提示中的一个分段，
     有序讨论和 @ 邀请的专家通过共享输入获得同一份简报；私有条目不给任何智能体，专家经验只给对应专家。
-  - 使用回执：每轮记录用到了哪些记录（brief / search / read）。
-  - 旧的 `knowledge` 表逐行镜像为条目（`legacy_id`）；原有的 `/api/knowledge` 和资料库页面暂时不变。
-- **状态**：🟡 后端与智能体工具已实现并测试（单元、真实 DSH、真实模型）；T04 文档解析/阅读器已验证，界面（T05）、文献元数据（T06）、
+  - 使用回执：每轮记录用到了哪些记录（brief / search / read / context）；讨论通过 accepted 事件里的专家回答身份绑定，各专家回执和提议均指向其自己的回答，结束后清理映射。
+  - 旧的 `knowledge` 表逐行镜像为条目（`legacy_id`）；原有的 `/api/knowledge` 保留兼容，新资料库页面使用 Research Base 接口。
+- **状态**：🟡 后端与智能体工具已实现并测试（单元、真实 DSH、真实模型）；T04 文档解析/阅读器、T05 分类与管理界面已验证（含原生），文献元数据（T06）、
   证据台账界面（T07）、浏览器（T08）、自动整理（T09）、混合检索（T10：本地向量为主、关键词为辅、多问法，另加每轮记忆召回；默认模型为轻量的 multilingual-e5-small，更换入口以后再做）未完成；当前只有关键词检索，按用户决定这只是降级方案，任务书在 `docs/tasks/`。
 - **技术实现**：`scripts/research-base/`
   - `schema.mjs`（表）、`store.mjs`（校验、FTS 维护、提议、修订、回执）、`text-index.mjs`（中文二元组）、`search.mjs`（检索、阅读、引用、简报）、
@@ -464,15 +470,14 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
   `scripts/evals/research-base-live.mjs`（真实 OpenCode Go，2026-09-25：主专家自行检索、阅读并引用 [S1] / [S2] / [@…]，公式原样引用；提议进入收件箱；被 @ 的专家检索并提议主张）。
 - **最近核对**：2026-09-27 r4：阶段 1 真实模型复验 MD/TeX 检索/引用/提议；阶段 2 对 8 篇真实中英文论文解析 101 页、2017 blocks、1412 chunks，页码一致、坐标有效，4 篇中文指定检索均 top1。阶段 3 固定52题，关键词 R@1/5/10 为3/52、6/52、9/52；本地 e5-small 中文10/17/21，英文10/17/19，双语最大余弦12/21/25（分母均52）。1412段嵌入29.514秒，按8篇平均规模推算500篇嵌入30.744分钟（非实测）；查询嵌入中文 P50/P95 3.328/3.904 ms，仅嵌入、不含排序或I/O。记忆关键词正例0/5、负例未误召回3/3，未测记忆向量。真实模型引用评测已完成，见下条；段落命中不代表完整答案正确。所有向量代码仅属离线评测，原件未修改或提交，生产检索仍为关键词，混合检索未实现。
 - **真实模型最近核对（2026-09-27，取代上一条待凭据状态）**：应用API→真实DSH→OpenCode Go `deepseek-v4.1-flash`，52道固定论文题各用新会话，最多6请求/题。286次转发（236 Main、50后台纪要，含首次缺header的400）；46个完整回答。核心原文审计43正确有引用、1错、1未作答、6无完整答案、1标准答案措辞冲突单列。6个无答案为1次Main预算截断和5次自有空工作区filesystem工具偏离取消；16次仅后台纪要截断不算Main失败。239个引用返回非空、22个格式不支持，非空不等于引用正确，额外论断也有错。独立审计经Astra复核，gold未修改；单独评测夹具的修复不改变生产检索、纪要或权限行为。用量与逐题失败见DESKTOP_IMPLEMENTATION顶部。
-- **已知限制**：PDF 标题/章节是字号和布局启发式，表格与复杂分式不能保证语义重建；部分嵌入字体有替换警告，原页可在阅读器查看；没有研究资料库专门界面；目前只有关键词检索（实测对换说法和跨语言问题几乎无效，见设计文档 §3.1），混合检索待 T10；在完全接管模式下，智能体的 bash 能读到应用数据目录（记录在设计文档 §8，需要单独处理 DSH 沙箱）；
-  会话 ↔ 使用回执只覆盖主专家轮次（专家的回执待补）。
+- **已知限制**：PDF 标题/章节是字号和布局启发式，表格与复杂分式不能保证语义重建；部分嵌入字体有替换警告，原页可在阅读器查看；目前只有关键词检索（实测对换说法和跨语言问题几乎无效，见设计文档 §3.1），混合检索待 T10；在完全接管模式下，智能体的 bash 能读到应用数据目录（记录在设计文档 §8，需要单独处理 DSH 沙箱）。
 
 ### 2.18 可选功能开关与原型页面（2026-09-25）
 - **用途**：界面上不出现"尚未开发 / 即将提供 / 原型 / 示例"一类提示。未完成功能的入口隐藏，完成后由宿主打开开关；原型设计包的页面目录和演示页不可达。
 - **状态**：✅（界面 smoke、文案审计）。
 - **技术实现**：
   - 宿主 `GET /api/status` 返回 `features`（`scripts/desktop-api.mjs` 的 `capabilities.features`）：
-    `pythonEnvs`、`folderPicker`（由原生外壳通过 `SCIENCESCOPE_NATIVE_FEATURES=pickFolder` 声明）、`inAppBrowser`、`branch`、`usage`、`materialsPanel`、`mapHistory`、`changeLog`、`pluginManagement`、`dataRelocation`，目前全部为 false。
+    `pythonEnvs`、`folderPicker`（由原生外壳通过 `SCIENCESCOPE_NATIVE_FEATURES=pickFolder` 声明）、`inAppBrowser`、`branch`、`usage`、`materialsPanel`、`mapHistory`、`changeLog`、`pluginManagement`、`dataRelocation`。T05 的 `materialsPanel` 由真实 Research Base 服务检测开启；其余未完成项仍关闭。
   - 前端 `desktop/features.mjs`（在 `info-tip.mjs` 之后最先加载）：按 `FEATURES` 表注入 CSS 隐藏入口（默认隐藏，状态返回后再显示）；
     包装原型的 `menu()` 去掉隐藏功能的菜单项和指向隐藏路由的链接；包装 `go()` 使隐藏路由不可导航；命令面板同样过滤（`preferences.mjs`）。
   - 原型专属、永远不可达：`help`（页面目录）、`page-doc`（逐页开发说明）、`resume`、`run`、`compose`、`free`、`welcome`。
@@ -514,7 +519,7 @@ r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，
 | 工作区与对话 | `GET/POST /api/workspace`、`GET /api/chats`、`GET /api/chats/:id/messages`、`GET /api/chats/deliverable`、`POST /api/chats/deliverable/open`、`POST /api/chats/update|move|delete|mode|temporary-close` |
 | 主对话 | `POST /api/chat`（流）、`POST /api/chat/stop`、`GET/POST /api/chat/outbox`、`GET /api/chat/activity`、`GET /api/chat/search` |
 | 执行 | `GET /api/execution`、`POST /api/execution/goal|approval` |
-| 研究资料库 | `/api/research/*`：sources、source、sources/update|remove|ingest、sync、search、read、items、item、items/update|supersede、links、links/remove、proposals、proposals/decide、brief、cite、usage、formats（见 2.17 与设计文档 §6） |
+| 研究资料库 | `/api/research/*`：sources（新增 sort/direction 与 total/hasMore）、source、sources/update|remove|ingest、sync、search、read、items、item（含 evidenceCount）、items/update|supersede（expectedRevision）、links、links/remove、proposals、proposals/decide、brief、cite、usage、formats（见 2.17 与设计文档 §6）；research-input contextRefs 增加 itemId |
 | 对话纪要与自动总结 | `GET/POST /api/chats/minutes`、`POST /api/chats/minutes/refresh`、`POST /api/projects/focus`、`GET/POST /api/secretary/preferences`、`GET /api/summary/proposals?chatId`、`POST /api/summary/proposals/decide`、`GET /api/summary/writes?chatId`、`POST /api/summary/writes/undo`（2.5b、T18） |
 | 专家讨论与名册 | `GET/POST /api/experts`（每项含 `kind: expert|reviewer`、`skills: string[]`）、`POST /api/discussion`（流；`expertIds` 仅接受参加专家，`reviewerId` 可选参加专家或独立审核）、`POST /api/discussion/adopt`、`POST /api/discussion/cancel` |
 | 秘书与全局助手 | `GET /api/assistant`、`POST /api/assistant/chat`（流）、`/assistant/draft|model|approval|stop|proposal/resolve` |
@@ -584,9 +589,9 @@ desktop-interaction 的认证/路由夹具改用生产宿主后，仍在旧选�
 ## 6. 尚未接入真实功能的部分（⬜）
 
 界面上不再显示"尚未开放"一类提示（2026-09-25 用户要求）。未完成功能的入口由功能开关隐藏（2.18），各有任务书：
-内置浏览器与浏览器设置（T08）、从消息分支（T12）、用量分析（T13）、项目材料面板（T05）、导图历史 / 版本说明页 / 版本比较 / 修改记录（T14）、
+内置浏览器与浏览器设置（T08）、从消息分支（T12）、用量分析（T13）、导图历史 / 版本说明页 / 版本比较 / 修改记录（T14）、
 插件安装与更新（T15）、目录迁移（T16）、Python 运行环境与原生文件夹选择（T11）。
-另有尚无任务书的：记忆管理界面（并入 T05/T09）、通知、截图快捷键、系统全局热键、导图导出、日志"定位到消息"、安装包与数据保留升级（ROADMAP 阶段 B）。
+记忆分类与人工管理由 T05 接线，自动整理仍属 T09。另有尚无任务书的：通知、截图快捷键、系统全局热键、导图导出、日志"定位到消息"、安装包与数据保留升级（ROADMAP 阶段 B）。
 
 ## 7. 如何维护本文档
 

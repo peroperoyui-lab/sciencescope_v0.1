@@ -10,6 +10,7 @@ export const DESKTOP_ASSETS = ['model-settings.mjs', 'model-settings.css', 'prov
 DESKTOP_ASSETS.push('refresh.css','refresh.mjs','settings.mjs','role-settings.mjs','expert-settings.mjs','extensions.mjs','settings.css','secretary-settings.mjs','shortcuts.mjs','assistant-window-settings.mjs','research-input.mjs');
 DESKTOP_ASSETS.push('file-preview.mjs','marks.css','creation-details.mjs','info-tip.mjs','features.mjs','deliverables.mjs','i18n.mjs','i18n-en.mjs','minutes.mjs');
 DESKTOP_ASSETS.push('math-render.mjs','document-readers.mjs','document-readers.css','js-polyfills.mjs','pdf-worker.mjs');
+DESKTOP_ASSETS.push('research-base.mjs','research-base.css','research-citations.mjs');
 // Third-party files copied from node_modules and served verbatim. The build and
 // the production router both use this list, so they cannot drift apart.
 // The default interface font is 思源黑体 (Noto Sans SC, SIL OFL 1.1), split
@@ -72,7 +73,7 @@ export async function buildDesktop({ root = defaultRoot, outputDir = path.join(r
   // The inherited renderer replaces body contents. Styles must live in head.
   const styles = '<link rel="stylesheet" href="./desktop/vendor/noto-sans-sc/wght.css"><link rel="stylesheet" href="./desktop/model-settings.css"><link rel="stylesheet" href="./desktop/chat.css"><link rel="stylesheet" href="./desktop/workspace.css"><link rel="stylesheet" href="./desktop/workbench.css"><link rel="stylesheet" href="./desktop/desktop-behavior.css"><link rel="stylesheet" href="./desktop/assistant-chat.css">';
   const readerStyles = '<link rel="stylesheet" href="./desktop/vendor/pdf/pdf_viewer.css"><link rel="stylesheet" href="./desktop/vendor/katex/katex.min.css">';
-  await writeFile(result.output, html.replace('</head>', `${readerStyles}${styles}<link rel="stylesheet" href="./desktop/settings.css"><link rel="stylesheet" href="./desktop/refresh.css"><link rel="stylesheet" href="./desktop/marks.css"><link rel="stylesheet" href="./desktop/document-readers.css"></head>`).replace('</body>', `${extension}</body>`));
+  await writeFile(result.output, html.replace('</head>', `${readerStyles}${styles}<link rel="stylesheet" href="./desktop/settings.css"><link rel="stylesheet" href="./desktop/refresh.css"><link rel="stylesheet" href="./desktop/marks.css"><link rel="stylesheet" href="./desktop/document-readers.css"><link rel="stylesheet" href="./desktop/research-base.css"></head>`).replace('</body>', `${extension}<script type="module" src="./desktop/research-base.mjs"></script><script type="module" src="./desktop/research-citations.mjs"></script></body>`));
   return result.output;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

@@ -114,14 +114,27 @@ export function createResearchStore({ db }) {
   const getSource = (sourceId) => sourceRow(db.prepare('SELECT * FROM rb_sources WHERE id=?').get(sourceId));
   const sourceByResource = (resourceId) => sourceRow(db.prepare('SELECT * FROM rb_sources WHERE resource_id=?').get(resourceId));
   const sourceByLabel = (projectId, number) => sourceRow(db.prepare("SELECT * FROM rb_sources WHERE ifnull(project_id,'')=ifnull(?,'') AND number=?").get(projectId ?? null, number));
-  function listSources({ projectId, includePersonal = true, kind, readStatus, tag, limit = 100, offset = 0 } = {}) {
+  const sourceFilters = ({ projectId, includePersonal = true, kind, readStatus, tag } = {}) => {
     const where = []; const params = [];
     if (projectId !== undefined) { where.push(includePersonal && projectId ? '(project_id=? OR project_id IS NULL)' : projectId ? 'project_id=?' : 'project_id IS NULL'); if (projectId) params.push(projectId); }
     if (kind) { where.push('kind=?'); params.push(oneOf(kind, SOURCE_KINDS, '来源类型')); }
     if (readStatus) { where.push('read_status=?'); params.push(readStatus); }
     if (tag) { where.push("EXISTS (SELECT 1 FROM json_each(tags_json) WHERE value=?)"); params.push(tag); }
-    const rows = db.prepare(`SELECT * FROM rb_sources ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY added_at DESC LIMIT ? OFFSET ?`).all(...params, Math.min(500, limit), Math.max(0, offset));
+    return { where, params };
+  };
+  const SOURCE_SORTS = Object.freeze({ addedAt: 'added_at', title: 'title COLLATE NOCASE', year: 'year', author: "json_extract(authors_json,'$[0].literal') COLLATE NOCASE", venue: 'venue COLLATE NOCASE', kind: 'kind', contentStatus: 'content_status', readStatus: 'read_status' });
+  function listSources({ projectId, includePersonal = true, kind, readStatus, tag, limit = 100, offset = 0, sort = 'addedAt', direction = 'desc' } = {}) {
+    const { where, params } = sourceFilters({ projectId, includePersonal, kind, readStatus, tag });
+    const sortColumn = SOURCE_SORTS[sort] ?? bad('来源排序字段无效。');
+    if (!['asc', 'desc'].includes(direction)) bad('来源排序方向无效。');
+    const safeLimit = Number.isFinite(limit) ? Math.max(1, Math.min(500, Math.floor(limit))) : 100;
+    const safeOffset = Number.isFinite(offset) ? Math.max(0, Math.floor(offset)) : 0;
+    const rows = db.prepare(`SELECT * FROM rb_sources ${where.length ? 'WHERE ' + where.join(' AND ') : ''} ORDER BY ${sortColumn} ${direction.toUpperCase()}, added_at DESC, number ASC LIMIT ? OFFSET ?`).all(...params, safeLimit, safeOffset);
     return rows.map(sourceRow);
+  }
+  function countSources(filters = {}) {
+    const { where, params } = sourceFilters(filters);
+    return db.prepare(`SELECT count(*) AS total FROM rb_sources ${where.length ? 'WHERE ' + where.join(' AND ') : ''}`).get(...params).total;
   }
   function removeSource(sourceId) {
     return tx(() => {
@@ -218,6 +231,7 @@ export function createResearchStore({ db }) {
   /** Temporal supersession: the old record stays (for provenance), marked invalid from now. */
   function supersedeItem(oldId, replacement, options = {}) {
     const old = getItem(id(oldId)); if (!old) throw new ResearchBaseError('ITEM_NOT_FOUND', '条目不存在。', 404);
+    if (options.expectedRevision !== undefined && options.expectedRevision !== old.revision) throw new ResearchBaseError('REVISION_CONFLICT', '条目已被修改，请刷新后再编辑。', 409);
     if (old.status !== 'active') bad('只能取代有效的条目。', 'NOT_ACTIVE');
     const next = createItem({ type: old.type, subtype: old.subtype, projectId: old.projectId, scope: old.scope, visibility: old.visibility, pinned: old.pinned, ...replacement }, options);
     const t = now();
@@ -229,6 +243,7 @@ export function createResearchStore({ db }) {
     return { item: next, superseded: getItem(old.id) };
   }
   const getItem = (itemId) => itemRow(db.prepare('SELECT * FROM rb_items WHERE id=?').get(itemId));
+  const evidenceCount = (itemId) => db.prepare("SELECT count(*) AS count FROM rb_links WHERE relation IN ('supports','contradicts','qualifies') AND ((from_type='item' AND from_id=?) OR (to_type='item' AND to_id=?))").get(itemId, itemId).count;
   function listItems({ projectId, includePersonal = true, type, subtype, status = 'active', scope, pinned, visibility, limit = 100, offset = 0 } = {}) {
     const where = []; const params = [];
     if (projectId !== undefined) { where.push(includePersonal && projectId ? '(project_id=? OR project_id IS NULL)' : projectId ? 'project_id=?' : 'project_id IS NULL'); if (projectId) params.push(projectId); }
@@ -316,9 +331,9 @@ export function createResearchStore({ db }) {
 
   return {
     db, tx,
-    addSource, updateSource, getSource, sourceByResource, sourceByLabel, listSources, removeSource,
+    addSource, updateSource, getSource, sourceByResource, sourceByLabel, listSources, countSources, removeSource,
     replaceChunks, markContent, getChunk, chunksOf,
-    createItem, updateItem, supersedeItem, getItem, listItems, revisionsOf,
+    createItem, updateItem, supersedeItem, getItem, listItems, evidenceCount, revisionsOf,
     link, unlink, linksOf,
     propose, getProposal, listProposals, decide,
     recordUsage, usageOf,

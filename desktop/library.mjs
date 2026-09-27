@@ -22,7 +22,7 @@ databasePage=()=>{
 };
 resourcePage=()=>{const resource=state.selected;if(!resource)return `<div class="content">${pageintro('材料详情','请先从资料列表选择材料。',action('返回资料','materials'))}</div>`;return `<div class="content">${pageintro(esc(resource.title),'来源与原件位置。',action('打开原件','open',`data-id="${esc(resource.id)}"`))}<div class="card"><h2>来源信息</h2><p>归属：${esc(S.projects.find(p=>p.id===resource.projectId)?.name||'全局资料')}</p><p style="overflow-wrap:anywhere">原件：${esc(resource.path)}</p><p>类型：${esc(resource.kind)}</p><div class="row">${action('保存知识候选','propose',`data-id="${esc(resource.id)}"`)}${infoTip('候选是待确认的理解或经验，不改变原文，也不会自动提升为已确认知识。',{label:'知识候选说明'})}</div></div></div>`;};
 const after=window.ScienceScopeWorkspace.afterRender;
-window.ScienceScopeWorkspace.afterRender=(...args)=>{after?.(...args);if(!['database','library'].includes(route))return;const key=route+':'+S.projectId;if(key!==state.key){state.key=key;void reload();}};
+window.ScienceScopeWorkspace.afterRender=(...args)=>{after?.(...args);if(window.ScienceScopeResearchBase||!['database','library'].includes(route))return;const key=route+':'+S.projectId;if(key!==state.key){state.key=key;void reload();}};
 window.addEventListener('submit',event=>{if(event.target.id!=='library-search')return;event.preventDefault();event.stopImmediatePropagation();state.query=document.querySelector('#library-query').value;void reload();},true);
 window.addEventListener('change',event=>{if(event.target.id==='library-namespace'){state.namespace=event.target.value;void reload();}},true);
 window.addEventListener('click',async event=>{
