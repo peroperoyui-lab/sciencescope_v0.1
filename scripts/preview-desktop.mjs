@@ -3,7 +3,7 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import { buildDesktop, DESKTOP_ASSETS, VENDOR_ASSETS } from './build-desktop.mjs';
+import { buildDesktop, DESKTOP_ASSETS, VENDOR_ASSETS, GENERATED_ASSETS } from './build-desktop.mjs';
 import { createDesktopApi } from './desktop-api.mjs';
 
 export async function createDesktopServer({dataRoot,outputDir,runtimeHost,openUrl,listFonts}={}) {
@@ -15,6 +15,7 @@ const routes = new Map([
   ['/', ['index.html','text/html; charset=utf-8']],
 ]);
 for(const [file,,type] of VENDOR_ASSETS)routes.set('/desktop/vendor/'+file,['desktop/vendor/'+file,type]);
+for(const [file,type] of GENERATED_ASSETS)routes.set('/desktop/'+file,['desktop/'+file,type]);
 // Build and serve the same declared assets; new modules cannot silently 404.
 for(const file of DESKTOP_ASSETS)routes.set('/desktop/'+file,['desktop/'+file,file.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8']);
   const server = http.createServer(async (request,response) => {

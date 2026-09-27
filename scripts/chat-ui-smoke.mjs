@@ -159,7 +159,7 @@ try {
     const box=document.createElement('div');box.className='message-text rendered-markdown';
     box.innerHTML=renderMarkdown('指数：\n\n$$ISI = \\frac{10000}{\\sqrt{G_0 I_0 \\bar{G}\\bar{I}}}$$\n\n其中 $G_0$、$I_0$ 为空腹值，均值 $\\bar{G}\\bar{I}$。\n\n| 项 | 式 |\n|---|---|\n| 公式 | $x^2$ |\n\n价格 $5 and $10，代码 `$a$` 与\n\n```\nconst s = "$b$";\n```\n\n坏式 $\\frac{1}{$ 不会报错。');
     document.body.append(box);
-    const r={display:box.querySelectorAll('.math-display .katex-display').length,inline:box.querySelectorAll('.katex').length,
+    const r={display:box.querySelectorAll('.ss-math-block .katex-display').length,inline:box.querySelectorAll('.katex').length,
       text:(()=>{const c=box.cloneNode(true);c.querySelectorAll('.katex-mathml').forEach(e=>e.remove());return c.textContent;})(),code:[...box.querySelectorAll('code')].map(c=>c.textContent).join('|'),
       font:getComputedStyle(box.querySelector('.katex')).fontFamily,scripts:box.querySelectorAll('script,[onerror],[style*="url("]').length};
     await document.fonts.ready;r.fontLoaded=document.fonts.check('16px KaTeX_Main');

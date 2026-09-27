@@ -163,7 +163,7 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
         if (event.type === 'expert-delta' && typeof event.delta === 'string') onEvent({ type: 'expert-delta', runId, expertId: event.expertId, messageId, delta: event.delta });
         if (event.type === 'expert-reset') onEvent({ type: 'expert-reset', runId, expertId: event.expertId, messageId });
         if ((event.type === 'expert-tool' || event.type === 'expert-tool-result') && event.callId) {
-          const call = { type: event.type === 'expert-tool' ? 'tool-call' : 'tool-result', callId: event.callId, ...(event.name ? { name: event.name } : {}), ...(event.argumentsPreview !== undefined ? { argumentsPreview: event.argumentsPreview } : {}), ...(event.preamble ? { preamble: event.preamble } : {}), ...(event.isError !== undefined ? { isError: event.isError } : {}) };
+          const call = { type: event.type === 'expert-tool' ? 'tool-call' : 'tool-result', callId: event.callId, ...(event.name ? { name: event.name } : {}), ...(event.argumentsPreview !== undefined ? { argumentsPreview: event.argumentsPreview } : {}), ...(event.resultPreview !== undefined ? { resultPreview: event.resultPreview } : {}), ...(event.preamble ? { preamble: event.preamble } : {}), ...(event.isError !== undefined ? { isError: event.isError } : {}) };
           if (toolActivity) receipts.push(toolActivity.record({ chatId, assistantMessageId: messageId, ...call }).catch(() => {}));
           onEvent({ runId, expertId: event.expertId, messageId, ...call });
         } else if (event.type === 'expert-tool') onEvent({ type: 'tool-call', runId, expertId: event.expertId, messageId, callId: `${event.expertId}-${Date.now()}`, name: event.name });
@@ -217,6 +217,7 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
   function adopt(chatId, messageId, adopted) {
     const row = db.prepare('SELECT * FROM discussion_entries WHERE chat_id=? AND message_id=?').get(chatId, messageId);
     if (!row || row.review !== 1) throw new DiscussionError('NOT_A_REVIEW', '只有审核专家的结论需要选择是否加入上下文。', 404);
+    if (adopted && row.stop_reason !== 'completed') throw new DiscussionError('REVIEW_NOT_COMPLETED', '审核尚未完成，不能加入后续上下文。', 409);
     if (!adopted && row.main_seen === 1) throw new DiscussionError('ALREADY_SHARED', '主专家已读取这份审核结论，无法撤回；可在下一条消息中说明不采纳。', 409);
     db.prepare('UPDATE discussion_entries SET adopted=? WHERE chat_id=? AND message_id=?').run(adopted ? 1 : 0, chatId, messageId);
     return entriesFor(chatId, [messageId]).get(messageId);

@@ -18,11 +18,11 @@ async function fixture() {
     send: async ({ text, onEvent }) => { state.mainPrompts = [...(state.mainPrompts || []), text]; onEvent({ type: 'text-delta', delta: 'MAIN_REPLY' }); onEvent({ type: 'completed', text: 'MAIN_REPLY' }); return { finalResponse: 'MAIN_REPLY' }; },
     runExperts: async ({ runId, prompt, experts, onEvent }) => {
       state.runs.push({ runId, prompt, experts });
-      const result = experts.map((expert) => ({ expertId: expert.id, stopReason: 'completed', text: `${expert.id.toUpperCase()}_VIEW`, ms: 5 }));
+      const result = experts.map((expert) => ({ expertId: expert.id, stopReason: state.failedExpertId === expert.id ? 'max-tokens' : 'completed', text: state.failedExpertId === expert.id ? '' : `${expert.id.toUpperCase()}_VIEW`, ms: 5 }));
       if (experts[0].id === 'methodologist') onEvent({ type: 'expert-tool', runId, expertId: 'methodologist', callId: 'call-1', name: 'read', argumentsPreview: '{"path":"paper_versions/draft.md"}', preamble: 'Let me read the draft.' });
       if (experts[0].id === 'methodologist') {
         onEvent({ type: 'expert-tool', runId, expertId: 'methodologist', callId: 'call-2', name: 'present', argumentsPreview: '{"files":[{"path":"figures/fig1.png","description":"Effect sizes"}]}' });
-        onEvent({ type: 'expert-tool-result', runId, expertId: 'methodologist', callId: 'call-2', isError: false });
+        onEvent({ type: 'expert-tool-result', runId, expertId: 'methodologist', callId: 'call-2', isError: false, resultPreview: 'Presented figure successfully.' });
       }
       // Finish in reverse roster order, as real experts finish in any order.
       for (const entry of [...result].reverse()) { onEvent({ type: 'expert-start', runId, expertId: entry.expertId }); onEvent({ type: 'expert-end', runId, ...entry }); }
@@ -67,6 +67,7 @@ test('ordered panel: shared transcript, roster order, reviewer after all, adopti
     assert.ok(types.indexOf('review-start') > Math.max(...panelEnds), 'review starts after every panel answer');
     const toolEvent = first.events.find((e) => e.type === 'tool-call');
     assert.equal(toolEvent.preamble, 'Let me read the draft.');
+    assert.equal(first.events.find((e) => e.type === 'tool-result' && e.callId === 'call-2').resultPreview, 'Presented figure successfully.');
     // Everyone on the panel gets the same frozen input, including earlier turns.
     const panelRun = f.state.runs[0];
     assert.deepEqual(panelRun.experts.map((e) => e.id), ['methodologist', 'red-team']);
@@ -92,6 +93,7 @@ test('ordered panel: shared transcript, roster order, reviewer after all, adopti
     const review = page.messages[5];
     assert.equal(review.expert.adopted, false);
     assert.equal(page.messages[3].toolActivity[0].preamble, 'Let me read the draft.');
+    assert.equal(page.messages[3].toolActivity.find((call) => call.callId === 'call-2').resultPreview, 'Presented figure successfully.');
 
     // Main's next turn carries the expert answers and the files they presented,
     // not files they only read, not the unadopted review and not tool calls.
@@ -130,6 +132,21 @@ test('ordered panel: shared transcript, roster order, reviewer after all, adopti
     assert.equal(onlyReviewer.status, 400); assert.equal(onlyReviewer.events[0].code, 'NO_EXPERTS');
     const otherModel = await f.send('POST', '/api/discussion', { chatId: 'chat-d', projectId: null, model: { providerId: 'fixture', modelId: 'other' }, text: 'x', expertIds: ['methodologist'] });
     assert.equal(otherModel.status, 409);
+  } finally { await f.close(); }
+});
+
+test('incomplete reviewer cannot be adopted through the API', async () => {
+  const f = await fixture();
+  try {
+    f.state.failedExpertId = 'statistician';
+    const round = await f.send('POST', '/api/discussion', { chatId: 'chat-failed-review', projectId: null, model, kind: 'ordered', text: 'Review this claim.', expertIds: ['methodologist'], reviewerId: 'statistician' });
+    const review = round.events.find((event) => event.type === 'expert-end' && event.review);
+    assert.equal(review.stopReason, 'max-tokens');
+    const adoption = await f.send('POST', '/api/discussion/adopt', { chatId: 'chat-failed-review', messageId: review.messageId, adopted: true });
+    assert.equal(adoption.status, 409);
+    assert.equal(adoption.events[0].code, 'REVIEW_NOT_COMPLETED');
+    const page = (await f.send('GET', '/api/chats/chat-failed-review/messages')).events[0];
+    assert.equal(page.messages.find((message) => message.id === review.messageId).expert.adopted, false);
   } finally { await f.close(); }
 });
 

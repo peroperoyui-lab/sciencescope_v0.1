@@ -1,5 +1,537 @@
 # Desktop implementation — first increment
 
+## 2026-09-27 Review and merge of batch 1 r4 (Claude, cloud)
+
+Merged `codex/local-validation-20260927-r4@5b001de` (expert approval
+forwarding, review-adoption guard, T04 parsers and readers, retrieval evals)
+into `claude/determined-pasteur-jxpzw8`.
+- **Math, two implementations.** Astra had added KaTeX independently as marked
+  extensions (`desktop/math-render.mjs`), with syntax highlighting. Kept that
+  design and dropped my pre-parse extraction (entry below is superseded). Its
+  inline rule turned "$5 and $10" into a formula and could run into a later
+  code span; tightened to the Pandoc rule (no space inside the dollars, no digit
+  after the closing one, no backtick inside). `chat-ui-smoke` covers display,
+  inline, table-cell, currency, code and a broken formula.
+- **pdf.js 6 on older engines.** pdf.js uses `Map/WeakMap.getOrInsert(Computed)`;
+  Chromium 141 lacks it ("getOrInsertComputed is not a function", viewer-ui
+  failed in the cloud). Windows Edge 153 has it, but an organisation may pin an
+  older WebView2. Added `desktop/js-polyfills.mjs` (defined only when missing)
+  for the page and `desktop/pdf-worker.mjs` so the worker loads it before
+  pdf.js. viewer-ui and research-input-ui now pass on Chromium 141.
+- Verified (cloud): `npm test` 136/136; chat-ui, viewer-ui, research-input-ui,
+  discussion-ui, i18n, minutes, desktop-interaction, settings-ui, deliverables,
+  workbench-ui, marks-ui smokes.
+- Left for Astra: a console-only SVG warning (an icon path contains `<rect …>`
+  markup) seen during research-input-ui; no visible breakage.
+- Retrieval quality from the real evaluation (43/52 supported; budget
+  exhaustion, drifting away from research tools, unsupported cite formats,
+  extra unsupported claims) feeds T10; see the T10 addendum.
+- Security note: Astra reports the evaluation key is still in the H-drive
+  ignored secret directory. QUEUE rule 8 says delete it at the end of the
+  batch; Astra deletes it before batch 2 (a new key is supplied per batch).
+
+## 2026-09-27 Batch 1 r4 final — measured completion, not an alpha release
+
+- Workspace `<工作区>`; delivery branch
+  `codex/local-validation-20260927-r4`, based on `ad54b79`. No PR or merge.
+  This final report supersedes the pending-credential checkpoint below.
+  The user authorized the replacement workspace key through alpha release;
+  it stays Git ignored at `.sciencescope-local/secret/opencode.key` and is
+  not removed at this batch boundary. No global environment changes.
+
+| Stage | Delivered checkpoint | Result |
+|---|---|---|
+| 0 — baseline / approval repair | `7f7118728317257dc08918cb5dd4308554c7a7f7` | PASS: 127 unit tests, 19 smokes including assistant API/UI |
+| 1 — native acceptance | `884790920271b283175f62cd7a66699e6498e5fc` | PASS after recorded repairs: 128 tests, 19 smokes, native matrix |
+| 2 — T04 | `05dea6eb72e650444a37c480a3a2911c8d5387e1` | PASS within documented parser limits: 136 tests, 19 existing + viewer smoke; native viewer |
+| 3 — keyword checkpoint | `7cfc7dc8a38ab38c4bf076ebf4f4125c22e42836` | Measured: fixed paper and separate synthetic-memory cases |
+| 3 — dense checkpoint | `fcaa7ab10ab953432c9b70d2d067f02336478bf5` | Measured: local CPU e5-small, table below |
+| 3 — real-model final | This documentation commit; exact SHA in delivery report | All 52 attempted and audited; failures/limits retained, not all-quality PASS |
+
+Earlier checkpoints contain implementation and regression changes. This final
+continuation changes documentation only; no production code, dependency, lock,
+UI, retrieval algorithm or approved gold changes. Stage 0–2 suites were not
+needlessly repeated; local evaluation-helper checks and final diff checks ran.
+
+### Stage 3: real DSH and cheap provider (not a simulated-model result)
+
+- Command: `node .sciencescope-local/temp/local-validation-r4/live-retrieval/run.mjs
+  --authorized-live --full --pilot-reviewed --run-name run-headerfix`.
+  Application API → real DSH → OpenCode Go `deepseek-v4.1-flash`, using
+  `openai-completions`. Each immutable Chinese question uses a fresh Main
+  session and the same copied 1,412-chunk corpus; no gold answer/source hint,
+  injected dense results or previous-question history. The prompt asks for
+  `research_search` / `research_read`, a short answer and source citations.
+- Bounded evaluation: at most 6 forwarded completion requests per question,
+  312 total; 180 seconds/question. Background minutes share this budget.
+  Actual **286** forwarded: **236 Main + 50 minutes**; HTTP 200 **285**, original
+  missing-header HTTP 400 **1**. **17 local budget blocks** were not forwarded
+  and are not paid provider failures. Counts include the first failed attempt
+  exactly once. No retries to improve an answer or score.
+- **46 complete Main answers**, including 16 whose *background minutes* hit
+  the cap; these are not incomplete Main answers. Six have no final answer:
+  `uslib-06` exhausted its Main budget; `uslib-01`, `guide-03`, `guide-05`,
+  `know-07`, `dig-07` attempted filesystem tools in their owned empty workspaces
+  and were cancelled by the evaluation guard. No user research files were read
+  by these attempts. The harness does not establish that models always stay on
+  research tools, and did not disguise those cancellations as success.
+
+| Independent core-answer / actual-source audit | Questions / fixed 52 |
+|---|---:|
+| Full core answer with actual cited-page support | 43 |
+| Wrong core (`delphi-05`) | 1 |
+| Abstained / did not identify intended study (`delphi-03`) | 1 |
+| No complete answer (above) | 6 |
+| Gold wording conflict, source-correct answer (`guide-04`) | 1 |
+
+- `delphi-05` substituted LibGuides/training for monitoring AI tools/gaining
+  proficiency and falsely said the Delphi source lacked the requested evidence;
+  actual S3 p.4 supports the frozen answer. Reproduce by running that immutable
+  question in a fresh corpus session; model output is stochastic, so the saved
+  answer/tool/citation trace is the specific observed failure.
+- `guide-04` correctly reports the paper's 18-variable codebook; the approved
+  answer says author identity although that is not an explicit codebook variable.
+  Keep this as a **gold conflict**, not a model error, automatic pass or removed
+  denominator. Gold stays unchanged pending review. Questions with standalone
+  “该研究/该文/该领域” have no antecedent in a fresh session; this pre-existing
+  ambiguity is disclosed, not silently repaired with source hints.
+- Core correctness is not whole-answer correctness: extra assertions sometimes
+  have wrong pages or unsupported details (e.g. `phys-07` adds UAE although the
+  source says USA, while its core sample count 804 is correct). Alternative
+  valid source pages were accepted. Narrow approved excerpt coverage for
+  `phys-06` / `talent-02` remains documented; full pages were inspected.
+- 261 captured citation labels: resolver returned non-null for **239**, null
+  for **22** (ranges/nonstandard labels retained). Non-null is **not** proof of
+  correct page or claim support. Two GPT-6 Sol audits read actual page content;
+  Astra reviewed the disagreement/failure cases and sampled supported answers.
+  This is a manual core-answer audit, not a claim of every extra sentence being
+  verified or a general accuracy benchmark.
+
+### Actual usage, accounting and evidence
+
+- Unique returned provider usage: prompt **3,792,780**, completion **132,707**,
+  total **3,925,487**, cached prompt **3,089,672**, reasoning **52,821** tokens.
+  Cached tokens are included in prompt; reasoning is included in completion.
+  Do not add DSH snapshots a second time. The HTTP 400 returned no usage.
+- At [OpenCode Go documented rates](https://opencode.ai/docs/go/) for this
+  model, observed usage implies approximately **$0.194–$0.389 of quota**
+  (off-peak/peak), not an invoice or additional subscription charge; missing
+  failure usage is unknown. Earlier stage 1 has 61 forwarded completions,
+  5 local blocks and 1 model-list request. Batch 1 therefore has **347 forwarded
+  completion requests + 1 model-list request**, not 347 successful turns.
+  Stage-1 output-only estimate and incomplete input accounting remain below.
+- Local evidence root `.sciencescope-local/temp/local-validation-r4/`:
+  `live-retrieval/run-headerfix/results.json`, `provider-count.json`,
+  `audit-first26.json/.md`, `audit-last26.json/.md`, `summary.json` (audit files
+  and summary sit directly in `live-retrieval/`); original header-failure `run/`
+  is retained. These contain exact outcomes, budget/cancellation reasons and
+  actual source checks, never a key. Frozen gold/mapping identities unchanged.
+- Native screenshots remain in `validation/native/`,
+  `validation/native-approval/`, `live/evidence/`, `viewer-ui/native/` and
+  browser viewer screenshots in `viewer-ui/` under that root. Stage 1 includes
+  light/dark and Chinese/English, title-bar buttons and reviewer-menu bounds;
+  stage 2 includes 8 native viewer/formula screenshots. This API-only final run
+  did not manufacture new UI screenshots or rerun native acceptance.
+- The owned API/DSH/proxy closed; run lock and ephemeral test credential removed,
+  observed owned process IDs checked after exit. Workspace key retained under
+  the new authorization. Secret scan receipt records exactly the checked scope.
+
+### Evaluation-only repairs during continuation
+
+| Discovery → cause | Minimal helper repair → verification |
+|---|---|
+| Empty SQLite WAL was mistaken for an active database | Consistent `node:sqlite backup()` into the isolated fixture; validate all 1,412 frozen chunks before paid calls |
+| First HTTP 400 MissingSessionID | Supply required `x-opencode-session` plus separate local counting header; localhost header regression and successful real pilot, original failure retained |
+| Guard rejected read-only `project_memory` after a valid answer | Permit existing public `project_memory` / `chat_recall` in evaluation only; guard regression still rejects filesystem/shell; `eth-04` original false-positive trace retained, not retried |
+| Citation collector dropped ranges/nonstandard labels | Capture labels verbatim; resolver nulls and unsupported claims remain visible; local pilot re-audit, no paid retry |
+| Windows EPERM replacing results file after 40 questions | Bounded 2-second transient EPERM/EBUSY/EACCES retry for local evidence write; resume only unattempted questions; final 52 unique IDs. Specific locking process not identified |
+| Aggregator excluded complete Main answers when minutes hit cap | Count completed Main separately from background cuts; independently verify 46 complete / 6 empty and 52 unique approved IDs |
+
+### Completion limits and recommendation
+
+Batch 1's requested measurements are complete; **stage 3 contains observed
+quality failures**, not a blanket PASS. Recommend review of this branch's
+bounded repairs/T04 and the evaluation evidence; merging is the user's choice.
+Do not advertise release-ready research accuracy. Still untested: optional
+e5-large comparison, dense synthetic-memory retrieval, scanned user-paper OCR
+(image fixture rejects unsupported scans), installed-package upgrade/signature.
+PDF heading/table/formula extraction limitations remain below. No hybrid
+retrieval, T17/T18/T19, installation/signing or new product features were built.
+Stop here and await confirmation for Batch 2.
+
+## 2026-09-27 Resumed Batch 1 — local dense evaluation complete, paid evaluation pending
+
+- User resumed the checkpoint after reconnecting H:. Correct workspace is
+  `<工作区>`, branch `codex/local-validation-20260927-r4`,
+  starting at `7cfc7dc8a38ab38c4bf076ebf4f4125c22e42836`, clean. No reset,
+  baseline replacement, PR or merge. Stages 0–2 were not repeated; their
+  acceptance evidence and limitations below remain unchanged.
+- GPT-6 Sol ran the CPU benchmark; GPT-6 Luna checked frozen fixture identities,
+  the 2/2 eval contract tests, both eval scripts' syntax and `git diff --check`.
+  Primary reviewed the benchmark code and independently recomputed every mode's
+  hit totals from the 52 rankings against the unchanged frozen mapping.
+
+| Fixed 52-paper-question evaluation | R@1 | R@5 | R@10 |
+|---|---:|---:|---:|
+| Production keyword, Chinese wording (previous checkpoint) | 3/52 (5.77%) | 6/52 (11.54%) | 9/52 (17.31%) |
+| Local e5-small, Chinese wording | 10/52 (19.23%) | 17/52 (32.69%) | 21/52 (40.38%) |
+| Local e5-small, English wording | 10/52 (19.23%) | 17/52 (32.69%) | 19/52 (36.54%) |
+| Local e5-small, bilingual maximum cosine | 12/52 (23.08%) | 21/52 (40.38%) | 25/52 (48.08%) |
+
+- These are **evidence-chunk hits**, not complete-answer correctness. Bilingual
+  ranking takes `max(cos(zh), cos(en))` per chunk; no hybrid fusion or reranking.
+  Gold/mapping were frozen before scoring. The two approved excerpt coverage
+  limitations (`phys-06`, `talent-02`) remain. Improvement does not establish an
+  acceptable product-quality threshold: bilingual top 10 still misses 27/52.
+  The eight synthetic memory cases remain separate: keyword positives 0/5,
+  negative no-match 3/3; this dense run does not measure memory retrieval.
+
+| Windows measurement | Result / scope |
+|---|---|
+| 1,412 passage embeddings | 29.514 s; 20.902 ms/chunk average, batch 8, two CPU threads |
+| Chinese query embedding P50 / P95 | 3.328 / 3.904 ms |
+| English query embedding P50 / P95 | 3.346 / 3.807 ms |
+| Sequential bilingual pair embedding P50 / P95 | 6.705 / 7.823 ms, derived from paired per-query durations |
+| Keyword query P50 / P95 | 3.236 / 6.266 ms, production search measured at previous checkpoint |
+| Benchmark process sampled peak RSS | 1,072.875 MiB (25 ms sampling), not system-wide memory |
+| 500-paper embedding estimate | 30.744 min for 88,250 chunks at this corpus's mean size; **extrapolation**, not a 500-paper test |
+
+- Query embedding latency excludes cosine ranking/sorting, database I/O and cold
+  model loading, so it is not directly comparable to end-to-end keyword search.
+  The 500-paper estimate also excludes parsing, storage and cold loading.
+  Machine: Intel Core Ultra 9 275HX, 24 logical CPUs, 31.421 GiB RAM,
+  Windows 11 Home China x64. Actual benchmark Node: **v24.19.0** (the current
+  shell's bundled runtime); no global environment changes.
+- Model: local `Xenova/multilingual-e5-small`, revision
+  `761b726dd34fb83930e26aab4e9ac3899aa1fa78`, int8 ONNX, 384 dimensions,
+  masked mean pooling + L2, 512-token cap, `query:` / `passage:` prefixes.
+  Existing download manifest records Hugging Face for four files and hf-mirror
+  for `tokenizer_config.json`. Local model and isolated benchmark dependencies
+  were reused; this run performed no downloads or provider calls.
+- Command: `node scripts/evals/real-corpus-dense.mjs dense --out
+  .sciencescope-local/temp/local-validation-r4/final-eval --mapping
+  .sciencescope-local/temp/local-validation-r4/final-eval/mapping-frozen.json`.
+  Evidence directory: `.sciencescope-local/temp/local-validation-r4/final-eval/`:
+  `dense-results.json`, `dense-run.log`, `dense-run-receipt.md`, prior
+  `keyword-results.json` and `prepare-manifest.json`. Eight papers are parsed;
+  manifest `durationMs` measures observed completion since sync began, **not**
+  independent per-document parser CPU time. No new UI/native screenshots were
+  required by this benchmark; stage-1/2 screenshots remain below.
+- **Stage 3 remains PARTIAL**: real-model answer/citation evaluation is not run.
+  Its temporary credential was deleted at the prior pause and is still absent;
+  user has been asked to restore only `.sciencescope-local/secret/opencode.key`.
+  No other credential store was searched. This resumed turn's paid requests: 0;
+  prior stage-1 counts remain 61 forwarded completions, 5 locally blocked and
+  1 model-list request. Production retrieval and UI are unchanged. Do not start
+  Batch 2 until Batch 1 is reported and confirmed.
+
+## 2026-09-27 User-requested pause — stage 2 delivered, stage 3 keyword checkpoint
+
+- User requested a pause after this checkpoint. **Do not automatically resume
+  stage 3 or start Batch 2.** Branch: `codex/local-validation-20260927-r4`.
+  Stage 0: `7f7118728317257dc08918cb5dd4308554c7a7f7`; stage 1:
+  `884790920271b283175f62cd7a66699e6498e5fc`; stage 2:
+  `05dea6eb72e650444a37c480a3a2911c8d5387e1`. No PR or merge.
+- Stage 3 is **PARTIAL**. Approved 52 paper questions and 8 separate synthetic
+  memory cases are tracked in `tests/fixtures/retrieval-eval/`; historical DRAFT
+  labels remain, with user approval recorded in its README. Gold bytes unchanged.
+  Mapping: `.sciencescope-local/temp/local-validation-r4/final-eval/mapping-frozen.json`.
+  Primary read all 25 manual decisions, validated source/page/evidence identities,
+  and spot-checked eight questions against chunk text. `phys-03` uses adjacent
+  full-name/abbreviation chunks c20+c21. Approved excerpts for `phys-06` and
+  `talent-02` are narrower than their full answers; preserve and disclose this
+  limitation. Evidence-hit recall does not prove complete answer support.
+- **Measured keyword baseline**, fixed Chinese wording, denominator 52:
+  R@1 **3/52 (5.77%)**, R@5 **6/52 (11.54%)**, R@10 **9/52 (17.31%)**;
+  query P50 **3.236 ms**, P95 **6.266 ms**. Synthetic memory positive
+  R@1/R@5/R@10 **0/5**, negative no-match accuracy **3/3**. These weak results
+  are preserved; production ranking was not changed to improve the scores.
+- First keyword attempt failed opening a new memory-case DB because its state
+  directory did not exist. The eval helper now creates its owned directory;
+  complete rerun exits 0, writes `final-eval/keyword-results.json` and
+  `keyword-run.log`. Other pre-run eval fixes separate R@1 from top-10 matches,
+  map confirmed/candidate/superseded states, isolate each case, use actual agent
+  visibility, and reject duplicate/missing mapping rows. Eval unit tests: **2/2**.
+  Production code remains the stage-2 checkpoint (136/136 unit tests and 20 smokes).
+- Local e5-small downloaded to `.sciencescope-local/models/multilingual-e5-small`,
+  Xenova revision `761b726dd34fb83930e26aab4e9ac3899aa1fa78`, int8 ONNX;
+  isolated `.sciencescope-local/bench` dependencies installed with `--ignore-scripts`.
+  Direct ONNX setup smoke: 384 dimensions, finite, L2 **0.9999999973**.
+  This is setup only: **full dense scores, P50/P95 and 500-paper estimates have
+  not run**. No hybrid retrieval was implemented.
+- Stage-3 paid requests: **0**. Counting-proxy helper exists in ignored
+  `.sciencescope-local/temp/local-validation-r4/live-retrieval/`; its live
+  application/DSH runner is not yet implemented. No proxy/DSH/native test process
+  or diagnostic port remains. Temporary `.sciencescope-local/secret/opencode.key`
+  was deleted at this pause after a no-match tracked/candidate-file secret scan.
+  User-saved Provider configuration was not deleted. Resuming paid evaluation
+  needs a new temporary credential.
+- Resume only on user confirmation: verify branch/checkpoint; inspect frozen
+  mapping and keyword evidence; run local dense benchmark; finish/review the live
+  runner; obtain credential and run capped three-question pilot before remaining
+  paper questions; independently audit answers/citations; record actual requests,
+  usage, final stage-3 SHA and batch report. Do not call this partial checkpoint
+  complete Batch-1 delivery or begin T17/T18/T19.
+
+## 2026-09-27 T04 / Batch 1 stage 2 — PASS with documented parser limits
+
+- Delivery branch: `codex/local-validation-20260927-r4`, following stage 1
+  `884790920271b283175f62cd7a66699e6498e5fc`; no PR and no merge.
+- Final verification: **npm test 136/136**, existing browser smokes **19/19**,
+  new viewer smoke PASS (32 screenshots), native Tauri viewer PASS (8 screenshots).
+  Final unit log: `.sciencescope-local/temp/local-validation-r4/viewer-ui/regression/npm-test-final.log`.
+  Native results/screens: `.sciencescope-local/temp/local-validation-r4/viewer-ui/native/`.
+  Primary read the native results and sampled actual native PDF/formula screenshots;
+  window close removed all 10 owned processes and closed diagnostic port 9246.
+- Final real-corpus diagnostic: 8 papers (4 Chinese / 4 English), 101 pages,
+  2017 blocks / 1412 production chunks; 4/4 Chinese literal queries hit top 1,
+  all page counts match, all emitted coordinates valid, no NUL text.
+  Evidence: `.sciencescope-local/temp/local-validation-r4/corpus-parser-check/final/`.
+  These are not the approved 52-question retrieval scores; stage 3 is next.
+- Parser fixes verified with focused regressions: local CMaps/standard fonts,
+  Han fragment joining, text-weighted body-font baseline, running page-number
+  filtering, and narrow central gutter column separation. Native originals
+  were not changed; original PDFs and test logs remain outside Git.
+- Limits: title/section inference remains heuristic, including table/affiliation
+  false positives. PDF formula tokens are searchable but superscripts/subscripts
+  are linearized and equations are not reconstructed as structured LaTeX.
+  Source pages 4/7 of the digital-economy paper were visually checked; formulas
+  now stay substantially within their column. Legacy embedded-font substitution
+  warnings remain. Scan rejection was tested with an image-only fixture because
+  none of the eight user PDFs is scanned. No OCR, hybrid retrieval, or original
+  document editing was implemented. Stage 2 made **0 paid requests**.
+
+- User approved the 52-paper-question + 8-synthetic-memory evaluation set in
+  `.sciencescope-local/temp/local-validation-r4/retrieval-draft/review.md`.
+  Scores will remain separate; approved answers will not be changed to fit results.
+- Reader wiring uses local PDF.js, mammoth/docx-preview, CodeMirror, KaTeX and
+  highlight.js, not a new document engine or a CDN. Parser/viewer dependencies
+  are pinned; esbuild bundles browser-only dependencies, pdf-lib/fontkit make
+  test fixtures. JSZip is a production dependency because DOCX metadata reads
+  the existing OOXML core properties. DSH dependencies are unchanged.
+- New authenticated document/content endpoints separate complete read-only
+  preview from the existing 64k model attachment budget. No originals or model
+  credentials are placed in Git; no source-editing feature or OCR is added.
+- Initial checks: document-preview API and parser tests 5/5; i18n unit tests
+  2/2; marks-ui and chat-ui pass. Further parser regressions, viewer smoke,
+  real-paper inspections and native screenshots are still running.
+- Found: research-input-ui expected a CSV `pre` element. T04 explicitly calls
+  for a table reader. Updated only its selection target to a real cell, retaining
+  selected-byte, line-provenance, outgoing-input and persisted-receipt checks;
+  the reader now computes CSV row provenance. Revalidation passed.
+- Viewer smoke passed after retaining failed-run evidence: PDF.js disposal raced
+  its initial page promise; initializing its cached first page/metadata before
+  returning a disposable viewer fixed rapid PDF/DOCX switching without ignoring
+  page errors. DOCX page chrome now uses trusted local CSS after sanitization;
+  reader content is excluded from UI translation, while generated Copy code
+  controls follow language changes. The smoke checks all these regressions.
+- Browser reader evidence: `local-validation-r4/viewer-ui/viewer-ui-smoke-seventh.log`
+  under `.sciencescope-local/temp`, 6 formats, 8 screenshot matrices / 32 images,
+  PDF page-2 quote and rectangles, 0 page errors / failed asset requests,
+  1 localhost model request / 0 paid requests. Primary reviewed updated DOCX,
+  LaTeX and chat screenshots. Full regressions: npm test 134/134, existing
+  browser smokes 19/19 (including assistant-api --ui), plus the new viewer smoke.
+  Logs/index: `local-validation-r4/viewer-ui/regression/`. Primary additionally
+  reran parser/Research Base/document API tests, 11/11. Native checks remain
+  in progress; none of these localhost results are paid-model evidence.
+- Real-corpus initial quality checks did not pass merely because 8/8 PDFs parsed:
+  missing local CMaps lost Chinese text, fragmented Han spacing affected search,
+  and heading heuristics overclassified body lines. Corrections and before/after
+  inspections are in progress; no claim of exact PDF formula reconstruction.
+- The following progress notes preserve the discovery sequence. Native acceptance
+  has since passed as recorded above; stage 3 scores are still pending.
+  Installation/signing are outside this batch.
+
+## 2026-09-27 Batch 1 local validation r4 — IN PROGRESS (Astra, Windows)
+
+- **Stage 1 final result: PASS after repairs/revalidation.** Stage 0 is
+  delivered; stages 2 (T04) and 3 (retrieval evaluation only) are next. No PR
+  or merge; this is development-client evidence, not signed installer evidence.
+- Stage-1 acceptance index (all PASS): native surfaces/menus/themes/languages
+  (1); font sizes/reduced motion (2); Esc/copy/runtime footer (3); native @
+  insertion/identity (4); three-model ordered/reviewer/adoption/Main (5);
+  preamble in tool card (6); obsolete modes absent (7); chat and file marks,
+  edit/locate/remove/actual-model use/receipts (8–10); research search/read,
+  citations/usage and project-scoped proposal (11–12); Main/expert approvals
+  (12a); real Ask/Full and bounded Auto pause/resume/stop/reopen (12b);
+  fonts and persistence (12c); Help/visible copy/system-browser link (12d);
+  active-turn process-tree shutdown (13). T03 supplements include three
+  distinct models saved/reopened through the native roster, real authors and
+  ordering, and no remaining owned native/host/DSH/WebView processes.
+- Corrected paid Auto acceptance: five admitted rounds, of which two were
+  cancelled by native Pause, and three complete assistant messages persisted.
+  Native Resume and Stop worked; after restart message IDs/text were identical,
+  goal was null and five seconds of observation produced no new request.
+  The test request used the existing `goalMaxRounds:5` API field via a scoped
+  interceptor (applied once), not a production default change. The explicit
+  pre-continuation assertions for that cap were added after this run; its
+  recorded cap injection/round count are result evidence, not a claim those
+  assertions ran. Earlier failed Auto evidence remains below.
+- **Paid stage-1 accounting:** 61 forwarded completion HTTP requests, including
+  cancellations, tool continuations, failed reviewer attempts and background
+  minutes; five additional attempts blocked locally (66 attempts total).
+  Separately: one model-list request. Models: `deepseek-v4.1-flash`,
+  `glm-5.3-flash`, `qwen3.8-flash`. DSH's 29 unique session projections total
+  102,373 output tokens (totals only; never add the `last` field again). Input
+  tokens/model-attributed billing were unavailable. At the selected models'
+  [published output rates](https://opencode.ai/docs/go/), that is roughly
+  USD 0.05–0.13 of **output-side usage only**, not the provider bill or total
+  spend; input/cache/subscription accounting is not measured.
+- Paid evidence index: `live/R4_LIVE_SUMMARY.md`,
+  `live/evidence/auto-live-pre-restart.json`, `auto-live-restart-result.json`,
+  `provider-request-count.json`, `dsh-usage-snapshot.json`. Final native PID
+  exited and ports 9254/9255 closed; isolated credentials absent. The temporary
+  key was then scheduled for deletion at batch completion. **Superseded by the
+  user's later 2026-09-27 instruction:** the newly supplied workspace key remains
+  Git-ignored and may be retained for testing until alpha release; do not delete
+  it merely because a batch ends or work pauses (see `tasks/QUEUE.md` §8).
+- Stage 0 + approval repair checkpoint pushed:
+  `7f7118728317257dc08918cb5dd4308554c7a7f7` (remote SHA verified).
+- Stage 1 live first attempt: invited expert answered, ordered participants
+  completed, but the GLM reviewer exhausted this fixture's 4096 output-token
+  limit (`max-tokens`, no conclusion). This is **FAILED**, not a successful
+  review/adoption. The test erroneously called the adoption API directly even
+  though the UI correctly hid its button. That exposed a real API gap: it
+  accepted an incomplete review while later context correctly excluded it.
+  Added `REVIEW_NOT_COMPLETED` / HTTP 409 without mutating adoption state;
+  existing UI semantics stay unchanged. New regression failed with 200 before
+  the guard and passed afterwards (discussion API + i18n 5/5). The test-only
+  output budget was raised to the prior live-evaluation range. The retry used
+  the actual native adoption button; the completed review remained adopted,
+  and Main quoted its conclusion (counter 11→17). A later UI-state observation
+  round again ended in reviewer `max-tokens` (confirmed in stored entries),
+  correctly displayed failure, and was not adopted. That round consumed five
+  HTTP attempts (17→22), not three application-level expert invocations.
+  Eleven
+  HTTP attempts were used in the first attempt, retained in cumulative counts.
+- Baseline `ad54b791acd96ce863510c1d0c7a2160bd6939e2`, including r3; branch
+  `codex/local-validation-20260927-r4`, H-drive workspace preserved.
+- Expert approval: r3 failure reproduced with real DSH and a localhost model.
+  Main allow/reject passed; expert emitted zero approval requests. Two causes:
+  the adapter only forwarded Main, and DSH pins generic delegated agents to
+  `never`. Application-owned discussion experts now inherit the user's policy
+  in their creation window, before their first model turn. A scoped creation
+  association identifies only those experts; ordinary subagents retain DSH's
+  policy. DSH's public policy setter and prompt-assembly hook are used; no
+  upstream files are changed. Approvals carry expert identity; the existing
+  Main approval/reply path is unchanged. Expert tool results now use the same
+  bounded, redacted preview as Main and reach both stream and stored activity.
+- Regression evidence: `tests/expert-approval-runtime.test.mjs` failed before
+  repair (expert approval count 0 instead of 1), then passed Main/expert
+  allow/reject with eight localhost model requests. Each approved operation
+  created its dedicated marker and each rejected operation left no marker.
+  The test also passes cancellation while awaiting approval and concurrent
+  experts with opposite decisions (13 localhost requests total).
+  `tests/discussion-api.test.mjs` failed on the missing result preview before
+  repair, then passed 2/2 including persisted preview.
+- Baseline `npm test`: 126/126. Browser matrix found a creation smoke race:
+  `starts.at(-1)` could observe the prior chat's background minutes session.
+  Instrumentation confirmed both Main workspaces were correct. The fixture
+  now counts Main bindings only (`!noTools`); expected workspace unchanged.
+  Stage 0 post-fix validation is **PASS**: `npm ci` (447 packages, zero reported
+  vulnerabilities), `node scripts/build-desktop.mjs`, `cargo build --offline`
+  (49.11 s), frozen-code `npm test` 127/127 (122.256 s), 18/18 browser smokes
+  and `assistant-api-smoke --ui` (12 localhost requests, zero paid). Commands
+  used Node 25.8.1/npm 11.11.0 and Windows Edge 153.0.4234.48; logs are in
+  `validation/`. Cargo succeeded despite an earlier environment-command path
+  warning; no system/user environment was changed. Stage checkpoint SHA will
+  be recorded after push.
+- Native reviewer picker: four language/theme combinations fit the viewport
+  and select correctly. Screenshots were recaptured after the entry animation
+  finished (opacity 1); the initial intermediate-opacity images were not used
+  as final visual evidence. Manual review also found the sidebar empty-pins
+  text untranslated in English: missing dictionary entry, added with a
+  regression (`translate` returned null before; i18n tests now 2/2).
+- Native item 12a **PASS**: Main allow/reject and invited expert allow/reject
+  show their approval cards, finish without pending approvals, and retain the
+  corresponding tool result after reload. The expert card identifies the
+  requester. Actual `pwsh` output appears only for allowed operations; rejected
+  results say the user rejected escalation. Evidence: `validation/native-approval/`
+  JSON and screenshots, independently inspected by Astra. This fixture made
+  23 localhost requests, not paid requests. Its 12 recorded owned processes
+  exited after closing the window; diagnostic port 9245 closed. Reviewer-only
+  native runs likewise left none of their nine recorded processes.
+- User authorized selecting PDFs from `<下载文件夹>` and `<用户文件夹>`.
+  Eight candidate papers (four Chinese/four English) were copied into the
+  ignored r4 corpus directory; originals unchanged. These are not yet parser
+  acceptance. User subsequently approved the prepared retrieval question set:
+  52 paper questions and eight synthetic memory cases, scored separately.
+  The original gold remains fixed under `retrieval-draft/`; approval is
+  recorded in `USER_APPROVAL.md`. No retrieval scores have been calculated yet.
+- Additional native checks completed with the localhost model: 64 combinations
+  of 11 settings pages and five workspace surfaces across Chinese/English and
+  light/dark; global assistant and orb each have four combinations. Font list
+  contained 323 entries (304 ms), including Chinese and user-installed fonts;
+  黑体, Latin fallback, body/code sizes, reduced motion, persistence and reset
+  passed. Three chat marks plus a file-preview mark, edit/locate, receipt,
+  Esc, copy feedback and policy switching passed. These are **local-model**
+  results, not paid-provider results. Astra inspected result JSON and sampled
+  screenshots. Hydrated project workbench/map screenshots replaced the initial
+  loading-state captures. That review found another missing English dictionary
+  entry, `暂无计划`: its regression returned null before repair and passes as
+  `No plans` after repair; native recapture pending. Evidence:
+  `validation/native-approval/`.
+- `node scripts/i18n-extract.mjs --missing` ran (exit 0): the broad extractor
+  reports 1,760 untranslated fragments across prototype/spec strings and
+  dynamic fragments as well as live modules. This is not a zero-missing
+  translation claim. Newly introduced strings have dictionary entries and
+  tests; the approved prototype is not edited to clear the scanner.
+- Paid-provider mark check passed separately: three native chat selections
+  plus one Markdown selection reached Main's actual response and the stored
+  research-input receipt (3 quotes + 1 annotation). Counter 22→24; one trailing
+  minutes call followed. Research tools then passed actual search/read/propose,
+  source citations and brief/search/read usage with imported test MD/TeX,
+  with no filesystem/database-traversal tool calls. The first proposal was
+  correctly personal because its test chat was independent; this did **not**
+  prove the project-scoped convention check. The separate native policy test
+  subsequently produced a `memory/convention` proposal with
+  `projectId=r4-validation-project` and `scope=project`, pending user adoption.
+  Cumulative completion HTTP attempts after that segment: 30, including its
+  background minutes. Evidence: `live/evidence/marks-live-result.json` and
+  `research-live-result.json`.
+- Paid policy comparison passed: the expert's first outside-workspace marker
+  write was denied by the actual Windows sandbox; escalation then displayed
+  the expert-labelled native approval card. Clicking allow wrote the marker.
+  The next Full-mode Main turn wrote another controlled outside-workspace
+  marker without a card and submitted the project proposal above. All marker
+  paths remain under r4 temp. A preceding harmless `Write-Output` probe needed
+  no approval, correctly; that fixture mistake consumed three requests and is
+  not labelled an approval success. Counter after policy/late minutes: 43.
+  Evidence: `live/evidence/policy-escalated-live-result.json` and screenshots,
+  inspected by Astra. No production policy change was needed for these tests.
+- Final stage-1 offline regression at this point: `npm test` 128/128, zero
+  failures/skips/cancellations (128.498 s), 19/19 browser/API smokes exit 0;
+  index `validation/phase1-final-smokes.json`. Native shutdown during an active
+  partial reply left none of 14 recorded owned processes after five seconds;
+  CDP 9245 closed. The WOS button opened the system Chrome browser and reached
+  Clarivate's login redirect; no user browser was closed. English title-bar
+  minus/maximize/close and `No plans` were subsequently rechecked in both
+  light/dark using Win32 state of the actual HWND, not a simulated Tauri API;
+  both owned process trees (11 processes each) exited. The first observer used
+  an unavailable Tauri inspection permission; only the test observer changed,
+  not application capabilities.
+- First paid automation run is **FAILED as an acceptance run**: pause correctly
+  aborted admitted round 1 (HTTP 499 at the counting proxy). After resume,
+  the first persisted output was `ROUND_2`. The test wrongly asserted it must
+  be `ROUND_1`; that assertion threw before native Stop and its helper lacked
+  finally cleanup. The goal continued until the proxy cap: 56 cumulative
+  forwarded requests, five additional attempts blocked locally (not billed
+  provider calls). Native Stop then cleared the goal; 12 outputs numbered
+  2–13 remained stored. This is not a passing 3–5-round test. The test helper
+  is being corrected to stop before final assertions and guarantee cleanup;
+  verify with real DSH/local model before minimal paid revalidation. Production
+  pause behaviour is not being changed to accommodate the flawed assertion.
+- Evidence root: `.sciencescope-local/temp/local-validation-r4/`.
+  One real OpenCode Go catalog query returned the three selected Flash model
+  IDs; paid stage 1 evaluation is in progress with a test-only counting proxy
+  (initial 40-request cap, raised to 44, then 56 to finish automation after the
+  actual policy/tool-continuation count exceeded its estimate; cumulative
+  across retries/tool continuations/
+  background minutes/restarts).
+  It still uses the application API and real DSH, not direct model calls.
+  Actual usage/counts will be reported after completion. Native stage 1 as a
+  whole, T04/stage 2 and stage 3 are not claimed complete; no PR, merge, or
+  batch 2 work.
 ## 2026-09-27 Math in answers (Claude, cloud)
 
 User screenshot: formulas in a real answer showed as raw `$$…$$` / `$G_0$`.

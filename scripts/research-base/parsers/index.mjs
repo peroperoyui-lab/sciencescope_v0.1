@@ -10,10 +10,11 @@
 //
 // A parser that cannot handle a file throws ParserUnsupported; the source is
 // then marked 'unsupported' (the original stays usable by file tools).
-// PDF and DOCX parsers are left for T04 (pdfjs-dist, mammoth); see docs/tasks.
 import { textParser } from './text.mjs';
 import { markdownParser } from './markdown.mjs';
 import { latexParser } from './latex.mjs';
+import { pdfParser } from './pdf.mjs';
+import { docxParser } from './docx.mjs';
 
 export class ParserUnsupported extends Error {
   constructor(message) { super(message); this.code = 'PARSER_UNSUPPORTED'; }
@@ -22,16 +23,28 @@ export class ParserUnsupported extends Error {
 const builtin = [textParser, markdownParser, latexParser];
 const extra = [];
 
-/** Register a parser (T04 adds pdf/docx). Later registrations win for an extension. */
+/** Register a parser. Later registrations win for an extension. */
 export function registerParser(parser) {
   if (!parser?.id || !Array.isArray(parser.extensions) || typeof parser.parse !== 'function') throw new TypeError('invalid parser');
   extra.unshift(parser);
 }
+
+let adaptersRegistered = false;
+function ensureAdapterParsers() {
+  if (adaptersRegistered) return;
+  adaptersRegistered = true;
+  // Register lazily to keep the ParserUnsupported ↔ PDF adapter cycle out of
+  // module initialization; direct imports of pdf.mjs must remain valid too.
+  registerParser(pdfParser);
+  registerParser(docxParser);
+}
+
 export function parserFor(name) {
+  ensureAdapterParsers();
   const ext = (/\.[^.]+$/u.exec(String(name).toLowerCase()) ?? [''])[0];
   return [...extra, ...builtin].find((parser) => parser.extensions.includes(ext)) ?? null;
 }
-export const supportedExtensions = () => [...new Set([...extra, ...builtin].flatMap((parser) => parser.extensions))];
+export const supportedExtensions = () => { ensureAdapterParsers(); return [...new Set([...extra, ...builtin].flatMap((parser) => parser.extensions))]; };
 
 /** Strict UTF-8 decode shared by the text-like parsers. */
 export function decodeText(bytes) {

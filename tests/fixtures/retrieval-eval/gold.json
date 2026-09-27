@@ -1,0 +1,934 @@
+{
+  "status": "DRAFT - user has not confirmed gold answers",
+  "sourceCorpus": ".sciencescope-local/temp/local-validation-r4/corpus/manifest.json",
+  "paperCount": 8,
+  "questionCount": 60,
+  "categoryCounts": {
+    "cross_language": 16,
+    "synonym_abbreviation": 14,
+    "rephrase": 14,
+    "formula_variable": 8,
+    "memory_synthetic": 8
+  },
+  "notes": [
+    "Paper evidence is extracted from corpus/copies only; original PDFs were not modified.",
+    "All answers and page locators require user review before evaluation.",
+    "memory_synthetic items are explicit fixtures, not literature conclusions.",
+    "Mojibake headings from zh-ai-literacy-talent-training are not used as answer text."
+  ],
+  "questions": [
+    {
+      "id": "eth-01",
+      "category": "cross_language",
+      "query": {
+        "zh": "国外高校图书馆人工智能伦理教育调研选取了多少所图书馆？",
+        "en": "How many foreign university libraries were studied?"
+      },
+      "answer": "29 所",
+      "evidence": " A I ) 素养教育内容框架的关键要素 ， 广泛且深入地推进 A I 伦理教育已迫在眉睫 。 本文聚焦于国外高校图书馆的 A I 伦理教育实践 ， 选取了开展 A I 伦理教育的 2 9 所国外高校图书馆为研究对象 ， 重点从版权 、 学术诚信 、 信息安全等角度分析了当前国外高校图书馆的 A I 伦理教育实践 。 基于调研结果 ， 从 积极开展专门性的 A I 伦理教育 、 构建完善的 A I 伦理教育内容框架 、 积极开展 A I 与信息安全主题教育 、 重视 A I 内容引用规范教育等方面 ， 为我国高校图书馆开展 A I 伦理教育提出建议 。 【 关键词 】 A I 伦理教育 生成式 A I A I 素",
+      "evidenceExact": true,
+      "documentId": "zh-ai-ethics-academic-libraries",
+      "page": 1,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "eth-02",
+      "category": "cross_language",
+      "query": {
+        "zh": "该研究把高校图书馆 AI 伦理教育重点归纳为哪些主题？",
+        "en": "Which themes organize the library AI-ethics education study?"
+      },
+      "answer": "版权、学术诚信和信息安全",
+      "evidence": "泛且深入地推进 A I 伦理教育已迫在眉睫 。 本文聚焦于国外高校图书馆的 A I 伦理教育实践 ， 选取了开展 A I 伦理教育的 2 9 所国外高校图书馆为研究对象 ， 重点从版权 、 学术诚信 、 信息安全等角度分析了当前国外高校图书馆的 A I 伦理教育实践 。 基于调研结果 ， 从 积极开展专门性的 A I 伦理教育 、 构建完善的 A I 伦理教育内容框架 、 积极开展 A I 与信息安全主题教育 、 重视 A I 内容引用规范教育等方面 ， 为我国高校图书馆开展 A I 伦理教育提出建议 。 【 关键词 】 A I 伦理教育 生成式 A I A I 素养 国外高校图书馆 Abstract : A s",
+      "evidenceExact": true,
+      "documentId": "zh-ai-ethics-academic-libraries",
+      "page": 1,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "eth-03",
+      "category": "synonym_abbreviation",
+      "query": {
+        "zh": "AIGC 指什么？",
+        "en": "What does AIGC denote in the ethics-education context?"
+      },
+      "answer": "人工智能生成内容（artificial intelligence generated content）",
+      "evidence": "A I 伦理教育的参与者 ， 帮助师生应对 A I 技术所带来的伦理挑战 。 综上所述 ， 积极开展 A I 伦理教育 ， 不仅是高校图书馆发挥自身育人功能的内在要求 ， 也是适应人工智能生成 内容 ( artific ialin te llig e n c e g e n e rate d c on te n t ， A IGC ) 技术快速发展 、 伦理政策要求不断更新的必然选择 。 当前 ， 国 内高校图书馆积极开展 A I 伦理教育 ， 例如四川大学图书馆开展了 “ 生成式 A I 与著作权 ” 专题讲座 ［ 16 ］ ， 北京师范 大学图书馆开展了 “ A I 工具辅助写作及 A I 伦理与学术诚信 ”",
+      "evidenceExact": true,
+      "documentId": "zh-ai-ethics-academic-libraries",
+      "page": 2,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "eth-04",
+      "category": "rephrase",
+      "query": {
+        "zh": "与信息安全相比，国外高校图书馆对版权和学术诚信的关注有什么差异？",
+        "en": "How did copyright and academic-integrity coverage differ from information security?"
+      },
+      "answer": "版权和学术诚信覆盖较多，信息安全覆盖相对少",
+      "evidence": "所国外高校图书馆中 ， 16 所开展了 A I 与版权的教育 ， 2 0 所开展了 A I 与学术诚信的教育 ， 10 所开展了 A I 与信息 安全的教育 。 逾半数国外高校图书馆开展 A I 与版权 、 A I 与学术诚信的教育 ， 仅有不到半数开展 A I 与信息安全教 育 ， 体现出国外高校图书馆在 A I 伦理教育中对于版权和学术诚信的侧重 ， 对信息安全领域的关注度相对较低 。 A I 伦理教育主题是相关实践的核心内容 ， 因此本文将在后续章节中对",
+      "evidenceExact": true,
+      "documentId": "zh-ai-ethics-academic-libraries",
+      "page": 3,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "eth-05",
+      "category": "synonym_abbreviation",
+      "query": {
+        "zh": "输入生成式 AI 的受版权保护材料时，研究列出了哪些合规路径？",
+        "en": "Which compliant input paths are listed for copyrighted material?"
+      },
+      "answer": "确认版权不适用或过期、使用开放许可材料、使用允许文本/数据挖掘的商业许可材料，或取得版权所有者许可",
+      "evidence": "A I 工具中输入的内容 ， 即切勿输入未经授权或许可使用的受版权保护信息 。 阿德莱德大学图书馆则对用户可以在生成式 A I 工具输入的内容进一步细化 ， 包括 : ( 1 ) 确认版权不适用或已过期 ; ( 2 ) 使用开放许可或公开许可的材料 ， 例如 根据知识共享许可发布的开放教育资源 ; ( 3 ) 使用允许文本挖掘和数据挖掘的商业许可材料 ; ( 4 ) 获得版权所有者 的许可 。 国外高校图书馆通过指导用户规范向生成式 A I 工具输入的内容 ， 有效防范潜在的侵权风险 。 2 .1.2 生成式 A I 工具所输出内容涉及的版权问题 当前关于生成式 A I 工具输出内容所涉及的版权问题主要在于版权归",
+      "evidenceExact": true,
+      "documentId": "zh-ai-ethics-academic-libraries",
+      "page": 5,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "eth-06",
+      "category": "rephrase",
+      "query": {
+        "zh": "研究建议高校图书馆如何改进 AI 伦理教育？",
+        "en": "What improvement directions are recommended for university-library AI ethics education?"
+      },
+      "answer": "开展专门教育、构建内容框架、开展 AI 与信息安全教育并重视 AI 内容引用规范",
+      "evidence": "A I 伦理教育的 2 9 所国外高校图书馆为研究对象 ， 重点从版权 、 学术诚信 、 信息安全等角度分析了当前国外高校图书馆的 A I 伦理教育实践 。 基于调研结果 ， 从 积极开展专门性的 A I 伦理教育 、 构建完善的 A I 伦理教育内容框架 、 积极开展 A I 与信息安全主题教育 、 重视 A I 内容引用规范教育等方面 ， 为我国高校图书馆开展 A I 伦理教育提出建议 。 【 关键词 】 A I 伦理教育 生成式 A I A I 素养 国外高校图书馆 Abstract : A sa ke y c om pon e n t of A I lite rac y e duc ation ， the",
+      "evidenceExact": true,
+      "documentId": "zh-ai-ethics-academic-libraries",
+      "page": 1,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "uslib-01",
+      "category": "cross_language",
+      "query": {
+        "zh": "美国高校图书馆 AI 素养服务建议馆员承担什么角色？",
+        "en": "What role should librarians take in AI-literacy services?"
+      },
+      "answer": "成为 AI 素养教育推动者，培训并指导用户评估模型能力与局限",
+      "evidence": "2025 年 7 月 5.2 建立多层次的 AI 素养教育服务体系 在人工智能时代，高校图书馆的定位和时代角色 也在发生转变 [77] ，图书馆员需在原有信息素养基础 上提升技能，成为 AI 素养教育的推动者，为用户提 供 AI 工具培训和指导， 帮助用户更好地利用AI 工具， 并评估 AI 模型的能力与局限性，关注 AI 生成内容 真伪评估，帮助用户在使用 AI 赋能以进行创新创造 的过程中提升批判性思维与创新技能。这要求图书馆 构建完善的 AI 素养教育体系，包括完善资源体系、 建立分层培训内容、实施多样培养方式，以培养学生 AI 时代的关键技能。 5.2.1 完善 AI 素养教育资源体系 美国高校图书馆致力",
+      "evidenceExact": true,
+      "documentId": "zh-ai-literacy-us-academic-libraries",
+      "page": 9,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "uslib-02",
+      "category": "cross_language",
+      "query": {
+        "zh": "该研究建议 AI 素养教育资源体系覆盖哪些层次？",
+        "en": "What layers should an AI-literacy resource system cover?"
+      },
+      "answer": "基础概念、应用技巧、知识产权、学术规范和伦理问题等多个层次",
+      "evidence": "便捷的学习入口，但在资源 整合的深度和广度上仍有提升空间。 构建完善的 AI 素养资源体系，应采取系统化策 略，确保教育资源的深度与广度。首先，应整合国内 外优质学习资源，建立涵盖基础概念、应用技巧、知 识产权、学术规范、伦理问题等多个层次的人工智能 教育资源体系，确保学生能够全面获取 AI 知识与技 能。 其次， 鼓励不同学科之间的协作， 结合各自优势， 共同开发适合多领域应用的 AI 资源和课程，如芝加 哥大学图书馆探讨了生成式 AI 在法律研究、教育和 实践中的应用， 强调其优势及面临的挑战 [82] 等。 同时， 加强与行业的联系，通过产学合作，紧跟 AI 技术发 展趋势，及时更新资源内容，确保资源的有效",
+      "evidenceExact": true,
+      "documentId": "zh-ai-literacy-us-academic-libraries",
+      "page": 9,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "uslib-03",
+      "category": "synonym_abbreviation",
+      "query": {
+        "zh": "文中所说的 AI 素养教育为什么需要分层培训？",
+        "en": "Why does the paper call for tiered AI-literacy training?"
+      },
+      "answer": "学习者需求和学科背景不同，需要从通识入门到特定领域深度培训",
+      "evidence": "确保资源的有效性和时 效性。 5.2.2 建立分层的 AI 素养培训内容 建立多层次的 AI 素养教育培训内容体系是提升 高校师生 AI 素养的关键。该体系应整合校内外资源， 构建分阶段和多层次的培训内容，以满足不同学习者 的需求。在教育主体上，构建多元协同的教学团队。 图书馆应牵头联合 IT 部门、教学中心、各院系教师 及企业等多方力量，强调跨学科、跨领域的合作。 通过充分利用各方优势，提供更全面和多元的教育 资源，并针对不同学科特点进行个性化教学。例如， 宾夕法尼亚大学图书馆发起的 AI 素养兴趣小组，通 过多方机构的赞助和支持，形成了良好的合作机制， 围绕学习和研究中的 AI 协作以及在社会中的应用等 主题",
+      "evidenceExact": true,
+      "documentId": "zh-ai-literacy-us-academic-libraries",
+      "page": 9,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "uslib-04",
+      "category": "rephrase",
+      "query": {
+        "zh": "宾夕法尼亚大学图书馆的 AI 素养兴趣小组有什么协作特点？",
+        "en": "What collaboration feature is noted for the University of Pennsylvania AI-literacy interest group?"
+      },
+      "answer": "由多方机构赞助支持，围绕学习研究中的 AI 协作及社会应用讨论",
+      "evidence": "联合 IT 部门、教学中心、各院系教师 及企业等多方力量，强调跨学科、跨领域的合作。 通过充分利用各方优势，提供更全面和多元的教育 资源，并针对不同学科特点进行个性化教学。例如， 宾夕法尼亚大学图书馆发起的 AI 素养兴趣小组，通 过多方机构的赞助和支持，形成了良好的合作机制， 围绕学习和研究中的 AI 协作以及在社会中的应用等 主题展开讨论 [83] 。在教育内容设置上，构建分层分 级的培训内容体系，包括面向全体师生的 AI 通识教 育和针对特定领域的深度专业培训。初级阶段主要普 及 AI 基础知识，侧重 AI 基础知识普及和工具入门， 通过课程讲授、在线学习资源、演示示例等方式，系 统介绍人工智能的基本概念、",
+      "evidenceExact": true,
+      "documentId": "zh-ai-literacy-us-academic-libraries",
+      "page": 9,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "uslib-05",
+      "category": "synonym_abbreviation",
+      "query": {
+        "zh": "美国高校图书馆案例中，为什么要强调评估 AI 模型的能力与局限？",
+        "en": "Why emphasize assessing AI model capabilities and limitations?"
+      },
+      "answer": "为了判断生成内容真伪并提升批判性思维与创新技能",
+      "evidence": "时代角色 也在发生转变 [77] ，图书馆员需在原有信息素养基础 上提升技能，成为 AI 素养教育的推动者，为用户提 供 AI 工具培训和指导， 帮助用户更好地利用AI 工具， 并评估 AI 模型的能力与局限性，关注 AI 生成内容 真伪评估，帮助用户在使用 AI 赋能以进行创新创造 的过程中提升批判性思维与创新技能。这要求图书馆 构建完善的 AI 素养教育体系，包括完善资源体系、 建立分层培训内容、实施多样培养方式，以培养学生 AI 时代的关键技能。 5.2.1 完善 AI 素养教育资源体系 美国高校图书馆致力于构建多元化、多层次的 AI 素养教育资源体系。国内一些先行院校已经开展 相关工作 。例如，武汉大学图",
+      "evidenceExact": true,
+      "documentId": "zh-ai-literacy-us-academic-libraries",
+      "page": 9,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "uslib-06",
+      "category": "rephrase",
+      "query": {
+        "zh": "该研究列举的制度保障还包括哪些方面？",
+        "en": "Besides resources, what institutional safeguards are highlighted?"
+      },
+      "answer": "战略规划、多方合作、制度规范、基础设施和资源投入",
+      "evidence": "馆和卡内基梅隆大 学图书馆等 18 所学术机构合作开展的项目，通过多 方参与共同探讨 AI 技术的影响并制定相应策略，构 建完善的 AI 素养教育服务体系 [85-86] 。再次，重视制 度规范与伦理考量，例如乔治城大学图书馆明确禁止 未经许可使用电子资源进行大语言模型训练 [87] ，普 林斯顿大学、耶鲁大学等高校也制定了课堂使用 AI 的相关政策，以规范 AI 技术的合理应用 [88] 。最后， 重视基础设施与资源配置，包括先进的硬件设备、优 质的教学资源、专业的师资队伍和必要的经费支持 等，为 AI 素养教育的顺利开展提供保障。这些经验 启示我们，我国高等教育要通过积极构建具有前瞻性 和实践性的 AI 素养",
+      "evidenceExact": true,
+      "documentId": "zh-ai-literacy-us-academic-libraries",
+      "page": 10,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "talent-01",
+      "category": "cross_language",
+      "query": {
+        "zh": "新质人才需要哪些 AI 素养核心维度？",
+        "en": "What core dimensions of AI literacy are proposed for new-quality talent?"
+      },
+      "answer": "知识、技能、应用和伦理四个维度",
+      "evidence": "” 的高效转化 。 他们以结果为导向 ， 以实 践为检验标准 ， 善于在技术应用中探索出新的模式与路 径 。 2 . 2 人工智能素养的构成维度 人工智能素养是一种与人工智能相关的知识 、 技能 、 态度与伦理综合能力 ， 由图 1 所示的 4 个维度构成 。 ˝… 1 ¨¸„⁄Ö˙˜Ü¸ØÑłµ˜„„‡É˛‹¶¨ 2 . 2 . 1 知识维度 人工智能素养的基础是对人工智能技术的基本认知 ， 包括人工智能的定义 、 演变过程 、 主要分支 （ 如机器学习 、 自然语言处理 、 计算机视觉等 ） 及其在社会各领域的典型 应用 。 掌握这些知识有助于学生形成完整的知识图谱 ， 并 理解 AI 如何在生产力发展中发挥",
+      "evidenceExact": true,
+      "documentId": "zh-ai-literacy-talent-training",
+      "page": 2,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "talent-02",
+      "category": "cross_language",
+      "query": {
+        "zh": "该文将图书馆在 AI 素养教育中的优势概括为什么？",
+        "en": "What library advantages are identified for AI-literacy education?"
+      },
+      "answer": "资源、平台、师资和空间优势",
+      "evidence": "¡⁄ „ÜÀí×Ý”Æ ¡⁄ TUSHUGUANXUEKAN NO. 6 ， 2025 图书馆学刊 2025 年第 6 期 3 . 3 师资优 势 高校图书馆员普遍接受过系统的信息素养教学培训 ， 具备良好的信息检索 、 资源评价与学术传播能力 。 随着人 工智能教育需求的增长 ， 越来越多的图书馆员通过在职进 修 、 专项培训 、 参与科研项目等方式 ， 积极拓展人工智能相 关知识储备与教学实践经验 ， 为 AI 素养教育提供了可靠的 人力保障 。 图书馆员因其具备跨学科理解力和中立服务视角 ， 尤 其适合承担人工智能通识教育的角色 。 在课堂教学之外 ， 图书馆员可通过开设 A",
+      "evidenceExact": true,
+      "documentId": "zh-ai-literacy-talent-training",
+      "page": 3,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "talent-03",
+      "category": "synonym_abbreviation",
+      "query": {
+        "zh": "技能维度中的 AI 素养包括哪些可操作能力？",
+        "en": "What practical abilities belong to the skills dimension?"
+      },
+      "answer": "Python 编程、数据清洗与建模、使用常见 AI 平台，以及评估模型输出正确性",
+      "evidence": " 高校学生在理解技术原理的同时 ， 应能够对 AI 未来发展方向作出合理判断 ， 增强其前瞻性技术意识 。 2 . 2 . 2 技能维度 人工智能素养的核心是动手能力 ， 具体包括 Python 编 程 、 数据清洗与建模 、 常见 AI 平台 （ 如 Deepseek 、 Kimi 、 豆 包 ） 的使用等 ， 还包括能够评估模型输出的正确性 、 判断 AI 工具适用性 ， 具备基本的 AI 产品使用与反馈能力 。 在此基 础上 ， 学习者还须具备将抽象的算法模型转化为实际产品 的能力 ， 并能在多种使用场景下快速实现 AI 工具部署和反 馈优化 ， 体现综合执行能力 。 2 . 2 . 3 应用维度 该维度要",
+      "evidenceExact": true,
+      "documentId": "zh-ai-literacy-talent-training",
+      "page": 2,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "talent-04",
+      "category": "rephrase",
+      "query": {
+        "zh": "应用维度如何把 AI 素养落到真实任务？",
+        "en": "How does the application dimension connect AI literacy to real tasks?"
+      },
+      "answer": "例如用 AI 做文献文本聚类、科研数据建模和办公流程优化",
+      "evidence": "用场景下快速实现 AI 工具部署和反 馈优化 ， 体现综合执行能力 。 2 . 2 . 3 应用维度 该维度要求学习者具备将人工智能技术应用于解决 实际问题的能力 。 例如 ， 在文献分析中使用 AI 进行文本聚 类 ； 在科研中借助 AI 辅助数据建模 ； 在办公中利用 AI 优化 流程与提升效率 ， 通过实际场景的应用训练 ， 提升其综合 素养 [ 4 ] 。 更进一步来说 ， 优秀的 AI 应用者不仅能够使用现 有工具完成任务 ， 更能针对特定问题设计解决路径 ， 甚至 自主开发或组合多种 AI 工具 ， 形成定制化解决方案 ， 表现 出高度的应用创造性 。 2 . 2 . 4 伦理维度 随着 AI 的广泛",
+      "evidenceExact": true,
+      "documentId": "zh-ai-literacy-talent-training",
+      "page": 2,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "talent-05",
+      "category": "synonym_abbreviation",
+      "query": {
+        "zh": "该文提出的 AI 教育课程与评价体系覆盖哪四类能力？",
+        "en": "Which four ability types should the curriculum and evaluation system cover?"
+      },
+      "answer": "认知、操作、应用和伦理",
+      "evidence": "投入的持续性和针对性 ， 推动图 书馆成为人才培养体系的重要参与者 。 5 . 2 . 2 构建 AI 素养课程标准与评价体系 基于人工智能素养的 4 个核心维度 ， 制定覆盖 “ 认知— 操作—应用—伦理 ” 的教学大纲与评价指标 ， 明确学习目 标 、 知识模块 、 能力结构与评价方法 ， 为图书馆课程设计与 实施提供标准化依据 。 5 . 2 . 3 形成馆—院—企协同育人机制 推动图书馆与相关学院 、 科研平台以及人工智能企业 建立稳定的合作关系 ， 联合开发教学资源 、 共享教学案例 、 联合举 办培训与竞赛 ， 形成 “ 高校 + 企业 + 图书馆 ” 三位一体的 协同育人生态体系 ， 提升教学实践的",
+      "evidenceExact": true,
+      "documentId": "zh-ai-literacy-talent-training",
+      "page": 4,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "talent-06",
+      "category": "rephrase",
+      "query": {
+        "zh": "高校图书馆与学院、企业协同育人的目标是什么？",
+        "en": "What is the goal of library-college-enterprise collaboration?"
+      },
+      "answer": "联合开发资源、共享案例、举办培训竞赛，形成三位一体的协同育人生态",
+      "evidence": "形成馆—院—企协同育人机制 推动图书馆与相关学院 、 科研平台以及人工智能企业 建立稳定的合作关系 ， 联合开发教学资源 、 共享教学案例 、 联合举 办培训与竞赛 ， 形成 “ 高校 + 企业 + 图书馆 ” 三位一体的 协同育人生态体系 ， 提升教学实践的真实感与职业导向性 。 5 . 2 . 4 加强 AI 伦理教育 ， 培育负责任的技术使用者 图书馆应引导学生建立对人工智能技术使用边界与 责任的认知 ， 通过案例研讨 、 伦理辩论 、 专题展示等形式 ， 强化对隐私保护 、 数据安全 、 算法偏见等问题的思辨能力 ， 塑造具有社会责任感与批判精神的新质人才 。 6 ‰ÆÓï 人工智能素养已成为新质人才的核",
+      "evidenceExact": true,
+      "documentId": "zh-ai-literacy-talent-training",
+      "page": 4,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "dig-01",
+      "category": "cross_language",
+      "query": {
+        "zh": "数字经济对灵活就业选择和质量的总体影响是什么？",
+        "en": "What are the overall findings on the digital economy and flexible employment?"
+      },
+      "answer": "显著促进灵活就业选择和就业质量",
+      "evidence": "南昌 330032; 2. 江西财经大学,江西 南昌 330013) 摘 要:基于中国家庭追踪调查数据( CFPS) ,实证分析了数字经济对灵活就业的影响。 研究发现,数字经济能 显著促进灵活就业选择和质量,且对女性、农村、低学历和低少儿抚养比群体的促进作用更为显著。 此外,数字 经济通过优化劳动力就业结构和虚拟集聚效应来提高灵活就业质量。 最后,进一步分析发现,社会保障与数字 经济在对灵活就业质量的影响中存在替代关系。 关键词:数字经济;灵活就业;就业结构;虚拟集聚;社会保障水平 中图分类号:F24 文献标识码:A 文章编号:1005 - 0566(2024)11 - 0150 - 11 Impact of t",
+      "evidenceExact": true,
+      "documentId": "zh-digital-economy-flexible-employment",
+      "page": 1,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "dig-02",
+      "category": "cross_language",
+      "query": {
+        "zh": "数字经济对哪些群体的灵活就业质量促进更显著？",
+        "en": "Which groups receive stronger flexible-employment quality effects?"
+      },
+      "answer": "女性、农村、低学历和低少儿抚养比群体",
+      "evidence": "财经大学,江西 南昌 330013) 摘 要:基于中国家庭追踪调查数据( CFPS) ,实证分析了数字经济对灵活就业的影响。 研究发现,数字经济能 显著促进灵活就业选择和质量,且对女性、农村、低学历和低少儿抚养比群体的促进作用更为显著。 此外,数字 经济通过优化劳动力就业结构和虚拟集聚效应来提高灵活就业质量。 最后,进一步分析发现,社会保障与数字 经济在对灵活就业质量的影响中存在替代关系。 关键词:数字经济;灵活就业;就业结构;虚拟集聚;社会保障水平 中图分类号:F24 文献标识码:A 文章编号:1005 - 0566(2024)11 - 0150 - 11 Impact of the digital econo",
+      "evidenceExact": true,
+      "documentId": "zh-digital-economy-flexible-employment",
+      "page": 1,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "dig-03",
+      "category": "formula_variable",
+      "query": {
+        "zh": "Dige 在回归表中代表什么核心解释变量？",
+        "en": "What does Dige represent in the regressions?"
+      },
+      "answer": "数字经济发展水平",
+      "evidence": "工经常在恶劣环境 下( 风吹日晒) 从事重体力活,且经常早出晚归工 作时间长且收入不稳定。 然而在数字经济的快 速发展下,农民工可以利用互联网平台从事更轻 松和更多样化的工作,因此数字经济发展水平的 提高可以显著地提升农业户口灵活就业者的就 业质量。 表 13 城乡异质性 变量 灵活就业质量 农村 城镇 Dige 0. 432 4 ∗ 0. 460 8 (1. 726 2) (1. 303 5) 所有控制变量 是 是 个体 / 年份 / 地区固定效应 是 是 观测值 7 394 2 895 R2 0. 428 4 0. 422 3 本文将人力资本水平用学历和个人阅读量来 表示,分成低学历组、高学历组、阅读量少和阅",
+      "evidenceExact": true,
+      "documentId": "zh-digital-economy-flexible-employment",
+      "page": 8,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "dig-04",
+      "category": "formula_variable",
+      "query": {
+        "zh": "工具变量两阶段回归中的 IVpost 和 IVphone 如何构建？",
+        "en": "How are IVpost and IVphone constructed?"
+      },
+      "answer": "用上一年全国信息技术服务收入分别与每万人邮局数量、每百人固定电话数量构成交互项",
+      "evidence": "通信服务,不直接影响就 业。 由于样本为面板数据,而这些指标是横截面 数据,因此,本文将上一年全国信息技术服务收入 与每万人邮局数量和每百人固定电话数量构建交 互项,并分别命名为 IVpost 和 IVphone,以此作为 数字经济的工具变量。 本文通过了不可识别检验和弱工具变量检 验。 如表 11 所示,第一阶段和第二阶段的回归结 果都是正向显著的,说明在控制变量不变的情况 下,数字经济发展显著正向影响灵活就业选择和 灵活就业质量,与基准回归结果一致。 表 11 工具变量两阶段回归结果 解释变量 灵活 就业选择 灵活 就业质量 解释变量 灵活 就业选择 灵活 就业质量 第一阶段回归 第二阶段回归 IVpost ",
+      "evidenceExact": true,
+      "documentId": "zh-digital-economy-flexible-employment",
+      "page": 8,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "dig-05",
+      "category": "formula_variable",
+      "query": {
+        "zh": "社会保障调节模型中的 SSL × Dige 系数是多少，方向如何？",
+        "en": "What is the coefficient and sign of SSL × Dige?"
+      },
+      "answer": "-36.8256，显著为负",
+      "evidence": " 依次是未加入交互项、加入交互项后 的回归结果。 表 18 的列(3)的回归结果表明,Dige 的系数为 11. 320 5,社会保障水平( SSL) 的系数为 3. 914 6,SSL × Dige 系数为 - 36. 825 6,都通过了 1% 水平的显著性检验。 这表明数字经济发展越 好,社会保障水平在提升灵活就业质量中的积极 作用就越低,但是此时数字经济的回归系数为正, 综合来看就是在提升灵活就业质量中,社会保障 与数字经济间存在此消彼长的替代关系。 这说 明,在社会保障水平提高的情况下,数字经济发展 对就业质量的促进效应更弱,社会保障作为劳动 力市场重要的支撑之一,会强化劳动者的就业质 量。 又因为,随",
+      "evidenceExact": true,
+      "documentId": "zh-digital-economy-flexible-employment",
+      "page": 10,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "dig-06",
+      "category": "rephrase",
+      "query": {
+        "zh": "数字经济影响灵活就业质量的两个机制是什么？",
+        "en": "Which two mechanisms link the digital economy to employment quality?"
+      },
+      "answer": "优化劳动力就业结构和虚拟集聚效应",
+      "evidence": "实证分析了数字经济对灵活就业的影响。 研究发现,数字经济能 显著促进灵活就业选择和质量,且对女性、农村、低学历和低少儿抚养比群体的促进作用更为显著。 此外,数字 经济通过优化劳动力就业结构和虚拟集聚效应来提高灵活就业质量。 最后,进一步分析发现,社会保障与数字 经济在对灵活就业质量的影响中存在替代关系。 关键词:数字经济;灵活就业;就业结构;虚拟集聚;社会保障水平 中图分类号:F24 文献标识码:A 文章编号:1005 - 0566(2024)11 - 0150 - 11 Impact of the digital economy on flexible employment: A dual perspectiv",
+      "evidenceExact": true,
+      "documentId": "zh-digital-economy-flexible-employment",
+      "page": 1,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "delphi-01",
+      "category": "cross_language",
+      "query": {
+        "zh": "波兰高校图书馆 Delphi 研究的最低共识门槛是多少？",
+        "en": "What minimum agreement threshold was used in the Delphi study?"
+      },
+      "answer": "75%",
+      "evidence": "vise their opinions until a consensus is reached on a given topic (e.g., Lund, 2020 ). The minimum level of agreement required was set at 75 %. Opinions of the experts (top or mid-level managers) in academic librarianship are crucial for AI implementation in these institutions. This group not only decides on ",
+      "evidenceExact": true,
+      "documentId": "en-ai-academic-libraries-delphi",
+      "page": 2,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "delphi-02",
+      "category": "cross_language",
+      "query": {
+        "zh": "Delphi 研究对 AI 在学术图书馆中的总体定位是什么？",
+        "en": "How did experts position AI in academic libraries?"
+      },
+      "answer": "更现实地把 AI 看作工具，而不是合作伙伴",
+      "evidence": "s used to analyze comments. The results show a realistic (as of the moment) perception of AI as a tool rather than a partner in library work. They also reveal certain concerns and beliefs that may negatively affect the adaptation of AI in libraries. The knowledge gained forms the basis for recommendations reg",
+      "evidenceExact": true,
+      "documentId": "en-ai-academic-libraries-delphi",
+      "page": 1,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "delphi-03",
+      "category": "synonym_abbreviation",
+      "query": {
+        "zh": "该研究认为 AI 素养框架应包含哪些能力？",
+        "en": "What abilities are included in the cited AI-literacy framework?"
+      },
+      "answer": "理解能力与局限、识别评价使用、有效利用、质量与伦理批判，以及隐私安全和影响预判",
+      "evidence": " his study with a framework for defining AI literacy in academic libraries, consisting of understanding the AI system capabilities and limitations, identifying and evaluating its use, appropriate and effective utilisation of AI tools, critical assessment of AI quality and ethics, engagement in AI reliable dis",
+      "evidenceExact": true,
+      "documentId": "en-ai-academic-libraries-delphi",
+      "page": 3,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "delphi-04",
+      "category": "rephrase",
+      "query": {
+        "zh": "专家对 AI 作为信息检索与选择顾问的态度如何？",
+        "en": "How was AI as an information-retrieval advisor received?"
+      },
+      "answer": "该陈述在第二轮很有争议，几乎未被接受",
+      "evidence": "al and selection) appeared to be the most controversial in this part of the study. It was hardly accepted in the second round. Considering AI an enemy (see Table 6 ), the respondents agreed that the rapid development of AI tools makes it difficult to verify the results of their use (S14). They did not include",
+      "evidenceExact": true,
+      "documentId": "en-ai-academic-libraries-delphi",
+      "page": 5,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "delphi-05",
+      "category": "synonym_abbreviation",
+      "query": {
+        "zh": "研究指出图书馆 AI 实施早期最明显的两类行动是什么？",
+        "en": "What actions signaled early AI implementation?"
+      },
+      "answer": "监测 AI 工具并采取行动提升使用熟练度",
+      "evidence": "early stage of AI imple - mentation is proven by the highest respondents' agreement about monitoring the AI tools (Statement 1), and the actions undertaken to gain proficiency in their usage (S2 and S7). AI tools implemented in li - braries are often dedicated to library processes (S3) rather than other tasks",
+      "evidenceExact": true,
+      "documentId": "en-ai-academic-libraries-delphi",
+      "page": 4,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "delphi-06",
+      "category": "rephrase",
+      "query": {
+        "zh": "该研究认为 AI 素养培训对馆员意味着什么？",
+        "en": "What does AI-literacy training imply for librarians?"
+      },
+      "answer": "馆员需要成为 AI 素养教师并持续发展相关能力",
+      "evidence": " Lo, 2024 ; Ng et al., 2024 ; Wang et al., 2023 ). Consequently, one should conclude that librarians perceive themselves as teachers of AI literacy, and if so, this reinforces their need to develop competencies in this area. Academic librarians declared openness to other applications of this technology in lib",
+      "evidenceExact": true,
+      "documentId": "en-ai-academic-libraries-delphi",
+      "page": 8,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "phys-01",
+      "category": "cross_language",
+      "query": {
+        "zh": "物理教育 ChatGPT 研究涉及哪些国家的大学？",
+        "en": "Which countries' universities were included?"
+      },
+      "answer": "加纳、约旦和美国",
+      "evidence": "ots, specifically Open AI ’ s ChatGPT use, among physics students in four universities in Ghana, Jordan, and the United States. We utilized a survey instrument adapted from the Technology Acceptance Model (TAM) to elicit responses from 804 students. TAM constructs: Perceived Usefulness (PU), Perceived Ease of",
+      "evidenceExact": true,
+      "documentId": "en-ai-chatbot-physics-education",
+      "page": 1,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "phys-02",
+      "category": "cross_language",
+      "query": {
+        "zh": "研究中的 ChatGPT 主要被描述为哪类教育工具？",
+        "en": "How is ChatGPT characterized as an educational tool?"
+      },
+      "answer": "能够总结、批评、写作和翻译的生成式 AI 聊天机器人",
+      "evidence": "has become one of the most widely discussed AI tools for educational purposes, capable of summarizing documents, critiquing, writing, and translating languages. Its functionalities make it a valuable asset for personalized learning experiences and real-time student assistance ( Open AI ChatGPT, n.d. ). ChatGP",
+      "evidenceExact": true,
+      "documentId": "en-ai-chatbot-physics-education",
+      "page": 2,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "phys-03",
+      "category": "synonym_abbreviation",
+      "query": {
+        "zh": "TAM 变量 BI、UB 和 SLO 分别指什么？",
+        "en": "What do BI, UB, and SLO mean in the TAM study?"
+      },
+      "answer": "行为意向、用户行为、学生学习成果",
+      "evidence": "relationship be - tween behavioral intentions and user behavior of respondents? 4. How do behavioral intentions, user behavior, and student learning outcomes relate to the frequency of ChatGPT use in academic work? 5. What are the demographic differences in perceptions of TAM con - structs (BI, UB) and studen",
+      "evidenceExact": true,
+      "documentId": "en-ai-chatbot-physics-education",
+      "page": 3,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "phys-04",
+      "category": "formula_variable",
+      "query": {
+        "zh": "ATU 和 BI 在该文中的定义分别是什么？",
+        "en": "How are ATU and BI defined?"
+      },
+      "answer": "ATU 是使用系统时的正负态度，BI 是继续使用或不使用的意向程度",
+      "evidence": "using a given technology. ATU is an individual ’ s positive or negative attitude toward performing the intended behavior when applying a given system. BI is the level at which technology users have shaped a plan of intent to continue utilizing or",
+      "evidenceExact": true,
+      "documentId": "en-ai-chatbot-physics-education",
+      "page": 4,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "phys-05",
+      "category": "formula_variable",
+      "query": {
+        "zh": "研究使用 CFA、SEM 和路径分析分别做什么？",
+        "en": "What roles do CFA, SEM, and path analysis play?"
+      },
+      "answer": "CFA 评估测量模型拟合，SEM/路径分析评估变量关系并考察 EU 中介效应",
+      "evidence": "nd validated a measurement model assessed for fit using the Confirmatory Factor Analysis (CFA). Structural Equation Modeling (SEM) Path Analysis (PA) was used to evaluate the strength of relationships among the study variables. Another set of path analyses was used to assess the mediation effect of EU on the ",
+      "evidenceExact": true,
+      "documentId": "en-ai-chatbot-physics-education",
+      "page": 5,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "phys-06",
+      "category": "rephrase",
+      "query": {
+        "zh": "物理教育研究提出了哪几类研究问题？",
+        "en": "What kinds of questions did the physics-education study ask?"
+      },
+      "answer": "TAM 因素关系、伦理使用对行为意向与学习成果/行为的影响、使用频率和人口差异",
+      "evidence": "questions: 1. What are the strengths of relationships among TAM factors assessing respondents’ perceptions of ChatGPT and user behavior? 2. How does the ethical use of ChatGPT influence the relationship be - tween behavioral intentions and student",
+      "evidenceExact": true,
+      "documentId": "en-ai-chatbot-physics-education",
+      "page": 3,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "guide-01",
+      "category": "cross_language",
+      "query": {
+        "zh": "研究期刊 AI 指南综述覆盖多少个社会科学学科？",
+        "en": "How many social-science disciplines did the review cover?"
+      },
+      "answer": "八个社会科学学科",
+      "evidence": "tificial intelligence (AI) in research: a review of author guidelines in leading journals across eight social science disciplines Manuel Goyanes1 · Carlos Lopezosa2 · Valeriano Piñeiro‑Naval3 Received: 29 October 2024 / Accepted: 24 June 2025 © Akadémiai Kiadó Zrt 2025 Abstract In recent years, generative art",
+      "evidenceExact": true,
+      "documentId": "en-ai-research-journal-guidelines",
+      "page": 1,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "guide-02",
+      "category": "cross_language",
+      "query": {
+        "zh": "期刊 AI 指南研究主要考察什么材料？",
+        "en": "What material did the study examine?"
+      },
+      "answer": "领先期刊的作者指南",
+      "evidence": ".1007/s11192-025-05377-0 The use of artificial intelligence (AI) in research: a review of author guidelines in leading journals across eight social science disciplines Manuel Goyanes1 · Carlos Lopezosa2 · Valeriano Piñeiro‑Naval3 Received: 29 October 2024 / Accepted: 24 June 2025 © Akadémiai Kiadó Zrt 2025 Ab",
+      "evidenceExact": true,
+      "documentId": "en-ai-research-journal-guidelines",
+      "page": 1,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "guide-03",
+      "category": "synonym_abbreviation",
+      "query": {
+        "zh": "综述摘要中有多少期刊要求透明披露 AI 使用？",
+        "en": "What percentage of journals mandate transparency about AI use?"
+      },
+      "answer": "61.3%",
+      "evidence": "es, while references to its use in litera- ture reviews are notably absent. Additionally, 61.3% of the journals mandate transparency regarding AI usage in research, but only 12% address privacy and data protection issues. There are notable differences across disciplines in their acceptance and regulation of A",
+      "evidenceExact": true,
+      "documentId": "en-ai-research-journal-guidelines",
+      "page": 1,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "guide-04",
+      "category": "rephrase",
+      "query": {
+        "zh": "该研究的代码本比较了哪些期刊政策维度？",
+        "en": "What policy dimensions does the codebook compare?"
+      },
+      "answer": "AI 使用、披露/声明、作者身份和研究伦理等维度",
+      "evidence": "Scientometrics Codebook General AI policy and governance Variable 1. Mention the use of AI. This variable aims to identify whether the journal’s author guidelines include any information about the use (or non-use) of artificial intelli",
+      "evidenceExact": true,
+      "documentId": "en-ai-research-journal-guidelines",
+      "page": 5,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "guide-05",
+      "category": "synonym_abbreviation",
+      "query": {
+        "zh": "该综述对 AI 用于文献综述的发现是什么？",
+        "en": "What did the review find about AI use in literature reviews?"
+      },
+      "answer": "期刊作者指南中对 AI 用于文献综述的提及明显缺失",
+      "evidence": "or drafting sections of articles, while references to its use in litera- ture reviews are notably absent. Additionally, 61.3% of the journals mandate transparency regarding AI usage in research, but only 12% address privacy and data protection issues. There are notable differences across disciplines in their ",
+      "evidenceExact": true,
+      "documentId": "en-ai-research-journal-guidelines",
+      "page": 1,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "guide-06",
+      "category": "rephrase",
+      "query": {
+        "zh": "研究认为 AI 在科研中应扮演什么角色？",
+        "en": "What role should AI play in research according to the study?"
+      },
+      "answer": "应作为有效工具或助手，而不是科研过程中的自主实体，并由人类研究者承担责任",
+      "evidence": "re that responsibility remains with the human researcher, while AI serves as an effective tool or assistant, rather than an autonomous entity in the scientific process. Several studies have already demonstrated the applicability of AI across diverse domains, particularly in scientometrics and bibliometrics, b",
+      "evidenceExact": true,
+      "documentId": "en-ai-research-journal-guidelines",
+      "page": 2,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "know-01",
+      "category": "cross_language",
+      "query": {
+        "zh": "中国思想政治教育中的 AI 应用研究何时开始出现，哪两年增长较快？",
+        "en": "When did the field begin, and in which years did publications rise?"
+      },
+      "answer": "2018 年开始，2021 年和 2023 年出现快速增长",
+      "evidence": "ber of papers issued in the research year increases year by year. It is worth noting that research in this field began in 2018, and there were two periods of rapid increase in the number of publications in 2021 and 2023, respectively. Currently, data predict that the annual number of publications in this fiel",
+      "evidenceExact": true,
+      "documentId": "en-ai-knowledge-production-education",
+      "page": 7,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "know-02",
+      "category": "cross_language",
+      "query": {
+        "zh": "该知识图谱研究使用了哪些主要方法和工具？",
+        "en": "Which methods and tools were used?"
+      },
+      "answer": "学科体系理论、CiteSpaceVI 共现和聚类分析，以及中国文献数据库统计",
+      "evidence": "plinary system theory as the analytical framework and utilized the visualization software CiteSpaceVI to conduct co-occurrence analysis and cluster analysis of domestic and foreign political communication research literature, resulting in a corresponding knowledge graph. Meanwhile, for the content that CiteSp",
+      "evidenceExact": true,
+      "documentId": "en-ai-knowledge-production-education",
+      "page": 6,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "know-03",
+      "category": "synonym_abbreviation",
+      "query": {
+        "zh": "研究中最常出现的关键词及频次是什么？",
+        "en": "What was the most frequent keyword and its frequency?"
+      },
+      "answer": "Artificial Intelligence，频次 290",
+      "evidence": " and Political Education Research Serial Number Frequency Prominence Keyword Year 1 290 0 Artificial Intelligence 2018 2 113 0 Curriculum - related Ideological and Political Education 2019 3 40 0 Ideological and Political Courses 2018 4 35 0 Ideological and Political Education 2019 5 22 0 Colleges and Univers",
+      "evidenceExact": true,
+      "documentId": "en-ai-knowledge-production-education",
+      "page": 10,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "know-04",
+      "category": "rephrase",
+      "query": {
+        "zh": "该领域的跨学科结构说明了什么？",
+        "en": "What does the interdisciplinary structure imply?"
+      },
+      "answer": "多数研究发生在专业课程中的课程思政，而非仅在专门思政课程中",
+      "evidence": "on courses does not mainly occur in specialized ideological and political classes, but in professional course classes, that is, the combination of artificial intelligence technology and ideological and political education courses is mainly used in the field of curriculum ideological and political education. T",
+      "evidenceExact": true,
+      "documentId": "en-ai-knowledge-production-education",
+      "page": 9,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "know-05",
+      "category": "synonym_abbreviation",
+      "query": {
+        "zh": "文章列出的三个研究问题分别关注什么？",
+        "en": "What are the three research questions?"
+      },
+      "answer": "当前应用与利弊、知识生产现状与热点/成果、现象原因及未来实践研究",
+      "evidence": "uary-December 2025 RESEARCH METHODS AND DESIGN Research Questions Based on the situation, we mainly answer three research questions: First, what is the current application of artificial intelligence technology in the field of ideological and political education? What practices empower ideological and politica",
+      "evidenceExact": true,
+      "documentId": "en-ai-knowledge-production-education",
+      "page": 5,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "know-06",
+      "category": "rephrase",
+      "query": {
+        "zh": "研究指出 AI 在课堂上的主要负面影响是什么？",
+        "en": "What classroom harms of AI are reported?"
+      },
+      "answer": "学生可能直接生成作业而缺少批判性验证，过度嵌入也会减少师生互动",
+      "evidence": "l and political assignments through artificial intelligence technology without conducting critical thinking and verification. Finally, artificial intelligence technology brings negative impacts on classroom effectiveness, such as excessive embedding of artificial intelligence technology, greatly reducing inte",
+      "evidenceExact": true,
+      "documentId": "en-ai-knowledge-production-education",
+      "page": 4,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "phys-07",
+      "category": "formula_variable",
+      "query": {
+        "zh": "物理教育 ChatGPT 调查最终获得多少份回答？",
+        "en": "How many responses did the physics-education survey obtain?"
+      },
+      "answer": "804 份（n=804）",
+      "evidence": "n and analysis At the end of an eight-week survey period, 804 responses were ob - tained (n = 804). Some respondents did not disclose their preference for some of the survey items (undisclosed). Compared to non-response, the response rate suggests minimal bias ( Shih & Fan, 2009 ). The overall response rate w",
+      "evidenceExact": true,
+      "documentId": "en-ai-chatbot-physics-education",
+      "page": 5,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "guide-07",
+      "category": "formula_variable",
+      "query": {
+        "zh": "期刊指南综述中有多少比例的期刊提到 AI 用于起草文章段落？",
+        "en": "What percentage of journals mention AI for drafting article sections?"
+      },
+      "answer": "73.8%",
+      "evidence": "onse to the use of artificial intelligence in research. The content analysis reveals that 73.8% of journals mention the use of AI for drafting sections of articles, while references to its use in litera- ture reviews are notably absent. Additionally, 61.3% of the journals mandate transparency regarding AI usa",
+      "evidenceExact": true,
+      "documentId": "en-ai-research-journal-guidelines",
+      "page": 1,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "know-07",
+      "category": "synonym_abbreviation",
+      "query": {
+        "zh": "该研究中纯思想政治教育专业占相关学科的比例是多少？",
+        "en": "What share of the related disciplines consists of pure ideological-political-education majors?"
+      },
+      "answer": "0.5%",
+      "evidence": "9 • Issue 1 • January-December 2025 other similar disciplines account for over 85%, while pure ideological and political education majors account for only 0.5%. This means that the combination of artificial intelligence technology and ideological and political education courses does not mainly occur in specia",
+      "evidenceExact": true,
+      "documentId": "en-ai-knowledge-production-education",
+      "page": 9,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "dig-07",
+      "category": "formula_variable",
+      "query": {
+        "zh": "工具变量第一阶段回归中 IVpost 的 F 统计量是多少？",
+        "en": "What is the first-stage F statistic for IVpost?"
+      },
+      "answer": "23768.38",
+      "evidence": "7 2) IVphone 0. 004 4 ∗∗∗ (0. 0002) 0. 006 4 ∗∗∗ (0. 000 4) - - - 控制变量 是 是 控制变量 是 是 F 统计量 23 768. 38 138. 77 Wald chi2 4 087. 13 975. 072 R2 0. 931 0 0. 171 6 观测值 38 792 10 657 KP rk LM statisitc - - - 2 201. 038∗∗∗ 975. 247 ∗∗∗ KP rk Wald F statistic - - - 1 329. 078 500. 892 (四)异质性分析 1. 个体特征异质性 考虑到性别一直在就业市场",
+      "evidenceExact": true,
+      "documentId": "zh-digital-economy-flexible-employment",
+      "page": 8,
+      "status": "DRAFT_NEEDS_USER_CONFIRMATION"
+    },
+    {
+      "id": "mem-01",
+      "category": "memory_synthetic",
+      "query": {
+        "zh": "本项目确定采用哪个嵌入模型？",
+        "en": "Which embedding model has this project confirmed?"
+      },
+      "answer": "multilingual-e5-small",
+      "evidence": "Synthetic fixture record(s); not paper evidence.",
+      "documentId": null,
+      "page": null,
+      "fixtureRecords": [
+        {
+          "id": "memory-embedding-e5-small",
+          "project": "local-validation-r4",
+          "status": "confirmed",
+          "content": "项目确定采用 multilingual-e5-small 作为默认嵌入模型。"
+        }
+      ],
+      "expectedMemoryIds": [
+        "memory-embedding-e5-small"
+      ],
+      "status": "SYNTHETIC_FIXTURE_NOT_PAPER_EVIDENCE"
+    },
+    {
+      "id": "mem-02",
+      "category": "memory_synthetic",
+      "query": {
+        "zh": "本项目是否确认了 e5-large 作为默认嵌入模型？",
+        "en": "Has this project confirmed e5-large as the default embedding model?"
+      },
+      "answer": "没有匹配的已确认记忆；不能从论文猜测默认模型。",
+      "evidence": "Synthetic fixture record(s); not paper evidence.",
+      "documentId": null,
+      "page": null,
+      "fixtureRecords": [],
+      "expectedMemoryIds": [],
+      "status": "SYNTHETIC_FIXTURE_NOT_PAPER_EVIDENCE"
+    },
+    {
+      "id": "mem-03",
+      "category": "memory_synthetic",
+      "query": {
+        "zh": "本项目当前确定采用哪种检索方式？",
+        "en": "Which retrieval mode has this project confirmed?"
+      },
+      "answer": "关键词检索（本阶段暂不实现混合检索）。",
+      "evidence": "Synthetic fixture record(s); not paper evidence.",
+      "documentId": null,
+      "page": null,
+      "fixtureRecords": [
+        {
+          "id": "memory-retrieval-keyword-only",
+          "project": "local-validation-r4",
+          "status": "confirmed",
+          "content": "本阶段只测关键词检索，暂不实现混合检索。"
+        }
+      ],
+      "expectedMemoryIds": [
+        "memory-retrieval-keyword-only"
+      ],
+      "status": "SYNTHETIC_FIXTURE_NOT_PAPER_EVIDENCE"
+    },
+    {
+      "id": "mem-04",
+      "category": "memory_synthetic",
+      "query": {
+        "zh": "本项目当前生效的嵌入模型决定是什么？",
+        "en": "Which embedding-model decision is currently effective?"
+      },
+      "answer": "当前生效的是 multilingual-e5-small；旧记录保留但已 superseded。",
+      "evidence": "Synthetic fixture record(s); not paper evidence.",
+      "documentId": null,
+      "page": null,
+      "fixtureRecords": [
+        {
+          "id": "memory-embedding-old",
+          "project": "local-validation-r4",
+          "status": "superseded",
+          "content": "项目曾考虑旧版嵌入模型。"
+        },
+        {
+          "id": "memory-embedding-e5-small-current",
+          "project": "local-validation-r4",
+          "status": "confirmed",
+          "content": "项目当前采用 multilingual-e5-small。"
+        }
+      ],
+      "expectedMemoryIds": [
+        "memory-embedding-e5-small-current"
+      ],
+      "status": "SYNTHETIC_FIXTURE_NOT_PAPER_EVIDENCE"
+    },
+    {
+      "id": "mem-05",
+      "category": "memory_synthetic",
+      "query": {
+        "zh": "本项目可见的私人记忆有哪些？",
+        "en": "Which private memories are visible to this project?"
+      },
+      "answer": "空；其他项目的私人记忆不可见。",
+      "evidence": "Synthetic fixture record(s); not paper evidence.",
+      "documentId": null,
+      "page": null,
+      "fixtureRecords": [
+        {
+          "id": "memory-private-other-project",
+          "project": "other-project",
+          "status": "confirmed",
+          "content": "另一项目的私人笔记。"
+        }
+      ],
+      "expectedMemoryIds": [],
+      "status": "SYNTHETIC_FIXTURE_NOT_PAPER_EVIDENCE"
+    },
+    {
+      "id": "mem-06",
+      "category": "memory_synthetic",
+      "query": {
+        "zh": "本项目是否确定暂不实现混合检索？",
+        "en": "Has this project confirmed deferring hybrid retrieval?"
+      },
+      "answer": "是；这是项目路线约束，不是论文结论。",
+      "evidence": "Synthetic fixture record(s); not paper evidence.",
+      "documentId": null,
+      "page": null,
+      "fixtureRecords": [
+        {
+          "id": "memory-roadmap-no-hybrid",
+          "project": "local-validation-r4",
+          "status": "confirmed",
+          "content": "用户确认在评测前暂不实现混合检索。"
+        }
+      ],
+      "expectedMemoryIds": [
+        "memory-roadmap-no-hybrid"
+      ],
+      "status": "SYNTHETIC_FIXTURE_NOT_PAPER_EVIDENCE"
+    },
+    {
+      "id": "mem-07",
+      "category": "memory_synthetic",
+      "query": {
+        "zh": "本项目确认采用 e5-large 吗？",
+        "en": "Has this project confirmed e5-large?"
+      },
+      "answer": "没有已确认的 e5-large 决定；现有记录只是 candidate。",
+      "evidence": "Synthetic fixture record(s); not paper evidence.",
+      "documentId": null,
+      "page": null,
+      "fixtureRecords": [
+        {
+          "id": "memory-embedding-e5-large-candidate",
+          "project": "local-validation-r4",
+          "status": "candidate",
+          "content": "用户提到过 e5-large，但尚未确认采用。"
+        }
+      ],
+      "expectedMemoryIds": [],
+      "status": "SYNTHETIC_FIXTURE_NOT_PAPER_EVIDENCE"
+    },
+    {
+      "id": "mem-08",
+      "category": "memory_synthetic",
+      "query": {
+        "zh": "本项目关于嵌入模型的确认记录是什么？",
+        "en": "What confirmed record documents this project's embedding-model decision?"
+      },
+      "answer": "返回 memory-embedding-e5-small；它是项目记忆记录，不是论文来源。",
+      "evidence": "Synthetic fixture record(s); not paper evidence.",
+      "documentId": null,
+      "page": null,
+      "fixtureRecords": [
+        {
+          "id": "memory-embedding-e5-small",
+          "project": "local-validation-r4",
+          "status": "confirmed",
+          "content": "项目确定采用 multilingual-e5-small 作为默认嵌入模型。"
+        }
+      ],
+      "expectedMemoryIds": [
+        "memory-embedding-e5-small"
+      ],
+      "status": "SYNTHETIC_FIXTURE_NOT_PAPER_EVIDENCE"
+    }
+  ]
+}

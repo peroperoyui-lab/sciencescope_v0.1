@@ -16,6 +16,7 @@ import { createLibraryService } from './library-service.mjs';
 import {randomUUID, timingSafeEqual} from 'node:crypto';
 import {createExecutionService} from './execution-service.mjs';
 import { readFile as readFileBytes } from 'node:fs/promises';
+import { createDocumentPreview } from './document-preview.mjs';
 import {createAssistantConversations,AssistantConversationError} from './assistant-conversations.mjs';
 import {createAssistantChatService,AssistantChatError} from './assistant-chat-service.mjs';
 import {createToolActivityProjection} from './tool-activity.mjs';
@@ -122,12 +123,14 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   // Research Base (docs/design/RESEARCH_BASE.md): literature, knowledge,
   // models, claims and long-term memory, retrievable by people and agents.
   const libraryRoot=path.join(dataRoot,'.sciencescope-local','library');
-  const research=createResearchBase({database,resolveResourcePath:async resource=>{
+  const resolveResourcePath=async resource=>{
     if(resource.metadata?.storage==='project')return workbench.store.resolvePath(resource.projectId,resource.path);
-    await mkdir(libraryRoot,{recursive:true});const base=await realpath(libraryRoot),file=path.resolve(base,resource.path);
+    await mkdir(libraryRoot,{recursive:true});const base=await realpath(libraryRoot),file=await realpath(path.resolve(base,resource.path));
     if(!file.startsWith(base+path.sep))throw new Error('INVALID_RESOURCE_PATH');
     return file;
-  }});
+  };
+  const research=createResearchBase({database,resolveResourcePath});
+  const documentPreview=createDocumentPreview({database,resolveResourcePath,research});
   // Which assistant message a session is producing now (for usage receipts).
   const turnMessages=new Map();
   let sessionHeaders = [];
@@ -336,6 +339,8 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(route==='/api/library'&&request.method==='GET'){json(response,200,{resources:await library.list({projectId:requestUrl.searchParams.get('projectId')||undefined,query:requestUrl.searchParams.get('query')||''})});return true;}
       // Preview shows exactly what the research-input compiler would extract (same path and 64000-char budget).
       if(route==='/api/library/preview'&&request.method==='GET'){const id=requestUrl.searchParams.get('id')||'',resource=id?await database.getResource(id):null;if(!resource)throw new WorkbenchApiError('NOT_FOUND','资料不存在。',404);const [item]=await attachments.compile([id],{structured:true});json(response,200,{id,title:resource.title,kind:resource.kind,text:typeof item.text==='string'?item.text:null,truncated:!!item.truncated,note:item.note||''});return true;}
+      if(route==='/api/library/document'&&request.method==='GET'){json(response,200,await documentPreview.document(requestUrl.searchParams.get('id')));return true;}
+      if(route==='/api/library/content'&&request.method==='GET'){const value=await documentPreview.content(requestUrl.searchParams.get('id'));binary(response,200,value.bytes,value.type);return true;}
       if(route==='/api/knowledge'&&request.method==='GET'){const projectId=requestUrl.searchParams.get('projectId')||undefined;if(projectId)await workbench.project(projectId);json(response,200,{knowledge:database.listKnowledge({projectId,namespace:requestUrl.searchParams.get('namespace')||undefined,query:requestUrl.searchParams.get('query')||''})});return true;}
       if (route === '/api/workbench' && request.method === 'GET') { json(response,200,await workbench.call(requestUrl.searchParams.get('projectId'),'get')); return true; }
       if (route === '/api/workbench/files' && request.method === 'GET') { json(response,200,{entries:await workbench.call(requestUrl.searchParams.get('projectId'),'listFiles',requestUrl.searchParams.get('path') || '')}); return true; }
