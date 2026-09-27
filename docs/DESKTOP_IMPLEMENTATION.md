@@ -1,5 +1,71 @@
 # Desktop implementation — first increment
 
+## 2026-09-27 Resumed Batch 1 — local dense evaluation complete, paid evaluation pending
+
+- User resumed the checkpoint after reconnecting H:. Correct workspace is
+  `<工作区>`, branch `codex/local-validation-20260927-r4`,
+  starting at `7cfc7dc8a38ab38c4bf076ebf4f4125c22e42836`, clean. No reset,
+  baseline replacement, PR or merge. Stages 0–2 were not repeated; their
+  acceptance evidence and limitations below remain unchanged.
+- GPT-6 Sol ran the CPU benchmark; GPT-6 Luna checked frozen fixture identities,
+  the 2/2 eval contract tests, both eval scripts' syntax and `git diff --check`.
+  Primary reviewed the benchmark code and independently recomputed every mode's
+  hit totals from the 52 rankings against the unchanged frozen mapping.
+
+| Fixed 52-paper-question evaluation | R@1 | R@5 | R@10 |
+|---|---:|---:|---:|
+| Production keyword, Chinese wording (previous checkpoint) | 3/52 (5.77%) | 6/52 (11.54%) | 9/52 (17.31%) |
+| Local e5-small, Chinese wording | 10/52 (19.23%) | 17/52 (32.69%) | 21/52 (40.38%) |
+| Local e5-small, English wording | 10/52 (19.23%) | 17/52 (32.69%) | 19/52 (36.54%) |
+| Local e5-small, bilingual maximum cosine | 12/52 (23.08%) | 21/52 (40.38%) | 25/52 (48.08%) |
+
+- These are **evidence-chunk hits**, not complete-answer correctness. Bilingual
+  ranking takes `max(cos(zh), cos(en))` per chunk; no hybrid fusion or reranking.
+  Gold/mapping were frozen before scoring. The two approved excerpt coverage
+  limitations (`phys-06`, `talent-02`) remain. Improvement does not establish an
+  acceptable product-quality threshold: bilingual top 10 still misses 27/52.
+  The eight synthetic memory cases remain separate: keyword positives 0/5,
+  negative no-match 3/3; this dense run does not measure memory retrieval.
+
+| Windows measurement | Result / scope |
+|---|---|
+| 1,412 passage embeddings | 29.514 s; 20.902 ms/chunk average, batch 8, two CPU threads |
+| Chinese query embedding P50 / P95 | 3.328 / 3.904 ms |
+| English query embedding P50 / P95 | 3.346 / 3.807 ms |
+| Sequential bilingual pair embedding P50 / P95 | 6.705 / 7.823 ms, derived from paired per-query durations |
+| Keyword query P50 / P95 | 3.236 / 6.266 ms, production search measured at previous checkpoint |
+| Benchmark process sampled peak RSS | 1,072.875 MiB (25 ms sampling), not system-wide memory |
+| 500-paper embedding estimate | 30.744 min for 88,250 chunks at this corpus's mean size; **extrapolation**, not a 500-paper test |
+
+- Query embedding latency excludes cosine ranking/sorting, database I/O and cold
+  model loading, so it is not directly comparable to end-to-end keyword search.
+  The 500-paper estimate also excludes parsing, storage and cold loading.
+  Machine: Intel Core Ultra 9 275HX, 24 logical CPUs, 31.421 GiB RAM,
+  Windows 11 Home China x64. Actual benchmark Node: **v24.19.0** (the current
+  shell's bundled runtime); no global environment changes.
+- Model: local `Xenova/multilingual-e5-small`, revision
+  `761b726dd34fb83930e26aab4e9ac3899aa1fa78`, int8 ONNX, 384 dimensions,
+  masked mean pooling + L2, 512-token cap, `query:` / `passage:` prefixes.
+  Existing download manifest records Hugging Face for four files and hf-mirror
+  for `tokenizer_config.json`. Local model and isolated benchmark dependencies
+  were reused; this run performed no downloads or provider calls.
+- Command: `node scripts/evals/real-corpus-dense.mjs dense --out
+  .sciencescope-local/temp/local-validation-r4/final-eval --mapping
+  .sciencescope-local/temp/local-validation-r4/final-eval/mapping-frozen.json`.
+  Evidence directory: `.sciencescope-local/temp/local-validation-r4/final-eval/`:
+  `dense-results.json`, `dense-run.log`, `dense-run-receipt.md`, prior
+  `keyword-results.json` and `prepare-manifest.json`. Eight papers are parsed;
+  manifest `durationMs` measures observed completion since sync began, **not**
+  independent per-document parser CPU time. No new UI/native screenshots were
+  required by this benchmark; stage-1/2 screenshots remain below.
+- **Stage 3 remains PARTIAL**: real-model answer/citation evaluation is not run.
+  Its temporary credential was deleted at the prior pause and is still absent;
+  user has been asked to restore only `.sciencescope-local/secret/opencode.key`.
+  No other credential store was searched. This resumed turn's paid requests: 0;
+  prior stage-1 counts remain 61 forwarded completions, 5 locally blocked and
+  1 model-list request. Production retrieval and UI are unchanged. Do not start
+  Batch 2 until Batch 1 is reported and confirmed.
+
 ## 2026-09-27 User-requested pause — stage 2 delivered, stage 3 keyword checkpoint
 
 - User requested a pause after this checkpoint. **Do not automatically resume
