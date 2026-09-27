@@ -131,7 +131,7 @@ function onPopoverKey(event){
 async function locate(kind,item){
   if(kind==='annotations'){
     if(!window.ScienceScopePreview||V.surface)throw new Error('请在主窗口的文件预览中定位此标记。');
-    await window.ScienceScopePreview.open(item.resourceId,{highlight:item.selectedText});return;
+    await window.ScienceScopePreview.open(item.resourceId,{highlight:item.selectedText,page:item.location?.page,location:item.location});return;
   }
   const id=item.sourceMessageId,target=document.getElementById('message-'+id)||[...document.querySelectorAll('[data-assistant-message]')].find(n=>n.dataset.assistantMessage===id);
   if(!target){toast('来源消息不在当前页面：请切换到对应对话或加载更早记录后再定位。');return;}

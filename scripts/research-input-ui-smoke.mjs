@@ -22,8 +22,10 @@ try{
   await page.evaluate(()=>window.ScienceScopeResearchInput.attachFiles([new File(['EVIDENCE_ROW_42'],'研究 材料.csv',{type:'text/csv'})]));
   // Attachment chip -> preview; select text in the real preview and add an annotation mark.
   await page.locator('[data-research-edit="attachmentIds"]').click();await page.locator('[data-attachment-menu] [data-do="preview"]').click();
-  await page.waitForFunction(()=>document.querySelector('.file-preview-panel [data-preview-doc] .file-preview-plain')?.textContent==='EVIDENCE_ROW_42');
-  await page.evaluate(()=>{const node=document.querySelector('.file-preview-plain');const range=document.createRange();range.selectNodeContents(node);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);node.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,clientX:900,clientY:200}));});
+  // T04 renders CSV as table cells; retain the same selected bytes, line
+  // provenance, outgoing input and persisted receipt assertions below.
+  await page.waitForFunction(()=>document.querySelector('.file-preview-panel [data-preview-doc] td')?.textContent==='EVIDENCE_ROW_42');
+  await page.evaluate(()=>{const node=document.querySelector('.file-preview-panel td');const range=document.createRange();range.selectNodeContents(node);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);node.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,clientX:900,clientY:200}));});
   await page.locator('[data-research-selection] [data-mark-comment]').fill('Verify this row');await page.locator('[data-research-selection] [data-add]').click();
   await page.waitForFunction(()=>document.querySelector('[data-composer="main"] [data-marks-toggle]')?.textContent.trim()==='标记 2');
   await page.locator('[data-draft="main"]').fill('Analyze attached evidence');await page.locator('[data-draft="main"]').dispatchEvent('input');
