@@ -1,5 +1,77 @@
 # Desktop implementation — first increment
 
+## 2026-09-27 T18 summary policy (Astra; acceptance passed)
+
+Branch `codex/t18-summary-policy-20260927`, stacked on pushed T17 commit
+`5ea220f`. T18 acceptance passed; native T18 was not retested. Git delivery is
+still pending and no delivery SHA is recorded here.
+
+- `secretary_preferences.summary_json` stores the defaults: summarize after
+  discussion, every 20 Main messages, every 30000 estimated tokens, on project
+  entry/leave, and export Markdown; all workbench targets default to `off`.
+  Thresholds are 4–500 messages and 2000–500000 estimated tokens. The approved
+  extra minimal wiring includes project focus and the shared discussion/token
+  estimator.
+- `summary-policy.mjs` subscribes to host events for Main turns, discussion,
+  project focus and startup. It coalesces/debounces triggers, processes dirty
+  chats sequentially on project transitions, records pending work on shutdown
+  when enabled, and resumes it 30 seconds after startup. The old unconditional
+  minutes subscriber was removed from `host-background.mjs`; no per-Main-turn
+  `minutes.schedule` call remains.
+- `estimateTokens` is shared by the trigger and context paths. Markdown export
+  uses atomic replacement and records export errors separately; SQLite remains
+  the source of truth. Workbench operations use `off|propose|apply`, strict
+  local allowlist validation, provenance records and undo conflict `409`
+  handling. The map origin label “秘书添加” is wired in
+  `desktop/workbench.mjs`.
+- The current DSH host does not provide native constrained JSON Schema
+  generation. Workbench output is requested in a JSON format and checked
+  against a strict local allowlist; the prompt is not treated as enforcement.
+- Verification: the original focused T18 suite passed 8/8; subsequent root and
+  context regressions passed 11/11; final `npm test` passed 180/180 in
+  231911.3596 ms (exit 0), including the final prompt regression. All 22
+  browser/API smoke checks passed, including the T18 UI smoke. Twelve
+  screenshots were generated in
+  `.sciencescope-local/temp/t18-validation/`: settings and proposals in Chinese
+  and English, light and dark, plus minutes in both languages/themes. Root
+  reviewed the settings/proposals screens and the English dark minutes view.
+- Real-model evaluation history (DeepSeek `deepseek-v4.1-flash`; all forwarded
+  requests returned HTTP 200 and usage):
+  1. Round 1 (`summary-policy-live-nwN3ax/result.json`) **failed**: 20 requests,
+     prompt 164460 / completion 6702 / total 171162; 12 Main rounds (24
+     messages) plus discussion (26 total), three minutes, zero proposals and
+     timeout. Fixture round 11 said no new plan was needed although the
+     assertion expected a proposal. Two requests hit the 1024 completion-token
+     cap and the minutes tail was truncated.
+  2. Round 2 (`summary-policy-live-99AwQT/result.json`) **failed**: 18
+     requests, prompt 154032 / completion 4348 / total 158380; the model
+     returned empty `plans` output and the discussion proposal timed out.
+  3. Round 3 (`summary-policy-live-3Z89CN/result.json`) **passed its stated
+     evaluation checks**: 18 requests, prompt 154105 / completion 3460 / total
+     157565; two minute revisions; the pending plan proposal matched the
+     outstanding todo, and `actualPlans` remained empty (`proposalDidNotApply`
+     passed). This verifies proposal generation, not execution or user
+     approval. The fixture now identifies the known todo explicitly and the
+     completion limit is 4096; the assertion was retained. The prompt also
+     explicitly says `propose` creates an unapproved proposal and must not
+     execute/apply it or represent it as user-approved.
+- Across all three runs: 56 HTTP 200 requests, prompt 472597, completion 14510,
+  total 487107 tokens. Round 1 and round 2 remain recorded failures; round 3
+  passes the live-evaluation checks but does not by itself complete T18
+  acceptance.
+- That evaluation exposed a real trigger race: a threshold trigger queued while
+  a summary was running could execute a second summary after the first one
+  advanced the covered position, even when fewer than 20 messages then
+  remained. `minutes` refresh/schedule now rechecks `shouldRefresh` after the
+  prior run settles. The queued-threshold regression passed 1/1. Workbench
+  version-race coverage now inserts a user explanation during the organizer's
+  actual model send and asserts exactly one organize call; 16 targeted tests
+  passed, followed by 2 edge regressions (invalid operations cannot be
+  reinterpreted; closing during a live run) passing.
+- No native T18 test has been performed. All T18 acceptance checks in scope
+  passed; no other acceptance gate remains outstanding. Git delivery is still
+  pending; no commit or push SHA is known yet.
+
 ## 2026-09-27 T17 context access (Astra, Windows; acceptance passed)
 
 Branch `codex/t17-context-access-20260927`, based on reviewed `dfddc5c`.
@@ -18,7 +90,9 @@ T18 and T19 are not included in this checkpoint. No PR or merge.
 - Follow-up cursors commit only after successful replies. Whole-message safety
   omissions name their message numbers. Failed/stopped sends leave cursors alone.
   Version organization and discussion summaries subscribe to host events;
-  per-Main-turn summaries are removed. T18 configurable triggers are still pending.
+  per-Main-turn summaries are removed at this T17 checkpoint. T18 configurable
+  triggers are implemented on the stacked follow-up branch and remain pending
+  final acceptance.
   The user approved the two extra minimal framework edits: automation emits only
   after persistence; untouched builtin secretary/global persona defaults update.
 

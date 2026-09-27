@@ -32,6 +32,8 @@ import {createDeliverables,DeliverableError} from './deliverables.mjs';
 import {createChatMinutes,MinutesError} from './chat-minutes.mjs';
 import {createHostEvents} from './host-events.mjs';
 import {subscribeHostBackground} from './host-background.mjs';
+import {createSummaryPolicy} from './summary-policy.mjs';
+import {createSummaryWorkbench,SummaryWorkbenchError} from './summary-workbench.mjs';
 import {buildContextTools,contextRules,CONTEXT_API_VERSION} from './context/tools.mjs';
 import {createContextAccess} from './context/registry.mjs';
 import {ContextAccessError} from './context/policy.mjs';
@@ -181,8 +183,14 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   const execution=host?createExecutionService({host,database,chatStore,bindings,onTurnPersisted:payload=>{void events.emit('chat.turn.persisted',payload);}}):null;
   // The secretary's running minutes of each conversation, and read-only
   // history tools for the Main expert and every expert (2026-09-26).
-  const minutes=createChatMinutes({db:database.db,host,chatStore,onError,modelFor:chatId=>roleSettings.get('secretary').model||chatStore.getChat(chatId)?.model||null});
-  subscribeHostBackground({events,minutes,organizer,workbench:{get:projectId=>workbench.call(projectId,'get')},modelFor:()=>roleSettings.get('secretary').model});
+  const summaryPreferences=()=>secretaryPreferences.get({language:preferences.get().language});
+  const secretaryModel=chatId=>roleSettings.get('secretary').model||chatStore.getChat(chatId)?.model||null;
+  // Diagnostics deliberately exclude prompts, output, paths and provider errors.
+  const summaryDiagnostic=({type,code,reason,chatId,revision}={})=>console.info('[summary]',JSON.stringify({type:type||code,reason,chatId,revision}));
+  const summaryWorkbench=createSummaryWorkbench({db:database.db,host,chatStore,workbench:workbench.store,getPreferences:summaryPreferences,modelFor:secretaryModel,events,onError,onDiagnostic:summaryDiagnostic});
+  const minutes=createChatMinutes({db:database.db,host,chatStore,onError,modelFor:secretaryModel,getPreferences:summaryPreferences,onUpdated:value=>summaryWorkbench.onMinutesUpdated(value),onDiagnostic:summaryDiagnostic});
+  const summaryPolicy=createSummaryPolicy({db:database.db,events,minutes,chatStore,getPreferences:summaryPreferences,onError,onDiagnostic:summaryDiagnostic});
+  subscribeHostBackground({events,organizer,workbench:{get:projectId=>workbench.call(projectId,'get')},modelFor:()=>roleSettings.get('secretary').model});
   const contextAccess=createContextAccess({db:database.db,chatStore,minutes,workbench:{
     get:async projectId=>{const project=(await chatStore.getWorkspace()).projects.find(project=>project.id===projectId);return {...await workbench.store.get(projectId,project?.name),projectName:project?.name,folder:await workbench.store.resolvePath(projectId,'')};},
     plans:()=>workbench.store.getPlans(),
@@ -383,7 +391,9 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if (route === '/api/workbench/plans' && request.method === 'GET') { json(response,200,await workbench.store.getPlans()); return true; }
       if (route === '/api/profile' && request.method === 'GET') { json(response,200,profileStore.getProfile()); return true; }
       if(route==='/api/preferences'&&request.method==='GET'){json(response,200,preferences.get());return true;}
-      if(route==='/api/chats/minutes'&&request.method==='GET'){const chatId=requestUrl.searchParams.get('chatId')||'';json(response,200,{minutes:minutes.get(chatId),history:minutes.history(chatId),updating:minutes.updating(chatId),latestMessage:minutes.messagesAfter(chatId,0).at(-1)?.ordinal??0});return true;}
+      if(route==='/api/chats/minutes'&&request.method==='GET'){const chatId=requestUrl.searchParams.get('chatId')||'';json(response,200,{minutes:minutes.get(chatId),history:minutes.history(chatId),updating:minutes.updating(chatId),latestMessage:minutes.messagesAfter(chatId,0).at(-1)?.ordinal??0,summaryStatus:await minutes.summaryStatus(chatId),exportStatus:minutes.exportStatus(chatId)});return true;}
+      if(route==='/api/summary/proposals'&&request.method==='GET'){json(response,200,{proposals:summaryWorkbench.listProposals(requestUrl.searchParams.get('chatId')||'')});return true;}
+      if(route==='/api/summary/writes'&&request.method==='GET'){json(response,200,{writes:summaryWorkbench.listWrites(requestUrl.searchParams.get('chatId')||'')});return true;}
       if(route==='/api/chats/deliverable'&&request.method==='GET'){const image=await deliverables.image(requestUrl.searchParams.get('chatId')||'',requestUrl.searchParams.get('path')||'');binary(response,200,image.bytes,image.type);return true;}
       if(route==='/api/fonts'&&request.method==='GET'){json(response,200,await listFonts({refresh:requestUrl.searchParams.get('refresh')==='1'}));return true;}
       if(route==='/api/secretary/preferences'&&request.method==='GET'){json(response,200,secretaryPreferences.get({language:preferences.get().language}));return true;}
@@ -415,6 +425,12 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if (route === '/api/chats/deliverable/open') { json(response,200,await deliverables.open(String(input.chatId||''),String(input.path||''))); return true; }
       if (route === '/api/open-url') { const href=externalUrl(input?.url); if(!href)throw new WorkbenchApiError('INVALID_URL','只能打开 http 或 https 网址。'); json(response,200,await openUrl(href)); return true; }
       if(!input||typeof input!=='object'||Array.isArray(input)){json(response,400,{message:'请求格式无效。'});return true;}
+      if(route==='/api/projects/focus'){
+        if(input.projectId!==null&&(typeof input.projectId!=='string'||!(await chatStore.getWorkspace()).projects.some(project=>project.id===input.projectId&&!project.archived)))throw new WorkbenchApiError('PROJECT_NOT_FOUND','项目不存在或已归档。',404);
+        json(response,200,await summaryPolicy.focus(input.projectId));return true;
+      }
+      if(route==='/api/summary/proposals/decide'){json(response,200,await summaryWorkbench.decide(input));return true;}
+      if(route==='/api/summary/writes/undo'){json(response,200,await summaryWorkbench.undo(input));return true;}
       if(input.researchInput!==undefined&&(!input.researchInput||typeof input.researchInput!=='object'||Array.isArray(input.researchInput))){json(response,400,{code:'INVALID_RESEARCH_INPUT',message:'研究输入格式无效，未发送。'});return true;}
       if(route.startsWith('/api/research/')){const body=await research.handlePost(route,input);if(body!==undefined){json(response,200,body);return true;}}
       if(route==='/api/experts'){json(response,200,{experts:experts.save(input.experts),available:!!discussions});return true;}
@@ -438,7 +454,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(route==='/api/shortcuts/reset'){json(response,200,shortcuts.reset());return true;}
       if(route==='/api/assistant-window/preferences'){try{json(response,200,assistantWindowPreferences.save(input));}catch(error){if(error.code==='INVALID_ASSISTANT_WINDOW_PREFERENCES')json(response,400,{code:error.code,message:'启动设置无效，未保存。'});else throw error;}return true;}
       if(route==='/api/shortcuts'){try{json(response,200,shortcuts.save(input));}catch(error){if(error.code==='INVALID_SHORTCUTS')json(response,400,{code:error.code,message:'快捷键重复或不可用；请使用 Ctrl 加字母，可附加 Alt、Shift，避开系统与编辑快捷键。'});else throw error;}return true;}
-      if(route==='/api/secretary/preferences'){try{json(response,200,secretaryPreferences.save(input));}catch(error){if(error.code==='INVALID_SECRETARY_PREFERENCES')json(response,400,{code:error.code,message:'版本说明模板须为 1–16000 字符。'});else throw error;}return true;}
+      if(route==='/api/secretary/preferences'){try{json(response,200,secretaryPreferences.save(input));}catch(error){if(error.code==='INVALID_SECRETARY_PREFERENCES')json(response,400,{code:error.code,message:input.summary!==undefined?'自动总结设置无效：消息间隔须为 4–500，token 间隔须为 2000–500000；更新方式须为关闭、提议或直接更新。':'版本说明模板须为 1–16000 字符。'});else throw error;}return true;}
       if(route==='/api/preferences'){try{json(response,200,preferences.save(input));}catch(error){if(error.code==='INVALID_PREFERENCES')json(response,400,{code:error.code,message:'设置值无效，未保存。'});else throw error;}return true;}
       if(route==='/api/settings/open-folder'){if(typeof input.id!=='string'||!Object.hasOwn(settingsPaths,input.id)){json(response,400,{message:'目录标识无效。'});return true;}const folder=settingsPaths[input.id].path;await mkdir(folder,{recursive:true});json(response,200,await openLocalDocument(folder));return true;}
       if(route==='/api/assistant/draft'){await conversations.saveDraft(input.scope,input.ownerId,input.text);if(input.attachmentIds!==undefined)attachments.saveDraft(input.scope,input.ownerId,input.attachmentIds);json(response,200,{saved:true});return true;}
@@ -734,6 +750,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(!response.headersSent&&error instanceof WorkFolderError){json(response,400,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof DeliverableError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof MinutesError){json(response,error.status,{code:error.code,message:error.message});return true;}
+      if(!response.headersSent&&error instanceof SummaryWorkbenchError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof ContextAccessError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof ResearchBaseError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&(error instanceof ExpertRosterError||error instanceof DiscussionError)){json(response,error.status,{code:error.code,message:error.message});return true;}
@@ -746,5 +763,10 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     return true;
   }
   void events.emit('app.started',{});
-  return {handle,close:async()=>{await events.close();await minutes.close();await assistants.close();await Promise.allSettled([host?.close(),web?.close(),skills.close()]);await execution?.close();await chatStore.queue;await profileStore.queue;chatStore.close?.();profileStore.close?.();}};
+  return {handle,close:async()=>{
+    await summaryPolicy.shutdown();await summaryPolicy.close();
+    const draining=events.close();
+    await Promise.all([summaryWorkbench.close(),minutes.close()]);await draining;
+    await assistants.close();await Promise.allSettled([host?.close(),web?.close(),skills.close()]);await execution?.close();await chatStore.queue;await profileStore.queue;chatStore.close?.();profileStore.close?.();
+  }};
 }

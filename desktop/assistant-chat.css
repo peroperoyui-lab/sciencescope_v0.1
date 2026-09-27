@@ -25,3 +25,12 @@
 .assistant-proposal{border:1px solid var(--line,#ddd);border-radius:10px;padding:10px;margin:4px 0}
 .assistant-proposal textarea{display:block;width:100%;min-height:100px;resize:vertical;margin:8px 0;box-sizing:border-box}
 .assistant-follow-up{display:flex;align-items:center;gap:6px;padding:5px 12px;color:var(--muted);font-size:12px;flex:none;}
+.assistant-summary-proposals{max-height:240px;overflow:auto;flex:none}
+.assistant-summary-proposals article{padding:8px 0;border-top:1px solid var(--line);overflow-wrap:anywhere}
+[data-summary-settings]{margin-bottom:24px}
+[data-summary-settings] fieldset{border:0;padding:0;display:grid;gap:12px;min-width:0}
+[data-summary-settings] label{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+[data-summary-settings] input[type=number]{width:112px;min-width:0}
+[data-summary-settings] select{margin-left:auto;min-width:140px}
+.minutes-summary-writes{border-top:1px solid var(--line);margin-top:16px;padding-top:12px}
+.minutes-summary-writes article{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;overflow-wrap:anywhere}

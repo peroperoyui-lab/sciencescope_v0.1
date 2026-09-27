@@ -1,6 +1,6 @@
-/** T17 compatibility subscriptions. T18 replaces the minutes subscription. */
-export function subscribeHostBackground({events, minutes, organizer, workbench, modelFor}) {
-  const off = [events.on('discussion.finished', ({chatId}) => minutes.schedule(chatId))];
+/** Version import jobs; summary-policy owns every automatic minutes trigger. */
+export function subscribeHostBackground({events, organizer, workbench, modelFor}) {
+  const off = [];
   off.push(events.on('version.stored', async ({projectId, versionId, model}) => {
     if (!organizer) return;
     const snapshot = await workbench.get(projectId);

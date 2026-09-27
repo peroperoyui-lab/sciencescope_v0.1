@@ -161,5 +161,90 @@ export class WorkbenchStore {
     const loaded = await this._load(projectId); const version = loaded.snapshot.versions.find(item => item.id === id); if (!version) throw new Error('VERSION_NOT_FOUND');
     for (const key of ['note', 'status', 'summary']) if (patch[key] !== undefined) version[key] = patch[key]; loaded.snapshot.revision += 1; await atomicJson(loaded.stateFile, loaded.snapshot); return clone(version);
   }); }
+
+  async updateVersionWithProvenance(projectId, id, patch = {}, { expectedBefore, provenance } = {}) { return this._enqueue(async () => {
+    const loaded = await this._load(projectId); const version = loaded.snapshot.versions.find(item => item.id === id); if (!version) throw new Error('VERSION_NOT_FOUND');
+    if (expectedBefore && JSON.stringify(version) !== JSON.stringify(expectedBefore)) throw new Error('TARGET_CHANGED');
+    const before = clone(version); for (const key of ['note', 'status', 'summary']) if (patch[key] !== undefined) version[key] = patch[key];
+    loaded.snapshot.revision += 1; await atomicJson(loaded.stateFile, loaded.snapshot); return { before, after: clone(version), revision: loaded.snapshot.revision };
+  }); }
+
+  async restoreVersionWithProvenance(projectId, id, before, after, { revision } = {}) { return this._enqueue(async () => {
+    const loaded = await this._load(projectId); if (revision !== undefined && revision !== loaded.snapshot.revision) throw new Error('REVISION_CONFLICT');
+    const version = loaded.snapshot.versions.find(item => item.id === id); if (!version || JSON.stringify(version) !== JSON.stringify(after)) throw new Error('TARGET_CHANGED');
+    const restored = { ...version }; for (const key of ['note', 'status', 'summary']) { if (Object.hasOwn(before || {}, key)) restored[key] = before[key]; else delete restored[key]; }
+    const next = { ...loaded.snapshot, revision: loaded.snapshot.revision + 1, versions: loaded.snapshot.versions.map(item => item.id === id ? restored : item) };
+    await atomicJson(loaded.stateFile, next); return clone(restored);
+  }); }
+
+  // T18 summary writes are one queue item each. They check the map snapshot
+  // revision inside the queue and never call another queued method, avoiding
+  // the nested-queue deadlock that a read/modify/save helper would create.
+  async appendLogWithProvenance(projectId, { title, note, provenance, revision } = {}) { return this._enqueue(async () => {
+    const loaded = await this._load(projectId); if (revision !== undefined && revision !== loaded.snapshot.revision) throw new Error('REVISION_CONFLICT');
+    if (typeof title !== 'string' || !title.trim() || typeof note !== 'string') throw new TypeError('title and note are required');
+    const stamp = new Date().toISOString(); const entry = { id: `summary-${randomUUID()}`, title: title.trim(), note, text: note, time: stamp, created: stamp, ...(provenance ? { provenance: clone(provenance) } : {}) };
+    const next = { ...loaded.snapshot, revision: loaded.snapshot.revision + 1, logs: [...(loaded.snapshot.logs || []), entry] };
+    await atomicJson(loaded.stateFile, next); await mkdir(path.join(loaded.folder, 'mind_map'), { recursive: true }); await atomicJson(path.join(loaded.folder, 'mind_map', 'research.json'), next.map);
+    return { before: null, after: clone(entry), revision: next.revision };
+  }); }
+
+  async updateMapNodeWithProvenance(projectId, nodeId, status, { provenance, revision } = {}) { return this._enqueue(async () => {
+    const loaded = await this._load(projectId); if (revision !== undefined && revision !== loaded.snapshot.revision) throw new Error('REVISION_CONFLICT');
+    const nodes = loaded.snapshot.map?.nodes || []; const node = nodes.find(item => item.id === nodeId); if (!node) throw new Error('NODE_NOT_FOUND');
+    const before = clone(node); const after = { ...node, status: String(status) };
+    const next = { ...loaded.snapshot, revision: loaded.snapshot.revision + 1, map: { ...loaded.snapshot.map, nodes: nodes.map(item => item.id === nodeId ? after : item) } };
+    await atomicJson(loaded.stateFile, next); await mkdir(path.join(loaded.folder, 'mind_map'), { recursive: true }); await atomicJson(path.join(loaded.folder, 'mind_map', 'research.json'), next.map);
+    return { before, after: clone(after), revision: next.revision };
+  }); }
+
+  async appendMapChildWithProvenance(projectId, parentId, text, { provenance, revision } = {}) { return this._enqueue(async () => {
+    const loaded = await this._load(projectId); if (revision !== undefined && revision !== loaded.snapshot.revision) throw new Error('REVISION_CONFLICT');
+    const nodes = loaded.snapshot.map?.nodes || []; if (!nodes.some(item => item.id === parentId)) throw new Error('PARENT_NODE_NOT_FOUND');
+    if (typeof text !== 'string' || !text.trim()) throw new TypeError('text is required');
+    const child = { id: `summary-${randomUUID()}`, parent: parentId, text: text.trim(), origin: 'secretary', ...(provenance ? { provenance: clone(provenance) } : {}) };
+    const next = { ...loaded.snapshot, revision: loaded.snapshot.revision + 1, map: { ...loaded.snapshot.map, nodes: [...nodes, child] } };
+    await atomicJson(loaded.stateFile, next); await mkdir(path.join(loaded.folder, 'mind_map'), { recursive: true }); await atomicJson(path.join(loaded.folder, 'mind_map', 'research.json'), next.map);
+    return { before: null, after: clone(child), revision: next.revision };
+  }); }
+
+  async restoreMapNodeWithProvenance(projectId, nodeId, before, after, { revision } = {}) { return this._enqueue(async () => {
+    const loaded = await this._load(projectId); if (revision !== undefined && revision !== loaded.snapshot.revision) throw new Error('REVISION_CONFLICT');
+    const nodes = loaded.snapshot.map?.nodes || []; const index = nodes.findIndex(item => item.id === nodeId); const current = index < 0 ? null : nodes[index];
+    if (JSON.stringify(current) !== JSON.stringify(after)) throw new Error('TARGET_CHANGED');
+    if (before === null) {
+      const hasChild = nodes.some(item => item.id !== nodeId && item.parent === nodeId);
+      const hasEdge = (loaded.snapshot.map?.edges || []).some(edge => (edge.source ?? edge.from) === nodeId || (edge.target ?? edge.to) === nodeId);
+      if (hasChild || hasEdge) throw new Error('TARGET_CHANGED');
+    }
+    const nextNodes = before === null ? nodes.filter(item => item.id !== nodeId) : nodes.map(item => item.id === nodeId ? clone(before) : item);
+    const next = { ...loaded.snapshot, revision: loaded.snapshot.revision + 1, map: { ...loaded.snapshot.map, nodes: nextNodes } };
+    await atomicJson(loaded.stateFile, next); await mkdir(path.join(loaded.folder, 'mind_map'), { recursive: true }); await atomicJson(path.join(loaded.folder, 'mind_map', 'research.json'), next.map);
+    return { revision: next.revision };
+  }); }
+
+  async restoreLogWithProvenance(projectId, logId, after, { revision } = {}) { return this._enqueue(async () => {
+    const loaded = await this._load(projectId); if (revision !== undefined && revision !== loaded.snapshot.revision) throw new Error('REVISION_CONFLICT');
+    const logs = loaded.snapshot.logs || []; const index = logs.findIndex(item => item.id === logId); if (index < 0 || JSON.stringify(logs[index]) !== JSON.stringify(after)) throw new Error('TARGET_CHANGED');
+    const next = { ...loaded.snapshot, revision: loaded.snapshot.revision + 1, logs: logs.filter(item => item.id !== logId) };
+    await atomicJson(loaded.stateFile, next); await mkdir(path.join(loaded.folder, 'mind_map'), { recursive: true }); await atomicJson(path.join(loaded.folder, 'mind_map', 'research.json'), next.map); return { revision: next.revision };
+  }); }
+
+  async addPlanWithProvenance(projectId, { title, project, provenance } = {}) { return this._enqueue(async () => {
+    if (typeof title !== 'string' || !title.trim()) throw new TypeError('title is required');
+    const plans = await readJson(this.plansFile, []); const entry = { id: `summary-${randomUUID()}`, title: title.trim(), projectId, project: project || null, done: false, ...(provenance ? { provenance: clone(provenance) } : {}) };
+    await atomicJson(this.plansFile, [...plans, entry]); return { before: null, after: clone(entry) };
+  }); }
+
+  async completePlanWithProvenance(projectId, planId, { provenance, expectedBefore } = {}) { return this._enqueue(async () => {
+    const plans = await readJson(this.plansFile, []); const index = plans.findIndex(item => item.id === planId && (item.projectId === projectId || item.projectId == null)); if (index < 0) throw new Error('PLAN_NOT_FOUND');
+    const before = clone(plans[index]); if (expectedBefore && JSON.stringify(before) !== JSON.stringify(expectedBefore)) throw new Error('TARGET_CHANGED');
+    const after = { ...before, done: true, ...(provenance ? { provenance: clone(provenance) } : {}) }; plans[index] = after; await atomicJson(this.plansFile, plans); return { before, after: clone(after) };
+  }); }
+
+  async restorePlanWithProvenance(planId, before, after) { return this._enqueue(async () => {
+    const plans = await readJson(this.plansFile, []); const index = plans.findIndex(item => item.id === planId); if (index < 0 || JSON.stringify(plans[index]) !== JSON.stringify(after)) throw new Error('TARGET_CHANGED');
+    const next = before === null ? plans.filter(item => item.id !== planId) : plans.map((item, i) => i === index ? clone(before) : item); await atomicJson(this.plansFile, next); return clone(before);
+  }); }
 }
 export async function createWorkbenchStore(options) { return new WorkbenchStore(options).init(); }

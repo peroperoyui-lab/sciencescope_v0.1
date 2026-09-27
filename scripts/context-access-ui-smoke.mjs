@@ -23,6 +23,11 @@ async function post(route,body){const response=await apiFetch(server,'/api/'+rou
 async function mainTurn(index,text){const response=await apiFetch(server,'/api/chat',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({chatId:'context-main',projectId:'context-project',title:'上下文访问验收',model,text,userMessageId:`context-user-${index}`,assistantMessageId:`context-answer-${index}`})});const body=await response.text();assert.equal(response.status,200,body);}
 let browser;
 try{
+  // This T17 fixture checks verbatim catch-up without an existing minutes
+  // revision. T18's default project-entry summaries are covered separately;
+  // disable only the project-focus triggers for this isolated scenario.
+  const preferences=await (await apiFetch(server,'/api/secretary/preferences')).json();
+  await post('secretary/preferences',{summary:{...preferences.summary,onEnterProject:false,onLeaveProject:false}});
   await post('workspace',{projects:[{id:'context-project',name:'上下文访问项目',desc:''}],pins:[],projectExpanded:{'context-project':true},lastChatId:'context-main'});
   await post('roles/save',{role:'secretary',config:{prompt:'Offline secretary',model,reasoningEffort:null}});
   await post('roles/save',{role:'global',config:{prompt:'Offline global assistant',model,reasoningEffort:null}});

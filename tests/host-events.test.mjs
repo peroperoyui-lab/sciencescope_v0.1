@@ -29,14 +29,14 @@ test('idle notification resets on persisted activity and shutdown cancels it', a
   await new Promise(resolve=>setTimeout(resolve,25)); assert.deepEqual(seen,['one']);
 });
 
-test('T17 only discussion schedules minutes; version auto-organize subscribes to storage', async () => {
+test('version subscriber never schedules minutes; T18 policy owns discussion triggers', async () => {
   const events=createHostEvents(); const minutes=[], versions=[];
   const off=subscribeHostBackground({events,minutes:{schedule:id=>minutes.push(id)},
     organizer:{organize:async value=>versions.push(value)},workbench:{get:async()=>({autoOrganize:true})},modelFor:()=>({providerId:'p',modelId:'m'})});
   await events.emit('chat.turn.persisted',{chatId:'c'}); assert.deepEqual(minutes,[]);
-  await events.emit('discussion.finished',{chatId:'c'}); assert.deepEqual(minutes,['c']);
+  await events.emit('discussion.finished',{chatId:'c'}); assert.deepEqual(minutes,[]);
   await events.emit('version.stored',{projectId:'p',versionId:'v'}); assert.equal(versions.length,1);
-  off(); await events.emit('discussion.finished',{chatId:'c'}); assert.equal(minutes.length,1);
+  off(); await events.emit('discussion.finished',{chatId:'c'}); assert.equal(minutes.length,0);
   await events.close();
 });
 

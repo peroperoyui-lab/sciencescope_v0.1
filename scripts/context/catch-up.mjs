@@ -1,4 +1,5 @@
 import {ContextAccessError} from './policy.mjs';
+import {estimateTokens} from './estimate.mjs';
 import {READ_CHARS, databaseOf, ensureMainChat, stableHash} from './sources/_shared.mjs';
 
 const SAFETY_CHARS=240000;
@@ -41,9 +42,10 @@ export function createCatchUp({db,minutes,status,refreshWaitMs=60000}) {
     let all=minutes.messagesAfter(chatId,0),latestOrdinal=all.at(-1)?.ordinal??0;
     let memo=minutes.get(chatId),note='';
     const news=all.filter(message=>message.ordinal>seen);
+    const estimatedTokens=news.reduce((total,message)=>total+estimateTokens(message.text),0);
     const large=news.reduce((n,message)=>n+minutes.format(message).length,0)>READ_CHARS;
     if(large) {
-      const result=await waitAtMost(Promise.resolve().then(()=>minutes.refresh(chatId)),refreshWaitMs);
+      const result=await waitAtMost(Promise.resolve().then(()=>minutes.refresh(chatId,{reason:'follow-up'})),refreshWaitMs);
       if(result.timedOut)note='[Minutes refresh exceeded 60 seconds; using the available revision. Read omitted messages with chat_recall.]';
       else if(result.error)note='[Minutes refresh failed; using the available revision. Read missing details with chat_recall.]';
       memo=minutes.get(chatId);
@@ -61,7 +63,7 @@ export function createCatchUp({db,minutes,status,refreshWaitMs=60000}) {
       const omitted=large&&through>seen?'\n[Messages #'+(seen+1)+'–#'+Math.min(through,latestOrdinal)+' are represented by minutes; use chat_recall to read the original text.]':'';
       text=header+summary+omitted+'\n'+verbatimTail(tail,minutes)+(note?'\n'+note:'')+(statusChanged?'\n[Workstation status]\n'+JSON.stringify(state):'')+'\n[End secretary follow-up]\n\n';
     }
-    const metadata={seenOrdinal:latestOrdinal,minutesRevision:revision,latestOrdinal,statusHash};
+    const metadata={seenOrdinal:latestOrdinal,minutesRevision:revision,latestOrdinal,statusHash,estimatedTokens};
     return {text,...metadata,async commit(result={}){
       canCommit(result);
       // Commit the included revision, never a newer one produced after this packet.

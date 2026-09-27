@@ -2,8 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, request as httpRequest } from 'node:http';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { createDesktopApi } from '../scripts/desktop-api.mjs';
+import { createChatMinutes } from '../scripts/chat-minutes.mjs';
 
 // The secretary's minutes, the history tools and what experts receive.
 test('minutes: incremental, authoritative user edits, recall tools, expert input', async () => {
@@ -82,4 +85,57 @@ test('minutes: incremental, authoritative user edits, recall tools, expert input
     assert.match(run.experts[0].persona, /chat_recall[\s\S]*project_memory/);
     await waitFor(() => state.minutesPrompts.length === 3);
   } finally { await api.close(); await new Promise((resolve) => server.close(resolve)); await rm(root, { recursive: true, force: true }); }
+});
+
+test('minutes exports revisions atomically and an edit wins an in-flight initial summary', async () => {
+  const root = await mkdtemp(path.join(path.resolve('.sciencescope-local/temp'), 'chat-minutes-direct-'));
+  const db = new DatabaseSync(path.join(root, 'minutes.sqlite'));
+  db.exec(`CREATE TABLE chats(id TEXT PRIMARY KEY, project_id TEXT, title TEXT, updated TEXT, message_count INTEGER DEFAULT 0, deleted_at TEXT, runtime_workspace TEXT);
+    CREATE TABLE messages(chat_id TEXT,ordinal INTEGER,id TEXT,role TEXT,text TEXT,created TEXT);`);
+  db.prepare('INSERT INTO chats VALUES(?,?,?,?,?,?,?)').run('c1', 'p1', 'A: title?', new Date().toISOString(), 2, null, root);
+  db.prepare('INSERT INTO messages VALUES(?,?,?,?,?,?)').run('c1', 0, 'u1', 'user', 'Question', new Date().toISOString());
+  db.prepare('INSERT INTO messages VALUES(?,?,?,?,?,?)').run('c1', 1, 'a1', 'assistant', 'Answer', new Date().toISOString());
+  const chatStore = { getChat: () => ({ id: 'c1', projectId: 'p1', title: 'A: title?' }), getRuntimeWorkspace: () => root };
+  let resolveSend; const sendGate = new Promise((resolve) => { resolveSend = resolve; });
+  const host = { startSession: async () => 'minutes-session', send: async () => sendGate, releaseSession: async () => {} };
+  const updates = [];
+  const minutes = createChatMinutes({ db, host, chatStore, modelFor: () => ({ providerId: 'p', modelId: 'm' }), getPreferences: () => ({ summary: { saveMarkdown: true } }), onUpdated: (event) => updates.push(event) });
+  try {
+    const refreshing = minutes.refresh('c1');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(minutes.edit('c1', 'USER EDIT', 0).author, 'user');
+    resolveSend({ finalResponse: 'STALE MODEL MINUTES', type: 'completed' });
+    const result = await refreshing;
+    assert.equal(result.author, 'user');
+    assert.equal(minutes.revisions('c1').length, 1);
+    for (let i = 0; i < 40 && updates.length < 1; i += 1) await new Promise((resolve) => setTimeout(resolve, 25));
+    assert.equal(updates.length, 1);
+    assert.equal(updates[0].minutes.author, 'user');
+    const status = minutes.exportStatus('c1');
+    assert.equal(status.error, null);
+    const markdown = await readFile(status.path, 'utf8');
+    assert.match(markdown, /Revision 1/);
+    assert.match(markdown, /USER EDIT/);
+  } finally { await minutes.close(); db.close(); await rm(root, { recursive: true, force: true }); }
+});
+
+test('a queued threshold summary rechecks coverage after the active summary finishes',async()=>{
+  const root=await mkdtemp(path.join(path.resolve('.sciencescope-local/temp'),'minutes-threshold-'));
+  const db=new DatabaseSync(path.join(root,'minutes.sqlite'));
+  db.exec('CREATE TABLE messages(chat_id TEXT,ordinal INTEGER,id TEXT,role TEXT,text TEXT)');
+  const append=(n)=>db.prepare('INSERT INTO messages VALUES(?,?,?,?,?)').run('c',n,'m'+n,n%2?'assistant':'user','message '+n);
+  for(let n=0;n<20;n++)append(n);
+  let ready,finish;const started=new Promise(resolve=>ready=resolve),gate=new Promise(resolve=>finish=resolve);let calls=0;
+  const minutes=createChatMinutes({db,chatStore:{getChat:()=>({id:'c'})},modelFor:()=>({providerId:'fake',modelId:'fake'}),
+    host:{startSession:async()=>'summary',releaseSession:async()=>{},send:async()=>{calls++;if(calls===1){ready();await gate;}return{finalResponse:'Minutes '+calls};}}});
+  try{
+    const first=minutes.refresh('c');await started;
+    append(20);append(21);
+    const queued=minutes.refresh('c',{reason:'messages',shouldRefresh:()=>minutes.messagesAfter('c',minutes.get('c')?.throughOrdinal??0).length>=20});
+    finish();await Promise.all([first,queued]);
+    assert.equal(calls,1,'two new messages below the threshold must not trigger another model request');
+    assert.equal(minutes.get('c').throughOrdinal,20);
+    assert.equal(minutes.messagesAfter('c',20).length,2);
+    await minutes.refresh('c');assert.equal(calls,2,'manual refresh still covers the remaining messages');
+  }finally{finish();await minutes.close();db.close();await rm(root,{recursive:true,force:true});}
 });

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { estimateTokens } from './context/estimate.mjs';
 
 // Expert turns over the chat's DSH session. The host owns the agent loop
 // (in-process subagents); this module owns prompts and records.
@@ -117,7 +118,8 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
     const shown = blocks.length ? `#${all[first].ordinal}–#${all.at(-1).ordinal}` : '';
     const note = omitted ? ` Messages #1–#${omitted} are ${record && omitted <= record.throughOrdinal ? 'summarized in the minutes above' : 'not shown here'}; read any of them verbatim with chat_recall.` : '';
     if (blocks.length) parts.push(`[Conversation, verbatim: messages ${shown} of ${all.at(-1).ordinal}.${note}]\n${blocks.join('\n')}\n[End of conversation so far]`);
-    return parts.join('\n\n');
+    const text = parts.join('\n\n');
+    return `[Estimated context tokens: ${estimateTokens(text)}; estimate only, no token-based truncation]\n${text}`;
   }
 
   /**

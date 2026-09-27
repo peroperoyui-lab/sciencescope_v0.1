@@ -1,5 +1,5 @@
-// Conversation minutes (对话纪要): the task secretary keeps them after every
-// round; every expert can read them at any time through project_memory. The
+// Conversation minutes (对话纪要): the task secretary updates them by the
+// user's rules; every expert can read them through project_memory. The
 // user can read, edit (the edit becomes the next revision the secretary builds
 // on) or ask the secretary to update now. Opened from the chat's "…" menu.
 import {hostRequest} from './host-client.mjs';
@@ -25,12 +25,23 @@ async function paint(chatId) {
   if (!open() || editing) return;
   root.dataset.revision = String(data.minutes?.revision ?? 0);
   root.querySelector('[data-minutes-meta]').textContent = [metaLine(data), data.updating ? '正在更新…' : ''].filter(Boolean).join(' · ');
+  const remaining=data.summaryStatus||{},next=[];
+  if(Number.isFinite(remaining.messagesRemaining))next.push(`再 ${remaining.messagesRemaining} 条消息`);
+  if(Number.isFinite(remaining.tokensRemaining))next.push(`约 ${remaining.tokensRemaining} token`);
+  root.querySelector('[data-minutes-next]').textContent=next.length?`下次自动总结：${next.join(' 或 ')}`:'';
+  root.querySelector('[data-minutes-export]').textContent=data.exportStatus?.error||'';
   const body = root.querySelector('[data-minutes-body]');
   body.dataset.markdown = data.minutes?.text ?? '';
   body.innerHTML = '';
   if (data.minutes) body.innerHTML = renderMarkdown(data.minutes.text); // sanitized HTML (DOMPurify)
-  else body.innerHTML = '<p class="minutes-empty">还没有纪要。每轮对话结束后，任务秘书会自动整理。</p>';
+  else body.innerHTML = '<p class="minutes-empty">还没有纪要。</p>';
   root.querySelector('[data-minutes-edit]').disabled = !data.minutes;
+  try{
+    const result=await hostRequest('summary/writes?'+new URLSearchParams({chatId}));
+    if(open()!==root||editing)return;
+    const writes=result.writes||[],box=root.querySelector('[data-minutes-writes]');
+    box.innerHTML=writes.length?`<h3>最近的工作站更新</h3>${writes.slice(0,20).map(item=>`<article><span>${esc(({map:'导图',versions:'稿件版本说明',plans:'计划',log:'日志'})[item.target]||item.target)} · <span data-i18n-skip>${esc(item.op?.title||item.op?.text||item.op?.nodeId||item.op?.planId||item.op?.versionId||'')}</span></span><button type="button" class="btn tiny" data-summary-undo="${esc(item.id)}" ${item.undoneAt?'disabled':''}>${item.undoneAt?'已撤销':'撤销'}</button></article>`).join('')}`:'';
+  }catch(error){root.querySelector('[data-minutes-writes]').textContent=error.message;}
 }
 
 function show() {
@@ -38,14 +49,20 @@ function show() {
   editing = false;
   const chatId = V.chat;
   modal('对话纪要', `<div class="minutes-dialog" data-chat-id="${esc(chatId)}">
-    <p class="minutes-meta"><span data-minutes-meta>正在读取…</span>${infoTip('任务秘书在讨论结束后或手动请求时更新纪要：目标、已定结论、被否定的方案、分歧、各方立场、文稿状态与待办。所有专家都能随时读取，并能按编号回查原文。\n你的修改会成为最新一版，秘书之后在此基础上继续整理。', {label: '对话纪要说明'})}</p>
+    <p class="minutes-meta"><span data-minutes-meta>正在读取…</span>${infoTip('任务秘书按自动总结设置或手动请求更新纪要；没有新内容时不调用模型。所有专家都能读取纪要并按编号回查原文。\n你的修改会成为最新一版，秘书之后在此基础上继续整理。', {label: '对话纪要说明'})}</p>
+    <p class="minutes-meta" data-minutes-next></p><p role="status" data-minutes-export></p>
     <div class="minutes-body rendered-markdown" data-minutes-body></div>
+    <div class="minutes-summary-writes" data-minutes-writes></div>
     <div class="saverow"><button type="button" class="btn" data-minutes-refresh>让秘书更新</button><button type="button" class="btn" data-minutes-edit disabled>编辑</button><button type="button" class="btn primary" data-minutes-close>关闭</button></div>
   </div>`, 'minutes-modal');
   void paint(chatId);
 }
 
 window.addEventListener('click', async event => {
+  const undo=event.target.closest('[data-summary-undo]');
+  if(undo){event.preventDefault();event.stopImmediatePropagation();undo.disabled=true;
+    try{const result=await hostRequest('summary/writes/undo',{id:undo.dataset.summaryUndo});const channel=new BroadcastChannel('sciencescope-workbench');channel.postMessage({projectId:result.projectId,plans:result.target==='plans'});channel.close();const chatId=open()?.dataset.chatId;if(chatId)await paint(chatId);}
+    catch(error){const status=open()?.querySelector('[data-minutes-export]');if(status)status.textContent=error.message;undo.disabled=false;}return;}
   const root = open();
   const target = event.target.closest('[data-minutes-refresh],[data-minutes-edit],[data-minutes-save],[data-minutes-cancel],[data-minutes-close],[data-v="chat-minutes"]');
   if (!target) return;

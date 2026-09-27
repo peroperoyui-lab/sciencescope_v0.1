@@ -25,7 +25,7 @@ export async function createContextLiveHarness(name,{maxRequests=80,maxTokens=20
       response.on('data',part=>{
         res.write(part);buffer+=part;
         const lines=buffer.split('\n');buffer=lines.pop();
-        for(const line of lines)if(line.startsWith('data: ')){try{const body=JSON.parse(line.slice(6));if(body.usage)record.usage=body.usage;}catch{}}
+        for(const line of lines)if(line.startsWith('data: ')){try{const body=JSON.parse(line.slice(6));if(body.usage)record.usage=body.usage;const finish=body.choices?.find(choice=>choice.finish_reason)?.finish_reason;if(finish)record.finishReason=finish;}catch{}}
       });
       response.on('end',()=>res.end());response.on('error',()=>{record.error='UPSTREAM_STREAM_ERROR';res.destroy();});
     });
