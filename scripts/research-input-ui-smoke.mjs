@@ -25,7 +25,11 @@ try{
   // T04 renders CSV as table cells; retain the same selected bytes, line
   // provenance, outgoing input and persisted receipt assertions below.
   await page.waitForFunction(()=>document.querySelector('.file-preview-panel [data-preview-doc] td')?.textContent==='EVIDENCE_ROW_42');
-  await page.evaluate(()=>{const node=document.querySelector('.file-preview-panel td');const range=document.createRange();range.selectNodeContents(node);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);node.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,clientX:900,clientY:200}));});
+  // The panel slides open; text is not selectable until it is visible (intermittent empty selection, 2026-09-27).
+  await page.waitForFunction(()=>{const panel=document.querySelector('.file-preview-panel');return getComputedStyle(panel).visibility==='visible'&&panel.getAnimations({subtree:true}).every(a=>a.playState!=='running')&&document.querySelector('.file-preview-panel td').checkVisibility({visibilityProperty:true,opacityProperty:true});});
+  // Select like a user (triple-click the cell): the synthetic addRange was
+  // intermittently ignored by Chromium here, leaving an empty selection.
+  await page.locator('.file-preview-panel td').click({clickCount:3});
   await page.locator('[data-research-selection] [data-mark-comment]').fill('Verify this row');await page.locator('[data-research-selection] [data-add]').click();
   await page.waitForFunction(()=>document.querySelector('[data-composer="main"] [data-marks-toggle]')?.textContent.trim()==='标记 2');
   await page.locator('[data-draft="main"]').fill('Analyze attached evidence');await page.locator('[data-draft="main"]').dispatchEvent('input');
