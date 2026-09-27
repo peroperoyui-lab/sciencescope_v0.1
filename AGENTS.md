@@ -154,6 +154,13 @@ actual remote branch and SHA; failed pushes are not delivery.
   tokens, entering/leaving a project, manual) and only when there is new
   content. Updating map/versions/plans/log with a summary is separate, off by
   default (off/propose/apply), append-or-mark only, and undoable.
+- Knowledge graph (docs/design/KNOWLEDGE_GRAPH.md, 2026-09-27, T20): one
+  library, projects are views (memberships, no copies). The graph has a
+  confirmed layer and a rebuildable derived layer (shown as automatic, never
+  cited as fact). Main, experts, secretary and global assistant may read it
+  within their scope and propose curation (graph_propose); nothing enters the
+  confirmed layer until the user accepts it in the inbox, and accepted changes
+  are undoable. Stay in the single SQLite file (sqlite-vec, FTS5, CTEs).
 - Research Base (docs/design/RESEARCH_BASE.md, 2026-09-25): literature, knowledge,
   models/formulas, claims and memory share one store. Agents write only through
   research_propose into the user's inbox; the session, never model arguments,
