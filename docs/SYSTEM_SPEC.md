@@ -117,13 +117,13 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 
 ### 2.2 主对话（主专家）
 
-- **用途与操作**：向主专家发送消息，逐字显示回答（Markdown、代码块复制、表格）；运行中发送键变为"停止"，
+- **用途与操作**：向主专家发送消息，逐字显示回答（Markdown、代码块复制、表格、数学公式）；运行中发送键变为"停止"，
   已生成的内容保留；运行中可继续输入，并显式加入发送队列；工具调用按本次回复归组，可展开参数和结果；
   模型在工具调用前写的执行性前导语（如"先读取研究稿"）不留在正文，归入对应工具调用，并作为折叠卡片的说明；正文只保留面向用户的回答和工具执行后的结论；
   切换对话不影响后台运行，侧栏显示运行、完成、失败、等待审批等状态；发送失败时原文回到输入框。
 - **状态**：✅（单元、界面、DSH、真实模型、原生）。
 - **技术实现**：
-  - 前端 `desktop/live-chat.mjs`（发送、流式渲染、停止按钮、失败恢复）、`markdown.mjs`（marked + DOMPurify 白名单）、
+  - 前端 `desktop/live-chat.mjs`（发送、流式渲染、停止按钮、失败恢复）、`markdown.mjs`（marked + DOMPurify 白名单；公式 `$$…$$`、`\[…\]`、`$…$`、`\(…\)` 在解析前取出，净化后由 KaTeX 0.18.9 渲染（trust 关闭），代码中的 `$` 与 "$5 and $10" 保持原样，错误公式显示为红色原文；KaTeX 的 CSS 与 woff2 字体随 `VENDOR_ASSETS` 复制并走同一白名单；2026-09-27）、
     `turn-activity.mjs`（工具记录）、`main-outbox.mjs`（队列）、`background-activity.mjs`（侧栏状态）、`host-client.mjs`（带口令的请求与 NDJSON 流）。
   - 接口：`POST /api/chat`（NDJSON 流：`accepted` → `text-delta`/`tool-call`/`tool-result` → `completed`/`cancelled`/`failed`）、
     `POST /api/chat/stop`、`GET/POST /api/chat/outbox`、`GET /api/chat/activity`。
@@ -387,7 +387,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 | 本地 API 口令 | 每次启动生成 32 字节 `apiToken`；所有 `/api/*`（包括 `/api/status`）要求 `Authorization: Bearer`，用常量时间比较 |
 | 来源校验 | Host 必须是 `127.0.0.1:<端口>`，Origin（如果有）必须同源，防 DNS rebinding 和网页跨站调用 |
 | 窗口权限 | Tauri capability 在运行时只授予宿主精确 origin；DevTools 关闭；辅助窗口的 URL 来自宿主状态，而不是主窗口当前地址 |
-| 模型输出 | Markdown 经 DOMPurify 白名单过滤；链接只允许 http(s)，以新窗口打开；不渲染远程图片 |
+| 模型输出 | Markdown 经 DOMPurify 白名单过滤；链接只允许 http(s)，以新窗口打开；不渲染远程图片；公式由 KaTeX 在净化后插入，`trust: false`，不产生链接、脚本或样式 |
 | 密钥 | 只进 DSH 凭据库；补丁文件只含 `apiKeyEnv` 引用；Provider 错误原文不显示 |
 | 文件访问 | 项目路径解析限制在项目根内，跳过符号链接；资料库原件路径用 realpath 校验；打开文件只接受已解析的本地路径 |
 | 打开网址 | `POST /api/open-url` 只接受 http/https，经口令保护，用系统默认浏览器打开；网页内容不能调用 |

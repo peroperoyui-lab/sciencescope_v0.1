@@ -1,9 +1,33 @@
 import { marked } from './vendor/marked.mjs';
 import DOMPurify from './vendor/purify.mjs';
+import katex from './vendor/katex/katex.mjs';
+
+// Math ($$…$$, \[…\], $…$, \(…\)) is taken out before Markdown parsing so
+// marked does not eat backslashes or underscores, then rendered by KaTeX and
+// put back after sanitizing. KaTeX runs with trust off: model input cannot
+// produce links, scripts or styles through it. Code spans and blocks keep
+// their dollars. Inline $…$ follows the Pandoc rule (no space inside the
+// delimiters, no digit right after the closing $) so "$5 and $10" stays text.
+const MATH = /\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|\$(?=\S)((?:\\\$|[^$\n])+?)(?<=\S)\$(?!\d)/g;
+const CODE = /(```[\s\S]*?(?:```|$)|~~~[\s\S]*?(?:~~~|$)|`+[^`]*`+)/g;
+function extractMath(text) {
+  const found = [];
+  const out = text.split(CODE).map((part, index) => index % 2 ? part : part.replace(MATH, (_match, block, bracket, paren, inline) => {
+    const display = block !== undefined || bracket !== undefined;
+    found.push({tex: block ?? bracket ?? paren ?? inline, display});
+    return `SSMATH${found.length - 1}X`;
+  })).join('');
+  return {text: out, found};
+}
+function renderMath({tex, display}) {
+  const html = katex.renderToString(tex.trim(), {displayMode: display, throwOnError: false, trust: false, output: 'htmlAndMathml', strict: 'ignore'});
+  return display ? `<div class="math-display">${html}</div>` : html;
+}
 
 // Render model text, never model-supplied application controls or remote images.
 export function renderMarkdown(text) {
-  const clean = DOMPurify.sanitize(marked.parse(String(text ?? ''), {gfm:true, breaks:false}), {
+  const math = extractMath(String(text ?? ''));
+  const clean = DOMPurify.sanitize(marked.parse(math.text, {gfm:true, breaks:false}), {
     ALLOWED_TAGS:['p','br','strong','em','del','s','h1','h2','h3','h4','h5','h6','ul','ol','li','blockquote','pre','code','hr','table','thead','tbody','tr','th','td','a','input'],
     ALLOWED_ATTR:['href','title','start','align','type','checked','disabled'],
     ALLOW_DATA_ATTR:false,
@@ -30,7 +54,10 @@ export function renderMarkdown(text) {
     wrapper.className = 'markdown-table';
     table.replaceWith(wrapper); wrapper.append(table);
   }
-  return template.innerHTML;
+  let html = template.innerHTML;
+  if (math.found.length) html = html.replace(/<p>SSMATH(\d+)X<\/p>/g, (_m, i) => renderMath({...math.found[i], display: true}))
+    .replace(/SSMATH(\d+)X/g, (_m, i) => renderMath(math.found[i]));
+  return html;
 }
 
 markdown = renderMarkdown;

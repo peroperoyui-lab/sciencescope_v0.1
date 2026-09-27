@@ -1,5 +1,21 @@
 # Desktop implementation — first increment
 
+## 2026-09-27 Math in answers (Claude, cloud)
+
+User screenshot: formulas in a real answer showed as raw `$$…$$` / `$G_0$`.
+The renderer had no math support. Added KaTeX 0.18.9 (MIT, pinned): math is
+extracted before marked (which would eat backslashes and underscores),
+skipping code blocks and spans; the Markdown is sanitized as before; KaTeX
+output (`trust: false`, `throwOnError: false`) is inserted afterwards. Inline
+`$…$` follows the Pandoc rule so currency stays text. KaTeX CSS and woff2
+fonts are part of `VENDOR_ASSETS` (build copy list = router allowlist); the
+build now creates every vendor directory from that list. Long display
+formulas scroll horizontally. `chat-ui-smoke` renders display, inline,
+table-cell, currency, code and a broken formula through the production router
+and checks the KaTeX font loads (screenshot `temp/ui-smoke/math.png`).
+Verified: `npm test` 126/126; chat-ui, research-input-ui, minutes,
+deliverables, discussion-ui, i18n smokes. Native not tested.
+
 ## 2026-09-27 Review of batch 1 r3 + user feedback (Claude, cloud)
 
 - Fast-forwarded `codex/local-validation-20260927-r3@1c5cde9` (Astra: "copied"

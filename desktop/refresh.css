@@ -452,3 +452,7 @@ h1 .info-tip,h2 .info-tip,h3 .info-tip{vertical-align:2px}
 .minutes-body{max-height:min(60vh,620px);overflow:auto;padding:12px 16px;border:1px solid var(--line);border-radius:var(--r-md);background:var(--paper)}
 .minutes-body textarea{width:100%;min-height:min(52vh,520px);border:0;background:transparent;font:inherit;resize:vertical}
 .minutes-empty{color:var(--muted);margin:0}
+
+/* Display math (KaTeX): long formulas scroll inside the answer instead of widening it. */
+.math-display{overflow-x:auto;overflow-y:hidden;padding:2px 0;margin:.6em 0}
+.math-display .katex-display{margin:0}
