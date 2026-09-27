@@ -23,11 +23,13 @@ async function loadRoster() {
   return roster;
 }
 const enabled = () => roster.filter(expert => expert.enabled);
+const participants = () => enabled().filter(expert => expert.kind !== 'reviewer');
 const mode = (chatId = V.chat) => window.ScienceScopeWorkMode?.get(chatId) || 'work';
 
 // @mentions use the stable id or the current label; the longest name wins so
 // "@统计" never shadows "@统计审稿人".
 export function mentionedExperts(text, experts) {
+  experts = experts.filter(expert => expert.kind !== 'reviewer');
   const names = experts.flatMap(expert => [[expert.label, expert.id], [expert.id, expert.id]]).sort((a, b) => b[0].length - a[0].length);
   const found = new Set();
   for (const match of String(text).matchAll(/@([^\s@,，。;；:：!?！？]+)/gu)) {
@@ -51,7 +53,7 @@ function panelOf(chatId = V.chat) {
   const panel = panels.get(chatId);
   const ids = enabled().map(expert => expert.id);
   if (panel.reviewer && !ids.includes(panel.reviewer)) panel.reviewer = null;
-  return {participants: ids.filter(id => !panel.excluded.has(id) && id !== panel.reviewer), reviewer: panel.reviewer, raw: panel};
+  return {participants: participants().map(expert=>expert.id).filter(id => !panel.excluded.has(id) && id !== panel.reviewer), reviewer: panel.reviewer, raw: panel};
 }
 function savePanel(chatId = V.chat) {
   const panel = panels.get(chatId); if (!panel) return;
@@ -220,13 +222,13 @@ function stripHTML() {
   const running = new Map();
   for (const message of S.messages || []) if (message.streaming && message.expert) running.set(message.expert.expertId, live.get(message.id) || 'running');
   let order = 0;
-  const chips = enabled().filter(expert => expert.id !== reviewer).map(expert => {
+  const chips = enabled().filter(expert => expert.kind !== 'reviewer' && expert.id !== reviewer).map(expert => {
     const on = participants.includes(expert.id); const state = running.get(expert.id);
-    return `<button class="panel-chip" data-panel-toggle="${esc(expert.id)}" aria-pressed="${on}" ${busy ? 'disabled' : ''} title="${esc(expert.role || '')}${on ? ' · 点击不参加本轮' : ' · 点击参加本轮'}">${on ? `<b>${++order}</b>` : '<b>–</b>'}${esc(expert.label)}${state ? `<i data-state="${state}" aria-label="${STATES[state]}"></i>` : ''}</button>`;
+    return `<button class="panel-chip" data-panel-toggle="${esc(expert.id)}" aria-pressed="${on}" ${busy ? 'disabled' : ''} title="${esc(expert.role || '')}${on ? ' · 点击不参加本轮' : ' · 点击参加本轮'}">${on ? `<b>${++order}</b>` : '<b>–</b>'}<span data-i18n-skip>${esc(expert.label)}</span>${state ? `<i data-state="${state}" aria-label="${STATES[state]}"></i>` : ''}</button>`;
   }).join('');
   const reviewerExpert = enabled().find(expert => expert.id === reviewer);
   const reviewState = reviewer && running.get(reviewer);
-  return `<div class="panelhead discussion-strip" data-discussion-strip><div class="row"><small>发言顺序</small>${chips || '<small>名册为空</small>'}<span class="spacer"></span><button class="panel-chip reviewer-chip" data-panel-reviewer-menu ${busy ? 'disabled' : ''} aria-haspopup="menu">审核：${reviewerExpert ? esc(reviewerExpert.label) : '无'}${reviewState ? `<i data-state="${reviewState}"></i>` : ''} ${ic('down')}</button></div></div>`;
+  return `<div class="panelhead discussion-strip" data-discussion-strip><div class="row"><small>发言顺序</small>${chips || '<small>名册为空</small>'}<span class="spacer"></span><button class="panel-chip reviewer-chip" data-panel-reviewer-menu ${busy ? 'disabled' : ''} aria-haspopup="menu"><span>审核：</span>${reviewerExpert ? `<span data-i18n-skip>${esc(reviewerExpert.label)}</span>` : '<span>无</span>'}${reviewState ? `<i data-state="${reviewState}"></i>` : ''} ${ic('down')}</button></div></div>`;
 }
 function paintStrip() {
   const column = document.querySelector('.chatcol');
@@ -251,7 +253,8 @@ window.addEventListener('click', event => {
     if (raw.excluded.has(id)) raw.excluded.delete(id); else raw.excluded.add(id);
   } else if (reviewerMenu) {
     return composerMenu(reviewerMenu, '审核专家', [{label: '不设审核', selected: !reviewer, action: 'desktop-panel-reviewer', attrs: 'data-panel-reviewer=""', description: '专家各自作答后本轮结束。'},
-      ...enabled().map(expert => ({label: expert.label, selected: reviewer === expert.id, action: 'desktop-panel-reviewer', attrs: `data-panel-reviewer="${esc(expert.id)}"`, description: '其他专家全部完成后，核查各回复的事实、依据、方法和结论并总结；该专家本轮不单独作答。'}))]);
+      ...participants().map(expert => ({label: expert.label, userLabel:true, selected: reviewer === expert.id, action: 'desktop-panel-reviewer', attrs: `data-panel-reviewer="${esc(expert.id)}"`, description: '其他专家全部完成后，核查各回复的事实、依据、方法和结论并总结；该专家本轮不单独作答。'})),
+      ...(enabled().some(expert=>expert.kind==='reviewer') ? [{label:'独立审核',heading:true,headingId:'reviewer'}, ...enabled().filter(expert=>expert.kind==='reviewer').map(expert=>({label:expert.label,userLabel:true,selected:reviewer===expert.id,action:'desktop-panel-reviewer',attrs:`data-panel-reviewer="${esc(expert.id)}"`,description:'只在讨论最后审核各专家的回答，不参与作答。'}))] : [])]);
   } else { closeMenu(); raw.reviewer = reviewerPick.dataset.panelReviewer || null; }
   savePanel(); paintStrip();
 }, true);
@@ -292,7 +295,7 @@ function openMention(input) {
   const hit = mentionQuery(input);
   if (!hit) return closeMention();
   const q = hit.query.toLocaleLowerCase();
-  const items = enabled().filter(expert => !q || expert.label.toLocaleLowerCase().includes(q) || expert.id.toLocaleLowerCase().includes(q));
+  const items = participants().filter(expert => !q || expert.label.toLocaleLowerCase().includes(q) || expert.id.toLocaleLowerCase().includes(q));
   if (!mention) {
     const menu = document.createElement('div'); menu.className = 'mention-menu'; menu.setAttribute('role', 'listbox'); menu.setAttribute('aria-label', '邀请专家');
     input.closest('[data-composer="main"]')?.append(menu);

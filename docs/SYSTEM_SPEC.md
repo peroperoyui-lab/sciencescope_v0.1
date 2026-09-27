@@ -202,6 +202,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
     工具调用本身（参数、结果、前导语）不进入任何其他参与者的上下文。
   - **身份**：每位专家被告知自己的名称与职责、在场的其他参与者（用户、主专家、其他专家），以及前文中只有标注为自己名字的消息才是自己说的。
   - 每位专家的文字实时出现；工具调用前的执行性前导语归入该回答的工具记录卡片（见 2.2）；"停止"取消整轮（含审核）。
+  - T19 增加独立审核类型：`kind: reviewer` 的名册项只能经 `reviewerId` 进入有序讨论的最后审核位，放入 `expertIds` 会返回 typed 400；已有参加专家仍可担任审核。审核时机、输入与用户决定是否采纳的流程不变。
 - **状态**：✅（单元、界面 smoke、真实 DSH 和 Windows 原生）。2026-09-27 r4 使用 DeepSeek V4.1 Flash / GLM 5.3 Flash / Qwen 3.8 Flash 实测邀请、并行作答、审核在后、原生采纳及 Main 补读。两次审核耗尽输出预算如实记为失败，不计入成功轮；成功轮证据与失败路径分开记录于 DESKTOP_IMPLEMENTATION。
 - **技术实现**：
   - 运行时：`session-control.mjs` 的 `/experts`。每位专家是 DSH 自带 `dsh-subagent` 服务的一个进程内 `spawn` 子代理，
@@ -221,6 +222,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
     `POST /api/discussion/adopt`、`POST /api/discussion/cancel`（也可由 `/api/chat/stop` 触发）。
     专家回答是普通 assistant 消息，元数据在 `discussion_entries`（新增 `review`、`adopted`、`main_seen` 列），读消息时作为 `message.expert` 返回并按顺序重排；
     专家的工具记录写入 `tool_activity`（以专家消息 id 为键）。
+  - T19 技能接线：`POST /api/experts` 校验绑定 id 属于当前已启用且有效的技能；派发前再次检查并读取技能正文，只把显式绑定内容放进对应 child 的 `boundSkills`。当前 DSH 子代理没有按代理设置的原生技能白名单，运行时回退为在子代理人设之后附加独立 system prompt section（`interpolate:false`），关闭 skill 工具目录并在 prepend pre-step hook 过滤未绑定的 slash skill invocation。真实 DSH 2/2 验证了绑定技能注入/过滤和 Main 路径不变。旧式第三专家探针最初失败，原因是测试夹具未注册 `model-legacy`；补登记后恢复三 child + Main 场景，2/2 通过，无 production fix。该约束不构成文件系统隔离，不能宣称阻止已授权文件工具读取其他技能文件。
   - 前端：`desktop/discussion.mjs`（@ 邀请、有序讨论条：参加者开关与审核选择（按对话存本机偏好）、状态标签、审核结论采纳按钮、专家工具卡片）、
     `work-mode.mjs`（"工作 / 有序讨论"两项）、`workspace.mjs` 的 `authorOf`（显示真实作者）。
 - **验证**：`discussion-api` 单元测试（前文共享、顺序、审核在后、工具不外泄、采纳、@ 邀请、主专家补读且不重复）、
@@ -236,6 +238,8 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   `desktop/context-meter.mjs` 绘制。验证：`expert-discussion-runtime`（真实 DSH 返回测量值）、`deliverables-smoke`（弹出层数值）。
 
 最近核对补充（2026-09-27，r4）：未完成的审核（包括 `max-tokens`）不能加入后续上下文。界面原已隐藏采纳按钮；现在 `/api/discussion/adopt` 同样返回 `REVIEW_NOT_COMPLETED` / 409 且不改变采纳状态，避免直接 API 调用产生“已采纳但未传入”的误导状态。旧代码失败、新代码通过的回归见 `tests/discussion-api.test.mjs`；成功审核的采纳语义不变。
+
+T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑定；participant/reviewer 分组上限各 8，派发仍至多 8 位作答者加 1 位审核者。现有 `experts` 通过加列迁移获得 `kind`（默认 `expert`）和 `skills_json`（默认 `[]`），原有提示词与名册不重写。首迁移用独立 marker 插入一个停用的默认独立审核人；用户删除后不复活，id 冲突时保留原用户记录。审核采纳语义保持不变。`expert-roster` + `discussion-api` 定向测试 8/8、绑定技能注入/过滤的真实 DSH 2/2 和限定真实模型格式/控制流检查通过；旧式第三专家探针因夹具未登记 `model-legacy` 最初失败，修复夹具后三 child + Main 场景 2/2 通过，无 production fix。T19 验收报告与剩余原生/安装包范围见 2.6。
 
 ### 2.5a 回答中展示的文件（交付物）
 - **用途**：模型用 DSH `present` 工具声明的文件显示在该回答下方：图片为缩略图卡片，其他文件为文档卡片；点击用系统默认程序打开。
@@ -272,11 +276,12 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 ### 2.6 专家名册（设置 → 专家角色）
 
 - **用途与操作**：增删、改名、调顺序、启用/停用专家；为每位专家选择模型（或"使用对话所选模型"）、编辑提示词和职责标签；
-  所有启用的专家都用同一模型时，页面会给出提示。
-- **状态**：✅（单元、界面）。
-- **技术实现**：`desktop/expert-settings.mjs`；`scripts/expert-roster.mjs`；接口 `GET/POST /api/experts`；表 `experts`、`expert_roster_state`。
-  稳定 id 是执行身份，名称只用于显示；默认名册只在首次启动时写入一次（方法学家、统计审稿人、魔鬼代言人）。
-- **验证**：`discussion-api` 单元测试；`discussion-ui-smoke`（编辑、添加、移动、保存）。
+  所有启用的专家都用同一模型时，页面会给出提示。T19 列表分为参加专家和独立审核两组；每项可绑定一组已启用技能。进入专家页时刷新 skills/providers catalog；目录变化时先收集并保留未保存的专家编辑，再重绘表单。参加专家参与作答且也能审核；独立审核不出现在作答者或 @ 候选中，只能作为最后审核者。
+- **状态**：既有名册功能 ✅；T19 扩展 ✅（单元、真实 DSH、限定 live、22-smoke 和最终 npm 均通过；原生客户端及安装包/签名未测）。
+- **技术实现**：`desktop/expert-settings.mjs`；`scripts/expert-roster.mjs`；接口 `GET/POST /api/experts` 返回/接收每项 `kind`、`skills`。表 `experts` 迁移增加 `kind TEXT NOT NULL DEFAULT 'expert'`、`skills_json TEXT NOT NULL DEFAULT '[]'`；`expert_roster_state` 增加独立的 `independent-reviewer-seeded` marker。老数据的人设保持不变；首次迁移增补停用的英文人设独立审核人，保留已有同 id 用户项，用户删除默认项后不会复活。参加专家最多 8 位，独立审核最多 8 位；讨论仍最多派发 8 位参加者和 1 位审核者。
+- **技能边界**：保存时以启用、有效的 `/api/skills` 清单校验绑定 id；GET 仍保留已绑定但后来被禁用的 skill，POST 和派发拒绝这类绑定。宿主仅向被选中 child 读取并交付绑定技能的 `{name, markdown}`；DSH 不提供子代理原生技能白名单，回退注入独立 system prompt section、隐藏 skill 工具并过滤未绑定的 slash 调用。这不是文件系统隔离；授权文件工具仍可能读取其他技能文件。
+- **验证**：`tests/expert-roster.test.mjs` + 扩展的 `tests/discussion-api.test.mjs` 8/8；覆盖 legacy 列迁移、人设保留、独立默认与删除 marker/id 冲突、双组上限、kind/skills 校验、停用参加者的 typed 400、审核技能正文绑定、审核次序与采纳语义。真实 DSH 技能注入/过滤 2/2 通过，Main 路径不变；旧式第三专家探针因 fixture 漏登 `model-legacy` 最初失败，补登后恢复原三 child + Main 场景 2/2 通过，无 production change。真实模型 `deepseek-v4.1-flash` 一轮通过格式与控制流检查：2 HTTP 200 请求均有 usage（prompt 19309、completion 759、total 20068），Analyst 先答、reviewer 后审，输出 `T19_REVIEW`/`Evidence:`/`Verdict:` 格式；两条专家消息持久化，participant 回答可进入后续上下文，reviewer 保持 `adopted=false`，零工具调用与后台错误。root 检查了最终文本和结构，不据此宣称科学结论普遍正确。discussion UI smoke r2 与目录刷新保留未保存编辑回归通过；12 张截图位于 `H:\ScienceScope_v0.1-desktop\.sciencescope-local\temp\t19-validation\discussion-ui`，由 Sol 逐张复核并由 root 抽查 settings-en-dark、reviewer-menu-en-light、review-adopted-zh-dark；标签准确、菜单完整、无假 focus 错误。22 项 smoke 全通过；首次 npm 185/186 的唯一失败是并行 `build-desktop` 对 `desktop/discussion.mjs` 的源码/生成 Buffer 比较，与 root 最后的 `data-i18n-skip` 编辑重叠，是测试执行协调问题而非产品构建缺陷，失败日志保留。最终独立 `npm test` 186/186，0 failure/cancel/skip，236688.8466 ms，exit 0（日志 `.sciencescope-local/temp/t19-validation/npm-test-final-frozen.log`）。新增加的 i18n missing count 为 0（整体 baseline 1759）；438 个源码文件及 30 个 evidence 文件 secret/key scan 零命中。T19 原生客户端、安装包与签名未测。
+- **最近核对**：2026-09-27（分支 `codex/t19-reviewers-20260927`，叠加 T18 `9fd2455`；名册/API 8/8、DSH 2/2、live 2/2 请求、22 项 smoke、12 图复核、npm 186/186 全通过；原生客户端和安装包/签名未测）。
 
 ### 2.7 任务秘书
 
@@ -511,7 +516,7 @@ r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，
 | 执行 | `GET /api/execution`、`POST /api/execution/goal|approval` |
 | 研究资料库 | `/api/research/*`：sources、source、sources/update|remove|ingest、sync、search、read、items、item、items/update|supersede、links、links/remove、proposals、proposals/decide、brief、cite、usage、formats（见 2.17 与设计文档 §6） |
 | 对话纪要与自动总结 | `GET/POST /api/chats/minutes`、`POST /api/chats/minutes/refresh`、`POST /api/projects/focus`、`GET/POST /api/secretary/preferences`、`GET /api/summary/proposals?chatId`、`POST /api/summary/proposals/decide`、`GET /api/summary/writes?chatId`、`POST /api/summary/writes/undo`（2.5b、T18） |
-| 专家讨论 | `GET/POST /api/experts`、`POST /api/discussion`（流）、`POST /api/discussion/adopt`、`POST /api/discussion/cancel` |
+| 专家讨论与名册 | `GET/POST /api/experts`（每项含 `kind: expert|reviewer`、`skills: string[]`）、`POST /api/discussion`（流；`expertIds` 仅接受参加专家，`reviewerId` 可选参加专家或独立审核）、`POST /api/discussion/adopt`、`POST /api/discussion/cancel` |
 | 秘书与全局助手 | `GET /api/assistant`、`POST /api/assistant/chat`（流）、`/assistant/draft|model|approval|stop|proposal/resolve` |
 | 上下文查阅（宿主/DSH `/host-call`） | `chat_recall`、`project_memory`、`workspace_overview`、`minutes_refresh`；清单按角色由 context API `t17.1` 生成（2.5b、2.7、2.8） |
 | 研究输入与资料 | `GET/POST /api/research-input/draft`、`GET /api/library`、`GET /api/library/preview|document|content`、`POST /api/library/import|open`、`GET /api/knowledge`、`POST /api/knowledge/propose|accept` |
@@ -535,7 +540,7 @@ r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，
 | `resources`、`knowledge` | 资料原件与项目版本索引；知识条目 | `application-database.mjs`、`library-service.mjs` |
 | `assistant_conversations`、`assistant_drafts`、`assistant_settings`、`assistant_draft_proposals`、`assistant_attachment_drafts` | 秘书与全局助手 | `assistant-conversations.mjs`、`chat-attachments.mjs` |
 | `role_settings`、`role_bindings`、`role_prompt_receipts` | 角色提示词、会话快照、应用记录 | `role-settings.mjs` |
-| `experts`、`expert_roster_state` | 专家名册 | `expert-roster.mjs` |
+| `experts`（含 `kind`、`skills_json`）、`expert_roster_state`（含独立审核默认项的一次性迁移 marker） | 参加专家与独立审核名册 | `expert-roster.mjs` |
 | `rb_sources`、`rb_chunks`、`rb_items`、`rb_links`、`rb_proposals`、`rb_revisions`、`rb_usage`、`rb_fts`、`rb_meta` | 研究资料库 | `research-base/schema.mjs` |
 | `chat_minutes`、`chat_minutes_markdown_status` | 对话纪要（每版保留，作者为秘书或用户）及 Markdown 导出路径/错误状态 | `chat-minutes.mjs` |
 | `secretary_preferences` | 版本说明模板与自动总结 `summary_json`（旧库迁移保留动态语言默认） | `secretary-preferences.mjs` |

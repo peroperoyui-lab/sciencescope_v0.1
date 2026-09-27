@@ -10,6 +10,7 @@ import { AsyncLocalStorage } from 'node:async_hooks';
 import { setApprovalPolicy } from '@deepseek-ai/dsh-user-approval';
 import { PERSONA_PREFIX_SECTION } from '@deepseek-ai/dsh-system-prompt';
 import { isTokenDelta } from '@deepseek-ai/dsh-llm';
+import { isSkillName } from '@deepseek-ai/dsh-skill';
 import { previewValue } from '../../scripts/tool-activity.mjs';
 
 export const name = 'sciencescope-session-control';
@@ -127,6 +128,20 @@ export function apply(ctx) {
   // agent (text and tool calls) reach the UI while the round is running.
   const expertChildren = new Map();
   const EXPERT_ID = /^[A-Za-z0-9_-]{1,80}$/u;
+  const validateBoundSkills = (expert) => {
+    if (!Object.hasOwn(expert, 'boundSkills')) return undefined;
+    if (!Array.isArray(expert.boundSkills)) throw new Error('boundSkills must be an array');
+    const seen = new Set();
+    return expert.boundSkills.map((skill) => {
+      if (!skill || typeof skill !== 'object' || !isSkillName(skill.name) || typeof skill.markdown !== 'string') {
+        throw new Error('each bound skill requires a valid name and markdown');
+      }
+      if (Buffer.byteLength(skill.markdown, 'utf8') > 128 * 1024) throw new Error('bound skill markdown exceeds 128 KiB');
+      if (seen.has(skill.name)) throw new Error(`duplicate bound skill: ${skill.name}`);
+      seen.add(skill.name);
+      return { name: skill.name, markdown: skill.markdown };
+    });
+  };
   // Context pressure of a session (the Main agent or an expert child): what its
   // next request would carry, against the model's window.
   const measureContext = (session) => {
@@ -150,11 +165,13 @@ export function apply(ctx) {
     if (typeof value.prompt !== 'string' || !value.prompt.trim() || value.prompt.length > 400000) throw new Error('expert prompt is required');
     const experts = Array.isArray(value.experts) ? value.experts : [];
     if (!experts.length || experts.length > 8) throw new Error('between 1 and 8 experts are required');
+    const boundSkillsByExpert = new Map();
     for (const expert of experts) {
       if (!expert || typeof expert.id !== 'string' || !EXPERT_ID.test(expert.id)) throw new Error('invalid expert id');
       if (typeof expert.persona !== 'string' || !expert.persona.trim() || expert.persona.length > 16000) throw new Error('expert persona is required');
       if (expert.model !== undefined && (typeof expert.model?.providerId !== 'string' || typeof expert.model?.modelId !== 'string')) throw new Error('invalid expert model');
       if (expert.prompt !== undefined && (typeof expert.prompt !== 'string' || !expert.prompt.trim() || expert.prompt.length > 400000)) throw new Error('invalid expert prompt');
+      boundSkillsByExpert.set(expert.id, validateBoundSkills(expert));
     }
     if (new Set(experts.map((expert) => expert.id)).size !== experts.length) throw new Error('duplicate expert id');
     const controller = new AbortController();
@@ -169,7 +186,9 @@ export function apply(ctx) {
         void postEvent({ type: 'expert-start', runId: value.runId, expertId: expert.id });
         let run;
         try {
-          const creation = { binding: { runId: value.runId, expertId: expert.id, expertLabel: String(expert.label || expert.id).slice(0, 80) }, policy: ctx.approval.effectivePolicy(handle.agent.session), claimed: false };
+          const boundSkills = boundSkillsByExpert.get(expert.id);
+          const creation = { binding: { runId: value.runId, expertId: expert.id, expertLabel: String(expert.label || expert.id).slice(0, 80) }, ...(boundSkills === undefined ? {} : { boundSkills }), policy: ctx.approval.effectivePolicy(handle.agent.session), claimed: false };
+          const toolFilter = expert.tools === 'none' ? { allow: [] } : boundSkills === undefined ? undefined : { deny: ['skill'] };
           run = await expertCreation.run(creation, () => subagents.start('spawn', {
             label: String(expert.label || expert.id).slice(0, 80),
             // The shared prompt is the frozen common input; an optional
@@ -179,7 +198,7 @@ export function apply(ctx) {
             signal: controller.signal,
             persona: expert.persona,
             ...(Object.keys(agentOptions).length ? { agentOptions } : {}),
-            ...(expert.tools === 'none' ? { toolFilter: { allow: [] } } : {}),
+            ...(toolFilter ? { toolFilter } : {}),
           }));
           const outcome = await run.result;
           const text = outcome.output.filter((block) => block?.type === 'text').map((block) => block.text).join('');
@@ -329,6 +348,28 @@ export function apply(ctx) {
       // DSH pins generic subagents to never. These application-owned experts
       // instead inherit the user's policy, with individual approvals via UI.
       setApprovalPolicy(agent.session, creation.policy);
+      if (Object.hasOwn(creation, 'boundSkills')) {
+        const boundSkills = creation.boundSkills;
+        if (boundSkills.length) {
+          if (!agent.ctx.systemPrompt) throw new Error('DSH system-prompt service is unavailable for bound skills');
+          const order = agent.ctx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_PREFIX');
+          const markdown = boundSkills.map(({ name, markdown: body }) => `## Bound skill: ${name}\n\n${body}`).join('\n\n');
+          agent.ctx.systemPrompt.section({
+            name: 'sciencescope.bound-skills',
+            order: typeof order === 'number' ? order + 1 : 1,
+            text: markdown,
+            interpolate: false,
+          });
+        }
+        const boundNames = new Set(boundSkills.map((skill) => skill.name));
+        agent.ctx.on('agent/pre-step', async (event, next) => {
+          if (event.agent !== agent) return next();
+          const decision = await next();
+          if (decision.kind === 'reject' || !Array.isArray(decision.messages)) return decision;
+          const messages = decision.messages.filter((message) => message?.source?.kind !== 'skill-invocation' || boundNames.has(message.source.name));
+          return messages.length === decision.messages.length ? decision : { ...decision, messages };
+        }, { prepend: true });
+      }
       agent.ctx.on('system-prompt/assemble', async (assembly, context, next) => {
         const result = await next();
         if (context.agent !== agent) return result;

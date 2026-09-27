@@ -1,10 +1,87 @@
 # Desktop implementation — first increment
 
+## 2026-09-27 T19 independent reviewers (acceptance passed)
+
+Branch `codex/t19-reviewers-20260927`, stacked on T18 commit `9fd2455`.
+Roster, discussion-service, UI and API changes passed the final test and smoke
+gates. Native-client and installer/signing acceptance were not in this run.
+
+- `experts` migrates additively with `kind` (`expert` by default) and
+  `skills_json` (`[]` by default). Existing expert prompts remain unchanged.
+  A separate `independent-reviewer-seeded` marker inserts one disabled reviewer
+  with an English review persona only on the first migration; ID collisions
+  preserve the existing user item, and a deleted seed is not recreated.
+- Participant and independent-reviewer groups have separate eight-item caps;
+  a discussion still dispatches at most eight participants and one reviewer.
+  `/api/experts` saves only enabled, valid skill IDs; GET preserves a now-disabled
+  binding, while save and dispatch reject it. Discussion service passes each
+  selected child its explicit `boundSkills: [{name, markdown}]`; reviewer
+  scheduling, review input and adoption behavior remain unchanged.
+- The installed DSH child API does not expose a per-child native skill
+  allowlist. The fallback places selected skill text in a separate system
+  prompt section after the child persona (`interpolate: false`), denies the
+  general skill tool catalog and filters unbound slash skill-invocation
+  messages. This is not filesystem isolation: authorized file tools may still
+  read other skill files. The adapter now keeps the skill body in the child
+  creation context rather than the event/UI forwarding path, and the filtering
+  hook is prepended. The 2/2 real DSH checks verified bound skill
+  delivery/filtering and unchanged Main behavior. An additional old-style
+  third-expert probe initially failed because its fixture had not registered
+  `model-legacy`; the fixture was corrected and the restored three-child plus
+  Main probe passed 2/2. No production change was needed for this fixture issue.
+- Focused tests passed 8/8: `tests/expert-roster.test.mjs` and the expanded
+  `tests/discussion-api.test.mjs` cover migration/prompt preservation, seed
+  deletion and ID collision, group caps, kind and skill validation, disabled
+  participant typed 400, skill-body binding, review ordering and adoption.
+- First browser discussion smoke passed and generated 12 screenshots. Root
+  review caught a legend that incorrectly translated a user-provided name;
+  `data-i18n-skip` now preserves that name. The updated discussion UI smoke r2
+  passed, including verification that catalog refresh preserves unsaved edits;
+  its 12 screenshots are in `.sciencescope-local/temp/t19-validation/discussion-ui`. Root reviewed
+  `settings-en-dark`, `reviewer-menu-en-light` and `review-adopted-zh-dark`:
+  labels were not mistranslated, the menu was complete, and there was no false
+  focus error. Sol reviewed all 12 images individually; root reviewed these
+  three representative captures. All 22 smoke checks passed. The screenshots
+  are at `H:\ScienceScope_v0.1-desktop\.sciencescope-local\temp\t19-validation\discussion-ui`.
+- A follow-up usability check found that the expert settings page fetched the
+  skill/provider catalogs only once at startup, so a skill installed or enabled
+  elsewhere could not be selected without restarting. Entering the expert page
+  now refreshes both catalogs; changed catalog data triggers a form redraw only
+  after collecting current edits, preserving unsaved expert changes. The UI r2
+  regression check confirmed this behavior.
+- Scoped live evaluation passed through the real application API and DSH to
+  DeepSeek `deepseek-v4.1-flash`: 2 HTTP 200 requests, both with usage; prompt
+  19309, completion 759, total 20068 tokens. The Analyst answered before the
+  independent reviewer, whose result used `T19_REVIEW`, `Evidence:` and
+  `Verdict:` sections. Both expert assistant messages persisted; the
+  participant answer remains eligible for later context and the reviewer
+  record persisted with `adopted=false`. There were zero tool calls and zero
+  background errors. Root read the final output and confirmed the required
+  format; this small run does not establish
+  universal scientific correctness.
+- The first full `npm test` run reported 185/186: the one failure was a
+  `build-desktop` source/generated Buffer comparison for `desktop/discussion.mjs`.
+  It overlapped with root's final `data-i18n-skip` source edit and was a test
+  execution coordination issue, not a production build defect. The source is
+  now frozen apart from the catalog-refresh usability fix; the failure log is
+  retained as a test-execution coordination issue, not a product build defect.
+  The final isolated run passed `npm test`: 186/186, zero failures, cancellations
+  or skips, 236688.8466 ms, exit 0 (`.sciencescope-local/temp/t19-validation/npm-test-final-frozen.log`).
+  The legacy DSH probe also passes 2/2 with the original three-child + Main
+  assertion after registering `model-legacy` in its fixture; no production fix
+  was needed. Runtime checks passed 2/2, including legacy/Main behavior. The
+  live `deepseek-v4.1-flash` run passed its limited format/control-flow check:
+  2 HTTP 200 requests, both with usage, total 20068 tokens. Overall 22-smoke
+  matrix passed; new i18n missing-key count is 0 (1759 baseline). A scan of 438
+  repository source files and 30 evidence files found no key material. T19
+  native-client and installer/signing acceptance were not tested.
+
 ## 2026-09-27 T18 summary policy (Astra; acceptance passed)
 
 Branch `codex/t18-summary-policy-20260927`, stacked on pushed T17 commit
-`5ea220f`. T18 acceptance passed; native T18 was not retested. Git delivery is
-still pending and no delivery SHA is recorded here.
+`5ea220f`. T18 acceptance passed and remote delivery is confirmed at
+`9fd245571e9decea4283bed9c8828d8a0ef8792b`; native T18 was not retested. No PR
+was opened or merge performed.
 
 - `secretary_preferences.summary_json` stores the defaults: summarize after
   discussion, every 20 Main messages, every 30000 estimated tokens, on project

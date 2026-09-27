@@ -51,7 +51,10 @@ test('ordered panel: shared transcript, roster order, reviewer after all, adopti
   try {
     const roster = (await f.send('GET', '/api/experts')).events[0];
     assert.equal(roster.available, true);
-    assert.deepEqual(roster.experts.map((e) => e.id), ['methodologist', 'statistician', 'red-team']);
+    assert.deepEqual(roster.experts.map((e) => [e.id, e.kind, e.enabled, e.skills]), [
+      ['methodologist', 'expert', true, []], ['statistician', 'expert', true, []], ['red-team', 'expert', true, []],
+      ['independent-reviewer', 'reviewer', false, []],
+    ]);
 
     // A Main turn first, so the panel has earlier conversation to read.
     const main1 = await f.send('POST', '/api/chat', { chatId: 'chat-d', projectId: null, model, text: 'Summarise the study.', userMessageId: 'msg-u0', assistantMessageId: 'msg-a0' });
@@ -82,6 +85,7 @@ test('ordered panel: shared transcript, roster order, reviewer after all, adopti
     assert.match(reviewRun.prompt, /<answer speaker="方法学家" role="研究设计">\nMETHODOLOGIST_VIEW\n<\/answer>/);
     assert.doesNotMatch(reviewRun.prompt, /Let me read the draft|"read"/);
     assert.match(reviewRun.experts[0].prompt, /reviewing expert/);
+    assert.deepEqual(reviewRun.experts[0].boundSkills, []);
 
     const page = (await f.send('GET', '/api/chats/chat-d/messages')).events[0];
     assert.deepEqual(page.messages.slice(2).map((m) => [m.role, m.text, m.expert?.label ?? null, m.expert?.review ?? null]), [
@@ -161,5 +165,54 @@ test('expert roster saves models and rejects invalid panels', async () => {
     await f.send('POST', '/api/discussion', { chatId: 'chat-m', projectId: null, model, text: 'q', expertIds: ['bio'] });
     assert.deepEqual(f.state.runs[0].experts[0].model, { providerId: 'fixture', modelId: 'other' });
     assert.equal(f.state.runs[0].experts[0].reasoningEffort, 'high');
+    const disabled = await f.send('POST', '/api/experts', { experts: [{ ...saved.events[0].experts[0], enabled: false }] });
+    assert.equal(disabled.status, 200);
+    const dispatchDisabled = await f.send('POST', '/api/discussion', { chatId: 'chat-disabled', projectId: null, model, text: 'q', expertIds: ['bio'] });
+    assert.equal(dispatchDisabled.status, 400);
+    assert.equal(dispatchDisabled.events[0].code, 'INVALID_EXPERT_ROSTER', 'disabled participant rejection is a typed roster error');
+    assert.equal(f.state.runs.length, 1, 'disabled participant does not reach the runtime');
+  } finally { await f.close(); }
+});
+
+test('independent reviewers cannot answer, and enabled bound skills reach only the review subagent', async () => {
+  const f = await fixture();
+  try {
+    const defaults = (await f.send('GET', '/api/experts')).events[0].experts;
+    const originalReviewer = defaults.find((expert) => expert.kind === 'reviewer');
+    assert.equal(originalReviewer.enabled, false);
+    const wrongRole = await f.send('POST', '/api/discussion', { chatId: 'chat-review-kind', projectId: null, model, text: 'q', expertIds: [originalReviewer.id] });
+    assert.equal(wrongRole.status, 400);
+    assert.equal(wrongRole.events[0].code, 'INVALID_EXPERT_ROSTER');
+    assert.equal(f.state.runs.length, 0, 'reject invalid role before invoking the runtime');
+
+    const markdown = '---\nname: t19-checklist\ndescription: T19 reviewer checklist\n---\n\n# Reviewer checklist\nCheck each factual claim against its cited source.';
+    const savedSkill = await f.send('POST', '/api/skills/save', { markdown });
+    assert.equal(savedSkill.status, 200);
+    const skillName = savedSkill.events[0].name;
+    const reviewer = { ...originalReviewer, enabled: true, skills: [skillName] };
+    const configured = await f.send('POST', '/api/experts', { experts: [...defaults.filter((expert) => expert.kind === 'expert'), reviewer] });
+    assert.equal(configured.status, 200);
+    assert.deepEqual(configured.events[0].experts.find((expert) => expert.id === reviewer.id).skills, [skillName]);
+
+    await f.send('POST', '/api/skills/enabled', { name: skillName, enabled: false });
+    const retained = (await f.send('GET', '/api/experts')).events[0].experts.find((expert) => expert.id === reviewer.id);
+    assert.deepEqual(retained.skills, [skillName], 'GET preserves a binding after a skill is disabled');
+    const disabledPost = await f.send('POST', '/api/experts', { experts: (await f.send('GET', '/api/experts')).events[0].experts });
+    assert.equal(disabledPost.status, 400, 'POST rejects skills that are not currently enabled');
+    assert.equal(disabledPost.events[0].code, 'INVALID_EXPERT_ROSTER');
+
+    const invalidSkill = await f.send('POST', '/api/experts', { experts: [...defaults.filter((expert) => expert.kind === 'expert'), { ...reviewer, skills: ['not-installed'] }] });
+    assert.equal(invalidSkill.status, 400);
+    assert.equal(invalidSkill.events[0].code, 'INVALID_EXPERT_ROSTER');
+
+    await f.send('POST', '/api/skills/enabled', { name: skillName, enabled: true });
+    const ordered = await f.send('POST', '/api/discussion', { chatId: 'chat-review-skill', projectId: null, model, kind: 'ordered', text: 'Check this claim.', expertIds: ['methodologist'], reviewerId: reviewer.id });
+    assert.equal(ordered.status, 200);
+    const participantRun = f.state.runs.at(-2);
+    const reviewRun = f.state.runs.at(-1);
+    assert.deepEqual(participantRun.experts[0].boundSkills, [], 'unbound participant receives no skill contents');
+    assert.deepEqual(reviewRun.experts[0].boundSkills, [{ name: skillName, markdown }]);
+    assert.match(reviewRun.experts[0].prompt, /reviewing expert/);
+    assert.doesNotMatch(reviewRun.experts[0].persona, /Check each factual claim against its cited source/);
   } finally { await f.close(); }
 });

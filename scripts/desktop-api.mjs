@@ -278,9 +278,23 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     if(!input.model?.providerId||!input.model?.modelId)throw new DiscussionError('MODEL_REQUIRED','请选择模型。');
     const userMessageId=input.userMessageId??'msg-'+randomUUID();
     if(typeof userMessageId!=='string'||!/^[A-Za-z0-9_-]{1,160}$/u.test(userMessageId))throw new DiscussionError('INVALID_MESSAGE_ID','消息标识无效。');
-    const panel=experts.resolve(input.expertIds);
-    const reviewer=kind==='ordered'&&typeof input.reviewerId==='string'&&input.reviewerId?experts.resolve([input.reviewerId])[0]:null;
+    let panel=experts.resolveParticipants(input.expertIds);
+    let reviewer=kind==='ordered'&&typeof input.reviewerId==='string'&&input.reviewerId?experts.resolveReviewer(input.reviewerId):null;
     if(!panel.some(expert=>expert.id!==reviewer?.id))throw new DiscussionError('NO_EXPERTS','请至少选择一位作答专家（审核专家不单独作答）。');
+    // Snapshot only explicitly bound, currently enabled skills before any
+    // runtime/session or transcript side effect. Role prompts stay untouched.
+    const enabledSkills=new Set((await skills.list()).skills.filter(skill=>skill.enabled&&skill.valid!==false).map(skill=>skill.name));
+    const bindSkills=async expert=>{
+      const boundSkills=[];
+      for(const name of expert.skills || []){
+        if(!enabledSkills.has(name))throw new DiscussionError('SKILL_UNAVAILABLE','绑定的技能不存在或未启用，请更新专家配置。');
+        const record=await skills.read({name});
+        if(!record.enabled)throw new DiscussionError('SKILL_UNAVAILABLE','绑定的技能不存在或未启用，请更新专家配置。');
+        boundSkills.push({name,markdown:record.markdown});
+      }
+      return {...expert,boundSkills};
+    };
+    panel=await Promise.all(panel.map(bindSkills));if(reviewer)reviewer=await bindSkills(reviewer);
     const executionMode=input.executionMode==='full'?'full':'ask';
     const workspaceState=await chatStore.getWorkspace();
     const projectId=input.projectId??null;
@@ -433,7 +447,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(route==='/api/summary/writes/undo'){json(response,200,await summaryWorkbench.undo(input));return true;}
       if(input.researchInput!==undefined&&(!input.researchInput||typeof input.researchInput!=='object'||Array.isArray(input.researchInput))){json(response,400,{code:'INVALID_RESEARCH_INPUT',message:'研究输入格式无效，未发送。'});return true;}
       if(route.startsWith('/api/research/')){const body=await research.handlePost(route,input);if(body!==undefined){json(response,200,body);return true;}}
-      if(route==='/api/experts'){json(response,200,{experts:experts.save(input.experts),available:!!discussions});return true;}
+      if(route==='/api/experts'){const enabledSkillIds=(await skills.list()).skills.filter(skill=>skill.enabled&&skill.valid!==false).map(skill=>skill.name);json(response,200,{experts:experts.save(input.experts,{enabledSkillIds}),available:!!discussions});return true;}
       if(route==='/api/skills/save'){json(response,200,await skills.save(input));return true;}
       if(route==='/api/skills/enabled'){json(response,200,await skills.setEnabled(input));return true;}
       if(route==='/api/skills/remove'){json(response,200,await skills.remove(input));return true;}

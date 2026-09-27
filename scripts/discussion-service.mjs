@@ -130,6 +130,14 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
   async function run({ chatId, sessionId, experts, reviewer = null, kind, context, requestText, userMessage, chatModel, onEvent }) {
     if (active.has(chatId)) throw new DiscussionError('DISCUSSION_BUSY', '这个对话的专家讨论仍在进行。', 409);
     if (kind !== 'ordered') reviewer = null;
+    if (!Array.isArray(experts)) throw new DiscussionError('INVALID_EXPERTS', '参加者列表格式无效。');
+    if (experts.some((expert) => expert.kind === 'reviewer')) throw new DiscussionError('REVIEWER_CANNOT_PARTICIPATE', '独立审核专家不能作为作答参加者。');
+    if (experts.length > 8) throw new DiscussionError('TOO_MANY_EXPERTS', '每轮最多选择 8 位参加专家。');
+    for (const expert of [...experts, ...(reviewer ? [reviewer] : [])]) {
+      if (expert.boundSkills !== undefined && (!Array.isArray(expert.boundSkills) || expert.boundSkills.some((skill) => !skill || typeof skill.name !== 'string' || typeof skill.markdown !== 'string'))) {
+        throw new DiscussionError('INVALID_EXPERT_SKILLS', '专家绑定技能格式无效。');
+      }
+    }
     experts = experts.filter((expert) => expert.id !== reviewer?.id);
     if (!experts.length) throw new DiscussionError('NO_EXPERTS', '请至少选择一位作答专家（审核专家不单独作答）。');
     const history = transcript(chatId);
@@ -174,6 +182,7 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
       const expertSpec = (expert, prompt) => ({
         // The lookup rules are part of every expert's system prompt; its identity stays its own.
         id: expert.id, label: expert.label, persona: memoryGuide ? `${expert.persona}\n\n${memoryGuide}` : expert.persona, prompt,
+        boundSkills: expert.boundSkills || [],
         ...(expert.model ? { model: expert.model } : {}),
         ...(expert.reasoningEffort ? { reasoningEffort: expert.reasoningEffort } : {}),
       });
