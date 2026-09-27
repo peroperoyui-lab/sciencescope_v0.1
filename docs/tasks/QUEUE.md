@@ -1,6 +1,6 @@
 # 任务执行顺序（给 Astra）
 
-- 下达：Claude，2026-09-26。状态：第 1 批已交付并合并（`codex/local-validation-20260927-r4@5b001de` → `claude/determined-pasteur-jxpzw8@7eaa4aa`，2026-09-27）；第 2 批待开始。
+- 下达：Claude，2026-09-26。状态：第 1 批已交付并合并（`codex/local-validation-20260927-r4@5b001de` → `claude/determined-pasteur-jxpzw8@7eaa4aa`，2026-09-27）；第 2 批（T17 `5ea220f`、T18 `9fd2455`、T19 `7bc1919`）已交付并合并（2026-09-27）；第 3 批待开始。
 - 本文件只规定**顺序、分批和交付方式**；每个任务的内容以各自的任务书为准。
 - 进度写在 `docs/ROADMAP.md` 的任务队列里：开始时标"进行中"，交付后标"已交付（分支 / SHA）"。
 

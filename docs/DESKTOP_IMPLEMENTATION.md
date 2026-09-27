@@ -1,5 +1,27 @@
 # Desktop implementation — first increment
 
+## 2026-09-27 Review of batch 2 (T17, T18, T19) (Claude, cloud)
+
+Fast-forwarded `codex/t19-reviewers-20260927@7bc1919` (stacked on T17
+`5ea220f` and T18 `9fd2455`) into `claude/determined-pasteur-jxpzw8`.
+- **Access boundaries reviewed** (`scripts/context/policy.mjs`,
+  `sources/_shared.mjs`): role comes from the session; unknown roles
+  (temporary) are refused; only `global` may pass `projectId`/`chatId`; a target
+  must be a live Main conversation (not temporary, deleted or an assistant
+  private chat); a chat/project mismatch is refused. Matches CONTEXT_ACCESS §2.
+- Re-run in the cloud: `npm test` 186/186; context-access-ui, summary-policy-ui,
+  discussion-ui, minutes, chat-ui, settings-ui, i18n, viewer-ui,
+  desktop-interaction, assistant-api, workspace-ui smokes pass.
+- **research-input-ui flake (cloud Chromium 141, also seen once last round)**:
+  the smoke created its selection with `addRange` on the CSV preview cell, which
+  was intermittently ignored (selection empty right after adding; cell visible
+  and selectable). Not reproducible as a user action. The smoke now selects
+  with a real triple-click and waits for the panel to finish opening; 5/5 runs
+  pass. Selected bytes, provenance and receipt assertions are unchanged.
+- Accepted as reported, not re-verified here: native client not re-run in this
+  batch; T19 skills are injected into the prompt (not filesystem isolation);
+  T18 structured output is prompt + local validation, not constrained decoding.
+
 ## 2026-09-27 T19 independent reviewers (acceptance passed)
 
 Branch `codex/t19-reviewers-20260927`, stacked on T18 commit `9fd2455`.
