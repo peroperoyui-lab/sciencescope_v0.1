@@ -20,6 +20,12 @@ export const VENDOR_ASSETS = [
   ['noto-sans-sc/LICENSE', `${FONT_PACKAGE}/LICENSE`, 'text/plain; charset=utf-8'],
   ...readdirSync(path.join(defaultRoot, 'node_modules', FONT_PACKAGE, 'files')).filter(file => file.endsWith('.woff2'))
     .map(file => [`noto-sans-sc/files/${file}`, `${FONT_PACKAGE}/files/${file}`, 'font/woff2']),
+  // Math in answers (KaTeX, MIT). Only woff2 fonts: every supported WebView loads them first.
+  ['katex/katex.mjs', 'katex/dist/katex.mjs', 'text/javascript; charset=utf-8'],
+  ['katex/katex.min.css', 'katex/dist/katex.min.css', 'text/css; charset=utf-8'],
+  ['katex/LICENSE', 'katex/LICENSE', 'text/plain; charset=utf-8'],
+  ...readdirSync(path.join(defaultRoot, 'node_modules', 'katex', 'dist', 'fonts')).filter(file => file.endsWith('.woff2'))
+    .map(file => [`katex/fonts/${file}`, `katex/dist/fonts/${file}`, 'font/woff2']),
 ];
 
 export async function buildDesktop({ root = defaultRoot, outputDir = path.join(root, '.sciencescope-local', 'desktop-dist') } = {}) {
@@ -30,11 +36,11 @@ export async function buildDesktop({ root = defaultRoot, outputDir = path.join(r
   if (!html.includes('</body>')) throw new Error('Desktop entry requires a closing body tag');
   await mkdir(path.join(outputDir, 'desktop'), {recursive:true});
   for (const file of assets) await copyFile(path.join(root, 'desktop', file), path.join(outputDir, 'desktop', file));
-  await mkdir(path.join(outputDir, 'desktop', 'vendor', 'noto-sans-sc', 'files'), {recursive:true});
+  for (const dir of new Set(VENDOR_ASSETS.map(([target]) => path.dirname(target)))) await mkdir(path.join(outputDir, 'desktop', 'vendor', dir), {recursive:true});
   for (const [target, source] of VENDOR_ASSETS) await copyFile(path.join(root, 'node_modules', source), path.join(outputDir, 'desktop', 'vendor', target));
   const extension = '<script type="module" src="./desktop/i18n.mjs"></script><script type="module" src="./desktop/info-tip.mjs"></script><script type="module" src="./desktop/features.mjs"></script><script type="module" src="./desktop/desktop-behavior.mjs"></script><script type="module" src="./desktop/model-settings.mjs"></script><script type="module" src="./desktop/live-chat.mjs"></script><script type="module" src="./desktop/preferences.mjs"></script><script type="module" src="./desktop/native-window.mjs"></script><script type="module" src="./desktop/workbench.mjs"></script><script type="module" src="./desktop/library.mjs"></script><script type="module" src="./desktop/execution.mjs"></script><script type="module" src="./desktop/work-mode.mjs"></script><script type="module" src="./desktop/discussion.mjs"></script><script type="module" src="./desktop/refresh.mjs"></script><script type="module" src="./desktop/file-preview.mjs"></script><script type="module" src="./desktop/creation-details.mjs"></script><script type="module" src="./desktop/minutes.mjs"></script><script type="module" src="./desktop/reasoning.mjs"></script><script type="module" src="./desktop/assistant-chat.mjs"></script>';
   // The inherited renderer replaces body contents. Styles must live in head.
-  const styles = '<link rel="stylesheet" href="./desktop/vendor/noto-sans-sc/wght.css"><link rel="stylesheet" href="./desktop/model-settings.css"><link rel="stylesheet" href="./desktop/chat.css"><link rel="stylesheet" href="./desktop/workspace.css"><link rel="stylesheet" href="./desktop/workbench.css"><link rel="stylesheet" href="./desktop/desktop-behavior.css"><link rel="stylesheet" href="./desktop/assistant-chat.css">';
+  const styles = '<link rel="stylesheet" href="./desktop/vendor/noto-sans-sc/wght.css"><link rel="stylesheet" href="./desktop/vendor/katex/katex.min.css"><link rel="stylesheet" href="./desktop/model-settings.css"><link rel="stylesheet" href="./desktop/chat.css"><link rel="stylesheet" href="./desktop/workspace.css"><link rel="stylesheet" href="./desktop/workbench.css"><link rel="stylesheet" href="./desktop/desktop-behavior.css"><link rel="stylesheet" href="./desktop/assistant-chat.css">';
   await writeFile(result.output, html.replace('</head>', `${styles}<link rel="stylesheet" href="./desktop/settings.css"><link rel="stylesheet" href="./desktop/refresh.css"><link rel="stylesheet" href="./desktop/marks.css"></head>`).replace('</body>', `${extension}</body>`));
   return result.output;
 }

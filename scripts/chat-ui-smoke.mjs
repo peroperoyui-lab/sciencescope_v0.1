@@ -153,7 +153,28 @@ try {
   assert.doesNotMatch(sanitized,/<script|<button|data-v|href=["']javascript:|<img/i);
   assert.deepEqual(errors,[]);
   assert.equal(requests,4);
-  console.log(JSON.stringify({markdown:true,incrementalBeforeCompletion:true,draftAndFocusPreserved:true,toolGroupingAndDetails:true,readingPositionPreserved:true,stopButton:true,queuedSend:true,localRequests:requests,realProviderRequests:0}));
+  // Math in answers (user screenshot 2026-09-27: formulas showed as raw TeX).
+  const math=await page.evaluate(async()=>{
+    const {renderMarkdown}=await import('/desktop/markdown.mjs');
+    const box=document.createElement('div');box.className='message-text rendered-markdown';
+    box.innerHTML=renderMarkdown('指数：\n\n$$ISI = \\frac{10000}{\\sqrt{G_0 I_0 \\bar{G}\\bar{I}}}$$\n\n其中 $G_0$、$I_0$ 为空腹值，均值 $\\bar{G}\\bar{I}$。\n\n| 项 | 式 |\n|---|---|\n| 公式 | $x^2$ |\n\n价格 $5 and $10，代码 `$a$` 与\n\n```\nconst s = "$b$";\n```\n\n坏式 $\\frac{1}{$ 不会报错。');
+    document.body.append(box);
+    const r={display:box.querySelectorAll('.math-display .katex-display').length,inline:box.querySelectorAll('.katex').length,
+      text:(()=>{const c=box.cloneNode(true);c.querySelectorAll('.katex-mathml').forEach(e=>e.remove());return c.textContent;})(),code:[...box.querySelectorAll('code')].map(c=>c.textContent).join('|'),
+      font:getComputedStyle(box.querySelector('.katex')).fontFamily,scripts:box.querySelectorAll('script,[onerror],[style*="url("]').length};
+    await document.fonts.ready;r.fontLoaded=document.fonts.check('16px KaTeX_Main');
+    return r;});
+  assert.equal(math.display,1,'display math');
+  assert.ok(math.inline>=5,'inline math, table cell and display rendered by KaTeX');
+  assert.doesNotMatch(math.text,/\$\$|\\sqrt|\\bar|\$G_0\$/,'no raw TeX left for valid formulas');
+  assert.match(math.text,/价格 \$5 and \$10/,'currency stays text');
+  assert.match(math.code,/\$a\$/);assert.match(math.code,/\$b\$/);
+  assert.match(math.font,/KaTeX_Main/);assert.equal(math.fontLoaded,true,'KaTeX font served by the production router');
+  assert.equal(math.scripts,0);
+  await page.evaluate(()=>document.querySelector('body > .message-text.rendered-markdown').scrollIntoView());
+  await page.screenshot({path:path.join(output,'math.png')});
+  await page.evaluate(()=>document.querySelector('body > .message-text.rendered-markdown').remove());
+  console.log(JSON.stringify({math:true,markdown:true,incrementalBeforeCompletion:true,draftAndFocusPreserved:true,toolGroupingAndDetails:true,readingPositionPreserved:true,stopButton:true,queuedSend:true,localRequests:requests,realProviderRequests:0}));
 } finally {
   finishReply(); secondRelease(); thirdRelease(); await browser?.close(); server.closeAllConnections();
   await new Promise(resolve=>server.close(resolve));
