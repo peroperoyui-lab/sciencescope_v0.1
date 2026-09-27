@@ -51,7 +51,11 @@ export async function buildDesktop({ root = defaultRoot, outputDir = path.join(r
   const assets = DESKTOP_ASSETS;
   await Promise.all(assets.map(file => readFile(path.join(root, 'desktop', file))));
   const result = await prepareDesktop({root, outputDir});
-  const html = await readFile(result.output, 'utf8');
+  // The prototype's copy icon supplied SVG markup where ic() expects path data.
+  // Repair the generated runtime entry only; preserve the approved source file.
+  const html = (await readFile(result.output, 'utf8')).replace(
+    `iconPaths.copy ||= '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V4H4v12h4"/>';`,
+    `iconPaths.copy ||= 'M10 8h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-8a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2z M16 8V4H4v12h4';`);
   if (!html.includes('</body>')) throw new Error('Desktop entry requires a closing body tag');
   await mkdir(path.join(outputDir, 'desktop'), {recursive:true});
   for (const file of assets) await copyFile(path.join(root, 'desktop', file), path.join(outputDir, 'desktop', file));

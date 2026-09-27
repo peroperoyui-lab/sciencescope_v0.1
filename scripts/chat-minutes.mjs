@@ -52,7 +52,7 @@ export function createChatMinutes({ db, host, chatStore, modelFor, onError }) {
   // review is left out. `ordinal` here is the 1-based message number (#1 is
   // the first message; stored ordinals start at 0).
   const has = (table) => !!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(table);
-  function messagesAfter(chatId, ordinal, { until = Infinity, limit = 5000 } = {}) {
+  function messagesAfter(chatId, ordinal, { until = Infinity, limit = Number.MAX_SAFE_INTEGER } = {}) {
     const experts = has('discussion_entries');
     const rows = db.prepare(`SELECT m.ordinal, m.id, m.role, m.text${experts ? ', e.label, e.role AS expert_role, e.review, e.adopted' : ''}
       FROM messages m${experts ? ' LEFT JOIN discussion_entries e ON e.chat_id=m.chat_id AND e.message_id=m.id' : ''}

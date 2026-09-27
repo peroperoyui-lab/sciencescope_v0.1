@@ -1,0 +1,58 @@
+import {ContextAccessError, POLICY} from './policy.mjs';
+
+/** Reuse Research Base search/read; only the session scope differs. */
+export function createScopedResearchTools({research, projectIds}) {
+  function allowedRef(ref, ctx) {
+    if (!ref) throw new ContextAccessError('REFERENCE_NOT_FOUND','Research reference is unavailable.',404);
+    const record = ref.type === 'item' ? research.store.getItem(ref.id)
+      : ref.type === 'source' ? research.store.getSource(ref.id)
+      : ref.type === 'chunk' ? research.store.getSource(research.store.getChunk(ref.id)?.sourceId) : null;
+    if (!record || record.visibility === 'private') throw new ContextAccessError('REFERENCE_NOT_FOUND','Research reference is unavailable.',404);
+    if (record.scope?.startsWith('expert:') && record.scope !== `expert:${ctx.expertId}`) throw new ContextAccessError('REFERENCE_NOT_FOUND','Research reference is unavailable.',404);
+    if (ctx.role !== 'global' && record.projectId && record.projectId !== ctx.projectId) throw new ContextAccessError('REFERENCE_OUT_OF_SCOPE','Research reference is outside this session.');
+    return ref;
+  }
+  return async function call(name,args,ctx) {
+    if (!POLICY[ctx.role]) throw new ContextAccessError('ROLE_NOT_ALLOWED','Research tools are not available in this session.');
+    if (args.projectId !== undefined || args.chatId !== undefined) throw new ContextAccessError('TARGET_NOT_ALLOWED','Research tool scope is assigned by the session; use the context tools to select a conversation.');
+    if (name === 'research_search' && ctx.role === 'global') {
+      const hits = new Map();
+      for (const projectId of [null,...await projectIds()]) {
+        // The public retrieval service retains scores; the model-facing
+        // toolCall projection deliberately strips them. Rank before projecting.
+        const result = research.retrieval.search({query:String(args.query??''),projectId,includePersonal:projectId===null,
+          docTypes:args.types?.length?args.types:undefined,itemTypes:args.itemTypes,
+          k:args.limit??8,audience:'agent',expertId:ctx.expertId??undefined});
+        for (const hit of result) {
+          const key = JSON.stringify(hit.ref);
+          if (!hits.has(key) || hit.score > hits.get(key).score) hits.set(key,{...hit,projectId});
+        }
+      }
+      const selected=[...hits.values()].sort((a,b)=>b.score-a.score).slice(0,Math.max(1,Math.min(20,Number(args.limit)||8)));
+      if(ctx.chatId&&ctx.messageId)research.store.recordUsage({chatId:ctx.chatId,messageId:ctx.messageId,refs:selected.map(hit=>hit.ref),how:'search'});
+      return {hits:selected.map(hit=>({cite:hit.cite,ref:hit.ref,title:hit.title,section:hit.section??undefined,
+        page:hit.page??undefined,snippet:hit.snippet,projectId:hit.projectId,
+        ...(hit.item?{type:hit.item.type,subtype:hit.item.subtype,status:hit.item.claimStatus??hit.item.status}:{})})),
+        hint:'Across projects, read the returned ref rather than a potentially ambiguous project-local citation label.'};
+    }
+    if (name === 'research_read') {
+      let ref=args.ref;
+      if(!ref && args.cite) {
+        const ids=ctx.role==='global'?[null,...await projectIds()]:[ctx.projectId??null];
+        const refs=new Map();
+        for(const projectId of ids){const match=research.retrieval.resolveCitation(args.cite,{projectId});if(match)refs.set(JSON.stringify(match.ref),match.ref);}
+        if(refs.size>1)throw new ContextAccessError('AMBIGUOUS_CITATION','This label identifies more than one project source; read the exact ref from research_search.');
+        ref=[...refs.values()][0];
+      }
+      const result=await research.toolCall(name,{...args,ref:allowedRef(ref,ctx)},ctx);
+      // A public item must not expose a private/out-of-scope neighbour through
+      // its evidence links (including the link's quote and note).
+      if(Array.isArray(result.links))return {...result,links:result.links.filter(link=>{
+        try{allowedRef(link.from,ctx);allowedRef(link.to,ctx);return true;}
+        catch(error){if(error instanceof ContextAccessError)return false;throw error;}
+      })};
+      return result;
+    }
+    return research.toolCall(name,args,ctx);
+  };
+}

@@ -51,83 +51,25 @@ export function apply(ctx) {
     req.on('error', reject); req.on('timeout', () => req.destroy(new Error('host tool call timed out'))); req.end(body);
   });
   const jsonOutput = { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] };
-  const refParam = { type: 'object', additionalProperties: false, description: 'A record reference returned by research_search.', properties: { type: { type: 'string', required: true, enum: ['source', 'chunk', 'item'] }, id: { type: 'string', required: true } } };
-  const registerResearchTools = (tools, agent) => {
-    // Project history (read-only): the complete conversation and the secretary's
-    // minutes, project log, plans, map and versions. Answered by the host for
-    // this session's chat and project only.
-    tools.register(defineTool({
-      name: 'chat_recall',
-      description: 'Read this conversation\'s history exactly as written. Give query to search every earlier message (returns message numbers with excerpts), or from/to to read messages #from–#to in full, including very old ones. Use it whenever the minutes or a message refers to something you have not seen.',
-      parameters: {
-        query: { type: 'string', description: 'Words to search for, 1-400 characters.' },
-        from: { type: 'integer', description: 'First message number to read.' },
-        to: { type: 'integer', description: 'Last message number to read.' },
-        limit: { type: 'integer', description: 'Maximum search hits, 1-30 (default 12).' },
-      },
-      output: jsonOutput,
-      async execute(args, exec) { return hostCall('chat_recall', args, exec, agent); },
-    }));
-    tools.register(defineTool({
-      name: 'project_memory',
-      description: 'Read the project record: "minutes" (the secretary\'s running minutes of this conversation: goals, decisions, rejected options, open questions, positions, manuscript state, to-dos), "log" (project log), "plans", "map" (research map outline) or "versions" (manuscript versions and their notes).',
-      parameters: { section: { type: 'string', required: true, enum: ['minutes', 'log', 'plans', 'map', 'versions'] } },
-      output: jsonOutput,
-      async execute(args, exec) { return hostCall('project_memory', args, exec, agent); },
-    }));
-    tools.register(defineTool({
-      name: 'research_search',
-      description: "Search the user's research base for this project: parsed papers and files (passages with page numbers), sources, and confirmed knowledge, theory models/formulas/algorithms, claims and long-term memory. Currently keyword search: use specific terms, synonyms and abbreviations, and search again in the other language (Chinese and English) because papers are often in English. Returns cite labels such as [S3 p.4] or [@a1b2c3d4]; cite them verbatim in your answer. Search before answering questions about the project's literature or earlier decisions.",
-      parameters: {
-        query: { type: 'string', required: true, description: 'Keywords, 1-2000 characters. Several short terms work better than a sentence.' },
-        types: { type: 'array', items: { type: 'string', enum: ['chunk', 'source', 'item'] }, description: 'Restrict to passages (chunk), bibliographic sources, or distilled items.' },
-        itemTypes: { type: 'array', items: { type: 'string', enum: ['knowledge', 'model', 'memory', 'claim', 'note'] } },
-        limit: { type: 'integer', description: 'Maximum hits, 1-20 (default 8).' },
-      },
-      output: jsonOutput,
-      async execute(args, exec) { return hostCall('research_search', args, exec, agent); },
-    }));
-    tools.register(defineTool({
-      name: 'research_read',
-      description: 'Read the full text around a research_search hit, a whole source page by page, or a distilled item with its evidence links. Give either ref (from a search hit) or cite (a label like [S3 p.4] or [@a1b2c3d4]).',
-      parameters: {
-        ref: refParam,
-        cite: { type: 'string', description: 'A cite label such as [S3], [S3 p.4] or [@a1b2c3d4].' },
-        page: { type: 'integer', description: 'For a source: read this page.' },
-        fromOrdinal: { type: 'integer', description: 'For a source: continue from this passage number (nextOrdinal of the previous read).' },
-        maxChars: { type: 'integer', description: '500-20000, default 6000.' },
-      },
-      output: jsonOutput,
-      async execute(args, exec) { return hostCall('research_read', args, exec, agent); },
-    }));
-    tools.register(defineTool({
-      name: 'research_propose',
-      description: "Propose a change to the user's long-term research base: a new knowledge item, theory model/formula/algorithm, research claim, or memory (decision, convention, goal, open question, preference, lesson); an update or supersession of an existing item; or an evidence link. Nothing is saved until the user accepts it in the memory inbox. Propose only durable, project-relevant information, with evidence refs when you have them.",
-      parameters: {
-        op: { type: 'string', required: true, enum: ['create', 'update', 'supersede', 'archive', 'link'] },
-        item: { type: 'object', additionalProperties: false, description: 'For create/update/supersede.', properties: {
-          type: { type: 'string', enum: ['knowledge', 'model', 'memory', 'claim', 'note'] },
-          subtype: { type: 'string', description: 'knowledge: finding|definition|method|fact; model: theory|formula|algorithm|statistical-model|protocol; memory: preference|goal|decision|convention|open-question|lesson; claim: hypothesis|claim|conclusion.' },
-          title: { type: 'string' }, body: { type: 'string', description: 'Markdown; LaTeX math allowed.' },
-          scope: { type: 'string', enum: ['project', 'personal'], description: 'Default: the current project; personal when the chat has no project.' },
-          payload: { type: 'json', description: 'Typed details. model: {latex, variables:[{symbol,meaning,unit}], assumptions:[], steps:[], domain}; claim: {statement, claimStatus: hypothesis|supported|contested|refuted|uncertain}.' },
-          importance: { type: 'integer', description: '1-5.' },
-        } },
-        targetId: { type: 'string', description: 'For update/supersede/archive: the item id or its [@handle].' },
-        evidence: { type: 'array', items: { type: 'object', additionalProperties: false, properties: { ref: refParam, cite: { type: 'string', description: 'Instead of ref: a cite label such as [S3 p.4] or [@a1b2c3d4].' }, relation: { type: 'string', enum: ['supports', 'contradicts', 'qualifies', 'derived-from', 'about', 'cites'] }, quote: { type: 'string' } } } },
-        from: refParam, to: refParam,
-        relation: { type: 'string', enum: ['supports', 'contradicts', 'qualifies', 'derived-from', 'defines', 'uses', 'about', 'cites', 'same-as'] },
-        rationale: { type: 'string', required: true, description: 'Why this should be remembered; one or two sentences.' },
-      },
-      output: jsonOutput,
-      async execute(args, exec) { return hostCall('research_propose', args, exec, agent); },
-    }));
+  const registerResearchTools = async (tools, agent) => {
+    try {
+      const manifest = await hostCall('__manifest', {}, null, agent);
+      if (!Array.isArray(manifest?.tools)) throw new Error('invalid manifest');
+      const definitions = manifest.tools.map(spec => {
+        if (!spec || !/^[a-z_]{1,60}$/.test(spec.name) || typeof spec.description !== 'string' || !spec.parameters || typeof spec.parameters !== 'object') throw new Error('invalid tool');
+        return defineTool({name:spec.name, description:spec.description, parameters:spec.parameters, output:jsonOutput,
+          async execute(args, exec) { return hostCall(spec.name, args, exec, agent); }});
+      });
+      for (const definition of definitions) tools.register(definition);
+    } catch {
+      await postEvent({type:'context-tools-unavailable',code:'CONTEXT_MANIFEST_UNAVAILABLE',...(agent ? {expertId:expertChildren.get(String(agent.session.id))?.expertId} : {})});
+    }
   };
   const selection={current:{...agentOptions},assembled:undefined};
   let promptContext;
   let personaEntry;
   let currentPersona = process.env.SCIENCESCOPE_PERSONA;
-  const setup = (agentCtx) => {
+  const setup = async (agentCtx) => {
     promptContext = agentCtx;
     installModelSelection(agentCtx,selection);
     if(proposalTargetChatId) agentCtx.tools.register(defineTool({
@@ -140,7 +82,7 @@ export function apply(ctx) {
         return {status:'awaiting_user_review',proposalId};
       }
     }));
-    if(hostCallEndpoint)registerResearchTools(agentCtx.tools, null);
+    if(hostCallEndpoint && !noTools)await registerResearchTools(agentCtx.tools, null);
     if(noTools)agentCtx.tools.restrict({allow:[]});
   };
   let handle;
@@ -379,7 +321,7 @@ export function apply(ctx) {
   });
   // Expert subagents are separate agents that do not inherit the parent's
   // registered tools: give each child the research tools when it is created.
-  ctx.on('agent/created', ({ agent }) => {
+  ctx.on('agent/created', async ({ agent }) => {
     const creation = expertCreation.getStore();
     if (creation && !creation.claimed && agent.session.header.parentSession === sessionId) {
       creation.claimed = true;
@@ -397,7 +339,7 @@ export function apply(ctx) {
       });
     }
     if (!hostCallEndpoint || String(agent?.session?.id) === sessionId || !agent?.ctx?.tools) return;
-    try { registerResearchTools(agent.ctx.tools, agent); } catch { /* a child without a tool registry keeps its defaults */ }
+    if (expertChildren.has(String(agent.session.id))) await registerResearchTools(agent.ctx.tools, agent);
   });
   ctx.on('agent/disposed', ({ agent }) => {
     const id = String(agent.session.id);

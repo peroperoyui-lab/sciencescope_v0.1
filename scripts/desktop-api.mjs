@@ -30,7 +30,12 @@ import {validateWorkFolder,WorkFolderError} from './workspace-folders.mjs';
 import {listSystemFonts} from './system-fonts.mjs';
 import {createDeliverables,DeliverableError} from './deliverables.mjs';
 import {createChatMinutes,MinutesError} from './chat-minutes.mjs';
-import {createProjectMemory,MemoryToolError,MEMORY_GUIDE} from './project-memory.mjs';
+import {createHostEvents} from './host-events.mjs';
+import {subscribeHostBackground} from './host-background.mjs';
+import {buildContextTools,contextRules,CONTEXT_API_VERSION} from './context/tools.mjs';
+import {createContextAccess} from './context/registry.mjs';
+import {ContextAccessError} from './context/policy.mjs';
+import {createScopedResearchTools} from './context/research-tools.mjs';
 
 function publicRuntimeMessage(error) {
   const raw = String(error?.message || '').toLowerCase();
@@ -44,9 +49,12 @@ function publicRuntimeMessage(error) {
 }
 
 export async function createDesktopApi({onError, dataRoot = defaultRoot, runtimeHost = null, runtimeWeb = null, apiToken = null, openUrl = openExternalUrl, listFonts = listSystemFonts} = {}) {
+  const events = createHostEvents({onError,isBusy:chatId=>pending.has(chatId)||mainRuns.has(chatId)||discussions?.busy(chatId)||execution?.snapshot(chatId).goalActive});
   let host = runtimeHost;
   let web = runtimeWeb;
   const bindings = new Map();
+  const startingContexts = new Map();
+  const openedAssistants = new Set();
   const pending = new Set();
   // Normal Main runs only.  This is deliberately separate from execution's
   // auto-goal state and the temporary-chat bindings.
@@ -170,19 +178,28 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   const organizer=host?createVersionOrganizer({host,store:workbench.store,getPreferences:()=>secretaryPreferences.get({language:preferences.get().language}),getProject:async id=>{
     const {meta}=await workbench.project(id);return {name:meta.name,goal:meta.desc||''};
   }}):null;
-  const execution=host?createExecutionService({host,database,chatStore,bindings}):null;
+  const execution=host?createExecutionService({host,database,chatStore,bindings,onTurnPersisted:payload=>{void events.emit('chat.turn.persisted',payload);}}):null;
   // The secretary's running minutes of each conversation, and read-only
   // history tools for the Main expert and every expert (2026-09-26).
   const minutes=createChatMinutes({db:database.db,host,chatStore,onError,modelFor:chatId=>roleSettings.get('secretary').model||chatStore.getChat(chatId)?.model||null});
-  const projectMemory=createProjectMemory({db:database.db,minutes,workbench:{
-    get:async projectId=>{const {meta}=await workbench.project(projectId);return {...await workbench.store.get(projectId,meta.name),projectName:meta.name};},
+  subscribeHostBackground({events,minutes,organizer,workbench:{get:projectId=>workbench.call(projectId,'get')},modelFor:()=>roleSettings.get('secretary').model});
+  const contextAccess=createContextAccess({db:database.db,chatStore,minutes,workbench:{
+    get:async projectId=>{const project=(await chatStore.getWorkspace()).projects.find(project=>project.id===projectId);return {...await workbench.store.get(projectId,project?.name),projectName:project?.name,folder:await workbench.store.resolvePath(projectId,'')};},
     plans:()=>workbench.store.getPlans(),
   }});
-  const discussions=host?.runExperts?createDiscussionService({host,chatStore,db:database.db,toolActivity,minutes,memoryGuide:MEMORY_GUIDE}):null;
-  const assistants=createAssistantChatService({host,conversations,chatStore,dataRoot,roleSettings});
+  const researchToolCall=createScopedResearchTools({research,projectIds:async()=> (await chatStore.getWorkspace()).projects.map(project=>project.id)});
+  async function startContextSession(options,ctx){
+    const sessionId=options.sessionId||'session-'+randomUUID().replaceAll('-','');
+    startingContexts.set(sessionId,ctx);
+    try{return await host.startSession({...options,sessionId});}finally{startingContexts.delete(sessionId);}
+  }
+  const discussions=host?.runExperts?createDiscussionService({host,chatStore,db:database.db,toolActivity,minutes,memoryGuide:contextRules('expert')}):null;
+  const assistants=createAssistantChatService({host,conversations,chatStore,dataRoot,roleSettings,contextAccess,startContextSession});
   // Agent tools answered by the Research Base. The session decides the chat,
   // project and role; nothing in the model's arguments can widen that scope.
   function toolContext(sessionId,expertId){
+    const starting=startingContexts.get(sessionId);
+    if(starting)return {...starting,...(expertId?{role:'expert',expertId}:{})};
     const chatId=database.db.prepare('SELECT chat_id FROM runtime_bindings WHERE session_id=?').get(sessionId)?.chat_id
       ?? [...bindings].find(([key,binding])=>binding.sessionId===sessionId&&!key.startsWith('temporary:'))?.[0];
     if(!chatId)return {role:'temporary',projectId:null};
@@ -190,21 +207,27 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     const projectChat=assistant?.scope==='secretary'?assistant.owner_id:assistant?null:chatId;
     return {chatId,mainChatId:projectChat||null,projectId:projectChat?chatStore.getChat(projectChat)?.projectId??null:null,role:expertId?'expert':assistant?assistant.scope:'main',...(expertId?{expertId}:{}),messageId:turnMessages.get(sessionId)};
   }
-  host?.setToolHandler?.(async({sessionId,name,args,callId,expertId})=>{const ctx={...toolContext(sessionId,expertId),callId};return projectMemory.names.has(name)?projectMemory.call(name,args??{},ctx):research.toolCall(name,args,ctx);});
+  host?.setToolHandler?.(async({sessionId,name,args,callId,expertId})=>{
+    const ctx={...toolContext(sessionId,expertId),callId};
+    const tools=buildContextTools(ctx.role);
+    if(name==='__manifest')return {contextApi:CONTEXT_API_VERSION,tools};
+    if(!tools.some(tool=>tool.name===name))throw new ContextAccessError('TOOL_NOT_ALLOWED','This tool is not available in this session.');
+    return name.startsWith('research_')?researchToolCall(name,args??{},ctx):contextAccess.call(name,args??{},ctx);
+  });
   // The project brief (confirmed long-term memory) is a system-prompt section
   // of the Main session, refreshed before a turn when it changed.
   async function refreshBrief(binding,projectId,chatId,messageId){
     if(!host?.configureBrief)return;
     const brief=research.retrieval.brief({projectId:projectId??null});
     // The history lookup rules are a stable part of the Main expert's system prompt.
-    const text=`${brief.text?`${brief.text}\n\n`:''}${MEMORY_GUIDE}`;
+    const text=`${brief.text?`${brief.text}\n\n`:''}${contextRules('main')}`;
     if(binding.briefText!==text){await host.configureBrief({sessionId:binding.sessionId,text});binding.briefText=text;}
     if(brief.refs.length&&messageId)research.store.recordUsage({chatId,messageId,refs:brief.refs,how:'brief'});
   }
   async function restoreExecution(chatId){
     if(bindings.has(chatId))return bindings.get(chatId);
     const chat=chatStore.getChat(chatId);if(!chat?.model||!chatStore.getBinding(chatId))throw new Error('CHAT_NOT_FOUND');
-    const sessionId=await host.startSession({model:chat.model,workspace:chatStore.getRuntimeWorkspace(chatId),runtimeConfig:await host.getRuntimeConfig?.(),sessionId:chatStore.getBinding(chatId),persona:roleSettings.bind(chatId,'main',{existing:true}).prompt});
+    const sessionId=await startContextSession({model:chat.model,workspace:chatStore.getRuntimeWorkspace(chatId),runtimeConfig:await host.getRuntimeConfig?.(),sessionId:chatStore.getBinding(chatId),persona:roleSettings.bind(chatId,'main',{existing:true}).prompt},{role:'main',chatId,mainChatId:chatId,projectId:chat.projectId??null});
     const binding={sessionId,modelKey:JSON.stringify(chat.model),lastUsed:Date.now()};bindings.set(chatId,binding);
     const status=await execution.status(chatId);await execution.configure(chatId,binding,status.mode);return binding;
   }
@@ -219,7 +242,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     const workspace = input.temporary ? path.join(dataRoot,'.sciencescope-local','temp','quick',input.chatId) : (originalWorkspace || projectFolder || chosen || path.join(projects,'independent'));
     await mkdir(workspace,{recursive:true});
     const persona=input.temporary?roleSettings.get('main').prompt:roleSettings.bind(input.chatId,'main',{existing:!!chatStore.getBinding(input.chatId)}).prompt;
-    const session = await host.startSession({model:{...modelRoute,...(reasoningEffort === undefined ? {} : {reasoningEffort})},workspace,runtimeConfig:host.getRuntimeConfig ? await host.getRuntimeConfig() : undefined,sessionId:input.temporary ? undefined : chatStore.getBinding(input.chatId) ?? undefined,persona});
+    const session = await startContextSession({model:{...modelRoute,...(reasoningEffort === undefined ? {} : {reasoningEffort})},workspace,runtimeConfig:host.getRuntimeConfig ? await host.getRuntimeConfig() : undefined,sessionId:input.temporary ? undefined : chatStore.getBinding(input.chatId) ?? undefined,persona},{role:input.temporary?'temporary':'main',chatId:input.chatId,mainChatId:input.temporary?null:input.chatId,projectId:input.projectId??null});
     bindings.set(key,{sessionId:typeof session === 'string' ? session : session.sessionId,modelKey,lastUsed:Date.now()});
     if (!input.temporary) {
       await chatStore.ensureChat({chatId:input.chatId,projectId:input.projectId ?? null,title:input.title || input.text,model:input.model});
@@ -277,7 +300,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         userMessage:{id:userMessageId,text},
         onEvent:event=>{if(event.type==='accepted'&&compiled.snapshot)researchDrafts.accepted('main',input.chatId,input.chatId,userMessageId,compiled.snapshot);emit(event);}});
       binding.lastUsed=Date.now();
-      minutes.schedule(input.chatId);
+      void events.emit('discussion.finished',{chatId:input.chatId});
       response.end();
     }finally{pending.delete(input.chatId);}
   }
@@ -311,7 +334,9 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(route==='/api/chat/activity'&&request.method==='GET') { json(response,200,chatActivities()); return true; }
       if(route==='/api/assistant'&&request.method==='GET'){
         const scope=requestUrl.searchParams.get('scope'),ownerId=requestUrl.searchParams.get('ownerId');
-        json(response,200,{...await assistants.snapshot(scope,ownerId,{before:requestUrl.searchParams.get('before')??undefined,after:requestUrl.searchParams.get('after')??undefined,limit:requestUrl.searchParams.get('limit')||60}),attachments:attachments.listDraft(scope,ownerId)});return true;
+        const snapshot=await assistants.snapshot(scope,ownerId,{before:requestUrl.searchParams.get('before')??undefined,after:requestUrl.searchParams.get('after')??undefined,limit:requestUrl.searchParams.get('limit')||60});
+        const openedKey=JSON.stringify([scope,ownerId]);if(!openedAssistants.has(openedKey)){openedAssistants.add(openedKey);void events.emit('assistant.opened',{scope,ownerId});}
+        json(response,200,{...snapshot,attachments:attachments.listDraft(scope,ownerId)});return true;
       }
       if(route==='/api/execution'&&request.method==='GET'){const chatId=requestUrl.searchParams.get('chatId');const status=execution?await execution.status(chatId):{mode:'ask',goal:null,approvals:[],unavailable:true};json(response,200,{...status,expertContexts:discussions&&chatId?discussions.contexts(chatId):[]});return true;}
       if (route === '/api/chats' && request.method === 'GET') {
@@ -502,24 +527,27 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         if (request.method !== 'POST') { json(response,405,{message:'请求方式无效。'}); return true; }
         json(response,200,await chatStore.updateWorkspace(input)); return true;
       }
-      if (route === '/api/workbench/save') { json(response,200,await workbench.call(input.projectId,'save',{revision:input.revision,map:input.map,logs:input.logs,autoOrganize:input.autoOrganize})); return true; }
+      if (route === '/api/workbench/save') { const saved=await workbench.call(input.projectId,'save',{revision:input.revision,map:input.map,logs:input.logs,autoOrganize:input.autoOrganize}); void events.emit('workbench.changed',{projectId:input.projectId}); json(response,200,saved); return true; }
       if (route === '/api/workbench/bind') { const {folder}=await validateWorkFolder(input.folder,{dataRoot}); json(response,200,await workbench.call(input.projectId,'bind',folder)); return true; }
       if (route === '/api/folders/check') { json(response,200,await validateWorkFolder(input.folder,{dataRoot})); return true; }
       if (route === '/api/workbench/import') {
         if (typeof input.base64 !== 'string' || Buffer.byteLength(input.base64,'base64') > workbench.MAX_UPLOAD) throw new WorkbenchApiError('REQUEST_TOO_LARGE','上传文件不能超过 20MiB。',413);
-        json(response,200,await workbench.call(input.projectId,'importFile',{name:input.name,base64:input.base64,group:input.group})); return true;
+        const version=await workbench.call(input.projectId,'importFile',{name:input.name,base64:input.base64,group:input.group});
+        void events.emit('version.stored',{projectId:input.projectId,versionId:version.id,model:input.model});
+        void events.emit('workbench.changed',{projectId:input.projectId});
+        json(response,200,version); return true;
       }
       if (route === '/api/workbench/asset') {
         if (typeof input.base64 !== 'string' || Buffer.byteLength(input.base64,'base64') > workbench.MAX_UPLOAD) throw new WorkbenchApiError('REQUEST_TOO_LARGE','上传文件不能超过 20MiB。',413);
         json(response,200,await workbench.call(input.projectId,'addAsset',{name:input.name,base64:input.base64})); return true;
       }
-      if (route === '/api/workbench/version') { json(response,200,await workbench.call(input.projectId,'updateVersion',input.id,input.patch || {})); return true; }
-      if (route === '/api/workbench/plans') { json(response,200,await workbench.store.savePlans(input.plans)); return true; }
+      if (route === '/api/workbench/version') { const saved=await workbench.call(input.projectId,'updateVersion',input.id,input.patch || {}); void events.emit('workbench.changed',{projectId:input.projectId}); json(response,200,saved); return true; }
+      if (route === '/api/workbench/plans') { const saved=await workbench.store.savePlans(input.plans); for(const project of (await chatStore.getWorkspace()).projects??[])void events.emit('workbench.changed',{projectId:project.id}); json(response,200,saved); return true; }
       if (route === '/api/workbench/open') { json(response,200,await workbench.open(input.projectId,input.path)); return true; }
       if (route === '/api/workbench/organize') {
         await workbench.project(input.projectId);
         if(!organizer||!input.model?.providerId||!input.model?.modelId){json(response,409,{message:'请选择一个已配置模型后整理；原件已保存。'});return true;}
-        json(response,200,await organizer.organize({projectId:input.projectId,versionId:input.versionId,model:input.model}));return true;
+        const result=await organizer.organize({projectId:input.projectId,versionId:input.versionId,model:input.model});void events.emit('workbench.changed',{projectId:input.projectId});json(response,200,result);return true;
       }
       if (chatMatch && request.method === 'POST' && !route.endsWith('/messages') && !['/api/chats/update','/api/chats/move','/api/chats/delete'].includes(route)) {
         json(response,400,{message:'请使用明确的对话操作接口。'}); return true;
@@ -680,7 +708,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
           await persistPartial(run.currentText);
           emit({type:'cancelled',chatId:input.chatId,text:run.currentText}); return true;
         }
-        if (!input.temporary && finalEvent && typeof finalEvent.text === 'string') { if(run) run.persisted=true; await chatStore.appendMessage({chatId:input.chatId,id:input.assistantMessageId,role:'assistant',text:finalEvent.text}); minutes.schedule(input.chatId); }
+        if (!input.temporary && finalEvent && typeof finalEvent.text === 'string') { if(run) run.persisted=true; await chatStore.appendMessage({chatId:input.chatId,id:input.assistantMessageId,role:'assistant',text:finalEvent.text}); void events.emit('chat.turn.persisted',{chatId:input.chatId}); }
         successful=!!finalEvent;
         if(run) run.state='completed';
         if(run&&!input.temporary&&successful) touchActivity(input.chatId,{state:'completed',toolName:undefined});
@@ -706,6 +734,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(!response.headersSent&&error instanceof WorkFolderError){json(response,400,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof DeliverableError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof MinutesError){json(response,error.status,{code:error.code,message:error.message});return true;}
+      if(!response.headersSent&&error instanceof ContextAccessError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof ResearchBaseError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&(error instanceof ExpertRosterError||error instanceof DiscussionError)){json(response,error.status,{code:error.code,message:error.message});return true;}
       if (error instanceof WorkbenchApiError||error instanceof RoleSettingsError||error instanceof SkillManagerError) { json(response,error.status,{code:error.code,message:error.message}); return true; }
@@ -716,5 +745,6 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     }
     return true;
   }
-  return {handle,close:async()=>{await minutes.close();await assistants.close();await Promise.allSettled([host?.close(),web?.close(),skills.close()]);await execution?.close();await chatStore.queue;await profileStore.queue;chatStore.close?.();profileStore.close?.();}};
+  void events.emit('app.started',{});
+  return {handle,close:async()=>{await events.close();await minutes.close();await assistants.close();await Promise.allSettled([host?.close(),web?.close(),skills.close()]);await execution?.close();await chatStore.queue;await profileStore.queue;chatStore.close?.();profileStore.close?.();}};
 }

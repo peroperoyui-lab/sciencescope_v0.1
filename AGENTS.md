@@ -142,7 +142,7 @@ actual remote branch and SHA; failed pushes are not delivery.
   cap and no silent truncation (a safety bound must name what it omitted).
   Lookup rules for minutes/log/plans/map/recall live in each expert's system
   prompt and the Main brief, not in agent.md.
-- Context access (docs/design/CONTEXT_ACCESS.md, proposed 2026-09-26, T17): all
+- Context access (docs/design/CONTEXT_ACCESS.md, implemented 2026-09-27, T17): all
   roles share one read-only lookup mechanism; roles differ only by a scope
   table (secretary: its Main chat and project, auto catch-up before each turn;
   global assistant: all projects, overview plus drill-down). Temporary chats,

@@ -38,7 +38,7 @@ function show() {
   editing = false;
   const chatId = V.chat;
   modal('对话纪要', `<div class="minutes-dialog" data-chat-id="${esc(chatId)}">
-    <p class="minutes-meta"><span data-minutes-meta>正在读取…</span>${infoTip('任务秘书在每轮对话后更新纪要：目标、已定结论、被否定的方案、分歧、各方立场、文稿状态与待办。所有专家都能随时读取，并能按编号回查原文。\n你的修改会成为最新一版，秘书之后在此基础上继续整理。', {label: '对话纪要说明'})}</p>
+    <p class="minutes-meta"><span data-minutes-meta>正在读取…</span>${infoTip('任务秘书在讨论结束后或手动请求时更新纪要：目标、已定结论、被否定的方案、分歧、各方立场、文稿状态与待办。所有专家都能随时读取，并能按编号回查原文。\n你的修改会成为最新一版，秘书之后在此基础上继续整理。', {label: '对话纪要说明'})}</p>
     <div class="minutes-body rendered-markdown" data-minutes-body></div>
     <div class="saverow"><button type="button" class="btn" data-minutes-refresh>让秘书更新</button><button type="button" class="btn" data-minutes-edit disabled>编辑</button><button type="button" class="btn primary" data-minutes-close>关闭</button></div>
   </div>`, 'minutes-modal');

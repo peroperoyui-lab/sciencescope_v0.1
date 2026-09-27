@@ -3,6 +3,7 @@ import {hostRequest,streamChat} from './host-client.mjs';
 import {renderMarkdown} from './markdown.mjs';
 import {composerMenu} from './composer-menu.mjs';
 import {recordTool,activityHTML} from './turn-activity.mjs';
+import {infoTip} from './info-tip.mjs';
 
 const entries=new Map();
 const navigation=new BroadcastChannel('sciencescope-navigation');
@@ -27,10 +28,11 @@ function surfaceHTML(scope){
   return `<section class="assistant-surface" data-scope="${scope}" data-owner="${esc(e.ownerId)}">
     <div class="assistant-messages" aria-label="${label(scope)}对话记录" tabindex="0"></div>
     <div class="assistant-feedback" role="status"></div>
-<div class="assistant-controls"><button class="btn tiny" data-assistant-action="history">较早记录</button><button class="btn tiny" data-assistant-action="latest">最新</button><span class="grow"></span><button class="btn tiny" data-assistant-action="context" title="在主对话选中文字，选择引用至本角色；仅发送所选片段。">引用对话</button></div>
+<div class="assistant-controls"><button class="btn tiny" data-assistant-action="history">较早记录</button><button class="btn tiny" data-assistant-action="latest">最新</button><span class="grow"></span>${scope==='global'?'<button class="btn tiny" data-assistant-action="context">以此对话为准</button>':''}</div>
+    ${scope==='secretary'?`<div class="assistant-follow-up"><span data-follow-up></span>${infoTip('发送前自动跟进主对话的新消息与工作站状态；回复失败或被停止时不推进位置。仍可选中文字添加标记。')}</div>`:''}
     <div class="assistant-approvals"></div>
     <div class="assistant-proposals"></div>
-    <div class="composer assistant-composer"><div class="assistant-attachments"></div><textarea data-assistant-input aria-label="${label(scope)}输入" placeholder="${scope==='global'?'想问什么？':'先问清楚，再决定下一步…'}"></textarea>
+    <div class="composer assistant-composer"><div class="assistant-attachments"></div><textarea data-assistant-input aria-label="${label(scope)}输入" placeholder="${scope==='global'?'哪些项目还有待办？也可以指定项目查阅。':'先问清楚，再决定下一步…'}"></textarea>
     <div class="composerbar"><button data-assistant-action="upload" class="iconbtn" title="添加文件">${ic('plus')}</button><button data-assistant-action="policy" class="btn tiny">询问</button><span class="spacer"></span><button data-assistant-action="model" class="btn assistant-model">选择模型</button><button data-assistant-action="effort" class="btn tiny">模型默认</button><button data-assistant-action="send" class="sendbtn" aria-label="发送给${label(scope)}">${ic('arrow')}</button><button data-assistant-action="stop" class="sendbtn" aria-label="停止回复" hidden>■</button></div></div>
   </section>`;
 }
@@ -51,7 +53,8 @@ function paint(e,{messages=true,bottom=false}={}){
   if(proposalBox.dataset.ids!==proposalKey){proposalBox.dataset.ids=proposalKey;proposalBox.innerHTML=proposals.map(p=>`<details open class="assistant-proposal" data-proposal="${esc(p.id)}"><summary>秘书提案 · 请审阅</summary><textarea aria-label="编辑秘书提案">${esc(p.text)}</textarea><button class="btn tiny" data-assistant-action="apply-proposal" data-id="${esc(p.id)}">确认填入主对话草稿</button> <button class="btn tiny" data-assistant-action="dismiss-proposal" data-id="${esc(p.id)}">忽略</button></details>`).join('');}
   surface.querySelector('[data-assistant-action="send"]').hidden=e.running||e.sending;
   surface.querySelector('[data-assistant-action="stop"]').hidden=!(e.running||e.sending);
-  surface.querySelector('[data-assistant-action="context"]').textContent=e.contextChatId?'已引用对话 · 点击取消':'引用对话';
+  const focusButton=surface.querySelector('[data-assistant-action="context"]');if(focusButton)focusButton.textContent=e.contextChatId?'已指定对话 · 点击取消':'以此对话为准';
+  const followUp=surface.querySelector('[data-follow-up]');if(followUp)followUp.textContent=`已跟进到主对话第 ${e.followUp?.seenOrdinal??0} 条 · 纪要第 ${e.followUp?.minutesRevision??0} 版`;
   surface.querySelector('[data-assistant-action="history"]').disabled=!e.before||e.running||e.sending;
 }
 async function load(e,force=false){
@@ -61,6 +64,7 @@ async function load(e,force=false){
   try{
     const snapshot=await hostRequest('assistant?'+new URLSearchParams({scope:e.scope,ownerId:e.ownerId}));
     e.messages=snapshot.messages;e.before=snapshot.before;e.running=snapshot.running;e.chat=snapshot.chat;
+    e.followUp=snapshot.followUp;
     if(!e.loaded&&!e.edited)e.draft=snapshot.draft||'';
     e.model=snapshot.chat?.model||e.model||snapshot.roleDefaults?.model||window.ScienceScopeModels?.selected()||null;
     if(!e.loaded){e.attachments=snapshot.attachments||[];e.executionMode=snapshot.settings?.executionMode||'ask';e.reasoningEffort=snapshot.settings?.reasoningEffort||(!snapshot.chat?snapshot.roleDefaults?.reasoningEffort:undefined)||undefined;}
@@ -186,7 +190,10 @@ window.addEventListener('click',async event=>{
       picker.onchange=async()=>{try{for(const file of picker.files){if(e.attachments.length>=8)throw new Error('每次最多添加 8 个文件。');if(file.size>20*1024*1024)throw new Error('单个文件不能超过 20 MiB。');const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file);});const resource=await hostRequest('library/import',{name:file.name,base64});e.attachments.push({id:resource.id,title:resource.title});await saveDraft(e);paint(e,{messages:false});}}catch(error){e.error=error.message;paint(e,{messages:false});}};picker.click();return;
     }
     if(action==='context'){
-      toast('请在主对话中选中文字，然后选择引用至任务秘书或全局助手；只发送选中片段。');
+      if(e.scope!=='global')return;
+      if(e.contextChatId){e.contextChatId='';paint(e,{messages:false});return;}
+      const {chats}=await hostRequest('chats');
+      composerMenu(button,'以此对话为准',chats.filter(chat=>!chat.deletedAt).map(chat=>({label:chat.title,action:'assistant-choice',attrs:`data-assistant-action="choose-context" data-entry="${esc(e.key)}" data-chat="${esc(chat.id)}"`})));
       return;
     }
     if(action==='choose-context'){e.contextChatId=button.dataset.chat;closeMenu();paint(e,{messages:false});return;}
