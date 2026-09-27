@@ -61,10 +61,18 @@ try{
   assert.equal((await json('chats/main-a/messages')).total,2);
   assert.equal((await request('chat',{chatId:a.chat.id,projectId:null,model,text:'ILLEGAL_REUSE'})).status,403);
   assert.equal((await request(`chats/${a.chat.id}/messages`)).status,404);
-  for(const call of calls.slice(1)){
-    assert.ok(call.tools?.length,'assistant receives actual runtime tools');
-    assert.doesNotMatch(JSON.stringify(call.messages),/MAIN_PUBLIC_SENTINEL/);
-  }
+  const privateGlobalCall=calls.find(call=>JSON.stringify(call.messages).includes('PRIVATE_GLOBAL_SENTINEL'));
+  const privateSecretaryCall=calls.find(call=>JSON.stringify(call.messages).includes('PRIVATE_SECRETARY_SENTINEL'));
+  assert.ok(privateGlobalCall?.tools?.length,'global assistant receives actual runtime tools');
+  assert.ok(privateSecretaryCall?.tools?.length,'secretary receives actual runtime tools');
+  assert.match(JSON.stringify(privateSecretaryCall.messages),/MAIN_PUBLIC_SENTINEL/,'secretary automatically catches up with its bound Main chat');
+  assert.doesNotMatch(JSON.stringify(privateSecretaryCall.messages),/PRIVATE_GLOBAL_SENTINEL/,'secretary never receives the global private chat');
+  await stream('assistant/chat',{scope:'global',ownerId:'global',model,text:'GLOBAL_FOCUS_QUERY',contextChatId:'main-a'});
+  const focusedGlobal=calls.findLast(call=>JSON.stringify(call.messages).includes('GLOBAL_FOCUS_QUERY'));
+  const focusMessage=focusedGlobal.messages.find(message=>JSON.stringify(message).includes('[User focus:'));
+  const focusText=typeof focusMessage.content==='string'?focusMessage.content:JSON.stringify(focusMessage.content);
+  assert.match(focusText,/"chatId":"main-a"/,'global focus carries the selected Main identity');
+  assert.doesNotMatch(focusText,/<message n=/,'global focus does not inject a Main transcript excerpt');
   assert.ok(calls.some(call=>JSON.stringify(call.messages).includes('SECRETARY_ROLE_BEFORE')),'new secretary consumes saved prompt');
   await json('roles/save',{role:'secretary',config:{prompt:'SECRETARY_ROLE_AFTER',model,reasoningEffort:null}});
   await close();await launch();

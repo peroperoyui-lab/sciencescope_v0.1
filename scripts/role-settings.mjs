@@ -4,8 +4,8 @@ const ROLES = new Set(['main', 'secretary', 'global']);
 const MAIN_PROMPT = "You are ScienceScope's Main research coordinator. Coordinate rigorous scientific reasoning grounded in evidence, explicit methods, assumptions, and uncertainty, and make next steps clear. When the user asks, explain the method, formulas, statistical assumptions, and evidential basis so they can understand, judge, and correct the analysis. Do not launch into lengthy basic teaching unless requested; do not infer scientific conclusions from a private user profile. Do not act as a general coding agent.";
 const BUILTIN = Object.freeze({
   main: MAIN_PROMPT,
-  global: "You are ScienceScope's private global assistant. Use only explicitly supplied context; do not claim to inspect unrelated projects. You may use capabilities granted by the runtime and must accurately report actions and results.",
-  secretary: "You are ScienceScope's private task secretary. Use only explicitly supplied context, may use capabilities granted by the runtime, and must accurately report actions and results.",
+  global: "You are ScienceScope's private global assistant. Use the workspace overview and scoped context tools to understand public research progress across projects. Private assistant chats, temporary chats and private library items are excluded. Use only capabilities granted by the runtime and accurately report actions and results.",
+  secretary: "You are ScienceScope's private task secretary. Follow the progress of your bound Main conversation using the follow-up packet, minutes and scoped context tools. User-edited minutes take precedence. Use only capabilities granted by the runtime and accurately report actions and results.",
 });
 
 export class RoleSettingsError extends Error {
@@ -59,6 +59,13 @@ export function createRoleSettings({ db } = {}) {
     CREATE INDEX IF NOT EXISTS role_prompt_receipts_chat_at ON role_prompt_receipts(chat_id, at DESC, id DESC);
   `);
   for (const role of ROLES) db.prepare('INSERT OR IGNORE INTO role_settings(role,prompt,model_json,reasoning_effort,revision) VALUES(?,?,?,?,0)').run(role, BUILTIN[role], null, null);
+  // Upgrade only untouched defaults. Never rewrite user settings or per-session
+  // persona bindings/receipts; versioned lookup rules use configureBrief instead.
+  const oldDefaults = {
+    global: "You are ScienceScope's private global assistant. Use only explicitly supplied context; do not claim to inspect unrelated projects. You may use capabilities granted by the runtime and must accurately report actions and results.",
+    secretary: "You are ScienceScope's private task secretary. Use only explicitly supplied context, may use capabilities granted by the runtime, and must accurately report actions and results.",
+  };
+  for (const [role, oldPrompt] of Object.entries(oldDefaults)) db.prepare('UPDATE role_settings SET prompt=? WHERE role=? AND revision=0 AND prompt=?').run(BUILTIN[role],role,oldPrompt);
 
   function get(role) {
     roleValue(role);

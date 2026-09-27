@@ -78,7 +78,8 @@ test('research routes, brief injection and session-bound tool calls through the 
     await f.call('POST', '/api/chat', { chatId: 'chat-r', projectId: null, model: { providerId: 'fixture', modelId: 'm' }, text: '三问', userMessageId: 'u3', assistantMessageId: 'a3' });
     assert.match(f.state.briefs.at(-1).text, /主要终点：Matsuda 指数/, 'an accepted decision enters the next brief');
 
-    await assert.rejects(f.state.toolHandler({ sessionId: 'session-unknown', name: 'research_nope', args: {} }), /未知的资料库工具/);
+    await assert.rejects(f.state.toolHandler({ sessionId: 'session-unknown', name: 'research_nope', args: {} }), error => error.code === 'TOOL_NOT_ALLOWED');
+    await assert.rejects(f.state.toolHandler({ sessionId: 'session-unknown', name: 'research_search', args: {query:'研究目标'} }), error => error.code === 'TOOL_NOT_ALLOWED', 'an unbound session cannot use a known research tool either');
     const item = (await f.call('GET', `/api/research/item?id=${goal.id}`)).body;
     assert.equal(item.item.title, '研究目标');
   } finally { await f.close(); }

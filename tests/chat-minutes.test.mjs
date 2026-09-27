@@ -42,7 +42,9 @@ test('minutes: incremental, authoritative user edits, recall tools, expert input
     await send('POST', '/api/chat', { chatId: 'chat-m', projectId: null, model, text: 'We decide to use a randomized design.', userMessageId: 'u1', assistantMessageId: 'a1' });
     // The Main expert's system prompt carries the lookup rules.
     assert.match(state.briefs.at(-1), /project_memory\(\{section:"minutes"\}\)[\s\S]*chat_recall/);
-    // The secretary writes minutes in the background after the turn.
+    // T17 removes per-Main-turn summaries. Manual refresh remains available.
+    assert.equal(state.minutesPrompts.length, 0);
+    await send('POST', '/api/chats/minutes/refresh', {chatId:'chat-m'});
     await waitFor(() => state.minutesPrompts.length === 1);
     assert.match(state.minutesPrompts[0], /\(none yet\)[\s\S]*<message n="1" speaker="User">\nWe decide to use a randomized design\.[\s\S]*<message n="2" speaker="Main expert">/);
     let current = (await send('GET', '/api/chats/minutes?chatId=chat-m')).body;
@@ -54,6 +56,8 @@ test('minutes: incremental, authoritative user edits, recall tools, expert input
     assert.equal(edited.body.minutes.author, 'user');
     assert.equal((await send('POST', '/api/chats/minutes', { chatId: 'chat-m', text: 'STALE', expectedRevision: 1 })).status, 409);
     await send('POST', '/api/chat', { chatId: 'chat-m', projectId: null, model, text: 'Now check the sample size.', userMessageId: 'u2', assistantMessageId: 'a2' });
+    assert.equal(state.minutesPrompts.length, 1);
+    await send('POST', '/api/chats/minutes/refresh', {chatId:'chat-m'});
     await waitFor(() => state.minutesPrompts.length === 2);
     assert.match(state.minutesPrompts[1], /by the user, covering messages up to #2\)\]\nUSER MINUTES[\s\S]*\[New messages #3–#4\]/, 'only new messages are sent');
     assert.doesNotMatch(state.minutesPrompts[1], /randomized design/);
@@ -76,5 +80,6 @@ test('minutes: incremental, authoritative user edits, recall tools, expert input
     assert.match(run.prompt, /\[Conversation minutes — kept by the secretary, revision 3, covering messages #1–#4\]\nMINUTES v2/);
     assert.match(run.prompt, /\[Conversation, verbatim: messages #1–#4 of 4\.\][\s\S]*\[The user's new message\]\nIs the design sound\?/);
     assert.match(run.experts[0].persona, /chat_recall[\s\S]*project_memory/);
+    await waitFor(() => state.minutesPrompts.length === 3);
   } finally { await api.close(); await new Promise((resolve) => server.close(resolve)); await rm(root, { recursive: true, force: true }); }
 });

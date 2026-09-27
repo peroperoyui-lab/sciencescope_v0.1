@@ -64,7 +64,7 @@ test('role settings API saves, binds, explicitly applies, rejects busy apply, an
 
     result = await f.call('/api/roles/apply', { role: 'main', chatId: 'chat-main' });
     assert.equal(result.status, 200); assert.equal(result.body.prompt, 'Second main persona');
-    assert.deepEqual(f.state.personas, [{ sessionId: 'session-1', persona: 'Second main persona' }]);
+    assert.deepEqual(f.state.personas, [{ sessionId: f.state.starts[0].sessionId, persona: 'Second main persona' }]);
     const messagesAfterApply = await f.get('/api/chats/chat-main/messages');
     assert.equal(messagesAfterApply.status, 200);
     assert.deepEqual(messagesAfterApply.body.messages.map((message) => message.text), ['first', 'reply:first']);

@@ -3,6 +3,14 @@
 // --missing` lists strings still untranslated. Model-facing prompts, user data
 // and the prototype's demo content are intentionally absent.
 export const EN = {
+"已跟进到主对话第": "Caught up through Main message",
+"条 · 纪要第": "· Minutes revision",
+"版": "revision",
+"任务秘书在讨论结束后或手动请求时更新纪要：目标、已定结论、被否定的方案、分歧、各方立场、文稿状态与待办。所有专家都能随时读取，并能按编号回查原文。": "The secretary updates minutes after discussions or on manual request: goals, decisions, rejected options, disagreements, positions, manuscript state and to-dos. Experts can read minutes and recall numbered original messages at any time.",
+"以此对话为准": "Focus on this conversation",
+"已指定对话 · 点击取消": "Conversation selected · Click to clear",
+"发送前自动跟进主对话的新消息与工作站状态；回复失败或被停止时不推进位置。仍可选中文字添加标记。": "New Main messages and workstation status are included before sending. Failed or stopped replies do not advance the cursor. You can still select text to add marks.",
+"哪些项目还有待办？也可以指定项目查阅。": "Which projects have pending tasks? You can also ask about a specific project.",
 "源码": "Source",
 "公式": "Formulas",
 "正文": "Readable text",
@@ -1210,6 +1218,7 @@ export const EN = {
 // (anchored automatically), replacement with $1…]. A captured part is
 // translated when it is known interface text and kept as is otherwise.
 export const EN_PATTERNS = [
+  ["已跟进到主对话第 (\\d+) 条 · 纪要第 (\\d+) 版", "Caught up through Main message $1 · Minutes revision $2"],
  [
   "(\\d+) 个对话",
   "$1 chats"

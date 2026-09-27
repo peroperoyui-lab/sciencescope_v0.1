@@ -35,6 +35,32 @@ async function hydrateAssets(){
   }
 }
 const organizing=new Set();
+const organizationWatches=new Set();
+// Host events own automatic organization; watch only this import's receipts.
+// Never reload/apply the map or disturb another route while the job runs.
+function watchOrganization(projectId,ids){
+  const pending=new Set(ids),deadline=Date.now()+180000;
+  const watch={timer:null};organizationWatches.add(watch);
+  async function poll(){
+    try{
+      const value=await hostRequest(`workbench?projectId=${encodeURIComponent(projectId)}`);
+      for(const id of pending)if(value.versions.find(version=>version.id===id)?.status!=='stored')pending.delete(id);
+      const old=cache.get(projectId);
+      if(old&&JSON.stringify(old.versions)!==JSON.stringify(value.versions)){
+        // Keep an unsaved map and its revision intact so save still detects conflict.
+        cache.set(projectId,{...old,versions:value.versions});
+        if(projectId===S.projectId){
+          S.versions=structuredClone(value.versions);
+          if(['workbench','versions'].includes(route)&&!document.querySelector('#record-editor'))render();
+        }
+      }
+    }catch(error){if(projectId===S.projectId)toast(error.message);pending.clear();}
+    if(organizationWatches.has(watch)&&pending.size&&Date.now()<deadline)watch.timer=setTimeout(poll,2000);
+    else organizationWatches.delete(watch);
+  }
+  watch.timer=setTimeout(poll,500);
+}
+window.addEventListener('beforeunload',()=>{for(const watch of organizationWatches)clearTimeout(watch.timer);organizationWatches.clear();});
 async function organize(versionId){
   if(organizing.has(versionId))return;
   const model=window.ScienceScopeModels?.selected();
@@ -173,11 +199,12 @@ mapChanged=(label='编辑导图')=>{dirty=true;S.mapHistory.unshift({label,sourc
 
 async function upload(filesToImport,kind,nodeId=S.mapSelected){
   if(!current())throw new Error('请先打开项目工作站。');
+  const projectId=S.projectId,autoOrganize=current().autoOrganize;
   if(kind!=='map'&&dirty)await saveMap();
   const imported=[];
   for(const file of filesToImport){
     if(kind==='map'&&!/\.(png|jpe?g|gif|webp|md|txt)$/i.test(file.name))throw new Error('节点支持 PNG/JPEG/GIF/WebP 图片或 Markdown 文本。');
-    const result=await hostRequest(kind==='map'?'workbench/asset':'workbench/import',{projectId:S.projectId,...await fileBody(file)});
+    const result=await hostRequest(kind==='map'?'workbench/asset':'workbench/import',{projectId,...await fileBody(file),...(kind==='map'?{}:{model:window.ScienceScopeModels?.selected()})});
     if(kind!=='map')imported.push(result.id);
     if(kind==='map'){
       const node=S.nodes.find(n=>n.id===nodeId);if(!node)continue;
@@ -186,7 +213,7 @@ async function upload(filesToImport,kind,nodeId=S.mapSelected){
     }
   }
   if(kind==='map'){await saveMap();render();}
-  else {await load();toast('原件已保存到项目目录。');if(current()?.autoOrganize)for(const id of imported)await organize(id);}
+  else {await load(projectId);toast('原件已保存到项目目录。');if(autoOrganize&&imported.length)watchOrganization(projectId,imported);}
 }
 function pick(kind){const input=document.createElement('input');input.type='file';input.multiple=true;if(kind==='map')input.accept='.png,.jpg,.jpeg,.gif,.webp,.md,.txt';input.onchange=()=>upload([...input.files],kind).catch(e=>toast(e.message));input.click();}
 const originalHandleFiles=handleFiles;

@@ -15,6 +15,10 @@ test('desktop extension is generated without changing approved prototype', async
     const generated = await readFile(entry, 'utf8');
     assert.match(generated, /type="module" src="\.\/desktop\/model-settings\.mjs"/);
     assert.ok(generated.indexOf('href="./desktop/chat.css"') < generated.indexOf('</head>'));
+    const copyPath=generated.match(/iconPaths\.copy \|\|= '([^']+)'/)?.[1];
+    assert.ok(copyPath,'copy icon remains available');
+    assert.match(copyPath,/^M/);
+    assert.doesNotMatch(copyPath,/[<>]/,'ic() requires SVG path data, not nested markup');
     assert.deepEqual(await readFile(path.join(defaultRoot, 'ScienceScope.html')), original);
     for (const asset of DESKTOP_ASSETS) {
       assert.deepEqual(await readFile(path.join(outputDir, 'desktop', asset)), await readFile(path.join(defaultRoot, 'desktop', asset)));

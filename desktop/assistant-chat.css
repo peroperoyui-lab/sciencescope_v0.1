@@ -24,3 +24,4 @@
 .assistant-proposals{max-height:260px;overflow:auto;flex-shrink:0}
 .assistant-proposal{border:1px solid var(--line,#ddd);border-radius:10px;padding:10px;margin:4px 0}
 .assistant-proposal textarea{display:block;width:100%;min-height:100px;resize:vertical;margin:8px 0;box-sizing:border-box}
+.assistant-follow-up{display:flex;align-items:center;gap:6px;padding:5px 12px;color:var(--muted);font-size:12px;flex:none;}

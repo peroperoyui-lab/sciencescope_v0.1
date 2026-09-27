@@ -35,12 +35,14 @@ try {
   await page.locator('[data-draft="main"]').fill('我们用随机分组设计。');
   await page.locator('[data-composer="main"] [data-v="send"]').click();
   await page.waitForFunction(() => !V.pending.has(V.chat) && S.messages.some(m => m.text.includes('采用随机分组')));
-  for (let i = 0; i < 60 && minuteRuns < 1; i++) await page.waitForTimeout(100);
-  assert.equal(minuteRuns, 1, 'the secretary wrote minutes after the turn');
+  await page.waitForTimeout(400);
+  assert.equal(minuteRuns, 0, 'an ordinary Main turn does not automatically spend a minutes run');
 
-  // Open from the chat's "…" menu.
+  // Open from the chat's "…" menu and explicitly request the first minutes.
   await page.locator('[data-v="workspace-menu"]').first().click();
   await page.locator('#v-menu [data-v="chat-minutes"]').click();
+  await page.waitForSelector('#modal .minutes-dialog [data-minutes-refresh]');
+  await page.locator('[data-minutes-refresh]').click();
   await page.waitForSelector('#modal .minutes-dialog h2, #modal .minutes-dialog .minutes-body h2');
   assert.match(await page.locator('[data-minutes-meta]').innerText(), /任务秘书整理 · 第 1 版 · 涵盖第 1–2 条（共 2 条）/);
   assert.match(await page.locator('[data-minutes-body]').innerText(), /研究问题与目标[\s\S]*第 1 次整理/);

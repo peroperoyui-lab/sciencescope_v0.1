@@ -1,5 +1,103 @@
 # Desktop implementation — first increment
 
+## 2026-09-27 T17 context access (Astra, Windows; acceptance passed)
+
+Branch `codex/t17-context-access-20260927`, based on reviewed `dfddc5c`.
+T18 and T19 are not included in this checkpoint. No PR or merge.
+
+- Host-owned, versioned `t17.1` context manifest now supplies Main, application
+  experts, task secretary and global assistant tools. Generic subagents do not
+  inherit these tools; missing manifests report a control event. The installed
+  DSH value-schema DSL requires `required: true` or omission, not `required: false`.
+- Read-only source registry and scope table replace the old project-memory
+  module. Secretary follows its bound Main chat automatically; global assistant
+  gets a changed-only workspace overview and can drill down into other projects.
+  Assistant private chats, temporary chats and private research items stay excluded.
+  Context rules use `configureBrief`, not role prompt receipts. Untouched legacy
+  defaults migrate; edited personas remain unchanged.
+- Follow-up cursors commit only after successful replies. Whole-message safety
+  omissions name their message numbers. Failed/stopped sends leave cursors alone.
+  Version organization and discussion summaries subscribe to host events;
+  per-Main-turn summaries are removed. T18 configurable triggers are still pending.
+  The user approved the two extra minimal framework edits: automation emits only
+  after persistence; untouched builtin secretary/global persona defaults update.
+
+Findings and bounded fixes:
+
+1. Startup manifest arrived before a runtime binding existed → preassign the
+   stable session identity and expose its scope during startup → real DSH four-role
+   manifest/parameter checks pass, ordinary subagents have no context tools.
+2. Fake global search hits exposed scores that the real model-facing tool strips
+   → use the existing public retrieval service before projecting results → real
+   indexed two-project/private-item regression added; no new search engine.
+3. Automatic version organization moved to the host → import UI now watches only
+   those version receipts, without reloading the map or another chat route.
+4. An old commit could schedule idle during a long-running turn → timer consults
+   current Main/discussion/goal activity before emitting `chat.idle` → regression.
+5. Full-suite first pass: 152/154. Two stale fixture assumptions (literal
+   `session-1`, old unknown-tool message) → assert the actual bound identity and
+   typed session denial, plus denial of a known tool for an unbound session →
+   focused rerun passes. Final full suite: 158/158 passed.
+6. Public-item reads exposed private linked-item metadata/quotes → filter link
+   endpoints through the same scope check → real Research Base regression proves
+   the underlying old passthrough contains the private link and the wrapper does not.
+   Global project searches exclude redundant personal hits (queried separately).
+7. Copy icon supplied nested SVG markup as path data → exact generated-entry
+   repair in `scripts/build-desktop.mjs`, leaving `ScienceScope.html` unchanged →
+   build regression and browser assertions pass with no SVG parse warning.
+8. Legacy plan records identify projects by name → same-name projects could
+   mix plans → shared scope projection now prefers explicit project IDs and
+   omits ambiguous name-only plans with a scope note. It does not migrate or
+   rewrite user records. Both plans and status are covered by a regression;
+   final npm suite rerun after this addition passes 159/159.
+
+Local acceptance (Node 24.19.0, Windows, project-local fixtures):
+
+- `node D:/nodejs/node_modules/npm/bin/npm-cli.js test`: 159/159, exit 0,
+  196.890 seconds; log `.sciencescope-local/temp/t17-validation/npm-test-final.log`.
+  No global PATH/settings changes or duplicate full-suite run.
+- Existing browser/API matrix: 20/20, exit 0: chat-ui, discussion-ui, marks-ui,
+  research-input-ui, settings-ui, workspace-ui, desktop-navigation,
+  failed-send-draft, workbench-ui, shortcuts-ui, extensions-ui, background-chat,
+  desktop-interaction, creation-details, features, deliverables, i18n, minutes,
+  `assistant-api-smoke --ui`, viewer-ui. These use simulated local models; the
+  assistant API smoke traverses real DSH (12 localhost requests, zero paid).
+- New `node scripts/context-access-ui-smoke.mjs`: PASS. Secretary cursor 0→4,
+  removed old reference menu, global focus and question hint; no new T17 i18n gaps.
+  `node scripts/i18n-extract.mjs --missing` still reports pre-existing gaps,
+  not newly introduced T17 strings.
+- Astra reran real-DSH manifest tests (4/4), build/private-link/search tests (7/7),
+  and other targeted regressions, reviewed diffs and the actual model answers,
+  and inspected screenshots. Sol's report was not treated as sole acceptance.
+- Eight screenshots under `.sciencescope-local/temp/t17-validation/context-access-ui/`:
+  `zh-light.png`, `zh-dark.png`, `en-light.png`, `en-dark.png`, and each corresponding
+  `secretary-` prefixed file. Logs: `.sciencescope-local/temp/t17-validation/`.
+  Only incidental browser-fixture `favicon.ico` 404 remains, not the SVG error.
+
+Real provider evaluation (separate from simulated-model checks):
+
+- Command: `node scripts/evals/context-access-live.mjs --live`.
+- Application API → real DSH → OpenCode Go `deepseek-v4.1-flash`.
+- 20 Main rounds without secretary use, then first secretary question: correct
+  Matsuda endpoint at #5, progress at #40, and the unfinished power-analysis node.
+  Cursor snapshot: seen 40 / latest 40 / included minutes revision 0.
+- Global assistant focused on project B correctly retrieved project A's pending
+  work. Astra read both complete answers, not only the rule-based verdict.
+- 28 forwarded requests, all HTTP 200; returned input 298542, output 2598,
+  total 301140 tokens. Usage available for all 28 requests; no API error records.
+- Durable tool receipts confirm one successful `minutes_refresh` and five
+  `project_memory` calls. The secretary explicitly requested that one refresh
+  during its answer (revision 1, through #40); it was not a per-Main-turn job.
+  Its cursor correctly retains revision 0 from the packet actually supplied
+  before that request, allowing revision 1 to be supplied on its next turn.
+- Evidence: `.sciencescope-local/temp/eval/context-access-live-gX133Q/result.json`.
+  Synthetic research facts only; credentials remain in the ignored workspace
+  secret directory. No provider credential was printed or committed.
+- Native client not retested for this slice (browser and real DSH acceptance are
+  separate from the prior batch's native evidence). This is not an installer,
+  complete alpha-release or whole Batch 2 acceptance claim. T18/T19 follow on
+  separate stacked branches. No real research files were used.
+
 ## 2026-09-27 Review and merge of batch 1 r4 (Claude, cloud)
 
 Merged `codex/local-validation-20260927-r4@5b001de` (expert approval

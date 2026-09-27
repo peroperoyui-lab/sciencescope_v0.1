@@ -1,5 +1,5 @@
 // Policy is enforced by DSH; this is only the desktop's control and projection.
-export function createExecutionService({host,database,chatStore,bindings}){
+export function createExecutionService({host,database,chatStore,bindings,onTurnPersisted=()=>{}}){
   const sql=database.db;
   sql.exec(`CREATE TABLE IF NOT EXISTS execution_sessions(chat_id TEXT PRIMARY KEY,mode TEXT NOT NULL,goal_json TEXT);`);
   const rows=new Map(),writes=new Map();
@@ -23,7 +23,7 @@ export function createExecutionService({host,database,chatStore,bindings}){
       if(state.automatic&&event.type==='stream-start')state.preview='';
       if(state.automatic&&event.type==='text-delta')state.preview+=event.delta;
       if(state.automatic&&event.type==='committed-event'&&event.eventType==='assistant/message'&&event.data?.text){
-        const task=(writes.get(id)||Promise.resolve()).then(()=>chatStore.appendMessage({chatId:id,id:`runtime-${binding.sessionId}-${event.seq}`,role:'assistant',text:event.data.text,created:new Date(event.time||Date.now()).toISOString()}));
+        const task=(writes.get(id)||Promise.resolve()).then(async()=>{await chatStore.appendMessage({chatId:id,id:`runtime-${binding.sessionId}-${event.seq}`,role:'assistant',text:event.data.text,created:new Date(event.time||Date.now()).toISOString()});onTurnPersisted({chatId:id});});
         writes.set(id,task.catch(()=>{state.error='自动化结果保存失败，请暂停并检查本地存储。';}));state.preview='';
       }
     });
