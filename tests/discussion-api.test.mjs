@@ -8,16 +8,17 @@ import { createDesktopApi } from '../scripts/desktop-api.mjs';
 async function fixture() {
   const base = path.resolve('.sciencescope-local/temp'); await mkdir(base, { recursive: true });
   const root = await mkdtemp(path.join(base, 'discussion-api-'));
-  const state = { runs: [], starts: 0 };
+  const state = { runs: [], starts: 0, toolHandler: null, invokeResearchTools: false, researchCalls: [] };
   const host = {
     capabilities: { tokenStreaming: true, reasoningEffort: false },
     listProviders: async () => [], getRuntimeConfig: async () => ({}), getContextUsage: async () => null,
     observeSession: () => () => {},
     startSession: async ({ sessionId }) => { state.starts += 1; return sessionId || `session-${state.starts}`; },
     configureReasoning: async () => {}, configurePolicy: async () => {}, releaseSession: async () => {}, close: async () => {},
+    setToolHandler: (fn) => { state.toolHandler = fn; },
     send: async ({ text, onEvent }) => { state.mainPrompts = [...(state.mainPrompts || []), text]; onEvent({ type: 'text-delta', delta: 'MAIN_REPLY' }); onEvent({ type: 'completed', text: 'MAIN_REPLY' }); return { finalResponse: 'MAIN_REPLY' }; },
-    runExperts: async ({ runId, prompt, experts, onEvent }) => {
-      state.runs.push({ runId, prompt, experts });
+    runExperts: async ({ sessionId, runId, prompt, experts, onEvent }) => {
+      state.runs.push({ sessionId, runId, prompt, experts });
       const result = experts.map((expert) => ({ expertId: expert.id, stopReason: state.failedExpertId === expert.id ? 'max-tokens' : 'completed', text: state.failedExpertId === expert.id ? '' : `${expert.id.toUpperCase()}_VIEW`, ms: 5 }));
       if (experts[0].id === 'methodologist') onEvent({ type: 'expert-tool', runId, expertId: 'methodologist', callId: 'call-1', name: 'read', argumentsPreview: '{"path":"paper_versions/draft.md"}', preamble: 'Let me read the draft.' });
       if (experts[0].id === 'methodologist') {
@@ -25,7 +26,15 @@ async function fixture() {
         onEvent({ type: 'expert-tool-result', runId, expertId: 'methodologist', callId: 'call-2', isError: false, resultPreview: 'Presented figure successfully.' });
       }
       // Finish in reverse roster order, as real experts finish in any order.
-      for (const entry of [...result].reverse()) { onEvent({ type: 'expert-start', runId, expertId: entry.expertId }); onEvent({ type: 'expert-end', runId, ...entry }); }
+      for (const entry of [...result].reverse()) {
+        onEvent({ type: 'expert-start', runId, expertId: entry.expertId });
+        if (state.invokeResearchTools) {
+          const search = await state.toolHandler({ sessionId, name: 'research_search', args: { query: 'provenance marker' }, callId: `search-${entry.expertId}`, expertId: entry.expertId });
+          const proposal = await state.toolHandler({ sessionId, name: 'research_propose', args: { op: 'create', item: { type: 'memory', subtype: 'decision', scope: 'personal', title: `Proposal ${entry.expertId} ${runId}`, body: `Decision from ${entry.expertId} in ${runId}` }, rationale: 'Test expert message provenance.' }, callId: `propose-${entry.expertId}`, expertId: entry.expertId });
+          state.researchCalls.push({ expertId: entry.expertId, search, proposal });
+        }
+        onEvent({ type: 'expert-end', runId, ...entry });
+      }
       return result;
     },
     cancelExperts: async () => {},
@@ -45,6 +54,44 @@ async function fixture() {
 }
 
 const model = { providerId: 'fixture', modelId: 'main-model' };
+
+test('expert research proposals and usage resolve to each persisted expert message', async () => {
+  const f = await fixture();
+  try {
+    const marker = await f.send('POST', '/api/research/items', { item: { type: 'knowledge', subtype: 'finding', scope: 'personal', title: 'Provenance test marker', body: 'A searchable marker for research provenance.' } });
+    assert.equal(marker.status, 200);
+    f.state.invokeResearchTools = true;
+    const discussion = await f.send('POST', '/api/discussion', { chatId: 'chat-provenance', projectId: null, model, kind: 'invited', text: 'Check this shared context.', expertIds: ['methodologist', 'red-team'], userMessageId: 'user-provenance' });
+    assert.equal(discussion.status, 200);
+    const accepted = discussion.events.find((event) => event.type === 'accepted');
+    const expertEnds = discussion.events.filter((event) => event.type === 'expert-end');
+    const expectedByExpert = new Map(accepted.experts.map(({ id, messageId }) => [id, messageId]));
+    const messages = (await f.send('GET', '/api/chats/chat-provenance/messages')).events[0].messages;
+    for (const expertId of ['methodologist', 'red-team']) {
+      const messageId = expectedByExpert.get(expertId);
+      const message = messages.find((entry) => entry.id === messageId);
+      assert.ok(message, `${expertId} message was persisted`);
+      assert.equal(expertEnds.find((entry) => entry.expertId === expertId).messageId, messageId);
+      const proposal = (await f.send('GET', '/api/research/proposals?status=pending')).events[0].proposals.find((entry) => entry.origin.expertId === expertId);
+      assert.equal(proposal.origin.messageId, messageId, `${expertId} proposal points to its own persisted message`);
+      const usage = (await f.send('GET', `/api/research/usage?chatId=chat-provenance&messageId=${encodeURIComponent(messageId)}`)).events[0].refs;
+      assert.ok(usage.some((ref) => ref.type === 'item' && ref.id === marker.events[0].item.id && ref.how === 'search'), `${expertId} search usage points to its own message`);
+    }
+    assert.notEqual(expectedByExpert.get('methodologist'), expectedByExpert.get('red-team'), 'sibling expert turns have distinct message identities');
+    assert.equal(f.state.researchCalls.length, 2);
+    assert.ok(f.state.researchCalls.every((entry) => entry.search.hits.some((hit) => hit.ref.id === marker.events[0].item.id)));
+
+    f.state.researchCalls.length = 0;
+    const next = await f.send('POST', '/api/discussion', { chatId: 'chat-provenance', projectId: null, model, kind: 'invited', text: 'Check one more time.', expertIds: ['red-team'], userMessageId: 'user-provenance-2' });
+    assert.equal(next.status, 200);
+    const nextId = next.events.find((event) => event.type === 'accepted').experts[0].messageId;
+    assert.notEqual(nextId, expectedByExpert.get('red-team'), 'the next discussion gets a fresh expert message identity');
+    const nextProposal = (await f.send('GET', '/api/research/proposals?status=pending')).events[0].proposals.find((entry) => entry.origin.toolCallId === 'propose-red-team' && entry.origin.messageId === nextId);
+    assert.ok(nextProposal, 'the repeated expert ID maps to the next turn rather than the prior turn');
+    const late = await f.state.toolHandler({ sessionId: f.state.runs.at(-1).sessionId, name: 'research_propose', args: { op: 'create', item: { type: 'memory', subtype: 'decision', scope: 'personal', title: 'Late stale mapping probe', body: 'No active expert turn.' }, rationale: 'Probe cleanup.' }, callId: 'late-probe', expertId: 'red-team' });
+    assert.equal((await f.send('GET', '/api/research/proposals?status=pending')).events[0].proposals.find((entry) => entry.id === late.proposalId).origin.messageId, null, 'a tool call after the discussion does not inherit a stale message ID');
+  } finally { await f.close(); }
+});
 
 test('ordered panel: shared transcript, roster order, reviewer after all, adoption, invites and Main catch-up', async () => {
   const f = await fixture();

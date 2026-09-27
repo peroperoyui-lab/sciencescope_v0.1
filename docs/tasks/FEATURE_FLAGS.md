@@ -25,13 +25,15 @@
 | `inAppBrowser` | 顶栏/视图菜单"内置浏览器"、设置"内置浏览器"页、路由 `browser` `browser-settings` | T08 | 浏览器窗口与网页保存可用；在此之前学术站点用系统浏览器打开（`POST /api/open-url`，已实现） |
 | `branch` | 消息下方"从此分支"、消息菜单"从此开始分支"、输入框上方"从此分支"、路由 `branch` | T12 | DSH `session.fork` 接通并通过验收 |
 | `usage` | 设置"用量分析"、路由 `usage` | T13 | 用量记录与 `/api/usage` 可用 |
-| `materialsPanel` | 附件菜单"项目材料与引用"、路由 `context`（原型的示例材料面板） | T05 | 研究资料库面板可用 |
+| `materialsPanel` | 附件菜单"项目材料与引用"、路由 `context` | T05 | 已接通：宿主检测 Research Base 服务；真实资源/条目选择、草稿恢复及模型输入已通过浏览器与原生 smoke（2026-09-27） |
 | `mapHistory` | 导图编辑器"更新历史"、路由 `map-history` `version-note` `diff` | T14 | 导图历史、版本说明页、版本比较接通真实数据 |
 | `changeLog` | 对话菜单"修改记录"、命令面板"查看修改记录"、路由 `changes` | T14 | 修改记录由真实事件生成 |
 | `pluginManagement` | （目前只删除了"尚待接入"说明；插件区只读） | T15 | 插件安装、更新、启停可用 |
 | `dataRelocation` | （目前只删除了"尚未开放"说明；路径只读） | T16 | 更改目录与数据迁移可用 |
 
 ## 现状（2026-09-25，Claude）
+
+- 2026-09-27 T05：`materialsPanel` 已按真实服务检测开启，原型材料面板被实际资料库替换；其他未完成开关保持关闭。验收详见 DESKTOP_IMPLEMENTATION 的 T05 小节。
 
 - 已实现：开关机制、上表的隐藏、`/api/open-url`（只接受 http/https，经 API 口令保护）、学术站点改为系统浏览器打开。
 - 截图与验证见 `docs/DESKTOP_IMPLEMENTATION.md` 当日小节。

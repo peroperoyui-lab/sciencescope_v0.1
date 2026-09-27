@@ -85,6 +85,26 @@ test('invalid Main research input fails before runtime start and keeps draft and
   } finally { await f.close(); }
 });
 
+test('Main sends selected shared research items and blocks private items', async () => {
+  const f = await fixture();
+  try {
+    const shared = await f.call('/api/research/items', { item: { type: 'memory', subtype: 'decision', scope: 'personal', title: 'Study endpoint', body: 'Use the Matsuda index.', visibility: 'shared' } });
+    const sent = await f.call('/api/chat', mainInput('item-context-chat', { contextRefs: [{ itemId: shared.body.item.id }] }));
+    assert.equal(sent.status, 200, sent.text);
+    assert.match(f.state.sends.at(-1), /<research-item[^>]*Study endpoint/);
+    assert.match(f.state.sends.at(-1), /Use the Matsuda index\./);
+    const messages = await f.get('/api/chats/item-context-chat/messages');
+    assert.deepEqual(messages.body.messages.find((message) => message.id === 'user-item-context-chat').researchInput.contextRefs, [{ itemId: shared.body.item.id }]);
+    const usage = await f.get(`/api/research/usage?chatId=item-context-chat&messageId=assistant-item-context-chat`);
+    assert.deepEqual(usage.body.refs, [{ type: 'item', id: shared.body.item.id, how: 'context' }]);
+
+    const privateItem = await f.call('/api/research/items', { item: { type: 'memory', subtype: 'preference', scope: 'personal', title: 'Private note', body: 'Do not send.', visibility: 'private' } });
+    const blocked = await f.call('/api/chat', mainInput('private-item-chat', { contextRefs: [{ itemId: privateItem.body.item.id }] }));
+    assert.notEqual(blocked.status, 200);
+    assert.doesNotMatch(f.state.sends.at(-1), /Do not send\./);
+  } finally { await f.close(); }
+});
+
 test('assistant research input reuses compiler and secretary acceptance does not clear annotation draft', async () => {
   const f = await fixture();
   try {
@@ -127,6 +147,22 @@ test('send failure after accepted restores research draft and keeps the imported
     assert.equal(draft.body.annotations[0].id, 'ann-failed');
     const file = path.join(f.root, '.sciencescope-local', 'library', 'originals', resource.body.id, 'failed-send.txt');
     assert.equal(await readFile(file, 'utf8'), 'KEEP_AFTER_SEND_FAILURE');
+  } finally { await f.close(); }
+});
+
+test('failed send restores a selected source once as a context ref and preserves compiled model input', async () => {
+  const f = await fixture();
+  try {
+    const resource = await f.call('/api/library/import', { name: 'context-only.txt', base64: Buffer.from('CONTEXT_ONLY_SOURCE').toString('base64') });
+    const contextRefs = [{ resourceId: resource.body.id }];
+    await f.call('/api/research-input/draft', { scope: 'main', ownerId: 'context-failed-chat', snapshot: { attachmentIds: [], messageQuotes: [], annotations: [], contextRefs } });
+    f.state.failSend = true;
+    const result = await f.call('/api/chat', mainInput('context-failed-chat', { contextRefs }));
+    assert.ok(result.events.some((event) => event.type === 'failed'), 'runtime send fails after accepting the input snapshot');
+    assert.match(f.state.sends.at(-1), /CONTEXT_ONLY_SOURCE/);
+    const draft = await f.get('/api/research-input/draft?scope=main&ownerId=context-failed-chat');
+    assert.deepEqual(draft.body.attachmentIds, []);
+    assert.deepEqual(draft.body.contextRefs, contextRefs);
   } finally { await f.close(); }
 });
 

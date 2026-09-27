@@ -69,6 +69,21 @@ test('repeating accepted for the same message is idempotent and preserves one re
   }
 });
 
+test('context refs preserve resource and item identity when accepted and restored', () => {
+  const f = fixture();
+  try {
+    const refs = [{ resourceId: 'same-id' }, { itemId: 'same-id' }, { itemId: 'item-2' }];
+    f.store.save('main', 'chat-main', { ...empty, contextRefs: refs });
+    const snapshot = { ...empty, contextRefs: [refs[1]] };
+    f.store.accepted('main', 'chat-main', 'main-chat', 'message-refs', snapshot);
+    assert.deepEqual(f.store.get('main', 'chat-main').contextRefs, [refs[0], refs[2]]);
+    f.store.restore('main', 'chat-main', snapshot);
+    assert.deepEqual(f.store.get('main', 'chat-main').contextRefs, [refs[0], refs[2], refs[1]], 'restored refs are appended after unconsumed refs');
+  } finally {
+    close(f);
+  }
+});
+
 test('main accepted quote snapshot matches id and revision, retaining updated and new quotes', () => {
   const f = fixture();
   try {

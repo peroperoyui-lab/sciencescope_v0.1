@@ -64,6 +64,10 @@ test('document preview APIs enforce auth, preserve legacy 64k preview, and serve
     const docx = await importResource(server.base, '中文研究.docx', docxBytes);
     const long = await importResource(server.base, 'long.txt', Buffer.from(longText));
     const unknown = await importResource(server.base, 'notes.bin', Buffer.from([0, 1, 2, 3]));
+    // Library imports now enqueue parsing; wait for that actual lifecycle before
+    // checking status. Byte fidelity and the old preview boundary stay unchanged.
+    const synced = await request(server.base, '/api/research/sync', { method: 'POST', body: { wait: true } });
+    assert.equal(synced.response.status, 200);
 
     const pdfContent = await request(server.base, `/api/library/content?id=${encodeURIComponent(pdf.id)}`);
     assert.equal(pdfContent.response.status, 200);
@@ -87,7 +91,7 @@ test('document preview APIs enforce auth, preserve legacy 64k preview, and serve
     const fullDocument = await request(server.base, `/api/library/document?id=${encodeURIComponent(long.id)}`);
     assert.equal(fullDocument.response.status, 200);
     assert.equal(fullDocument.json.format, 'text');
-    assert.equal(fullDocument.json.parseStatus, 'unparsed');
+    assert.equal(fullDocument.json.parseStatus, 'parsed');
     assert.equal(fullDocument.json.text, longText);
 
     const ingest = await request(server.base, '/api/research/sources/ingest', {
@@ -110,7 +114,7 @@ test('document preview APIs enforce auth, preserve legacy 64k preview, and serve
     assert.equal(unknownDocument.response.status, 200);
     assert.equal(unknownDocument.json.kind, 'bin');
     assert.equal(unknownDocument.json.format, 'original');
-    assert.equal(unknownDocument.json.parseStatus, 'unparsed');
+    assert.equal(unknownDocument.json.parseStatus, 'unsupported');
     assert.equal(Object.hasOwn(unknownDocument.json, 'text'), false);
     assert.equal(Object.hasOwn(unknownDocument.json, 'html'), false);
   } finally {

@@ -83,6 +83,9 @@ test('memory items: supersession, brief budget, visibility and proposals with ev
     const secret = store.createItem({ type: 'memory', subtype: 'preference', projectId: 'p1', title: '私人备注', body: '导师偏好', visibility: 'private' });
     const lesson = store.createItem({ type: 'memory', subtype: 'lesson', scope: 'expert:statistician', projectId: 'p1', title: '先查多重比较', body: '24 项检验需校正' });
 
+    assert.throws(() => store.supersedeItem(decision.id, { title: '错误覆盖' }, { expectedRevision: 0 }), (error) => error.code === 'REVISION_CONFLICT');
+    assert.equal(store.getItem(decision.id).status, 'active', 'a stale supersede leaves the original untouched');
+
     const { item: next, superseded } = store.supersedeItem(decision.id, { title: '主要终点', body: '改为 Matsuda 指数' });
     assert.equal(superseded.status, 'superseded'); assert.equal(superseded.supersededBy, next.id); assert.ok(superseded.validTo);
     assert.equal(store.linksOf({ type: 'item', id: next.id }, { relation: 'supersedes' }).length, 1);
@@ -125,6 +128,19 @@ test('memory items: supersession, brief budget, visibility and proposals with ev
     const edited = store.updateItem(goal.id, { body: '改：IF 对胰岛素敏感性的影响', expectedRevision: 1 });
     assert.equal(edited.revision, 2); assert.throws(() => store.updateItem(goal.id, { body: 'x', expectedRevision: 1 }), /已被修改/);
     assert.equal(store.revisionsOf(goal.id)[0].snapshot.body, 'IF 是否改善年轻人胰岛素敏感性');
+  } finally { await f.close(); }
+});
+
+test('source listing supports stable sort and independent filtered counts', async () => {
+  const f = await fixture();
+  try {
+    const { store } = f.rb;
+    store.addSource({ id: 'source-a', projectId: 'p1', title: 'Beta', year: 2020, tags: ['trial'] });
+    store.addSource({ id: 'source-b', projectId: 'p1', title: 'Alpha', year: 2022, tags: ['trial'] });
+    store.addSource({ id: 'source-c', projectId: 'p1', title: 'Gamma', year: 2021, tags: ['other'] });
+    assert.equal(store.countSources({ projectId: 'p1', tag: 'trial' }), 2);
+    assert.deepEqual(store.listSources({ projectId: 'p1', tag: 'trial', sort: 'title', direction: 'asc', limit: 1, offset: 0 }).map((source) => source.title), ['Alpha']);
+    assert.deepEqual(store.listSources({ projectId: 'p1', tag: 'trial', sort: 'year', direction: 'desc', limit: 2, offset: 1 }).map((source) => source.title), ['Beta']);
   } finally { await f.close(); }
 });
 

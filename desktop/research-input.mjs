@@ -14,6 +14,7 @@ const SCOPE_LABEL={main:'主对话',secretary:'任务秘书',global:'全局助�
 
 const empty=()=>({attachmentIds:[],messageQuotes:[],annotations:[],contextRefs:[]});
 const key=(scope,owner)=>JSON.stringify([scope,owner]);
+const refKey=ref=>ref.itemId?'item:'+ref.itemId:'resource:'+ref.resourceId;
 const get=(scope,owner)=>drafts.get(key(scope,owner))||empty();
 async function load(scope,owner){
   const id=key(scope,owner);if(drafts.has(id))return get(scope,owner);
@@ -66,7 +67,7 @@ messageHTML=function(message){
   const html=baseMessage(message),value=message.researchInput;
   if(!value||![value.attachmentIds,value.messageQuotes,value.annotations,value.contextRefs].some(items=>items?.length))return html;
   const marks=ordered({messageQuotes:value.messageQuotes||[],annotations:value.annotations||[]});
-  const ids=[...new Set([...(value.attachmentIds||[]),...(value.contextRefs||[]).map(r=>r.resourceId)])];
+  const ids=[...new Set([...(value.attachmentIds||[]),...(value.contextRefs||[]).map(r=>r.itemId||r.resourceId)])];
   const summary=[marks.length?`标记 ${marks.length} 条`:'',ids.length?`材料 ${ids.length} 份`:''].filter(Boolean).join(' · ');
   const details=`<details class="research-receipt"><summary>${summary}</summary>${marks.length?`<ol class="mark-list">${marks.map((entry,i)=>markHTML(entry,i,{chatId:V.chat})).join('')}</ol>`:''}${ids.length?`<div class="receipt-materials">${ids.map(id=>`<span class="ref-chip">${titleSpan(id)}</span>`).join('')}</div>`:''}</details>`;
   return html.replace('<div class="msg-actions">',details+'<div class="msg-actions">');
@@ -85,6 +86,7 @@ function paint(){
     let box=composer.querySelector('.research-input-chips');if(!box){box=document.createElement('div');box.className='research-input-chips attachmentbar';composer.prepend(box);}
     const value=get(scope,owner),count=markCount(value),expanded=open?.scope===scope&&open?.owner===owner;
     const chips=value.attachmentIds.map(id=>`<button type="button" class="ref-chip" data-research-edit="attachmentIds" data-id="${esc(id)}" data-scope="${scope}" data-owner="${esc(owner)}" title="预览、批注或移除">${esc(value.labels?.[id]||titles.get(id)||'材料 '+id.slice(0,8))}</button>`);
+    for(const ref of value.contextRefs){const id=ref.itemId||ref.resourceId;chips.push(`<button type="button" class="ref-chip" data-context-remove="${esc(refKey(ref))}" data-scope="${scope}" data-owner="${esc(owner)}" title="移除引用">${esc(titles.get(id)||value.labels?.[id]||id)} ×</button>`);}
     if(count)chips.push(`<button type="button" class="ref-chip marks-toggle" data-marks-toggle data-scope="${scope}" data-owner="${esc(owner)}" aria-haspopup="dialog" aria-expanded="${expanded}">标记 <b>${count}</b></button>`);
     const html=chips.join('');if(box.innerHTML!==html)box.innerHTML=html;
     box.style.display=chips.length?'':'none';
@@ -282,11 +284,12 @@ const baseOpenPanel=openPanel;openPanel=function(...args){const result=baseOpenP
 const after=window.ScienceScopeWorkspace.afterRender;window.ScienceScopeWorkspace.afterRender=(...args)=>{after?.(...args);void refresh().catch(error=>toast(error.message));};
 
 window.ScienceScopeResearchInput={
-  async restore(scope,owner,snapshot){await writes.get(key(scope,owner));const current=get(scope,owner);for(const kind of ['annotations','messageQuotes'])for(const item of snapshot[kind])if(!current[kind].some(old=>old.id===item.id))current[kind].push(item);current.attachmentIds=[...new Set([...current.attachmentIds,...snapshot.attachmentIds])];for(const ref of snapshot.contextRefs)if(!current.contextRefs.some(old=>old.resourceId===ref.resourceId))current.contextRefs.push(ref);await save(scope,owner);paint();},
+  async restore(scope,owner,snapshot){await writes.get(key(scope,owner));const current=get(scope,owner);for(const kind of ['annotations','messageQuotes'])for(const item of snapshot[kind])if(!current[kind].some(old=>old.id===item.id))current[kind].push(item);current.attachmentIds=[...new Set([...current.attachmentIds,...snapshot.attachmentIds])];for(const ref of snapshot.contextRefs)if(!current.contextRefs.some(old=>refKey(old)===refKey(ref)))current.contextRefs.push(ref);await save(scope,owner);paint();},
   async legacyAnnotations(items,projectId){if(!items.length)return [];if(!projectId)throw new Error('批注没有项目原件身份，原批注保留。');const {resources}=await hostRequest('library?'+new URLSearchParams({projectId}));return items.map(a=>{const resource=resources.find(r=>r.metadata?.versionId===a.version);if(!resource)throw new Error('批注所指原件不存在，原批注保留，请核对版本。');return {id:a.id,revision:a.rev,resourceId:resource.id,versionId:a.version,selectedText:a.quote,comment:a.note||'',...(a.location?{location:a.location}:{})};});},
   async capture(scope,owner){await load(scope,owner);await writes.get(key(scope,owner));return structuredClone(get(scope,owner));},
   has(scope,owner){return Object.values(get(scope,owner)).some(v=>Array.isArray(v)&&v.length);},
-  async accepted(scope,owner,snapshot){if(scope!=='main')return;const current=get(scope,owner);current.attachmentIds=current.attachmentIds.filter(id=>!snapshot.attachmentIds.includes(id));for(const field of ['annotations','messageQuotes'])current[field]=current[field].filter(item=>!snapshot[field].some(s=>s.id===item.id&&s.revision===item.revision));current.contextRefs=current.contextRefs.filter(r=>!snapshot.contextRefs.some(s=>s.resourceId===r.resourceId));await save(scope,owner);paint();},
+  async accepted(scope,owner,snapshot){if(scope!=='main')return;const current=get(scope,owner);current.attachmentIds=current.attachmentIds.filter(id=>!snapshot.attachmentIds.includes(id));for(const field of ['annotations','messageQuotes'])current[field]=current[field].filter(item=>!snapshot[field].some(s=>s.id===item.id&&s.revision===item.revision));current.contextRefs=current.contextRefs.filter(r=>!snapshot.contextRefs.some(s=>refKey(s)===refKey(r)));await save(scope,owner);paint();},
+  async selectContext(scope,owner,ref,title,selected=true){await load(scope,owner);const current=get(scope,owner);if(selected&&!current.contextRefs.some(r=>refKey(r)===refKey(ref))){if(current.contextRefs.length>=8)throw new Error('每次最多选择 8 条材料引用。');current.contextRefs.push(ref);}if(!selected)current.contextRefs=current.contextRefs.filter(r=>refKey(r)!==refKey(ref));if(title)titles.set(ref.itemId||ref.resourceId,title);await save(scope,owner);paint();},
   // Marks API used by the file preview.
   addMark:(scope,owner,field,value)=>add(scope,owner,field,value),
   marks:(scope,owner)=>structuredClone({messageQuotes:get(scope,owner).messageQuotes,annotations:get(scope,owner).annotations}),
@@ -296,3 +299,4 @@ window.ScienceScopeResearchInput={
   attachFiles,refresh,paint
 };
 void refresh();
+window.addEventListener('click',event=>{const b=event.target.closest('[data-context-remove]');if(!b)return;event.preventDefault();event.stopImmediatePropagation();const value=b.dataset.contextRemove;const ref=value.startsWith('item:')?{itemId:value.slice(5)}:{resourceId:value.slice(9)};void window.ScienceScopeResearchInput.selectContext(b.dataset.scope,b.dataset.owner,ref,'',false).catch(error=>toast(error.message));},true);

@@ -126,7 +126,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   const outbox=createChatOutbox({chatStore});
   const chatSearch=createChatSearch({chatStore});
   const attachments=createChatAttachments({database,root:path.join(dataRoot,'.sciencescope-local','library'),resolveProjectPath:(projectId,relative)=>workbench.store.resolvePath(projectId,relative)});
-  const researchInput=createResearchInput({attachments,chatStore,getResource:id=>database.getResource(id)});
+  const researchInput=createResearchInput({attachments,chatStore,getResource:id=>database.getResource(id),getResearchItem:id=>research.store.getItem(id)});
   const researchDrafts=createResearchInputStore({db:database.db});
   const library=createLibraryService({database,root:path.join(dataRoot,'.sciencescope-local','library'),workbench,getWorkspace:()=>chatStore.getWorkspace()});
   const experts=createExpertRoster({db:database.db});
@@ -140,9 +140,16 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     return file;
   };
   const research=createResearchBase({database,resolveResourcePath});
+  await research.registerResources();
   const documentPreview=createDocumentPreview({database,resolveResourcePath,research});
   // Which assistant message a session is producing now (for usage receipts).
   const turnMessages=new Map();
+  const expertTurnMessages=new Map();
+  const expertTurnKey=(sessionId,expertId)=>JSON.stringify([sessionId,expertId]);
+  function recordInputUsage(chatId,messageId,snapshot){
+    const refs=(snapshot?.contextRefs||[]).flatMap(ref=>{if(ref.itemId)return [{type:'item',id:ref.itemId}];const source=research.store.sourceByResource(ref.resourceId);return source?[{type:'source',id:source.id}]:[];});
+    if(refs.length)research.store.recordUsage({chatId,messageId,refs,how:'context'});
+  }
   let sessionHeaders = [];
   try { sessionHeaders = JSON.parse(await readFile(path.join(dataRoot,'.sciencescope-local/state/runtime-client.json'),'utf8')).sessionHeaders || []; } catch {}
   try {
@@ -170,7 +177,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       inAppBrowser:false,      // T08
       branch:false,            // T12 runtime branch from a message
       usage:false,             // T13 usage analytics
-      materialsPanel:false,    // T05 project materials & references panel
+      materialsPanel:typeof research.store.listSources==='function', // T05 real research material selection
       mapHistory:false,        // T14 map history, version notes, diff
       changeLog:false,         // T14 per-chat change log
       pluginManagement:false,  // T15 DSH plugin install/update/enable
@@ -213,7 +220,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     if(!chatId)return {role:'temporary',projectId:null};
     const assistant=database.db.prepare('SELECT scope,owner_id FROM assistant_conversations WHERE chat_id=?').get(chatId);
     const projectChat=assistant?.scope==='secretary'?assistant.owner_id:assistant?null:chatId;
-    return {chatId,mainChatId:projectChat||null,projectId:projectChat?chatStore.getChat(projectChat)?.projectId??null:null,role:expertId?'expert':assistant?assistant.scope:'main',...(expertId?{expertId}:{}),messageId:turnMessages.get(sessionId)};
+    return {chatId,mainChatId:projectChat||null,projectId:projectChat?chatStore.getChat(projectChat)?.projectId??null:null,role:expertId?'expert':assistant?assistant.scope:'main',...(expertId?{expertId}:{}),messageId:expertId?expertTurnMessages.get(expertTurnKey(sessionId,expertId))?.messageId:turnMessages.get(sessionId)};
   }
   host?.setToolHandler?.(async({sessionId,name,args,callId,expertId})=>{
     const ctx={...toolContext(sessionId,expertId),callId};
@@ -310,7 +317,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     pending.add(input.chatId);
     try{
       const projectFolder=currentProject?(await workbench.call(currentProject.id,'get')).folder:undefined;
-      const compiled=await researchInput.compile({...input.researchInput,text});
+      const compiled=await researchInput.compile({...input.researchInput,text,projectId});
       const binding=await ensureMainBinding({key:input.chatId,input:{...input,projectId,text:text||'专家讨论'},projectFolder,modelRoute,modelKey,reasoningEffort:undefined});
       await execution.configure(input.chatId,binding,executionMode);
       const context=currentProject?`[ScienceScope project context]\nProject: ${currentProject.name}\nResearch goal: ${currentProject.desc||''}\nProject directory: ${projectFolder}\n\n`:'';
@@ -320,11 +327,21 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       const emit=event=>{if(!response.destroyed)response.write(JSON.stringify(event)+'\n');};
       await discussions.run({chatId:input.chatId,sessionId:binding.sessionId,experts:panel,reviewer,kind,context:expertContext,requestText:compiled.text,chatModel:modelRoute,
         userMessage:{id:userMessageId,text},
-        onEvent:event=>{if(event.type==='accepted'&&compiled.snapshot)researchDrafts.accepted('main',input.chatId,input.chatId,userMessageId,compiled.snapshot);emit(event);}});
+        onEvent:event=>{
+          if(event.type==='accepted'){
+            if(compiled.snapshot)researchDrafts.accepted('main',input.chatId,input.chatId,userMessageId,compiled.snapshot);
+            for(const expert of event.experts||[]){
+              expertTurnMessages.set(expertTurnKey(binding.sessionId,expert.id),{chatId:input.chatId,messageId:expert.messageId});
+              recordInputUsage(input.chatId,expert.messageId,compiled.snapshot);
+              if(brief.refs.length)research.store.recordUsage({chatId:input.chatId,messageId:expert.messageId,refs:brief.refs,how:'brief'});
+            }
+          }
+          emit(event);
+        }});
       binding.lastUsed=Date.now();
       void events.emit('discussion.finished',{chatId:input.chatId});
       response.end();
-    }finally{pending.delete(input.chatId);}
+    }finally{pending.delete(input.chatId);for(const [key,value] of expertTurnMessages)if(value.chatId===input.chatId)expertTurnMessages.delete(key);}
   }
   const json = (response,status,body) => { response.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'}); response.end(JSON.stringify(body)); };
   const binary = (response,status,body,type) => { response.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}); response.end(body); };
@@ -413,7 +430,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(route==='/api/secretary/preferences'&&request.method==='GET'){json(response,200,secretaryPreferences.get({language:preferences.get().language}));return true;}
       if(route==='/api/shortcuts'&&request.method==='GET'){json(response,200,shortcuts.get());return true;}
       if(route==='/api/assistant-window/preferences'&&request.method==='GET'){json(response,200,assistantWindowPreferences.get());return true;}
-      if(route==='/api/research-input/draft'&&request.method==='GET'){const value=researchDrafts.get(requestUrl.searchParams.get('scope'),requestUrl.searchParams.get('ownerId'));value.labels={};for(const id of value.attachmentIds){const resource=await database.getResource(id);if(resource)value.labels[id]=resource.title;}json(response,200,value);return true;}
+      if(route==='/api/research-input/draft'&&request.method==='GET'){const value=researchDrafts.get(requestUrl.searchParams.get('scope'),requestUrl.searchParams.get('ownerId'));value.labels={};for(const id of [...value.attachmentIds,...value.contextRefs.flatMap(ref=>ref.resourceId?[ref.resourceId]:[])]){const resource=await database.getResource(id);if(resource)value.labels[id]=resource.title;}for(const ref of value.contextRefs){if(ref.itemId){const item=research.store.getItem(ref.itemId);if(item)value.labels[ref.itemId]=item.title;}}json(response,200,value);return true;}
       if(route==='/api/experts'&&request.method==='GET'){json(response,200,{experts:experts.list(),available:!!discussions});return true;}
       if(route==='/api/skills'&&request.method==='GET'){json(response,200,await skills.list());return true;}
       if(route==='/api/skills/read'&&request.method==='GET'){json(response,200,await skills.read({name:requestUrl.searchParams.get('name')}));return true;}
@@ -493,7 +510,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         json(response,200,{stopped:true,chatId:input.chatId,temporary:input.temporary === true}); return true;
       }
       if(route==='/api/assistant/chat'){
-        const compiled=await researchInput.compile({...input,...input.researchInput,text:input.text,attachmentIds:[...new Set([...(input.attachmentIds||[]),...(input.researchInput?.attachmentIds||[])])]});
+        const compiled=await researchInput.compile({...input,...input.researchInput,text:input.text,projectId:input.scope==='secretary'?chatStore.getChat(input.ownerId)?.projectId??null:null,attachmentIds:[...new Set([...(input.attachmentIds||[]),...(input.researchInput?.attachmentIds||[])])]});
         input.researchContext=compiled.text;
         await assistants.send(input,{
           accept:()=>{response.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store'});},
@@ -521,7 +538,12 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       }
       if(route==='/api/execution/goal'){if(!execution)throw new Error('RUNTIME_UNAVAILABLE');const binding=await restoreExecution(input.chatId);json(response,200,await execution.action(input.chatId,binding,input.action));return true;}
       if(route==='/api/execution/approval'){if(!execution)throw new Error('RUNTIME_UNAVAILABLE');await execution.approve(input.chatId,input.requestId,input.allowed===true);json(response,200,{answered:true});return true;}
-      if(route==='/api/library/import'){json(response,200,await library.importFile(input));return true;}
+      if(route==='/api/library/import'){
+        const resource=await library.importFile(input);
+        const source=await research.ingest.ensureSource(resource.id);
+        void research.ingest.enqueue(source.id).catch(error=>research.store.markContent(source.id,'failed',{parseError:String(error?.message??error).slice(0,1000)}));
+        json(response,200,resource);return true;
+      }
       if(route==='/api/library/open'){json(response,200,await library.open(input.id));return true;}
       if(route==='/api/knowledge/propose'){if(input.projectId)await workbench.project(input.projectId);json(response,200,database.proposeKnowledge({...input,id:randomUUID(),projectId:input.projectId||null}));return true;}
       if(route==='/api/knowledge/accept'){json(response,200,database.acceptKnowledge(input.id));return true;}
@@ -660,7 +682,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       let claimed=false,successful=false;
       if(run) mainRuns.set(key,run);
       try {
-        const compiled=await researchInput.compile({...input.researchInput,text:input.text});
+        const compiled=await researchInput.compile({...input.researchInput,text:input.text,projectId:existingChat?.projectId??input.projectId??null});
         if(input.outboxId) {
           claimed=!!await outbox.claim({chatId:input.chatId,id:input.outboxId});
           if(!claimed){json(response,409,{message:'队列已暂停或另一条消息仍在执行。'});return true;}
@@ -701,6 +723,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
           if (event.type === 'completed') finalEvent = event; else emit(event);
         };
         if(!input.temporary)researchDrafts.accepted('main',input.chatId,input.chatId,input.userMessageId,compiled.snapshot);
+        if(!input.temporary)recordInputUsage(input.chatId,input.assistantMessageId,compiled.snapshot);
         emit({type:'accepted',chatId:input.chatId,researchInput:compiled.snapshot});
         if(run) run.accepted=true;
         if(run?.cancelled) {
@@ -781,6 +804,6 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     await summaryPolicy.shutdown();await summaryPolicy.close();
     const draining=events.close();
     await Promise.all([summaryWorkbench.close(),minutes.close()]);await draining;
-    await assistants.close();await Promise.allSettled([host?.close(),web?.close(),skills.close()]);await execution?.close();await chatStore.queue;await profileStore.queue;chatStore.close?.();profileStore.close?.();
+    await assistants.close();await Promise.allSettled([host?.close(),web?.close(),skills.close()]);await execution?.close();await chatStore.queue;await profileStore.queue;await research.ingest.idle();chatStore.close?.();profileStore.close?.();
   }};
 }
