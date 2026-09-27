@@ -1,5 +1,134 @@
 # Desktop implementation — first increment
 
+## 2026-09-27 Batch 1 r4 final — measured completion, not an alpha release
+
+- Workspace `<工作区>`; delivery branch
+  `codex/local-validation-20260927-r4`, based on `ad54b79`. No PR or merge.
+  This final report supersedes the pending-credential checkpoint below.
+  The user authorized the replacement workspace key through alpha release;
+  it stays Git ignored at `.sciencescope-local/secret/opencode.key` and is
+  not removed at this batch boundary. No global environment changes.
+
+| Stage | Delivered checkpoint | Result |
+|---|---|---|
+| 0 — baseline / approval repair | `7f7118728317257dc08918cb5dd4308554c7a7f7` | PASS: 127 unit tests, 19 smokes including assistant API/UI |
+| 1 — native acceptance | `884790920271b283175f62cd7a66699e6498e5fc` | PASS after recorded repairs: 128 tests, 19 smokes, native matrix |
+| 2 — T04 | `05dea6eb72e650444a37c480a3a2911c8d5387e1` | PASS within documented parser limits: 136 tests, 19 existing + viewer smoke; native viewer |
+| 3 — keyword checkpoint | `7cfc7dc8a38ab38c4bf076ebf4f4125c22e42836` | Measured: fixed paper and separate synthetic-memory cases |
+| 3 — dense checkpoint | `fcaa7ab10ab953432c9b70d2d067f02336478bf5` | Measured: local CPU e5-small, table below |
+| 3 — real-model final | This documentation commit; exact SHA in delivery report | All 52 attempted and audited; failures/limits retained, not all-quality PASS |
+
+Earlier checkpoints contain implementation and regression changes. This final
+continuation changes documentation only; no production code, dependency, lock,
+UI, retrieval algorithm or approved gold changes. Stage 0–2 suites were not
+needlessly repeated; local evaluation-helper checks and final diff checks ran.
+
+### Stage 3: real DSH and cheap provider (not a simulated-model result)
+
+- Command: `node .sciencescope-local/temp/local-validation-r4/live-retrieval/run.mjs
+  --authorized-live --full --pilot-reviewed --run-name run-headerfix`.
+  Application API → real DSH → OpenCode Go `deepseek-v4.1-flash`, using
+  `openai-completions`. Each immutable Chinese question uses a fresh Main
+  session and the same copied 1,412-chunk corpus; no gold answer/source hint,
+  injected dense results or previous-question history. The prompt asks for
+  `research_search` / `research_read`, a short answer and source citations.
+- Bounded evaluation: at most 6 forwarded completion requests per question,
+  312 total; 180 seconds/question. Background minutes share this budget.
+  Actual **286** forwarded: **236 Main + 50 minutes**; HTTP 200 **285**, original
+  missing-header HTTP 400 **1**. **17 local budget blocks** were not forwarded
+  and are not paid provider failures. Counts include the first failed attempt
+  exactly once. No retries to improve an answer or score.
+- **46 complete Main answers**, including 16 whose *background minutes* hit
+  the cap; these are not incomplete Main answers. Six have no final answer:
+  `uslib-06` exhausted its Main budget; `uslib-01`, `guide-03`, `guide-05`,
+  `know-07`, `dig-07` attempted filesystem tools in their owned empty workspaces
+  and were cancelled by the evaluation guard. No user research files were read
+  by these attempts. The harness does not establish that models always stay on
+  research tools, and did not disguise those cancellations as success.
+
+| Independent core-answer / actual-source audit | Questions / fixed 52 |
+|---|---:|
+| Full core answer with actual cited-page support | 43 |
+| Wrong core (`delphi-05`) | 1 |
+| Abstained / did not identify intended study (`delphi-03`) | 1 |
+| No complete answer (above) | 6 |
+| Gold wording conflict, source-correct answer (`guide-04`) | 1 |
+
+- `delphi-05` substituted LibGuides/training for monitoring AI tools/gaining
+  proficiency and falsely said the Delphi source lacked the requested evidence;
+  actual S3 p.4 supports the frozen answer. Reproduce by running that immutable
+  question in a fresh corpus session; model output is stochastic, so the saved
+  answer/tool/citation trace is the specific observed failure.
+- `guide-04` correctly reports the paper's 18-variable codebook; the approved
+  answer says author identity although that is not an explicit codebook variable.
+  Keep this as a **gold conflict**, not a model error, automatic pass or removed
+  denominator. Gold stays unchanged pending review. Questions with standalone
+  “该研究/该文/该领域” have no antecedent in a fresh session; this pre-existing
+  ambiguity is disclosed, not silently repaired with source hints.
+- Core correctness is not whole-answer correctness: extra assertions sometimes
+  have wrong pages or unsupported details (e.g. `phys-07` adds UAE although the
+  source says USA, while its core sample count 804 is correct). Alternative
+  valid source pages were accepted. Narrow approved excerpt coverage for
+  `phys-06` / `talent-02` remains documented; full pages were inspected.
+- 261 captured citation labels: resolver returned non-null for **239**, null
+  for **22** (ranges/nonstandard labels retained). Non-null is **not** proof of
+  correct page or claim support. Two GPT-6 Sol audits read actual page content;
+  Astra reviewed the disagreement/failure cases and sampled supported answers.
+  This is a manual core-answer audit, not a claim of every extra sentence being
+  verified or a general accuracy benchmark.
+
+### Actual usage, accounting and evidence
+
+- Unique returned provider usage: prompt **3,792,780**, completion **132,707**,
+  total **3,925,487**, cached prompt **3,089,672**, reasoning **52,821** tokens.
+  Cached tokens are included in prompt; reasoning is included in completion.
+  Do not add DSH snapshots a second time. The HTTP 400 returned no usage.
+- At [OpenCode Go documented rates](https://opencode.ai/docs/go/) for this
+  model, observed usage implies approximately **$0.194–$0.389 of quota**
+  (off-peak/peak), not an invoice or additional subscription charge; missing
+  failure usage is unknown. Earlier stage 1 has 61 forwarded completions,
+  5 local blocks and 1 model-list request. Batch 1 therefore has **347 forwarded
+  completion requests + 1 model-list request**, not 347 successful turns.
+  Stage-1 output-only estimate and incomplete input accounting remain below.
+- Local evidence root `.sciencescope-local/temp/local-validation-r4/`:
+  `live-retrieval/run-headerfix/results.json`, `provider-count.json`,
+  `audit-first26.json/.md`, `audit-last26.json/.md`, `summary.json` (audit files
+  and summary sit directly in `live-retrieval/`); original header-failure `run/`
+  is retained. These contain exact outcomes, budget/cancellation reasons and
+  actual source checks, never a key. Frozen gold/mapping identities unchanged.
+- Native screenshots remain in `validation/native/`,
+  `validation/native-approval/`, `live/evidence/`, `viewer-ui/native/` and
+  browser viewer screenshots in `viewer-ui/` under that root. Stage 1 includes
+  light/dark and Chinese/English, title-bar buttons and reviewer-menu bounds;
+  stage 2 includes 8 native viewer/formula screenshots. This API-only final run
+  did not manufacture new UI screenshots or rerun native acceptance.
+- The owned API/DSH/proxy closed; run lock and ephemeral test credential removed,
+  observed owned process IDs checked after exit. Workspace key retained under
+  the new authorization. Secret scan receipt records exactly the checked scope.
+
+### Evaluation-only repairs during continuation
+
+| Discovery → cause | Minimal helper repair → verification |
+|---|---|
+| Empty SQLite WAL was mistaken for an active database | Consistent `node:sqlite backup()` into the isolated fixture; validate all 1,412 frozen chunks before paid calls |
+| First HTTP 400 MissingSessionID | Supply required `x-opencode-session` plus separate local counting header; localhost header regression and successful real pilot, original failure retained |
+| Guard rejected read-only `project_memory` after a valid answer | Permit existing public `project_memory` / `chat_recall` in evaluation only; guard regression still rejects filesystem/shell; `eth-04` original false-positive trace retained, not retried |
+| Citation collector dropped ranges/nonstandard labels | Capture labels verbatim; resolver nulls and unsupported claims remain visible; local pilot re-audit, no paid retry |
+| Windows EPERM replacing results file after 40 questions | Bounded 2-second transient EPERM/EBUSY/EACCES retry for local evidence write; resume only unattempted questions; final 52 unique IDs. Specific locking process not identified |
+| Aggregator excluded complete Main answers when minutes hit cap | Count completed Main separately from background cuts; independently verify 46 complete / 6 empty and 52 unique approved IDs |
+
+### Completion limits and recommendation
+
+Batch 1's requested measurements are complete; **stage 3 contains observed
+quality failures**, not a blanket PASS. Recommend review of this branch's
+bounded repairs/T04 and the evaluation evidence; merging is the user's choice.
+Do not advertise release-ready research accuracy. Still untested: optional
+e5-large comparison, dense synthetic-memory retrieval, scanned user-paper OCR
+(image fixture rejects unsupported scans), installed-package upgrade/signature.
+PDF heading/table/formula extraction limitations remain below. No hybrid
+retrieval, T17/T18/T19, installation/signing or new product features were built.
+Stop here and await confirmation for Batch 2.
+
 ## 2026-09-27 Resumed Batch 1 — local dense evaluation complete, paid evaluation pending
 
 - User resumed the checkpoint after reconnecting H:. Correct workspace is
@@ -222,7 +351,10 @@
   `live/evidence/auto-live-pre-restart.json`, `auto-live-restart-result.json`,
   `provider-request-count.json`, `dsh-usage-snapshot.json`. Final native PID
   exited and ports 9254/9255 closed; isolated credentials absent. The temporary
-  key remains ignored for stage 3 and must be deleted when this batch finishes.
+  key was then scheduled for deletion at batch completion. **Superseded by the
+  user's later 2026-09-27 instruction:** the newly supplied workspace key remains
+  Git-ignored and may be retained for testing until alpha release; do not delete
+  it merely because a batch ends or work pauses (see `tasks/QUEUE.md` §8).
 - Stage 0 + approval repair checkpoint pushed:
   `7f7118728317257dc08918cb5dd4308554c7a7f7` (remote SHA verified).
 - Stage 1 live first attempt: invited expert answered, ordered participants
