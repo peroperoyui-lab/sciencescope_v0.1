@@ -27,7 +27,7 @@ do not redesign them or import the rejected old GUI.
 ## Ownership
 
 - Primary agent: frontend, visual/interaction decisions, Tauri integration and acceptance.
-- Explicitly delegated implementation jobs: prefer GPT-5.6 Luna. Muse Spark 1.3
+- Explicitly delegated implementation jobs: prefer GPT-6 Luna. Muse Spark 1.3
   and DeepSeek v4.1 Flash may advise on planning and debugging (user revision
   2026-09-19); they are not required for every task. Delegate bounded runtime
   implementation and non-UI helpers; each brief names allowed files.
@@ -36,8 +36,10 @@ do not redesign them or import the rejected old GUI.
   fix clear, root-caused defects with a regression test, including runtime and
   framework files, then continue and report each fix; stop only for product
   trade-offs or unknown root causes. Repetitive execution (smokes, test
-  matrices, screenshots) may go to GPT-5.6 Sol at high reasoning; its report
+  matrices, screenshots) go to GPT-6 Sol at high reasoning; its report
   still needs Astra's confirmation and Claude's review.
+- User clarification 2026-09-27: use the GPT-6 Sol / GPT-6 Luna models for new
+  delegated work, not the older GPT-5.6 variants.
 - Prioritize working features; use proportionate smoke/regression checks, not
   speculative test matrices or new frameworks just for testing.
 
@@ -56,7 +58,7 @@ keys in tracked files or model-readable research documents.
 Keep generated builds, caches, temporary files and test databases beneath
 .sciencescope-local in this working directory. Do not change global tool settings.
 User workflow revision (2026-09-20): each implementation task delegates Git
-delivery to GPT-5.6 Luna. After the primary agent verifies the work, commit and
+delivery to GPT-6 Luna. After the primary agent verifies the work, commit and
 push to a new codex/ review branch for user/web-session review. Check the actual
 H-drive workspace and remote first; never substitute the D-drive backup when
 the external disk is unavailable. Exclude secrets, local state, logs and builds.

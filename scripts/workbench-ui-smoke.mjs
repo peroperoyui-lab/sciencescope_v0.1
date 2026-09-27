@@ -13,11 +13,15 @@ const temp=path.join(defaultRoot,'.sciencescope-local/temp');await mkdir(temp,{r
 const root=await mkdtemp(path.join(temp,'workbench-ui-'));
 const apiToken=randomBytes(32).toString('hex');
 process.env.TEMP=root;process.env.TMP=root;
-let organizeRuns=0;
+let organizeRuns=0,sessionNumber=0;
 const runtimeHost={
   capabilities:{tokenStreaming:true},close:async()=>{},setToolHandler:()=>{},listProviders:async()=>[{id:'offline',name:'Offline',models:['m'],configured:true,saved:true}],
-  getRuntimeConfig:async()=>({}),startSession:async()=>`session-organize-${organizeRuns+1}`,releaseSession:async()=>{},
-  send:async()=>{organizeRuns+=1;await new Promise(resolve=>setTimeout(resolve,700));return {finalResponse:'# 版本说明\nAUTO_ORGANIZED_NOTE'};},
+  getRuntimeConfig:async()=>({}),startSession:async()=>`session-workbench-${++sessionNumber}`,releaseSession:async()=>{},
+  send:async({text})=>{
+    if(String(text).startsWith('You keep the minutes of a research conversation'))return {finalResponse:'# 研究问题与目标\n工作站 smoke 历史。'};
+    assert.ok(String(text).startsWith('你是项目文件秘书。'),'fixture receives a version organization request');
+    organizeRuns+=1;await new Promise(resolve=>setTimeout(resolve,700));return {finalResponse:'# 版本说明\nAUTO_ORGANIZED_NOTE'};
+  },
 };
 const api=await createDesktopApi({dataRoot:root,apiToken,runtimeHost});
 const entry=await buildDesktop();

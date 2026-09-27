@@ -110,6 +110,11 @@ channel.onmessage=({data})=>{if(data.plans){hostRequest('workbench/plans').then(
 const baseAfter=window.ScienceScopeWorkspace.afterRender;
 window.ScienceScopeWorkspace.afterRender=function(...args){
   baseAfter?.(...args);if(!ready)return;
+  for(const element of document.querySelectorAll('.mapnode[data-node]')){
+    const node=S.nodes.find(node=>node.id===element.dataset.node);
+    if(node?.origin==='secretary'&&!element.querySelector('.wb-secretary-origin')){const badge=document.createElement('small');badge.className='wb-secretary-origin';badge.textContent='秘书添加';element.append(badge);}
+    if(node?.status&&!element.querySelector('.wb-node-status')){const badge=document.createElement('small');badge.className='wb-node-status';badge.textContent=node.status;element.append(badge);}
+  }
   const key=S.projectId+':'+route;
   if(key!==viewKey){
     const changedProject=viewKey.split(':')[0]!==S.projectId;viewKey=key;

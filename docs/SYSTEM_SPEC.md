@@ -248,22 +248,26 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 
 ### 2.5b 对话纪要与历史回查（2026-09-27，含 T17 查阅层）
 - **用途与操作**：任务秘书为每个对话维护一份纪要（研究目标、已定结论与出处编号、被否定的方案、分歧、各方立场、文稿与文件状态、待办），
-  纪要由既有服务按规则更新；T17 不在每轮主对话后自动调用总结，讨论结束和手动刷新仍可用，按消息/token/进出项目等设置化触发属于 T18。
+  纪要由既有服务按规则更新；T17 移除了每轮主对话后的无条件总结。T18 已接入按消息/token/进出项目设置化触发并通过本任务验收。
   对话"…"菜单 → 对话纪要：查看、编辑（保存为新一版，秘书之后在此基础上继续）、让秘书立即更新。主专家、专家、秘书和全局助手共用只读查阅层：`project_memory`（纪要、项目日志、计划、导图、稿件版本、紧凑状态）和 `chat_recall`（按关键词检索或按编号逐字读取对话原文）。
   查找规则写在每位专家的系统提示（人设末尾）和主专家的项目简报一节，不使用 agent.md。
 - **状态**：🟡。T17 离线测试、真实 DSH 工具清单、浏览器/API smoke 与 context UI smoke 已通过；T17 原生客户端未重测。
+- T18 当前实现分支为 `codex/t18-summary-policy-20260927`，叠加已推送的 T17 `5ea220f`；本任务验收已通过。22 项浏览器/API smoke 均通过；12 张截图已生成，root 已复核设置/提议界面及英文深色纪要窗口。
 - **技术实现**：
   - `scripts/chat-minutes.mjs`：表 `chat_minutes(chat_id, revision, text, through_ordinal, author 'secretary'|'user', updated_at)`，每版保留。更新 = 上一版纪要 + 新消息（每步 ≤6 万字符，可多步），用秘书角色的模型（未设置时用对话模型），`noTools` 会话，用完释放；T17 不改变既有纪要内容，也不恢复每轮主对话总结。消息编号为对话序号 +1。
+    T18 另存 Markdown 使用 `chat_minutes_markdown_status` 记录导出路径/错误；写入先临时文件再原子改名，数据库纪要仍是唯一来源。用户编辑与秘书生成均触发版本回调，初始纪要生成期间的用户编辑优先。
+  - `scripts/secretary-preferences.mjs`、`scripts/context/estimate.mjs`、`scripts/summary-policy.mjs`：`secretary_preferences.summary_json` 采用默认讨论后、20 条消息、30000 估算 token、进入/离开项目和 Markdown 开启，工作站 `map|versions|plans|log` 默认 `off`；消息阈值 4–500、token 阈值 2000–500000。事件策略使用 CJK 每字 1 token、其他字符每 4 字符 1 token 的稳定估算；Main/讨论沿用纪要防抖，项目切换串行处理脏对话，启用离开项目规则时关闭写入 `summary_pending`，启动后 30 秒处理。
+  - `scripts/summary-workbench.mjs`：纪要成功后按 `off|propose|apply` 处理工作站建议；`summary_proposals` 等待用户接受，`summary_writes` 记录来源与前后状态，撤销遇到目标已变化返回 409。当前 host 不支持可宣称的原生 JSON Schema constrained-generation，生产通过提示 JSON 格式并由本地 allowlist 严格校验；导图秘书新增节点保留 `origin: 'secretary'`，桌面工作站已显示“秘书添加”。
   - `scripts/context/registry.mjs`、`policy.mjs`、`sources/*.mjs`：context API `t17.1` 的资料源注册表与范围表；`conversation`、`minutes`、`log`、`plans`、`map`、`versions`、`status`、`workspace` 均通过依赖注入读取。`chat_recall` 检索只返回有意界定的摘录，按编号读取才返回完整消息；工具调用、工具结果、前导语、临时/助手私聊和资料库私有条目不进入上下文。
   - `scripts/context/catch-up.mjs`、`scripts/assistant-chat-service.mjs`：秘书每轮发送前生成跟进包，使用 `context_cursors` 游标；只有成功完成且未取消的发送才提交游标。大积压先以最多 60 秒等待纪要刷新，再发送纪要与尾部原文；240000 字符安全边界逐条列出省略编号，不静默截断。
   - 原 `scripts/project-memory.mjs` 已迁入 `scripts/context/`，旧文件删除；既有工具名称与参数保持兼容。主专家/专家/秘书按会话范围读取；全局助手通过 `workspace_overview` 概览后按 `projectId`/`chatId` 下钻。
     `chat_recall` 按编号一次最多 40 条 / 6 万字符并返回 `next`；检索返回最多 12 条带编号片段。
   - 宿主按角色生成工具清单并由 DSH 会话 manifest 注册，经 `/host-call` 转发；工具 schema 不再在 DSH 适配器中复制。规则节由 `contextRules` 生成并带 `t17.1` 版本，角色人设仍与规则分离。
-  - 接口：`GET /api/chats/minutes?chatId`、`POST /api/chats/minutes {chatId,text,expectedRevision}`（版本过期 409）、`POST /api/chats/minutes/refresh`。
+  - 接口：`GET /api/chats/minutes?chatId`（含 `summaryStatus.messagesRemaining/tokensRemaining` 与 `exportStatus.error`）、`POST /api/chats/minutes {chatId,text,expectedRevision}`（版本过期 409）、`POST /api/chats/minutes/refresh`；`GET/POST /api/secretary/preferences` 增加 `summary`，`POST /api/projects/focus` 触发项目切换策略，工作站提议/撤销接口见第 3 节。
   - 前端 `desktop/minutes.mjs`（菜单项、渲染 Markdown、编辑、刷新；"i"提示说明用途）。
-- **验证**：既有 `tests/chat-minutes.test.mjs` 与 `tests/research-tools-runtime.test.mjs`；T17 新增 `tests/context-access.test.mjs`、`tests/context-catch-up.test.mjs`、`tests/scoped-research-tools.test.mjs` 及秘书服务游标回归。`node D:/nodejs/node_modules/npm/bin/npm-cli.js test` 159/159 通过（196.890 秒，日志 `.sciencescope-local/temp/t17-validation/npm-test-final.log`）；20 项既有浏览器/API smoke 与 `context UI smoke` 通过；真实 DSH 四角色工具清单测试 4/4（Astra 已复核）；`scripts/evals/context-access-live.mjs --live` 通过（20 轮 Main 后秘书识别纪要/消息编号/待办，全局助手从项目 B 下钻项目 A；28 个 HTTP 200 请求、prompt 298542、completion 2598、无 API 错误，结果见 `.sciencescope-local/temp/eval/context-access-live-gX133Q/result.json`）。T17 UI 生成 8 张截图，代表性画面已人工复核，路径为 `.sciencescope-local/temp/t17-validation/context-access-ui/`；T17 原生客户端未重测。
-- **已知限制**：检索是关键词匹配（T10 完成后可换混合检索）；纪要质量取决于秘书模型；T18 尚未实现按规则触发与设置化总结，当前不宣称每 n 条/token 或进出项目自动总结。
-- **最近核对**：2026-09-27（Windows 离线聚焦测试；最终验收待完成）。
+- **验证**：既有 `tests/chat-minutes.test.mjs` 与 `tests/research-tools-runtime.test.mjs`；T18 原始聚焦测试 8/8，后续 root/context 回归 11/11；最终 `npm test` 180/180 通过（231911.3596 ms，exit 0，含新增提示回归）；22 项浏览器/API smoke 均通过。12 张截图已生成，root 已复核设置/提议界面及英文深色纪要窗口。真实模型三轮结果：第 1 轮失败（20 请求；prompt/completion/total 164460/6702/171162；无计划提议并超时，夹具矛盾且两个请求触及 1024 token 上限）；第 2 轮失败（18 请求；154032/4348/158380；模型输出空 plans 并超时）；第 3 轮通过其评测断言（18 请求；154105/3460/157565；两版纪要，待办计划提议匹配，实际计划未改动，提议未视为批准）。合计 56 请求、prompt 472597、completion 14510、total 487107。第 3 轮使用明确声明 `propose` 不执行/应用且不代表用户批准的提示。具体结果见 `DESKTOP_IMPLEMENTATION.md`。T18 原生未重测；T17 的 npm 159/159、20 项 smoke、真实 DSH 4/4 与 live 28 请求证据仍见实施记录。
+- **已知限制**：检索仍是关键词匹配；纪要质量取决于秘书模型。T18 本任务验收已通过；原生客户端未重测，不作为本任务阻塞项。当前 host 不提供可宣称的原生 JSON Schema constrained-generation，已采用提示 JSON + 本地 allowlist 严格校验，不能把模型输出约束当作安全边界。
+- **最近核对**：2026-09-27（Windows；原始聚焦回归 8/8，后续 root/context 11/11，最终 npm 180/180，22 项浏览器/API smoke 通过；12 张截图已生成并复核指定界面；真实模型第 3 轮通过评测断言，第 1、2 轮失败；T18 验收通过，原生未重测）。
 
 ### 2.6 专家名册（设置 → 专家角色）
 
@@ -285,8 +289,9 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   表 `assistant_conversations`、`assistant_drafts`、`assistant_settings`、`assistant_draft_proposals`、`assistant_attachment_drafts`。
   提案工具由 `session-control.mjs` 在秘书会话中注册（值 schema 使用 DSH 的 DSL）。每个助手会话一个 DSH 进程，空闲时最多保留 2 个。
 - T17 自动跟进由 `contextAccess.catchUp({conversationId: assistantChatId, chatId: mainChatId})` 提供；`context_cursors` 记录主对话游标、纪要版本和状态哈希。跟进包成功发送后才提交，失败/停止不推进；秘书只能访问绑定的非删除 Main 对话及所属项目。
+- T18 `summary-policy` 监听主回合、讨论结束、项目 focus 和应用启动事件；阈值触发沿用纪要防抖，跟进补齐不受总结开关控制。默认设置为 20 条/30000 token，设置保存于 `summary_json`；自动 Markdown 导出失败只写状态，不改变数据库纪要。T18 验收通过，原生未重测。
 - **验证**：`assistant-chat-service`、`assistant-conversations` 单元测试；`assistant-api-smoke`（含 `--native`）。
-- **已知限制**：T17 已移除旧的 20 条/3000 字隐式摘录；搜索仍返回有意限定的摘录，完整内容需按消息编号回查。T18 的总结触发规则、设置与后台订阅策略尚未实现；T17 原生客户端未重测。
+- **已知限制**：T17 已移除旧的 20 条/3000 字隐式摘录；搜索仍返回有意限定的摘录，完整内容需按消息编号回查。T18 验收通过；T17/T18 原生客户端未重测。
 
 ### 2.8 全局助手与悬浮球
 
@@ -298,7 +303,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   启动偏好存表 `assistant_window_preferences`（接口 `/api/assistant-window/preferences`）；对话复用第 2.7 节的助手服务（scope=`global`）。
 - T17 全局助手发送前可取 `contextAccess.overview({conversationId})`；工作区概览以变化哈希去重，包含有界的最近项目、工作文件夹、纪要目标/待办、计划、导图和最近对话，细节通过 `workspace_overview`、`project_memory`、`chat_recall` 下钻。全局目标只能选择非删除、非助手 Main 对话，私有/临时资料排除。
 - **验证**：`assistant-window-preferences` 单元测试；`assistant-window-smoke`、`native-windows-smoke`、`native-assistant-geometry-smoke`。
-- **已知限制**：截图快捷键和操作系统级全局热键未实现；T17 原生客户端未重测。T18 的总结规则与设置尚未实现。
+- **已知限制**：截图快捷键和操作系统级全局热键未实现；T17/T18 原生客户端未重测。全局助手的 T18 总结设置与工作站写入已通过本任务验收。
 
 ### 2.9 搜索
 
@@ -362,7 +367,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 |---|---|---|
 | 个人资料与常规 | ✅ | 用户名、简介（只用于界面，不发给模型）；界面语言（2.19）、界面字体、主题（浅色/深色/跟随系统）、密度、正文与代码字号、发送键、减少动画、滚动条、恢复默认。表 `profile`、`desktop_preferences`；接口 `/api/profile`、`/api/preferences`；跨窗口用 BroadcastChannel 同步 |
 | 执行策略 | ✅ | 说明页，策略在每个对话的输入框里选 |
-| 任务秘书 | ✅ | 角色设置 + 版本说明模板（表 `secretary_preferences`） |
+| 任务秘书 | 🟡 | 角色设置、版本说明模板与 T18 自动总结设置（表 `secretary_preferences`，含 `summary_json`）；T18 后端、测试、真实模型与浏览器验收通过；原生未重测 |
 | 全局助手 | ✅ | 角色设置 + 启动行为 |
 | 数据库与文件、运行环境 | ✅ | 显示真实路径并可打开文件夹（`/api/settings/info|open-folder`，只接受固定目录 id）；不支持目录迁移 |
 | 快捷键 | ✅ | 四项导航快捷键可录制重映射（冲突校验、恢复默认、跨窗口同步），旧键失效；表 `shortcut_settings`；`desktop/shortcuts.mjs` 是唯一派发入口 |
@@ -505,7 +510,7 @@ r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，
 | 主对话 | `POST /api/chat`（流）、`POST /api/chat/stop`、`GET/POST /api/chat/outbox`、`GET /api/chat/activity`、`GET /api/chat/search` |
 | 执行 | `GET /api/execution`、`POST /api/execution/goal|approval` |
 | 研究资料库 | `/api/research/*`：sources、source、sources/update|remove|ingest、sync、search、read、items、item、items/update|supersede、links、links/remove、proposals、proposals/decide、brief、cite、usage、formats（见 2.17 与设计文档 §6） |
-| 对话纪要 | `GET/POST /api/chats/minutes`、`POST /api/chats/minutes/refresh`（2.5b） |
+| 对话纪要与自动总结 | `GET/POST /api/chats/minutes`、`POST /api/chats/minutes/refresh`、`POST /api/projects/focus`、`GET/POST /api/secretary/preferences`、`GET /api/summary/proposals?chatId`、`POST /api/summary/proposals/decide`、`GET /api/summary/writes?chatId`、`POST /api/summary/writes/undo`（2.5b、T18） |
 | 专家讨论 | `GET/POST /api/experts`、`POST /api/discussion`（流）、`POST /api/discussion/adopt`、`POST /api/discussion/cancel` |
 | 秘书与全局助手 | `GET /api/assistant`、`POST /api/assistant/chat`（流）、`/assistant/draft|model|approval|stop|proposal/resolve` |
 | 上下文查阅（宿主/DSH `/host-call`） | `chat_recall`、`project_memory`、`workspace_overview`、`minutes_refresh`；清单按角色由 context API `t17.1` 生成（2.5b、2.7、2.8） |
@@ -513,7 +518,7 @@ r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，
 | 工作文件夹 | `POST /api/folders/check`（校验，见 2.1a） |
 | 工作站 | `GET /api/workbench`、`GET /api/workbench/files|asset|plans`、`POST /api/workbench/save|bind|import|asset|version|plans|open|organize` |
 | 模型与角色 | `GET /api/providers`、`POST /api/providers/save|discover|remove`、`GET /api/model-info`、`GET /api/roles`、`GET /api/roles/history`、`POST /api/roles/save|apply` |
-| 设置 | `/api/profile`、`/api/preferences`（+`/reset`）、`/api/fonts`、`/api/shortcuts`（+`/reset`）、`/api/secretary/preferences`、`/api/assistant-window/preferences` |
+| 设置 | `/api/profile`、`/api/preferences`（+`/reset`）、`/api/fonts`、`/api/shortcuts`（+`/reset`）、`/api/secretary/preferences`（含 `summary`）、`/api/assistant-window/preferences` |
 | 技能与插件 | `GET /api/skills`、`GET /api/skills/read`、`POST /api/skills/save|enabled|remove`、`GET /api/plugins/inventory` |
 | 宿主控制 | `POST /__host_shutdown`（独立的关闭口令，只由 Tauri 调用） |
 
@@ -532,7 +537,10 @@ r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，
 | `role_settings`、`role_bindings`、`role_prompt_receipts` | 角色提示词、会话快照、应用记录 | `role-settings.mjs` |
 | `experts`、`expert_roster_state` | 专家名册 | `expert-roster.mjs` |
 | `rb_sources`、`rb_chunks`、`rb_items`、`rb_links`、`rb_proposals`、`rb_revisions`、`rb_usage`、`rb_fts`、`rb_meta` | 研究资料库 | `research-base/schema.mjs` |
-| `chat_minutes` | 对话纪要（每版保留，作者为秘书或用户） | `chat-minutes.mjs` |
+| `chat_minutes`、`chat_minutes_markdown_status` | 对话纪要（每版保留，作者为秘书或用户）及 Markdown 导出路径/错误状态 | `chat-minutes.mjs` |
+| `secretary_preferences` | 版本说明模板与自动总结 `summary_json`（旧库迁移保留动态语言默认） | `secretary-preferences.mjs` |
+| `summary_pending` | 关闭或待补的项目总结任务 | `summary-policy.mjs` |
+| `summary_proposals`、`summary_writes` | 工作站总结的待确认提议、来源版本、前后状态与撤销记录 | `summary-workbench.mjs` |
 | `context_cursors` | 秘书跟进游标：会话、目标 Main、已读消息序号、纪要版本、状态哈希 | `context/catch-up.mjs` |
 | `context_overview_cursors` | 全局助手按会话保存的工作区概览哈希 | `context/catch-up.mjs` |
 | `discussion_rounds`、`discussion_entries` | 讨论轮次与专家回答元数据（含审核、采纳、主专家已读标记） | `discussion-service.mjs` |

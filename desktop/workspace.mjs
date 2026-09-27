@@ -225,8 +225,19 @@ function scheduleSave() {
     catch {if(!state.saveError)toast('工作区保存失败，请不要关闭应用。');state.saveError=true;}
   },200);
 }
+let lastProjectFocus, focusQueue=Promise.resolve();
+function notifyProjectFocus() {
+  if(!state.ready||V.surface)return;
+  const projectId=focusedProject();
+  if(projectId===lastProjectFocus)return;
+  lastProjectFocus=projectId;
+  focusQueue=focusQueue.catch(()=>{}).then(()=>hostRequest('projects/focus',{projectId})).catch(()=>{
+    if(lastProjectFocus===projectId)lastProjectFocus=undefined;
+    toast('项目切换通知失败，请重新进入项目。');
+  });
+}
 function afterRender() {
-  scheduleSave();const box=document.querySelector('.messages');if(!box||box.dataset.paged)return;box.dataset.paged='true';
+  notifyProjectFocus();scheduleSave();const box=document.querySelector('.messages');if(!box||box.dataset.paged)return;box.dataset.paged='true';
   let lastTop=box.scrollTop;
   const tryLoad=delta=>{if(state.scrollLock||state.paging||!delta)return;if(delta<0&&box.scrollTop<140)void pageHistory('before');else if(delta>0&&box.scrollHeight-box.scrollTop-box.clientHeight<140)void pageHistory('after');};
   box.addEventListener('scroll',()=>{const delta=box.scrollTop-lastTop;lastTop=box.scrollTop;tryLoad(delta);},{passive:true});
