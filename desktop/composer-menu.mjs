@@ -7,6 +7,12 @@ export function composerMenu(trigger, label, items) {
   popup.classList.add('composer-choice-menu');
   for (const [index, button] of [...popup.querySelectorAll('.menu-line')].entries()) {
     const item = items[index];
+    if(item.userLabel)button.querySelector('.menu-text')?.setAttribute('data-i18n-skip','');
+    if (item.heading) {
+      const heading=document.createElement('div');heading.className='menu-label';heading.setAttribute('role','presentation');heading.textContent=item.label;
+      if(item.headingId)heading.dataset.reviewerGroup=item.headingId;
+      button.replaceWith(heading);continue;
+    }
     if (item.caution) button.classList.add('policy-caution');
     if (item.description) {
       button.insertAdjacentHTML('beforeend', infoTip(item.description, {label: `${item.label}说明`, tag: 'span'}));
