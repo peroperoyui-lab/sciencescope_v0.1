@@ -4,6 +4,17 @@
 - 设计：`docs/design/PYTHON_ENVIRONMENTS.md`（**先读**）。通用规则与 `docs/tasks/RB_COMMON.md` 相同（基线分支、交付方式、许可、测试目录、文档更新）。
 - 基线：`claude/determined-pasteur-jxpzw8`（如已合并则用 main）。交付分支：`codex/t11-python-env-YYYYMMDD`。不开 PR、不合并。
 
+## 用户确认的框架接线补充（2026-09-28）
+
+本节记录已批准的实施要求，不表示实现或验收完成。
+
+- `host.startSession` 的可选 `sessionEnv` 仅作用于该会话子进程。宿主根据所选环境生成值，不接受模型参数或前端原样环境变量；仅允许 PATH 前置目录、VIRTUAL_ENV、确有需要的 PYTHONHOME/PYTHONPATH 和明确列入白名单的 uv 变量。任何 `SCIENCESCOPE_*` 覆盖尝试直接报错，并有单元测试。
+- 专家子代理与主会话同进程，继承同一环境；秘书与全局助手按各自会话选择处理。
+- 环境切换采用“下一轮生效”：当前轮不变，下一轮开始前释放旧会话进程，以同一个 DSH sessionId 恢复历史。界面明确显示生效时机；回归验证切换后下一轮 `python -c "import sys;print(sys.prefix)"` 指向新环境。
+- `python_env_install` 通过 T17 宿主工具清单和现有审批通道，仅安装到当前所选受管环境，不安装到系统 Python。按 PEP 508 校验名称及版本约束，拒绝 URL、本地路径、`--index-url`、`--extra-index-url`、`-e` 等参数；镜像只取设置。
+- 审批卡列出包、原因与目标环境，操作日志归入该环境记录，结果返回模型。询问模式必须审批；完全接管的自动批准默认关闭，设置旁用 infoTip 说明风险。
+- 已写明的同类框架接线无需再次提前确认，在交付报告逐项说明；与任务书不一致或改变其他功能已有行为时才提出问题。
+
 ## 后端 `scripts/python-env/`（新模块）
 1. `uv.mjs`：调用内置的 uv（路径来自应用资源目录；开发环境下可以用 `SCIENCESCOPE_UV` 指定）。
    固定 `UV_CACHE_DIR=<数据目录>/python/cache`、`UV_PYTHON_INSTALL_DIR=<数据目录>/python/interpreters`、`UV_LINK_MODE=hardlink`（失败时退回 copy），

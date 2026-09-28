@@ -441,6 +441,12 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
 
 ### 2.17 研究资料库
 
+- **T10 最近核对：2026-09-29，检查点，非最终交付**：本地 e5-small/ONNX worker、SQLite 向量投影、混合检索、每轮有界记忆召回及持久化设置已接线。npm 214/214、23 项既有 smoke 与新增语义设置 browser/native 已通过；真实52题目前27完成返回、1失败、1取消、23未测，最终答案及引用审计未完成。下文第一批的“生产只有关键词”是历史验证状态，不再描述本工作分支。500 篇实测及云端对照未完成，不据此宣称 T10 验收通过。
+- 混合接口保留同步 `search()`，增加 `searchHybrid({query, queries, …scope}) → {hits, mode, fallbackReason?}`。问法合并去重后最多 6 个、每个最多 2000 字符；范围在排序前筛选；加权 RRF k=60，向量 1.0、关键词 0.5，同分按引用身份稳定排序。所有问法共用 300ms 向量阶段预算，超时整路丢弃；后台预热不占查询预算。降级为 `keyword`，原因取 `timeout/model-missing/index-incomplete/model-version-mismatch`，工具结果写明“本次为关键词检索”。
+- `semantic-service.mjs` 从原始来源、段落、有效条目与获准的 Main 正文生成可重建索引，模型文件只从本机加载；设置显式下载固定 revision 的公共文件并验证清单。默认关闭，开关写入 SQLite；开启后后台预热和逐篇索引，对话执行时暂停。模型或文档版本不匹配时退回关键词并排队重建。私有条目即使存在于本地索引，也不会进入智能体的授权候选集。
+- 调用方：Research Search UI/API、四角色 `research_search`、`chat_recall` 的查询路径使用异步混合检索；`chat_recall` 精确编号读取仍返回原文，不走检索。Main 普通发送、自动化初始输入、专家共享输入调用 `recallForTurn()`（排除已在简报中的引用，最多 8 条、1500 字符，回执 `how=recall`）；自动化内部后续轮次没有新增用户查询触发点。常驻简报 `brief()` 与兼容同步 `search()` 保持同步；未把这些路径报告成向量查询。
+- 已核对证据：固定 52 题本地关键词 R@1/5/10=3/6/9，单问法向量=10/16/21，双语向量 RRF=12/26/29，加权混合=17/28/34（分母均52、无降级）；混合总查询 P50/P95=70.662/79.013ms。此为段落命中而非答案正确率。原生/浏览器语义设置 smoke 通过，中英深浅色共 8 图；原生自有进程全部正常退出。详细阶段证据见实施记录。
+
 - **T05 最近核对：2026-09-27，验收通过**（npm 192/192、22 既有 smoke、新资料库 browser/native smoke，64 张截图；本次新增界面为模拟宿主，零付费请求）。`desktop/research-base.mjs` 使用既有 Research Base CRUD、提议和简报接口；新增来源排序和分页总数，取代操作也支持 `expectedRevision`。`desktop/research-citations.mjs` 对净化后的助手正文进行引用标签增强，不改变保存的文本，复用 T04 页码阅读器；引用与回执缓存有界。使用回执按条目/记忆及去重来源展示，工具提议保留等待用户确认语义。
 - 材料面板不再使用原型内容：用户显式选择文件资源或共享有效条目写入 `contextRefs`。新增 `{itemId}` 与既有 `{resourceId}` 并存；编译器校验会话项目、有效状态、共享性和非专家私属范围，私有条目不会成为模型输入。条目内容经现有 research input 通道发送；确认、失败恢复、草稿去重使用区分资源/条目的身份。Main 将选择记录在使用回执 `how=context`。不新增表或模型调用。
 - 兼容旧资料：宿主启动时给没有来源记录的 library resources 登记来源，不重解析历史、不覆盖人工元数据；新 `/api/library/import` 保存原件并自动登记、后台解析。解析状态通过来源接口查询；`research/sync` 的 `wait:true` 与宿主关闭均等待既有解析队列完成。引用标签范围取当前聊天，独立聊天不会继承上一个项目的标签空间。
@@ -449,21 +455,21 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
   可互相链接（证据、引用、取代等），供人和智能体检索与引用。设计与分工见 `docs/design/RESEARCH_BASE.md`，调研见 `docs/design/RESEARCH_MEMO_2026-09-25.md`。
 - **现在能做的**（既有接口加 T05 分类界面，完整验收状态见本节顶部）：
   - 资料解析与索引：txt / csv / 代码、Markdown、LaTeX、PDF（pdfjs-dist legacy）及 DOCX（mammoth）已支持；定向单元/API、浏览器与原生阅读器测试通过。扫描件返回 unsupported，不伪造 OCR 文本。
-  - 中英文检索（FTS5 + 中文二元组，两字词可命中）、阅读窗口、引用标签解析（`[S3]`、`[S3 p.4]`、`[@a1b2c3d4]`）。
+  - 中英文关键词检索（FTS5 + 中文二元组，两字词可命中）与 T10 混合路径（验收中）、阅读窗口、引用标签解析（`[S3]`、`[S3 p.4]`、`[S3, p.4]`、`[S3 p4]`、`[@a1b2c3d4]`）。不认识的格式保留原样。
   - 条目的新建、修改（修订历史 + `expectedRevision` 防覆盖）、**取代**（旧记录保留并标为失效）、置顶、私有。
   - 智能体工具：主专家与每位专家子代理都有 `research_search`、`research_read`、`research_propose`。
     写入只能以提议形式进入"记忆收件箱"，由用户接受、修改或拒绝；工具的项目和角色由会话决定。
   - **项目简报**（常驻记忆）：从有效的共享条目生成，约 3500 字符预算；主专家每轮发送前如有变化就更新为系统提示中的一个分段，
     有序讨论和 @ 邀请的专家通过共享输入获得同一份简报；私有条目不给任何智能体，专家经验只给对应专家。
-  - 使用回执：每轮记录用到了哪些记录（brief / search / read / context）；讨论通过 accepted 事件里的专家回答身份绑定，各专家回执和提议均指向其自己的回答，结束后清理映射。
+  - 使用回执：每轮记录用到了哪些记录（brief / search / read / context / recall）；讨论通过 accepted 事件里的专家回答身份绑定，各专家回执和提议均指向其自己的回答，结束后清理映射。
   - 旧的 `knowledge` 表逐行镜像为条目（`legacy_id`）；原有的 `/api/knowledge` 保留兼容，新资料库页面使用 Research Base 接口。
 - **状态**：🟡 后端与智能体工具已实现并测试（单元、真实 DSH、真实模型）；T04 文档解析/阅读器、T05 分类与管理界面已验证（含原生），文献元数据（T06）、
-  证据台账界面（T07）、浏览器（T08）、自动整理（T09）、混合检索（T10：本地向量为主、关键词为辅、多问法，另加每轮记忆召回；默认模型为轻量的 multilingual-e5-small，更换入口以后再做）未完成；当前只有关键词检索，按用户决定这只是降级方案，任务书在 `docs/tasks/`。
+  证据台账界面（T07）、浏览器（T08）、自动整理（T09）未完成；T10 混合检索已接线、仍在验收（默认 multilingual-e5-small，更换入口以后再做），完成状态以本节顶部为准，任务书在 `docs/tasks/`。
 - **技术实现**：`scripts/research-base/`
   - `schema.mjs`（表）、`store.mjs`（校验、FTS 维护、提议、修订、回执）、`text-index.mjs`（中文二元组）、`search.mjs`（检索、阅读、引用、简报）、
     `ingest.mjs`（后台解析队列、分段）、`parsers/`（注册表 + text / markdown / latex / pdf / docx）、`index.mjs`（路由与工具入口）。
-  - 运行时：`host.mjs` 新增 `/host-call`（DSH 子进程回调宿主）、`setToolHandler`、`configureBrief`；
-    `session-control.mjs` 注册三个工具（专家子代理在 `agent/created` 时注册），增加 `/brief` 系统提示分段。
+  - 运行时：`host.mjs` 的 `/host-call`、`setToolHandler`、`configureBrief` 与 T17 宿主工具清单 `scripts/context/tools.mjs`；
+    `session-control.mjs` 使用该清单注册工具（专家子代理在 `agent/created` 时注册），规则走版本化 brief 分段，不改用户人设。
   - `desktop-api.mjs`：挂载 `/api/research/*`；`toolContext` 把会话映射为对话、项目和角色（主专家 / 秘书 / 全局 / 专家）；
     发送前调用 `refreshBrief`；讨论的共享输入附上简报。
 - **验证**：`research-base`、`research-api` 单元测试；`research-tools-runtime`（真实 DSH + 本地模拟模型：主专家与专家都能调用工具、简报进入系统提示、没有处理器时工具报告不可用）；
@@ -520,6 +526,7 @@ r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，
 | 主对话 | `POST /api/chat`（流）、`POST /api/chat/stop`、`GET/POST /api/chat/outbox`、`GET /api/chat/activity`、`GET /api/chat/search` |
 | 执行 | `GET /api/execution`、`POST /api/execution/goal|approval` |
 | 研究资料库 | `/api/research/*`：sources（新增 sort/direction 与 total/hasMore）、source、sources/update|remove|ingest、sync、search、read、items、item（含 evidenceCount）、items/update|supersede（expectedRevision）、links、links/remove、proposals、proposals/decide、brief、cite、usage、formats（见 2.17 与设计文档 §6）；research-input contextRefs 增加 itemId |
+| 本地语义检索 | `GET /api/research/embedding` 状态/进度；`POST /api/research/embedding {action: enable|disable|download|rebuild}`；search 支持 q 与重复 queries 参数，返回 mode/fallbackReason（T10 验收中） |
 | 对话纪要与自动总结 | `GET/POST /api/chats/minutes`、`POST /api/chats/minutes/refresh`、`POST /api/projects/focus`、`GET/POST /api/secretary/preferences`、`GET /api/summary/proposals?chatId`、`POST /api/summary/proposals/decide`、`GET /api/summary/writes?chatId`、`POST /api/summary/writes/undo`（2.5b、T18） |
 | 专家讨论与名册 | `GET/POST /api/experts`（每项含 `kind: expert|reviewer`、`skills: string[]`）、`POST /api/discussion`（流；`expertIds` 仅接受参加专家，`reviewerId` 可选参加专家或独立审核）、`POST /api/discussion/adopt`、`POST /api/discussion/cancel` |
 | 秘书与全局助手 | `GET /api/assistant`、`POST /api/assistant/chat`（流）、`/assistant/draft|model|approval|stop|proposal/resolve` |
@@ -547,6 +554,8 @@ r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，
 | `role_settings`、`role_bindings`、`role_prompt_receipts` | 角色提示词、会话快照、应用记录 | `role-settings.mjs` |
 | `experts`（含 `kind`、`skills_json`）、`expert_roster_state`（含独立审核默认项的一次性迁移 marker） | 参加专家与独立审核名册 | `expert-roster.mjs` |
 | `rb_sources`、`rb_chunks`、`rb_items`、`rb_links`、`rb_proposals`、`rb_revisions`、`rb_usage`、`rb_fts`、`rb_meta` | 研究资料库 | `research-base/schema.mjs` |
+| `rb_embedding_settings` | 本地语义检索启停设置 | `research-base/semantic-service.mjs` |
+| `rb_vec`、`rb_vec_docs` | 可重建向量与引用/文档版本/模型版本映射；不是原件或资料库事实 | `research-base/vector-store.mjs` |
 | `chat_minutes`、`chat_minutes_markdown_status` | 对话纪要（每版保留，作者为秘书或用户）及 Markdown 导出路径/错误状态 | `chat-minutes.mjs` |
 | `secretary_preferences` | 版本说明模板与自动总结 `summary_json`（旧库迁移保留动态语言默认） | `secretary-preferences.mjs` |
 | `summary_pending` | 关闭或待补的项目总结任务 | `summary-policy.mjs` |

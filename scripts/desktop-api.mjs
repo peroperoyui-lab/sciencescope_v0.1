@@ -38,6 +38,9 @@ import {buildContextTools,contextRules,CONTEXT_API_VERSION} from './context/tool
 import {createContextAccess} from './context/registry.mjs';
 import {ContextAccessError} from './context/policy.mjs';
 import {createScopedResearchTools} from './context/research-tools.mjs';
+import {createSemanticService,messageVectorVersion} from './research-base/semantic-service.mjs';
+import {recallForTurn} from './research-base/recall.mjs';
+import {ensureMainChat} from './context/sources/_shared.mjs';
 
 function publicRuntimeMessage(error) {
   const raw = String(error?.message || '').toLowerCase();
@@ -139,8 +142,13 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     if(!file.startsWith(base+path.sep))throw new Error('INVALID_RESOURCE_PATH');
     return file;
   };
-  const research=createResearchBase({database,resolveResourcePath});
+  let semantic;
+  let assistantRequests=0;
+  const research=createResearchBase({database,resolveResourcePath,onProgress:()=>semantic?.rebuild()});
   await research.registerResources();
+  semantic=createSemanticService({database,store:research.store,dataRoot,onError,
+    isBusy:()=>pending.size>0||mainRuns.size>0||assistantRequests>0||[...bindings.values()].some(binding=>binding.goalActive)});
+  research.retrieval.setVectorRetriever(semantic);
   const documentPreview=createDocumentPreview({database,resolveResourcePath,research});
   // Which assistant message a session is producing now (for usage receipts).
   const turnMessages=new Map();
@@ -198,7 +206,12 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   const minutes=createChatMinutes({db:database.db,host,chatStore,onError,modelFor:secretaryModel,getPreferences:summaryPreferences,onUpdated:value=>summaryWorkbench.onMinutesUpdated(value),onDiagnostic:summaryDiagnostic});
   const summaryPolicy=createSummaryPolicy({db:database.db,events,minutes,chatStore,getPreferences:summaryPreferences,onError,onDiagnostic:summaryDiagnostic});
   subscribeHostBackground({events,organizer,workbench:{get:projectId=>workbench.call(projectId,'get')},modelFor:()=>roleSettings.get('secretary').model});
-  const contextAccess=createContextAccess({db:database.db,chatStore,minutes,workbench:{
+  semantic.setMessageProvider(()=>chatStore.listChats().filter(chat=>ensureMainChat(database.db,chat.id,{required:false})).flatMap(chat=>
+    minutes.messagesAfter(chat.id,0).map(message=>({ref:{type:'message',id:JSON.stringify([chat.id,message.id])},version:messageVectorVersion(message.text),text:message.text,group:'chat:'+chat.id}))));
+  events.on('chat.turn.persisted',()=>semantic.rebuild());
+  events.on('discussion.finished',()=>semantic.rebuild());
+  void semantic.start();
+  const contextAccess=createContextAccess({db:database.db,chatStore,minutes,vectorRetriever:semantic,workbench:{
     get:async projectId=>{const project=(await chatStore.getWorkspace()).projects.find(project=>project.id===projectId);return {...await workbench.store.get(projectId,project?.name),projectName:project?.name,folder:await workbench.store.resolvePath(projectId,'')};},
     plans:()=>workbench.store.getPlans(),
   }});
@@ -322,7 +335,8 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       await execution.configure(input.chatId,binding,executionMode);
       const context=currentProject?`[ScienceScope project context]\nProject: ${currentProject.name}\nResearch goal: ${currentProject.desc||''}\nProject directory: ${projectFolder}\n\n`:'';
       const brief=research.retrieval.brief({projectId});
-      const expertContext=context+(brief.text?`${brief.text}\n\n`:'');
+      const recalled=await recallForTurn(research.retrieval,{text,projectId,briefRefs:brief.refs});
+      const expertContext=context+(brief.text?`${brief.text}\n\n`:'')+(recalled.text?`${recalled.text}\n\n`:'');
       response.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store'});
       const emit=event=>{if(!response.destroyed)response.write(JSON.stringify(event)+'\n');};
       await discussions.run({chatId:input.chatId,sessionId:binding.sessionId,experts:panel,reviewer,kind,context:expertContext,requestText:compiled.text,chatModel:modelRoute,
@@ -334,6 +348,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
               expertTurnMessages.set(expertTurnKey(binding.sessionId,expert.id),{chatId:input.chatId,messageId:expert.messageId});
               recordInputUsage(input.chatId,expert.messageId,compiled.snapshot);
               if(brief.refs.length)research.store.recordUsage({chatId:input.chatId,messageId:expert.messageId,refs:brief.refs,how:'brief'});
+              if(recalled.refs.length)research.store.recordUsage({chatId:input.chatId,messageId:expert.messageId,refs:recalled.refs,how:'recall'});
             }
           }
           emit(event);
@@ -445,6 +460,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         if (!host) { json(response,503,{message:'DSH 宿主尚未就绪。'}); return true; }
         json(response,200,{providers:host.listProviders ? await host.listProviders() : []}); return true;
       }
+      if(route==='/api/research/embedding'&&request.method==='GET'){json(response,200,semantic.status());return true;}
       if(route.startsWith('/api/research/')&&request.method==='GET'){const body=await research.handleGet(route,requestUrl);if(body!==undefined){json(response,200,body);return true;}}
       if (request.method !== 'POST' || !request.headers['content-type']?.startsWith('application/json')) { json(response,405,{message:'请求方式无效。'}); return true; }
       const chunks = []; let length = 0;
@@ -463,7 +479,8 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(route==='/api/summary/proposals/decide'){json(response,200,await summaryWorkbench.decide(input));return true;}
       if(route==='/api/summary/writes/undo'){json(response,200,await summaryWorkbench.undo(input));return true;}
       if(input.researchInput!==undefined&&(!input.researchInput||typeof input.researchInput!=='object'||Array.isArray(input.researchInput))){json(response,400,{code:'INVALID_RESEARCH_INPUT',message:'研究输入格式无效，未发送。'});return true;}
-      if(route.startsWith('/api/research/')){const body=await research.handlePost(route,input);if(body!==undefined){json(response,200,body);return true;}}
+      if(route==='/api/research/embedding'){json(response,200,await semantic.configure(input.action));return true;}
+      if(route.startsWith('/api/research/')){const body=await research.handlePost(route,input);if(body!==undefined){semantic.rebuild();json(response,200,body);return true;}}
       if(route==='/api/experts'){const enabledSkillIds=(await skills.list()).skills.filter(skill=>skill.enabled&&skill.valid!==false).map(skill=>skill.name);json(response,200,{experts:experts.save(input.experts,{enabledSkillIds}),available:!!discussions});return true;}
       if(route==='/api/skills/save'){json(response,200,await skills.save(input));return true;}
       if(route==='/api/skills/enabled'){json(response,200,await skills.setEnabled(input));return true;}
@@ -512,10 +529,12 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(route==='/api/assistant/chat'){
         const compiled=await researchInput.compile({...input,...input.researchInput,text:input.text,projectId:input.scope==='secretary'?chatStore.getChat(input.ownerId)?.projectId??null:null,attachmentIds:[...new Set([...(input.attachmentIds||[]),...(input.researchInput?.attachmentIds||[])])]});
         input.researchContext=compiled.text;
-        await assistants.send(input,{
+        assistantRequests++;
+        try{await assistants.send(input,{
           accept:()=>{response.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store'});},
           emit:event=>{if(event.type==='accepted')researchDrafts.accepted(input.scope,input.ownerId,event.chatId,event.userMessageId,compiled.snapshot);if(!response.destroyed)response.write(JSON.stringify(event)+'\n');}
-        });attachments.clearCaptured(input.scope,input.ownerId,input.attachmentIds);response.end();return true;
+        });}finally{assistantRequests--;}
+        attachments.clearCaptured(input.scope,input.ownerId,input.attachmentIds);response.end();return true;
       }
       if(typeof input.chatId==='string'&&conversations.isAssistant(input.chatId)){
         json(response,403,{message:'助手私聊不可通过主专家操作接口调用。'});return true;
@@ -734,15 +753,18 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         const contextPrefix = currentProject ? `[ScienceScope ${input.temporary?'temporary ':''}project context]\nProject: ${currentProject.name}\nResearch goal: ${currentProject.desc || ''}\nProject ID: ${currentProject.id}\nProject directory: ${projectFolder}\nSession working directory: ${input.temporary?path.join(dataRoot,'.sciencescope-local','temp','quick',input.chatId):chatStore.getRuntimeWorkspace(input.chatId)}\n${input.temporary?'This is a separate temporary question, not the Main conversation.':''}\n\n` : '';
         // Expert answers the Main expert has not read yet travel with this turn.
         const panelNews=!input.temporary&&discussions?discussions.pendingForMain(input.chatId):{text:'',commit(){}};
+        const recall=!input.temporary?await recallForTurn(research.retrieval,{text:input.text,projectId:currentProject?.id??null,briefRefs:research.retrieval.brief({projectId:currentProject?.id??null}).refs}):{text:'',refs:[]};
+        if(recall.refs.length)research.store.recordUsage({chatId:input.chatId,messageId:input.assistantMessageId,refs:recall.refs,how:'recall'});
+        const recallText=recall.text?recall.text+'\n\n':'';
         if(executionMode==='auto'){
-          const goal=await execution.start(key,bindings.get(key),contextPrefix+panelNews.text+compiled.text,input.goalMaxRounds);panelNews.commit();
+          const goal=await execution.start(key,bindings.get(key),contextPrefix+panelNews.text+recallText+compiled.text,input.goalMaxRounds);panelNews.commit();
           emit({type:'goal-started',goal});emit({type:'completed',text:'',background:true});response.end();return true;
         }
         try {
           if(run)run.sending=true;
           if(!input.temporary)await refreshBrief(bindings.get(key),currentProject?.id??null,input.chatId,input.assistantMessageId).catch(error=>onError?.(error));
           turnMessages.set(bindings.get(key).sessionId,input.assistantMessageId);
-          try{await host.send({sessionId:bindings.get(key).sessionId,text:contextPrefix + panelNews.text + compiled.text,onEvent});}
+          try{await host.send({sessionId:bindings.get(key).sessionId,text:contextPrefix + panelNews.text + recallText + compiled.text,onEvent});}
           finally{turnMessages.delete(bindings.get(key)?.sessionId);}
           panelNews.commit();
           await receipts;
@@ -804,6 +826,6 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     await summaryPolicy.shutdown();await summaryPolicy.close();
     const draining=events.close();
     await Promise.all([summaryWorkbench.close(),minutes.close()]);await draining;
-    await assistants.close();await Promise.allSettled([host?.close(),web?.close(),skills.close()]);await execution?.close();await chatStore.queue;await profileStore.queue;await research.ingest.idle();chatStore.close?.();profileStore.close?.();
+    await assistants.close();await Promise.allSettled([host?.close(),web?.close(),skills.close()]);await execution?.close();await chatStore.queue;await profileStore.queue;await research.ingest.idle();await semantic.close();chatStore.close?.();profileStore.close?.();
   }};
 }

@@ -63,7 +63,7 @@ export function createResearchBase({ database, resolveResourcePath, onProgress }
         const passages = store.db.prepare('SELECT count(*) n FROM rb_chunks WHERE source_id=?').get(source.id).n;
         return { source, passages, links: store.linksOf({ type: 'source', id: source.id }) };
       }
-      case '/api/research/search': return { hits: retrieval.search({ query: String(param(url, 'q') ?? ''), projectId: projectParam(url) ?? null, docTypes: param(url, 'types')?.split(',').filter(Boolean), itemTypes: param(url, 'itemTypes')?.split(',').filter(Boolean), includeSuperseded: bool(param(url, 'includeSuperseded')), k: Number(param(url, 'k') ?? 20) }) };
+      case '/api/research/search': return retrieval.searchHybrid({ query: param(url, 'q'), queries: url.searchParams.has('queries') ? url.searchParams.getAll('queries') : undefined, projectId: projectParam(url) ?? null, docTypes: param(url, 'types')?.split(',').filter(Boolean), itemTypes: param(url, 'itemTypes')?.split(',').filter(Boolean), includeSuperseded: bool(param(url, 'includeSuperseded')), k: Number(param(url, 'k') ?? 20) });
       case '/api/research/items': return { items: store.listItems({ projectId: projectParam(url), type: param(url, 'type'), subtype: param(url, 'subtype'), status: param(url, 'status') ?? 'active', scope: param(url, 'scope'), pinned: bool(param(url, 'pinned')), limit: Number(param(url, 'limit') ?? 100), offset: Number(param(url, 'offset') ?? 0) }).map((item) => ({ ...item, evidenceCount: store.evidenceCount(item.id) })) };
       case '/api/research/item': {
         const item = retrieval.resolveItem(String(param(url, 'id') ?? ''));
@@ -112,9 +112,10 @@ export function createResearchBase({ database, resolveResourcePath, onProgress }
   async function toolCall(name, args = {}, context = {}) {
     const agent = { audience: 'agent', expertId: context.expertId ?? undefined };
     if (name === 'research_search') {
-      const hits = retrieval.search({ query: String(args.query ?? ''), projectId: context.projectId ?? null, docTypes: args.types?.length ? args.types : undefined, itemTypes: args.itemTypes, k: args.limit ?? 8, ...agent });
+      const result = await retrieval.searchHybrid({ query: args.query, queries: args.queries, projectId: context.projectId ?? null, docTypes: args.types?.length ? args.types : undefined, itemTypes: args.itemTypes, k: args.limit ?? 8, ...agent });
+      const {hits}=result;
       if (context.chatId && context.messageId) store.recordUsage({ chatId: context.chatId, messageId: context.messageId, refs: hits.map((h) => h.ref), how: 'search' });
-      return { hits: hits.map((h) => ({ cite: h.cite, ref: h.ref, title: h.title, section: h.section ?? undefined, page: h.page ?? undefined, snippet: h.snippet, ...(h.item ? { type: h.item.type, subtype: h.item.subtype, status: h.item.claimStatus ?? h.item.status } : {}) })), hint: hits.length ? 'Cite passages with their cite label, e.g. [S3 p.4]. Use research_read for the full text.' : 'No match. Try other keywords or synonyms.' };
+      return { mode:result.mode,...(result.fallbackReason?{fallbackReason:result.fallbackReason}:{}),hits: hits.map((h) => ({ cite: h.cite, ref: h.ref, title: h.title, section: h.section ?? undefined, page: h.page ?? undefined, snippet: h.snippet, ...(h.item ? { type: h.item.type, subtype: h.item.subtype, status: h.item.claimStatus ?? h.item.status } : {}) })), hint: (result.mode==='keyword'?'本次为关键词检索。 ':'')+(hits.length ? 'These are bounded passage excerpts. Cite their labels, e.g. [S3 p.4]. Use research_read to read the full passage or neighbouring paragraphs before making a claim.' : 'No match. Try other keywords or synonyms, including Chinese and English queries.') };
     }
     if (name === 'research_read') {
       const result = retrieval.read({ ref: args.ref ?? parseCite(args.cite, retrieval, context.projectId), page: args.page, fromOrdinal: args.fromOrdinal, maxChars: args.maxChars ?? 6000, ...agent });

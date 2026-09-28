@@ -169,12 +169,20 @@ try {
   await page.waitForSelector('#message-viewer-answer .message-text');
   await setAppearance('zh-CN', 'light');
 
-  // PDF: unparsed -> explicit reparse, page 2 + find highlight, then a real
+  // Imports are automatically ingested since T05. Wait for that queue rather
+  // than depending on the browser winning a race against background parsing.
+  const synced = await apiFetch(server, 'api/research/sync', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId: null, wait: true }),
+  });
+  assert.equal(synced.status, 200);
+  await synced.json();
+  // PDF: parsed -> explicit reparse, page 2 + find highlight, then a real
   // text-layer selection produces a page/quote/rect annotation.
   phase = 'pdf';
   await openPreview(resources.pdf.id, { page: 2, highlight: 'The second page confirms page-aware extraction' });
   await page.waitForSelector('.document-reader[data-reader-format="pdf"]');
-  assert.equal((await page.locator('.reader-status span').first().innerText()).trim(), '未解析');
+  assert.equal((await page.locator('.reader-status span').first().innerText()).trim(), '已解析');
   await page.locator('[data-preview-reparse]').click();
   await page.waitForFunction(() => document.querySelector('.reader-status span')?.textContent.trim() === '已解析');
   await page.waitForFunction(() => {

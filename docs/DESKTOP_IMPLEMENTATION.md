@@ -1,5 +1,31 @@
 # Desktop implementation — first increment
 
+## 2026-09-29 · T10 检查点（部分验收，非任务完成）
+
+- 用户批准先提交并推送 `codex/t10-hybrid-search-20260927` 检查点，叠加 T05 `d265051`；不开 PR、不合并。以下为当前证据，取代下方 9 月 27 日进行中记录的进度描述，不改写历史失败。
+- 完整回归最终 r2：npm test 214/214，零失败/取消/跳过；23 项既有浏览器/API smoke 最新有效记录通过，新增 semantic browser/native 通过。证据索引 `.sciencescope-local/temp/t10-validation/regression/latest-valid-evidence-r2.json`；截图在同级 `semantic-ui/` 与 `native/`，涵盖中英文、深浅色。实际原生验收已运行，不代表安装包验收。
+- 真实模型固定 52 题目前只有 29 题终态：27 completed、1 failed、1 cancelled，23 未测；completed 仅代表完成返回，不是正确率。前 26 题审计已形成部分记录，发现额外论断及引用页码错误，不能以核心回答正确掩盖。尚不能与历史 43/52 宣称最终升降。
+- 已转发 126 次真实请求；`uslib-04` 尝试用 grep 查测试数据目录，被评测护栏取消；`delphi-05` 触发本地评测请求预算，宿主显示 RATE_LIMIT，不能记成 OpenCode Go 上游限流。保留失败，不自动重试已付费题。当前付费流程已停止。
+- 评测 wrapper 的两处零转发失败已修复：保留应用 sessionId；宿主工具清单握手不作为模型工具调用处理。新增真实 DSH + 本地模拟模型回归验证握手、身份、请求头、工具检索及持久化回复；与真实 Go 评测分开计数。
+- 待继续：检索优先规则在工具描述中已有，但 versioned lookup rules 还需明确；完成其回归并明确评测版本，补剩余答案审计/固定 52 题对照。500 来源负载脚本已备好但未运行，且其方案是 8 篇语料重复到 500 来源，不等于 500 篇不同真实论文。第二台机器对照未做。
+- T11 环境白名单、审批及下一轮生效方案，T12 回复分支/用户重新提问方案均已获用户批准并写入任务书；两项代码尚未实施。检查点不表示第 3 批完成。
+- 本地数据库、语料、日志、截图、模型权重、凭据均不进 Git；仅提交实现、测试脚本、模型下载清单与脱敏文字证据。凭据按用户授权保留在忽略目录。
+
+## 2026-09-27 · 第 3 批 T10 混合检索（进行中，非最终验收）
+
+- 分支 `codex/t10-hybrid-search-20260927` 叠加已推送的 T05 `d2650514c2540c807efc5269146ca053911b120d`。尚未提交/推送 T10，不开 PR、不合并；T11/T12 尚未实施。T12 的用户消息“从此处重新提问”与回复“从此回复分支”规则已记入任务书，分支开关仍关闭。
+- 接线：一个本地 ONNX worker（intra=2）、本机 tokenizer、固定 e5-small 模型清单；sqlite-vec 原生加载后关闭扩展加载，版本化向量投影与同范围候选筛选；共享多问法/300ms 总预算/加权 RRF；工具、历史查询、每轮召回及真实设置消费者。依赖通过显式 npm `--ignore-scripts` 固定安装 onnxruntime-node 1.30.0、@huggingface/transformers 4.3.0、sqlite-vec 0.1.9，没有运行 GPU 安装脚本或修改全局配置。
+- 发现 → 原因 → 修复 → 验证：Windows 设置报告不支持 AVX2 → 客户端 PATH 找不到 `powershell.exe`，不是 CPU 不支持 → 使用 SystemRoot 下的明确系统路径，TEMP/TMP 与 PowerShell 缓存仍在项目内 → 实机探测 supported=true；真实设置 browser/native smoke 均通过。初始失败证据保留，不把检测失败冒充硬件缺失。
+- 聚焦回归：混合检索、实际 sqlite-vec、上下文范围、四角色清单 schema、全局范围与评测契约共 30/30 通过；语义服务/召回纯测试 2/2；新增 Main API 回归证明实际 runtime input 含有共享召回内容、无私有内容，且有 recall 回执（1/1）。完整 npm 与旧 smoke 矩阵仍在执行，不能写全绿。
+- 本机离线固定评测：1412 chunks，实际嵌入/写入 32.240 秒；关键词、单问法向量、双语向量 RRF、混合 R@1/5/10 分别 3/6/9、10/16/21、12/26/29、17/28/34（各 /52）；混合 P50/P95=70.662/79.013ms，52 题均未降级。8 道合成记忆单独计分，混合正例5/5、负例3/3；不混入52题分母。gold 未改。这些指标不是模型回答正确率；第一批43/52核心答案审计的真实模型复测还未执行。
+- 设置验收：新 `semantic-ui-smoke` browser 30.294s、native 31.187s，SQLite启停0→1→0及重载、缺模型关键词命中均通过。中英浅深截图各4张：`.sciencescope-local/temp/t10-validation/semantic-ui/` 与 `native/`。Sol逐图检查，Astra复核英文深色原生图；native主PID83180 exit0，捕获9个自有PID均消失后再清理测试目录，未重启用户客户端。本地 Tauri IPC 不计为外部联网，模型/付费/下载均0。
+- 实际生产语义服务补验：用已缓存真实 e5-small、临时 SQLite 和受控模型目录链接，显式 enable→2 条目索引→授权候选检索→关闭重开；Astra 独立重跑通过，首次约5642ms、重开约1991ms，RSS采样592/586MiB（不是全程峰值或独占性能测量）。共享与私有条目均在本地索引中，但智能体候选及结果只有共享条目；设置重开仍启用。测试先移除链接本身，再清理自有数据库目录，未动用户数据。证据 `semantic-service-probe-result.json`。下载完整写入/镜像回退/校验失败保留旧文件/取消回归与服务、向量测试共9/9通过，未发真实下载请求。
+- 完整浏览器矩阵首轮：23项中21通过，marks/viewer失败。viewer仍假定新导入PDF一定“未解析”，与T05后台自动解析矛盾 → 先等待真实sync队列并要求“已解析”，再保留原手动重解析、页码、选区及高亮检查。marks程序Range+合成mouseup首次未出现批注框；加只读观察原样复跑通过，真实鼠标原等待条件及显式稳定条件也均通过，不能归因为双hydrate或生产缺陷。正式驱动改为真实鼠标三击，原文/备注/位置/发送断言全部保留；最终重跑待收口。首轮失败与诊断都保留在 regression/marks-diagnostic，不以重跑抹掉。
+- 浏览器回归收口：viewer r2通过（30.202s）。Astra最初把真实三击扩大到正文，正文段落分隔符也被选中，marks r2在原文精确断言处失败；没有trim生产内容或放宽断言，现仅文件预览走真实鼠标、正文保留原精确Range，正式marks r3全部通过（25.881s）。23项最新证据为r1其余21项 + viewer r2 + marks r3，均无测试期间相关源码变化；另有semantic browser/native通过证据。最终完整npm正在执行。
+- 完整npm收口：213/213通过，0失败/取消/跳过，270760.4558ms；日志 `regression/npm-test-final-r1.log`、矩阵索引 `regression/latest-valid-evidence.json`。期间只有独立opt-in评测脚本 `hybrid-live-retrieval.mjs` 在修改；它只被另跑的 `tests/fixtures/retrieval-eval/contract.test.mjs` 导入，不属于 `npm test` 的 `tests/*.test.mjs` 加载面。不是“整个仓库在测试期间完全冻结”的声明。
+- 真实模型试点r1：`t10-validation/live/t10-hybrid-pilot`，第一题在本地API返回500，Provider转发/attempt均0，后两题未运行。原因是新评测wrapper另造 `t10-…` sessionId，而既有DSH只接受 `session-…` 且T17按应用传入的身份绑定工具范围 → wrapper保留 `options.sessionId`，仅缺省时生成合法身份；增加脱敏错误消息诊断。不修改生产运行时。失败账本保留，重试前须先有回归，并在新目录明确记录零计费前次；脚本exit0并非本次验收成功。已核对临时SQLite聊天/消息/工具均0、原始语料不变、owned进程/锁/junction清理、凭据字面扫描0命中，工作区key保留。
+- 证据：`.sciencescope-local/temp/t10-validation/retrieval/run-2026-09-27-local-verified/{hybrid-results,hybrid-summary}.json`；界面 result.json 与回归日志同属 t10-validation，不进 Git。固定评测契约5/5由Astra重跑通过；历史43/52审计标签仅作为逐题对照字段，不冒充本轮新答案评分。尚未完成：完整回归、真实模型52题答案/逐论断引用审计、500篇首次索引实测、第二台云端机器对照。原生DLL安装包资源/签名按队列阶段B处理，本次没有安装包或签名通过结论。
+
 ## 2026-09-27 · 第 3 批 T05 资料库界面（验收通过，独立分支交付）
 
 - 基线：`claude/determined-pasteur-jxpzw8@a3e79e2`，工作树干净后新建 `codex/t05-research-base-ui-20260927`；没有回退或重做第 2 批。不开 PR、不合并。

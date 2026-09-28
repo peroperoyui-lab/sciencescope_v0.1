@@ -11,7 +11,13 @@ const base=path.resolve('.sciencescope-local/temp');await mkdir(base,{recursive:
 const answer='First paragraph **alpha** evidence.\n\nSecond paragraph beta claim.';
 let browser,server,debugPage;const calls=[],errors=[];
 const host={capabilities:{tokenStreaming:true},listProviders:async()=>[{id:'fixture',name:'Fixture',models:['one']}],getModelInfo:async()=>({}),getRuntimeConfig:async()=>({}),startSession:async({sessionId})=>sessionId||'session-1',configurePolicy:async()=>{},configureReasoning:async()=>{},observeSession:()=>()=>{},getContextUsage:async()=>null,releaseSession:async()=>{},close:async()=>{},send:async({text,onEvent})=>{calls.push(text);onEvent({type:'text-delta',delta:answer});onEvent({type:'completed',text:answer});}};
-const select=(page,selector,index=0)=>page.evaluate(({selector,index})=>{const node=document.querySelectorAll(selector)[index];const range=document.createRange();range.selectNodeContents(node);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);const r=node.getBoundingClientRect();node.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,clientX:r.left+10,clientY:r.bottom}));},{selector,index});
+// The asynchronously mounted file reader needs actual pointer/actionability
+// checks. Keep exact text-node ranges for transcript quotes: triple-clicking
+// those paragraphs also selects their separators, changing this fixture's text.
+// Exact quote, annotation location and compiled-input assertions stay below.
+const select=(page,selector,index=0)=>selector.startsWith('.file-preview-panel')
+  ? page.locator(selector).nth(index).click({clickCount:3})
+  : page.evaluate(({selector,index})=>{const node=document.querySelectorAll(selector)[index];const range=document.createRange();range.selectNodeContents(node);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);const r=node.getBoundingClientRect();node.dispatchEvent(new MouseEvent('mouseup',{bubbles:true,clientX:r.left+10,clientY:r.bottom}));},{selector,index});
 const count=page=>page.evaluate(()=>document.querySelector('[data-composer="main"] [data-marks-toggle]')?.textContent.trim()||'');
 try{
   server=await createDesktopServer({dataRoot:root,outputDir:path.join(root,'assets'),runtimeHost:host});
