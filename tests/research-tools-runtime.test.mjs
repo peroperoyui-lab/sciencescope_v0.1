@@ -4,7 +4,7 @@ import {createServer} from 'node:http';
 import {mkdir,mkdtemp,rm} from 'node:fs/promises';
 import path from 'node:path';
 import {createDshHost} from '../adapters/runtime-dsh/host.mjs';
-import {buildContextTools,CONTEXT_API_VERSION} from '../scripts/context/tools.mjs';
+import {buildContextTools,contextRules,CONTEXT_API_VERSION} from '../scripts/context/tools.mjs';
 
 const SESSION = Object.freeze({
   main:'session-t17main',
@@ -103,7 +103,7 @@ test('host manifests give Main, expert, secretary and global the scoped context 
     const model={providerId:'fixture',modelId:'fixture'};
     await host.startSession({sessionId:SESSION.main,model,workspace:root,runtimeConfig});
     await host.configurePolicy({sessionId:SESSION.main,approvalPolicy:'never',sandboxMode:'workspace-write'});
-    await host.configureBrief({sessionId:SESSION.main,text:'[ScienceScope project brief]\n- BRIEF_MARKER 主要终点：Matsuda 指数 [@a1b2c3d4]'});
+    await host.configureBrief({sessionId:SESSION.main,text:'[ScienceScope project brief]\n- BRIEF_MARKER 主要终点：Matsuda 指数 [@a1b2c3d4]\n'+contextRules('main')});
     const main=await host.send({sessionId:SESSION.main,text:'这项研究随机分组了吗？',onEvent:()=>{}});
     assert.equal(main.finalResponse,'ANSWER_WITH [S1 p.2]','the Main tool result reached the model');
 
@@ -139,6 +139,7 @@ test('host manifests give Main, expert, secretary and global the scoped context 
       assert.equal(names.includes('workspace_overview'),role==='global',`${role} global-only tool set`);
     }
     assert.match(JSON.stringify(mainRequest.input.messages.filter(message=>message.role==='system')),/BRIEF_MARKER 主要终点/,'the brief is part of the Main system prompt');
+    assert.match(JSON.stringify(mainRequest.input.messages.filter(message=>message.role==='system')),/For research questions use research_search first/,'versioned lookup priority reaches the actual DSH model input through configureBrief');
 
     assert.deepEqual(calls.map(call=>({sessionId:call.sessionId,name:call.name,expertId:call.expertId,args:call.args})),[
       {sessionId:SESSION.main,name:'research_search',expertId:undefined,args:{query:'随机分组',limit:3}},

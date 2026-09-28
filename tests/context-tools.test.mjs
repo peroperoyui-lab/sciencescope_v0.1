@@ -6,6 +6,16 @@ import {buildContextTools,contextRules,CONTEXT_API_VERSION} from '../scripts/con
 const ROLES=['main','expert','secretary','global'];
 const COMMON=['chat_recall','project_memory','research_search','research_read','research_propose'];
 
+test('versioned lookup rules prioritize scoped research tools for every role',()=>{
+  for(const role of ROLES){
+    const rules=contextRules(role);
+    assert.match(rules,/For research questions use research_search first/);
+    assert.match(rules,/not shell or filesystem exploration/);
+    assert.match(rules,/nextOrdinal/);
+    assert.match(rules,/cite evidence for each claim/);
+  }
+});
+
 function byName(role) { return new Map(buildContextTools(role).map(tool=>[tool.name,tool])); }
 function assertField(field,path) {
   assert.ok(field.required===undefined||field.required===true,`${path}.required is true or omitted for an optional DSH value-schema field`);

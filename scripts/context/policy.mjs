@@ -1,6 +1,6 @@
 // Context access policy.  The policy is deliberately data-shaped so adding a
 // source or changing a role's scope does not require changing the dispatcher.
-export const CONTEXT_API_VERSION = 't10.1';
+export const CONTEXT_API_VERSION = 't10.2';
 
 export class ContextAccessError extends Error {
   constructor(code, message = code, status = 400) {
