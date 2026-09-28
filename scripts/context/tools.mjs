@@ -5,9 +5,10 @@ const refParam = { type: 'object', additionalProperties: false, description: 'A 
 const BASE = [
 {
       name: 'chat_recall',
-      description: 'Read this conversation\'s history exactly as written. Give query to search every earlier message (returns message numbers with excerpts), or from/to to read messages #from–#to in full, including very old ones. Use it whenever the minutes or a message refers to something you have not seen.',
+      description: 'Read this conversation\'s history exactly as written. Give query or queries for hybrid search (message numbers with excerpts), or from/to to read messages #from–#to in full. For search, include Chinese and English phrasings when possible. Use it whenever the minutes or a message refers to something you have not seen.',
       parameters: {
         query: { type: 'string', description: 'Words to search for, 1-400 characters.' },
+        queries: { type: 'array', items: { type: 'string' }, description: 'Up to 6 search phrasings, each 1-2000 characters; preferably include Chinese and English. Combined with query and deduplicated.' },
         from: { type: 'integer', description: 'First message number to read.' },
         to: { type: 'integer', description: 'Last message number to read.' },
         limit: { type: 'integer', description: 'Maximum search hits, 1-30 (default 12).' },
@@ -20,9 +21,10 @@ const BASE = [
 },
 {
       name: 'research_search',
-      description: "Search the user's research base for this project: parsed papers and files (passages with page numbers), sources, and confirmed knowledge, theory models/formulas/algorithms, claims and long-term memory. Currently keyword search: use specific terms, synonyms and abbreviations, and search again in the other language (Chinese and English) because papers are often in English. Returns cite labels such as [S3 p.4] or [@a1b2c3d4]; cite them verbatim in your answer. Search before answering questions about the project's literature or earlier decisions.",
+      description: "For research questions use research_search first, not shell or filesystem exploration. Search parsed papers, sources and confirmed knowledge, models, claims and memory. Local vector and keyword results are fused; the result explicitly identifies keyword fallback. Give queries with at least one Chinese and one English phrasing. Returns bounded passage excerpts with cite labels such as [S3 p.4] or [@a1b2c3d4]; use research_read for the full passage and cite evidence for each claim.",
       parameters: {
-        query: { type: 'string', required: true, description: 'Keywords, 1-2000 characters. Several short terms work better than a sentence.' },
+        query: { type: 'string', description: 'A search phrasing, 1-2000 characters. Compatible with older single-query calls.' },
+        queries: { type: 'array', items: { type: 'string' }, description: 'Up to 6 phrasings, each 1-2000 characters. Include at least Chinese and English; merged and deduplicated with query. Provide query or queries.' },
         types: { type: 'array', items: { type: 'string', enum: ['chunk', 'source', 'item'] }, description: 'Restrict to passages (chunk), bibliographic sources, or distilled items.' },
         itemTypes: { type: 'array', items: { type: 'string', enum: ['knowledge', 'model', 'memory', 'claim', 'note'] } },
         limit: { type: 'integer', description: 'Maximum hits, 1-20 (default 8).' },

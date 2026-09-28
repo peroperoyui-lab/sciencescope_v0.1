@@ -1,11 +1,13 @@
-// Retrieval over the Research Base: one search entry for passages, sources and
-// distilled items; a bounded reader; citation labels; and the project brief
-// (always-in-context core memory). BM25 via FTS5 now; an optional vector
-// ranker can be fused later with reciprocal-rank fusion (see RESEARCH_BASE.md).
+// Retrieval over the Research Base: keyword search, hybrid search, bounded
+// reading, citation labels and the project brief.
 import { matchExpression, snippet } from './text-index.mjs';
 import { ResearchBaseError } from './store.mjs';
+import {
+  fuseHybridRankings, HYBRID_FALLBACK_REASONS, HYBRID_RRF_K, HYBRID_VECTOR_LIMIT,
+  HYBRID_VECTOR_TIMEOUT_MS, hybridRefKey, normalizeHybridQueries, runVectorPhase,
+} from './hybrid.mjs';
 
-const RRF_K = 60;
+const REF_TYPES = new Set(['chunk', 'source', 'item']);
 export const itemHandle = (itemId) => String(itemId).replace(/^itm_/u, '').slice(0, 8);
 export const citeOf = {
   source: (source) => `[${source.label}]`,
@@ -28,25 +30,84 @@ function visible(item, { audience, expertId, includeSuperseded }) {
 
 export function createResearchSearch({ store }) {
   const { db } = store;
+  let vectorRetriever = null;
 
-  function ftsRows(expression, projectId, includePersonal, docTypes, limit) {
-    const typeMarks = docTypes.map(() => '?').join(',');
-    const projectClause = projectId ? (includePersonal ? "AND project_id IN (?, '')" : 'AND project_id=?') : "AND project_id=''";
-    const params = [expression, ...docTypes, ...(projectId ? [projectId] : []), limit];
-    return db.prepare(`SELECT doc_type, doc_id, bm25(rb_fts, 0, 0, 0, 2.0, 1.0) AS score FROM rb_fts WHERE rb_fts MATCH ? AND doc_type IN (${typeMarks}) ${projectClause} ORDER BY score LIMIT ?`).all(...params);
+  function normalizeScope({ projectId = null, includePersonal = true, projectIds } = {}) {
+    if (projectIds !== undefined) {
+      if (!Array.isArray(projectIds) || projectIds.some((value) => value !== null && (typeof value !== 'string' || !value))) {
+        throw new ResearchBaseError('INVALID_SCOPE', '项目范围无效。');
+      }
+      const selected = [...new Set(projectIds)];
+      if (includePersonal) selected.push(null);
+      return [...new Set(selected)].map((value) => value ?? '');
+    }
+    if (projectId !== null && (typeof projectId !== 'string' || !projectId)) {
+      throw new ResearchBaseError('INVALID_SCOPE', '项目范围无效。');
+    }
+    return projectId === null ? [''] : includePersonal ? [projectId, ''] : [projectId];
   }
 
-  /**
-   * @param {{query:string, docTypes?:('chunk'|'source'|'item')[], itemTypes?:string[], projectId?:string|null,
-   *   includePersonal?:boolean, audience?:'user'|'agent', expertId?:string, includeSuperseded?:boolean, k?:number}} input
-   */
-  function search({ query, docTypes = ['chunk', 'source', 'item'], itemTypes, projectId = null, includePersonal = true, audience = 'user', expertId, includeSuperseded = false, k = 8 } = {}) {
-    if (typeof query !== 'string' || !query.trim() || query.length > 2000) throw new ResearchBaseError('INVALID_QUERY', '请输入 1–2000 个字符的检索词。');
-    k = Math.max(1, Math.min(50, Number(k) || 8));
+  function scopeClause(column, values) {
+    if (!values.length) return { sql: '0', params: [] };
+    return { sql: `${column} IN (${values.map(() => '?').join(',')})`, params: values };
+  }
+
+  function itemVisibilitySql(options, alias = 'i') {
+    const where = [`${alias}.status NOT IN ('proposed','rejected')`];
+    const params = [];
+    if (!options.includeSuperseded) where.push(`${alias}.status='active'`);
+    if (options.audience === 'agent') where.push(`${alias}.visibility<>'private'`);
+    if (options.audience === 'agent' && options.expertId) {
+      where.push(`(${alias}.scope NOT LIKE 'expert:%' OR ${alias}.scope=?)`);
+      params.push(`expert:${options.expertId}`);
+    } else if (options.audience === 'agent') {
+      where.push(`${alias}.scope NOT LIKE 'expert:%'`);
+    }
+    if (options.itemTypes?.length) {
+      where.push(`${alias}.type IN (${options.itemTypes.map(() => '?').join(',')})`);
+      params.push(...options.itemTypes);
+    }
+    return { sql: where.join(' AND '), params };
+  }
+
+  function ftsRows(expression, options, limit) {
+    const docTypes = options.docTypes;
+    if (!docTypes.length) return [];
+    const typeMarks = docTypes.map(() => '?').join(',');
+    const scope = scopeClause('project_id', options.scopeValues);
+    const visibility = itemVisibilitySql(options, 'i');
+    const params = [expression, ...docTypes, ...scope.params, ...visibility.params, limit];
+    return db.prepare(`SELECT doc_type, doc_id, bm25(rb_fts, 0, 0, 0, 2.0, 1.0) AS score
+      FROM rb_fts
+      WHERE rb_fts MATCH ? AND doc_type IN (${typeMarks}) AND ${scope.sql}
+        AND (doc_type<>'item' OR EXISTS (SELECT 1 FROM rb_items i WHERE i.id=rb_fts.doc_id AND ${visibility.sql}))
+      ORDER BY score LIMIT ?`).all(...params);
+  }
+
+  function normalizedOptions(options = {}) {
+    const docTypes = options.docTypes === undefined ? ['chunk', 'source', 'item'] : options.docTypes;
+    if (!Array.isArray(docTypes) || docTypes.some((type) => !REF_TYPES.has(type))) throw new ResearchBaseError('INVALID_TYPES', '检索类型无效。');
+    const itemTypes = options.itemTypes === undefined ? undefined : options.itemTypes;
+    if (itemTypes !== undefined && (!Array.isArray(itemTypes) || itemTypes.some((type) => typeof type !== 'string' || !type))) {
+      throw new ResearchBaseError('INVALID_TYPES', '条目类型无效。');
+    }
+    return {
+      ...options,
+      docTypes: [...new Set(docTypes)],
+      itemTypes: itemTypes ? [...new Set(itemTypes)] : undefined,
+      projectId: options.projectId ?? null,
+      includePersonal: options.includePersonal !== false,
+      audience: options.audience ?? 'user',
+      includeSuperseded: options.includeSuperseded === true,
+      scopeValues: normalizeScope(options),
+    };
+  }
+
+  function keywordSearch(query, options, k) {
     const seen = new Map();
     for (const mode of ['all', 'any']) {
       const expression = matchExpression(query, mode); if (!expression) break;
-      for (const row of ftsRows(expression, projectId, includePersonal, docTypes, k * 6)) {
+      for (const row of ftsRows(expression, options, k * 6)) {
         const key = `${row.doc_type}:${row.doc_id}`;
         if (!seen.has(key)) seen.set(key, { ...row, mode, rank: seen.size });
       }
@@ -54,14 +115,118 @@ export function createResearchSearch({ store }) {
     }
     const hits = [];
     for (const row of seen.values()) {
-      const hit = hydrate(row, query, { audience, expertId, includeSuperseded, itemTypes });
+      const hit = hydrate(row, query, options);
       if (!hit) continue;
-      // Phrase (all-terms) matches outrank any-term matches; items get a small
-      // pinned/importance nudge (memory relevance + importance, Park et al.).
-      hit.score = 1 / (RRF_K + row.rank) + (row.mode === 'all' ? 0.01 : 0) + (hit.item ? (hit.item.pinned ? 0.004 : 0) + hit.item.importance * 0.0005 : 0);
+      hit.score = 1 / (HYBRID_RRF_K + row.rank) + (row.mode === 'all' ? 0.01 : 0) + (hit.item ? (hit.item.pinned ? 0.004 : 0) + hit.item.importance * 0.0005 : 0);
       hits.push(hit);
     }
     return hits.sort((a, b) => b.score - a.score).slice(0, k);
+  }
+
+  const searchOptionsKey = hybridRefKey;
+
+  function normalizeQueries({ query, queries } = {}) {
+    try { return normalizeHybridQueries({ query, queries }); }
+    catch (error) { throw new ResearchBaseError('INVALID_QUERY', error.message); }
+  }
+
+  function listCandidates(input = {}) {
+    const options = normalizedOptions(input);
+    const scope = scopeClause("ifnull(project_id,'')", options.scopeValues);
+    const candidates = [];
+    if (options.docTypes.includes('source')) {
+      const rows = db.prepare(`SELECT id,updated_at FROM rb_sources WHERE ${scope.sql}`).all(...scope.params);
+      for (const row of rows) candidates.push({ ref: { type: 'source', id: row.id }, version: row.updated_at });
+    }
+    if (options.docTypes.includes('chunk')) {
+      const rows = db.prepare(`SELECT c.id,s.updated_at FROM rb_chunks c JOIN rb_sources s ON s.id=c.source_id WHERE ${scope.sql.replaceAll("ifnull(project_id,'')", "ifnull(s.project_id,'')")}`)
+        .all(...scope.params);
+      for (const row of rows) candidates.push({ ref: { type: 'chunk', id: row.id }, version: row.updated_at });
+    }
+    if (options.docTypes.includes('item')) {
+      const visibility = itemVisibilitySql(options, 'i');
+      const rows = db.prepare(`SELECT i.id,i.revision FROM rb_items i WHERE ${scope.sql.replaceAll("ifnull(project_id,'')", "ifnull(i.project_id,'')")} AND ${visibility.sql}`)
+        .all(...scope.params, ...visibility.params);
+      for (const row of rows) candidates.push({ ref: { type: 'item', id: row.id }, version: String(row.revision) });
+    }
+    return candidates.sort((a, b) => {
+      const left = searchOptionsKey(a.ref);
+      const right = searchOptionsKey(b.ref);
+      return left < right ? -1 : left > right ? 1 : 0;
+    });
+  }
+
+  /**
+   * @param {{query:string, docTypes?:('chunk'|'source'|'item')[], itemTypes?:string[], projectId?:string|null,
+   *   includePersonal?:boolean, audience?:'user'|'agent', expertId?:string, includeSuperseded?:boolean, k?:number}} input
+   */
+  function search(input = {}) {
+    const { query } = input;
+    if (typeof query !== 'string' || !query.trim() || query.length > 2000) throw new ResearchBaseError('INVALID_QUERY', '请输入 1–2000 个字符的检索词。');
+    const options = normalizedOptions(input);
+    const k = Math.max(1, Math.min(50, Number(input.k) || 8));
+    return keywordSearch(query.trim(), options, k);
+  }
+
+  function setVectorRetriever(retriever) {
+    if (retriever !== null && (!retriever || typeof retriever.search !== 'function')) throw new TypeError('vector retriever must expose search() or be null');
+    vectorRetriever = retriever;
+  }
+
+  async function searchHybrid(input = {}) {
+    const queries = normalizeQueries(input);
+    const options = normalizedOptions(input);
+    const k = Math.max(1, Math.min(50, Number(input.k) || 8));
+    const vectorStartedAt = performance.now();
+    const candidates = listCandidates(options);
+    const allowed = new Set(candidates.map(({ ref }) => searchOptionsKey(ref)));
+    const vectorRetrieverAtStart = vectorRetriever;
+    let vectorRankings = [];
+    let fallbackReason;
+
+    if (!vectorRetrieverAtStart) {
+      fallbackReason = 'model-missing';
+    } else {
+      let phase;
+      try {
+        phase = await runVectorPhase({
+          search: (request) => vectorRetrieverAtStart.search(request),
+          queries, candidates, limit: HYBRID_VECTOR_LIMIT,
+          timeoutMs: Math.max(0, HYBRID_VECTOR_TIMEOUT_MS - (performance.now() - vectorStartedAt)),
+        });
+      } catch (error) {
+        phase = { result: { fallbackReason: HYBRID_FALLBACK_REASONS.includes(error?.code) ? error.code : 'model-missing' } };
+      }
+      const response = phase?.result;
+      if (phase?.timedOut) {
+        fallbackReason = 'timeout';
+      } else if (response?.fallbackReason) {
+        fallbackReason = HYBRID_FALLBACK_REASONS.includes(response.fallbackReason) ? response.fallbackReason : 'model-missing';
+      } else if (!Array.isArray(response?.rankings)) {
+        fallbackReason = 'index-incomplete';
+      } else {
+        vectorRankings = response.rankings;
+      }
+    }
+
+    const keywordRankings = [];
+    for (let queryIndex = 0; queryIndex < queries.length; queryIndex += 1) {
+      keywordRankings.push(keywordSearch(queries[queryIndex], options, HYBRID_VECTOR_LIMIT));
+    }
+
+    const results = fuseHybridRankings({ vectorRankings, keywordRankings, allowedRefs: allowed, limit: k, k: HYBRID_RRF_K })
+      .map(({ ref, score, hit }) => {
+        const hydrated = hit ?? hydrateRef(ref, queries[0], options);
+        return hydrated ? { ...hydrated, score } : null;
+      }).filter(Boolean);
+    return { hits: results, mode: fallbackReason ? 'keyword' : 'hybrid', ...(fallbackReason ? { fallbackReason } : {}) };
+  }
+
+  function hydrateRef(ref, query, options) {
+    if (ref.type === 'item') return hydrate({ doc_type: 'item', doc_id: ref.id }, query, options);
+    if (ref.type === 'source') return hydrate({ doc_type: 'source', doc_id: ref.id }, query, options);
+    if (ref.type === 'chunk') return hydrate({ doc_type: 'chunk', doc_id: ref.id }, query, options);
+    return null;
   }
 
   function hydrate(row, query, options) {
@@ -110,7 +275,7 @@ export function createResearchSearch({ store }) {
 
   /** "[S3 p.4]" / "[S3]" / "[@a1b2c3d4]" → record reference, for UI chips. */
   function resolveCitation(label, { projectId = null } = {}) {
-    const s = /^\[?S(\d+)(?:\s*p\.(\d+))?\]?$/u.exec(label.trim());
+    const s = /^\[?S(\d+)(?:\s*,?\s*p\.?\s*(\d+))?\]?$/iu.exec(label.trim());
     if (s) {
       const source = store.sourceByLabel(projectId, Number(s[1])) ?? store.sourceByLabel(null, Number(s[1]));
       if (!source) return null;
@@ -162,7 +327,7 @@ export function createResearchSearch({ store }) {
     return { text, refs };
   }
 
-  return { search, read, resolveCitation, resolveItem, brief };
+  return { search, searchHybrid, setVectorRetriever, listCandidates, read, resolveCitation, resolveItem, brief };
 }
 
 const sourceBrief = (s) => ({ id: s.id, label: s.label, title: s.title, kind: s.kind, authors: s.authors.slice(0, 6).map((a) => a.literal || [a.given, a.family].filter(Boolean).join(' ')), year: s.year, venue: s.venue, doi: s.doi, contentStatus: s.contentStatus, resourceId: s.resourceId });

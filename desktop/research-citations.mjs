@@ -3,7 +3,7 @@ import {hostRequest} from './host-client.mjs';
 // Enhance rendered assistant prose without changing model text or the message
 // renderer. The observer only visits inserted/changed subtrees, so streaming a
 // reply does not repeatedly walk the transcript.
-const CITATION = /\[(?:S\d+(?:\s+p\.\d+)?|@[0-9a-f]{6,20})\]/giu;
+const CITATION = /\[(?:S\d+(?:\s*,?\s*p\.?\s*\d+)?|@[0-9a-f]{6,20})\]/giu;
 const MAX_CACHE = 160;
 const cache = new Map();
 const usageCache = new Map();

@@ -48,7 +48,10 @@ test('context tool manifests are role-scoped additive contracts with explicit va
 test('nested research schemas mark required and optional fields without open objects',()=>{
   const manifest=byName('main');
   const search=manifest.get('research_search').parameters;
-  assert.equal(search.query.required,true);
+  assert.equal(search.query.required,undefined,'query-only and queries-only are both accepted; the host enforces at least one');
+  assert.equal(search.queries.type,'array');
+  assert.equal(search.queries.items.type,'string');
+  assert.equal(search.queries.required,undefined);
   assert.equal(search.types.required,undefined);
   assert.equal(search.limit.required,undefined);
 

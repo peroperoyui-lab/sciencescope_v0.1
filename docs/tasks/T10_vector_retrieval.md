@@ -4,6 +4,21 @@
 共同规则见 `docs/tasks/RB_COMMON.md`。设计与实测数据见 `docs/design/RESEARCH_BASE.md` §3（**先读**）；测速与小评测脚本为 `scripts/evals/embedding-bench.mjs`。
 用户决定（2026-09-25）：只用一套系统，混合检索为主，纯关键词只是降级；设定最低配置，不迁就老电脑。
 
+## 已确认接口修订（用户，2026-09-27）
+
+本节优先于下文旧接口草案：保留同步 `search()`；新增异步
+`searchHybrid({query, queries, …scope}) → {hits, mode, fallbackReason?}`。
+`mode` 为 `hybrid | keyword`；降级原因是 `timeout | model-missing | index-incomplete | model-version-mismatch`，工具结果明确写“本次为关键词检索”。
+
+- 300ms 覆盖整个向量阶段（所有问法），超时丢弃全部向量结果；启动后后台预热，首次加载不占查询预算。
+- `queries` 最多 6 个、每个最多 2000 字符；仅 query 等价于单元素数组，两者同时给出则合并去重；提示模型至少给出中英文各一问法。
+- 加权 RRF：k=60，向量 1.0、关键词 0.5；同分按稳定引用身份排序。
+- 两路使用同一范围过滤，融合前排除不可见的项目/个人/私有条目，专门测试私有条目不泄漏。
+- 向量记录模型及版本；不一致时降级并后台排队重建。
+- 可异步的内部召回调用方改用 searchHybrid，同步调用方保留 search；交付列出各调用方。
+- 假检索器单测覆盖成功、超时、模型缺失、版本不一致、私有排除、query/queries 兼容；同一 52 题照常重测与原 43/52 逐题对比。
+- T17 已将工具清单迁至宿主 `scripts/context/tools.mjs`，新参数由该清单下发，继续使用已安装 DSH 的值 schema DSL，不重新在适配器复制工具定义。
+
 ## 1. 嵌入引擎 `scripts/research-base/embedding.mjs`（新模块）
 - 使用 `onnxruntime-node`（MIT）在 `worker_threads` 中运行，`intraOpNumThreads=2`；分词用 `@huggingface/transformers` 的 AutoTokenizer，从本地文件读取，**禁止远程下载**。
 - 模型（用户 2026-09-25 决定：先装一个轻量的默认模型，更换模型的入口以后再做）：**只实现一个默认模型 multilingual-e5-small**（int8 ONNX，约 118 MB，384 维，MIT）。

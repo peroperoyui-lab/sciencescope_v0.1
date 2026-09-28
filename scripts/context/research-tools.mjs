@@ -16,24 +16,16 @@ export function createScopedResearchTools({research, projectIds}) {
     if (!POLICY[ctx.role]) throw new ContextAccessError('ROLE_NOT_ALLOWED','Research tools are not available in this session.');
     if (args.projectId !== undefined || args.chatId !== undefined) throw new ContextAccessError('TARGET_NOT_ALLOWED','Research tool scope is assigned by the session; use the context tools to select a conversation.');
     if (name === 'research_search' && ctx.role === 'global') {
-      const hits = new Map();
-      for (const projectId of [null,...await projectIds()]) {
-        // The public retrieval service retains scores; the model-facing
-        // toolCall projection deliberately strips them. Rank before projecting.
-        const result = research.retrieval.search({query:String(args.query??''),projectId,includePersonal:projectId===null,
-          docTypes:args.types?.length?args.types:undefined,itemTypes:args.itemTypes,
-          k:args.limit??8,audience:'agent',expertId:ctx.expertId??undefined});
-        for (const hit of result) {
-          const key = JSON.stringify(hit.ref);
-          if (!hits.has(key) || hit.score > hits.get(key).score) hits.set(key,{...hit,projectId});
-        }
-      }
-      const selected=[...hits.values()].sort((a,b)=>b.score-a.score).slice(0,Math.max(1,Math.min(20,Number(args.limit)||8)));
+      // One vector phase and one deadline for the entire authorized workspace.
+      // projectIds comes from the host, never the model's tool parameters.
+      const result=await research.retrieval.searchHybrid({query:args.query,queries:args.queries,projectIds:await projectIds(),includePersonal:true,
+        docTypes:args.types?.length?args.types:undefined,itemTypes:args.itemTypes,k:Math.max(1,Math.min(20,Number(args.limit)||8)),audience:'agent',expertId:ctx.expertId??undefined});
+      const selected=result.hits.map(hit=>({...hit,projectId:(hit.item?research.store.getItem(hit.ref.id):research.store.getSource(hit.source?.id))?.projectId??null}));
       if(ctx.chatId&&ctx.messageId)research.store.recordUsage({chatId:ctx.chatId,messageId:ctx.messageId,refs:selected.map(hit=>hit.ref),how:'search'});
-      return {hits:selected.map(hit=>({cite:hit.cite,ref:hit.ref,title:hit.title,section:hit.section??undefined,
+      return {mode:result.mode,...(result.fallbackReason?{fallbackReason:result.fallbackReason}:{}),hits:selected.map(hit=>({cite:hit.cite,ref:hit.ref,title:hit.title,section:hit.section??undefined,
         page:hit.page??undefined,snippet:hit.snippet,projectId:hit.projectId,
         ...(hit.item?{type:hit.item.type,subtype:hit.item.subtype,status:hit.item.claimStatus??hit.item.status}:{})})),
-        hint:'Across projects, read the returned ref rather than a potentially ambiguous project-local citation label.'};
+        hint:(result.mode==='keyword'?'本次为关键词检索。 ':'')+'Use research_read for the full passage. Across projects, read the returned ref rather than a potentially ambiguous project-local citation label.'};
     }
     if (name === 'research_read') {
       let ref=args.ref;

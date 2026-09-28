@@ -7,7 +7,7 @@ import { build as bundle } from 'esbuild';
 
 // Keep the approved source intact. Only the generated desktop entry gets wiring.
 export const DESKTOP_ASSETS = ['model-settings.mjs', 'model-settings.css', 'provider-draft.mjs', 'host-client.mjs', 'live-chat.mjs', 'turn-activity.mjs', 'main-outbox.mjs', 'background-activity.mjs', 'context-meter.mjs', 'native-window.mjs', 'markdown.mjs', 'chat.css', 'workspace.mjs', 'workspace-layout.mjs', 'workspace.css', 'preferences.mjs', 'workbench.mjs', 'workbench.css', 'library.mjs', 'execution.mjs', 'assistant-chat.mjs', 'assistant-chat.css', 'reasoning.mjs', 'work-mode.mjs', 'discussion.mjs', 'composer-menu.mjs', 'desktop-behavior.mjs', 'desktop-behavior.css'];
-DESKTOP_ASSETS.push('refresh.css','refresh.mjs','settings.mjs','role-settings.mjs','expert-settings.mjs','extensions.mjs','settings.css','secretary-settings.mjs','shortcuts.mjs','assistant-window-settings.mjs','research-input.mjs');
+DESKTOP_ASSETS.push('refresh.css','refresh.mjs','settings.mjs','role-settings.mjs','expert-settings.mjs','extensions.mjs','settings.css','secretary-settings.mjs','semantic-settings.mjs','shortcuts.mjs','assistant-window-settings.mjs','research-input.mjs');
 DESKTOP_ASSETS.push('file-preview.mjs','marks.css','creation-details.mjs','info-tip.mjs','features.mjs','deliverables.mjs','i18n.mjs','i18n-en.mjs','minutes.mjs');
 DESKTOP_ASSETS.push('math-render.mjs','document-readers.mjs','document-readers.css','js-polyfills.mjs','pdf-worker.mjs');
 DESKTOP_ASSETS.push('research-base.mjs','research-base.css','research-citations.mjs');

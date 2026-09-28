@@ -102,3 +102,23 @@ test('plans and status keep same-name projects isolated by explicit projectId', 
   assert.deepEqual(p1Status.pendingPlans.map((plan) => plan.title), ['P1 explicit plan']);
   assert.deepEqual(p2Status.pendingPlans.map((plan) => plan.title), ['P2 explicit plan']);
 });
+
+test('hybrid conversation recall filters candidates by Main chat before fusion and preserves exact reads',async()=>{
+  const f=await fixture();let calls=0;
+  const access=createContextAccess({db:f.chatStore.db.db,chatStore:f.chatStore,minutes:f.minutes,workbench:f.workbench,
+    vectorRetriever:{async search({queries,candidates}){
+      calls++;assert.deepEqual(queries,['nonliteral query','不同问法']);
+      assert.deepEqual(candidates.map(c=>JSON.parse(c.ref.id)[0]),['c1','c1']);
+      return {rankings:queries.map(()=>[
+        {ref:{type:'message',id:JSON.stringify(['aux-secretary','private'])}},
+        {ref:{type:'message',id:JSON.stringify(['c2','other-project'])}},
+        {ref:{type:'message',id:JSON.stringify(['c1','a1'])}}
+      ])};
+    }}});
+  const ctx={role:'secretary',mainChatId:'c1',projectId:'p1'};
+  const result=await access.call('chat_recall',{queries:['nonliteral query','不同问法']},ctx);
+  assert.equal(result.mode,'hybrid');assert.equal(result.results.length,1);assert.equal(result.results[0].excerpt,'Alpha answer');
+  const exact=await access.call('chat_recall',{from:1,to:2},ctx);assert.match(exact.messages,/Alpha decision/);assert.equal(calls,1);
+  await assert.rejects(access.call('chat_recall',{chatId:'aux-secretary',query:'secret'},{role:'global'}),error=>error.code==='CHAT_NOT_FOUND');
+  assert.equal(calls,1,'private target rejected before vector access');
+});

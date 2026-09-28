@@ -7,6 +7,7 @@ import {secretaryPreferencesContent} from './secretary-settings.mjs';
 import {shortcutsContent} from './shortcuts.mjs';
 import {assistantWindowSettingsContent} from './assistant-window-settings.mjs';
 import {expertSettingsContent} from './expert-settings.mjs';
+import {semanticSettingsContent} from './semantic-settings.mjs';
 
 let values={theme:'light',density:'standard',codeFontSize:14,chatFontSize:16,sendKey:'enter',reduceMotion:false,showScrollbars:false,uiFont:'default',language:'zh-CN'},loaded=false,diagnostics=null;
 // Interface font: 'default' is the bundled 思源黑体; any installed family can be chosen.
@@ -50,7 +51,7 @@ export function settingsContent(target){
   if(target==='general')return '<p>正在读取设置…</p>';
   if(target==='models')return modelsPage();
   if(target==='provider')return providerPage();
-  if(target==='environment'||target==='library-settings')return `<h2>${target==='environment'?'运行环境':'数据库与文件'}${infoTip('以下是此客户端实际使用的位置。\nSQLite 保存应用记录，DSH 保存运行历史；原始材料保存在资料库。此处不提供清空历史或索引的一键操作。',{label:'位置说明'})}</h2>${paths()}${diagnostics?valueRow('运行时',`Node ${esc(diagnostics.node)} · ${esc(diagnostics.platform)} · ${esc(diagnostics.arch)}`,`<span>${diagnostics.runtimeAvailable?'DSH 已加载':'DSH 不可用'}</span>`):''}`;
+  if(target==='environment'||target==='library-settings')return `<h2>${target==='environment'?'运行环境':'数据库与文件'}${infoTip('以下是此客户端实际使用的位置。\nSQLite 保存应用记录，DSH 保存运行历史；原始材料保存在资料库。此处不提供清空历史或索引的一键操作。',{label:'位置说明'})}</h2>${paths()}${diagnostics?valueRow('运行时',`Node ${esc(diagnostics.node)} · ${esc(diagnostics.platform)} · ${esc(diagnostics.arch)}`,`<span>${diagnostics.runtimeAvailable?'DSH 已加载':'DSH 不可用'}</span>`):''}${target==='library-settings'?semanticSettingsContent():''}`;
   if(target==='behavior')return `<h2>执行策略${infoTip('执行权限在每个对话的输入框中选择，不由角色名称或人格提示词授予。',{label:'执行策略说明'})}</h2>${row('询问','运行时对需要额外授权的操作请求确认；不意味着每个读取操作都弹窗。','默认策略')}${row('完全接管','工具按当前用户与运行时能力执行，不逐次询问。','输入框显式启用')}${row('自动化','主专家依据目标继续执行；助手与秘书不提供此选项。','仅主对话')}<button class="btn" data-settings-chat>返回当前对话</button>`;
   // Pages of optional features are unreachable until enabled (features.mjs).
   return settingsContent('general');

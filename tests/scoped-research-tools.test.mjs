@@ -26,15 +26,9 @@ async function fixture() {
   research.store.addSource({ id: 'p2-source', projectId: 'p2', kind: 'paper', title: 'Project two source' });
   const calls = [];
   const searchCalls = [];
-  const retrieval = { ...research.retrieval, search: (input = {}) => {
+  const retrieval = { ...research.retrieval, searchHybrid: async (input = {}) => {
     searchCalls.push(input);
-    const projectId = input.projectId;
-    const hits = projectId === null
-      ? [{ ref: { type: 'item', id: personal.id }, cite: '[@personal]', snippet: 'personal', score: 0.4 }, { ref: { type: 'item', id: 'same-ref' }, cite: '[@same]', snippet: 'same', score: 0.1 }]
-      : projectId === 'p1'
-        ? [{ ref: { type: 'item', id: 'same-ref' }, cite: '[@same]', snippet: 'same', score: 0.9 }, { ref: { type: 'item', id: 'p1-hit' }, cite: '[@p1]', snippet: 'p1', score: 0.2 }]
-        : [{ ref: { type: 'item', id: 'same-ref' }, cite: '[@same]', snippet: 'same', score: 0.8 }, { ref: { type: 'item', id: 'p2-hit' }, cite: '[@p2]', snippet: 'p2', score: 0.3 }];
-    return hits;
+    return {mode:'hybrid',hits:[indexedP1,indexedP2,personal].map((item,index)=>({ref:{type:'item',id:item.id},item,cite:'[@test]',snippet:item.body,score:1/(index+1)}))};
   } };
   const fakeResearch = { ...research, toolCall: async (name, args, context) => {
     calls.push({ name, args, context });
@@ -56,15 +50,17 @@ test('research read rejects private and cross-project references before reaching
   } finally { f.close(); }
 });
 
-test('global search fans out to personal and project scopes and deduplicates references by ref', async () => {
+test('global search supplies all authorized scopes to one hybrid phase and retains source project identity', async () => {
   const f = await fixture();
   try {
     const result = await f.scoped('research_search', { query: 'anything', limit: 20 }, { role: 'global' });
-    assert.deepEqual(f.searchCalls.map(call => call.projectId), [null, 'p1', 'p2']);
-    assert.deepEqual(f.searchCalls.map(call => call.includePersonal), [true, false, false]);
+    assert.equal(f.searchCalls.length,1);
+    assert.deepEqual(f.searchCalls[0].projectIds,['p1','p2']);
+    assert.equal(f.searchCalls[0].includePersonal,true);
     assert.equal(new Set(result.hits.map(hit => JSON.stringify(hit.ref))).size, result.hits.length);
-    assert.equal(result.hits[0].ref.id, 'same-ref');
-    assert.equal(result.hits[0].projectId, 'p1', 'the highest public retrieval score determines the retained project hit');
+    assert.equal(result.hits[0].ref.id, f.indexedP1.id);
+    assert.equal(result.hits[0].projectId, 'p1', 'the canonical record determines project identity');
+    assert.equal(result.mode,'hybrid');
   } finally { f.close(); }
 });
 

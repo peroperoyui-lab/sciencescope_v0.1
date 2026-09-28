@@ -103,6 +103,28 @@ test('research routes, brief injection and session-bound tool calls through the 
   } finally { await f.close(); }
 });
 
+test('Main receives bounded recalled knowledge in its actual input with a recall receipt, not private content', async () => {
+  const f = await fixture();
+  try {
+    const create = async (visibility, body) => (await f.call('POST', '/api/research/items', { item: {
+      type: 'knowledge', subtype: 'method', scope: 'personal', visibility,
+      title: 'RECALL_METHOD', body,
+    } })).body.item;
+    const shared = await create('shared', 'RECALL_VISIBLE method uses paired measurements.');
+    await create('private', 'RECALL_PRIVATE must not reach model input.');
+    const turn = await f.call('POST', '/api/chat', { chatId: 'recall-chat', projectId: null,
+      model: { providerId: 'fixture', modelId: 'm' }, text: 'RECALL_METHOD',
+      userMessageId: 'recall-user', assistantMessageId: 'recall-answer' });
+    assert.equal(turn.status, 200);
+    assert.match(f.state.sends[0], /\[与本轮相关的记忆\]/u);
+    assert.match(f.state.sends[0], /RECALL_VISIBLE/u);
+    assert.doesNotMatch(f.state.sends[0], /RECALL_PRIVATE/u);
+    assert.ok(f.state.briefs.every(brief => !brief.text.includes('RECALL_VISIBLE')), 'non-pinned method is recalled rather than duplicated from brief');
+    const usage = (await f.call('GET', '/api/research/usage?chatId=recall-chat&messageId=recall-answer')).body.refs;
+    assert.ok(usage.some(row => row.how === 'recall' && row.id === shared.id));
+  } finally { await f.close(); }
+});
+
 test('Research Base registers legacy library resources, ingests new imports, and preserves existing source metadata', async () => {
   const f = await fixture({ seedResources: async (root) => {
     const stateDir = path.join(root, '.sciencescope-local', 'state');
