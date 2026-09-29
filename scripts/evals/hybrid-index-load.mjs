@@ -1,7 +1,8 @@
 import path from 'node:path';
 import os from 'node:os';
-import { mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
+import { copyFile, lstat, mkdir, mkdtemp, readFile, realpath, rm, symlink, writeFile } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
+import { fileURLToPath } from 'node:url';
 import { openApplicationDatabaseSync } from '../application-database.mjs';
 import { createResearchBase } from '../research-base/index.mjs';
 import { createSemanticService } from '../research-base/semantic-service.mjs';
@@ -12,9 +13,125 @@ const SOURCE_DB = path.resolve('.sciencescope-local/temp/t10-validation/retrieva
 const VALIDATION_ROOT = path.resolve('.sciencescope-local/temp/t10-validation');
 const MODEL_DIR = path.resolve('.sciencescope-local/models/multilingual-e5-small');
 const SOURCE_COUNT = 500;
-const RUN = process.argv.includes('--run');
+const invokedAsScript = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+const argv = invokedAsScript ? process.argv.slice(2) : [];
+let RUN = false;
+let resumeArgument = null;
+for (let index = 0; index < argv.length; index += 1) {
+  if (argv[index] === '--run' && !RUN && resumeArgument == null) RUN = true;
+  else if (argv[index] === '--resume' && !RUN && resumeArgument == null && argv[index + 1] && !argv[index + 1].startsWith('--')) {
+    resumeArgument = argv[++index];
+  } else throw new Error('USAGE:node scripts/evals/hybrid-index-load.mjs [--run | --resume <runDirectory>]');
+}
+const RESUME = resumeArgument != null;
 const jsonLog = (event) => console.log(JSON.stringify(event));
 const parse = (value, fallback) => { try { return value ? JSON.parse(value) : fallback; } catch { return fallback; } };
+
+const normalizedPath = (value) => path.resolve(value).replace(/[\\/]+$/, '').toLowerCase();
+
+export async function validateResumeDirectory(input, validationRoot = VALIDATION_ROOT) {
+  const rootReal = await realpath(validationRoot);
+  const runDir = path.resolve(input);
+  if (!/^index-load-[^\\/]+$/i.test(path.basename(runDir))
+    || normalizedPath(path.dirname(runDir)) !== normalizedPath(rootReal)) {
+    throw new Error('RESUME_PATH_OUTSIDE_VALIDATION_ROOT');
+  }
+  const stat = await lstat(runDir).catch(() => null);
+  if (!stat?.isDirectory() || stat.isSymbolicLink()) throw new Error('RESUME_RUN_DIRECTORY_INVALID');
+  const runReal = await realpath(runDir);
+  if (normalizedPath(runReal) !== normalizedPath(runDir)
+    || normalizedPath(path.dirname(runReal)) !== normalizedPath(rootReal)) {
+    throw new Error('RESUME_PATH_OUTSIDE_VALIDATION_ROOT');
+  }
+  const stateDir = path.join(runDir, 'state');
+  const stateStat = await lstat(stateDir).catch(() => null);
+  if (!stateStat?.isDirectory() || stateStat.isSymbolicLink()) throw new Error('RESUME_STATE_DIRECTORY_INVALID');
+  const dbPath = path.join(stateDir, 'sciencescope.sqlite');
+  const dbStat = await lstat(dbPath).catch(() => null);
+  if (!dbStat?.isFile() || dbStat.isSymbolicLink()) throw new Error('RESUME_DATABASE_INVALID');
+  if (normalizedPath(await realpath(dbPath)) !== normalizedPath(dbPath)) throw new Error('RESUME_DATABASE_INVALID');
+  return { runDir, stateDir, dbPath };
+}
+
+export function validateFixtureRows({ sourceRows, chunkRows, corpus, sourceCount = SOURCE_COUNT }) {
+  const expectedSource = (source, template, index) => (
+    source.id === `src_t10load_${String(index + 1).padStart(4, '0')}`
+    && source.project_id === 't10_load_fixture'
+    && source.kind === template.kind
+    && source.title === template.title
+    && source.authors_json === JSON.stringify(parse(template.authors_json, []))
+    && source.year === template.year
+    && source.venue === template.venue
+    && source.abstract === template.abstract
+    && source.language === template.language
+    && source.content_status === 'parsed'
+  );
+  if (sourceRows.length > sourceCount) throw new Error('RESUME_FIXTURE_SOURCE_COUNT_MISMATCH');
+  const sourcesById = new Map(sourceRows.map((source) => [source.id, source]));
+  if (sourcesById.size !== sourceRows.length) throw new Error('RESUME_FIXTURE_DUPLICATE_SOURCE');
+  const chunksBySource = new Map();
+  for (const chunk of chunkRows) {
+    if (!sourcesById.has(chunk.source_id)) throw new Error('RESUME_FIXTURE_ORPHAN_CHUNK');
+    const rows = chunksBySource.get(chunk.source_id) ?? [];
+    rows.push(chunk);
+    chunksBySource.set(chunk.source_id, rows);
+  }
+  let completeSourceCount = 0;
+  let sourceOnlyIndex = null;
+  let chunkCount = 0;
+  for (let index = 0; index < sourceRows.length; index += 1) {
+    const source = sourceRows[index];
+    const template = corpus[index % corpus.length];
+    if (!expectedSource(source, template, index)) throw new Error(`RESUME_FIXTURE_SOURCE_MISMATCH:${source.id}`);
+    const expectedId = `src_t10load_${String(index + 1).padStart(4, '0')}`;
+    if (source.id !== expectedId) throw new Error(`RESUME_FIXTURE_SOURCE_ORDER_MISMATCH:${source.id}`);
+    const actualChunks = chunksBySource.get(source.id) ?? [];
+    const expectedChunks = template.chunks;
+    if (actualChunks.length === 0 && source.parser == null && index === sourceRows.length - 1) {
+      sourceOnlyIndex = index;
+      continue;
+    }
+    if (source.parser !== 't10-load-fixture' || actualChunks.length !== expectedChunks.length) {
+      throw new Error(`RESUME_FIXTURE_CHUNK_COUNT_OR_PARSER_MISMATCH:${source.id}`);
+    }
+    for (let chunkIndex = 0; chunkIndex < expectedChunks.length; chunkIndex += 1) {
+      const actual = actualChunks[chunkIndex];
+      const expected = expectedChunks[chunkIndex];
+      if (!actual || actual.ordinal !== chunkIndex || actual.id !== `${source.id}-c${chunkIndex}`
+        || actual.page !== expected.page || actual.section !== expected.section || actual.kind !== expected.kind
+        || actual.text !== expected.text || actual.char_start !== expected.char_start || actual.char_end !== expected.char_end
+        || actual.anchor_json !== expected.anchor_json) {
+        throw new Error(`RESUME_FIXTURE_CHUNK_MISMATCH:${source.id}:${chunkIndex}`);
+      }
+    }
+    completeSourceCount += 1;
+    chunkCount += actualChunks.length;
+  }
+  for (let index = 0; index < sourceRows.length; index += 1) {
+    if (sourceRows[index].id !== `src_t10load_${String(index + 1).padStart(4, '0')}`) {
+      throw new Error(`RESUME_FIXTURE_SOURCE_ORDER_MISMATCH:${sourceRows[index].id}`);
+    }
+  }
+  if (sourceOnlyIndex != null && sourceOnlyIndex !== sourceRows.length - 1) throw new Error('RESUME_FIXTURE_NONTERMINAL_PARTIAL_SOURCE');
+  return { completeSourceCount, sourceOnlyIndex, sourceCount: sourceRows.length, chunkCount };
+}
+
+export function fixtureDisposition(index, fixtureState, resume) {
+  if (!resume) return 'add';
+  if (index < fixtureState.sourceCount) return fixtureState.sourceOnlyIndex === index ? 'repair' : 'reuse';
+  return 'add';
+}
+
+export function assertResumeMetadata(report, planInfo, runDir) {
+  const equalFields = ['sourceDatabase', 'frozenSourceCount', 'frozenChunkCount', 'fixtureSourceCount', 'fixtureChunkCount',
+    'expectedVectorCount', 'modelId', 'modelRevision', 'dimensions'];
+  if (!report || !['running', 'partial-fixtures'].includes(report.result) || report.mode !== 'run'
+    || normalizedPath(report.runDirectory ?? '') !== normalizedPath(runDir)
+    || report.indexedDocuments !== 0
+    || equalFields.some((field) => report[field] !== planInfo[field])) {
+    throw new Error('RESUME_RUN_METADATA_MISMATCH');
+  }
+}
 
 async function loadFrozenCorpus() {
   const db = new DatabaseSync(SOURCE_DB, { readOnly: true });
@@ -43,8 +160,8 @@ async function plan() {
   const totalChunks = Array.from({ length: SOURCE_COUNT }, (_, index) => chunksPerSource[index % corpus.length]).reduce((sum, count) => sum + count, 0);
   const manifest = await embeddingManifest();
   return {
-    mode: RUN ? 'run' : 'plan-only',
-    runFlag: '--run',
+    mode: RUN || RESUME ? (RESUME ? 'resume' : 'run') : 'plan-only',
+    runFlag: RESUME ? '--resume <runDirectory>' : '--run',
     sourceDatabase: SOURCE_DB,
     sourceDatabaseMode: 'read-only',
     frozenSourceCount: corpus.length,
@@ -63,27 +180,85 @@ async function plan() {
   };
 }
 
+if (invokedAsScript) {
 let interrupted = false;
 process.on('SIGINT', () => { interrupted = true; });
 const planInfo = await plan();
-if (!RUN) {
+if (!RUN && !RESUME) {
   jsonLog(planInfo);
 } else {
   async function runLoad() {
-  const runDir = await mkdtemp(path.join(VALIDATION_ROOT, 'index-load-'));
-  const stateDir = path.join(runDir, 'state');
-  await mkdir(stateDir, { recursive: true });
+  const startedAt = performance.now();
+  const resumeValidationStarted = startedAt;
+  const resumePaths = RESUME ? await validateResumeDirectory(resumeArgument) : null;
+  const runDir = resumePaths?.runDir ?? await mkdtemp(path.join(VALIDATION_ROOT, 'index-load-'));
+  const stateDir = resumePaths?.stateDir ?? path.join(runDir, 'state');
+  if (!RESUME) await mkdir(stateDir, { recursive: true });
+  let preservedReportPath = null;
+  let priorReport = null;
+  let resumeFixtureState = null;
+  if (RESUME) {
+    priorReport = JSON.parse(await readFile(path.join(runDir, 'index-load-result.json'), 'utf8'));
+    assertResumeMetadata(priorReport, planInfo, runDir);
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    preservedReportPath = path.join(runDir, `index-load-result-preserved-${timestamp}.json`);
+    await copyFile(path.join(runDir, 'index-load-result.json'), preservedReportPath, 1);
+    const inspectDb = new DatabaseSync(resumePaths.dbPath, { readOnly: true });
+    try {
+      const tables = new Set(inspectDb.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map((row) => row.name));
+      const vectorDocs = tables.has('rb_vec_docs') ? inspectDb.prepare('SELECT count(*) AS n FROM rb_vec_docs').get().n : 0;
+      const vectorRows = tables.has('rb_vec') ? inspectDb.prepare('SELECT count(*) AS n FROM rb_vec').get().n : 0;
+      const enabled = tables.has('rb_embedding_settings')
+        ? inspectDb.prepare('SELECT enabled FROM rb_embedding_settings WHERE id=1').get()?.enabled ?? 0 : 0;
+      if (vectorDocs !== 0 || vectorRows !== 0 || enabled !== 0) throw new Error('RESUME_SEMANTIC_STAGE_ALREADY_STARTED');
+      const sourceRows = inspectDb.prepare(`SELECT id,project_id,kind,title,authors_json,year,venue,abstract,language,content_status,parser
+        FROM rb_sources ORDER BY id`).all();
+      const chunkRows = inspectDb.prepare(`SELECT id,source_id,ordinal,page,section,kind,text,char_start,char_end,anchor_json
+        FROM rb_chunks ORDER BY source_id,ordinal`).all();
+      const corpus = await loadFrozenCorpus();
+      resumeFixtureState = validateFixtureRows({ sourceRows, chunkRows, corpus });
+      priorReport.resumeFixtureState = resumeFixtureState;
+      priorReport.resumeDatabaseIntegrity = inspectDb.prepare('PRAGMA integrity_check').get().integrity_check;
+      if (priorReport.resumeDatabaseIntegrity !== 'ok') throw new Error('RESUME_DATABASE_INTEGRITY_FAILURE');
+    } finally { inspectDb.close(); }
+  }
   const modelLink = path.join(stateDir, '.sciencescope-local', 'models', 'multilingual-e5-small');
-  await mkdir(path.dirname(modelLink), { recursive: true });
-  await symlink(MODEL_DIR, modelLink, 'junction');
+  const modelDirectory = path.dirname(modelLink);
+  const modelBase = path.dirname(modelDirectory);
+  for (const directory of [modelBase, modelDirectory]) {
+    let directoryStat = await lstat(directory).catch(() => null);
+    if (!directoryStat) {
+      await mkdir(directory);
+      directoryStat = await lstat(directory);
+    }
+    if (!directoryStat.isDirectory() || directoryStat.isSymbolicLink()
+      || normalizedPath(await realpath(directory)) !== normalizedPath(directory)) {
+      throw new Error('MODEL_JUNCTION_PARENT_INVALID');
+    }
+  }
+  let ownsModelLink = false;
+  const existingModelLink = await lstat(modelLink).catch(() => null);
+  if (existingModelLink) {
+    if (!existingModelLink.isSymbolicLink()) throw new Error('MODEL_JUNCTION_PATH_OCCUPIED');
+  } else {
+    await symlink(MODEL_DIR, modelLink, 'junction');
+    ownsModelLink = true;
+  }
   const targetReal = await realpath(MODEL_DIR);
   const linkReal = await realpath(modelLink);
-  if (targetReal.toLowerCase() !== linkReal.toLowerCase()) throw new Error('MODEL_JUNCTION_TARGET_MISMATCH');
+  if (normalizedPath(targetReal) !== normalizedPath(linkReal)) throw new Error('MODEL_JUNCTION_TARGET_MISMATCH');
 
   const report = {
     ...planInfo,
+    mode: 'run',
+    runFlag: '--run',
     runDirectory: runDir,
+    ...(RESUME ? { resumed: true, preservedPriorReport: preservedReportPath,
+      invocation: '--resume <runDirectory>',
+      timingScope: 'this resume process only; original process duration and offline time are unknown',
+      originalProcessWallMs: null, endToEndWallMs: null } : {}),
     result: 'running',
+    ...(RESUME ? { resumedFrom: priorReport.result, resumeFixtureState } : {}),
     fixturePreparationMs: null,
     modelWarmupMs: null,
     setupBeforeWarmupMs: null,
@@ -97,12 +272,15 @@ if (!RUN) {
     providerRequests: 0,
     interruption: false,
     phases: [],
+    sourcesReused: 0,
+    sourcesRepaired: 0,
+    sourcesAdded: 0,
   };
   let database;
   let service;
   let databaseClosed = false;
   let closePromise;
-  const startedAt = performance.now();
+  report.resumeValidationMs = RESUME ? Math.round(performance.now() - resumeValidationStarted) : 0;
   let phaseStart = startedAt;
   let lastProgress = -1;
   const rssTimer = setInterval(() => {
@@ -122,31 +300,41 @@ if (!RUN) {
       if (interrupted) break;
       const template = corpus[index % corpus.length];
       const sourceId = `src_t10load_${String(index + 1).padStart(4, '0')}`;
-      const source = research.store.addSource({
-        id: sourceId,
-        projectId: fixtureProjectId,
-        kind: template.kind,
-        title: template.title,
-        authors: parse(template.authors_json, []),
-        year: template.year,
-        venue: template.venue,
-        abstract: template.abstract,
-        language: template.language,
-        contentStatus: 'parsed',
-      });
-      const copy = template.chunks.map((chunk) => ({
-        kind: chunk.kind,
-        text: chunk.text,
-        page: chunk.page,
-        section: chunk.section,
-        charStart: chunk.char_start,
-        charEnd: chunk.char_end,
-        anchor: parse(chunk.anchor_json, null),
-      }));
-      fixtureChunks += research.store.replaceChunks(source.id, copy, { parser: 't10-load-fixture', contentStatus: 'parsed' });
-      fixtureSources += 1;
+      const disposition = fixtureDisposition(index, resumeFixtureState ?? { sourceCount: 0, sourceOnlyIndex: null }, RESUME);
+      if (disposition === 'reuse') {
+        fixtureSources += 1;
+        fixtureChunks += template.chunks.length;
+        report.sourcesReused += 1;
+      } else {
+        const source = disposition === 'repair' ? { id: sourceId } : research.store.addSource({
+          id: sourceId,
+          projectId: fixtureProjectId,
+          kind: template.kind,
+          title: template.title,
+          authors: parse(template.authors_json, []),
+          year: template.year,
+          venue: template.venue,
+          abstract: template.abstract,
+          language: template.language,
+          contentStatus: 'parsed',
+        });
+        const copy = template.chunks.map((chunk) => ({
+          kind: chunk.kind,
+          text: chunk.text,
+          page: chunk.page,
+          section: chunk.section,
+          charStart: chunk.char_start,
+          charEnd: chunk.char_end,
+          anchor: parse(chunk.anchor_json, null),
+        }));
+        fixtureChunks += research.store.replaceChunks(source.id, copy, { parser: 't10-load-fixture', contentStatus: 'parsed' });
+        fixtureSources += 1;
+        if (disposition === 'repair') report.sourcesRepaired += 1;
+        else report.sourcesAdded += 1;
+      }
       if ((index + 1) % 10 === 0 || index + 1 === SOURCE_COUNT) {
-        jsonLog({ phase: 'fixture-copy', sources: fixtureSources, totalSources: SOURCE_COUNT, chunks: fixtureChunks });
+        jsonLog({ phase: 'fixture-copy', sources: fixtureSources, totalSources: SOURCE_COUNT, chunks: fixtureChunks,
+          reused: report.sourcesReused, repaired: report.sourcesRepaired, added: report.sourcesAdded });
         report.sourcesCopied = fixtureSources;
         report.chunksCopied = fixtureChunks;
         await writeReport();
@@ -255,12 +443,13 @@ if (!RUN) {
     if (database && !databaseClosed) {
       try { database.close(); databaseClosed = true; } catch { /* keep partial database for inspection */ }
     }
-    // Remove only the junction itself; never recurse through its model-cache target.
-    await rm(modelLink, { force: true });
+    // Remove only a junction created by this process; never recurse through its model-cache target.
+    if (ownsModelLink) await rm(modelLink, { force: true });
     if (report.totalWallMs == null) report.totalWallMs = Math.round(performance.now() - startedAt);
     await writeReport();
     jsonLog({ phase: 'finished', result: report.result, runDirectory: runDir, sources: report.actualFixtureSourceCount ?? 0, chunks: report.actualFixtureChunkCount ?? 0, indexed: report.indexedDocuments, persisted: report.persistedVectorDocuments, totalWallMs: report.totalWallMs, rssPeakMiB: report.rssPeakMiB, providerRequests: 0, interruption: report.interruption });
   }
   }
   await runLoad();
+}
 }
