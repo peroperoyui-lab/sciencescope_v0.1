@@ -1,5 +1,23 @@
 # Desktop implementation — first increment
 
+## 2026-09-29 · T11 Python 环境与原生文件夹选择（本机验收完成，独立分支交付）
+
+- 分支 `codex/t11-python-env-20260929` 叠加 T10 `eed1efdfbe264a795480ebfaeaa7a34e15079684`。使用现有 uv/DSH、审批、SQLite 与新建详情界面，不建立第二套运行时；原型 HTML 未改。安装包携带解释器/uv、签名和升级演练仍属阶段 B。
+- 实现：22 项科学包的 Windows CPython 3.14.7 锁定环境（77 项解析依赖），共享缓存/硬链接，环境 CRUD、清单导入导出、安装日志、镜像/默认设置；对话→项目→默认→系统解析。宿主生成会话环境白名单，禁止 SCIENCESCOPE_*、原样 PATH 等覆盖。专家同 Main 进程，秘书/全局助手分别选择。切换在下一轮用相同 DSH sessionId 恢复，当前轮不改变。
+- `python_env_install` 来自宿主工具清单 t11.1，管理环境内安装；询问必审批，完全接管的自动批准默认关闭；审批显示包/原因/目标，停止会取消等待，不安装到系统 Python。成功回执明确 `installed:true`，区分本次 requestedPackages 与完整 environmentPackages。官方 Tauri dialog 2.7.3 的权限限制到精确本机 origin 的主窗口，未升级既有核心 Tauri。
+- 发现→原因→修复→验证：自动化环境切换在 turn/end 内暂停导致 Session.append 重入→上游 turn/end 正在持久化→仅记录轮次，在 agent/status idle 暂停，再等应用持久化与 idle 后释放恢复→真实 DSH/本地模拟模型两轮 sys.prefix 由 A 到 B，历史和 sessionId 保留，轮数限制仍生效。测试工作区与 DSH 临时目录嵌套也被上游 ACL 拒绝，测试改为同级自有目录，不放宽生产 ACL。
+- 发现→原因→修复→验证：复制环境中途被标 ready、已删除解释器可解析→状态更新与实际文件未检查→复制全部结束才 ready，缺解释器返回 ENVIRONMENT_UNAVAILABLE，不静默退回系统→新增回归通过。PATH 中没有 System32 导致 fsutil/系统 Python 检测失败→改用明确的系统工具路径→实际 fsutil 证实缓存/A/B 三个硬链接同一文件，system 检测为 D:/miniconda Python 3.13.11。
+- 真实 uv 验收（零模型）：内置首次安装 605731ms、复制 B 189720ms，22 项 import 全通过；A 独占 77605254 字节、B 独占 3991053 字节、缓存 765738110 字节（不将共享文件重复计入独占空间）。B 新增 pyfiglet；保存 TUNA 镜像后新空环境 C 安装 boltons 25.0.0 并实际 import 成功，恢复原镜像设置。原始首轮 fsutil 路径失败保留，恢复后通过，不能说首轮全绿。
+- 真实 OpenCode Go `deepseek-v4.1-flash`：完整链路13请求通过三个环境的实际 Python路径、跨轮历史和批准/拒绝；模型指出旧成功回执含义不明确，修复后补测。第一次补测2请求产品成功，但评测未解析双层 tool result JSON 而断言失败，保留证据；解析实际工具结果后4请求批准/拒绝通过。以上19请求总 token 202002（prompt199129、completion2873），不含随后原生付费验收。无其他模型或用户资料访问。
+- 单元最终237/237通过；成功回执修改后应用接线2/2再通过。原有23项 smoke 首轮21通过：workspace 等待超时原样独立重跑通过；creation-details 断言仍写固定“系统 Python”，现检测接口会返回实际版本→对齐真实版本并追加404旧接口回归，原取消/路径/绑定验收保留。新 Python settings smoke 已通过；最后受影响矩阵与原生验收仍待收口，下一条补充最终结果。
+- 本地证据：`.sciencescope-local/temp/t11-validation/regression/`，`managed-sWczdb/{result.json,live-result.json,live-approval-*.json,mirror-result-*.json}`，`.sciencescope-local/temp/python-goal-env-runtime-54324-1790662174146/result.json`。失败账本同目录保留。截图、数据库、缓存、原始日志、解释器与凭据不提交；只提交实现、可重跑脚本、锁定清单及脱敏文字证据。原生和最终 smoke 的最新结果在收口时补充，不提前宣称完成。
+- 收口补充：237/237 的 npm 原始统计已由 Astra 复核；13 项受影响 browser/API smoke 全过，新增实际包数量 UI 后 python-env-ui 再过；结合原23项矩阵及两个独立复跑，无保留失败。真实 DSH/本地模拟 goal 最终复跑为 `.sciencescope-local/temp/python-goal-env-runtime-30968-1790663327321/result.json`，4次localhost请求、2轮、同 sessionId、A→B实际 sys.prefix、2条持久回复，用户轮数限制终态 blocked 符合预期。
+- 原生 `python-env-native-smoke`：真实 Windows picker 的精确路径、取消保留、项目目录及 Python 绑定、辅助窗口拒绝和自有进程树退出全通过，4种语言/主题截图在 `.sciencescope-local/temp/t11-native-validation/`。设置界面最新4图在 `.sciencescope-local/temp/python-env-ui-shots-pwjSVm/`，Astra复核英文深色图。cargo check/build `--locked` 通过，SDK路径仅限进程局部，没有全局改动。
+- 原生+付费 `python-native-live --live`：原生选目录建项目→Go调用 write/read 写入精确marker→询问模式尝试目录外写并出现审批、明确拒绝→文件不存在→native exit0和自有后代退出。7请求、prompt70867、completion1378、total72245，证据 `.sciencescope-local/temp/eval/python-native-live-2LYH6l/`。T11付费累计26请求、prompt269996、completion4251、total274247，全为DeepSeek V4.1 Flash；与假模型分开。
+- 最后一处原生截图发现：API目录及实际写入正确，工作站显示旧默认目录→新建时在applyProjectChoice前已selectProject触发缓存→移到绑定后再打开工作站，补browser/native渲染路径等值断言。修复复验尚在进行；旧截图和成功写入证据保留，不把旧路径截图称为最终界面通过。
+- 最终界面收口：创建详情 browser 与带精确渲染目录断言的 native 再通过，Astra查看修复后 `t11-native-validation/native-project-bound.png`，显示选择的 `temp/f-ORYCtO`。workspace-ui 新一轮先在既有历史分页按钮 disabled 等待超时，原样同命令重跑通过；未删断言或改变测试预期，保留 `t11-validation/workspace-ui-regression{,-retry}.log`，列为间歇性测试时序风险而非稳定首跑全绿。最后源码改动只涉及创建项目加载顺序与包数量展示，各自smoke已复验。`git diff --check`通过，待提交文本中当前credential字面命中0、本地状态tracked数量0。`i18n-extract --missing`仍有1748条历史原型/碎片缺词，本轮Python UI新增词条已补，不能宣称全库翻译清零。
+- 未覆盖：另一台电脑/非Windows平台、安装包离线资源及签名、包仓库长期可用性；实际 uv 安装失败保留日志，不声称跨包文件写入具备数据库式原子回滚。第3批 T12 分支仍待独立实现及验收，不以T11通过冒充整批完成。
+
 ## 2026-09-29 · T10 Windows 验证收口，转入 T11
 
 - 关机后恢复的500来源负载已正常退出：复用491份、修复1份、补8份，87991 chunks及88491条向量全部持久化且状态ready。补夹具136742ms、模型预热1418ms、索引与向量写入2538766ms（42.31分钟），本次恢复总墙钟2680419ms；RSS采样峰值1495MiB，零Provider请求。关机前完整墙钟未知，不能把恢复时长当连续首次构建时长；语料是8篇重复为500来源，不是500篇不同论文。

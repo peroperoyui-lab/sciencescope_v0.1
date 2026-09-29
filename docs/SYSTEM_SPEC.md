@@ -102,7 +102,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   先弹出应用内"新建独立对话"窗口：工作文件夹三选一（为这个对话新建 / 独立对话公共文件夹 / 使用已有文件夹 + 路径与"选择…"）和 Python 环境；
   取消不创建任何东西，确定后进入原有欢迎页草稿。项目内新对话继承项目，不弹窗；经窗口创建、尚未发送的草稿再次打开时不重复询问。
   "创建研究项目"页的"工作目录"不再预填原型路径，留空=在数据目录下新建；填写后先校验再建项目，并绑定到该文件夹；下方增加 Python 环境字段。
-- **状态**：🟡 前端与文件夹校验、绑定 ✅（单元、界面）；Python 环境后端与原生文件夹选择框 ⬜（T11，Astra）。
+- **状态**：✅ 前端、文件夹校验/绑定、Python 环境后端与原生选择框（T11，Windows 开发客户端验收；非安装包验收）。
   在 `/api/python/*` 出现之前，Python 字段只有"系统 Python"一个选项（即实际使用的解释器），不发送 `pythonEnvId`；
   文件夹选择按钮在 `folderPicker` 开关打开前不显示（见 2.18），不退回浏览器对话框。
 - **技术实现**：
@@ -111,11 +111,11 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
     ScienceScope 自己的 `.sciencescope-local`（及包含它的文件夹）；整个用户目录给出警告，需再次确认。
   - `desktop-api.mjs` `ensureMainBinding`：独立对话首条消息时按选择确定运行工作区——新建 → `projects/independent/<chatId>`，
     公共 → `projects/independent`，已有 → 校验后的文件夹；`/api/workbench/bind` 也先校验；新增 `POST /api/folders/check`。
-  - 后端尚未处理 `pythonEnvId`（T11）。
+  - T11 后端在首条消息时绑定 `pythonEnvId`，接受后消费初始选择；之后改环境不会被旧草稿覆盖。创建项目先保存目录/环境绑定，再加载工作站，防止默认路径缓存。
 - **验证**：`tests/workspace-folders.test.mjs`；`scripts/creation-details-smoke.mjs`（窗口、取消、非法路径原地提示、已有文件夹成为 `startSession` 工作区、
   默认新建文件夹、项目页校验与绑定、项目内对话不弹窗、Python 待接入状态，浅色 / 深色截图）。
 - 说明文字在"i"提示中（见 2.16）；窗口里只显示校验错误和警告。
-- **最近核对**：2026-09-25（Claude，云端，浏览器 smoke；原生窗口未测）。
+- **最近核对**：2026-09-29（Astra，Windows）：真实原生 picker、取消、辅助窗口拒绝、项目绑定和显示均通过；Go在所选目录真实写入，目录外询问审批拒绝。详见 T11 实施记录。
 
 ### 2.2 主对话（主专家）
 
@@ -517,6 +517,16 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
 
 r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，以实际 HWND 的 Win32 状态核验；两次自有进程树均完全退出。“暂无置顶”“暂无计划”词条已修复并回归，后者原生复截图通过。阶段 1 已通过；历史 r3 的停止记录不再是当前阻塞。
 
+### 2.20 Python 运行环境（T11，2026-09-29 已实现并本机验证）
+
+- `scripts/python-env/` 使用 uv 管理应用目录中的 CPython、独立环境及共享缓存；不读写用户 uv/pip 配置。内置清单是 `python/builtin.in`，Windows CPython 3.14.7 的 77 项解析版本保存在 `python/builtin.lock`。安装包携带资源属于后续阶段 B，本节不代表已打包。
+- SQLite 保存环境、原始包清单、解析锁、项目/对话绑定、设置与操作日志。解析顺序为对话 → 项目 → 默认 → 系统；选择系统环境不会安装包。新建详情保留原界面；首条消息接受后不再重发初始环境覆盖后续选择。
+- 设置 → 运行环境保留路径信息，增加创建、复制、重命名、删除、包清单编辑/导入/导出、缓存清理、默认环境及镜像。删除仍有绑定的环境返回 409。缓存和独占空间分开统计；共享硬链接不重复计入独占空间。
+- DSH 仅接收宿主产生的会话环境白名单；原进程与用户/系统环境不变。专家继承 Main 进程环境，秘书/全局助手有自己的选择。环境切换保留同一个 DSH sessionId 和历史；自动化在完成轮持久化和idle后暂停/释放/恢复，用户停止和轮数限制仍有效。
+- `python_env_install` 由宿主 manifest `t11.1` 下发，沿用审批通道；卡片显示包、原因及目标。只接受包名和版本约束，不接受 URL/路径/命令参数；询问必须审批，完全接管自动批准默认关闭。不会写用户人设。
+- 原生 `pick_folder` 使用官方 `tauri-plugin-dialog` 2.7.3；精确本机 origin 且仅主窗口拥有权限。取消返回 null，不替换为浏览器目录上传。
+- 最近核对：npm 237/237、既有23项 smoke 有效证据通过、13项受影响复跑及新增环境 UI 通过；真实 uv 内置22包、硬链接复制、镜像安装通过。真实 DSH/模拟模型证明两轮环境切换和持久化；26次真实Go请求验证解释器、历史、安装批准/拒绝、原生选目录写文件及越界审批拒绝。中英深浅截图、失败及修复详情在 DESKTOP_IMPLEMENTATION；不是安装包、离线资源或签名通过声明。
+
 ## 3. 接口索引（`scripts/desktop-api.mjs`）
 
 所有接口需携带口令（2.15）。流式接口返回 NDJSON。
@@ -532,9 +542,10 @@ r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，
 | 对话纪要与自动总结 | `GET/POST /api/chats/minutes`、`POST /api/chats/minutes/refresh`、`POST /api/projects/focus`、`GET/POST /api/secretary/preferences`、`GET /api/summary/proposals?chatId`、`POST /api/summary/proposals/decide`、`GET /api/summary/writes?chatId`、`POST /api/summary/writes/undo`（2.5b、T18） |
 | 专家讨论与名册 | `GET/POST /api/experts`（每项含 `kind: expert|reviewer`、`skills: string[]`）、`POST /api/discussion`（流；`expertIds` 仅接受参加专家，`reviewerId` 可选参加专家或独立审核）、`POST /api/discussion/adopt`、`POST /api/discussion/cancel` |
 | 秘书与全局助手 | `GET /api/assistant`、`POST /api/assistant/chat`（流）、`/assistant/draft|model|approval|stop|proposal/resolve` |
-| 上下文查阅（宿主/DSH `/host-call`） | `chat_recall`、`project_memory`、`workspace_overview`、`minutes_refresh`；清单按角色由 context API `t17.1` 生成（2.5b、2.7、2.8） |
+| 上下文查阅（宿主/DSH `/host-call`） | `chat_recall`、`project_memory`、`workspace_overview`、`minutes_refresh`；清单按角色由 context API `t11.1` 生成，T11 同清单新增 `python_env_install`（2.5b、2.7、2.8、2.20） |
 | 研究输入与资料 | `GET/POST /api/research-input/draft`、`GET /api/library`、`GET /api/library/preview|document|content`、`POST /api/library/import|open`、`GET /api/knowledge`、`POST /api/knowledge/propose|accept` |
 | 工作文件夹 | `POST /api/folders/check`（校验，见 2.1a） |
+| Python 环境 | `GET/POST /api/python/envs`、`POST /api/python/envs/packages`、`GET /api/python/resolve`、`POST /api/python/bind`、`GET /api/python/system`、`GET/POST /api/python/settings`、`GET /api/python/logs`、`POST /api/python/cache/prune`、`POST /api/python/export`；宿主工具 `python_env_install`（2.20） |
 | 工作站 | `GET /api/workbench`、`GET /api/workbench/files|asset|plans`、`POST /api/workbench/save|bind|import|asset|version|plans|open|organize` |
 | 模型与角色 | `GET /api/providers`、`POST /api/providers/save|discover|remove`、`GET /api/model-info`、`GET /api/roles`、`GET /api/roles/history`、`POST /api/roles/save|apply` |
 | 设置 | `/api/profile`、`/api/preferences`（+`/reset`）、`/api/fonts`、`/api/shortcuts`（+`/reset`）、`/api/secretary/preferences`（含 `summary`）、`/api/assistant-window/preferences` |
@@ -566,6 +577,7 @@ r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，
 | `context_overview_cursors` | 全局助手按会话保存的工作区概览哈希 | `context/catch-up.mjs` |
 | `discussion_rounds`、`discussion_entries` | 讨论轮次与专家回答元数据（含审核、采纳、主专家已读标记） | `discussion-service.mjs` |
 | `desktop_preferences`、`shortcut_settings`、`secretary_preferences`、`assistant_window_preferences` | 各类设置 | 同名模块 |
+| `python_envs`、`python_env_bindings`、`python_env_settings`、`python_env_logs` | Python 环境/锁定清单、项目与对话选择、默认与镜像/审批偏好、操作日志 | `python-env/environments.mjs` |
 
 DSH 自己的数据（会话历史、Provider 配置、凭据、技能）在 `.sciencescope-local/dsh/`，由 DSH 管理。
 
@@ -601,7 +613,7 @@ desktop-interaction 的认证/路由夹具改用生产宿主后，仍在旧选�
 
 界面上不再显示"尚未开放"一类提示（2026-09-25 用户要求）。未完成功能的入口由功能开关隐藏（2.18），各有任务书：
 内置浏览器与浏览器设置（T08）、从消息分支（T12）、用量分析（T13）、导图历史 / 版本说明页 / 版本比较 / 修改记录（T14）、
-插件安装与更新（T15）、目录迁移（T16）、Python 运行环境与原生文件夹选择（T11）。
+插件安装与更新（T15）、目录迁移（T16）。Python 环境与原生文件夹选择已由 T11 接入，见2.20。
 记忆分类与人工管理由 T05 接线，自动整理仍属 T09。另有尚无任务书的：通知、截图快捷键、系统全局热键、导图导出、日志"定位到消息"、安装包与数据保留升级（ROADMAP 阶段 B）。
 
 ## 7. 如何维护本文档

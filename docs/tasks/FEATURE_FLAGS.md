@@ -20,8 +20,8 @@
 
 | 开关 | 隐藏的入口 | 负责任务 | 打开条件 |
 |---|---|---|---|
-| `pythonEnvs` | （无入口被隐藏；没有时 Python 字段只提供"系统 Python"） | T11 | `/api/python/envs` 可用 |
-| `folderPicker` | 新建窗口的"选择…"、创建项目页的"选择已有文件夹" | T11 | Tauri 实现 `pick_folder`，启动宿主时设置环境变量 `SCIENCESCOPE_NATIVE_FEATURES=pickFolder`（宿主已读取） |
+| `pythonEnvs` | （没有时 Python 字段只提供"系统 Python"） | T11 | 已接通（2026-09-29）：检测实际 Python service；设置/绑定/审批/真实解释器通过 |
+| `folderPicker` | 新建窗口的"选择…"、创建项目页的"选择已有文件夹" | T11 | 已接通（2026-09-29）：Tauri主窗口 `pick_folder` +宿主 `SCIENCESCOPE_NATIVE_FEATURES=pickFolder`；真实Win32选择/取消及原生项目写入通过 |
 | `inAppBrowser` | 顶栏/视图菜单"内置浏览器"、设置"内置浏览器"页、路由 `browser` `browser-settings` | T08 | 浏览器窗口与网页保存可用；在此之前学术站点用系统浏览器打开（`POST /api/open-url`，已实现） |
 | `branch` | 消息下方"从此分支"、消息菜单"从此开始分支"、输入框上方"从此分支"、路由 `branch` | T12 | DSH `session.fork` 接通并通过验收 |
 | `usage` | 设置"用量分析"、路由 `usage` | T13 | 用量记录与 `/api/usage` 可用 |

@@ -12,7 +12,7 @@ const personas={global:builtinRolePrompts.global,secretary:builtinRolePrompts.se
 const identity=(scope,ownerId)=>JSON.stringify([scope,ownerId]);
 
 // UI/application orchestration only. DSH owns the agent loop and runtime history.
-export function createAssistantChatService({host,conversations,chatStore,dataRoot,roleSettings,contextAccess,startContextSession}){
+export function createAssistantChatService({host,conversations,chatStore,dataRoot,roleSettings,contextAccess,startContextSession,needsPythonRefresh,bindPython,pythonContextBrief}){
   const configuring=new Set();
   const running=new Map(),sessions=new Map(),approvals=new Map();
   const toolActivity=createToolActivityProjection({chatStore});
@@ -51,6 +51,11 @@ export function createAssistantChatService({host,conversations,chatStore,dataRoo
       if(chatStore.db.db.prepare('SELECT 1 FROM messages WHERE chat_id=? AND id=?').get(chat.id,userId))throw new AssistantChatError('DUPLICATE_MESSAGE','此消息已接收，不会重复调用模型。',409);
       const packet=contextAccess?await (input.scope==='secretary'?contextAccess.catchUp({conversationId:chat.id,chatId:input.ownerId}):contextAccess.overview({conversationId:chat.id})):null;
       let binding=sessions.get(chat.id);
+      const projectId=input.scope==='secretary'?chatStore.getChat(input.ownerId)?.projectId??null:null;
+      if(input.pythonEnvId!==undefined&&bindPython)await bindPython({scope:'chat',targetId:chat.id,envId:input.pythonEnvId});
+      if(binding&&needsPythonRefresh&&await needsPythonRefresh(binding.sessionId,chat.id,projectId)){
+        binding.unsubscribe?.();await host.releaseSession(binding.sessionId);sessions.delete(chat.id);binding=null;
+      }
       if(!binding){
         const workspace=path.join(dataRoot,'.sciencescope-local','assistant-workspaces',chat.id);await mkdir(workspace,{recursive:true});
         const persona=roleSettings?.bind(chat.id,input.scope,{existing:!!chatStore.getBinding(chat.id)}).prompt||personas[input.scope];
@@ -65,7 +70,9 @@ export function createAssistantChatService({host,conversations,chatStore,dataRoo
       await host.configurePolicy({sessionId:binding.sessionId,approvalPolicy:input.executionMode==='full'?'never':'ask',sandboxMode:input.executionMode==='full'?'danger-full-access':'workspace-write'});
       await host.configureReasoning({sessionId:binding.sessionId,reasoningEffort:input.reasoningEffort});
       const rules=contextRules(input.scope);
-      if(host.configureBrief&&binding.contextRules!==rules){await host.configureBrief({sessionId:binding.sessionId,text:rules});binding.contextRules=rules;}
+      const pythonRules=pythonContextBrief?await pythonContextBrief(chat.id,projectId):'';
+      const brief=[rules,pythonRules].filter(Boolean).join('\n\n');
+      if(host.configureBrief&&binding.contextRules!==brief){await host.configureBrief({sessionId:binding.sessionId,text:brief});binding.contextRules=brief;}
       conversations.setModel(input.scope,input.ownerId,chat.model,input.reasoningEffort,input.executionMode||'ask');
       await chatStore.appendMessage({chatId:chat.id,id:userId,role:'user',text:input.text});
       // Do not overwrite a newer persisted draft from another input event.
@@ -102,7 +109,13 @@ export function createAssistantChatService({host,conversations,chatStore,dataRoo
     }
   }
   async function stop(scope,ownerId){validate(scope,ownerId);const run=running.get(identity(scope,ownerId));if(!run)return {stopped:true};run.cancelled=true;if(run.sessionId)await host.interrupt(run.sessionId);return {stopped:true};}
-  async function approve(scope,ownerId,requestId,allowed){validate(scope,ownerId);const key=identity(scope,ownerId),run=running.get(key);if(!run||!approvals.get(key)?.has(requestId))throw new AssistantChatError('APPROVAL_EXPIRED','审批请求已过期。',409);await host.replyApproval({sessionId:run.sessionId,requestId,outcome:allowed?'allowed-once':'rejected'});approvals.get(key).delete(requestId);return {answered:true};}
+  async function approve(scope,ownerId,requestId,allowed){
+    validate(scope,ownerId);const key=identity(scope,ownerId),run=running.get(key),pending=approvals.get(key);
+    if(!run||!pending?.has(requestId))throw new AssistantChatError('APPROVAL_EXPIRED','审批请求已过期。',409);
+    try{await host.replyApproval({sessionId:run.sessionId,requestId,outcome:allowed?'allowed-once':'rejected'});}
+    catch(error){pending.delete(requestId);if(!pending.size)approvals.delete(key);throw new AssistantChatError('APPROVAL_EXPIRED','审批请求已取消或过期。',409);}
+    pending.delete(requestId);if(!pending.size)approvals.delete(key);return {answered:true};
+  }
   async function changeModel(scope,ownerId,model,reasoningEffort){validate(scope,ownerId);const key=identity(scope,ownerId);if(running.has(key))throw new AssistantChatError('ASSISTANT_BUSY','请先等待助手完成。',409);const chat=conversations.get(scope,ownerId)??await conversations.ensure(scope,ownerId,model);const binding=sessions.get(chat.chatId);if(binding&&host.configureModel)await host.configureModel({sessionId:binding.sessionId,model,reasoningEffort});return conversations.setModel(scope,ownerId,model,reasoningEffort);}
   function resolveProposal(scope,ownerId,id){if(scope!=='secretary')throw new AssistantChatError('INVALID_SCOPE','仅秘书可管理主专家提案。');validate(scope,ownerId);return conversations.resolveProposal(ownerId,id);}
   async function applyPersona(scope,ownerId){

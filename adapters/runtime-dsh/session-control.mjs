@@ -32,11 +32,25 @@ export function apply(ctx) {
   let eventTail = Promise.resolve();
   const postEvent = (event) => { const sequence = ++eventSequence; eventTail = eventTail.then(() => postHost({ type: 'control-event', sequence, event })); return eventTail; };
   const pendingApprovals = new Map();
+  let pythonEnvironmentRefreshPending = false;
+  let lastCompletedTurn = null;
+  let completedTurnAwaitingIdle = null;
   // Correlate concurrent expert creation before DSH starts its first turn.
   // A model-created ordinary subagent must not inherit this application seam.
   const expertCreation = new AsyncLocalStorage();
   const agentOptions = { provider: process.env.SCIENCESCOPE_PROVIDER, model: process.env.SCIENCESCOPE_MODEL };
   const noTools = process.env.SCIENCESCOPE_NO_TOOLS === '1';
+  function pauseForPythonEnvironmentRefresh(agent, source) {
+    if (!pythonEnvironmentRefreshPending || !agent || String(agent.session?.id) !== sessionId) return null;
+    if (agent.status === 'running' && ctx.agents.currentInitiator() !== agent) return null;
+    const goal = ctx.goals.get(agent);
+    if (!goal || goal.phase !== 'active' || goal.activation !== 'armed') return null;
+    const paused = ctx.goals.pause(agent, { id: goal.id, revision: goal.revision });
+    pythonEnvironmentRefreshPending = false;
+    completedTurnAwaitingIdle = null;
+    void postEvent({ type: 'python-env-refresh-ready', sessionId, goal: paused, turn: lastCompletedTurn, source });
+    return paused;
+  }
   // Research Base tools. They run here but answer from the host application
   // (scripts/research-base), which binds each call to this session's chat,
   // project and role; an expert's calls also carry its expert id.
@@ -45,11 +59,19 @@ export function apply(ctx) {
     const child = expertChildren.get(String(agent?.session?.id ?? ''));
     const body = JSON.stringify({ token, sessionId, name, args, callId: exec?.callId, expertId: child?.expertId });
     const target = new URL(hostCallEndpoint);
-    const req = request({ hostname: target.hostname, port: target.port, path: target.pathname, method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) }, timeout: 120000 }, (res) => {
+    const req = request({ hostname: target.hostname, port: target.port, path: target.pathname, method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) }, ...(name === 'python_env_install' ? {} : { timeout: 120000 }) }, (res) => {
       let text = ''; res.setEncoding('utf8'); res.on('data', (chunk) => { text += chunk; });
       res.on('end', () => { try { const value = JSON.parse(text); if (value.error) reject(new Error(value.error)); else resolve(value.result); } catch { reject(new Error(`host tool call failed (HTTP ${res.statusCode})`)); } });
     });
-    req.on('error', reject); req.on('timeout', () => req.destroy(new Error('host tool call timed out'))); req.end(body);
+    const signal = exec?.signal;
+    const onAbort = () => req.destroy(signal.reason instanceof Error ? signal.reason : new Error('tool call aborted'));
+    const cleanup = () => signal?.removeEventListener('abort', onAbort);
+    req.on('error', (error) => { cleanup(); reject(error); });
+    req.on('close', cleanup);
+    if (name !== 'python_env_install') req.on('timeout', () => req.destroy(new Error('host tool call timed out')));
+    if (signal?.aborted) { onAbort(); return; }
+    signal?.addEventListener('abort', onAbort, { once: true });
+    req.end(body);
   });
   const jsonOutput = { schema: { type: 'json' }, render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }] };
   const registerResearchTools = async (tools, agent) => {
@@ -216,7 +238,7 @@ export function apply(ctx) {
     } finally { expertRuns.delete(value.runId); }
   };
   const server = createServer(async (req, res) => {
-    if (req.method !== 'POST' || !['/prompt', '/goal', '/policy', '/reasoning', '/model', '/persona', '/brief', '/interrupt', '/approval/reply', '/context-usage', '/experts', '/experts/cancel'].includes(req.url)) { res.writeHead(404); res.end(); return; }
+    if (req.method !== 'POST' || !['/prompt', '/goal', '/policy', '/reasoning', '/model', '/persona', '/brief', '/interrupt', '/approval/reply', '/context-usage', '/experts', '/experts/cancel', '/python-env/refresh'].includes(req.url)) { res.writeHead(404); res.end(); return; }
     let body = ''; req.setEncoding('utf8'); req.on('data', (chunk) => { body += chunk; if(Buffer.byteLength(body)>2*1024*1024)req.destroy(); });
     req.on('end', async () => {
       try {
@@ -239,6 +261,13 @@ export function apply(ctx) {
           const run = expertRuns.get(value.runId);
           if (run) run.abort(new Error('experts cancelled by user'));
           res.writeHead(204); res.end(); return;
+        }
+        if (req.url === '/python-env/refresh') {
+          pythonEnvironmentRefreshPending = true;
+          const goal = pauseForPythonEnvironmentRefresh(handle.agent, 'host-request');
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ result: goal ? 'paused' : 'scheduled' }));
+          return;
         }
         if (req.url === '/experts') {
           const result = await runExperts(value);
@@ -407,7 +436,21 @@ export function apply(ctx) {
   });
   ctx.on('session/event', (eventSession, event) => {
     if (String(eventSession.id) !== sessionId) return;
+    if (event.type === 'turn/end') lastCompletedTurn = event.data?.turn ?? lastCompletedTurn;
+    if (event.type === 'turn/end' && event.data?.reason?.kind === 'completed' && ctx.agents.currentInitiator() === handle?.agent) {
+      completedTurnAwaitingIdle = event.data.turn;
+    }
     if (['goal/change', 'approval/asked', 'approval/decided', 'sandbox/mode'].includes(event.type)) void postEvent({ type: 'session-event', eventType: event.type, data: event.data });
+  });
+  // Session events are emitted from Session.append's publication callback;
+  // mutating a goal there would re-enter the same append. The public idle edge
+  // runs after turn/end is committed. GoalRoundDriver's idle listener can only
+  // proceed after its awaited session flush and then rechecks the current goal,
+  // so pausing synchronously here closes the next-round admission window.
+  ctx.on('agent/status', ({ agent, status }) => {
+    if (status !== 'idle' || String(agent?.session?.id) !== sessionId || completedTurnAwaitingIdle === null || !pythonEnvironmentRefreshPending) return;
+    try { pauseForPythonEnvironmentRefresh(agent, 'turn-end-idle'); }
+    catch (error) { void postEvent({ type: 'python-env-refresh-failed', sessionId, error: String(error?.message ?? error).slice(0, 500) }); }
   });
   ctx.effect(() => async () => { for (const run of expertRuns.values()) run.abort(new Error('session closing')); for (const entry of pendingApprovals.values()) entry.resolve('cancelled'); pendingApprovals.clear(); await handle?.dispose().catch(() => {}); await new Promise((resolve) => server.close(() => resolve())); }, 'sciencescope.session-control');
 }

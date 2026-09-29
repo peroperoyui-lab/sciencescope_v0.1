@@ -1,0 +1,6 @@
+{
+  "identifier": "main-folder-picker",
+  "description": "Native directory picker for the local main window only.",
+  "windows": ["main"],
+  "permissions": ["allow-pick-folder", "dialog:allow-open"]
+}

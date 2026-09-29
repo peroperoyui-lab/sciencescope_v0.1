@@ -14,10 +14,27 @@ use std::{
     time::{Duration, Instant},
 };
 use serde::{Deserialize, Serialize};
+use tauri_plugin_dialog::DialogExt;
 use tauri::{menu::{ContextMenu, Menu, MenuItem}, AppHandle, Emitter, Manager, LogicalSize, PhysicalPosition, WebviewUrl, WebviewWindowBuilder, Window};
 
 struct HostProcess {
     child: Mutex<Option<ChildHandle>>,
+}
+
+#[tauri::command]
+async fn pick_folder(window: tauri::WebviewWindow, title: Option<String>) -> Result<Option<String>, String> {
+    if window.label() != "main" {
+        return Err("FOLDER_PICKER_MAIN_WINDOW_ONLY".into());
+    }
+    let title = title.unwrap_or_else(|| "ScienceScope".into());
+    if title.chars().count() > 200 {
+        return Err("FOLDER_PICKER_INVALID_TITLE".into());
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        window.dialog().file().set_parent(&window).set_title(title).blocking_pick_folder()
+            .map(|value| value.into_path().map(|path| path.to_string_lossy().into_owned()).map_err(|error| error.to_string()))
+            .transpose()
+    }).await.map_err(|error| error.to_string())?
 }
 
 impl HostProcess {
@@ -428,6 +445,7 @@ fn host_url(log_dir: &std::path::Path) -> Result<Option<(String, String, ChildHa
     command
         .arg(script)
         .arg("--desktop")
+        .env("SCIENCESCOPE_NATIVE_FEATURES", "pickFolder")
         .stdout(Stdio::piped())
         .stderr(Stdio::from(host_log));
     #[cfg(windows)]
@@ -563,7 +581,8 @@ mod windows_job {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![open_secondary_window, set_assistant_mode, get_assistant_mode, show_assistant_menu, hide_assistant])
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![open_secondary_window, set_assistant_mode, get_assistant_mode, show_assistant_menu, hide_assistant, pick_folder])
         .on_menu_event(|app, event| {
             let id = event.id().as_ref();
             if id == "assistant-exit" {
@@ -656,6 +675,10 @@ fn main() {
                 capability["local"] = serde_json::json!(false);
                 capability["remote"] = serde_json::json!({"urls": [format!("{}/*", parsed_url.origin().ascii_serialization())]});
                 app.add_capability(serde_json::to_string(&capability)?)?;
+                let mut folder_capability: serde_json::Value = serde_json::from_str(include_str!("../capabilities/folder-picker.json"))?;
+                folder_capability["local"] = serde_json::json!(false);
+                folder_capability["remote"] = serde_json::json!({"urls": [format!("{}/*", parsed_url.origin().ascii_serialization())]});
+                app.add_capability(serde_json::to_string(&folder_capability)?)?;
                 config.url = tauri::WebviewUrl::External(parsed_url.clone());
                 app.manage(HostAccess { url: parsed_url, api_token });
                 app.manage(HostProcess {

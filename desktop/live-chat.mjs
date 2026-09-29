@@ -91,6 +91,9 @@ try{researchInput=options.outboxId?{attachmentIds:[],messageQuotes:[],annotation
         const previousTop=previousBox?.scrollTop || 0;
         const follow=previousBox&&previousBox.scrollHeight-previousBox.scrollTop-previousBox.clientHeight<90;
         accepted = true;
+        // Creation choices become persisted host bindings after acceptance.
+        // A later environment menu selection must not be overwritten by this draft.
+        delete thread.pythonEnvId;
         if(!options.outboxId)void window.ScienceScopeResearchInput.accepted('main',chatId,researchInput).catch(error=>toast(error.message));
         void window.ScienceScopeActivity?.refresh();
         thread.model=model;

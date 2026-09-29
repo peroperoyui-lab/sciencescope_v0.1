@@ -11,6 +11,7 @@ DESKTOP_ASSETS.push('refresh.css','refresh.mjs','settings.mjs','role-settings.mj
 DESKTOP_ASSETS.push('file-preview.mjs','marks.css','creation-details.mjs','info-tip.mjs','features.mjs','deliverables.mjs','i18n.mjs','i18n-en.mjs','minutes.mjs');
 DESKTOP_ASSETS.push('math-render.mjs','document-readers.mjs','document-readers.css','js-polyfills.mjs','pdf-worker.mjs');
 DESKTOP_ASSETS.push('research-base.mjs','research-base.css','research-citations.mjs');
+DESKTOP_ASSETS.push('python-settings.mjs');
 // Third-party files copied from node_modules and served verbatim. The build and
 // the production router both use this list, so they cannot drift apart.
 // The default interface font is 思源黑体 (Noto Sans SC, SIL OFL 1.1), split

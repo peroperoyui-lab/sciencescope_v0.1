@@ -287,10 +287,13 @@ window.addEventListener('click',async event=>{
       const choice=window.ScienceScopeCreation?await window.ScienceScopeCreation.projectChoice():{folder:null,envId:null};
       if(!choice)return;
       const project={id:'project-'+crypto.randomUUID(),name,desc:document.getElementById('new-project-goal')?.value || ''};
-      S.projects.push(project);S.projectExpanded[project.id]=true;selectProject(project.id);
+      S.projects.push(project);S.projectExpanded[project.id]=true;
       await saveNow();
       try{await window.ScienceScopeCreation?.applyProjectChoice(project,choice);}
       catch(error){toast('项目已创建，但工作文件夹或 Python 环境未能应用：'+error.message+'（可在工作站中重新绑定目录）');}
+      // Load the workbench only after binding. Loading first caches the default
+      // directory even though the user's selected directory is saved correctly.
+      selectProject(project.id);
     } else if(action==='release-notes') {
       modal('本轮更新',`<ul><li>新建独立对话时选择工作文件夹与 Python 环境；新建项目可以绑定已有文件夹。</li><li>有序讨论：专家读取同一份前文并行作答，可指定审核专家；审核结论由你决定是否加入后续上下文。</li><li>工作模式中用 @ 邀请专家；工具调用前的说明归入工具记录。</li><li>聊天和文件预览中的文字可以添加为标记，随下一条消息一起发送。</li><li>界面中的说明统一收进"i"提示。</li></ul>`);
     } else if(isNew) {

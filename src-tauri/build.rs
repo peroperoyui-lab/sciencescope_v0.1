@@ -7,6 +7,7 @@ fn main() {
                 "get_assistant_mode",
                 "show_assistant_menu",
                 "hide_assistant",
+                "pick_folder",
             ]),
         ),
     ).expect("desktop build metadata failed")
