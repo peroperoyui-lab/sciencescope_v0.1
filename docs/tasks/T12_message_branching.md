@@ -5,6 +5,15 @@
 ## 目标
 在任意一条消息上"从此分支"：新建一个对话，它的**模型上下文**与原对话截至该消息时完全一致（不是只复制可见文字），之后两边互不影响。
 
+### 2026-09-29 本机前置核查：BLOCKED（没有开启分支）
+
+- 安装的 SDK client / SDK JSON-RPC server / API session controller 均为 `0.1.6-alpha.1`。
+- `SessionController` 的公开接口确有 `session/fork`，但当前 `profile: sdk` 的 stdio server 只分发 `initialize`、`session/prompt`、`shutdown`。真实 DSH + localhost 模型先完成两轮（turn/end seq17、25），再调用 `harness.client.request('session/fork',{sessionId,atSeq:17})`，得到 `JsonRpcResponseError: unknown DeepSeek Harness SDK runtime method: session/fork`。包里存在类型不等于当前运行通道支持。
+- 进一步只读验证公开 `ctx.sessions.fork(source,17,childId)`：返回 inheritedEventCount18、flush=true，但这是未取得 Agent 写句柄的 SessionStore 子会话；从新进程通过现有 session-control 恢复，模型没有收到 A，原会话仍有 A/B。安装包 `dsh-session-persistence/README.md` 明确说明只有获得写句柄的会话才持久化，单独 create/flush 不存储。
+- 按本任务“不能调用时停下报告”的要求停止，没有改生产代码、增加消息列、复制事件冒充分支、升级依赖或打开 branch。所有探针是本地模拟模型，付费调用0；不是T12通过。
+- 待用户/Claude决定接线方式：优先评估将上游**完整公开 SessionController fork 服务**接入现有适配层（包括其必要服务与写句柄生命周期），或等待/采用正式支持fork的SDK版本再实现；两者都必须重新完成A/B隔离、子会话重启、附件草稿与原生验收。不能只复制控制器内部事件切片算法。
+- 本机原始证据在 `.sciencescope-local/temp/t12-probe/`，具体run路径与复核记录见 `DESKTOP_IMPLEMENTATION`；不提交临时会话或日志。
+
 ### 用户确认的轮次边界（2026-09-27，待实现与验收）
 
 已安装 DSH 的 `session.fork` 按完整轮次结束分叉，不能停在用户消息之后、该轮回复之前。因此以下规则优先于上面的概括：
