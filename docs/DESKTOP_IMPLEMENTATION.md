@@ -1,5 +1,38 @@
 # Desktop implementation — first increment
 
+## 2026-09-29 Review of batch 3 (T05, T10, T11; T12 blocked) (Claude, cloud)
+
+Fast-forwarded `codex/t12-branch-20260929@98dedb3` (stacked T05 `d265051`,
+T10 `eed1efd`, T11 `50efb0f`, T12 blocker record) into
+`claude/determined-pasteur-jxpzw8`.
+- **Install on restricted networks.** `onnxruntime-node`'s postinstall downloads
+  optional GPU builds; behind the cloud proxy it failed (ECONNRESET) and npm
+  rolled the package back, so two tests failed. The CPU binaries for
+  win32/linux/darwin ship in the package. Added a project `.npmrc`
+  (`onnxruntime-node-install=skip`); a normal `npm install` now succeeds and
+  `npm test` is 237/237. The same failure would hit a fresh install on the
+  user's network.
+- **Open dialog dropped by a late render — fixed.** After creating a project,
+  `workbench.mjs` finishes loading and calls `render()`, which rebuilt the body
+  and removed the just-opened new-chat details dialog (python-env-ui failed
+  deterministically on the slower cloud machine; Windows was fast enough to
+  hide it). `workspace-layout.mjs` now keeps an open `#modal` and its focus
+  across a same-route render; navigating away still closes it. Regression in
+  `creation-details-smoke` (fails before, passes after).
+- **T10 reading.** Offline retrieval improved sharply (R@5 keyword 6/52 →
+  hybrid 28/52; R@10 9 → 34), but real answers were 42/52 vs 43/52: the
+  remaining failures are in answering (4 budget exhaustions, 3 drifted away
+  from research tools), not retrieval. Follow-up recorded in T10.
+- **T12.** SDK JSON-RPC servers 0.1.6-alpha.1, 0.1.7-rc.2 and 0.2.0-rc.2 all
+  expose only `session/prompt` (checked the published tarballs), so upgrading
+  does not add fork. A route through public APIs inside our own adapter is
+  recorded in the T12 brief for Astra to verify.
+- Cloud re-run: `npm test` 237/237; research-base-ui, python-env-ui,
+  creation-details, chat-ui, context-access-ui, summary-policy-ui,
+  discussion-ui, i18n, research-input-ui, settings-ui, viewer-ui, workspace-ui,
+  desktop-interaction, desktop-navigation, minutes, shortcuts-ui, extensions-ui
+  pass. python-env-local/mirror/native need `--install` or Windows (by design).
+
 ## 2026-09-29 · 第3批交付汇总与 T12 前置阻塞
 
 - T05 `codex/t05-research-base-ui-20260927@d2650514c2540c807efc5269146ca053911b120d` → T10 `codex/t10-hybrid-search-20260927@eed1efdfbe264a795480ebfaeaa7a34e15079684` → T11 `codex/t11-python-env-20260929@50efb0f466a00b1a7f892f004dfcc464bc90449e` 均已推送；不开PR、不合并。当前 T12 文档检查点 `codex/t12-branch-20260929` 叠加T11，不是实现完成。
