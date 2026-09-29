@@ -141,7 +141,8 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   - 记录：用户与助手消息写入 `messages`；工具记录写入 `tool_activity`（有界、脱敏的展示投影；完整历史在 DSH）。
 - **验证**：`main-interrupt`、`main-outbox-api`、`chat-outbox`、`tool-activity`、`provider-failure-surface`、`reasoning-effort-wire` 单元测试；
   `chat-ui-smoke`、`failed-send-draft-smoke`；真实 OpenCode Go 小请求、停止、5.5 分钟长任务（原生，2026-09-23）。
-- **已知限制**：队列只接受纯文本轮次（带材料的输入会留在草稿里，需要再次确认）；从某条消息"分支"只做了界面层，没有 DSH 运行时分叉。
+- **已知限制**：队列只接受纯文本轮次（带材料的输入会留在草稿里，需要再次确认）；从消息分支的入口仍关闭，没有 DSH 运行时分叉。
+- **T12 最近核对（2026-09-29）**：真实 DSH/本地模拟模型证明安装版0.1.6-alpha.1的SDK stdio不注册 `session/fork`；SessionStore内存fork也不能单独持久化继承上下文。按任务要求停在前置核查，待确认上游完整服务接线或SDK支持路径。没有用展示消息复制冒充模型上下文分支，也未打开开关；详见任务书T12。
 
 ### 2.3 执行策略与自动化
 

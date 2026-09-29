@@ -1,5 +1,16 @@
 # Desktop implementation — first increment
 
+## 2026-09-29 · 第3批交付汇总与 T12 前置阻塞
+
+- T05 `codex/t05-research-base-ui-20260927@d2650514c2540c807efc5269146ca053911b120d` → T10 `codex/t10-hybrid-search-20260927@eed1efdfbe264a795480ebfaeaa7a34e15079684` → T11 `codex/t11-python-env-20260929@50efb0f466a00b1a7f892f004dfcc464bc90449e` 均已推送；不开PR、不合并。当前 T12 文档检查点 `codex/t12-branch-20260929` 叠加T11，不是实现完成。
+- T05：Research Base七类/管理页签、实际材料/版本/收件箱与引用已接线，本机192/192及22旧smoke、新browser/native通过。T10：实际本地向量/关键词共享范围过滤和加权RRF、降级理由、设置接线，最终219/219及23smoke通过；52题真实答案42full/52，对照第一批43/52，并未提升答案正确率。离线段落R@10为34/52对关键词9/52。500来源负载是8篇重复语料，不是500篇不同论文；第二台机器对照未做。详见各节，不以完成代码掩盖质量不足。
+- T11：实际uv/CPython、共享缓存、环境分配与批准安装、下一轮同session恢复、真实Win32 picker，237/237；23旧smoke有效记录、13受影响复跑及环境UI通过，最后原生/创建路径修复通过；分页smoke时序性失败保留并列出，不称连续首跑全绿。26次Go请求，274247总tokens。T10的233次Go请求、3621684tokens与T11分开记录；当前两项合计259次转发、3895931tokens（不重复叠加cached/reasoning子计数）。T05和T12均无本次付费调用。
+- T12发现→原因→处理→验证：控制器包提供 `session/fork` 类型，但真实 `profile:sdk` 只注册initialize/prompt/shutdown→完成A/B两轮后请求fork得到unknown method→不打开branch、不复制文字或自行仿写fork；进一步验证公开SessionStore fork+flush仅内存存在，无Agent写句柄不会持久化→新进程通过生产session-control恢复的模型input不含A，而原会话保持A/B。Astra读取实际SDK dispatch、persistence README与探针result复核；不是由子代理结论直接代替验收。
+- 版本：`@deepseek-ai/dsh-sdk-client`、`dsh-sdk-jsonrpc-server`、`dsh-api-session-controller` 均0.1.6-alpha.1。证据：`.sciencescope-local/temp/t12-probe/5f1c5a72-ed07-434a-878f-2260b2d08e3d/result.json`（SDK方法拒绝），`062679d5-4798-407e-aaca-21ad70906e7b/trace-result.json`（源A/B），`8369162e-04a8-4377-b60e-9d08eaec1e75/result.json`（公开内存fork与新进程丢失继承内容）。全部localhost模拟模型，未用Go。失败探针保留，生产代码未改，不能计为分支E2E通过。
+- 与任务书差异及下一决策：按T12明确的不能调用即停规则，本批不能宣称全部完成。需选择接入上游完整公开SessionController服务及必要生命周期，或采用正式支持fork的SDK版本；不自行升级依赖、不克隆控制器内部实现。用户已批准的“回复处整轮fork/用户处上轮fork+可编辑未发草稿”规格不变。T12消息迁移、入口、原生及A/B恢复验收均未做，没有新界面截图；不进入第4批。
+- 截图仍在项目temp：T05/T10索引见各自节；T11设置 `.sciencescope-local/temp/python-env-ui-shots-pwjSVm/`（zh-CN/en×light/dark），原生 `.sciencescope-local/temp/t11-native-validation/`（同四组合及修复后项目目录），真实Go原生 `.sciencescope-local/temp/eval/python-native-live-2LYH6l/native-project-picker-bound.png`（路径显示修复前，写入正确，勿当最终UI图）。原生最后owned进程树全退，没有关闭用户现有客户端。
+- Git遇到0字节过期index.lock，检查无Git进程且写入已过33分钟后仅移除该精确lock，未reset工作树/索引；T11 remote SHA已核对。所有密钥、本地会话、数据库、日志、测试截图、模型/解释器、构建产物保持忽略，提交只含实现/测试/文档及锁定清单。发布安装包、签名、升级演练尚未执行。
+
 ## 2026-09-29 · T11 Python 环境与原生文件夹选择（本机验收完成，独立分支交付）
 
 - 分支 `codex/t11-python-env-20260929` 叠加 T10 `eed1efdfbe264a795480ebfaeaa7a34e15079684`。使用现有 uv/DSH、审批、SQLite 与新建详情界面，不建立第二套运行时；原型 HTML 未改。安装包携带解释器/uv、签名和升级演练仍属阶段 B。
