@@ -131,6 +131,7 @@ async function submitDiscussion(text, {kind, expertIds, reviewerId = null}) {
       executionMode: window.ScienceScopeExecution?.mode() === 'full' ? 'full' : 'ask', title: thread.title === '新对话' ? text.trim().slice(0, 40) : thread.title}, event => {
       if (event.type === 'accepted' && !accepted) {
         accepted = true;
+        delete thread.pythonEnvId;
         void window.ScienceScopeResearchInput.accepted('main', chatId, researchInput).catch(error => toast(error.message));
         thread.model = model; window.ScienceScopeWorkspace?.accepted(thread, text);
         const d = data(); d.messages ??= [];

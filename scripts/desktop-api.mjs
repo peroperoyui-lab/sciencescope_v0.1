@@ -1,5 +1,5 @@
 import path from 'node:path';
-import { mkdir, readFile, realpath } from 'node:fs/promises';
+import { mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
 import { defaultRoot } from './prepare-desktop.mjs';
 import { createChatStore, ProfileStore } from './chat-store.mjs';
 import { createWorkbenchApi, WorkbenchApiError, openLocalDocument, openExternalUrl, externalUrl } from './workbench-api.mjs';
@@ -41,6 +41,7 @@ import {createScopedResearchTools} from './context/research-tools.mjs';
 import {createSemanticService,messageVectorVersion} from './research-base/semantic-service.mjs';
 import {recallForTurn} from './research-base/recall.mjs';
 import {ensureMainChat} from './context/sources/_shared.mjs';
+import {createPythonEnvironmentService,PythonEnvironmentError} from './python-env/environments.mjs';
 
 function publicRuntimeMessage(error) {
   const raw = String(error?.message || '').toLowerCase();
@@ -53,7 +54,7 @@ function publicRuntimeMessage(error) {
   return '运行时请求失败；请检查模型配置和网络连接。';
 }
 
-export async function createDesktopApi({onError, dataRoot = defaultRoot, runtimeHost = null, runtimeWeb = null, apiToken = null, openUrl = openExternalUrl, listFonts = listSystemFonts} = {}) {
+export async function createDesktopApi({onError, dataRoot = defaultRoot, runtimeHost = null, runtimeWeb = null, apiToken = null, openUrl = openExternalUrl, listFonts = listSystemFonts, pythonOptions = {}, pythonBootstrap = runtimeHost === null && dataRoot === defaultRoot} = {}) {
   const events = createHostEvents({onError,isBusy:chatId=>pending.has(chatId)||mainRuns.has(chatId)||discussions?.busy(chatId)||execution?.snapshot(chatId).goalActive});
   let host = runtimeHost;
   let web = runtimeWeb;
@@ -117,6 +118,15 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   });
   const profileStore = await new ProfileStore({stateDir:path.join(dataRoot,'.sciencescope-local','state')}).init();
   const database=chatStore.db;
+  const python=createPythonEnvironmentService({database,dataRoot,getChat:id=>chatStore.getChat(id),...pythonOptions});
+  const sessionPython=new Map();
+  const pythonKey=value=>JSON.stringify({envId:value.envId,kind:value.kind,pathPrepend:value.pathPrepend,env:value.env});
+  async function needsPythonRefresh(sessionId,chatId,projectId){return sessionPython.get(sessionId)?.key!==pythonKey(await python.resolve({chatId,projectId}));}
+  async function pythonContextBrief(chatId,projectId){
+    const resolved=await python.resolve({chatId,projectId});
+    if(resolved.kind==='managed')return `Current Python environment: ${resolved.name} (managed). Use python_env_install with package names and a reason to request additional packages. Do not install with pip or use shell commands to bypass approval.`;
+    return 'Current Python environment: system Python. Package installation is unavailable in this unmanaged environment; ask the user to select a managed environment if packages are needed.';
+  }
   const preferences=createDesktopPreferences({db:database.db,dataRoot});
   const deliverables=createDeliverables({db:database.db,openLocal:openLocalDocument});
   const secretaryPreferences=createSecretaryPreferences({db:database.db});
@@ -180,7 +190,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     // is true (desktop/features.mjs). Each task that implements one turns it on
     // here; docs/tasks/FEATURE_FLAGS.md lists owner tasks and interfaces.
     features:{
-      pythonEnvs:false,        // T11 /api/python/*
+      pythonEnvs:typeof python?.list==='function', // T11 persisted environment API
       folderPicker:(process.env.SCIENCESCOPE_NATIVE_FEATURES||'').split(',').includes('pickFolder'), // T11 Tauri pick_folder
       inAppBrowser:false,      // T08
       branch:false,            // T12 runtime branch from a message
@@ -195,7 +205,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   const organizer=host?createVersionOrganizer({host,store:workbench.store,getPreferences:()=>secretaryPreferences.get({language:preferences.get().language}),getProject:async id=>{
     const {meta}=await workbench.project(id);return {name:meta.name,goal:meta.desc||''};
   }}):null;
-  const execution=host?createExecutionService({host,database,chatStore,bindings,onTurnPersisted:payload=>{void events.emit('chat.turn.persisted',payload);}}):null;
+  const execution=host?createExecutionService({host,database,chatStore,bindings,onTurnPersisted:payload=>{void events.emit('chat.turn.persisted',payload);},onPythonEnvironmentRefreshReady:payload=>schedulePythonEnvironmentRefresh(payload)}):null;
   // The secretary's running minutes of each conversation, and read-only
   // history tools for the Main expert and every expert (2026-09-26).
   const summaryPreferences=()=>secretaryPreferences.get({language:preferences.get().language});
@@ -218,11 +228,18 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   const researchToolCall=createScopedResearchTools({research,projectIds:async()=> (await chatStore.getWorkspace()).projects.map(project=>project.id)});
   async function startContextSession(options,ctx){
     const sessionId=options.sessionId||'session-'+randomUUID().replaceAll('-','');
+    const resolved=await python.resolve({chatId:ctx.chatId,projectId:ctx.projectId,envId:options.pythonEnvId});
     startingContexts.set(sessionId,ctx);
-    try{return await host.startSession({...options,sessionId});}finally{startingContexts.delete(sessionId);}
+    try{
+      const {pythonEnvId,...runtimeOptions}=options;
+      const result=await host.startSession({...runtimeOptions,sessionId,sessionEnv:{pathPrepend:resolved.pathPrepend||[],env:resolved.env||{}}});
+      sessionPython.set(sessionId,{key:pythonKey(resolved),resolved});
+      while(sessionPython.size>200)sessionPython.delete(sessionPython.keys().next().value);
+      return result;
+    }finally{startingContexts.delete(sessionId);}
   }
   const discussions=host?.runExperts?createDiscussionService({host,chatStore,db:database.db,toolActivity,minutes,memoryGuide:contextRules('expert')}):null;
-  const assistants=createAssistantChatService({host,conversations,chatStore,dataRoot,roleSettings,contextAccess,startContextSession});
+  const assistants=createAssistantChatService({host,conversations,chatStore,dataRoot,roleSettings,contextAccess,startContextSession,needsPythonRefresh,bindPython:input=>python.bind(input),pythonContextBrief});
   // Agent tools answered by the Research Base. The session decides the chat,
   // project and role; nothing in the model's arguments can widen that scope.
   function toolContext(sessionId,expertId){
@@ -235,11 +252,29 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     const projectChat=assistant?.scope==='secretary'?assistant.owner_id:assistant?null:chatId;
     return {chatId,mainChatId:projectChat||null,projectId:projectChat?chatStore.getChat(projectChat)?.projectId??null:null,role:expertId?'expert':assistant?assistant.scope:'main',...(expertId?{expertId}:{}),messageId:expertId?expertTurnMessages.get(expertTurnKey(sessionId,expertId))?.messageId:turnMessages.get(sessionId)};
   }
-  host?.setToolHandler?.(async({sessionId,name,args,callId,expertId})=>{
+  host?.setToolHandler?.(async({sessionId,name,args,callId,expertId,signal})=>{
     const ctx={...toolContext(sessionId,expertId),callId};
     const tools=buildContextTools(ctx.role);
     if(name==='__manifest')return {contextApi:CONTEXT_API_VERSION,tools};
     if(!tools.some(tool=>tool.name===name))throw new ContextAccessError('TOOL_NOT_ALLOWED','This tool is not available in this session.');
+    if(name==='python_env_install'){
+      const resolved=sessionPython.get(sessionId)?.resolved;
+      if(!resolved||resolved.kind!=='managed')throw new PythonEnvironmentError('MANAGED_ENVIRONMENT_REQUIRED','请先选择受管 Python 环境，不能安装到系统 Python。');
+      const settings=await python.getSettings();
+      const assistant=database.db.prepare('SELECT scope,owner_id FROM assistant_conversations WHERE chat_id=?').get(ctx.chatId);
+      const mode=assistant?conversations.getSettings(assistant.scope,assistant.owner_id).executionMode:(await execution.status(ctx.chatId)).mode;
+      // Validate before asking; the command is never assembled from raw model input.
+      const packages=await python.validatePackages(args?.packages);
+      if(typeof args?.reason!=='string'||!args.reason.trim())throw new PythonEnvironmentError('INVALID_REASON','请说明安装软件包的原因。');
+      let allowed=mode==='full'&&settings.autoApproveFull===true;
+      if(!allowed){
+        if(typeof host.requestApplicationApproval!=='function')throw new PythonEnvironmentError('APPROVAL_UNAVAILABLE','当前运行时不支持软件包安装审批；没有执行安装。',503);
+        allowed=await host.requestApplicationApproval({sessionId,toolName:name,reason:args.reason,packages,targetEnvironment:resolved.name||resolved.envId,expertId,signal});
+      }
+      if(!allowed)return {installed:false,envId:resolved.envId,requestedPackages:packages,reason:'用户拒绝或取消了安装。'};
+      const result=await python.packages({envId:resolved.envId,action:'add',packages,actor:ctx.role,reason:args.reason});
+      return {installed:true,envId:resolved.envId,requestedPackages:packages,environmentPackages:result.packages};
+    }
     return name.startsWith('research_')?researchToolCall(name,args??{},ctx):contextAccess.call(name,args??{},ctx);
   });
   // The project brief (confirmed long-term memory) is a system-prompt section
@@ -247,33 +282,121 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   async function refreshBrief(binding,projectId,chatId,messageId){
     if(!host?.configureBrief)return;
     const brief=research.retrieval.brief({projectId:projectId??null});
+    const pythonBrief=await pythonContextBrief(chatId,projectId);
     // The history lookup rules are a stable part of the Main expert's system prompt.
-    const text=`${brief.text?`${brief.text}\n\n`:''}${contextRules('main')}`;
+    const text=`${brief.text?`${brief.text}\n\n`:''}${contextRules('main')}\n\n${pythonBrief}`;
     if(binding.briefText!==text){await host.configureBrief({sessionId:binding.sessionId,text});binding.briefText=text;}
     if(brief.refs.length&&messageId)research.store.recordUsage({chatId,messageId,refs:brief.refs,how:'brief'});
   }
-  async function restoreExecution(chatId){
-    if(bindings.has(chatId))return bindings.get(chatId);
+  async function restoreExecution(chatId,{refreshEnvironment=false}={}){
     const chat=chatStore.getChat(chatId);if(!chat?.model||!chatStore.getBinding(chatId))throw new Error('CHAT_NOT_FOUND');
-    const sessionId=await startContextSession({model:chat.model,workspace:chatStore.getRuntimeWorkspace(chatId),runtimeConfig:await host.getRuntimeConfig?.(),sessionId:chatStore.getBinding(chatId),persona:roleSettings.bind(chatId,'main',{existing:true}).prompt},{role:'main',chatId,mainChatId:chatId,projectId:chat.projectId??null});
-    const binding={sessionId,modelKey:JSON.stringify(chat.model),lastUsed:Date.now()};bindings.set(chatId,binding);
+    let binding=bindings.get(chatId);
+    if(binding&&refreshEnvironment&&!execution.busy(chatId)&&await needsPythonRefresh(binding.sessionId,chatId,chat.projectId??null)){
+      await host.waitForSessionIdle?.(binding.sessionId);
+      await execution.waitForTurnWrites(chatId);
+      if(!bindings.has(chatId)||bindings.get(chatId)!==binding)return restoreExecution(chatId,{refreshEnvironment});
+    }
+    if(binding&&refreshEnvironment&&!execution.busy(chatId)&&await needsPythonRefresh(binding.sessionId,chatId,chat.projectId??null)){
+      await host.releaseSession(binding.sessionId);bindings.delete(chatId);binding=null;
+    }
+    if(!binding){
+      const sessionId=await startContextSession({model:chat.model,workspace:chatStore.getRuntimeWorkspace(chatId),runtimeConfig:await host.getRuntimeConfig?.(),sessionId:chatStore.getBinding(chatId),persona:roleSettings.bind(chatId,'main',{existing:true}).prompt},{role:'main',chatId,mainChatId:chatId,projectId:chat.projectId??null});
+      binding={sessionId,modelKey:JSON.stringify(chat.model),lastUsed:Date.now()};bindings.set(chatId,binding);
+    }
+    await refreshBrief(binding,chat.projectId??null,chatId);
     const status=await execution.status(chatId);await execution.configure(chatId,binding,status.mode);return binding;
+  }
+  const pythonEnvironmentRefreshes=new Set();
+  async function performPythonEnvironmentRefresh({chatId,sessionId,goal}){
+    const key=JSON.stringify([chatId,sessionId]);
+    if(pythonEnvironmentRefreshes.has(key))return;
+    pythonEnvironmentRefreshes.add(key);
+    try{
+      const binding=bindings.get(chatId),chat=chatStore.getChat(chatId);
+      if(!binding||binding.sessionId!==sessionId||!chat||chat.deletedAt)return;
+      await host.waitForSessionIdle?.(sessionId);
+      await execution.waitForTurnWrites(chatId);
+      const currentGoal=await host.getGoal(sessionId);
+      if(!currentGoal||currentGoal.id!==goal?.id||currentGoal.revision!==goal?.revision||currentGoal.phase!=='paused')return;
+      const resolved=await python.resolve({chatId,projectId:chat.projectId??null});
+      const previous=sessionPython.get(sessionId);
+      if(previous?.key!==pythonKey(resolved)){
+        bindings.delete(chatId);
+        await host.releaseSession(sessionId);
+        const resumedId=await startContextSession({
+          model:chat.model,workspace:chatStore.getRuntimeWorkspace(chatId),runtimeConfig:await host.getRuntimeConfig?.(),
+          sessionId,persona:roleSettings.bind(chatId,'main',{existing:true}).prompt,
+        },{role:'main',chatId,mainChatId:chatId,projectId:chat.projectId??null});
+        const nextBinding={sessionId:typeof resumedId==='string'?resumedId:resumedId.sessionId,modelKey:JSON.stringify(chat.model),lastUsed:Date.now()};
+        bindings.set(chatId,nextBinding);
+        await refreshBrief(nextBinding,chat.projectId??null,chatId);
+        const status=await execution.status(chatId);
+        await execution.configure(chatId,nextBinding,status.mode);
+        const currentAfterRestart=await host.getGoal(nextBinding.sessionId);
+        if(!currentAfterRestart||currentAfterRestart.id!==goal.id||currentAfterRestart.revision!==goal.revision||currentAfterRestart.phase!=='paused')return;
+        await execution.resumeAfterPythonEnvironmentRefresh(chatId,nextBinding,{id:goal.id,revision:goal.revision});
+      }else{
+        await execution.resumeAfterPythonEnvironmentRefresh(chatId,binding,{id:goal.id,revision:goal.revision});
+      }
+    }catch(error){
+      execution.failPythonEnvironmentRefresh(chatId);
+      onError?.(error);
+    }finally{pythonEnvironmentRefreshes.delete(key);}
+  }
+  function schedulePythonEnvironmentRefresh(request){
+    // The child must acknowledge the event before its harness is closed.
+    setImmediate(()=>{void performPythonEnvironmentRefresh(request);});
+  }
+  async function automaticChatIdsForBinding(scope,targetId){
+    const result=[];
+    for(const [chatId,binding] of bindings){
+      if(!execution?.busy(chatId))continue;
+      const chat=chatStore.getChat(chatId);
+      if(!chat||chat.deletedAt)continue;
+      if(scope==='chat'&&chatId!==targetId)continue;
+      if(scope==='project'&&chat.projectId!==targetId)continue;
+      result.push({chatId,binding,chat});
+    }
+    return result;
+  }
+  async function scheduleBoundPythonRefresh(scope,targetId){
+    const automatic=await automaticChatIdsForBinding(scope,targetId);
+    for(const entry of automatic){
+      if(!await needsPythonRefresh(entry.binding.sessionId,entry.chatId,entry.chat.projectId??null))continue;
+      if(typeof host.scheduleSessionEnvRefresh!=='function')throw new PythonEnvironmentError('ENVIRONMENT_REFRESH_UNAVAILABLE','运行时无法在自动化轮次间安全切换环境；未继续更改当前会话。',503);
+      await host.scheduleSessionEnvRefresh(entry.binding.sessionId);
+    }
+    return automatic.length;
+  }
+  async function scheduleDefaultPythonRefresh(){
+    const automatic=await automaticChatIdsForBinding();
+    for(const entry of automatic){
+      if(!await needsPythonRefresh(entry.binding.sessionId,entry.chatId,entry.chat.projectId??null))continue;
+      if(typeof host.scheduleSessionEnvRefresh!=='function')throw new PythonEnvironmentError('ENVIRONMENT_REFRESH_UNAVAILABLE','运行时无法在自动化轮次间安全切换环境；未继续更改当前会话。',503);
+      await host.scheduleSessionEnvRefresh(entry.binding.sessionId);
+    }
+    return automatic.length;
   }
   // Shared by Main turns and expert discussions: start (or resume) the chat's
   // DSH session and persist its binding exactly once.
   async function ensureMainBinding({key,input,projectFolder,modelRoute,modelKey,reasoningEffort}) {
+    if(bindings.has(key)&&await needsPythonRefresh(bindings.get(key).sessionId,input.chatId,input.projectId)){
+      await host.releaseSession(bindings.get(key).sessionId);bindings.delete(key);
+    }
     if (bindings.has(key)) return bindings.get(key);
     const originalWorkspace = chatStore.getRuntimeWorkspace(input.chatId);
+    const firstAcceptedMessage = !chatStore.getChat(input.chatId);
     // An independent chat's working folder is chosen once, in the creation
     // dialog, and applies when the chat is first created.
     const chosen = !input.temporary && !originalWorkspace && !input.projectId ? await independentFolder(input.chatId, input.workspaceChoice) : null;
     const workspace = input.temporary ? path.join(dataRoot,'.sciencescope-local','temp','quick',input.chatId) : (originalWorkspace || projectFolder || chosen || path.join(projects,'independent'));
     await mkdir(workspace,{recursive:true});
     const persona=input.temporary?roleSettings.get('main').prompt:roleSettings.bind(input.chatId,'main',{existing:!!chatStore.getBinding(input.chatId)}).prompt;
-    const session = await startContextSession({model:{...modelRoute,...(reasoningEffort === undefined ? {} : {reasoningEffort})},workspace,runtimeConfig:host.getRuntimeConfig ? await host.getRuntimeConfig() : undefined,sessionId:input.temporary ? undefined : chatStore.getBinding(input.chatId) ?? undefined,persona},{role:input.temporary?'temporary':'main',chatId:input.chatId,mainChatId:input.temporary?null:input.chatId,projectId:input.projectId??null});
+    const session = await startContextSession({model:{...modelRoute,...(reasoningEffort === undefined ? {} : {reasoningEffort})},workspace,runtimeConfig:host.getRuntimeConfig ? await host.getRuntimeConfig() : undefined,sessionId:input.temporary ? undefined : chatStore.getBinding(input.chatId) ?? undefined,persona,pythonEnvId:firstAcceptedMessage?input.pythonEnvId:undefined},{role:input.temporary?'temporary':'main',chatId:input.chatId,mainChatId:input.temporary?null:input.chatId,projectId:input.projectId??null});
     bindings.set(key,{sessionId:typeof session === 'string' ? session : session.sessionId,modelKey,lastUsed:Date.now()});
     if (!input.temporary) {
       await chatStore.ensureChat({chatId:input.chatId,projectId:input.projectId ?? null,title:input.title || input.text,model:input.model});
+      if(firstAcceptedMessage&&input.pythonEnvId!==undefined)await python.bind({scope:'chat',targetId:input.chatId,envId:input.pythonEnvId});
       await chatStore.markRuntimeBinding(input.chatId,bindings.get(key).sessionId,workspace);
     }
     return bindings.get(key);
@@ -378,6 +501,16 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     }
       if (route === '/api/status' && request.method === 'GET') { json(response,200,capabilities); return true; }
       try {
+      if(route==='/api/python/envs'&&request.method==='GET'){json(response,200,await python.list());return true;}
+      if(route==='/api/python/settings'&&request.method==='GET'){json(response,200,await python.getSettings());return true;}
+      if(route==='/api/python/system'&&request.method==='GET'){json(response,200,await python.detectSystem());return true;}
+      if(route==='/api/python/logs'&&request.method==='GET'){json(response,200,{logs:await python.getLogs(requestUrl.searchParams.get('envId'))});return true;}
+      if(route==='/api/python/resolve'&&request.method==='GET'){
+        const chatId=requestUrl.searchParams.get('chatId');
+        const projectId=chatId?chatStore.getChat(chatId)?.projectId:requestUrl.searchParams.get('projectId');
+        const resolved=await python.resolve({chatId,projectId});
+        json(response,200,{...resolved,applicationTiming:'next-turn'});return true;
+      }
       const chatMatch = route.match(/^\/api\/chats\/([^/]+)(?:\/messages)?$/u);
       if(route==='/api/chat/search'&&request.method==='GET'){json(response,200,chatSearch.search(requestUrl.searchParams.get('q')));return true;}
       if(route==='/api/chat/outbox'&&request.method==='GET') {
@@ -555,7 +688,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         }catch{json(response,400,{message:'无法保存队列；请检查文本、模型与策略，队列最多 20 条。'});}
         return true;
       }
-      if(route==='/api/execution/goal'){if(!execution)throw new Error('RUNTIME_UNAVAILABLE');const binding=await restoreExecution(input.chatId);json(response,200,await execution.action(input.chatId,binding,input.action));return true;}
+      if(route==='/api/execution/goal'){if(!execution)throw new Error('RUNTIME_UNAVAILABLE');const binding=await restoreExecution(input.chatId,{refreshEnvironment:input.action==='resume'});json(response,200,await execution.action(input.chatId,binding,input.action));return true;}
       if(route==='/api/execution/approval'){if(!execution)throw new Error('RUNTIME_UNAVAILABLE');await execution.approve(input.chatId,input.requestId,input.allowed===true);json(response,200,{answered:true});return true;}
       if(route==='/api/library/import'){
         const resource=await library.importFile(input);
@@ -601,6 +734,35 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if (route === '/api/workbench/save') { const saved=await workbench.call(input.projectId,'save',{revision:input.revision,map:input.map,logs:input.logs,autoOrganize:input.autoOrganize}); void events.emit('workbench.changed',{projectId:input.projectId}); json(response,200,saved); return true; }
       if (route === '/api/workbench/bind') { const {folder}=await validateWorkFolder(input.folder,{dataRoot}); json(response,200,await workbench.call(input.projectId,'bind',folder)); return true; }
       if (route === '/api/folders/check') { json(response,200,await validateWorkFolder(input.folder,{dataRoot})); return true; }
+      if(route==='/api/python/settings'){
+        const previous=await python.getSettings(),updated=await python.updateSettings(input);
+        try{await scheduleDefaultPythonRefresh();}catch(error){
+          await python.updateSettings({defaultEnvId:previous.defaultEnvId,indexUrl:previous.indexUrl,autoApproveFull:previous.autoApproveFull});
+          throw error;
+        }
+        json(response,200,updated);return true;
+      }
+      if(route==='/api/python/envs'){json(response,200,input.action==='builtin'?await python.ensureBuiltin():await python.operate(input));return true;}
+      if(route==='/api/python/envs/packages'){json(response,200,await python.packages({...input,actor:'user'}));return true;}
+      if(route==='/api/python/cache/prune'){json(response,200,await python.cachePrune());return true;}
+      if(route==='/api/python/bind'){
+        const exists=input.scope==='project'?(await chatStore.getWorkspace()).projects.some(project=>project.id===input.targetId):input.scope==='chat'&&!!chatStore.getChat(input.targetId);
+        if(!exists)throw new PythonEnvironmentError('BINDING_TARGET_NOT_FOUND','找不到环境绑定目标。',404);
+        const previous=database.db.prepare('SELECT env_id FROM python_env_bindings WHERE scope=? AND target_id=?').get(input.scope,input.targetId);
+        const result=await python.bind(input);
+        try{await scheduleBoundPythonRefresh(input.scope,input.targetId);}catch(error){
+          await python.bind({scope:input.scope,targetId:input.targetId,envId:previous?.env_id??null});
+          throw error;
+        }
+        json(response,200,{...result,applicationTiming:'next-turn'});return true;
+      }
+      if(route==='/api/python/export'){
+        const text=await python.exportManifest(input.envId);
+        const output=path.join(dataRoot,'.sciencescope-local','exports','python',String(input.envId),'requirements.txt');
+        await mkdir(path.dirname(output),{recursive:true});
+        await writeFile(output,text,{encoding:'utf8'});
+        json(response,200,{text,path:output});return true;
+      }
       if (route === '/api/workbench/import') {
         if (typeof input.base64 !== 'string' || Buffer.byteLength(input.base64,'base64') > workbench.MAX_UPLOAD) throw new WorkbenchApiError('REQUEST_TOO_LARGE','上传文件不能超过 20MiB。',413);
         const version=await workbench.call(input.projectId,'importFile',{name:input.name,base64:input.base64,group:input.group});
@@ -756,13 +918,13 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         const recall=!input.temporary?await recallForTurn(research.retrieval,{text:input.text,projectId:currentProject?.id??null,briefRefs:research.retrieval.brief({projectId:currentProject?.id??null}).refs}):{text:'',refs:[]};
         if(recall.refs.length)research.store.recordUsage({chatId:input.chatId,messageId:input.assistantMessageId,refs:recall.refs,how:'recall'});
         const recallText=recall.text?recall.text+'\n\n':'';
+        if(!input.temporary)await refreshBrief(bindings.get(key),currentProject?.id??null,input.chatId,input.assistantMessageId);
         if(executionMode==='auto'){
           const goal=await execution.start(key,bindings.get(key),contextPrefix+panelNews.text+recallText+compiled.text,input.goalMaxRounds);panelNews.commit();
           emit({type:'goal-started',goal});emit({type:'completed',text:'',background:true});response.end();return true;
         }
         try {
           if(run)run.sending=true;
-          if(!input.temporary)await refreshBrief(bindings.get(key),currentProject?.id??null,input.chatId,input.assistantMessageId).catch(error=>onError?.(error));
           turnMessages.set(bindings.get(key).sessionId,input.assistantMessageId);
           try{await host.send({sessionId:bindings.get(key).sessionId,text:contextPrefix + panelNews.text + recallText + compiled.text,onEvent});}
           finally{turnMessages.delete(bindings.get(key)?.sessionId);}
@@ -812,6 +974,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(!response.headersSent&&error instanceof SummaryWorkbenchError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof ContextAccessError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof ResearchBaseError){json(response,error.status,{code:error.code,message:error.message});return true;}
+      if(!response.headersSent&&error instanceof PythonEnvironmentError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&(error instanceof ExpertRosterError||error instanceof DiscussionError)){json(response,error.status,{code:error.code,message:error.message});return true;}
       if (error instanceof WorkbenchApiError||error instanceof RoleSettingsError||error instanceof SkillManagerError) { json(response,error.status,{code:error.code,message:error.message}); return true; }
       // Raw runtime errors can contain credentials or provider payloads.
@@ -822,10 +985,11 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     return true;
   }
   void events.emit('app.started',{});
+  if(pythonBootstrap)void python.ensureBuiltin().catch(error=>onError?.(error));
   return {handle,close:async()=>{
     await summaryPolicy.shutdown();await summaryPolicy.close();
     const draining=events.close();
     await Promise.all([summaryWorkbench.close(),minutes.close()]);await draining;
-    await assistants.close();await Promise.allSettled([host?.close(),web?.close(),skills.close()]);await execution?.close();await chatStore.queue;await profileStore.queue;await research.ingest.idle();await semantic.close();chatStore.close?.();profileStore.close?.();
+    await assistants.close();await Promise.allSettled([host?.close(),web?.close(),skills.close(),python.close()]);await execution?.close();await chatStore.queue;await profileStore.queue;await research.ingest.idle();await semantic.close();chatStore.close?.();profileStore.close?.();
   }};
 }

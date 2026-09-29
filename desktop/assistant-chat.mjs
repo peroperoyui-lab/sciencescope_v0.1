@@ -4,6 +4,7 @@ import {renderMarkdown} from './markdown.mjs';
 import {composerMenu} from './composer-menu.mjs';
 import {recordTool,activityHTML} from './turn-activity.mjs';
 import {infoTip} from './info-tip.mjs';
+import {showPythonChoice} from './python-settings.mjs';
 
 const entries=new Map();
 const navigation=new BroadcastChannel('sciencescope-navigation');
@@ -35,7 +36,7 @@ function surfaceHTML(scope){
     <div class="assistant-proposals"></div>
     ${scope==='secretary'?'<div class="assistant-summary-proposals"></div>':''}
     <div class="composer assistant-composer"><div class="assistant-attachments"></div><textarea data-assistant-input aria-label="${label(scope)}输入" placeholder="${scope==='global'?'哪些项目还有待办？也可以指定项目查阅。':'先问清楚，再决定下一步…'}"></textarea>
-    <div class="composerbar"><button data-assistant-action="upload" class="iconbtn" title="添加文件">${ic('plus')}</button><button data-assistant-action="policy" class="btn tiny">询问</button><span class="spacer"></span><button data-assistant-action="model" class="btn assistant-model">选择模型</button><button data-assistant-action="effort" class="btn tiny">模型默认</button><button data-assistant-action="send" class="sendbtn" aria-label="发送给${label(scope)}">${ic('arrow')}</button><button data-assistant-action="stop" class="sendbtn" aria-label="停止回复" hidden>■</button></div></div>
+    <div class="composerbar"><button data-assistant-action="upload" class="iconbtn" title="添加文件">${ic('plus')}</button><button data-assistant-action="policy" class="btn tiny">询问</button><button data-assistant-action="python" class="btn tiny" title="Python 环境">Py</button><span class="spacer"></span><button data-assistant-action="model" class="btn assistant-model">选择模型</button><button data-assistant-action="effort" class="btn tiny">模型默认</button><button data-assistant-action="send" class="sendbtn" aria-label="发送给${label(scope)}">${ic('arrow')}</button><button data-assistant-action="stop" class="sendbtn" aria-label="停止回复" hidden>■</button></div></div>
   </section>`;
 }
 function paint(e,{messages=true,bottom=false}={}){
@@ -48,7 +49,7 @@ function paint(e,{messages=true,bottom=false}={}){
   const policy=surface.querySelector('[data-assistant-action="policy"]');policy.textContent=e.executionMode==='full'?'完全接管':'询问';policy.classList.toggle('policy-caution',e.executionMode==='full');
   surface.querySelector('[data-assistant-action="effort"]').textContent=e.reasoningEffort||'模型默认';
   surface.querySelector('.assistant-attachments').innerHTML=e.attachments.map(file=>`<span class="ref-chip">${esc(file.title)}<button data-assistant-action="remove-attachment" data-id="${esc(file.id)}" aria-label="移除附件">×</button></span>`).join('');
-  const approvalHTML=e.approvals.map(a=>`<div class="assistant-approval"><strong>需要确认：${esc(a.toolName||'工具')}</strong><p>${esc(a.reason||'运行时请求操作授权。')}</p><button data-assistant-action="approve" data-request="${esc(a.requestId)}" class="btn tiny">允许这次</button> <button data-assistant-action="reject" data-request="${esc(a.requestId)}" class="btn tiny">拒绝</button></div>`).join('');
+  const approvalHTML=e.approvals.map(a=>`<div class="assistant-approval"><strong>需要确认：${esc(a.toolName||'工具')}</strong><p>${esc(a.reason||'运行时请求操作授权。')}</p>${a.targetEnvironment?`<p><span>目标环境</span> · ${esc(a.targetEnvironment)}</p><pre>${esc((a.packages||[]).join('\n'))}</pre>`:''}<button data-assistant-action="approve" data-request="${esc(a.requestId)}" class="btn tiny">允许这次</button> <button data-assistant-action="reject" data-request="${esc(a.requestId)}" class="btn tiny">拒绝</button></div>`).join('');
   const approvalBox=surface.querySelector('.assistant-approvals');if(approvalBox._html!==approvalHTML){approvalBox.innerHTML=approvalHTML;approvalBox._html=approvalHTML;}
   const proposals=(e.proposals||[]).filter(p=>p.status==='pending');
   const proposalBox=surface.querySelector('.assistant-proposals'),proposalKey=proposals.map(p=>p.id).join(',');
@@ -189,6 +190,12 @@ window.addEventListener('click',async event=>{
       e.proposals=e.proposals.filter(p=>p.id!==button.dataset.id);paint(e,{messages:false});return;
     }
     if(action==='stop'){await hostRequest('assistant/stop',{scope:e.scope,ownerId:e.ownerId});return;}
+    if(action==='python'){
+      await showPythonChoice(button,{scope:'chat',targetId:e.chat?.id,onChoose:async envId=>{
+        if(!e.chat?.id){if(!e.model)throw new Error('请先选择模型。');await hostRequest('assistant/model',{scope:e.scope,ownerId:e.ownerId,model:e.model});const snapshot=await hostRequest('assistant?'+new URLSearchParams({scope:e.scope,ownerId:e.ownerId}));e.chat=snapshot.chat;}
+        await hostRequest('python/bind',{scope:'chat',targetId:e.chat.id,envId});
+      }});return;
+    }
     if(action==='model'){
       if(e.running||e.sending)return toast('请先停止或等待本轮回复完成。');
       const {providers}=await hostRequest('providers');

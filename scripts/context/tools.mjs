@@ -4,6 +4,14 @@ const refParam = { type: 'object', additionalProperties: false, description: 'A 
 // Host-owned value-schema manifest; the runtime adapter only registers/forwards.
 const BASE = [
 {
+      name: 'python_env_install',
+      description: 'Install named packages in this session\'s selected managed Python environment. Never installs to system Python. Explain why the packages are needed; the host asks the user unless full-mode automatic installation was explicitly enabled. Do not use pip or shell to bypass this approval.',
+      parameters: {
+        packages: {type:'array',required:true,items:{type:'string'},description:'Package names and version constraints only; no URLs, local paths or command options.'},
+        reason: {type:'string',required:true,description:'Why these packages are needed for the current task.'},
+      },
+},
+{
       name: 'chat_recall',
       description: 'Read this conversation\'s history exactly as written. Give query or queries for hybrid search (message numbers with excerpts), or from/to to read messages #from–#to in full. For search, include Chinese and English phrasings when possible. Use it whenever the minutes or a message refers to something you have not seen.',
       parameters: {

@@ -20,8 +20,9 @@ async function pythonEnvs() {
 const pythonLabel = (id, tip) => `<label class="label" for="${id}">Python 环境${infoTip(tip, {label: 'Python 环境说明'})}</label>`;
 function envField(id, envs) {
   if (!envs?.envs) return `<div class="field creation-python">${pythonLabel(id, '模型运行 Python 时使用这台电脑上已安装的 Python。')}<select id="${id}" data-system-only><option value="system">系统 Python</option></select></div>`;
-  const selected = envs.defaultEnvId || envs.envs[0]?.id || 'system';
-  const options = envs.envs.map(env => `<option value="${esc(env.id)}" ${env.id === selected ? 'selected' : ''}>${esc(env.name)}${env.version ? ` · Python ${esc(env.version)}` : ''}</option>`).join('');
+  const usable=env=>!env.status||['ready','partial'].includes(env.status);
+  const selected = envs.defaultEnvId==='system'?'system':envs.envs.find(env=>env.id===envs.defaultEnvId&&usable(env))?.id||'system';
+  const options = envs.envs.map(env => `<option value="${esc(env.id)}" ${env.id === selected ? 'selected' : ''} ${usable(env)?'':'disabled'}>${esc(env.name)}${env.version ? ` · Python ${esc(env.version)}` : ''}${usable(env)?'':' · '+(env.status==='creating'||env.status==='installing'?'正在安装':'不可用')}</option>`).join('');
   const system = `<option value="system" ${selected === 'system' ? 'selected' : ''}>系统 Python${envs.system?.available ? ` · ${esc(envs.system.version || '')}` : '（未检测到）'}</option>`;
   return `<div class="field creation-python">${pythonLabel(id, '模型运行 Python 时使用这个环境。以后可以在对话菜单中更换。')}<select id="${id}">${options}${system}</select></div>`;
 }

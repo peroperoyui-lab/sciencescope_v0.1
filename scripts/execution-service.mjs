@@ -1,5 +1,5 @@
 // Policy is enforced by DSH; this is only the desktop's control and projection.
-export function createExecutionService({host,database,chatStore,bindings,onTurnPersisted=()=>{}}){
+export function createExecutionService({host,database,chatStore,bindings,onTurnPersisted=()=>{},onPythonEnvironmentRefreshReady=()=>{}}){
   const sql=database.db;
   sql.exec(`CREATE TABLE IF NOT EXISTS execution_sessions(chat_id TEXT PRIMARY KEY,mode TEXT NOT NULL,goal_json TEXT);`);
   const rows=new Map(),writes=new Map();
@@ -8,7 +8,7 @@ export function createExecutionService({host,database,chatStore,bindings,onTurnP
   function attach(id,binding){
     if(rows.has(id)&&rows.get(id).binding===binding)return rows.get(id);
     rows.get(id)?.unsubscribe?.();
-    const state={...stored(id),binding,sessionId:binding.sessionId,approvals:new Map(),preview:'',automatic:false};rows.set(id,state);
+    const state={...stored(id),binding,sessionId:binding.sessionId,approvals:new Map(),preview:'',automatic:false,turnEnds:new Map(),lastRunIdleSequence:0};rows.set(id,state);
     state.unsubscribe=host.observeSession(binding.sessionId,frame=>{
       const event=frame.type==='control-event'?frame.event:frame;
       if(event.type==='session-event'&&event.eventType==='goal/change'){
@@ -20,6 +20,31 @@ export function createExecutionService({host,database,chatStore,bindings,onTurnP
       if(event.type==='goal-activation'&&event.goal){if(state.goal)state.goal.activation=event.goal.activation;if(event.goal.activation==='disarmed')binding.goalActive=false;}
       if(event.type==='approval-request')state.approvals.set(event.requestId,event);
       if(event.type==='approval-cancelled')state.approvals.delete(event.requestId);
+      if(event.type==='python-env-refresh-ready'&&event.goal&&event.sessionId===state.sessionId){
+        state.goal={...event.goal,activation:'disarmed'};binding.goalActive=false;
+        const refresh={goal:state.goal,turn:event.turn,source:event.source,turnEndSequence:state.turnEnds.get(event.turn)??null,idleSequence:state.lastRunIdleSequence,timer:null,finalizing:false};
+        state.pythonEnvironmentRefresh=refresh;
+        refresh.timer=setTimeout(()=>{
+          if(state.pythonEnvironmentRefresh!==refresh)return;
+          state.pythonEnvironmentRefresh=null;failPythonEnvironmentRefresh(id);
+        },30000);
+        refresh.timer.unref?.();
+        maybeCompletePythonEnvironmentRefresh(id,state);
+      }
+      if(event.type==='python-env-refresh-failed'&&event.sessionId===state.sessionId)failPythonEnvironmentRefresh(id);
+      if(event.type==='committed-event'&&event.eventType==='turn/end'&&Number.isSafeInteger(event.data?.turn)){
+        state.turnEnds.set(event.data.turn,frame.sequence);
+        while(state.turnEnds.size>8)state.turnEnds.delete(state.turnEnds.keys().next().value);
+        const refresh=state.pythonEnvironmentRefresh;
+        if(refresh&&refresh.turn===event.data.turn)refresh.turnEndSequence=frame.sequence;
+        maybeCompletePythonEnvironmentRefresh(id,state);
+      }
+      if(frame.type==='run-idle'){
+        if(Number.isSafeInteger(frame.sequence))state.lastRunIdleSequence=frame.sequence;
+        const refresh=state.pythonEnvironmentRefresh;
+        if(refresh&&Number.isSafeInteger(frame.sequence))refresh.idleSequence=frame.sequence;
+        maybeCompletePythonEnvironmentRefresh(id,state);
+      }
       if(state.automatic&&event.type==='stream-start')state.preview='';
       if(state.automatic&&event.type==='text-delta')state.preview+=event.delta;
       if(state.automatic&&event.type==='committed-event'&&event.eventType==='assistant/message'&&event.data?.text){
@@ -28,6 +53,21 @@ export function createExecutionService({host,database,chatStore,bindings,onTurnP
       }
     });
     return state;
+  }
+  function maybeCompletePythonEnvironmentRefresh(id,state){
+    const refresh=state.pythonEnvironmentRefresh;
+    if(!refresh||refresh.finalizing||refresh.turnEndSequence===null||refresh.idleSequence===null||refresh.idleSequence<=refresh.turnEndSequence)return;
+    refresh.finalizing=true;
+    clearTimeout(refresh.timer);
+    void (async()=>{
+      await writes.get(id);
+      if(state.error==='自动化结果保存失败，请暂停并检查本地存储。')throw new Error('automatic turn output did not persist');
+      await onPythonEnvironmentRefreshReady({chatId:id,sessionId:state.sessionId,goal:refresh.goal,source:refresh.source});
+      if(state.pythonEnvironmentRefresh===refresh)state.pythonEnvironmentRefresh=null;
+    })().catch(()=>{
+      if(state.pythonEnvironmentRefresh===refresh)state.pythonEnvironmentRefresh=null;
+      failPythonEnvironmentRefresh(id);
+    });
   }
   async function configure(id,binding,mode){
     if(!['ask','full','auto'].includes(mode))throw new TypeError('INVALID_EXECUTION_MODE');
@@ -73,8 +113,26 @@ export function createExecutionService({host,database,chatStore,bindings,onTurnP
     }else throw new Error('INVALID_GOAL_ACTION');
     persist(id,state);return status(id);
   }
-  async function approve(id,requestId,allowed){const state=rows.get(id);if(!state?.approvals.has(requestId))throw new Error('APPROVAL_EXPIRED');await host.replyApproval({sessionId:state.sessionId,requestId,outcome:allowed?'allowed-once':'rejected'});state.approvals.delete(requestId);}
+  async function resumeAfterPythonEnvironmentRefresh(id,binding,ref){
+    const state=attach(id,binding),goal=await host.getGoal(binding.sessionId);
+    if(!goal||goal.id!==ref?.id||goal.revision!==ref?.revision||goal.phase!=='paused')return false;
+    try{
+      state.goal=await host.resumeGoal({sessionId:binding.sessionId,ref:{id:ref.id,revision:ref.revision}});
+      state.automatic=true;binding.goalActive=true;state.error=undefined;persist(id,state);return true;
+    }catch(error){
+      state.automatic=false;binding.goalActive=false;
+      if(error?.code==='GOAL_STALE_REVISION')return false;
+      throw error;
+    }
+  }
+  async function approve(id,requestId,allowed){
+    const state=rows.get(id);if(!state?.approvals.has(requestId))throw new Error('APPROVAL_EXPIRED');
+    try{await host.replyApproval({sessionId:state.sessionId,requestId,outcome:allowed?'allowed-once':'rejected'});}
+    finally{state.approvals.delete(requestId);}
+  }
+  function failPythonEnvironmentRefresh(id){const state=rows.get(id);if(!state)return;state.error='Python 环境切换未完成；自动化目标已暂停，请检查环境后手动继续。';try{persist(id,state);}catch{}}
+  async function waitForTurnWrites(id){await writes.get(id);}
   function busy(id){return bindings.get(id)?.goalActive===true;}
   async function close(){for(const state of rows.values())state.unsubscribe?.();await Promise.allSettled(writes.values());}
-  return {configure,status,start,action,approve,busy,snapshot,close};
+  return {configure,status,start,action,resumeAfterPythonEnvironmentRefresh,approve,busy,snapshot,failPythonEnvironmentRefresh,waitForTurnWrites,close};
 }

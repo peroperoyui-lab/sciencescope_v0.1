@@ -6,3 +6,9 @@
 .rendered-markdown pre,.rendered-markdown pre code,.message-text pre,.message-text pre code{font-size:var(--code-font-size,14px)}
 .settingsnav{overflow-y:auto}
 .settings-path{overflow-wrap:anywhere}
+[data-python-root] form{display:flex;flex-wrap:wrap;align-items:end;gap:12px;margin:16px 0}
+[data-python-root] label{display:flex;flex-direction:column;gap:6px;max-width:100%}
+[data-python-root] input:not([type=checkbox]),[data-python-root] select,[data-python-root] textarea{border:1px solid var(--line);border-radius:8px;padding:8px;background:var(--panel);color:var(--text);max-width:100%}
+[data-python-packages]{width:100%;resize:vertical;font-family:monospace}
+[data-python-root] pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow:auto}
+[data-python-installed]{max-height:160px;overflow:auto;margin:8px 0;font-family:monospace}

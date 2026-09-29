@@ -43,8 +43,10 @@ try {
   await page.evaluate(() => window.ScienceScopeCreation.newChat(null));
   await page.waitForSelector('#modal .creation-dialog');
   assert.equal(await page.locator('.creation-choice').count(), 3);
-  // Without the Python API the only (truthful) choice is the system Python; no pending notice anywhere.
-  assert.deepEqual(await page.locator('#chat-python option').allInnerTexts(), ['系统 Python']);
+  // T11 exposes actual system detection even when no managed environments exist.
+  const python=(await (await apiFetch(server,'api/python/envs')).json()).system;
+  assert.deepEqual(await page.locator('#chat-python option').allInnerTexts(), [`系统 Python${python.available?` · ${python.version||''}`:'（未检测到）'}`]);
+  assert.equal(await page.locator('#chat-python').inputValue(),'system');
   assert.doesNotMatch(await page.locator('#modal').innerText(), /即将|待接入|尚未|等待更新/);
   assert.equal(await page.locator('[data-creation-pick]').isVisible(), false, 'no folder picker button without the native picker');
   assert.equal(await page.locator('#modal .hint, #modal small').count(), 0, 'explanations live in info tips, not page text');
@@ -64,6 +66,15 @@ try {
   await page.locator('[data-creation-cancel]').click();
   assert.equal(await page.locator('#modal').count(), 0);
   assert.equal(await page.evaluate(() => V.chat), before);
+
+  // Retain the previous no-Python-API compatibility contract explicitly.
+  await page.route('**/api/python/envs',route=>route.fulfill({status:404,contentType:'application/json',body:'{"error":"not found"}'}));
+  await page.evaluate(()=>window.ScienceScopeCreation.newChat(null));
+  await page.waitForSelector('#chat-python[data-system-only]');
+  assert.deepEqual(await page.locator('#chat-python option').allInnerTexts(),['系统 Python']);
+  await page.locator('[data-creation-cancel]').click();
+  assert.equal(await page.evaluate(()=>V.chat),before);
+  await page.unroute('**/api/python/envs');
 
   // 2. Existing folder: a bad path is refused in place; a good one is used.
   await page.evaluate(() => window.ScienceScopeCreation.newChat(null));
@@ -107,6 +118,7 @@ try {
   let folder;
   for (let i = 0; i < 40 && folder !== existing; i++) { folder = JSON.parse(await (await apiFetch(server, `/api/workbench?projectId=${projectId}`)).text()).folder; if (folder !== existing) await page.waitForTimeout(100); }
   assert.equal(folder, existing, 'the project is bound to the chosen folder');
+  await page.waitForFunction(expected => document.querySelector('.wb-path')?.textContent === expected, existing);
 
   // 5. A chat inside the project does not ask.
   await page.evaluate(id => window.ScienceScopeCreation.newChat(id), projectId);

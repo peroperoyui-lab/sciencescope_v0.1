@@ -14,6 +14,8 @@ import { join } from 'node:path';
 import { createServer, request } from 'node:http';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createResearchContextPatch } from './research-context.mjs';
+import { createSessionProcessEnv, sessionEnvSignature } from './session-env.mjs';
+import { createApplicationApprovalManager } from './application-approval.mjs';
 
 const STREAM_PLUGIN = fileURLToPath(new URL('./assistant-stream-bridge.mjs', import.meta.url));
 const CONTROL_PLUGIN = pathToFileURL(fileURLToPath(new URL('./session-control.mjs', import.meta.url))).href;
@@ -73,8 +75,21 @@ export async function createDshHost(options = {}) {
   };
   const harnesses = new Map();
   const sessions = new Map();
+  const sessionEnvSignatures = new Map();
   const observers = new Map();
   const streamReceivers = new Map();
+  const sessionIdleWaiters = new Map();
+  const releasingSessions = new Set();
+  const expertRuns = new Map();
+  const applicationApprovals = createApplicationApprovalManager({
+    isSessionActive: (sessionId) => sessions.has(sessionId) && !releasingSessions.has(sessionId),
+    emit: (sessionId, event) => {
+      const frame = { type: 'control-event', event };
+      for (const observer of observers.get(sessionId) ?? []) {
+        try { observer(frame); } catch { /* A UI observer cannot strand an application tool approval. */ }
+      }
+    },
+  });
   // Application tools (e.g. research_search) run inside the DSH child but need
   // host data. The child posts {token, sessionId, name, args} to /host-call and
   // waits for the JSON answer; the host application installs the handler.
@@ -91,9 +106,14 @@ export async function createDshHost(options = {}) {
           if (!receiver || message.token !== receiver.token) { reply(401, { error: 'unauthorized' }); return; }
           if (!toolHandler) { reply(503, { error: 'This application tool is not available in this session.' }); return; }
           if (typeof message.name !== 'string' || !/^[a-z_]{1,60}$/u.test(message.name)) throw new Error('invalid tool name');
-          const result = await toolHandler({ sessionId: message.sessionId, name: message.name, args: message.args ?? {}, callId: typeof message.callId === 'string' ? message.callId.slice(0, 200) : undefined, expertId: typeof message.expertId === 'string' ? message.expertId.slice(0, 80) : undefined });
-          reply(200, { result });
-        } catch (error) { reply(200, { error: String(error?.message ?? error).slice(0, 2000) }); }
+          const controller = new AbortController();
+          const onClose = () => { if (!response.writableEnded) controller.abort(new Error('DSH tool call disconnected')); };
+          response.once('close', onClose);
+          try {
+            const result = await toolHandler({ sessionId: message.sessionId, name: message.name, args: message.args ?? {}, callId: typeof message.callId === 'string' ? message.callId.slice(0, 200) : undefined, expertId: typeof message.expertId === 'string' ? message.expertId.slice(0, 80) : undefined, signal: controller.signal });
+            if (!controller.signal.aborted && !response.destroyed) reply(200, { result });
+          } finally { response.off('close', onClose); }
+        } catch (error) { if (!response.destroyed && !response.writableEnded) reply(200, { error: String(error?.message ?? error).slice(0, 2000) }); }
       });
       return;
     }
@@ -115,6 +135,8 @@ export async function createDshHost(options = {}) {
           if (message.sequence !== receiver.sequence + 1) receiver.gaps = (receiver.gaps ?? 0) + 1;
           receiver.sequence = message.sequence;
         }
+        if (message.type === 'run-start') receiver.runState = 'running';
+        if (message.type === 'run-idle') receiver.runState = 'idle';
         if (message.type !== 'control-ready' && message.type !== 'control-error') {
           for (const observer of observers.get(message.sessionId) ?? []) observer(message);
         }
@@ -126,7 +148,7 @@ export async function createDshHost(options = {}) {
   const streamAddress = streamServer.address();
   const streamEndpoint = `http://127.0.0.1:${streamAddress.port}/assistant-stream`;
 
-  async function startSession({ model, workspace, runtimeConfig, sessionId: requestedSessionId, noTools = false, persona, proposalTargetChatId } = {}) {
+  async function startSession({ model, workspace, runtimeConfig, sessionId: requestedSessionId, noTools = false, persona, proposalTargetChatId, sessionEnv = {} } = {}) {
     if (!model?.providerId || !model?.modelId) throw new TypeError('model.providerId and model.modelId are required');
     if (model.reasoningEffort !== undefined && (typeof model.reasoningEffort !== 'string' || !/^[A-Za-z0-9._-]{1,80}$/u.test(model.reasoningEffort))) {
       throw new TypeError('model.reasoningEffort must be a non-empty DSH reasoning-effort id');
@@ -134,7 +156,18 @@ export async function createDshHost(options = {}) {
     const sessionId = requestedSessionId ?? ('session-'+randomUUID().replaceAll('-',''));
     if (typeof sessionId !== 'string' || !/^session-[A-Za-z0-9]+$/u.test(sessionId)) throw new TypeError('sessionId must be a stable DSH session identity');
     const key = sessionId;
-    if (sessions.has(sessionId)) return sessionId;
+    const requestedEnvSignature = sessionEnvSignature(sessionEnv);
+    const sessionProcessEnv = createSessionProcessEnv(env, sessionEnv);
+    if (sessions.has(sessionId)) {
+      if (sessionEnvSignatures.get(sessionId) !== requestedEnvSignature) {
+        const error = new Error('The DSH session already uses a different Python environment; releaseSession before restarting it.');
+        error.code = 'SESSION_ENV_CHANGED_RELEASE_REQUIRED';
+        throw error;
+      }
+      return sessionId;
+    }
+    if (sessionEnvSignatures.has(sessionId)) throw new Error(`DSH session is already starting: ${sessionId}`);
+    if (harnesses.has(sessionId)) throw new Error(`DSH session is already starting: ${sessionId}`);
     const patches = [];
     const streamToken = randomUUID()+randomUUID();
     let readyResolve; let readyReject;
@@ -148,6 +181,7 @@ export async function createDshHost(options = {}) {
       if (message.type === 'control-ready') readyResolve(message);
       if (message.type === 'control-error') readyReject(new Error(message.error));
     } });
+    sessionEnvSignatures.set(sessionId, requestedEnvSignature);
     try {
     const research = await createResearchContextPatch({home:options.home,workspace:workspace ?? cwd,persona});
     patches.push(research.patchPath);
@@ -172,7 +206,7 @@ export async function createDshHost(options = {}) {
       await writeFile(patch,JSON.stringify([{id:'llm-pi-ai',config}]),{flag:'wx'});
       patches.push(patch);
     }
-    } catch (error) { streamReceivers.delete(sessionId); throw error; }
+    } catch (error) { streamReceivers.delete(sessionId); sessionEnvSignatures.delete(sessionId); throw error; }
     let harness = harnesses.get(key);
     if (!harness) {
       harness = new sdk.DeepSeekHarness({
@@ -182,7 +216,7 @@ export async function createDshHost(options = {}) {
         patches,
         dshHome: options.home,
         processCwd: workspace ?? cwd,
-        env: { ...env, SCIENCESCOPE_STREAM_ENDPOINT: streamEndpoint, SCIENCESCOPE_HOST_CALL_ENDPOINT: streamEndpoint.replace(/\/assistant-stream$/u, '/host-call'), SCIENCESCOPE_STREAM_TOKEN: streamToken, SCIENCESCOPE_STREAM_SESSION: sessionId, SCIENCESCOPE_PROVIDER: model.providerId, SCIENCESCOPE_MODEL: model.modelId, ...(persona === undefined ? {} : { SCIENCESCOPE_PERSONA: persona }), ...(proposalTargetChatId ? { SCIENCESCOPE_PROPOSAL_TARGET_CHAT_ID: proposalTargetChatId } : {}), ...(noTools ? { SCIENCESCOPE_NO_TOOLS: '1' } : {}) },
+        env: { ...sessionProcessEnv, SCIENCESCOPE_STREAM_ENDPOINT: streamEndpoint, SCIENCESCOPE_HOST_CALL_ENDPOINT: streamEndpoint.replace(/\/assistant-stream$/u, '/host-call'), SCIENCESCOPE_STREAM_TOKEN: streamToken, SCIENCESCOPE_STREAM_SESSION: sessionId, SCIENCESCOPE_PROVIDER: model.providerId, SCIENCESCOPE_MODEL: model.modelId, ...(persona === undefined ? {} : { SCIENCESCOPE_PERSONA: persona }), ...(proposalTargetChatId ? { SCIENCESCOPE_PROPOSAL_TARGET_CHAT_ID: proposalTargetChatId } : {}), ...(noTools ? { SCIENCESCOPE_NO_TOOLS: '1' } : {}) },
         cwd: workspace ?? cwd,
         provider: model.providerId,
         model: model.modelId,
@@ -192,12 +226,12 @@ export async function createDshHost(options = {}) {
     }
     try { await harness.start(); }
     catch(error) {
-      harnesses.delete(key); streamReceivers.delete(sessionId);
+      harnesses.delete(key); streamReceivers.delete(sessionId); sessionEnvSignatures.delete(sessionId);
       await harness.close().catch(()=>{}); throw error;
     }
     let timer;
     try { await Promise.race([streamReceivers.get(sessionId).controlReady, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('DSH session control did not become ready')), 15000); })]); }
-    catch (error) { await harness.close().catch(() => {}); harnesses.delete(key); sessions.delete(key); streamReceivers.delete(key); throw error; }
+    catch (error) { await harness.close().catch(() => {}); harnesses.delete(key); sessions.delete(key); streamReceivers.delete(key); sessionEnvSignatures.delete(key); throw error; }
     finally { clearTimeout(timer); }
     harness.session(sessionId);
     sessions.set(sessionId, harness);
@@ -275,9 +309,13 @@ export async function createDshHost(options = {}) {
   }
 
   async function close() {
+    applicationApprovals.cancelAll('host closing');
+    for (const [sessionId] of sessionIdleWaiters) cancelSessionIdleWaiters(sessionId, new Error('DSH host is closing'));
     const pending = [...harnesses.values()].map((harness) => harness.close());
     harnesses.clear();
     sessions.clear();
+    sessionEnvSignatures.clear();
+    expertRuns.clear();
     streamReceivers.clear();
     observers.clear();
     await Promise.allSettled(pending);
@@ -287,11 +325,16 @@ export async function createDshHost(options = {}) {
 
   async function releaseSession(sessionId) {
     if (typeof sessionId !== 'string') throw new TypeError('sessionId is required');
+    releasingSessions.add(sessionId);
+    cancelSessionIdleWaiters(sessionId, new Error('DSH session was released while waiting for idle'));
+    applicationApprovals.cancelSession(sessionId, 'session released');
     const harness = harnesses.get(sessionId);
-    if (!harness) return false;
-    await harness.close();
-    harnesses.delete(sessionId); sessions.delete(sessionId); streamReceivers.delete(sessionId);
-    observers.delete(sessionId);
+    if (!harness) { releasingSessions.delete(sessionId); return false; }
+    try { await harness.close(); }
+    finally {
+      harnesses.delete(sessionId); sessions.delete(sessionId); streamReceivers.delete(sessionId);
+      sessionEnvSignatures.delete(sessionId); observers.delete(sessionId); releasingSessions.delete(sessionId);
+    }
     return true;
   }
 
@@ -323,6 +366,30 @@ export async function createDshHost(options = {}) {
     return () => { set.delete(onEvent); if (!set.size) observers.delete(sessionId); };
   }
 
+  function cancelSessionIdleWaiters(sessionId, error) {
+    for (const cancel of sessionIdleWaiters.get(sessionId) ?? []) cancel(error);
+  }
+  function waitForSessionIdle(sessionId, { timeout = 30000 } = {}) {
+    const receiver = streamReceivers.get(sessionId);
+    if (!receiver) return Promise.reject(new Error(`Unknown DSH session: ${sessionId}`));
+    if (receiver.runState !== 'running') return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const finish = (error) => {
+        if (settled) return;
+        settled = true; clearTimeout(timer); stop();
+        const waiters = sessionIdleWaiters.get(sessionId); waiters?.delete(cancel);
+        if (!waiters?.size) sessionIdleWaiters.delete(sessionId);
+        error ? reject(error) : resolve();
+      };
+      const cancel = (error) => finish(error);
+      const stop = observeSession(sessionId, (frame) => { if (frame.type === 'run-idle') finish(); });
+      const waiters = sessionIdleWaiters.get(sessionId) ?? new Set(); waiters.add(cancel); sessionIdleWaiters.set(sessionId, waiters);
+      const timer = setTimeout(() => finish(new Error('DSH session did not become idle before the timeout')), timeout);
+      if (receiver.runState !== 'running') finish();
+    });
+  }
+
   async function sessionGoal({ sessionId, objective, maxGoalRounds } = {}) { return control(sessionId, '/goal', { action: 'create', objective, ...(maxGoalRounds === undefined ? {} : { maxGoalRounds }) }); }
   async function getGoal(sessionId) { return control(sessionId, '/goal', { action: 'get' }); }
   async function pauseGoal({ sessionId, ref } = {}) { return control(sessionId, '/goal', { action: 'pause', ref }); }
@@ -336,24 +403,35 @@ export async function createDshHost(options = {}) {
   // Project brief (core memory): a system-prompt section, replaced between turns.
   async function configureBrief({sessionId,text}) { return control(sessionId, '/brief', { text: typeof text === 'string' ? text : '' }); }
   function setToolHandler(handler) { toolHandler = typeof handler === 'function' ? handler : null; }
-  async function interrupt(sessionId) {return control(sessionId,'/interrupt');}
-  async function replyApproval({sessionId,requestId,outcome}) {return control(sessionId,'/approval/reply',{requestId,outcome});}
+  async function requestApplicationApproval(request) { return applicationApprovals.request(request); }
+  async function interrupt(sessionId) { applicationApprovals.cancelSession(sessionId, 'session interrupted'); return control(sessionId,'/interrupt'); }
+  async function scheduleSessionEnvRefresh(sessionId) { return control(sessionId, '/python-env/refresh'); }
+  async function replyApproval({sessionId,requestId,outcome}) {
+    const applicationReply = applicationApprovals.reply({sessionId, requestId, outcome});
+    if (applicationReply !== null) return applicationReply;
+    return control(sessionId,'/approval/reply',{requestId,outcome});
+  }
   async function getContextUsage({ sessionId } = {}) { return control(sessionId, '/context-usage'); }
   // Like /prompt, an expert round answers only when every expert settled, so
   // it has no idle timeout; cancelExperts bounds it.
   async function runExperts({ sessionId, runId, prompt, experts, onEvent } = {}) {
+    const runKey = `${sessionId}:${runId}`;
+    expertRuns.set(runKey, new Set((experts ?? []).map((expert) => expert?.id).filter((id) => typeof id === 'string')));
     const stop = typeof onEvent === 'function' ? observeSession(sessionId, (frame) => {
       const event = frame.type === 'control-event' ? frame.event : frame;
       if (event?.runId === runId && ['expert-start', 'expert-end', 'expert-delta', 'expert-reset', 'expert-tool', 'expert-tool-result'].includes(event.type)) onEvent(event);
     }) : () => {};
     try { return await control(sessionId, '/experts', { runId, prompt, experts }, { timeout: 0 }); }
-    finally { stop(); }
+    finally { stop(); expertRuns.delete(runKey); }
   }
-  async function cancelExperts({ sessionId, runId } = {}) { return control(sessionId, '/experts/cancel', { runId }); }
+  async function cancelExperts({ sessionId, runId } = {}) {
+    applicationApprovals.cancelExperts(sessionId, expertRuns.get(`${sessionId}:${runId}`), 'expert run cancelled');
+    return control(sessionId, '/experts/cancel', { runId });
+  }
 
   const pause = pauseGoal;
   const resume = resumeGoal;
-  return { startSession, send, releaseSession, close, observeSession, sessionGoal, getGoal, pause, resume, pauseGoal, resumeGoal, completeGoal,clearGoal, configurePolicy,configureReasoning,configureModel,configurePersona,configureBrief,setToolHandler,interrupt,replyApproval,getContextUsage,runExperts,cancelExperts, capabilities: DSH_CAPABILITIES };
+  return { startSession, send, releaseSession, close, observeSession, waitForSessionIdle, sessionGoal, getGoal, pause, resume, pauseGoal, resumeGoal, completeGoal,clearGoal, configurePolicy,configureReasoning,configureModel,configurePersona,configureBrief,setToolHandler,requestApplicationApproval,scheduleSessionEnvRefresh,interrupt,replyApproval,getContextUsage,runExperts,cancelExperts, capabilities: DSH_CAPABILITIES };
 }
 
 export default { createDshHost, DSH_CAPABILITIES };

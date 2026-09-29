@@ -1,0 +1,6 @@
+{
+  "pythonVersion": "3.14.7",
+  "uvVersion": "0.12.19",
+  "platform": "win32-x64",
+  "requirementsFile": "builtin.lock"
+}
