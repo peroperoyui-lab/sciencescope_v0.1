@@ -43,6 +43,12 @@ try {
   await page.evaluate(() => window.ScienceScopeCreation.newChat(null));
   await page.waitForSelector('#modal .creation-dialog');
   assert.equal(await page.locator('.creation-choice').count(), 3);
+  // A late render (a module finishing a load) must not drop the open dialog or
+  // its focus (lost after creating a project, 2026-09-29).
+  await page.locator('#chat-python').focus();
+  await page.evaluate(() => render());
+  assert.equal(await page.locator('#modal .creation-dialog').count(), 1, 'dialog survives a same-route render');
+  assert.equal(await page.evaluate(() => document.activeElement?.id), 'chat-python', 'focus survives the render');
   // T11 exposes actual system detection even when no managed environments exist.
   const python=(await (await apiFetch(server,'api/python/envs')).json()).system;
   assert.deepEqual(await page.locator('#chat-python option').allInnerTexts(), [`系统 Python${python.available?` · ${python.version||''}`:'（未检测到）'}`]);

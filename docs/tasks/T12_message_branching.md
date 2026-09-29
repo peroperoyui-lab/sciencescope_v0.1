@@ -49,3 +49,16 @@
 - 真实 DSH（本地模拟模型）测试：对话中说"记住 A"、"记住 B"，在第一条回复处分支；新对话问"你记得什么"只知道 A；原对话仍记得 A 和 B；重启后两个对话都能继续。
 - 界面 smoke：开关关闭时三个入口都不可见；打开后点击产生新对话，原对话不变。
 - 原生 Windows 上各做一次截图。
+
+### 2026-09-29 Claude 复核与下一步方向
+
+- 核实：SDK JSON-RPC server 已发布的 0.1.6-alpha.1、0.1.7-rc.2、0.2.0-rc.2 都只分发 `session/prompt`，升级 SDK 不能解决。
+- 可以尝试的路线：只用**公开接口**，在我们自己的适配器（`adapters/runtime-dsh/session-control.mjs`，运行在 DSH 进程内、持有 `ctx`）中新增一个 `/fork` 控制端点：
+  1. 源会话空闲时，先 `handle = await ctx.sessionPersistence.create(childId)` 取得子会话的写句柄；
+  2. 再 `ctx.sessions.fork(sourceId, atSeq, childId)`。持久化后端会把已发布会话的事件路由到该会话的写句柄（见 `dsh-session-persistence/README.md` 第 28、57 行）。如果事件没有自动路由，就用 `handle.append(...)` 写入子会话的事件；
+  3. `await handle.flush()`，然后 `await handle.close()`；
+  4. 宿主用现有的 `startSession({sessionId: childId})` 在新进程中恢复子会话。
+- 这是复制 DSH 自己的事件日志，新进程恢复后模型拿到的是真实上下文，不属于"复制文字冒充分支"。不要复制控制器内部的事件切片算法。
+- 用原来的探针验证：A/B 隔离；子会话在新进程中恢复后模型收到 A、没有 B；原会话不受影响。通过后按之前确认的交互（"从此回复分支"和"从此处重新提问"）实现并验收。
+- 如果写句柄与 fork 无法这样组合（例如 fork 出的子会话未发布、事件无法取得），停下报告原因，保持分支开关关闭。
+
