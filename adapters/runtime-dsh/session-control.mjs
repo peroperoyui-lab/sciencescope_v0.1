@@ -237,8 +237,57 @@ export function apply(ctx) {
       }));
     } finally { expertRuns.delete(value.runId); }
   };
+  // Conversation branching (T12). The installed SDK JSON-RPC server does not
+  // dispatch session/fork, so this mirrors the public SessionController.fork
+  // path with public services only: read the persisted log through
+  // ctx.sessionQuery, cut after a completed turn, and create the child through
+  // ctx.agents.create with the prefix as its seed. agents.create is the
+  // production write-handle acquisition point, so the seed is persisted (a bare
+  // sessions.fork is not). The child is released at once; the host resumes it
+  // in its own process. Only completed turns can be forked.
+  const observeLog = async (id) => {
+    // Looked up at call time (not in `inject`): a profile without these
+    // services still runs every other feature; only branching reports it.
+    const query = ctx.get('sessionQuery');
+    if (!query) throw new Error('Branching is unavailable: the DSH session query service is not mounted.');
+    const observed = await query.observeSession(id);
+    try { return { header: observed.header, events: [...observed.events] }; }
+    finally { observed[Symbol.dispose]?.(); }
+  };
+  const completedTurns = async () => {
+    const { events } = await observeLog(sessionId);
+    const turns = []; let start = 0;
+    for (const event of events) {
+      if (event.type !== 'turn/end') continue;
+      const user = events.slice(start, events.indexOf(event)).find((item) => item.type === 'turn/start' || item.type === 'user/message' || item.type === 'message/user');
+      turns.push({ index: turns.length + 1, endSeq: event.seq, startSeq: events[start]?.seq ?? event.seq, ...(user ? { startType: user.type } : {}) });
+      start = events.indexOf(event) + 1;
+    }
+    return { turns, lastSeq: events.at(-1)?.seq ?? -1 };
+  };
+  const forkSession = async (atSeq) => {
+    if (handle.agent.status === 'running') throw new Error('Wait for the current reply to finish before branching.');
+    if (atSeq !== undefined && (!Number.isSafeInteger(atSeq) || atSeq < 0)) throw new Error('atSeq must be a non-negative integer');
+    const { header, events } = await observeLog(sessionId);
+    const lastSeq = events.at(-1)?.seq ?? -1;
+    const boundary = (atSeq === undefined ? undefined : events.find((event) => event.type === 'turn/end' && event.seq >= atSeq))
+      ?? (atSeq === undefined || atSeq > lastSeq ? events.findLast((event) => event.type === 'turn/end') : undefined);
+    if (!boundary) throw new Error(atSeq !== undefined && atSeq <= lastSeq ? `The turn containing event ${atSeq} has not completed.` : 'There is no completed turn to branch from.');
+    const cut = events.findIndex((event) => event === boundary) + 1;
+    const childId = `session-${randomUUID().replaceAll('-', '')}`; // same form as host.startSession ids
+    const child = await ctx.agents.create({
+      sessionId: childId,
+      seed: events.slice(0, cut),
+      inheritedEventCount: cut,
+      meta: { ...(header.cwd === undefined ? {} : { cwd: header.cwd }), parentSession: header.id, isSeeded: true },
+      agentOptions: { ...agentOptions },
+    });
+    try { await ctx.get('sessionPersistence')?.flush?.(); }
+    finally { await (child.dispose?.() ?? child.agent?.dispose?.()); }
+    return { sessionId: childId, boundarySeq: boundary.seq, inheritedEventCount: cut };
+  };
   const server = createServer(async (req, res) => {
-    if (req.method !== 'POST' || !['/prompt', '/goal', '/policy', '/reasoning', '/model', '/persona', '/brief', '/interrupt', '/approval/reply', '/context-usage', '/experts', '/experts/cancel', '/python-env/refresh'].includes(req.url)) { res.writeHead(404); res.end(); return; }
+    if (req.method !== 'POST' || !['/prompt', '/goal', '/policy', '/reasoning', '/model', '/persona', '/brief', '/interrupt', '/approval/reply', '/context-usage', '/experts', '/experts/cancel', '/python-env/refresh', '/turns', '/fork'].includes(req.url)) { res.writeHead(404); res.end(); return; }
     let body = ''; req.setEncoding('utf8'); req.on('data', (chunk) => { body += chunk; if(Buffer.byteLength(body)>2*1024*1024)req.destroy(); });
     req.on('end', async () => {
       try {
@@ -246,6 +295,12 @@ export function apply(ctx) {
         if (value.token !== token || value.sessionId !== sessionId) throw new Error('invalid session control request');
         await ready;
         const session = handle.agent.session;
+        if (req.url === '/turns' || req.url === '/fork') {
+          const result = req.url === '/turns' ? await completedTurns() : await forkSession(value.atSeq);
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ result }));
+          return;
+        }
         if (req.url === '/context-usage') {
           res.writeHead(200, { 'content-type': 'application/json' });
           res.end(JSON.stringify({ result: measureContext(session) }));

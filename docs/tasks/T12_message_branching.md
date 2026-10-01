@@ -62,3 +62,37 @@
 - 用原来的探针验证：A/B 隔离；子会话在新进程中恢复后模型收到 A、没有 B；原会话不受影响。通过后按之前确认的交互（"从此回复分支"和"从此处重新提问"）实现并验收。
 - 如果写句柄与 fork 无法这样组合（例如 fork 出的子会话未发布、事件无法取得），停下报告原因，保持分支开关关闭。
 
+### 2026-10-01 Claude：运行时分支已打通（云端，真实 DSH + 本地模拟模型，零付费请求）
+
+- 适配器 `session-control.mjs` 新增两个控制端点，主程序侧 `host.mjs` 新增 `sessionTurns({sessionId})` 和 `forkSession({sessionId, atSeq?})`：
+  - `/turns`：返回已完成轮次 `{turns:[{index, startSeq, endSeq}], lastSeq}`，供应用层把主专家回复对应到 `endSeq`。
+  - `/fork`：做法与上游 `SessionController.fork` 相同，全部用公开服务：
+    - `ctx.get('sessionQuery').observeSession` 读日志；
+    - 在 `atSeq` 之后第一个 `turn/end` 处截断；
+    - `ctx.agents.create({sessionId, seed, inheritedEventCount, meta:{cwd, parentSession, isSeeded}})` 创建子会话（这是正式取得写句柄的地方，所以会持久化）；
+    - 立即释放子会话，返回 `{sessionId, boundarySeq, inheritedEventCount}`。
+  - 源会话正在回复时拒绝分支；没有已完成轮次时拒绝分支。
+  - 服务在调用时用 `ctx.get()` 获取，不加入插件必需的注入列表：缺服务时只有分支报错，不影响其他功能。
+  - 子会话不传 `setup`：`setup` 会把模块级提示上下文指向子会话，破坏主会话的人设和简报。
+- 新测试 `tests/session-fork-runtime.test.mjs`：
+  - 两轮后在第 1 轮分支，子会话在新进程中恢复：模型看到第 1 轮及其回答，看不到第 2 轮；
+  - 源会话继续时仍有两轮，分支内容不会串入；
+  - 子会话关闭后再恢复，它自己的轮次仍在；
+  - 没有已完成轮次时拒绝分支。
+  - `npm test` 238/238。
+- **之前 Astra 的探针为什么失败**：探针用的是 `ctx.sessions.fork`，它不取得写句柄，所以子会话没有持久化；改用 `agents.create` 带种子事件后就能持久化。
+
+**剩余工作（交给 Astra）**：应用层与界面，按之前确认的交互实现：
+1. `POST /api/chats/branch {chatId, messageId, mode: 'reply'|'reask'}`：
+   - `reply`：在该主专家回复所在轮次的 `endSeq` 分支；
+   - `reask`：在上一条已完成主专家回复处分支；对话第一条消息则新建同项目、同设置的空对话；
+   - 两种模式都把被重问的用户消息放进新对话的草稿。
+2. 新对话的运行时绑定指向子会话 id，标题标明来源（"分支：原标题"），并记录 `branchedFrom {chatId, messageId}`。
+3. 消息与 DSH 轮次的对应：
+   - 在主专家每轮结束时记录 `endSeq`（`/turns` 可补录旧消息）；
+   - 只复制分支点之前的可见消息，作为展示记录；
+   - 专家讨论的消息按既定规则处理；
+   - 未完成的轮次不显示分支入口。
+4. 界面入口"从此回复分支 / 从此处重新提问"，说明放进"i"提示，补英文词条。
+5. 浏览器 smoke 与原生验收通过后，再打开 `branch` 功能开关。
+
