@@ -338,6 +338,11 @@ export async function createDshHost(options = {}) {
     return true;
   }
 
+  // Conversation branching (T12): completed-turn boundaries, and a persisted
+  // child session resumable with startSession({sessionId}).
+  async function sessionTurns({sessionId}) { return control(sessionId, '/turns', {}, { timeout: 30000 }); }
+  async function forkSession({sessionId, atSeq}) { return control(sessionId, '/fork', atSeq === undefined ? {} : { atSeq }, { timeout: 60000 }); }
+
   async function control(sessionId, path, payload = {}, { timeout = TURN_TIMEOUT_MS } = {}) {
     const receiver = streamReceivers.get(sessionId);
     if (!receiver) throw new Error(`Unknown DSH session: ${sessionId}`);
@@ -431,7 +436,7 @@ export async function createDshHost(options = {}) {
 
   const pause = pauseGoal;
   const resume = resumeGoal;
-  return { startSession, send, releaseSession, close, observeSession, waitForSessionIdle, sessionGoal, getGoal, pause, resume, pauseGoal, resumeGoal, completeGoal,clearGoal, configurePolicy,configureReasoning,configureModel,configurePersona,configureBrief,setToolHandler,requestApplicationApproval,scheduleSessionEnvRefresh,interrupt,replyApproval,getContextUsage,runExperts,cancelExperts, capabilities: DSH_CAPABILITIES };
+  return { startSession, send, releaseSession, sessionTurns, forkSession, close, observeSession, waitForSessionIdle, sessionGoal, getGoal, pause, resume, pauseGoal, resumeGoal, completeGoal,clearGoal, configurePolicy,configureReasoning,configureModel,configurePersona,configureBrief,setToolHandler,requestApplicationApproval,scheduleSessionEnvRefresh,interrupt,replyApproval,getContextUsage,runExperts,cancelExperts, capabilities: DSH_CAPABILITIES };
 }
 
 export default { createDshHost, DSH_CAPABILITIES };
