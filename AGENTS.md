@@ -163,6 +163,11 @@ actual remote branch and SHA; failed pushes are not delivery.
   within their scope and propose curation (graph_propose); nothing enters the
   confirmed layer until the user accepts it in the inbox, and accepted changes
   are undoable. Stay in the single SQLite file (sqlite-vec, FTS5, CTEs).
+- Secret isolation (T21, 2026-10-02): the DSH sandbox confines writes, not
+  reads. Credentials, the app database and `.sciencescope-local/secret` are
+  protected paths: file tools refuse them for every role and mode, shell
+  commands touching them always need approval (never auto-approved in full
+  mode), and keys never reach session processes through environment variables.
 - Research Base (docs/design/RESEARCH_BASE.md, 2026-09-25): literature, knowledge,
   models/formulas, claims and memory share one store. Agents write only through
   research_propose into the user's inbox; the session, never model arguments,

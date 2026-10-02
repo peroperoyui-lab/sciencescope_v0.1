@@ -1,5 +1,31 @@
 # Desktop implementation — first increment
 
+## 2026-10-02 System review while Codex usage was exhausted (Claude, cloud)
+
+- Repo health: `npm test` 238/238; no secrets tracked (the only key-like string
+  is a deliberate fake in `tests/tool-activity.test.mjs`); the evaluation key is
+  stored only in the ignored `.sciencescope-local/secret/opencode.key`.
+- English UI: copy audit (`AUDIT_LANG=en AUDIT_COPY=1 ui-gallery`) shows only
+  user/demo data in Chinese; interface strings and dynamic patterns are
+  covered. Prototype text found by the crawler ("交互原型 · 未连接模型", page
+  directory) is hidden or replaced in the desktop build.
+- The console SVG warning noted on 09-27 was already fixed by Astra (copy icon);
+  zero warnings on re-run.
+- Feature flags match delivered work (pythonEnvs, folderPicker, materialsPanel
+  on; branch off until T12 app layer).
+- **Security gap found → T21.** Provider keys live in plaintext in
+  `.sciencescope-local/dsh/.credentials.yaml`; the DSH sandbox confines writes,
+  not reads, so file tools and shell commands of any role can read the key, the
+  app database and `secret/`. Keys do not reach session processes through
+  environment variables (verified in `provider-service.mjs` and the
+  credentials docs). Brief `docs/tasks/T21_secret_isolation.md`, batch 4 first.
+- Docs brought up to date: ROADMAP rows for T10/T11/T12 and Python, branch
+  status (main has not been merged since PR #10), pending decisions (merge to
+  main, shell network approval, alpha window title); QUEUE adds the batch 3
+  leftovers and T21; SYSTEM_SPEC 2.2 (T12 runtime) and 2.15 (known gap).
+- Could not do in the cloud: the T10 52-question rerun (corpus, model and audit
+  logs are on the user's H drive).
+
 ## 2026-09-29 Review of batch 3 (T05, T10, T11; T12 blocked) (Claude, cloud)
 
 Fast-forwarded `codex/t12-branch-20260929@98dedb3` (stacked T05 `d265051`,

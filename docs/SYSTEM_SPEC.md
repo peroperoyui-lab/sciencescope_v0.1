@@ -143,6 +143,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   `chat-ui-smoke`、`failed-send-draft-smoke`；真实 OpenCode Go 小请求、停止、5.5 分钟长任务（原生，2026-09-23）。
 - **已知限制**：队列只接受纯文本轮次（带材料的输入会留在草稿里，需要再次确认）；从消息分支的入口仍关闭，没有 DSH 运行时分叉。
 - **T12 最近核对（2026-09-29）**：真实 DSH/本地模拟模型证明安装版0.1.6-alpha.1的SDK stdio不注册 `session/fork`；SessionStore内存fork也不能单独持久化继承上下文。按任务要求停在前置核查，待确认上游完整服务接线或SDK支持路径。没有用展示消息复制冒充模型上下文分支，也未打开开关；详见任务书T12。
+- **T12 运行时（2026-10-01，Claude）**：适配器新增 `/turns`、`/fork`，主程序侧新增 `sessionTurns`、`forkSession`。做法与上游 `SessionController.fork` 相同（`sessionQuery` 读日志，在已完成轮次处截断，`agents.create` 以前缀为种子创建子会话并持久化）。`tests/session-fork-runtime.test.mjs` 用真实 DSH 验证：子会话在新进程中只看到分支点之前的内容，源会话不受影响，子会话的轮次持久保存，没有已完成轮次时拒绝分支。应用层与界面尚未接入，`branch` 开关保持关闭。
 
 ### 2.3 执行策略与自动化
 
@@ -413,6 +414,7 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
 验证：`desktop-server` 单元测试（无口令/错误口令 401）；`native-api-token-smoke`（原生，六类窗口）。
 
 ---
+- **已知缺口（2026-10-02 复盘）**：DSH 沙箱只限制写、不限制读；服务商 key 以明文保存在 `.sciencescope-local/dsh/.credentials.yaml`，智能体可用文件工具或 shell 读取，应用数据库和 `secret/` 同样可读。key 不经环境变量传给会话进程（这部分已核实安全）。修复见 T21（alpha 前必须完成）。
 
 ### 2.16 界面外观层（界面刷新）
 
