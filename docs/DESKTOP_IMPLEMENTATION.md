@@ -1,5 +1,24 @@
 # Desktop implementation — first increment
 
+## 2026-10-03 Second review (Claude, cloud)
+
+- Docs brought up to date: ROADMAP rows for T10 and the Research Base; QUEUE
+  status line, the finished batch-3 leftovers, delivery cadence (one task per
+  delivery since 2026-10-03), subagent wording.
+- **Evaluation method.** Single 52-question runs with a cheap model moved
+  43 → 42 → 39 while the failure mix changed in opposite directions; one run
+  per side cannot separate a change from noise. QUEUE rule 8 now asks for at
+  least three runs per side, reporting each run, the mean and failures by
+  cause, with infrastructure failures counted separately. The user's key has
+  ample quota for this.
+- **Dropped follow-ups recovered.** The flaky-test item (discussion-ui
+  adoption click, recurred today; expert-discussion-runtime concurrency;
+  workspace-ui pagination) was in the unsent 10-02 prompt and missed the
+  rewritten one; T10's compound cite formats and unsupported extra claims are
+  still open. Both go into the next instructions.
+- Still pending the user's decision: merging `claude/determined-pasteur-jxpzw8`
+  into main (nothing merged since PR #10; the branch keeps growing).
+
 ## 2026-10-03 Review of T10 answering (Claude, cloud)
 
 Fast-forwarded `codex/t10-answering-20261003@465e242` into
