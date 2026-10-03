@@ -1,9 +1,81 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
+import { spawn } from 'node:child_process';
+import { readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { createCappedProxy } from '../scripts/evals/hybrid-live-retrieval.mjs';
+import { createCappedProxy, renameSnapshotSync } from '../scripts/evals/hybrid-live-retrieval.mjs';
+
+test('snapshot replacement retries the same bytes for transient sharing errors only', async t => {
+  const base = path.resolve('.sciencescope-local/temp'); await mkdir(base, { recursive: true });
+  const root = await mkdtemp(path.join(base, 't10-ledger-rename-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const destination = path.join(root, 'requests.json'), snapshot = `${destination}.next`;
+  await writeFile(destination, 'previous'); await writeFile(snapshot, 'reserved-request');
+  let attempts = 0; const waits = [];
+  renameSnapshotSync(snapshot, destination, {
+    rename(from, to) {
+      assert.equal(from, snapshot); assert.equal(to, destination);
+      assert.equal(readFileSync(from, 'utf8'), 'reserved-request');
+      assert.equal(readFileSync(to, 'utf8'), 'previous');
+      const code = ['EPERM', 'EBUSY', 'EACCES'][attempts++];
+      if (code) throw Object.assign(new Error('sharing conflict'), { code });
+      renameSync(from, to);
+    }, wait: milliseconds => waits.push(milliseconds),
+  });
+  assert.equal(attempts, 4); assert.deepEqual(waits, [100, 100, 100]);
+  assert.equal(await readFile(destination, 'utf8'), 'reserved-request');
+  await assert.rejects(readFile(snapshot), { code: 'ENOENT' });
+
+  for (const [code, expectedAttempts, expectedWaits] of [['EPERM', 20, 19], ['ENOENT', 1, 0]]) {
+    await writeFile(snapshot, 'failed-snapshot');
+    const failure = Object.assign(new Error('rename failure'), { code });
+    let calls = 0, delays = 0;
+    assert.throws(() => renameSnapshotSync(snapshot, destination, {
+      rename(from, to) { assert.equal(from, snapshot); assert.equal(to, destination); calls++; throw failure; },
+      wait(milliseconds) { assert.equal(milliseconds, 100); delays++; },
+    }), error => error === failure);
+    assert.equal(calls, expectedAttempts); assert.equal(delays, expectedWaits);
+    assert.equal(await readFile(snapshot, 'utf8'), 'failed-snapshot');
+    assert.equal(await readFile(destination, 'utf8'), 'reserved-request');
+  }
+});
+
+test('Windows read sharing denies atomic replacement until the independent reader releases it', { skip: process.platform !== 'win32' }, async t => {
+  const base = path.resolve('.sciencescope-local/temp'); await mkdir(base, { recursive: true });
+  const root = await mkdtemp(path.join(base, 't10-ledger-windows-lock-'));
+  const destination = path.join(root, 'requests.json'), snapshot = `${destination}.next`, release = path.join(root, 'release');
+  await writeFile(destination, 'previous'); await writeFile(snapshot, 'reserved-request');
+  const quote = value => `'${value.replace(/'/gu, "''")}'`;
+  const script = `$reader = [System.IO.File]::Open(${quote(destination)}, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read); try { [Console]::WriteLine('locked'); $deadline = [DateTime]::UtcNow.AddSeconds(10); while (-not [System.IO.File]::Exists(${quote(release)}) -and [DateTime]::UtcNow -lt $deadline) { [System.Threading.Thread]::Sleep(20) } } finally { $reader.Dispose() }`;
+  const powershell = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32/WindowsPowerShell/v1.0/powershell.exe');
+  const child = spawn(powershell, ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  const closed = new Promise(resolve => child.once('close', resolve));
+  t.after(async () => { if (child.exitCode === null) child.kill(); await closed; await rm(root, { recursive: true, force: true }); });
+  let stderr = ''; child.stderr.on('data', bytes => { stderr += bytes; });
+  await new Promise((resolve, reject) => {
+    let stdout = '';
+    child.once('error', reject);
+    child.once('exit', () => reject(new Error(`reader exited before locking: ${stderr}`)));
+    child.stdout.on('data', bytes => { stdout += bytes; if (stdout.includes('locked')) resolve(); });
+  });
+  let attempts = 0; const errors = [];
+  renameSnapshotSync(snapshot, destination, { rename(from, to) {
+    attempts++;
+    try { renameSync(from, to); }
+    catch (error) {
+      errors.push(error.code);
+      // The child can release while the parent is inside Atomics.wait.
+      writeFileSync(release, 'release'); throw error;
+    }
+  } });
+  assert.ok(attempts >= 2, 'the real locked-file failure precedes successful replacement');
+  assert.ok(errors.every(code => ['EPERM', 'EBUSY', 'EACCES'].includes(code)), errors.join(','));
+  t.diagnostic(`real Windows sharing lock: ${errors.join(',')}; rename attempts ${attempts}`);
+  assert.equal(await readFile(destination, 'utf8'), 'reserved-request');
+  assert.equal(await closed, 0, stderr);
+});
 
 async function fixture(t, handler, limits = {}) {
   const tempRoot = path.resolve('.sciencescope-local/temp');

@@ -3,6 +3,11 @@
 // --missing` lists strings still untranslated. Model-facing prompts, user data
 // and the prototype's demo content are intentionally absent.
 export const EN = {
+  '选择引用来源': 'Choose citation source',
+  '复合引用包含多个记录，请分别用每个引用或精确 ref 阅读。': 'This citation contains multiple records. Read each citation or exact ref separately.',
+  '引用包含无法识别的成员，请分别使用完整引用。': 'This citation contains an unrecognized member. Use each complete citation separately.',
+  '引用页码范围无效。': 'The citation page range is invalid.',
+  '引用页码范围需要来源 ref。': 'A page range requires a source ref.',
   '从此回复分支': 'Branch from this reply',
   '从此处重新提问': 'Ask again from here',
   '分支自': 'Branched from',

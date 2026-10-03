@@ -93,6 +93,16 @@ try {
     headless: true, viewport: {width: 1440, height: 960}, env: {...process.env, TEMP: root, TMP: root},
   });
   const page = await browser.newPage(); const errors = [];
+  await page.addInitScript(() => {
+    const schedule=window.setTimeout;
+    window.heldDiscussionPaints=[];
+    window.setTimeout=function(callback,delay,...args){
+      if(window.holdDiscussionPaint&&delay===60&&String(callback).includes('paintAnswer')) {
+        window.heldDiscussionPaints.push(()=>callback(...args));return 0;
+      }
+      return schedule(callback,delay,...args);
+    };
+  });
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(`http://127.0.0.1:${server.address().port}/`);
   await page.waitForFunction(() => window.ScienceScopeDiscussion && window.ScienceScopeWorkMode && window.SSV2);
@@ -153,7 +163,28 @@ try {
   // The preamble streamed before the tool call moved into the tool card.
   assert.doesNotMatch(await page.locator('.message[data-streaming] .message-text').first().innerText(), /PREAMBLE_/);
   assert.match(await page.locator('.turn-activity-caption').first().innerText(), /PREAMBLE_methodologist/);
+  await page.evaluate(()=>{window.holdDiscussionPaint=true;});
   await page.waitForFunction(() => S.messages.filter(m => m.expert && !m.streaming).length === 2 && !V.pending.has(V.chat));
+  // A review-start schedules a 60ms paint; expert-end paints immediately.
+  // Hold one real pointer gesture across the queued paint. Replacing the same
+  // review bar used to detach its button between down/up and lose the click.
+  const adopt = page.locator('[data-review-adopt]');
+  assert.equal(await adopt.getAttribute('aria-pressed'), 'false');
+  const adoptHandle=await adopt.elementHandle(),adoptBox=await adopt.boundingBox();
+  assert.ok(adoptBox,'the completed review adoption control is visible');
+  assert.equal(await adopt.evaluate(el=>{const r=el.getBoundingClientRect();return document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)===el;}),true,'pointer targets the adoption control');
+  await page.mouse.move(adoptBox.x+adoptBox.width/2,adoptBox.y+adoptBox.height/2);
+  await page.mouse.down();
+  const queuedPaints=await page.evaluate(()=>{
+    window.holdDiscussionPaint=false;
+    const paints=window.heldDiscussionPaints.splice(0);for(const paint of paints)paint();return paints.length;
+  });
+  assert.ok(queuedPaints>0,'exercise a queued discussion paint during the pointer gesture');
+  assert.equal(await adoptHandle.evaluate(el=>el.isConnected),true,'queued paint preserves the pointer target');
+  await page.mouse.up();
+  await page.waitForFunction(() => document.querySelector('[data-review-adopt]')?.getAttribute('aria-pressed') === 'true');
+  assert.equal(calls.filter(call=>call.route==='adopt').length,1,'one gesture makes exactly one adoption request');
+  await adoptHandle.dispose();
   assert.equal(await page.locator('.message:not(.user) .message-text', {hasText: 'PARTIAL_'}).count(), 0, 'final text replaces the partial stream');
   assert.deepEqual(calls[0].body.expertIds, ['methodologist']);
   assert.equal(calls[0].body.reviewerId, 'statistician');
@@ -163,15 +194,7 @@ try {
   assert.equal(await page.locator('.message:not(.user) .message-text strong').first().innerText(), '方法学家');
   assert.equal(await page.locator('[data-draft="main"]').inputValue(), '');
   // The review joins later context only when the user adopts it.
-  const adopt = page.locator('[data-review-adopt]');
-  assert.equal(await adopt.getAttribute('aria-pressed'), 'false');
-  // One real click once the transcript has settled. Locator.click() retries when
-  // its hit-target check races the final layout, and the page's capture
-  // listener sees both attempts, toggling the review twice.
-  let box = null;
-  for (let i = 0; i < 20; i++) { const next = await adopt.boundingBox(); if (box && next && box.x === next.x && box.y === next.y) break; box = next; await page.waitForTimeout(50); }
-  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
-  await page.waitForFunction(() => document.querySelector('[data-review-adopt]')?.getAttribute('aria-pressed') === 'true');
+  assert.equal(await adopt.getAttribute('aria-pressed'), 'true');
   assert.deepEqual(calls.at(-1), {route: 'adopt', body: {chatId: calls[0].body.chatId, messageId: 'msg-ordered-statistician-1', adopted: true}});
   // Work mode: typing @ offers enabled experts; Enter picks one and never sends.
   await chooseMode('工作');
@@ -343,4 +366,4 @@ try {
   assert.deepEqual(errors, []);
   assert.equal(screenshots.length,12);
   console.log(JSON.stringify({liveExpertText: true, rosterEditor: true, orderedPanel: true, reviewerAfterPanel: true, reviewAdoption: true, toolPreambleInCard: true, rosterOrderDisplay: true, realAuthors: true, workModeMentionInvite: true, mentionMenu: true, noFreeMode: true, workModeUnchanged: true,independentReviewerSettings:true,skillBinding:true,skillCatalogRefreshPreservesUnsavedEdits:true,settingsFreshPage:true,reviewerGrouping:true,reviewerExcludedFromParticipantsAndMentions:true,independentReviewAndAdoption:true,languageThemeScreenshots:screenshots,fixtureApi:true,realDsh:false, localRequests: calls.length, paidRequests: 0}));
-} finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));await rm(root,{recursive:true,force:true}); }
+} finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));await rm(root,{recursive:true,force:true,maxRetries:6,retryDelay:500}); }

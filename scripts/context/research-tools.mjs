@@ -1,4 +1,5 @@
 import {ContextAccessError, POLICY} from './policy.mjs';
+import {parseCitationLabel} from '../research-base/citations.mjs';
 
 /** Reuse Research Base search/read; only the session scope differs. */
 export function createScopedResearchTools({research, projectIds}) {
@@ -30,7 +31,11 @@ export function createScopedResearchTools({research, projectIds}) {
     if (name === 'research_read') {
       let ref=args.ref;
       let page=args.page;
+      let toPage=args.toPage;
       if(!ref && args.cite) {
+        const parsed=parseCitationLabel(args.cite);
+        if(parsed.citations.length>1)throw new ContextAccessError('AMBIGUOUS_CITATION','This citation contains multiple records; read each citation or exact ref separately.');
+        if(parsed.parseStatus==='partial')throw new ContextAccessError('INVALID_CITATION','This citation contains an unrecognized member; read a complete citation separately.');
         const ids=ctx.role==='global'?[null,...await projectIds()]:[ctx.projectId??null];
         const refs=new Map();
         for(const projectId of ids){const match=research.retrieval.resolveCitation(args.cite,{projectId});if(match)refs.set(JSON.stringify(match.ref),match);}
@@ -40,8 +45,9 @@ export function createScopedResearchTools({research, projectIds}) {
         // can otherwise omit the page explicitly requested by the citation.
         ref=citation?.source?{type:'source',id:citation.source.id}:citation?.ref;
         page=args.page??citation?.page;
+        toPage=args.page!=null?args.toPage:args.toPage??(citation?.fromPage!==citation?.toPage?citation?.toPage:undefined);
       }
-      const result=await research.toolCall(name,{...args,page,ref:allowedRef(ref,ctx)},ctx);
+      const result=await research.toolCall(name,{...args,page,toPage,ref:allowedRef(ref,ctx)},ctx);
       // A public item must not expose a private/out-of-scope neighbour through
       // its evidence links (including the link's quote and note).
       if(Array.isArray(result.links))return {...result,links:result.links.filter(link=>{

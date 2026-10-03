@@ -143,3 +143,53 @@ test('citation resolution keeps private items and other experts isolated', async
     }
   } finally { await f.close(); }
 });
+
+test('citation ranges read only requested pages and reject multiple sources for every role', async () => {
+  const f = await fixture();
+  try {
+    for (const role of ['main', 'expert', 'secretary', 'global']) {
+      const ctx = { role, projectId: 'p1', expertId: 'e1' };
+      for (const call of [f.research.toolCall, f.scoped]) {
+        const result = await call('research_read', { cite: '[S1 p.2–3]' }, ctx);
+        assert.match(result.text, /TARGET_PAGE_SENTINEL/);
+        assert.match(result.text, /OVERRIDE_PAGE_SENTINEL/);
+        assert.doesNotMatch(result.text, /PREVIOUS_PAGE_SENTINEL/);
+        assert.equal(result.fromPage, 2);
+        assert.equal(result.toPage, 3);
+        assert.equal(result.cite, '[S1 p.2–3]');
+        assert.deepEqual(result.readPages, [2, 3]);
+        assert.equal(result.truncated, false);
+        const override = await call('research_read', { cite: '[S1 p.2–3]', page: 3 }, ctx);
+        assert.match(override.text, /OVERRIDE_PAGE_SENTINEL/);
+        assert.doesNotMatch(override.text, /TARGET_PAGE/);
+        await assert.rejects(call('research_read', { cite: '[S1; S2]' }, ctx), error => ['AMBIGUOUS_CITATION', 'INVALID_CITATION'].includes(error.code));
+      }
+    }
+  } finally { await f.close(); }
+});
+
+test('large page ranges stay bounded and expose continuation within the requested range', async () => {
+  const f = await fixture();
+  try {
+    f.research.store.replaceChunks(f.source.id, Array.from({ length: 450 }, (_, i) => ({ page: i + 2, text: `PAGE_${i + 2} ` + 'x'.repeat(100) })), { parser: 'test', pages: 451 });
+    for (const call of [f.research.toolCall, f.scoped]) {
+      const ctx = { role: 'main', projectId: 'p1' };
+      const first = await call('research_read', { cite: '[S1 p.2–1000000000]', maxChars: 500 }, ctx);
+      assert.equal(first.truncated, true);
+      assert.equal(first.fromPage, 2);
+      assert.equal(first.toPage, 1000000000);
+      assert.ok(first.text.length <= 500);
+      const next = await call('research_read', { cite: '[S1 p.2–1000000000]', fromOrdinal: first.nextOrdinal, maxChars: 500 }, ctx);
+      assert.ok(next.readPages[0] > first.readPages.at(-1));
+      assert.doesNotMatch(next.text, /PAGE_2\s/u);
+      const bounded = await call('research_read', { cite: '[S1 p.2–451]', maxChars: 20000 }, ctx);
+      assert.equal(bounded.truncated, true);
+      assert.ok(bounded.text.length <= 20000);
+      for (const args of [
+        { ref: { type: 'chunk', id: `${f.source.id}-c0` }, page: 2, toPage: 3 },
+        { ref: { type: 'source', id: f.source.id }, page: 3, toPage: 2 },
+        { ref: { type: 'source', id: f.source.id }, toPage: 3 },
+      ]) await assert.rejects(call('research_read', args, ctx), error => error.code === 'INVALID_CITATION');
+    }
+  } finally { await f.close(); }
+});
