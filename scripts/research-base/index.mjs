@@ -115,10 +115,14 @@ export function createResearchBase({ database, resolveResourcePath, onProgress }
       const result = await retrieval.searchHybrid({ query: args.query, queries: args.queries, projectId: context.projectId ?? null, docTypes: args.types?.length ? args.types : undefined, itemTypes: args.itemTypes, k: args.limit ?? 8, ...agent });
       const {hits}=result;
       if (context.chatId && context.messageId) store.recordUsage({ chatId: context.chatId, messageId: context.messageId, refs: hits.map((h) => h.ref), how: 'search' });
-      return { mode:result.mode,...(result.fallbackReason?{fallbackReason:result.fallbackReason}:{}),hits: hits.map((h) => ({ cite: h.cite, ref: h.ref, title: h.title, section: h.section ?? undefined, page: h.page ?? undefined, snippet: h.snippet, ...(h.item ? { type: h.item.type, subtype: h.item.subtype, status: h.item.claimStatus ?? h.item.status } : {}) })), hint: (result.mode==='keyword'?'本次为关键词检索。 ':'')+(hits.length ? 'These are bounded passage excerpts. Cite their labels, e.g. [S3 p.4]. Use research_read to read the full passage or neighbouring paragraphs before making a claim.' : 'No match. Try other keywords or synonyms, including Chinese and English queries.') };
+      return { mode:result.mode,...(result.fallbackReason?{fallbackReason:result.fallbackReason}:{}),hits: hits.map((h) => ({ cite: h.cite, ref: h.ref, title: h.title, section: h.section ?? undefined, page: h.page ?? undefined, snippet: h.snippet, ...(h.item ? { type: h.item.type, subtype: h.item.subtype, status: h.item.claimStatus ?? h.item.status } : {}) })), hint: (result.mode==='keyword'?'本次为关键词检索。 ':'')+(hits.length ? 'These are bounded excerpts, not evidence of absence. Use research_read with a promising hit\'s exact ref to verify missing detail. Once direct evidence covers the question, answer concisely with cite labels, e.g. [S3 p.4]. Further lookups should resolve a specific missing fact or contradiction.' : 'No match. Try other keywords or synonyms, including Chinese and English queries.') };
     }
     if (name === 'research_read') {
-      const result = retrieval.read({ ref: args.ref ?? parseCite(args.cite, retrieval, context.projectId), page: args.page, fromOrdinal: args.fromOrdinal, maxChars: args.maxChars ?? 6000, ...agent });
+      const citation = args.ref ? null : resolveCite(args.cite, retrieval, context.projectId);
+      // Page citations must read that source page, not a chunk's preceding
+      // neighbor, which can consume the whole reading window before the page.
+      const ref = args.ref ?? (citation.source ? { type: 'source', id: citation.source.id } : citation.ref);
+      const result = retrieval.read({ ref, page: args.page ?? citation?.page, fromOrdinal: args.fromOrdinal, maxChars: args.maxChars ?? 6000, ...agent });
       if (context.chatId && context.messageId) store.recordUsage({ chatId: context.chatId, messageId: context.messageId, refs: [result.ref], how: 'read' });
       return result;
     }
@@ -141,9 +145,13 @@ export function createResearchBase({ database, resolveResourcePath, onProgress }
   return { store, retrieval, ingest, handleGet, handlePost, toolCall, syncLegacyKnowledge, registerResources };
 }
 
-function parseCite(cite, retrieval, projectId) {
+function resolveCite(cite, retrieval, projectId) {
   if (typeof cite !== 'string') throw new ResearchBaseError('INVALID_REF', '请提供 ref 或 cite。');
   const found = retrieval.resolveCitation(cite, { projectId: projectId ?? null });
   if (!found) throw new ResearchBaseError('NOT_FOUND', `找不到引用 ${cite}。`, 404);
-  return found.ref;
+  return found;
+}
+
+function parseCite(cite, retrieval, projectId) {
+  return resolveCite(cite, retrieval, projectId).ref;
 }

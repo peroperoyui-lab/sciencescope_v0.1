@@ -8,13 +8,59 @@ import { createDshHost } from '../adapters/runtime-dsh/host.mjs';
 import { createDesktopApi } from '../scripts/desktop-api.mjs';
 import { openApplicationDatabaseSync } from '../scripts/application-database.mjs';
 import { createResearchBase } from '../scripts/research-base/index.mjs';
-import { createCappedProxy, createLiveHost } from '../scripts/evals/hybrid-live-retrieval.mjs';
+import { createCappedProxy, createLiveHost, eligibleUnpaidQuestions, parseArgs, requestReceipt, resultMetrics, selectQuestions, shouldStopBatch, validateUpstreamProxy } from '../scripts/evals/hybrid-live-retrieval.mjs';
 
 const projectId = 't10-runtime-project';
 const model = { providerId: 't10-retrieval-counted', modelId: 'deepseek-v4.1-flash' };
 
 function sendEvent(response, value) { response.write(`data: ${JSON.stringify(value)}\n\n`); }
 function done(response) { response.end('data: [DONE]\n\n'); }
+
+test('T10 single-pass selection preserves frozen order and never retries a failed or interrupted paid question', () => {
+  const questions = ['q1', 'q2', 'q3'].map(id => ({ id }));
+  const args = parseArgs(['--authorized-live', '--single-pass', '--run-name', 'new-run', '--questions', 'q3,q1']);
+  assert.equal(args.continueAfterQuestionFailure, true);
+  const selected = selectQuestions(questions, args.questionIds);
+  assert.deepEqual(selected.map(row => row.id), ['q1', 'q3']);
+  assert.throws(() => selectQuestions(questions, ['q1', 'q1']), /unique/u);
+  assert.throws(() => selectQuestions(questions, ['unapproved']), /unapproved/u);
+  assert.throws(() => parseArgs(['--single-pass']), /authorized-live/u);
+  assert.throws(() => parseArgs(['--authorized-live', '--single-pass', '--pilot']), /exactly one/u);
+  for (const status of ['FAILED', 'RUNNING', 'INTERRUPTED_NO_RETRY', 'COMPLETED_AUDIT_PENDING']) {
+    assert.deepEqual(eligibleUnpaidQuestions(selected, [{ id: 'q1', status }], { questions: { q1: { forwardedCompletions: 6 } } }).map(row => row.id), ['q3']);
+  }
+  assert.throws(() => eligibleUnpaidQuestions(selected, [], { questions: { q1: { forwardedCompletions: 1 } } }), /refusing a retry/u);
+});
+
+test('T10 single-pass continues local question failures and stops systemic failures', () => {
+  const question = { prohibitedTools: ['bash'], providerFailures: [], hostErrors: [], requestCount: { blockedCompletions: 0 }, stopReason: 'NON_RESEARCH_TOOL_ATTEMPT' };
+  const proxyState = { blockedUnattributed: 0, events: [] };
+  assert.equal(shouldStopBatch({ singlePass: true, question, proxyState }), false);
+  assert.equal(shouldStopBatch({ singlePass: false, question, proxyState }), true);
+  assert.equal(shouldStopBatch({ singlePass: true, question: { ...question, prohibitedTools: [], stopReason: null, requestCount: { blockedCompletions: 1 } }, proxyState }), false);
+  assert.equal(shouldStopBatch({ singlePass: true, question, proxyState: { ...proxyState, blockedUnattributed: 1 } }), true);
+  assert.equal(shouldStopBatch({ singlePass: true, question, proxyState: { ...proxyState, events: [{ blockReason: 'global-cap' }] } }), true);
+  assert.equal(shouldStopBatch({ singlePass: true, question: { ...question, stopReason: 'RUNNER_FAILURE' }, proxyState }), true);
+  const capped = { ...question, id: 'q1', prohibitedTools: [], stopReason: null, requestCount: { blockedCompletions: 1 }, hostErrors: [{ code: 'RATE_LIMIT', name: 'Error', message: 'DSH model request failed: 429' }] };
+  assert.equal(shouldStopBatch({ singlePass: true, question: capped, proxyState: { ...proxyState, events: [{ questionId: 'q1', blockReason: 'question-cap', status: 429, forwarded: false }] } }), false);
+  assert.equal(shouldStopBatch({ singlePass: true, question: { ...capped, requestCount: { blockedCompletions: 0 } }, proxyState }), true);
+});
+
+test('T10 telemetry measures exact result serialization and records rules without request headers or answer text', () => {
+  const result = { hits: [{ cite: '[S1 p.1]', ref: { type: 'chunk', id: 'c1' }, snippet: '片段abc', section: 'Methods' }], text: 'reading' };
+  const metric = resultMetrics(result);
+  assert.equal(metric.serializedCharacters, JSON.stringify(result).length);
+  assert.equal(metric.hits[0].characters.snippet, 5);
+  assert.equal(metric.hits[0].characters.section, 7);
+  const receipt = requestReceipt({ model: 'fake', messages: [{ role: 'system', content: 'For research questions use research_search first.' }, { role: 'user', content: 'user question never copied' }], headers: { authorization: 'secret-fixture' } });
+  assert.equal(receipt.researchFirstRulePresent, true);
+  assert.equal(receipt.systemText, 'For research questions use research_search first.');
+  assert.ok(receipt.contextApiVersion);
+  assert.equal(JSON.stringify(receipt).includes('user question never copied'), false);
+  assert.equal(JSON.stringify(receipt).includes('secret-fixture'), false);
+  assert.equal(validateUpstreamProxy('http://127.0.0.1:10808'), 'http://127.0.0.1:10808');
+  for (const proxy of ['http://public.example:8080', 'http://user:password@127.0.0.1:10808', 'https://127.0.0.1:10808']) assert.throws(() => validateUpstreamProxy(proxy));
+});
 
 test('T10 production API + real DSH + local fake model completes manifest, research_search, answer and proxy accounting', async () => {
   const tempRoot = path.resolve('.sciencescope-local/temp');
@@ -26,6 +72,7 @@ test('T10 production API + real DSH + local fake model completes manifest, resea
   const providerLedger = path.join(root, 'provider-ledger.json');
   const dbFile = path.join(stateDir, 'sciencescope.sqlite');
   const fixtureKey = 'local-only-fake-provider-key';
+  const localChildKey = 'disposable-localhost-child-key';
   let database, proxy, host, api, apiServer, fakeProvider;
   const requests = [];
   const manifestCalls = [];
@@ -79,10 +126,15 @@ test('T10 production API + real DSH + local fake model completes manifest, resea
     proxy = await createCappedProxy({
       evidencePath: providerLedger, maxCompletionRequests: 2, maxPerQuestion: 2,
       upstreamOrigin: `http://127.0.0.1:${fakeProvider.address().port}`, allowTestLoopbackUpstream: true,
+      upstreamCredential: fixtureKey,
     });
     host = await createLiveHost({
-      paths: { dataRoot: root, home: dshHome, projects: projectDir }, proxy, activeRef, credential: fixtureKey,
-      dshFactory: options => createDshHost(options),
+      paths: { dataRoot: root, home: dshHome, projects: projectDir }, proxy, activeRef, credential: localChildKey,
+      dshFactory: options => {
+        assert.equal(options.env.SCIENCESCOPE_T10_RETRIEVAL_KEY, localChildKey);
+        assert.equal(JSON.stringify(options).includes(fixtureKey), false);
+        return createDshHost(options);
+      },
     });
     // Observe the real internal manifest handshake without allowing it into
     // user/model tool-call scoring or provider request accounting.
@@ -149,6 +201,12 @@ test('T10 production API + real DSH + local fake model completes manifest, resea
     assert.equal(apiErrors.length, 0, JSON.stringify(apiErrors));
     researchResult = active.toolCalls[0].summary;
     assert.equal(researchResult.hits[0].cite, '[S1 p.1]');
+    assert.ok(active.toolCalls[0].resultMetrics.serializedCharacters > 0);
+    assert.ok(active.toolCalls[0].resultMetrics.hits[0].characters.snippet > 0);
+    assert.equal(proxy.state.events[0].requestReceipt.researchFirstRulePresent, true);
+    assert.ok(proxy.state.events[0].requestReceipt.systemText.includes('research_search'));
+    assert.match(proxy.state.events[0].requestReceipt.systemText,/Once direct evidence covers the requested scope, answer concisely/);
+    assert.equal(JSON.stringify(proxy.state).includes(fixtureKey), false);
 
     const usage = await call(`/api/research/usage?chatId=${encodeURIComponent(chatId)}&messageId=a-t10-runtime`);
     assert.ok(usage.refs.some(ref => ref.how === 'search' && ref.id === 'src_t10runtime-c0'));

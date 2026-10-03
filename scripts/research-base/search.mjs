@@ -254,11 +254,18 @@ export function createResearchSearch({ store }) {
       const links = store.linksOf({ type: 'item', id: item.id });
       return { ref: { type: 'item', id: item.id }, cite: citeOf.item(item), item: itemBrief(item), body: item.body, payload: item.payload, links: links.map((l) => ({ relation: l.relation, from: l.from, to: l.to, quote: l.quote, note: l.note })) };
     }
+    const blockOf = (chunk, previous) => `${chunk.page && chunk.page !== previous?.page ? `\n[p.${chunk.page}]\n` : ''}${chunk.section && chunk.section !== previous?.section ? `## ${chunk.section}\n` : ''}${chunk.text}\n`;
     let source; let chunks;
     if (ref.type === 'chunk') {
       const chunk = store.getChunk(ref.id); if (!chunk) throw new ResearchBaseError('NOT_FOUND', '段落不存在。', 404);
       source = store.getSource(chunk.sourceId);
       chunks = store.chunksOf(source.id, { fromOrdinal: Math.max(0, chunk.ordinal - 1), limit: 40 });
+      // Reserve the selected passage before admitting its predecessor. If
+      // both cannot fit, start at the selection so a large neighbor cannot
+      // replace the requested evidence. Otherwise keep chronological context.
+      if (chunks[0]?.ordinal < chunk.ordinal && blockOf(chunks[0]).length + blockOf(chunk, chunks[0]).length > maxChars) {
+        chunks = chunks.filter(candidate => candidate.ordinal >= chunk.ordinal);
+      }
     } else if (ref.type === 'source') {
       source = store.getSource(ref.id) ?? null;
       if (!source) throw new ResearchBaseError('NOT_FOUND', '来源不存在。', 404);
@@ -266,7 +273,7 @@ export function createResearchSearch({ store }) {
     } else throw new ResearchBaseError('INVALID_REF', '只能阅读来源、段落或条目。');
     const parts = []; let used = 0; let last = null;
     for (const chunk of chunks) {
-      const block = `${chunk.page && chunk.page !== last?.page ? `\n[p.${chunk.page}]\n` : ''}${chunk.section && chunk.section !== last?.section ? `## ${chunk.section}\n` : ''}${chunk.text}\n`;
+      const block = blockOf(chunk, last);
       if (used + block.length > maxChars && parts.length) break;
       parts.push(block); used += block.length; last = chunk;
     }
