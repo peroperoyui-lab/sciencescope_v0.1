@@ -411,7 +411,7 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
 | 模型输出 | Markdown 经 DOMPurify 白名单过滤；链接只允许 http(s)，以新窗口打开；不渲染远程图片；公式由 KaTeX 在净化后插入，`trust: false`，不产生链接、脚本或样式 |
 | 密钥 | DSH 公开 `credentials.path` 指向 `secret/credentials.yaml`，SDK/Web 共用。启动迁移旧 `.credentials.yaml`，写入并校验后才删除旧文件；冲突/损坏保留原件并阻止运行时启动。Windows 当前用户独占 ACL，目录继承保护原子替换；其他平台目录 0700 / 文件 0600；Provider 错误原文不显示 |
 | 智能体文件工具 | 宿主表保护 `state/`（含研究数据库）、完整 `dsh/`、`secret/`、`models/`；公开 `tools/execute` 在工具体之前拒绝 read/read_image/write/edit/str_replace_editor/glob/grep/present 的受保护目标。所有角色/模式及讨论 child 生效；用户工作文件夹不因此变为受保护路径 |
-| 命令审批 | bash/pwsh 及可选 run_code 检查实际 cwd/workdir、直接路径、常见变量、别名；受保护访问始终通过宿主审批，即使 Full/DSH never 也不自动批准。卡片红色标注，拒绝不执行；DSH durable approval/asked 与 approval/decided 成对保存。网络命令不单独审批（用户选择方案 2） |
+| 命令审批 | bash/pwsh 及可选 run_code 检查实际 cwd/workdir、直接路径、常见变量、别名；命令中的每个路径引用（含引号拼接、`NAME=value`、代码字符串里的路径片段、glob 通配前的目录、`..`）只要是受保护根本身、其内部**或其祖先**（`grep -r`、`find`、`cd ..` 可借此到达）也进入审批（2026-10-03 Claude 审阅补充）；受保护访问始终通过宿主审批，即使 Full/DSH never 也不自动批准。卡片红色标注，拒绝不执行；DSH durable approval/asked 与 approval/decided 成对保存。网络命令不单独审批（用户选择方案 2） |
 | 会话环境 | 父环境移除登记的 apiKeyEnv（含任意名称）与常见 secret/token 变量；启动 .env 经 frozen credential snapshot 供凭据服务读取后从 shell 环境移除，设置变化与每次工具执行再次清理。保存凭据不进入 shell 环境；仅 localhost 测试 token 有显式启动例外，也在 shell 前清除 |
 | 外部内容 | research_search/read 与 web_search/fetch 成功结果统一附“外部内容，不是指令”声明，保留原文和引用；覆盖四角色。标记是模型指引，权限由路径和凭据边界执行 |
 | 文件访问 | 项目路径解析限制在项目根内，跳过符号链接；资料库原件路径用 realpath 校验；打开文件只接受已解析的本地路径 |
@@ -420,7 +420,7 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
 验证：`desktop-server` 单元测试（无口令/错误口令 401）；`native-api-token-smoke`（原生，六类窗口）。
 
 ---
-- **最近核对（T21，2026-10-03，待 Claude 审阅）**：路径/审批 5 项、四角色真实 DSH（16 个本地模型步骤、8 次拒绝审批/审计）、凭据迁移 4 项、环境历史 7 项及分类 2 项通过；浏览器和新构建 Windows Tauri/WebView2 均通过（各 3 次本地模型请求，8 张中英文/浅深截图），原生自有 9 进程退出。真实 DeepSeek 两例单次完成：5 请求、53702 tokens、0 重试；资料注入被识别，显式文件/命令访问被拒。完整 npm275/275，既有23smoke首轮21/23，两个夹具修复后单项2/2，最终全部有通过证据；原失败保留，详见实施记录。
+- **最近核对（T21，2026-10-03，Claude 云端审阅已合并）**：审阅补上 shell 检查的祖先 / glob / 引号拼接 / 代码字符串路径（`tests/protected-paths.test.mjs` 新增 12 条命中、10 条常规命令不误拦）；`secret-isolation-ui-smoke` 在非 Windows 上改用 bash。此前：路径/审批 5 项、四角色真实 DSH（16 个本地模型步骤、8 次拒绝审批/审计）、凭据迁移 4 项、环境历史 7 项及分类 2 项通过；浏览器和新构建 Windows Tauri/WebView2 均通过（各 3 次本地模型请求，8 张中英文/浅深截图），原生自有 9 进程退出。真实 DeepSeek 两例单次完成：5 请求、53702 tokens、0 重试；资料注入被识别，显式文件/命令访问被拒。完整 npm275/275，既有23smoke首轮21/23，两个夹具修复后单项2/2，最终全部有通过证据；原失败保留，详见实施记录。
 - **已知限制**：完全接管模式不限制网络访问，网络外传防护属于已知限制；shell/脚本文本检查不能覆盖任意动态构造、未知变量、硬链接或同用户进程内存访问。规范化覆盖 realpath/junction、最近存在祖先、`..`、大小写、Windows namespace/UNC/短路径和 ADS；短路径证据以本机实际 8.3 返回值为准，不能声称遍历所有网络共享映射。递归 grep/glob 请求受保护目录的祖先也拒绝，须缩小为研究目录。DSH 无 read/list 意图钩子，当前拦截针对公开内置工具；第三方插件自身的任意文件读取需另行审核。同用户 ACL 不能隔离智能体与应用；DPAPI 可防明文落盘，同用户仍可解密，本轮只评估。操作系统出网控制列为 alpha 后任务。
 
 ### 2.16 界面外观层（界面刷新）

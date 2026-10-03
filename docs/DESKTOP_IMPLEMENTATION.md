@@ -1,5 +1,45 @@
 # Desktop implementation — first increment
 
+## 2026-10-03 Review of T10 transport, T21 and the T10 follow-up (Claude, cloud)
+
+- Merged into `claude/determined-pasteur-jxpzw8`: `codex/t10-transport-20261003@4f5506d`,
+  `codex/t21-secret-isolation-20261003@a337af9`, `codex/t10-transport-followup-20261003@fda301b`.
+  Conflicts were documentation, i18n entries (both sides kept) and
+  `workspace-ui-smoke` (follow-up's stricter version kept).
+- **T21 security review.** Path policy, `tools/execute` interception, the
+  host approval seam, credential migration and environment filtering read
+  correctly; DSH's file tools are all covered (read/read_image/write/edit,
+  str_replace_editor, glob/grep, present; web_fetch is http(s) only).
+  **Gap fixed in review:** the shell check matched only literal protected paths, so
+  `grep -r api_key ../..` from a project folder (projects live inside
+  `.sciencescope-local`), `find ..`, `cd .. && cat …`, globs
+  (`.sciencescope-*/…`), quote-split names (`ds''h`), `D=…; cat $D/…` and
+  paths built inside `python -c` strings all ran in full mode without approval.
+  `inspectShell` now treats each path reference, including quote-joined tokens,
+  assignments, path fragments inside code strings and the directory before a
+  wildcard, as protected when it is a protected root, lies inside one or is an
+  ancestor of one. 12 new hit cases plus 10 routine commands that must not be
+  blocked, in `tests/protected-paths.test.mjs`. Text inspection remains one layer (encoded or
+  computed paths can still evade it); Dot's red-team task (DOT.md D) now starts.
+- **discussion-ui adoption flake: product defect, fixed.** Instrumented runs
+  showed pointer-up landing on the message body: a finished message that
+  re-rendered got a "本轮用到的资料" row immediately, then lost it when
+  `research/usage` returned nothing, shifting the transcript 23–61 px for one
+  round-trip. A click made during that time could miss its target. The row is now hidden until it
+  has records, and an empty extras host takes no space. Before: 2/5 passes;
+  after: 6/6.
+- `secret-isolation-ui-smoke`: uses bash where pwsh is not registered, and
+  waits for the async full-mode confirmation instead of asserting at once
+  (test defects, Linux).
+- Verification (cloud, Linux, after review fixes): `npm test` 292/293
+  (1 skipped, 0 fail); T21/citation unit + runtime tests 24/24; 36 of 48
+  browser/API smokes pass. The 12 that cannot run here are Windows-native
+  (native-*, assistant-window, python-env-native), pwsh-only
+  (dsh-approval), or need real packages, providers or a prior
+  run (python-env-local/mirror, python-goal-env-runtime, real-provider,
+  real-stream). They are unchanged by this review and stay with Sol's Windows
+  acceptance.
+
 ## 2026-10-04 · T10 传输补充：复合引用、三轮52题及不稳定测试
 
 - 当前分支 `codex/t10-transport-followup-20261003`，直接基于已推送 `codex/t10-transport-20261003@4f5506d29ed69c060a168d64e9e2d48784fad307`；未叠加已独立推送、待审阅的 T21 `a337af9757659c26a4861317c365dfd71b51b616`。Claude 新规则来自 `7ab8bee`，QUEUE第1/8条已同步；远端还包含后续Dot文档 `27a7a2d`，本轮没有把Dot工作纳入执行范围或改动main。H盘/origin核对通过；不开PR、不合并。

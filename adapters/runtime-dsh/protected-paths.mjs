@@ -90,11 +90,24 @@ export function createProtectedPathPolicy({ protectedPaths, platform = process.p
         return false;
       })) matches.push(root.spelling);
     }
-    const candidates = expanded.match(/"[^"]*"|'[^']*'|[^\s;|&()<>]+/gu) ?? [];
-    for (const token of candidates) {
-      const value = token.replace(/^['"]|['"]$/gu, '').replace(/[;,]+$/gu, '');
-      if (!value || value.startsWith('-') || /^(?:https?|ftp):/iu.test(value)) continue;
-      try { const match = await inspectPath(value, { cwd: effectiveCwd }); if (match.protected) matches.push(match.canonicalPath); }
+    // A command reaches a protected root not only by naming it but also through
+    // an ancestor (grep -r, find, cd, globs) or a path split by quotes or built
+    // inside a code string. Each such reference is inspected as an ancestor.
+    const references = new Set();
+    for (const token of expanded.match(/"[^"]*"|'[^']*'|[^\s;|&()<>]+/gu) ?? []) {
+      let value = token.replace(/^['"]|['"]$/gu, '');
+      if (!/^['"]/u.test(token)) value = value.replace(/["']/gu, '');
+      value = value.replace(/[;,]+$/gu, '').replace(/^[a-z_][a-z0-9_]*=/iu, '');
+      if (value && !value.startsWith('-') && !/^(?:https?|ftp):/iu.test(value)) references.add(value);
+      for (const fragment of value.matchAll(/(?<![\w.~$%}-])(?:[a-z]:)?(?:~|\.{1,2})?[\\/][^\s'"+(),;=|&<>`]*|(?<![\w.])\.\.(?![\w.])/giu)) {
+        if (fragment[0].length < 2 || fragment[0].startsWith('//') && value[fragment.index - 1] === ':') continue;
+        references.add(fragment[0]);
+      }
+    }
+    for (let value of [...references].slice(0, 200)) {
+      const wildcard = value.search(/[*?[]/u);
+      if (wildcard >= 0) value = value.slice(0, Math.max(value.lastIndexOf('/', wildcard), value.lastIndexOf('\\', wildcard)) + 1) || '.';
+      try { const match = await inspectPath(value, { cwd: effectiveCwd, recursive: true }); if (match.protected) matches.push(match.canonicalPath); }
       catch (error) { if (!['ENOENT', 'ENOTDIR', 'EINVAL'].includes(error.code)) throw error; }
     }
     // PowerShell's standard encoded-command spelling is cheap to recognize;

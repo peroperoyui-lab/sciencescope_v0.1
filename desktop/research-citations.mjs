@@ -209,7 +209,7 @@ async function loadUsage(message,details) {
       button.type='button';button.className='research-usage-link';button.dataset.usageType=record.refType;button.dataset.usageId=record.refId;
       button.textContent=`${record.label} ${record.title||''}${record.how.size?` · ${[...record.how].join(', ')}`:''}`.trim();li.append(button);list.append(li);
     }
-    details.append(list);
+    details.append(list);details.hidden=false;
   } catch { details.remove(); }
 }
 
@@ -218,7 +218,7 @@ function enhanceMessage(message) {
   const text=message.querySelector('.message-text'); if(text)replaceCitations(text);
   const host=usageHost(message);
   let usage=host.querySelector('[data-research-usage]');
-  if(!usage&&!message.dataset.researchUsageLoaded){usage=document.createElement('details');usage.className='research-usage';usage.dataset.researchUsage='';const summary=document.createElement('summary');summary.textContent='本轮用到的资料';usage.append(summary);host.append(usage);}
+  if(!usage&&!message.dataset.researchUsageLoaded){usage=document.createElement('details');usage.hidden=true;usage.className='research-usage';usage.dataset.researchUsage='';const summary=document.createElement('summary');summary.textContent='本轮用到的资料';usage.append(summary);host.append(usage);}
   const id=message.dataset.messageId||message.dataset.assistantMessage;
   if(id&&usage&&!usage.dataset.loaded)void loadUsage(message,usage);
   const count=proposalCount(message);
