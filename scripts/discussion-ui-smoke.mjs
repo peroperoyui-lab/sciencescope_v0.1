@@ -343,4 +343,4 @@ try {
   assert.deepEqual(errors, []);
   assert.equal(screenshots.length,12);
   console.log(JSON.stringify({liveExpertText: true, rosterEditor: true, orderedPanel: true, reviewerAfterPanel: true, reviewAdoption: true, toolPreambleInCard: true, rosterOrderDisplay: true, realAuthors: true, workModeMentionInvite: true, mentionMenu: true, noFreeMode: true, workModeUnchanged: true,independentReviewerSettings:true,skillBinding:true,skillCatalogRefreshPreservesUnsavedEdits:true,settingsFreshPage:true,reviewerGrouping:true,reviewerExcludedFromParticipantsAndMentions:true,independentReviewAndAdoption:true,languageThemeScreenshots:screenshots,fixtureApi:true,realDsh:false, localRequests: calls.length, paidRequests: 0}));
-} finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));await rm(root,{recursive:true,force:true}); }
+} finally { await browser?.close(); server.closeAllConnections(); await new Promise(resolve => server.close(resolve));await rm(root,{recursive:true,force:true,maxRetries:6,retryDelay:500}); }

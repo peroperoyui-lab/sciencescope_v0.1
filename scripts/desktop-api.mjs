@@ -174,10 +174,13 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   try {
     if (!host) {
     const {createDshHost} = await import('../adapters/runtime-dsh/host.mjs');
-    host = await createDshHost({home,cwd:projects,sessionHeaders});
+    const localRoot=path.join(dataRoot,'.sciencescope-local');
+    const credentialPath=path.join(localRoot,'secret','credentials.yaml');
+    const protectedPaths=['state','secret','models'].map(name=>path.join(localRoot,name)).concat(home);
+    host = await createDshHost({home,cwd:projects,sessionHeaders,credentialPath,protectedPaths});
     const {createDshWebHost} = await import('../adapters/runtime-dsh/web-host.mjs');
     const {createProviderService} = await import('../adapters/runtime-dsh/provider-service.mjs');
-    web = await createDshWebHost({home,cwd:projects});
+    web = await createDshWebHost({home,cwd:projects,credentialPath,protectedPaths});
     if (typeof web.call === 'function') Object.assign(host,createProviderService(web.call));
     }
   } catch { /* Missing/unavailable runtime is shown as unavailable, never faked. */ }
