@@ -40,7 +40,7 @@
 - 产品模块改为调用平台模块，不再直接判断 `process.platform`。行为不变，现有测试全部通过；能在 Linux 上跑的测试继续能跑。
 
 ### 4. 安装包
-- Tauri NSIS：可选安装位置、开始菜单与桌面快捷方式、正式窗口标题（替换"ScienceScope · 桌面开发版"）、应用图标；发布者显示 peroperoyui。
+- Tauri NSIS：可选安装位置、开始菜单与桌面快捷方式、窗口标题 "ScienceScope"（替换"ScienceScope · 桌面开发版"）、应用图标；发布者显示 peroperoyui。
 - DevTools 关闭、浏览器右键菜单关闭（已有要求），候选包上复验。
 - 退出时宿主拥有的进程树全部结束（按 AGENTS.md：观察到子进程 PID 消失）。
 
@@ -82,5 +82,5 @@
 
 - ~~许可证~~：MIT（2026-10-03 已定）。
 - ~~向量模型~~：首次使用时下载，先 Hugging Face，不通自动转 ModelScope（2026-10-03 已定）。
-- 正式产品名与窗口标题（默认 "ScienceScope"）。
+- ~~正式产品名~~：ScienceScope（2026-10-03 已定）。
 - 签名证书或签名服务：alpha 发布前再定。
