@@ -34,6 +34,7 @@ const REQUEST_PREFIX = '/zen/go/v1/';
 const SESSION_HEADER = 'x-sciencescope-t10-session';
 const OPENCODE_SESSION_HEADER = 'x-opencode-session';
 const MAX_PER_QUESTION = 6;
+const MAX_TRANSPORT_RETRIES = 5;
 const PILOT_SIZE = 3;
 const QUESTION_DEADLINE_MS = 180_000;
 const SEMANTIC_READY_DEADLINE_MS = 15 * 60_000;
@@ -91,9 +92,10 @@ export function selectQuestions(questions, ids) {
 export function shouldStopBatch({ singlePass, question, proxyState }) {
   const attributedFailure = question.prohibitedTools.length > 0 || question.providerFailures.length > 0 || question.requestCount.blockedCompletions > 0
     || proxyState.events.some(event => event.questionId === question.id && event.forwarded && (event.status >= 400 || event.upstreamAborted || event.deadlineExceeded));
-  const systemic = proxyState.blockedUnattributed > 0 || proxyState.events.some(event => event.blockReason === 'global-cap')
+  const systemic = proxyState.blockedUnattributed > 0 || proxyState.events.some(event => ['global-cap', 'global-physical-cap'].includes(event.blockReason))
     || question.hostErrors.length > 0 && !attributedFailure || question.stopReason === 'RUNNER_FAILURE';
-  const failed = question.prohibitedTools.length || question.providerFailures.length || question.stopReason || question.requestCount.blockedCompletions;
+  const failed = question.prohibitedTools.length || question.stopReason || question.requestCount.blockedCompletions
+    || question.providerFailures.length && question.terminal !== 'completed';
   return Boolean(systemic || !singlePass && failed);
 }
 
@@ -116,7 +118,7 @@ export function requestReceipt(payload) {
 }
 
 function usage() {
-  return `Usage:\n  node scripts/evals/hybrid-live-retrieval.mjs --preflight [--run-name NAME] [--questions IDS]\n  node scripts/evals/hybrid-live-retrieval.mjs --authorized-live --pilot [--run-name NAME]\n  node scripts/evals/hybrid-live-retrieval.mjs --authorized-live --full --pilot-reviewed [--run-name NAME]\n  node scripts/evals/hybrid-live-retrieval.mjs --authorized-live --single-pass --run-name NAME [--questions IDS]\n\nDefault is offline-only. Pilot sends the first 3 approved questions, max 6 completion requests per question (18 total). Full requires explicit review and caps the run at 312 completions. Single-pass uses approved question order in its own directory, preserves failures and continues to the next question. Each selection is capped at 6 completion requests per question. A question already marked RUNNING or present in the paid-request ledger is never retried.\n`;
+  return `Usage:\n  node scripts/evals/hybrid-live-retrieval.mjs --preflight [--run-name NAME] [--questions IDS]\n  node scripts/evals/hybrid-live-retrieval.mjs --authorized-live --pilot [--run-name NAME]\n  node scripts/evals/hybrid-live-retrieval.mjs --authorized-live --full --pilot-reviewed [--run-name NAME]\n  node scripts/evals/hybrid-live-retrieval.mjs --authorized-live --single-pass --run-name NAME [--questions IDS]\n\nDefault is offline-only. Pilot sends the first 3 approved questions, max 6 model steps per question (18 total). Full requires explicit review and caps the run at 312 model steps. Single-pass uses approved question order in its own directory, preserves failures and continues to the next question. Each selection is capped at 6 model steps per question; transient retries are separately reported, at most 5 per step and 36 physical requests per question. A question already marked RUNNING or present in the paid-request ledger is never rerun. Historical schema 1 runs remain unchanged and require a fresh run directory.\n`;
 }
 
 async function readInputs() {
@@ -363,16 +365,18 @@ export function assertRunIdentity(ledger, inputs, expectedProjectId) {
  * never persisted, inspected, or forwarded as evaluation/session headers. */
 export async function createCappedProxy({ evidencePath, maxCompletionRequests, maxPerQuestion = MAX_PER_QUESTION, upstreamOrigin = 'https://opencode.ai', allowTestLoopbackUpstream = false, upstreamProxy, upstreamCredential }) {
   if (!Number.isInteger(maxCompletionRequests) || maxCompletionRequests < 1) throw new TypeError('completion cap must be positive');
+  if (!Number.isInteger(maxPerQuestion) || maxPerQuestion < 1) throw new TypeError('question cap must be positive');
   const upstream = new URL(upstreamOrigin);
   const testLoopback = allowTestLoopbackUpstream && upstream.protocol === 'http:' && ['127.0.0.1', '::1', 'localhost'].includes(upstream.hostname);
   if (!(upstream.protocol === 'https:' && upstream.hostname === 'opencode.ai') && !testLoopback) throw new Error('T10 proxy upstream is fixed to the configured OpenCode gateway');
   const upstreamAgent = upstreamProxy ? new HttpsAgent({ proxyEnv: { HTTPS_PROXY: validateUpstreamProxy(upstreamProxy) } }) : undefined;
-  let state = { schema: 1, upstreamHost: upstream.host, allowedPrefix: REQUEST_PREFIX, maxPerQuestion, maxCompletionRequests, startedAt: new Date().toISOString(), completionAttempts: 0, forwardedCompletions: 0, blockedCompletions: 0, blockedUnattributed: 0, questions: {}, sessions: {}, sealedQuestions: {}, events: [] };
+  const maxPhysicalRequests = maxCompletionRequests * (MAX_TRANSPORT_RETRIES + 1);
+  let state = { schema: 2, budgetUnit: 'effective-model-step', maxTransportRetries: MAX_TRANSPORT_RETRIES, maxPhysicalRequests, upstreamHost: upstream.host, allowedPrefix: REQUEST_PREFIX, maxPerQuestion, maxCompletionRequests, startedAt: new Date().toISOString(), completionAttempts: 0, forwardedCompletions: 0, effectiveModelSteps: 0, retryAttempts: 0, blockedCompletions: 0, blockedUnattributed: 0, questions: {}, sessions: {}, sealedQuestions: {}, events: [] };
   if (existsSync(evidencePath)) {
     const previous = JSON.parse(await readFile(evidencePath, 'utf8'));
-    if (previous.upstreamHost !== upstream.host || previous.allowedPrefix !== REQUEST_PREFIX || previous.maxPerQuestion !== maxPerQuestion) throw new Error('existing request ledger is incompatible with this proxy');
+    if (previous.schema !== 2 || previous.budgetUnit !== state.budgetUnit || previous.maxTransportRetries !== MAX_TRANSPORT_RETRIES || previous.upstreamHost !== upstream.host || previous.allowedPrefix !== REQUEST_PREFIX || previous.maxPerQuestion !== maxPerQuestion) throw new Error('existing request ledger is incompatible with this proxy; use a fresh run to preserve historical accounting');
     if (previous.maxCompletionRequests > maxCompletionRequests) throw new Error('completion cap cannot shrink when resuming');
-    state = { ...previous, maxCompletionRequests, resumedAt: [...(previous.resumedAt ?? []), new Date().toISOString()] };
+    state = { ...previous, maxCompletionRequests, maxPhysicalRequests, resumedAt: [...(previous.resumedAt ?? []), new Date().toISOString()] };
   }
   const assignments = new Map(Object.entries(state.sessions));
   const persist = () => {
@@ -380,7 +384,19 @@ export async function createCappedProxy({ evidencePath, maxCompletionRequests, m
     writeFileSync(temp, json(state));
     renameSync(temp, evidencePath);
   };
-  const questionState = id => (state.questions[id] ??= { completionAttempts: 0, forwardedCompletions: 0, blockedCompletions: 0, bySessionKind: {} });
+  const questionState = id => (state.questions[id] ??= { completionAttempts: 0, forwardedCompletions: 0, effectiveModelSteps: 0, retryAttempts: 0, blockedCompletions: 0, bySessionKind: {} });
+  const previousBySession = new Map();
+  for (const event of state.events) if (event.forwarded && event.sessionId) previousBySession.set(event.sessionId, event);
+  // Persist only bounded identifiers, never upstream messages, response bodies,
+  // headers or credentials. Nested transport causes often hold the useful code.
+  const errorIdentifier = value => {
+    const token = typeof value === 'number' && Number.isFinite(value) ? String(value) : value;
+    return typeof token === 'string' && /^[A-Za-z0-9_.:-]{1,80}$/u.test(token)
+      && ![upstreamCredential, secretForRedaction].filter(Boolean).some(secret => token.includes(secret)) ? token : null;
+  };
+  const connectionError = (error, type = ['ETIMEDOUT', 'ESOCKETTIMEDOUT', 'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT'].includes(error?.code) || error?.name === 'TimeoutError' ? 'TIMEOUT' : 'TRANSPORT') => ({ connectionErrorType: type, connectionErrorName: ['Error', 'TypeError', 'AbortError', 'TimeoutError', 'AggregateError'].includes(error?.name) ? error.name : null,
+    connectionErrorCode: errorIdentifier(error?.code), connectionCauseCodes: [error?.cause?.code, ...(error?.errors ?? []).map(item => item?.code), ...(error?.cause?.errors ?? []).map(item => item?.code)].map(errorIdentifier).filter(Boolean).slice(0, 8) });
+  const httpErrorType = status => status === 408 || status === 504 ? 'TIMEOUT' : status === 429 ? 'RATE_LIMIT' : status >= 500 ? 'SERVER' : status === 401 || status === 403 ? 'AUTH' : 'HTTP';
   const registerSession = (id, owner) => {
     if (!id || !owner?.questionId || !['main', 'minutes'].includes(owner.kind)) throw new TypeError('proxy session attribution is invalid');
     const prior = assignments.get(id);
@@ -390,7 +406,7 @@ export async function createCappedProxy({ evidencePath, maxCompletionRequests, m
     questionState(owner.questionId);
     persist();
   };
-  const server = createServer((request, response) => {
+  const server = createServer(async (request, response) => {
     const requestUrl = new URL(request.url || '/', `http://${request.headers.host || '127.0.0.1'}`);
     if (request.method !== 'POST' || requestUrl.pathname !== `${REQUEST_PREFIX}chat/completions`) {
       request.resume(); response.writeHead(404, { 'content-type': 'application/json' }); response.end('{"error":"route not allowed"}'); return;
@@ -405,38 +421,53 @@ export async function createCappedProxy({ evidencePath, maxCompletionRequests, m
       if (assignment) questionState(assignment.questionId).completionAttempts += 1;
       persist();
     }
+    state.events.push(event);
+    const chunks = []; let bytes = 0;
+    try {
+      for await (const chunk of request) { bytes += chunk.length; if (bytes <= 4 * 1024 * 1024) chunks.push(chunk); }
+    } catch (error) {
+      Object.assign(event, { finishedAt: new Date().toISOString(), status: 499, downstreamAborted: true, ...connectionError(error) }); persist(); return;
+    }
+    const body = Buffer.concat(chunks);
+    if (bytes <= 4 * 1024 * 1024) {
+      event.payloadSha256 = hash(body);
+      try { event.requestReceipt = requestReceipt(JSON.parse(body.toString('utf8'))); }
+      catch { event.requestReceipt = { bytes, omitted: 'invalid-json' }; }
+    } else event.requestReceipt = { bytes, omitted: 'request-over-4MiB' };
+    const prior = assignment ? previousBySession.get(sessionId) : null;
+    const retryCandidate = prior?.finishedAt && prior.retryEligible === true && prior.payloadSha256 === event.payloadSha256;
+    const isRetry = retryCandidate && prior.retryIndex < MAX_TRANSPORT_RETRIES;
     const perQuestion = assignment ? questionState(assignment.questionId) : null;
     const blockReason = kind === 'completion' && !assignment ? 'unattributed-session'
       : kind === 'completion' && state.sealedQuestions[assignment.questionId] ? 'question-sealed'
-        : kind === 'completion' && state.forwardedCompletions >= maxCompletionRequests ? 'global-cap'
-          : kind === 'completion' && perQuestion.forwardedCompletions >= maxPerQuestion ? 'question-cap' : null;
+        : bytes > 4 * 1024 * 1024 ? 'request-too-large'
+          : state.forwardedCompletions >= maxPhysicalRequests ? 'global-physical-cap'
+            : retryCandidate && !isRetry ? 'retry-cap'
+              : !isRetry && state.effectiveModelSteps >= maxCompletionRequests ? 'global-cap'
+                : !isRetry && perQuestion.effectiveModelSteps >= maxPerQuestion ? 'question-cap'
+                  : perQuestion.forwardedCompletions >= maxPerQuestion * (MAX_TRANSPORT_RETRIES + 1) ? 'question-physical-cap' : null;
     if (blockReason) {
       state.blockedCompletions += 1;
       if (perQuestion) perQuestion.blockedCompletions += 1;
       else state.blockedUnattributed += 1;
-      Object.assign(event, { finishedAt: new Date().toISOString(), status: 429, blockReason }); state.events.push(event); persist(); request.resume();
+      Object.assign(event, { finishedAt: new Date().toISOString(), status: 429, blockReason }); persist();
       response.writeHead(429, { 'content-type': 'application/json' }); response.end('{"error":"T10 request budget reached or session unattributed"}'); return;
     }
     if (kind === 'completion') {
       state.forwardedCompletions += 1;
       perQuestion.forwardedCompletions += 1;
       perQuestion.bySessionKind[assignment.kind] = (perQuestion.bySessionKind[assignment.kind] ?? 0) + 1;
+      if (isRetry) { state.retryAttempts += 1; perQuestion.retryAttempts += 1; }
+      else { state.effectiveModelSteps += 1; perQuestion.effectiveModelSteps += 1; }
     }
-    event.forwarded = true; state.events.push(event); persist();
-    const requestChunks = []; let requestBytes = 0;
-    request.on('data', chunk => { requestBytes += chunk.length; if (requestBytes <= 4 * 1024 * 1024) requestChunks.push(chunk); });
-    request.once('end', () => {
-      if (requestBytes > 4 * 1024 * 1024) event.requestReceipt = { bytes: requestBytes, omitted: 'request-over-4MiB' };
-      else {
-        try { event.requestReceipt = requestReceipt(JSON.parse(Buffer.concat(requestChunks).toString('utf8'))); }
-        catch { event.requestReceipt = { bytes: requestBytes, omitted: 'invalid-json' }; }
-      }
-      persist();
-    });
+    Object.assign(event, { forwarded: true, isRetry: Boolean(isRetry), retryIndex: isRetry ? prior.retryIndex + 1 : 0, modelStep: isRetry ? prior.modelStep : perQuestion.effectiveModelSteps, retryOfSequence: isRetry ? prior.sequence : null });
+    previousBySession.set(sessionId, event); persist();
     let done = false, responseRef = null, deadline;
     const finish = (status, extra = {}) => {
       if (done) return;
-      done = true; clearTimeout(deadline); Object.assign(event, { finishedAt: new Date().toISOString(), status, ...extra }); persist();
+      done = true; clearTimeout(deadline); Object.assign(event, { finishedAt: new Date().toISOString(), status, ...extra });
+      event.retryEligible = ['TRANSPORT', 'TIMEOUT', 'SERVER', 'RATE_LIMIT'].includes(event.upstreamErrorType ?? event.connectionErrorType);
+      persist();
     };
     const transport = upstream.protocol === 'https:' ? httpsRequest : httpRequest;
     const forwardedHeaders = providerForwardHeaders(request.headers, upstream.host);
@@ -444,9 +475,12 @@ export async function createCappedProxy({ evidencePath, maxCompletionRequests, m
     const target = transport({ protocol: upstream.protocol, hostname: upstream.hostname, port: upstream.port || undefined, method: request.method,
       path: requestUrl.pathname + requestUrl.search, headers: forwardedHeaders, agent: upstreamAgent }, upstreamResponse => {
       responseRef = upstreamResponse;
+      event.upstreamStatus = upstreamResponse.statusCode || 502;
+      if (event.upstreamStatus >= 400) event.upstreamErrorType = httpErrorType(event.upstreamStatus);
       response.writeHead(upstreamResponse.statusCode || 502, Object.fromEntries(Object.entries(upstreamResponse.headers).filter(([name]) => !HOP_BY_HOP.has(name.toLowerCase()))));
-      const decoder = new TextDecoder(); let pending = '';
+      const decoder = new TextDecoder(); let pending = ''; const errorChunks = []; let errorBytes = 0;
       upstreamResponse.on('data', chunk => {
+        if (event.upstreamStatus >= 400) { errorBytes += chunk.length; if (errorBytes <= 16 * 1024) errorChunks.push(chunk); }
         pending += decoder.decode(chunk, { stream: true });
         let newline;
         while ((newline = pending.indexOf('\n')) >= 0) {
@@ -458,14 +492,19 @@ export async function createCappedProxy({ evidencePath, maxCompletionRequests, m
         if (pending.length > 2 * 1024 * 1024) pending = '';
       });
       upstreamResponse.pipe(response);
-      upstreamResponse.once('end', () => finish(upstreamResponse.statusCode || 502));
-      upstreamResponse.once('aborted', () => finish(502, { upstreamAborted: true }));
+      upstreamResponse.once('end', () => {
+        if (event.upstreamStatus >= 400 && errorBytes <= 16 * 1024) {
+          try { const value = JSON.parse(Buffer.concat(errorChunks).toString('utf8')); event.upstreamErrorCode = errorIdentifier(value.error?.code ?? value.code); event.upstreamErrorName = errorIdentifier(value.error?.type ?? value.type); } catch { /* arbitrary error bodies are never persisted */ }
+        }
+        finish(event.upstreamStatus);
+      });
+      upstreamResponse.once('aborted', () => { finish(502, { upstreamAborted: true, ...connectionError(null) }); if (!response.writableEnded) response.destroy(); });
+      upstreamResponse.once('error', error => { finish(502, connectionError(error)); if (!response.writableEnded) response.destroy(); });
     });
-    deadline = setTimeout(() => { finish(504, { deadlineExceeded: true }); responseRef?.destroy(); target.destroy(new Error('request deadline')); }, 120_000);
-    target.once('error', () => { if (!response.headersSent) response.writeHead(502, { 'content-type': 'application/json' }); if (!response.writableEnded) response.end('{"error":"evaluation upstream unavailable"}'); finish(502); });
-    request.once('aborted', () => target.destroy());
-    response.once('close', () => { if (!response.writableEnded) { finish(499, { downstreamAborted: true }); responseRef?.destroy(); target.destroy(); } });
-    request.pipe(target);
+    deadline = setTimeout(() => { finish(504, { deadlineExceeded: true, ...connectionError(null, 'TIMEOUT') }); responseRef?.destroy(); target.destroy(new Error('request deadline')); }, 120_000);
+    target.once('error', error => { if (!response.headersSent) response.writeHead(502, { 'content-type': 'application/json' }); if (!response.writableEnded) response.end('{"error":"evaluation upstream unavailable"}'); finish(502, connectionError(error)); });
+    response.once('close', () => { if (!response.writableEnded) { finish(499, { downstreamAborted: true, ...connectionError(null, 'TIMEOUT') }); responseRef?.destroy(); target.destroy(); } });
+    target.end(body);
   });
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
   await mkdir(path.dirname(evidencePath), { recursive: true }); persist();
@@ -478,14 +517,14 @@ export async function createCappedProxy({ evidencePath, maxCompletionRequests, m
 
 function countUsageEvents(proxy, questionId) {
   return proxy.state.events.filter(event => event.questionId === questionId && event.routeKind === 'completion' && event.forwarded)
-    .map(event => ({ sequence: event.sequence, sessionKind: event.sessionKind, status: event.status, usage: event.usage ?? null }));
+    .map(event => ({ sequence: event.sequence, sessionKind: event.sessionKind, status: event.status, isRetry: event.isRetry ?? null, modelStep: event.modelStep ?? null, retryIndex: event.retryIndex ?? null, upstreamStatus: event.upstreamStatus ?? null, upstreamErrorCode: event.upstreamErrorCode ?? null, upstreamErrorType: event.upstreamErrorType ?? null, connectionErrorType: event.connectionErrorType ?? null, connectionErrorCode: event.connectionErrorCode ?? null, connectionCauseCodes: event.connectionCauseCodes ?? [], usage: event.usage ?? null }));
 }
 
 export async function createLiveHost({ paths, proxy, activeRef, credential = secretForRedaction, dshFactory = createDshHost }) {
   const dsh = await dshFactory({ home: paths.home, cwd: paths.projects, sessionHeaders: [SESSION_HEADER, OPENCODE_SESSION_HEADER], env: { SCIENCESCOPE_T10_RETRIEVAL_KEY: credential } });
   const runtimeConfig = { providers: { [model.providerId]: {
     api: 'openai-completions', baseURL: `http://127.0.0.1:${proxy.port}${REQUEST_PREFIX}`, apiKeyEnv: 'SCIENCESCOPE_T10_RETRIEVAL_KEY',
-    retryPolicy: { mode: 'normal', maxRetries: 0 }, models: [{ id: model.modelId, contextWindow: 131072, maxTokens: 8192 }],
+    models: [{ id: model.modelId, contextWindow: 131072, maxTokens: 8192 }],
   } } };
   const ownedSessions = new Map();
   const host = Object.assign(Object.create(null), dsh, {
@@ -517,7 +556,6 @@ export async function createLiveHost({ paths, proxy, activeRef, credential = sec
           const owner = activeRef.current;
           if (!owner) return;
           owner.providerFailures.push({ sessionId, code: frame.code ?? null });
-          proxy.sealQuestion(owner.id, 'provider-attempt-failed-no-retry');
         }
       });
       return session;
@@ -568,10 +606,12 @@ async function runLive(args, runDir, inputs) {
   const receiptFiles = ['scripts/context/tools.mjs', 'scripts/context/policy.mjs', 'scripts/context/research-tools.mjs', 'scripts/research-base/index.mjs', 'scripts/research-base/search.mjs', 'scripts/research-base/hybrid.mjs', 'scripts/research-base/semantic-service.mjs', 'scripts/evals/hybrid-live-retrieval.mjs'];
   const rulesReceipt = Object.fromEntries(await Promise.all(receiptFiles.map(async file => [file, hash(await readFile(path.join(repo, file)))])));
   let ledger = {
-    schema: 1, status: 'RUNNING', createdAt: new Date().toISOString(), phase: args.phase,
+    schema: 2, status: 'RUNNING', createdAt: new Date().toISOString(), phase: args.phase,
     model, promptPrefix: PREFIX, projectId, goldSha256: inputs.goldSha256, mappingSha256: inputs.mappingSha256,
     chunksSha256: inputs.chunksSha256, noGoldAnswersInModelContext: true, maxPerQuestion: MAX_PER_QUESTION,
-    globalCompletionCap: globalCap, questions: [], phases: [], cleanup: null,
+    budgetUnit: 'effective-model-step', globalEffectiveStepCap: globalCap,
+    globalCompletionCap: globalCap * (MAX_TRANSPORT_RETRIES + 1), maxPhysicalRequests: globalCap * (MAX_TRANSPORT_RETRIES + 1), maxTransportRetries: MAX_TRANSPORT_RETRIES,
+    questions: [], phases: [], cleanup: null,
     selectedQuestionIds: selected.map(question => question.id), continueAfterQuestionFailure: args.continueAfterQuestionFailure === true, rulesReceipt, contextApiVersion: CONTEXT_API_VERSION,
     upstreamProxy: args.upstreamProxy ?? null,
   };
@@ -594,6 +634,7 @@ async function runLive(args, runDir, inputs) {
     lockOwned = true;
     if (existsSync(resultPath)) {
       ledger = JSON.parse(await readFile(resultPath, 'utf8'));
+      assert.equal(ledger.schema, 2, 'historical result accounting requires a fresh run');
       assertRunIdentity(ledger, inputs, projectId);
       if (args.phase === 'single-pass') {
         assert.deepEqual(ledger.selectedQuestionIds, selected.map(question => question.id), 'single-pass selection changed');
@@ -623,7 +664,7 @@ async function runLive(args, runDir, inputs) {
     const semantic = await waitForSemanticReady(activeRef.origin);
     const readySummary = { enabled: semantic.enabled, state: semantic.state, indexed: semantic.indexed, total: semantic.total, mode: semantic.mode ?? null };
     ledger.semantic = readySummary;
-    ledger.phases.push({ phase: args.phase, startedAt: new Date().toISOString(), globalCompletionCap: globalCap, semanticReady: true });
+    ledger.phases.push({ phase: args.phase, startedAt: new Date().toISOString(), budgetUnit: 'effective-model-step', globalEffectiveStepCap: globalCap, globalCompletionCap: globalCap * (MAX_TRANSPORT_RETRIES + 1), semanticReady: true });
     await persist();
 
     const eligible = eligibleUnpaidQuestions(selected, ledger.questions, proxy.state);
@@ -683,13 +724,14 @@ async function runLive(args, runDir, inputs) {
         // Persist first; a crash after this seal still cannot repeat a paid question.
         proxy.sealQuestion(active.id, active.stopReason ?? 'question-finished');
         active.requestCount = structuredClone(proxy.state.questions[active.id] ?? {});
+        for (const failure of active.providerFailures) failure.recovered = active.terminal === 'completed';
         active.providerUsage = countUsageEvents(proxy, active.id);
         active.backgroundCompletionCount = active.providerUsage.filter(entry => entry.sessionKind === 'minutes').length;
         active.finishedAt = new Date().toISOString();
         if (!active.stopReason) active.deletedChat = await localJson(activeRef.origin, '/api/chats/delete', { chatId: active.chatId }).then(() => true, () => false);
         await Promise.allSettled(active.sessions.map(session => dsh.releaseSession(session.sessionId)));
         await persist();
-        console.log(JSON.stringify({ phase: args.phase, questionId: active.id, status: active.status, researchModes: active.researchModes.map(({ mode, fallbackReason }) => ({ mode, fallbackReason })), completionRequests: active.requestCount.forwardedCompletions ?? 0 }));
+        console.log(JSON.stringify({ phase: args.phase, questionId: active.id, status: active.status, researchModes: active.researchModes.map(({ mode, fallbackReason }) => ({ mode, fallbackReason })), completionRequests: active.requestCount.forwardedCompletions ?? 0, effectiveModelSteps: active.requestCount.effectiveModelSteps ?? 0, retryAttempts: active.requestCount.retryAttempts ?? 0 }));
         const fatal = shouldStopBatch({ singlePass: args.continueAfterQuestionFailure, question: active, proxyState: proxy.state });
         active = null;
         if (fatal) break;
@@ -708,7 +750,7 @@ async function runLive(args, runDir, inputs) {
     await proxy?.close().catch(() => {});
     await rm(path.join(paths.home, '.credentials.yaml'), { force: true });
     ledger.cleanup = { at: new Date().toISOString(), ownedDshClosed: dshClose.every(item => item.status === 'fulfilled'), hostClosed: true, proxyClosed: true, ephemeralProviderCredentialRemoved: true, workspaceKeyPreserved: true };
-    if (proxy) ledger.totalForwardedCompletions = proxy.state.forwardedCompletions;
+    if (proxy) { ledger.totalForwardedCompletions = proxy.state.forwardedCompletions; ledger.totalEffectiveModelSteps = proxy.state.effectiveModelSteps; ledger.totalRetryAttempts = proxy.state.retryAttempts; ledger.requestAccountingSchema = proxy.state.schema; }
     await persist();
     if (lockOwned) await rm(lockPath, { force: true });
     await removeOwnedJunction(modelLink);
