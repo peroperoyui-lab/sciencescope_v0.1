@@ -46,6 +46,11 @@ do not redesign them or import the rejected old GUI.
   Its subagents use GPT-6.1 Sol (same price as GPT-6 Sol, close to Astra);
   Git delivery uses GPT-6 Luna. Real-model evaluation with the user's
   OpenCode Go key is encouraged wherever it adds evidence (cheap models).
+- Dot (2026-10-03, docs/tasks/DOT.md): an Astra-level assistant on a Linux VM
+  with unlimited tokens for verification, flaky-test hunting, data-preserving
+  upgrade rehearsal, red-teaming and multi-run evaluation. It works only on
+  `dot/` branches, never changes product code, and reports defects for Sol or
+  Claude to fix. It cannot do Windows native acceptance.
 - Prioritize working features; use proportionate smoke/regression checks, not
   speculative test matrices or new frameworks just for testing.
 
