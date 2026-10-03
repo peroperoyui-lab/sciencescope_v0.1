@@ -2,6 +2,7 @@
 // reading, citation labels and the project brief.
 import { matchExpression, snippet } from './text-index.mjs';
 import { ResearchBaseError } from './store.mjs';
+import { parseCitationLabel } from './citations.mjs';
 import {
   fuseHybridRankings, HYBRID_FALLBACK_REASONS, HYBRID_RRF_K, HYBRID_VECTOR_LIMIT,
   HYBRID_VECTOR_TIMEOUT_MS, hybridRefKey, normalizeHybridQueries, runVectorPhase,
@@ -245,9 +246,10 @@ export function createResearchSearch({ store }) {
   }
 
   /** Bounded reading window. Sources read by page or passage ordinal. */
-  function read({ ref, page, fromOrdinal, maxChars = 6000, audience = 'user', expertId } = {}) {
+  function read({ ref, page, toPage, fromOrdinal, maxChars = 6000, audience = 'user', expertId } = {}) {
     maxChars = Math.max(500, Math.min(20000, Number(maxChars) || 6000));
     if (!ref?.type || typeof ref.id !== 'string') throw new ResearchBaseError('INVALID_REF', '请提供要阅读的记录。');
+    if (toPage != null && ref.type !== 'source') throw new ResearchBaseError('INVALID_CITATION', '引用页码范围需要来源 ref。');
     if (ref.type === 'item') {
       const item = resolveItem(ref.id);
       if (!item || !visible(item, { audience, expertId, includeSuperseded: true })) throw new ResearchBaseError('NOT_FOUND', '条目不存在或不可见。', 404);
@@ -269,31 +271,53 @@ export function createResearchSearch({ store }) {
     } else if (ref.type === 'source') {
       source = store.getSource(ref.id) ?? null;
       if (!source) throw new ResearchBaseError('NOT_FOUND', '来源不存在。', 404);
-      chunks = store.chunksOf(source.id, page != null ? { page: Number(page), limit: 400 } : { fromOrdinal: Number(fromOrdinal) || 0, limit: 200 });
+      if (toPage != null) {
+        if (!Number.isSafeInteger(Number(page)) || Number(page) < 1 || !Number.isSafeInteger(Number(toPage)) || Number(toPage) < Number(page)) {
+          throw new ResearchBaseError('INVALID_CITATION', '引用页码范围无效。');
+        }
+        // One bounded query, even for a very large range; no loop per page.
+        chunks = db.prepare('SELECT id FROM rb_chunks WHERE source_id=? AND page>=? AND page<=? AND ordinal>=? ORDER BY ordinal LIMIT 400')
+          .all(source.id, Number(page), Number(toPage), Math.max(0, Number(fromOrdinal) || 0)).map(row => store.getChunk(row.id));
+      } else chunks = store.chunksOf(source.id, page != null ? { page: Number(page), limit: 400 } : { fromOrdinal: Number(fromOrdinal) || 0, limit: 200 });
     } else throw new ResearchBaseError('INVALID_REF', '只能阅读来源、段落或条目。');
     const parts = []; let used = 0; let last = null;
     for (const chunk of chunks) {
       const block = blockOf(chunk, last);
-      if (used + block.length > maxChars && parts.length) break;
-      parts.push(block); used += block.length; last = chunk;
+      const size = block.length + (parts.length ? 1 : 0);
+      if (used + size > maxChars && parts.length) break;
+      parts.push(block); used += size; last = chunk;
     }
-    return { ref: { type: 'source', id: source.id }, cite: citeOf.source(source), source: sourceBrief(source), contentStatus: source.contentStatus, text: parts.join('\n').trim(), nextOrdinal: last ? last.ordinal + 1 : null, pages: source.pages };
+    const range = toPage == null ? {} : { fromPage: Number(page), toPage: Number(toPage), readPages: [...new Set(chunks.slice(0, parts.length).map(chunk => chunk.page))],
+      truncated: last ? Boolean(db.prepare('SELECT 1 FROM rb_chunks WHERE source_id=? AND page>=? AND page<=? AND ordinal>? LIMIT 1').get(source.id, Number(page), Number(toPage), last.ordinal)) : false };
+    const cite = toPage == null ? citeOf.source(source) : `[${source.label} p.${Number(page)}${Number(page) !== Number(toPage) ? `–${Number(toPage)}` : ''}]`;
+    return { ref: { type: 'source', id: source.id }, cite, source: sourceBrief(source), contentStatus: source.contentStatus, text: parts.join('\n').trim(), nextOrdinal: last ? last.ordinal + 1 : null, pages: source.pages, ...range };
   }
 
-  /** "[S3 p.4]" / "[S3]" / "[@a1b2c3d4]" → record reference, for UI chips. */
-  function resolveCitation(label, { projectId = null } = {}) {
-    const s = /^\[?S(\d+)(?:\s*,?\s*p\.?\s*(\d+))?\]?$/iu.exec(label.trim());
-    if (s) {
-      const source = store.sourceByLabel(projectId, Number(s[1])) ?? store.sourceByLabel(null, Number(s[1]));
-      if (!source) return null;
-      const page = s[2] ? Number(s[2]) : null;
-      const chunk = page ? store.chunksOf(source.id, { page, limit: 1 })[0] : null;
-      return { ref: chunk ? { type: 'chunk', id: chunk.id } : { type: 'source', id: source.id }, source: sourceBrief(source), page };
+  /** Resolve every explicit member; unknown members stay inspectable. */
+  function resolveCitations(label, { projectId = null } = {}) {
+    const parsed = parseCitationLabel(label); const citations = []; const unrecognized = [...parsed.unrecognized];
+    for (const member of parsed.citations) {
+      let resolved;
+      if (member.kind === 'source') {
+        const source = store.sourceByLabel(projectId, member.number) ?? store.sourceByLabel(null, member.number);
+        if (source) {
+          const page = member.fromPage;
+          const chunk = page ? store.chunksOf(source.id, { page, limit: 1 })[0] : null;
+          resolved = { ref: chunk ? { type: 'chunk', id: chunk.id } : { type: 'source', id: source.id }, source: sourceBrief(source), page,
+            fromPage: member.fromPage, toPage: member.toPage };
+        }
+      } else {
+        const item = resolveItem(member.handle);
+        if (item) resolved = { ref: { type: 'item', id: item.id }, item: itemBrief(item) };
+      }
+      if (resolved) citations.push({ ...resolved, raw: member.raw, normalized: member.normalized });
+      else unrecognized.push({ raw: member.raw, reason: 'not-found' });
     }
-    const m = /^\[?@([0-9a-f]{6,20})\]?$/u.exec(label.trim());
-    if (m) { const item = resolveItem(m[1]); return item ? { ref: { type: 'item', id: item.id }, item: itemBrief(item) } : null; }
-    return null;
+    const parseStatus = unrecognized.length ? (citations.length ? 'partial' : 'unrecognized') : 'parsed';
+    return { citation: parseStatus === 'parsed' && citations.length === 1 ? citations[0] : null, citations, raw: parsed.raw, parseStatus, unrecognized };
   }
+  /** Legacy single-member callers never silently select a compound member. */
+  const resolveCitation = (label, options) => resolveCitations(label, options).citation;
   function resolveItem(handle) {
     if (/^itm_/u.test(handle)) return store.getItem(handle);
     const rows = db.prepare('SELECT id FROM rb_items WHERE id LIKE ? LIMIT 2').all(`itm_${handle.replace(/[^0-9a-f]/gu, '')}%`);
@@ -334,7 +358,7 @@ export function createResearchSearch({ store }) {
     return { text, refs };
   }
 
-  return { search, searchHybrid, setVectorRetriever, listCandidates, read, resolveCitation, resolveItem, brief };
+  return { search, searchHybrid, setVectorRetriever, listCandidates, read, resolveCitation, resolveCitations, resolveItem, brief };
 }
 
 const sourceBrief = (s) => ({ id: s.id, label: s.label, title: s.title, kind: s.kind, authors: s.authors.slice(0, 6).map((a) => a.literal || [a.given, a.family].filter(Boolean).join(' ')), year: s.year, venue: s.venue, doi: s.doi, contentStatus: s.contentStatus, resourceId: s.resourceId });

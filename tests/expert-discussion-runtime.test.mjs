@@ -8,10 +8,17 @@ import {createDshHost} from '../adapters/runtime-dsh/host.mjs';
 test('experts answer one frozen prompt concurrently with their own model and persona',async()=>{
   const base=path.resolve('.sciencescope-local/temp');await mkdir(base,{recursive:true});
   const root=await mkdtemp(path.join(base,'experts-runtime-'));const requests=[];let inFlight=0,maxInFlight=0;
+  // Keep the first response pending until both children have requested their
+  // answer. Child startup may exceed 300ms on a loaded machine; a fixed sleep
+  // measured that startup timing instead of concurrent execution.
+  let releaseAnswers,barrierTimer,bothArrived=false;
+  const answersReady=new Promise(resolve=>{releaseAnswers=resolve;});
   const fixture=createServer(async(req,res)=>{
     let body='';for await(const part of req)body+=part;const parsed=JSON.parse(body);requests.push(parsed);
     inFlight++;maxInFlight=Math.max(maxInFlight,inFlight);
-    await new Promise(r=>setTimeout(r,300));inFlight--;
+    if(inFlight===1&&!barrierTimer)barrierTimer=setTimeout(()=>releaseAnswers(),10000);
+    if(inFlight===2){bothArrived=true;clearTimeout(barrierTimer);releaseAnswers();}
+    await answersReady;inFlight--;
     res.writeHead(200,{'Content-Type':'text/event-stream'});
     res.end(`data: {"choices":[{"delta":{"content":"ANSWER_FROM_${parsed.model}"}}]}\n\ndata: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n`);
   });
@@ -27,7 +34,9 @@ test('experts answer one frozen prompt concurrently with their own model and per
       {id:'beta',persona:'PERSONA_BETA reviewer',model:{providerId:'fixture',modelId:'model-b'},tools:'none',prompt:'BETA_ONLY_NOTE'},
     ]});
     assert.deepEqual(result.map(r=>[r.expertId,r.stopReason,r.text]),[['alpha','completed','ANSWER_FROM_model-a'],['beta','completed','ANSWER_FROM_model-b']]);
-    assert.equal(requests.length,2);assert.equal(maxInFlight,2,'experts run concurrently');
+    assert.equal(requests.length,2);
+    assert.equal(bothArrived,true,'both experts request an answer before either response is released (sequential execution expires the barrier)');
+    assert.equal(maxInFlight,2,'experts run concurrently');
     for(const entry of result)assert.ok(Number.isInteger(entry.context?.usedTokens)&&entry.context.usedTokens>0,`${entry.expertId} reports its measured context`);
     const byModel=Object.fromEntries(requests.map(r=>[r.model,JSON.stringify(r.messages)]));
     assert.match(byModel['model-a'],/PERSONA_ALPHA/);assert.doesNotMatch(byModel['model-a'],/PERSONA_BETA|BETA_ONLY_NOTE/);
@@ -37,7 +46,7 @@ test('experts answer one frozen prompt concurrently with their own model and per
     for(const id of ['alpha','beta'])assert.ok(events.lastIndexOf(`expert-delta:${id}`)<events.indexOf(`expert-end:${id}`),'deltas precede the end event');
     await assert.rejects(host.runExperts({sessionId,runId:'run-2',prompt:'x',experts:[{id:'dup',persona:'p'},{id:'dup',persona:'p'}]}),/duplicate expert id/);
     assert.equal(requests.length,2);
-  }finally{await host.close();fixture.closeAllConnections();await new Promise(r=>fixture.close(r));await rm(root,{recursive:true,force:true});}
+  }finally{clearTimeout(barrierTimer);releaseAnswers();await host.close();fixture.closeAllConnections();await new Promise(r=>fixture.close(r));await rm(root,{recursive:true,force:true});}
 });
 
 test('bound expert skills stay with their child and do not change Main skill invocation',async()=>{

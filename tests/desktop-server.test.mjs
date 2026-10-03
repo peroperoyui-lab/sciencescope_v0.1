@@ -4,7 +4,7 @@ import path from 'node:path';
 import {mkdir,mkdtemp,rm} from 'node:fs/promises';
 import {createDesktopServer} from '../scripts/preview-desktop.mjs';
 import {createDesktopApi} from '../scripts/desktop-api.mjs';
-import {DESKTOP_ASSETS} from '../scripts/build-desktop.mjs';
+import {DESKTOP_ASSETS,GENERATED_ASSETS} from '../scripts/build-desktop.mjs';
 
 test('production desktop HTTP router serves every declared module, including transitive chat imports',async()=>{
   const base=path.resolve('.sciencescope-local/temp');await mkdir(base,{recursive:true});
@@ -16,6 +16,10 @@ test('production desktop HTTP router serves every declared module, including tra
       assert.equal(response.status,200,asset);
       assert.match(response.headers.get('content-type'),asset.endsWith('.css')?/text\/css/:/javascript/);
     }
+    const parser=await fetch(server.url+'desktop/citation-parser.mjs');
+    assert.equal(parser.status,200,'shared citation parser is served through the production allowlist');
+    assert.match(await parser.text(),/export function extractCitationLabels/);
+    assert.ok(GENERATED_ASSETS.some(([file])=>file==='citation-parser.mjs'));
     assert.equal((await fetch(server.url+'desktop/not-a-module.mjs')).status,404);
   }finally{await server.close();await rm(root,{recursive:true,force:true});}
 });

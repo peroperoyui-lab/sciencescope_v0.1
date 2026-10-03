@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { defaultRoot } from '../scripts/prepare-desktop.mjs';
-import { buildDesktop, DESKTOP_ASSETS } from '../scripts/build-desktop.mjs';
+import { buildDesktop, DESKTOP_ASSETS, GENERATED_ASSETS } from '../scripts/build-desktop.mjs';
 
 test('desktop extension is generated without changing approved prototype', async () => {
   const tempRoot = path.join(defaultRoot, '.sciencescope-local', 'temp');
@@ -20,12 +20,14 @@ test('desktop extension is generated without changing approved prototype', async
     assert.match(copyPath,/^M/);
     assert.doesNotMatch(copyPath,/[<>]/,'ic() requires SVG path data, not nested markup');
     assert.deepEqual(await readFile(path.join(defaultRoot, 'ScienceScope.html')), original);
+    const declaredAssets = new Set([...DESKTOP_ASSETS, ...GENERATED_ASSETS.map(([file]) => file)]);
+    assert.deepEqual(await readFile(path.join(outputDir, 'desktop/citation-parser.mjs')), await readFile(path.join(defaultRoot, 'scripts/research-base/citations.mjs')));
     for (const asset of DESKTOP_ASSETS) {
       assert.deepEqual(await readFile(path.join(outputDir, 'desktop', asset)), await readFile(path.join(defaultRoot, 'desktop', asset)));
       if(asset.endsWith('.mjs')) {
         const source=await readFile(path.join(defaultRoot,'desktop',asset),'utf8');
         for(const match of source.matchAll(/(?:from\s*|import\s*)['"]\.\/([^'"]+)['"]/g)) {
-          assert.ok(match[1].startsWith('vendor/')||DESKTOP_ASSETS.includes(match[1]),`${asset} imports an asset absent from the desktop HTTP manifest: ${match[1]}`);
+          assert.ok(match[1].startsWith('vendor/')||declaredAssets.has(match[1]),`${asset} imports an asset absent from the desktop HTTP manifest: ${match[1]}`);
         }
       }
     }

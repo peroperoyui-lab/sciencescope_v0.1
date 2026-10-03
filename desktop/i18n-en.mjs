@@ -9,6 +9,12 @@ export const EN = {
   '该路径属于应用内部数据，不可访问。': 'This path contains internal application data and cannot be accessed.',
   '常规文件和命令操作不逐次审批，不限制网络访问；受保护路径始终需要审批，不提升 Windows 权限。网络外传防护属于已知限制。': 'Ordinary file and command actions do not require individual approval. Network access is unrestricted. Protected paths always require approval; Windows permissions are not raised. Protection against network exfiltration is a known limitation.',
   '常规操作不逐次审批，工具可能读写项目外文件并运行命令。受保护路径仍须审批；网络访问不受限制，网络外传防护属于已知限制。不更改 Windows 系统权限。': 'Ordinary actions do not require individual approval; tools may access files outside the project and run commands. Protected paths still require approval. Network access is unrestricted, and protection against network exfiltration is a known limitation. Windows permissions are unchanged.',
+
+  '选择引用来源': 'Choose citation source',
+  '复合引用包含多个记录，请分别用每个引用或精确 ref 阅读。': 'This citation contains multiple records. Read each citation or exact ref separately.',
+  '引用包含无法识别的成员，请分别使用完整引用。': 'This citation contains an unrecognized member. Use each complete citation separately.',
+  '引用页码范围无效。': 'The citation page range is invalid.',
+  '引用页码范围需要来源 ref。': 'A page range requires a source ref.',
   '从此回复分支': 'Branch from this reply',
   '从此处重新提问': 'Ask again from here',
   '分支自': 'Branched from',
