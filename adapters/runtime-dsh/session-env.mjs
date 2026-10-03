@@ -11,6 +11,15 @@ const SESSION_ENV_KEYS = new Map([
   ['uv_index_url', 'UV_INDEX_URL'],
 ]);
 
+const SECRET_ENV_NAME = /(?:api[_-]?key|(?:^|_)(?:token|secret|password|passwd|credential|credentials|authorization|private_key|access_key|session_key)(?:_|$)|^AWS_(?:SECRET_ACCESS_KEY|SESSION_TOKEN)$)/iu;
+
+/** Credential references are structural: even an arbitrary provider ref such as K is removed. */
+export function filterProviderSecretEnv(baseEnv, { providerKeyEnv = [], allowedProviderKeyEnv = [] } = {}) {
+  const references = new Set(providerKeyEnv.map(name => name.toLowerCase()));
+  const allowed = new Set(allowedProviderKeyEnv.map(name => name.toLowerCase()));
+  return Object.fromEntries(Object.entries(baseEnv).filter(([key]) => allowed.has(key.toLowerCase()) || !(references.has(key.toLowerCase()) || SECRET_ENV_NAME.test(key))));
+}
+
 function isPlainRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
@@ -43,10 +52,10 @@ export function normalizeSessionEnv(sessionEnv = {}) {
 }
 
 /** Build a fresh child environment without changing the host's environment. */
-export function createSessionProcessEnv(baseEnv, sessionEnv = {}, { platform = process.platform } = {}) {
+export function createSessionProcessEnv(baseEnv, sessionEnv = {}, { platform = process.platform, providerKeyEnv = [], allowedProviderKeyEnv = ['SCIENCESCOPE_STREAM_TOKEN'] } = {}) {
   if (!isPlainRecord(baseEnv)) throw new TypeError('base environment must be an object');
   const normalized = normalizeSessionEnv(sessionEnv);
-  const result = { ...baseEnv };
+  const result = filterProviderSecretEnv(baseEnv, { providerKeyEnv, allowedProviderKeyEnv });
 
   const pathKey = Object.keys(result).find((key) => key === 'PATH')
     ?? Object.keys(result).find((key) => key.toLowerCase() === 'path');

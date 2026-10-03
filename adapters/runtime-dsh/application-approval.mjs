@@ -20,12 +20,18 @@ export function createApplicationApprovalManager({ emit, isSessionActive, create
   }
 
   function request(args = {}) {
-    const { sessionId, toolName, reason, packages, targetEnvironment, expertId, signal } = args;
+    const { sessionId, toolName, reason, packages, targetEnvironment, expertId, signal, classification, commandSummary } = args;
     if (typeof sessionId !== 'string' || !isSessionActive(sessionId)) throw new Error(`Unknown DSH session: ${sessionId ?? ''}`);
     if (typeof toolName !== 'string' || !toolName.trim()) throw new TypeError('toolName is required');
     if (typeof reason !== 'string') throw new TypeError('reason is required');
-    if (!Array.isArray(packages) || packages.some((item) => typeof item !== 'string')) throw new TypeError('packages must be an array of strings');
-    if (typeof targetEnvironment !== 'string' || !targetEnvironment.trim()) throw new TypeError('targetEnvironment is required');
+    const protectedPath = classification === 'protected-path';
+    if (classification !== undefined && !protectedPath) throw new TypeError('Unknown application approval classification');
+    if (protectedPath) {
+      if (typeof commandSummary !== 'string' || !commandSummary.trim() || commandSummary.length > 8000) throw new TypeError('commandSummary is required for protected path approval');
+    } else {
+      if (!Array.isArray(packages) || packages.some((item) => typeof item !== 'string')) throw new TypeError('packages must be an array of strings');
+      if (typeof targetEnvironment !== 'string' || !targetEnvironment.trim()) throw new TypeError('targetEnvironment is required');
+    }
     if (signal?.aborted) return Promise.resolve(false);
     const suffix = String(createRequestId()).replaceAll('-', '');
     const requestId = `app-${suffix}`;
@@ -36,7 +42,8 @@ export function createApplicationApprovalManager({ emit, isSessionActive, create
       signal?.addEventListener('abort', entry.onAbort, { once: true });
       if (signal?.aborted) { entry.onAbort(); return; }
       emit(sessionId, {
-        type: 'approval-request', requestId, toolName, reason, packages: [...packages], targetEnvironment,
+        type: 'approval-request', requestId, toolName, reason,
+        ...(protectedPath ? { classification, commandSummary } : { packages: [...packages], targetEnvironment }),
         ...(typeof expertId === 'string' && expertId ? { expertId } : {}),
       });
     });
