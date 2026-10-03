@@ -6,6 +6,7 @@ import { createResearchStore, ResearchBaseError } from './store.mjs';
 import { createResearchSearch } from './search.mjs';
 import { createIngestor } from './ingest.mjs';
 import { supportedExtensions } from './parsers/index.mjs';
+import { parseCitationLabel } from './citations.mjs';
 
 export { ResearchBaseError };
 
@@ -72,7 +73,7 @@ export function createResearchBase({ database, resolveResourcePath, onProgress }
       }
       case '/api/research/proposals': return { proposals: store.listProposals({ projectId: projectParam(url), status: param(url, 'status') ?? 'pending' }) };
       case '/api/research/brief': return retrieval.brief({ projectId: projectParam(url) ?? null, expertId: param(url, 'expertId') ?? null });
-      case '/api/research/cite': return { citation: retrieval.resolveCitation(String(param(url, 'label') ?? ''), { projectId: projectParam(url) ?? null }) };
+      case '/api/research/cite': return retrieval.resolveCitations(String(param(url, 'label') ?? ''), { projectId: projectParam(url) ?? null });
       case '/api/research/usage': return { refs: store.usageOf(String(param(url, 'chatId') ?? ''), String(param(url, 'messageId') ?? '')) };
       case '/api/research/formats': return { extensions: supportedExtensions() };
       default: return undefined;
@@ -92,7 +93,7 @@ export function createResearchBase({ database, resolveResourcePath, onProgress }
         return { source: input.wait ? await job : store.getSource(source.id) };
       }
       case '/api/research/sync': { const result = await ingest.syncResources({ projectId: input.projectId ?? null }); if (input.wait) { await result.done; await ingest.idle(); } return { total: result.total, queued: result.queued }; }
-      case '/api/research/read': return retrieval.read({ ref: input.ref, page: input.page, fromOrdinal: input.fromOrdinal, maxChars: input.maxChars });
+      case '/api/research/read': return retrieval.read({ ref: input.ref, page: input.page, toPage: input.toPage, fromOrdinal: input.fromOrdinal, maxChars: input.maxChars });
       case '/api/research/items': return { item: store.createItem(input.item ?? {}, { createdBy: 'user' }) };
       case '/api/research/items/update': return { item: store.updateItem(input.id, input.patch ?? {}, { changedBy: 'user' }) };
       case '/api/research/items/supersede': return store.supersedeItem(input.id, input.item ?? {}, { createdBy: 'user', expectedRevision: input.expectedRevision });
@@ -122,7 +123,8 @@ export function createResearchBase({ database, resolveResourcePath, onProgress }
       // Page citations must read that source page, not a chunk's preceding
       // neighbor, which can consume the whole reading window before the page.
       const ref = args.ref ?? (citation.source ? { type: 'source', id: citation.source.id } : citation.ref);
-      const result = retrieval.read({ ref, page: args.page ?? citation?.page, fromOrdinal: args.fromOrdinal, maxChars: args.maxChars ?? 6000, ...agent });
+      const toPage = args.page != null ? args.toPage : args.toPage ?? (citation?.fromPage !== citation?.toPage ? citation?.toPage : undefined);
+      const result = retrieval.read({ ref, page: args.page ?? citation?.page, toPage, fromOrdinal: args.fromOrdinal, maxChars: args.maxChars ?? 6000, ...agent });
       if (context.chatId && context.messageId) store.recordUsage({ chatId: context.chatId, messageId: context.messageId, refs: [result.ref], how: 'read' });
       return result;
     }
@@ -147,9 +149,11 @@ export function createResearchBase({ database, resolveResourcePath, onProgress }
 
 function resolveCite(cite, retrieval, projectId) {
   if (typeof cite !== 'string') throw new ResearchBaseError('INVALID_REF', '请提供 ref 或 cite。');
-  const found = retrieval.resolveCitation(cite, { projectId: projectId ?? null });
-  if (!found) throw new ResearchBaseError('NOT_FOUND', `找不到引用 ${cite}。`, 404);
-  return found;
+  if (parseCitationLabel(cite).citations.length > 1) throw new ResearchBaseError('AMBIGUOUS_CITATION', '复合引用包含多个记录，请分别用每个引用或精确 ref 阅读。');
+  const result = retrieval.resolveCitations(cite, { projectId: projectId ?? null });
+  if (result.parseStatus === 'partial') throw new ResearchBaseError('INVALID_CITATION', '引用包含无法识别的成员，请分别使用完整引用。');
+  if (!result.citation) throw new ResearchBaseError('NOT_FOUND', `找不到引用 ${cite}。`, 404);
+  return result.citation;
 }
 
 function parseCite(cite, retrieval, projectId) {

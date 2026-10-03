@@ -120,7 +120,16 @@ async function submitDiscussion(text, {kind, expertIds, reviewerId = null}) {
     node.querySelector('.message-text').innerHTML = renderMarkdown(answer.text || waiting);
     node.toggleAttribute('data-streaming', !!answer.streaming);
     const bar = node.querySelector('[data-review-bar]'); const next = reviewBar(answer);
-    if (bar) { if (next) bar.outerHTML = next; else bar.remove(); }
+    if (bar) {
+      if (!next) bar.remove();
+      else {
+        // A queued streaming paint can run after expert-end. Keep an unchanged
+        // control attached so that a pointer gesture started on it can finish.
+        // Compare state rather than markup (info tips and i18n change markup).
+        const button = bar.querySelector('[data-review-adopt]');
+        if (!button || button.getAttribute('aria-pressed') !== String(!!answer.expert.adopted) || button.disabled !== !!answer.expert.mainSeen) bar.outerHTML = next;
+      }
+    }
     else if (next) node.querySelector('.msg-actions')?.insertAdjacentHTML('beforebegin', next);
     if (follow) box.scrollTop = box.scrollHeight;
   };

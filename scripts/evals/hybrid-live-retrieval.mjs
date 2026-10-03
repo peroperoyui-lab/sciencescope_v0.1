@@ -14,6 +14,7 @@ import { createDesktopApi } from '../desktop-api.mjs';
 import { APPROVED_GOLD_SHA256, cloneDatabaseWithBackup, validateFrozenMapping } from './real-corpus-retrieval.mjs';
 import { embeddingManifest, verifyEmbeddingFiles } from '../research-base/model-assets.mjs';
 import { CONTEXT_API_VERSION } from '../context/tools.mjs';
+import { extractCitationLabels } from '../research-base/citations.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const outputRoot = path.join(repo, '.sciencescope-local', 'temp', 't10-validation', 'live');
@@ -103,6 +104,30 @@ export function resultMetrics(result) {
   const fields = value => Object.fromEntries(['snippet', 'section', 'text', 'body', 'title', 'note'].filter(name => typeof value?.[name] === 'string').map(name => [name, value[name].length]));
   return { serializedCharacters: JSON.stringify(result ?? null).length, fields: fields(result),
     hits: (result?.hits ?? []).map(hit => ({ cite: hit.cite ?? null, ref: hit.ref ?? null, characters: fields(hit) })) };
+}
+
+// Syntax recognition and API resolution are receipts, not source-support grades.
+export async function resolveAnswerCitations(answer, resolveLabel) {
+  const citationParseAudit = extractCitationLabels(answer);
+  const citations = [];
+  for (const parsed of new Map(citationParseAudit.map(row => [row.raw, row])).values()) {
+    if (!parsed.citations.length) {
+      citations.push({ label: parsed.raw, resolved: false, citations: [], parseStatus: parsed.parseStatus, unrecognized: parsed.unrecognized });
+      continue;
+    }
+    try {
+      const result = await resolveLabel(parsed.raw);
+      const members = result.citations ?? (result.citation ? [result.citation] : []);
+      citations.push({ label: parsed.raw, ref: result.citation?.ref ?? null, page: result.citation?.page ?? null,
+        resolved: result.parseStatus === 'parsed' && members.length === parsed.citations.length,
+        citations: members, parseStatus: result.parseStatus ?? parsed.parseStatus, unrecognized: result.unrecognized ?? [] });
+    } catch (error) {
+      citations.push({ label: parsed.raw, resolved: false, citations: [], parseStatus: parsed.parseStatus,
+        unrecognized: parsed.unrecognized, resolutionError: { name: error.name, code: error.code ?? null } });
+    }
+  }
+  return { citations, citationParseAudit,
+    unsupportedCitationSyntax: citationParseAudit.flatMap(row => row.unrecognized.map(member => ({ label: row.raw, ...member }))) };
 }
 
 export function requestReceipt(payload) {
@@ -327,6 +352,19 @@ async function atomicWrite(file, value) {
   }
 }
 
+/** Retry only the already-written snapshot's rename when Windows readers
+ * briefly deny replacement. Exhaustion leaves the .next evidence intact. */
+export function renameSnapshotSync(from, to, { rename = renameSync,
+  wait = milliseconds => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds) } = {}) {
+  for (let attempt = 0; ; attempt += 1) {
+    try { rename(from, to); return; }
+    catch (error) {
+      if (!['EPERM', 'EBUSY', 'EACCES'].includes(error.code) || attempt >= 19) throw error;
+      wait(100);
+    }
+  }
+}
+
 function usageOnly(value) {
   const allowed = new Set(['prompt_tokens','completion_tokens','total_tokens','input_tokens','output_tokens','cached_tokens','reasoning_tokens','prompt_tokens_details','completion_tokens_details','input_tokens_details','output_tokens_details']);
   const visit = node => Object.fromEntries(Object.entries(node ?? {}).filter(([name, child]) => allowed.has(name)
@@ -382,7 +420,7 @@ export async function createCappedProxy({ evidencePath, maxCompletionRequests, m
   const persist = () => {
     const temp = `${evidencePath}.${process.pid}.next`;
     writeFileSync(temp, json(state));
-    renameSync(temp, evidencePath);
+    renameSnapshotSync(temp, evidencePath);
   };
   const questionState = id => (state.questions[id] ??= { completionAttempts: 0, forwardedCompletions: 0, effectiveModelSteps: 0, retryAttempts: 0, blockedCompletions: 0, bySessionKind: {} });
   const previousBySession = new Map();
@@ -603,7 +641,7 @@ async function runLive(args, runDir, inputs) {
   const lockPath = path.join(runDir, 'running.lock');
   const selected = args.phase === 'pilot' ? inputs.questions.slice(0, PILOT_SIZE) : selectQuestions(inputs.questions, args.questionIds);
   const globalCap = selected.length * MAX_PER_QUESTION;
-  const receiptFiles = ['scripts/context/tools.mjs', 'scripts/context/policy.mjs', 'scripts/context/research-tools.mjs', 'scripts/research-base/index.mjs', 'scripts/research-base/search.mjs', 'scripts/research-base/hybrid.mjs', 'scripts/research-base/semantic-service.mjs', 'scripts/evals/hybrid-live-retrieval.mjs'];
+  const receiptFiles = ['scripts/context/tools.mjs', 'scripts/context/policy.mjs', 'scripts/context/research-tools.mjs', 'scripts/research-base/index.mjs', 'scripts/research-base/search.mjs', 'scripts/research-base/citations.mjs', 'scripts/research-base/hybrid.mjs', 'scripts/research-base/semantic-service.mjs', 'scripts/evals/hybrid-live-retrieval.mjs'];
   const rulesReceipt = Object.fromEntries(await Promise.all(receiptFiles.map(async file => [file, hash(await readFile(path.join(repo, file)))])));
   let ledger = {
     schema: 2, status: 'RUNNING', createdAt: new Date().toISOString(), phase: args.phase,
@@ -708,13 +746,8 @@ async function runLive(args, runDir, inputs) {
         active.answer = safe(String(terminal?.text ?? ''));
         active.terminal = terminal?.type ?? 'NO_TERMINAL_EVENT';
         active.usage = await localJson(activeRef.origin, `/api/research/usage?chatId=${encodeURIComponent(active.chatId)}&messageId=${encodeURIComponent(active.assistantMessageId)}`);
-        active.citations = [];
-        for (const label of new Set(active.answer.match(/\[(?:S\d+[^\]\r\n]*|@[0-9a-f]{6,20})\]/giu) ?? [])) {
-          try {
-            const resolved = await localJson(activeRef.origin, `/api/research/cite?label=${encodeURIComponent(label)}&projectId=${encodeURIComponent(projectId)}`);
-            active.citations.push({ label, ref: resolved.citation?.ref ?? null, page: resolved.citation?.page ?? null, resolved: resolved.citation != null });
-          } catch { active.citations.push({ label, resolved: false }); }
-        }
+        Object.assign(active, await resolveAnswerCitations(active.answer, label => localJson(activeRef.origin,
+          `/api/research/cite?label=${encodeURIComponent(label)}&projectId=${encodeURIComponent(projectId)}`)));
         active.status = active.stopReason || active.prohibitedTools.length ? 'FAILED' : terminal?.type === 'completed' && active.answer.trim() ? 'COMPLETED_AUDIT_PENDING' : 'FAILED';
       } catch (error) {
         active.status = 'FAILED'; active.runnerError = { name: error.name, code: error.code ?? null, message: safe(error.message) };
