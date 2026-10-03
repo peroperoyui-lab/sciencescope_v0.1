@@ -233,7 +233,7 @@ function migrateLegacy(db, stateDir) {
     for (const c of Object.values(chats?.chats || {})) {
       if (!c?.id || !ID.test(c.id)) continue;
       db.prepare(
-        "INSERT OR IGNORE INTO chats VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT OR IGNORE INTO chats(id,project_id,title,updated,model_json,message_count,archived,unread,deleted_at,runtime_session_id,runtime_workspace) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
       ).run(
         c.id,
         c.projectId ?? null,
@@ -267,7 +267,7 @@ function migrateLegacy(db, stateDir) {
           for (let i = 0; i < page.length; i++) {
             const m = page[i];
             db.prepare(
-              "INSERT OR IGNORE INTO messages VALUES(?,?,?,?,?,?)",
+              "INSERT OR IGNORE INTO messages(chat_id,ordinal,id,role,text,created) VALUES(?,?,?,?,?,?)",
             ).run(c.id, base + i, m.id, m.role, m.text, m.created);
           }
         }

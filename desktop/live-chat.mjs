@@ -116,6 +116,7 @@ try{researchInput=options.outboxId?{attachmentIds:[],messageQuotes:[],annotation
           if(!options.outboxId&&input&&input.value===inputBefore)input.value=S.drafts.main;
           saveThread();syncRunButton();
         }else refresh();
+        if(chatId===V.chat)window.ScienceScopeWorkspace?.syncBranchControls();
         paint();
         const box = document.querySelector('.messages');
         if (chatId === V.chat && box) box.scrollTop = !options.outboxId||follow ? box.scrollHeight : previousTop;
@@ -174,6 +175,7 @@ try{researchInput=options.outboxId?{attachmentIds:[],messageQuotes:[],annotation
           if(input)input.value=text;
         }
       } else if(chatData[chatId]&&!chatData[chatId].draft) chatData[chatId].draft=text;
+      await window.ScienceScopeWorkspace?.saveBranchDraft(chatId,chatId===V.chat?S.drafts.main:chatData[chatId]?.draft||'').catch(error=>toast(error.message));
     }
     if (accepted) {
       const receipt = {id:uid('error'),role:'system',text:error.message,time:vtime()};

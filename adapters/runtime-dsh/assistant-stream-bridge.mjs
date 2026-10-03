@@ -26,7 +26,7 @@ export function apply(ctx) {
     const message = data?.message ?? data;
     const content = Array.isArray(message?.content) ? message.content : [];
     const text = content.filter((block) => block?.type === 'text' && typeof block.text === 'string').map((block) => block.text).join('');
-    return {turn:data?.turn,step:data?.step,...(message?.id === undefined ? {} : { messageId: message.id }),text};
+    return {turn:data?.turn,step:data?.step,...(message?.id === undefined ? {} : { messageId: message.id }),text,...(data?.reason?.kind ? {stopReason:data.reason.kind} : {})};
   };
   ctx.on('agent/assistant-stream', ({ agent, frame }) => {
     if (String(agent.session.id) !== sessionId) return;

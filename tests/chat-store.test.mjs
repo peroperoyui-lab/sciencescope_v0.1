@@ -55,3 +55,19 @@ test('failed writes do not poison later mutations and before cursor is a hard bo
   const page = await chats.pageMessages('chat-3', { before: '2', limit: 60 });
   assert.deepEqual(page.messages.map(message => message.id), ['x-0', 'x-1']);
 });
+
+test('branch metadata, runtime receipts, and editable branch draft survive reopen', async () => {
+  const chats=await store();
+  await chats.ensureChat({chatId:'source-branch',projectId:'project-1',title:'Source',model:{providerId:'p',modelId:'m'}});
+  await chats.appendMessage({chatId:'source-branch',id:'user-a',role:'user',text:'A',runtimeSeq:4,completionStatus:'completed'});
+  await chats.appendMessage({chatId:'source-branch',id:'assistant-a',role:'assistant',text:'answer A',runtimeSeq:8,completionStatus:'completed'});
+  await chats.branchPrefix({sourceChatId:'source-branch',newChatId:'child-branch',projectId:'project-1',title:'分支：Source',model:{providerId:'p',modelId:'m'},branchedFrom:{chatId:'source-branch',messageId:'assistant-a',title:'Source'},messages:[chats.getMessage('source-branch','user-a'),chats.getMessage('source-branch','assistant-a')],draft:'ask A',reasoningEffort:'high'});
+  await chats.markRuntimeBinding('child-branch','session-child');
+  const reopened=await new ChatStore({stateDir:chats.stateDir}).init();handles.push(reopened);
+  assert.deepEqual(reopened.getChat('child-branch').branchedFrom,{chatId:'source-branch',messageId:'assistant-a',title:'Source'});
+  assert.equal(reopened.getChat('child-branch').reasoningEffort,'high');
+  assert.equal(reopened.getBranchDraft('child-branch'),'ask A');
+  const page=await reopened.pageMessages('child-branch',{limit:10});
+  assert.deepEqual(page.messages.map(message=>message.runtimeSeq),[4,8]);
+  assert.notEqual(page.messages[1].id,'assistant-a');
+});

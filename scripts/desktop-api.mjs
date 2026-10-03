@@ -20,6 +20,7 @@ import { createDocumentPreview } from './document-preview.mjs';
 import {createAssistantConversations,AssistantConversationError} from './assistant-conversations.mjs';
 import {createAssistantChatService,AssistantChatError} from './assistant-chat-service.mjs';
 import {createToolActivityProjection} from './tool-activity.mjs';
+import {createChatBranching,ChatBranchError} from './chat-branching.mjs';
 import {createChatOutbox} from './chat-outbox.mjs';
 import {createChatSearch} from './chat-search.mjs';
 import {createChatAttachments} from './chat-attachments.mjs';
@@ -193,7 +194,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       pythonEnvs:typeof python?.list==='function', // T11 persisted environment API
       folderPicker:(process.env.SCIENCESCOPE_NATIVE_FEATURES||'').split(',').includes('pickFolder'), // T11 Tauri pick_folder
       inAppBrowser:false,      // T08
-      branch:false,            // T12 runtime branch from a message
+      branch:typeof host?.forkSession==='function'&&typeof host?.sessionTurns==='function', // T12 browser/native acceptance passed
       usage:false,             // T13 usage analytics
       materialsPanel:typeof research.store.listSources==='function', // T05 real research material selection
       mapHistory:false,        // T14 map history, version notes, diff
@@ -239,6 +240,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     }finally{startingContexts.delete(sessionId);}
   }
   const discussions=host?.runExperts?createDiscussionService({host,chatStore,db:database.db,toolActivity,minutes,memoryGuide:contextRules('expert')}):null;
+  const branching=createChatBranching({chatStore,database,host,execution,bindings,roleSettings,startContextSession,conversations,researchDrafts,restoreExecution});
   const assistants=createAssistantChatService({host,conversations,chatStore,dataRoot,roleSettings,contextAccess,startContextSession,needsPythonRefresh,bindPython:input=>python.bind(input),pythonContextBrief});
   // Agent tools answered by the Research Base. The session decides the chat,
   // project and role; nothing in the model's arguments can widen that scope.
@@ -300,7 +302,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       await host.releaseSession(binding.sessionId);bindings.delete(chatId);binding=null;
     }
     if(!binding){
-      const sessionId=await startContextSession({model:chat.model,workspace:chatStore.getRuntimeWorkspace(chatId),runtimeConfig:await host.getRuntimeConfig?.(),sessionId:chatStore.getBinding(chatId),persona:roleSettings.bind(chatId,'main',{existing:true}).prompt},{role:'main',chatId,mainChatId:chatId,projectId:chat.projectId??null});
+      const sessionId=await startContextSession({model:{...chat.model,...(chat.reasoningEffort?{reasoningEffort:chat.reasoningEffort}:{})},workspace:chatStore.getRuntimeWorkspace(chatId),runtimeConfig:await host.getRuntimeConfig?.(),sessionId:chatStore.getBinding(chatId),persona:roleSettings.bind(chatId,'main',{existing:true}).prompt},{role:'main',chatId,mainChatId:chatId,projectId:chat.projectId??null});
       binding={sessionId,modelKey:JSON.stringify(chat.model),lastUsed:Date.now()};bindings.set(chatId,binding);
     }
     await refreshBrief(binding,chat.projectId??null,chatId);
@@ -462,7 +464,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       const expertContext=context+(brief.text?`${brief.text}\n\n`:'')+(recalled.text?`${recalled.text}\n\n`:'');
       response.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store'});
       const emit=event=>{if(!response.destroyed)response.write(JSON.stringify(event)+'\n');};
-      await discussions.run({chatId:input.chatId,sessionId:binding.sessionId,experts:panel,reviewer,kind,context:expertContext,requestText:compiled.text,chatModel:modelRoute,
+      const discussionResult=await discussions.run({chatId:input.chatId,sessionId:binding.sessionId,experts:panel,reviewer,kind,context:expertContext,requestText:compiled.text,chatModel:modelRoute,
         userMessage:{id:userMessageId,text},
         onEvent:event=>{
           if(event.type==='accepted'){
@@ -478,6 +480,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         }});
       binding.lastUsed=Date.now();
       void events.emit('discussion.finished',{chatId:input.chatId});
+      await chatStore.setMessageReceipt(input.chatId,userMessageId,{completionStatus:discussionResult.failed?'failed':'completed'});
       response.end();
     }finally{pending.delete(input.chatId);for(const [key,value] of expertTurnMessages)if(value.chatId===input.chatId)expertTurnMessages.delete(key);}
   }
@@ -538,6 +541,8 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         const activity=toolActivity.list({chatId:decodeURIComponent(chatMatch[1]),assistantMessageIds:page.messages.filter(m=>m.role==='assistant').map(m=>m.id),limit:200});
         for(const message of page.messages)if(message.role==='assistant')message.toolActivity=activity.filter(call=>call.assistantMessageId===message.id);
         for(const message of page.messages)if(message.role==='user')message.researchInput=researchDrafts.receipt(decodeURIComponent(chatMatch[1]),message.id);
+        page.chat.draftText=chatStore.getBranchDraft(decodeURIComponent(chatMatch[1]));
+        for(const message of page.messages)message.branchMode=branching.modeFor(page.chat.id,message);
         if(discussions){const authors=discussions.entriesFor(decodeURIComponent(chatMatch[1]),page.messages.filter(m=>m.role==='assistant').map(m=>m.id));for(const message of page.messages)if(authors.has(message.id))message.expert=authors.get(message.id);
           // Answers are stored in completion order; a round is always shown in roster order.
           for(let start=0;start<page.messages.length;){const run=page.messages[start].expert?.runId;let end=start+1;if(run)while(end<page.messages.length&&page.messages[end].expert?.runId===run)end++;if(end-start>1)page.messages.splice(start,end-start,...page.messages.slice(start,end).sort((a,b)=>a.expert.position-b.expert.position));start=end;}}
@@ -600,6 +605,24 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       const uploadRoute = ['/api/workbench/import','/api/workbench/asset','/api/library/import'].includes(route);
       for await (const chunk of request) { length += chunk.length; if(length > (uploadRoute ? 20*1024*1024 : 1024*1024)) throw new WorkbenchApiError('REQUEST_TOO_LARGE', uploadRoute ? '上传文件不能超过 20MiB。' : '请求内容过大。', 413); chunks.push(chunk); }
       let input = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      if(!input||typeof input!=='object'||Array.isArray(input)){json(response,400,{message:'请求格式无效。'});return true;}
+      if(route==='/api/chats/draft'){
+        if(typeof input.chatId!=='string'||!/^[A-Za-z0-9_-]{1,160}$/u.test(input.chatId)||typeof input.text!=='string'||input.text.length>64000){json(response,400,{message:'草稿格式无效。'});return true;}
+        const chat=chatStore.getChat(input.chatId);if(!chat?.branchedFrom||chat.deletedAt||conversations.isAssistant(chat.id)){json(response,404,{message:'对话不存在。'});return true;}
+        await chatStore.setBranchDraft(input.chatId,input.text);json(response,200,{saved:true});return true;
+      }
+      if(route==='/api/chats/branch'){
+        if(typeof input.chatId!=='string'||!/^[A-Za-z0-9_-]{1,160}$/u.test(input.chatId)||typeof input.messageId!=='string'||!/^[A-Za-z0-9_-]{1,160}$/u.test(input.messageId)||!['reply','reask'].includes(input.mode)){json(response,400,{message:'分支请求无效。'});return true;}
+        const key=input.chatId,source=chatStore.getChat(key);
+        if(!source||source.deletedAt||conversations.isAssistant(key)){json(response,404,{message:'主对话不存在。'});return true;}
+        if(pending.has(key)||mainRuns.has(key)||discussions?.busy(key)||execution?.busy(key)||outbox.list(key).items.some(item=>['queued','sending'].includes(item.status))){json(response,409,{code:'CHAT_BUSY',message:'这个对话仍在运行，请等待当前任务结束。'});return true;}
+        if(typeof host?.forkSession!=='function'||typeof host?.sessionTurns!=='function'||!chatStore.getBinding(key)){json(response,503,{message:'当前运行时暂不支持对话分支。'});return true;}
+        pending.add(key);
+        try{const result=await branching.branch({sourceId:key,messageId:input.messageId,mode:input.mode});json(response,200,{chatId:result.chat.id,title:result.chat.title,branchedFrom:result.chat.branchedFrom,draftText:result.draftText});}
+        catch(error){if(error instanceof ChatBranchError)json(response,error.status,{code:error.code,message:error.message});else throw error;}
+        finally{pending.delete(key);await trimIdleSessions();}
+        return true;
+      }
       if (route === '/api/chats/minutes') { if(!chatStore.getChat(String(input.chatId||'')))throw new MinutesError('CHAT_NOT_FOUND','对话不存在。',404); json(response,200,{minutes:minutes.edit(String(input.chatId),input.text,Number(input.expectedRevision)||0)}); return true; }
       if (route === '/api/chats/minutes/refresh') { if(!chatStore.getChat(String(input.chatId||'')))throw new MinutesError('CHAT_NOT_FOUND','对话不存在。',404); json(response,200,{minutes:await minutes.refresh(String(input.chatId))}); return true; }
       if (route === '/api/chats/deliverable/open') { json(response,200,await deliverables.open(String(input.chatId||''),String(input.path||''))); return true; }
@@ -879,12 +902,17 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         }
         response.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store'});
         const emit = event => { if (!response.destroyed) response.write(JSON.stringify(event)+'\n'); };
-        if (!input.temporary) await chatStore.appendMessage({chatId:input.chatId,id:input.userMessageId,role:'user',text:input.text});
+        if (!input.temporary) {
+          await chatStore.appendMessage({chatId:input.chatId,id:input.userMessageId,role:'user',text:input.text,completionStatus:'pending'});
+          if(chatStore.getBranchDraft(input.chatId)===input.text)await chatStore.setBranchDraft(input.chatId,'');
+          await chatStore.setReasoningEffort(input.chatId,reasoningEffort ?? null);
+        }
         let finalEvent;let receipts=Promise.resolve();
         const persistPartial = async text => {
           if(!run || input.temporary || run.persisted || !run.accepted) return;
           run.persisted=true;
-          await chatStore.appendMessage({chatId:input.chatId,id:input.assistantMessageId,role:'assistant',text:text || ''});
+          await chatStore.appendMessage({chatId:input.chatId,id:input.assistantMessageId,role:'assistant',text:text || '',completionStatus:run?.cancelled?'cancelled':'failed'});
+          await chatStore.setMessageReceipt(input.chatId,input.userMessageId,{completionStatus:run?.cancelled?'cancelled':'failed'});
         };
         const onEvent = event => {
           if(run) {
@@ -920,7 +948,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         const recallText=recall.text?recall.text+'\n\n':'';
         if(!input.temporary)await refreshBrief(bindings.get(key),currentProject?.id??null,input.chatId,input.assistantMessageId);
         if(executionMode==='auto'){
-          const goal=await execution.start(key,bindings.get(key),contextPrefix+panelNews.text+recallText+compiled.text,input.goalMaxRounds);panelNews.commit();
+          const goal=await execution.start(key,bindings.get(key),contextPrefix+panelNews.text+recallText+compiled.text,input.goalMaxRounds,input.userMessageId);panelNews.commit();
           emit({type:'goal-started',goal});emit({type:'completed',text:'',background:true});response.end();return true;
         }
         try {
@@ -937,7 +965,10 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
             emit({type:'cancelled',chatId:input.chatId,text:run.currentText}); return true;
           }
           if(!input.temporary)researchDrafts.restore('main',input.chatId,compiled.snapshot);
-          if (!input.temporary) await chatStore.appendMessage({chatId:input.chatId,id:input.assistantMessageId,role:'assistant',text:'请求失败，未生成完整回答。'});
+          if (!input.temporary) {
+            await chatStore.appendMessage({chatId:input.chatId,id:input.assistantMessageId,role:'assistant',text:'请求失败，未生成完整回答。',completionStatus:'failed'});
+            await chatStore.setMessageReceipt(input.chatId,input.userMessageId,{completionStatus:'failed'});
+          }
           throw error;
         }
           if(run?.cancelled) {
@@ -945,7 +976,14 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
           await persistPartial(run.currentText);
           emit({type:'cancelled',chatId:input.chatId,text:run.currentText}); return true;
         }
-        if (!input.temporary && finalEvent && typeof finalEvent.text === 'string') { if(run) run.persisted=true; await chatStore.appendMessage({chatId:input.chatId,id:input.assistantMessageId,role:'assistant',text:finalEvent.text}); void events.emit('chat.turn.persisted',{chatId:input.chatId}); }
+        if (!input.temporary && finalEvent && typeof finalEvent.text === 'string') {
+          let endSeq=null;
+          if(typeof host.sessionTurns==='function')try{const turns=await host.sessionTurns({sessionId:bindings.get(key).sessionId});endSeq=turns.turns?.at(-1)?.endSeq??null;}catch{}
+          if(run)run.persisted=true;
+          await chatStore.setMessageReceipt(input.chatId,input.userMessageId,{runtimeSeq:Number.isSafeInteger(endSeq)?endSeq:null,completionStatus:'completed'});
+          await chatStore.appendMessage({chatId:input.chatId,id:input.assistantMessageId,role:'assistant',text:finalEvent.text,runtimeSeq:Number.isSafeInteger(endSeq)?endSeq:null,completionStatus:'completed'});
+          void events.emit('chat.turn.persisted',{chatId:input.chatId});
+        }
         successful=!!finalEvent;
         if(run) run.state='completed';
         if(run&&!input.temporary&&successful) touchActivity(input.chatId,{state:'completed',toolName:undefined});

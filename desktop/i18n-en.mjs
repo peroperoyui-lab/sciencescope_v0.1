@@ -3,6 +3,22 @@
 // --missing` lists strings still untranslated. Model-facing prompts, user data
 // and the prototype's demo content are intentionally absent.
 export const EN = {
+  '从此回复分支': 'Branch from this reply',
+  '从此处重新提问': 'Ask again from here',
+  '分支自': 'Branched from',
+  '分支：': 'Branch: ',
+  '来源对话或消息已不可用。': 'The source conversation or message is no longer available.',
+  '主对话不存在。': 'The Main conversation does not exist.',
+  '这条较早的消息无法作为分支点。': 'This earlier message cannot be used as a branch point.',
+  '此消息不能用于所选分支方式。': 'This message cannot be used with the selected branching mode.',
+  '草稿格式无效。': 'Invalid draft format.',
+  '分支请求无效。': 'Invalid branching request.',
+  '自动化轮次状态保存失败，请检查本地存储。': 'Could not save the automatic turn status. Check local storage.',
+  '这个对话仍在运行，请等待当前任务结束。': 'This conversation is still running. Wait for the current task to finish.',
+  '当前运行时暂不支持对话分支。': 'The current runtime cannot branch this conversation.',
+  '从讨论前最后一轮主专家回复的运行时上下文分支，并保留截至这条专家回复的展示记录。专家回复不会自动加入主专家历史；草稿仍需你发送。': 'Branch from the last completed Main turn before the discussion and keep the visible record through this expert reply. Expert replies are not automatically added to Main history. The draft still needs to be sent.',
+  '从上一轮已完成的主专家回复分支；首条问题会创建空对话。此轮问题、附件与标记放入可编辑草稿，仍需你发送。': 'Branch from the previous completed Main reply. The first question creates an empty conversation. This question, attachments and marks go into an editable draft that you still need to send.',
+  '保留截至这轮回复的模型上下文，后续两边独立继续。此轮问题、附件与标记放入可编辑草稿，仍需你发送。': 'Keep the model context through this reply and continue each conversation independently. This question, attachments and marks go into an editable draft that you still need to send.',
   '所选 Python 环境的解释器文件缺失，请修复环境或重新选择。': 'The selected Python interpreter is missing. Repair the environment or select another one.',
   '审批请求已取消或过期。': 'The approval request was cancelled or expired.',
   '请先选择受管 Python 环境，不能安装到系统 Python。': 'Select a managed Python environment first. Installing into system Python is not allowed.',
@@ -1537,6 +1553,7 @@ export const EN = {
 // (anchored automatically), replacement with $1…]. A captured part is
 // translated when it is known interface text and kept as is otherwise.
 export const EN_PATTERNS = [
+  ["分支：(.+)", "Branch: $1"],
   ["待确认的工作站更新（(\\d+)）", "Workstation updates awaiting approval ($1)"],
   ["下次自动总结：再 (\\d+) 条消息 或 约 (\\d+) token", "Next automatic summary: in $1 messages or about $2 tokens"],
   ["下次自动总结：再 (\\d+) 条消息", "Next automatic summary: in $1 messages"],
