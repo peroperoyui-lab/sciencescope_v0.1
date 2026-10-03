@@ -1,13 +1,15 @@
 import {hostRequest} from './host-client.mjs';
+import {extractCitationLabels} from './citation-parser.mjs';
 
 // Enhance rendered assistant prose without changing model text or the message
 // renderer. The observer only visits inserted/changed subtrees, so streaming a
 // reply does not repeatedly walk the transcript.
-const CITATION = /\[(?:S\d+(?:\s*,?\s*p\.?\s*\d+)?|@[0-9a-f]{6,20})\]/giu;
 const MAX_CACHE = 160;
 const cache = new Map();
 const usageCache = new Map();
 const pending = new Map();
+const unknown = new Map();
+let citationChoices = [];
 const ROOTS = '.message:not(.user) .message-text,.assistant-message:not(.user) .message-text';
 const SKIP = 'pre,code,a,button,.ss-math-block,.ss-math-inline,[data-research-citation]';
 const usageLabel = (memories, materials, entries) => `本轮用到 ${memories} 条记忆 · ${materials} 份资料${entries ? ` · ${entries} 条目` : ''}`;
@@ -17,8 +19,7 @@ const usageKey = (type,id) => `${type}\0${id}`;
 function textNodes(root) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
-      if (!node.nodeValue || !CITATION.test(node.nodeValue)) { CITATION.lastIndex = 0; return NodeFilter.FILTER_REJECT; }
-      CITATION.lastIndex = 0;
+      if (!node.nodeValue || !extractCitationLabels(node.nodeValue).length) return NodeFilter.FILTER_REJECT;
       return node.parentElement?.closest(SKIP) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
     },
   });
@@ -29,22 +30,31 @@ function replaceCitations(root) {
   if (!root?.isConnected || !root.matches?.(ROOTS)) return;
   const projectId=targetFor(messageRoot(root)).projectId||'';
   for (const node of textNodes(root)) {
-    const value=node.nodeValue, matches=[...value.matchAll(CITATION)];
-    const unresolved=matches.filter(match=>!(cache.has(`${projectId}\0${match[0]}`)&&cache.get(`${projectId}\0${match[0]}`)===null));
+    const value=node.nodeValue, matches=extractCitationLabels(value);
+    for(const match of matches)if(match.parseStatus!=='parsed')recordUnknown(match.raw,match.unrecognized,messageRoot(root));
+    const unresolved=matches.filter(match=>match.parseStatus==='parsed'&&!(cache.has(`${projectId}\0${match.raw}`)&&cache.get(`${projectId}\0${match.raw}`)===null));
     if (!unresolved.length) continue;
     const fragment=document.createDocumentFragment(); let offset=0;
     for (const match of matches) {
-      if (match.index>offset) fragment.append(document.createTextNode(value.slice(offset,match.index)));
-      const label=match[0], key=`${projectId}\0${label}`;
-      if(cache.has(key)&&cache.get(key)===null){fragment.append(document.createTextNode(label));offset=match.index+label.length;continue;}
+      if (match.start>offset) fragment.append(document.createTextNode(value.slice(offset,match.start)));
+      const label=match.raw, key=`${projectId}\0${label}`;
+      if(match.parseStatus!=='parsed'||cache.has(key)&&cache.get(key)===null){fragment.append(document.createTextNode(label));offset=match.end;continue;}
       const chip=document.createElement('button');
       chip.type='button'; chip.className='research-citation-chip'; chip.dataset.researchCitation=''; chip.dataset.label=label;
       chip.setAttribute('aria-label',label);
-      chip.textContent=label; fragment.append(chip); offset=match.index+label.length;
+      chip.textContent=label; fragment.append(chip); offset=match.end;
     }
     if(offset<value.length)fragment.append(document.createTextNode(value.slice(offset)));
     node.replaceWith(fragment);
   }
+}
+
+function recordUnknown(raw,reasons,message) {
+  const context=targetFor(message),key=`${context.chatId}\0${raw}`;
+  if(unknown.has(key))return;
+  const record={raw,unrecognized:reasons,chatId:context.chatId,projectId:context.projectId};
+  unknown.set(key,record);while(unknown.size>MAX_CACHE)unknown.delete(unknown.keys().next().value);
+  window.dispatchEvent(new CustomEvent('sciencescope:unrecognized-citation',{detail:record}));
 }
 
 function messageRoot(node) { return node?.closest?.('.message:not(.user),.assistant-message:not(.user)'); }
@@ -74,12 +84,16 @@ async function citationDetails(chip) {
   if(pending.has(key))return pending.get(key);
   const query=new URLSearchParams({label}); if(projectId)query.set('projectId',projectId);
   const task=(async()=>{
-    const result=await hostRequest(`research/cite?${query}`), citation=result.citation;
-    if(!citation){cacheSet(key,null);return null;}
-    let read=null;
-    try { read=await hostRequest('research/read',{ref:citation.ref,page:citation.page,maxChars:1200}); } catch {}
-    const source=citation.source||read?.source,item=citation.item||read?.item;
-    const detail={citation,title:source?.title||item?.title||label,snippet:(read?.text||read?.body||item?.body||'').replace(/^\s*\[p\.\d+\]\s*/u,'').replace(/\s+/gu,' ').trim().slice(0,320)};
+    const result=await hostRequest(`research/cite?${query}`);
+    const citations=result.citations??(result.citation?[result.citation]:[]);
+    if(result.parseStatus&&result.parseStatus!=='parsed'||!citations.length){recordUnknown(label,result.unrecognized??[{raw:label,reason:'not-found'}],message);cacheSet(key,null);return null;}
+    const entries=await Promise.all(citations.map(async citation=>{
+      let read=null;
+      try { read=await hostRequest('research/read',{ref:citation.ref,page:citation.page??citation.fromPage,maxChars:1200}); } catch {}
+      const source=citation.source||read?.source,item=citation.item||read?.item;
+      return {citation,title:source?.title||item?.title||label,snippet:(read?.text||read?.body||item?.body||'').replace(/^\s*\[p\.\d+\]\s*/u,'').replace(/\s+/gu,' ').trim().slice(0,320)};
+    }));
+    const detail={...entries[0],entries,title:entries.map(entry=>entry.title).join(' · '),snippet:entries.map(entry=>entry.snippet).filter(Boolean).join('\n')};
     cacheSet(key,detail); return detail;
   })().finally(()=>pending.delete(key));
   pending.set(key,task); return task;
@@ -117,6 +131,15 @@ async function usageRecord(ref) {
 
 async function openCitation(chip) {
   const detail=await citationDetails(chip); if(!detail){keepUnknownAsText(chip);return;}
+  if(detail.entries.length>1){
+    citationChoices=detail.entries;
+    menu(detail.entries.map((entry,index)=>({text:`${entry.citation.normalized||entry.citation.raw||''} ${entry.title}`,act:'citation-choice',attrs:`data-citation-choice="${index}"`})),chip,'选择引用来源');
+    document.querySelectorAll('#v-menu [data-citation-choice] .menu-text').forEach(label=>label.dataset.i18nSkip='');
+    return;
+  }
+  await openCitationEntry(detail.entries[0]);
+}
+async function openCitationEntry(detail) {
   const citation=detail.citation, ref=citation.ref;
   if(ref?.type==='item') {
     await window.ScienceScopeResearchBase?.openItem?.(ref.id); return;
@@ -213,7 +236,7 @@ function scan(node) {
   else {const message=messageRoot(node);if(message)enhanceMessage(message);for(const child of node.querySelectorAll('.message:not(.user),.assistant-message:not(.user)'))enhanceMessage(child);}
 }
 
-window.ScienceScopeCitations=Object.freeze({refresh(root=document){
+window.ScienceScopeCitations=Object.freeze({unrecognized:()=>[...unknown.values()],refresh(root=document){
   if(root.matches?.('.message:not(.user),.assistant-message:not(.user)'))enhanceMessage(root);
   else for(const message of root.querySelectorAll?.('.message:not(.user),.assistant-message:not(.user)')||[])enhanceMessage(message);
 }});
@@ -226,7 +249,9 @@ document.addEventListener('focusin',event=>{
   const chip=event.target.closest?.('[data-research-citation]');if(!chip)return;
   void citationDetails(chip).then(detail=>{if(!detail)keepUnknownAsText(chip);else if(chip.isConnected)setTooltip(chip,detail);}).catch(()=>{if(chip.isConnected)setTooltip(chip,null);});
 },true);
-document.addEventListener('click',event=>{
+window.addEventListener('click',event=>{
+  const choice=event.target.closest?.('[data-citation-choice]');
+  if(choice){event.preventDefault();event.stopImmediatePropagation();const detail=citationChoices[Number(choice.dataset.citationChoice)];closeMenu();citationChoices=[];if(detail)void openCitationEntry(detail).catch(error=>toast(error.message));return;}
   const usage=event.target.closest?.('[data-usage-type]');
   if(usage){
     event.preventDefault();event.stopImmediatePropagation();

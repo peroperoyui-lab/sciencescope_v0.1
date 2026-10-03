@@ -36,7 +36,7 @@ const runtimeHost = {
     state.sessionId = sessionId; state.sends.push(text);
     const hits = await state.toolHandler({sessionId, name: 'research_search', args: {query: 'T05_NEEDLE_42'}, callId: 't05-search'});
     assert.ok(hits.hits.some(hit => hit.cite === '[S1]'));
-    state.answer = `The paired analysis follows [S1] and ${state.itemCite || '[S1]'}; page syntax [S2 p.2]. Unknown citation [S999].\n\nCode stays literal: \`[S1]\`.\n\n\`\`\`text\n[S1]\n\`\`\``;
+    state.answer = `The paired analysis follows [S1] and ${state.itemCite || '[S1]'}; page syntax [S2 p.2]. Variants [S2, p.2] and [S2 p2], range [S2 p.1–2], compound [S1; S2]. Unknown citation [S999]; unknown format [S2 appendix]. Malformed [S2 p.2) and [S³].\n\nCode stays literal: \`[S1]\`.\n\n\`\`\`text\n[S1]\n\`\`\``;
     onEvent({type: 'text-delta', delta: state.answer}); onEvent({type: 'completed', text: state.answer});
     return {finalResponse: state.answer};
   },
@@ -282,6 +282,27 @@ try {
   await page.waitForFunction(() => document.querySelector('.file-preview-panel [data-reader-page]')?.value === '2' && document.querySelector('.file-preview-panel .page[data-page-number="2"] .textLayer')?.textContent.includes('second page confirms'));
   assert.match(await page.locator('.file-preview-panel .page[data-page-number="2"]').innerText(), /second page confirms/);
   await page.locator('.file-preview-panel [data-v="close-panel"]').click();
+  for(const label of ['[S2, p.2]','[S2 p2]']){
+    await answer.locator(`[data-research-citation][data-label="${label}"]`).click();
+    await page.waitForFunction(()=>document.querySelector('.file-preview-panel')?.innerText.includes('second page confirms'));
+    await page.locator('.file-preview-panel [data-v="close-panel"]').click();
+  }
+  await answer.locator('[data-research-citation][data-label="[S2 p.1–2]"]').hover();
+  await poll(()=>request(`research/cite?projectId=${projectId}&label=${encodeURIComponent('[S2 p.1–2]')}`),value=>value.citation?.fromPage===1&&value.citation?.toPage===2,'range metadata preserves both pages');
+  await answer.locator('[data-research-citation][data-label="[S1; S2]"]').click();
+  await page.waitForSelector('#v-menu [data-citation-choice]');
+  assert.equal(await page.locator('#v-menu [data-citation-choice]').count(),2);
+  await page.locator('#v-menu [data-citation-choice="1"]').click();
+  await page.waitForSelector('.file-preview-panel');
+  await page.locator('.file-preview-panel [data-v="close-panel"]').click();
+  assert.equal(await answer.locator('[data-research-citation][data-label="[S2 appendix]"]').count(),0);
+  assert.match(await answer.locator('.message-text').innerText(),/\[S2 appendix\]/);
+  assert.ok(await page.evaluate(()=>window.ScienceScopeCitations.unrecognized().some(record=>record.raw==='[S2 appendix]')));
+  for(const label of ['[S2 p.2)','[S³]']){
+    assert.equal(await answer.locator(`[data-research-citation][data-label="${label}"]`).count(),0);
+    assert.ok((await answer.locator('.message-text').innerText()).includes(label));
+    assert.ok(await page.evaluate(label=>window.ScienceScopeCitations.unrecognized().some(record=>record.raw===label),label));
+  }
   await answer.locator(`[data-research-citation][data-label="${state.itemCite}"]`).click();
   await page.waitForSelector('[data-rb-action="history"]'); await closeModal();
   await answer.locator('[data-research-usage] summary').click();
@@ -350,13 +371,31 @@ try {
     await page.evaluate(async id => {await window.SSV2.loadThread(id); go('work');}, chatId);
     await page.waitForSelector('#message-t05-answer');
     await screenshot('citation', key);
+    await page.locator('#message-t05-answer [data-research-citation][data-label="[S1; S2]"]').click();
+    await page.waitForSelector('#v-menu [data-citation-choice]');
+    await page.waitForFunction(()=>document.querySelector('#v-menu .menu-label')?.textContent===(document.documentElement.lang==='en'?'Choose citation source':'选择引用来源'));
+    // Capture the finished menu rather than its fade-in while the pointer
+    // still rests on the source chip and keeps its excerpt tooltip visible.
+    const menuLabelBox = await page.locator('#v-menu .menu-label').boundingBox();
+    assert.ok(menuLabelBox);
+    await page.mouse.move(menuLabelBox.x + menuLabelBox.width / 2, menuLabelBox.y + menuLabelBox.height / 2);
+    await page.locator('#v-menu').evaluate(async element => {
+      await Promise.all(element.getAnimations({subtree: true}).map(animation => animation.finished));
+    });
+    await page.waitForFunction(() => {
+      const menu = document.querySelector('#v-menu');
+      return menu && getComputedStyle(menu).opacity === '1'
+        && !document.querySelector('#message-t05-answer [data-research-citation]:is(:hover,:focus-visible)');
+    });
+    await screenshot('citation-choices',key);
+    await page.keyboard.press('Escape');
   }
   assert.deepEqual(errors, []); assert.deepEqual(assetFailures, []);
   if(native) {
     await page.evaluate(() => window.__TAURI__.window.getCurrentWindow().close()).catch(error => {if(!/closed/i.test(error.message))throw error;});
     await poll(async () => child.exitCode, value => value !== null, 'owned native client exits'); assert.equal(child.exitCode, 0);
   }
-  const result = {passed: true, productionRouter: true, native, ...(native ? {nativeMainPid: child.pid, nativeMainExited: child.exitCode === 0, nativeDiagnosticPort: state.nativeDiagnosticPort} : {}), importedAndAutoParsed: true, sourceMetadata: true, filtersSortingPagination50: true, searched: true, exactBrief: true, runtimeBrief: true, actualDiscussionExpert: true, expertOwnAnswerOriginAndUsage: true, expertProposalEditedAccepted: true, bulkProposalDecisions: true, optimisticRevisionConflict: true, supersededHistory: true, pinArchiveFilters: true, modelKatex: true, citationPreview: true, pageCitationLocated: true, citationRawTextPreserved: true, unknownCitationStableFallback: true, independentCitationScope: true, usage: true, proposalNotice: true, interruptedProposeExcluded: true, materialSelectionPersisted: true, explicitContextReachedRuntime: true, capturedContextClearedOnAck: true, composerRound: true, screenshots, localModelTurns: state.sends.length, localExpertRuns: state.expertRuns, paidRequests: 0};
+  const result = {passed: true, productionRouter: true, native, ...(native ? {nativeMainPid: child.pid, nativeMainExited: child.exitCode === 0, nativeDiagnosticPort: state.nativeDiagnosticPort} : {}), importedAndAutoParsed: true, sourceMetadata: true, filtersSortingPagination50: true, searched: true, exactBrief: true, runtimeBrief: true, actualDiscussionExpert: true, expertOwnAnswerOriginAndUsage: true, expertProposalEditedAccepted: true, bulkProposalDecisions: true, optimisticRevisionConflict: true, supersededHistory: true, pinArchiveFilters: true, modelKatex: true, citationPreview: true, pageCitationLocated: true, compoundCitationChoices: true, citationRangesRetained: true, citationChoicesBilingual: true, citationRawTextPreserved: true, unknownCitationStableFallback: true, independentCitationScope: true, usage: true, proposalNotice: true, interruptedProposeExcluded: true, materialSelectionPersisted: true, explicitContextReachedRuntime: true, capturedContextClearedOnAck: true, composerRound: true, screenshots, localModelTurns: state.sends.length, localExpertRuns: state.expertRuns, paidRequests: 0};
   await writeFile(path.join(output, 'result.json'), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result));
 } catch(error) {
   await page?.screenshot({path: path.join(output, 'failure.png'), fullPage: true}).catch(() => {});

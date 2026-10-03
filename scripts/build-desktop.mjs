@@ -46,7 +46,7 @@ export const VENDOR_ASSETS = [
   ...vendorTree('pdf/wasm', 'pdfjs-dist/wasm'),
   ...vendorTree('pdf/iccs', 'pdfjs-dist/iccs'),
 ];
-export const GENERATED_ASSETS = [['vendor/reader-vendor.mjs', 'text/javascript; charset=utf-8']];
+export const GENERATED_ASSETS = [['vendor/reader-vendor.mjs', 'text/javascript; charset=utf-8'], ['citation-parser.mjs', 'text/javascript; charset=utf-8']];
 let readerBundle;
 
 export async function buildDesktop({ root = defaultRoot, outputDir = path.join(root, '.sciencescope-local', 'desktop-dist') } = {}) {
@@ -61,6 +61,7 @@ export async function buildDesktop({ root = defaultRoot, outputDir = path.join(r
   if (!html.includes('</body>')) throw new Error('Desktop entry requires a closing body tag');
   await mkdir(path.join(outputDir, 'desktop'), {recursive:true});
   for (const file of assets) await copyFile(path.join(root, 'desktop', file), path.join(outputDir, 'desktop', file));
+  await copyFile(path.join(root, 'scripts/research-base/citations.mjs'), path.join(outputDir, 'desktop/citation-parser.mjs'));
   await mkdir(path.join(outputDir, 'desktop', 'vendor', 'noto-sans-sc', 'files'), {recursive:true});
   for (const [target, source] of VENDOR_ASSETS) {
     const destination = path.join(outputDir, 'desktop', 'vendor', target);
