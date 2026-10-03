@@ -13,7 +13,7 @@
 - 数据根 `defaultRoot` 是仓库目录（`scripts/prepare-desktop.mjs`），数据都在 `<仓库>/.sciencescope-local/` 下。
 - 带平台原生代码的依赖：`onnxruntime-node`、`sqlite-vec`、`sharp`（经 `@huggingface/transformers` 间接引入）、`node-addon-system`；uv 路径在 `.sciencescope-local/runtimes/uv/uv.exe`；向量模型 e5-small 在 `models/`。
 - 平台判断分散在约 10 个产品模块中（`workbench-api`、`python-env/environments`、`desktop-api`、`system-fonts`、`research-base/model-assets`、`workspace-folders`、`runtime-dsh/session-env|web-host|protected-paths|credential-isolation`）。
-- 仓库**没有 LICENSE 文件**。依赖许可扫描：以 MIT / Apache-2.0 为主，DSH 为 MIT；有 2 个 LGPL-3.0（疑为 sharp 的 libvips），字体为 OFL。
+- 许可证：用户 2026-10-03 定为 **MIT**，`LICENSE`（版权人 peroperoyui）与 `package.json`、`Cargo.toml` 的 license 字段已由 Claude 加入。依赖许可扫描：以 MIT / Apache-2.0 为主，DSH 为 MIT；有 2 个 LGPL-3.0（疑为 sharp 的 libvips），字体为 OFL。
 
 ## 要做的
 
@@ -21,7 +21,13 @@
 - Node 运行时作为外壳的附带程序（Tauri sidecar 或 resources），版本与开发环境一致；宿主脚本、`node_modules`（只含生产依赖与 Windows x64 原生模块）、uv 一并进安装包。
 - 外壳改为从安装目录定位 Node 与宿主脚本；开发模式仍可用环境变量覆盖。
 - 核实 `sharp` 是否真的会被调用；不需要就在打包时排除，同时去掉 LGPL 组件。
-- 向量模型：列出安装包体积（含与不含模型），**由用户决定**是随包还是首次使用时下载（下载要带校验和、可断点续传、可离线手动导入）。
+- 向量模型**不随包**（用户 2026-10-03），首次使用时下载。现有实现：`scripts/research-base/model-assets.mjs` 的 `downloadEmbeddingFiles`，只在用户开启语义检索时下载，文件与 sha256 固定在 `models/default-embedding.json`（`Xenova/multilingual-e5-small`），来源依次为 huggingface.co、hf-mirror.com。改为：
+  1. **先探测 Hugging Face**：用短超时（如 5 秒）的 HTTPS 请求探测清单中第一个文件（HEAD 或带 Range 的 GET），不用 ICMP ping（常被防火墙拦截，且通不代表 HTTPS 可用）；
+  2. 探测失败，或下载中途连接失败，**自动转到阿里云的 ModelScope**（modelscope.cn）；hf-mirror.com 不再作为默认来源；
+  3. 每个来源的模型 id 与版本写进清单（如 `sources: [{kind:'huggingface', modelId, revision}, {kind:'modelscope', modelId, revision}]`），**两个来源下载的文件都按同一个 sha256 校验**，不一致就判定失败，不使用；
+  4. 先在 Windows 上实测：ModelScope 上是否有与清单 sha256 完全一致的同名文件（Claude 的云端环境被代理挡住，无法核实）。如果没有，停下报告可选方案（例如在 ModelScope 上建一个用户自己的镜像仓库），由用户决定；
+  5. 界面显示当前来源与进度；两个来源都失败时提示可离线手动导入（选择包含这些文件的文件夹，同样校验 sha256）；
+  6. 测试：用夹具模拟 HF 不通、HF 中途断开、ModelScope 校验不符三种情况，断言来源切换与失败提示正确。
 
 ### 2. 数据目录
 - 安装版数据根改为 `%LOCALAPPDATA%\ScienceScope\`（或 Tauri 的 app data 目录），安装目录视为只读；开发版保持现状。
@@ -38,7 +44,7 @@
 - DevTools 关闭、浏览器右键菜单关闭（已有要求），候选包上复验。
 - 退出时宿主拥有的进程树全部结束（按 AGENTS.md：观察到子进程 PID 消失）。
 
-### 5. 签名
+### 5. 签名（alpha 发布前再做，用户 2026-10-03）
 - Windows Authenticode：主程序、安装器、随包的 `node.exe`、`uv.exe` 和所有 `.node` 原生模块都要签名。
 - **需要用户提供证书或签名服务**（OV/EV 证书或 Azure Trusted Signing）。在此之前签名验收保持 BLOCKED，其余工作照常进行。
 - 签名脚本从环境变量或系统证书库读取凭据，不写进仓库与日志。
@@ -49,7 +55,7 @@
 - 升级演练：alpha.1 → alpha.2，用一份有代表性的测试数据（不用用户唯一的数据库），核对数据完整。复用 Dot 的 `scripts/rehearsal/`（如已交付），否则自行编写同类脚本。
 
 ### 7. 开源发布准备
-- 增加 `LICENSE`。**许可证由用户决定**（建议 MIT 或 Apache-2.0，均与依赖兼容）。
+- `LICENSE` 已加入（MIT）。
 - 构建时生成 `THIRD_PARTY_NOTICES`（依赖名、版本、许可证、版权声明），随安装包分发。
 - README 增加：构建步骤、系统要求、数据位置、署名（发布者 peroperoyui；Codex 为 AI 辅助开发，Claude（Anthropic）为 AI 辅助审阅与开发）。
 - 可选：GitHub Actions 工作流，Windows 上构建并跑 `npm test`，Linux 上跑 `npm test`。签名步骤在证书到位前跳过。
@@ -74,7 +80,7 @@
 
 ## 需要用户决定
 
-- 许可证：MIT 还是 Apache-2.0。
-- 向量模型随包，还是首次使用时下载。
+- ~~许可证~~：MIT（2026-10-03 已定）。
+- ~~向量模型~~：首次使用时下载，先 Hugging Face，不通自动转 ModelScope（2026-10-03 已定）。
 - 正式产品名与窗口标题（默认 "ScienceScope"）。
-- 签名证书或签名服务。
+- 签名证书或签名服务：alpha 发布前再定。
