@@ -6,11 +6,13 @@
  * host for the upstream web application's HTTP API and UI.
  */
 import { spawn } from 'node:child_process';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createServer } from 'node:net';
 import { randomUUID } from 'node:crypto';
+import { prepareCredentialIsolation, registeredProviderKeyEnv } from './credential-isolation.mjs';
+import { filterProviderSecretEnv } from './session-env.mjs';
 
 const DEFAULT_PORT = 0;
 const DEFAULT_TIMEOUT_MS = 15_000;
@@ -95,6 +97,8 @@ async function killProcessTree(child, graceMs = 5_000) {
 export async function createDshWebHost(options = {}) {
   if (!options.home) throw new TypeError('createDshWebHost requires home');
   const home = resolve(options.home);
+  const credentialPath = await prepareCredentialIsolation({ ...options, home });
+  const providerKeyEnv = await registeredProviderKeyEnv(home);
   const cwd = resolve(options.cwd ?? home);
   const host = options.host ?? '127.0.0.1';
   if (host !== '127.0.0.1') throw new TypeError('DSH web host is restricted to 127.0.0.1');
@@ -113,9 +117,13 @@ export async function createDshWebHost(options = {}) {
 
   const nodePath = options.nodePath ?? process.execPath;
   const dshBin = options.dshBin ?? fileURLToPath(new URL('../../node_modules/@deepseek-ai/dsh/lib/bin.js', import.meta.url));
-  const child = spawn(nodePath, [dshBin, 'web', '--host', host, '--port', String(port), '--no-open'], {
+  const patchDirectory = join(home, 'session-patches');
+  await mkdir(patchDirectory, { recursive: true });
+  const credentialPatch = join(patchDirectory, `web-credentials-${randomUUID()}.json`);
+  await writeFile(credentialPatch, JSON.stringify([{ id: 'credentials', config: { path: credentialPath } }, { insert: [{ id: 'sciencescope-credential-env-hygiene', name: new URL('./credential-isolation.mjs', import.meta.url).href, config: { providerKeyEnv } }] }]), { flag: 'wx' });
+  const child = spawn(nodePath, [dshBin, 'web', '--patch', credentialPatch, '--host', host, '--port', String(port), '--no-open'], {
     cwd,
-    env: {
+    env: filterProviderSecretEnv({
       ...process.env,
       DSH_HOME: home,
       DSH_AGENTS_HOME: join(home,'agents-home'),
@@ -124,7 +132,7 @@ export async function createDshWebHost(options = {}) {
       npm_config_cache: localCache,
       DSH_TELEMETRY_DISABLED: '1',
       ...(options.env ?? {}),
-    },
+    }, { providerKeyEnv }),
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
     detached: process.platform !== 'win32',

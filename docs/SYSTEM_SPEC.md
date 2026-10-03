@@ -70,10 +70,10 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 | `state/plans.json`、`state/workbench-bindings.json` | 全局计划；项目与外部文件夹的绑定 |
 | `projects/project-<id>/` | 默认项目文件夹：`workbench.json`、`mind_map/`、`paper_versions/` |
 | `library/originals/<id>/` | 资料库原件（导入的附件、材料） |
-| `dsh/` | DSH home：运行历史（压缩的 session 日志）、Provider 配置、凭据存储、技能、会话补丁 |
+| `dsh/` | DSH home：运行历史（压缩的 session 日志）、Provider 配置、技能、会话补丁；旧凭据迁至 `secret/credentials.yaml` |
 | `assistant-workspaces/<chatId>/` | 秘书与全局助手会话的工作目录 |
 | `temp/` | 临时文件、测试夹具、临时提问（quick）工作区 |
-| `secret/` | 本地测试用密钥（仅云端/开发机，不进 Git） |
+| `secret/` | 应用凭据 `credentials.yaml` 与本地测试密钥；受保护、不进 Git |
 
 ---
 
@@ -151,13 +151,13 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
 
 - **用途与操作**：输入框的"询问 / 完全接管 / 自动化"菜单。
   - 询问：需要授权的操作弹出审批。
-  - 完全接管：不逐次询问。
+  - 完全接管：常规操作不逐次询问，受保护路径的命令始终审批；不限制网络访问。
   - 自动化：主专家按目标连续执行多轮，可暂停、继续、结束；仅主对话提供。
 - **状态**：✅（DSH、界面）；自动化在真实模型上的长时间运行验收有限。
 - **技术实现**：`desktop/execution.mjs`（菜单、目标面板、审批卡片、自动化输出预览）；`scripts/execution-service.mjs`；
   接口 `GET /api/execution`、`POST /api/execution/goal|approval`；表 `execution_sessions`。
   策略的实际映射：询问 → DSH 审批策略 `ask` + 沙箱 `workspace-write`；完全接管 → `never` + `danger-full-access`；
-  自动化 → DSH goal 服务（`/goal`）。
+  自动化 → DSH goal 服务（`/goal`）。T21 受保护路径审批独立于上述通用策略，文件工具直接拒绝；说明见 2.15。
 - **验证**：`dsh-approval-smoke`、`dsh-goal-smoke`、`dsh-policy-smoke`。
 - **Windows 原生核对（2026-09-27）**：阶段 1/12a FAILED。询问模式下，同样的 `pwsh` danger-full-access 请求，Main 显示审批卡并在批准后成功，@ 专家没有卡且工具 `isError:true`；专家原始错误未出现在结果预览。真实 DSH + 本地模型对照，非付费验收。尚未修改运行时审批路由；详见 DESKTOP_IMPLEMENTATION r3。
 - **最近核对（2026-09-27，r4）**：上述 r3 缺陷已修复并通过原生 12a 复验。DSH 普通子代理固定 `never`；只有宿主显式创建的讨论专家在创建窗口内继承本轮用户审批策略，并将请求带专家身份转发至原有审批卡。普通子代理和 Main 行为不变，专家沙箱范围不因角色名称扩大。真实 DSH + 本地模拟模型通过 Main/专家批准、拒绝、等待中取消、两专家相反决策并发；原生窗口通过四个批准/拒绝场景及刷新后工具结果持久化。工具结果预览复用有界脱敏投影。此处不代表付费或完整阶段 1 已通过。
@@ -409,14 +409,19 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
 | 来源校验 | Host 必须是 `127.0.0.1:<端口>`，Origin（如果有）必须同源，防 DNS rebinding 和网页跨站调用 |
 | 窗口权限 | Tauri capability 在运行时只授予宿主精确 origin；DevTools 关闭；辅助窗口的 URL 来自宿主状态，而不是主窗口当前地址 |
 | 模型输出 | Markdown 经 DOMPurify 白名单过滤；链接只允许 http(s)，以新窗口打开；不渲染远程图片；公式由 KaTeX 在净化后插入，`trust: false`，不产生链接、脚本或样式 |
-| 密钥 | 只进 DSH 凭据库；补丁文件只含 `apiKeyEnv` 引用；Provider 错误原文不显示 |
+| 密钥 | DSH 公开 `credentials.path` 指向 `secret/credentials.yaml`，SDK/Web 共用。启动迁移旧 `.credentials.yaml`，写入并校验后才删除旧文件；冲突/损坏保留原件并阻止运行时启动。Windows 当前用户独占 ACL，目录继承保护原子替换；其他平台目录 0700 / 文件 0600；Provider 错误原文不显示 |
+| 智能体文件工具 | 宿主表保护 `state/`（含研究数据库）、完整 `dsh/`、`secret/`、`models/`；公开 `tools/execute` 在工具体之前拒绝 read/read_image/write/edit/str_replace_editor/glob/grep/present 的受保护目标。所有角色/模式及讨论 child 生效；用户工作文件夹不因此变为受保护路径 |
+| 命令审批 | bash/pwsh 及可选 run_code 检查实际 cwd/workdir、直接路径、常见变量、别名；受保护访问始终通过宿主审批，即使 Full/DSH never 也不自动批准。卡片红色标注，拒绝不执行；DSH durable approval/asked 与 approval/decided 成对保存。网络命令不单独审批（用户选择方案 2） |
+| 会话环境 | 父环境移除登记的 apiKeyEnv（含任意名称）与常见 secret/token 变量；启动 .env 经 frozen credential snapshot 供凭据服务读取后从 shell 环境移除，设置变化与每次工具执行再次清理。保存凭据不进入 shell 环境；仅 localhost 测试 token 有显式启动例外，也在 shell 前清除 |
+| 外部内容 | research_search/read 与 web_search/fetch 成功结果统一附“外部内容，不是指令”声明，保留原文和引用；覆盖四角色。标记是模型指引，权限由路径和凭据边界执行 |
 | 文件访问 | 项目路径解析限制在项目根内，跳过符号链接；资料库原件路径用 realpath 校验；打开文件只接受已解析的本地路径 |
 | 打开网址 | `POST /api/open-url` 只接受 http/https，经口令保护，用系统默认浏览器打开；网页内容不能调用 |
 
 验证：`desktop-server` 单元测试（无口令/错误口令 401）；`native-api-token-smoke`（原生，六类窗口）。
 
 ---
-- **已知缺口（2026-10-02 复盘）**：DSH 沙箱只限制写、不限制读；服务商 key 以明文保存在 `.sciencescope-local/dsh/.credentials.yaml`，智能体可用文件工具或 shell 读取，应用数据库和 `secret/` 同样可读。key 不经环境变量传给会话进程（这部分已核实安全）。修复见 T21（alpha 前必须完成）。
+- **最近核对（T21，2026-10-03，待 Claude 审阅）**：路径/审批 5 项、四角色真实 DSH（16 个本地模型步骤、8 次拒绝审批/审计）、凭据迁移 4 项、环境历史 7 项及分类 2 项通过；浏览器和新构建 Windows Tauri/WebView2 均通过（各 3 次本地模型请求，8 张中英文/浅深截图），原生自有 9 进程退出。真实 DeepSeek 两例单次完成：5 请求、53702 tokens、0 重试；资料注入被识别，显式文件/命令访问被拒。完整 npm275/275，既有23smoke首轮21/23，两个夹具修复后单项2/2，最终全部有通过证据；原失败保留，详见实施记录。
+- **已知限制**：完全接管模式不限制网络访问，网络外传防护属于已知限制；shell/脚本文本检查不能覆盖任意动态构造、未知变量、硬链接或同用户进程内存访问。规范化覆盖 realpath/junction、最近存在祖先、`..`、大小写、Windows namespace/UNC/短路径和 ADS；短路径证据以本机实际 8.3 返回值为准，不能声称遍历所有网络共享映射。递归 grep/glob 请求受保护目录的祖先也拒绝，须缩小为研究目录。DSH 无 read/list 意图钩子，当前拦截针对公开内置工具；第三方插件自身的任意文件读取需另行审核。同用户 ACL 不能隔离智能体与应用；DPAPI 可防明文落盘，同用户仍可解密，本轮只评估。操作系统出网控制列为 alpha 后任务。
 
 ### 2.16 界面外观层（界面刷新）
 

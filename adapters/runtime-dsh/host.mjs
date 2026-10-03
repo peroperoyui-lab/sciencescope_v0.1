@@ -16,9 +16,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createResearchContextPatch } from './research-context.mjs';
 import { createSessionProcessEnv, sessionEnvSignature } from './session-env.mjs';
 import { createApplicationApprovalManager } from './application-approval.mjs';
+import { getProtectedCredentialPaths, prepareCredentialIsolation, registeredProviderKeyEnv } from './credential-isolation.mjs';
 
 const STREAM_PLUGIN = fileURLToPath(new URL('./assistant-stream-bridge.mjs', import.meta.url));
 const CONTROL_PLUGIN = pathToFileURL(fileURLToPath(new URL('./session-control.mjs', import.meta.url))).href;
+const SECRET_ENV_PLUGIN = new URL('./credential-isolation.mjs', import.meta.url).href;
+const PROTECTED_PATH_PLUGIN = new URL('./protected-path-policy.mjs', import.meta.url).href;
 const TURN_TIMEOUT_MS = 300000;
 const STREAM_TIMEOUT_MS = 2500;
 
@@ -59,6 +62,8 @@ export async function createDshHost(options = {}) {
   const sdk = await loadSdk();
   const ReasoningEffortId = await loadReasoningEffortId();
   if (!options.home) throw new TypeError('createDshHost requires home');
+  const credentialPath = await prepareCredentialIsolation(options);
+  const protectedPaths = [...new Set([...(options.protectedPaths ?? []), ...getProtectedCredentialPaths({ ...options, credentialPath }), join(options.home, 'session-patches'), join(options.home, 'sessions'), join(options.home, 'settings.yaml'), join(options.home, '.env')])];
   const cwd = options.cwd ?? options.home;
   const localRoot = join(options.home, '.sciencescope-local');
   const localTemp = join(localRoot, 'temp');
@@ -104,13 +109,18 @@ export async function createDshHost(options = {}) {
           const message = JSON.parse(body);
           const receiver = streamReceivers.get(message.sessionId);
           if (!receiver || message.token !== receiver.token) { reply(401, { error: 'unauthorized' }); return; }
-          if (!toolHandler) { reply(503, { error: 'This application tool is not available in this session.' }); return; }
           if (typeof message.name !== 'string' || !/^[a-z_]{1,60}$/u.test(message.name)) throw new Error('invalid tool name');
+          if (!toolHandler && message.name !== '__protected_path_approval') { reply(503, { error: 'This application tool is not available in this session.' }); return; }
           const controller = new AbortController();
           const onClose = () => { if (!response.writableEnded) controller.abort(new Error('DSH tool call disconnected')); };
           response.once('close', onClose);
           try {
-            const result = await toolHandler({ sessionId: message.sessionId, name: message.name, args: message.args ?? {}, callId: typeof message.callId === 'string' ? message.callId.slice(0, 200) : undefined, expertId: typeof message.expertId === 'string' ? message.expertId.slice(0, 80) : undefined, signal: controller.signal });
+            const call = { sessionId: message.sessionId, name: message.name, args: message.args ?? {}, callId: typeof message.callId === 'string' ? message.callId.slice(0, 200) : undefined, expertId: typeof message.expertId === 'string' ? message.expertId.slice(0, 80) : undefined, signal: controller.signal };
+            let result;
+            if (message.name === '__protected_path_approval') {
+              if (!['bash','pwsh','run_code'].includes(call.args.toolName) || call.args.classification !== 'protected-path') throw new TypeError('Invalid protected path approval');
+              result = { allowed: await applicationApprovals.request({sessionId:call.sessionId,toolName:call.args.toolName,classification:'protected-path',commandSummary:call.args.commandSummary,reason:'涉及应用内部数据：此命令需要单独确认。',expertId:call.expertId,signal:call.signal}) };
+            } else result = await toolHandler(call);
             if (!controller.signal.aborted && !response.destroyed) reply(200, { result });
           } finally { response.off('close', onClose); }
         } catch (error) { if (!response.destroyed && !response.writableEnded) reply(200, { error: String(error?.message ?? error).slice(0, 2000) }); }
@@ -157,7 +167,14 @@ export async function createDshHost(options = {}) {
     if (typeof sessionId !== 'string' || !/^session-[A-Za-z0-9]+$/u.test(sessionId)) throw new TypeError('sessionId must be a stable DSH session identity');
     const key = sessionId;
     const requestedEnvSignature = sessionEnvSignature(sessionEnv);
-    const sessionProcessEnv = createSessionProcessEnv(env, sessionEnv);
+    const providerKeyEnv = await registeredProviderKeyEnv(options.home, runtimeConfig);
+    const explicitProviderKeys = providerKeyEnv.filter(ref => Object.keys(options.env ?? {}).some(key => key.toLowerCase() === ref.toLowerCase()));
+    // Explicit localhost fixture tokens may enter the frozen credential snapshot;
+    // the hygiene plugin strips them before any shell executes. Remote keys never do.
+    const allowedProviderKeyEnv = explicitProviderKeys.filter(ref => Object.values(runtimeConfig?.providers ?? {}).filter(provider => provider?.apiKeyEnv?.toLowerCase() === ref.toLowerCase()).every(provider => {
+      try { const url = new URL(provider.baseURL); return ['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) && ['http:', 'https:'].includes(url.protocol); } catch { return false; }
+    }) && Object.values(runtimeConfig?.providers ?? {}).some(provider => provider?.apiKeyEnv?.toLowerCase() === ref.toLowerCase()));
+    const sessionProcessEnv = createSessionProcessEnv(env, sessionEnv, { providerKeyEnv, allowedProviderKeyEnv });
     if (sessions.has(sessionId)) {
       if (sessionEnvSignatures.get(sessionId) !== requestedEnvSignature) {
         const error = new Error('The DSH session already uses a different Python environment; releaseSession before restarting it.');
@@ -188,7 +205,7 @@ export async function createDshHost(options = {}) {
     const launchPatchId = randomUUID();
     const streamPatch = join(options.home, 'session-patches', sessionId+'.'+launchPatchId+'.assistant-stream.json');
     await mkdir(join(options.home, 'session-patches'), { recursive: true });
-    await writeFile(streamPatch, JSON.stringify([{ insert: [{ id: 'assistant-stream-bridge', name: pathToFileURL(STREAM_PLUGIN).href }, { id: 'session-control', name: CONTROL_PLUGIN }] }]), {flag:'wx'});
+    await writeFile(streamPatch, JSON.stringify([{ id: 'credentials', config: { path: credentialPath } }, { insert: [{ id: 'sciencescope-credential-env-hygiene', name: SECRET_ENV_PLUGIN, config: { providerKeyEnv } }, { id: 'assistant-stream-bridge', name: pathToFileURL(STREAM_PLUGIN).href }, { id: 'session-control', name: CONTROL_PLUGIN }, { id: 'sciencescope-protected-path-policy', name: PROTECTED_PATH_PLUGIN, config: { protectedPaths } }] }]), {flag:'wx'});
     patches.push(streamPatch);
     if (options.sessionHeaders?.length) {
       const config = structuredClone(runtimeConfig);

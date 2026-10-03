@@ -124,13 +124,22 @@ try {
   assert.equal(await page.locator('#v-menu button').count(),2);await page.keyboard.press('Escape');
   await page.evaluate(()=>loadThread('chat-history'));
   assert.equal(await page.locator('.messages > .message').count(),60);
-  await page.locator('[data-ws="history"][data-direction="before"]').click();
+  // Test the button separately: Playwright's auto-scroll of an offscreen
+  // button also invokes the transcript's scroll-pagination handler.
+  await page.locator('[data-ws="history"][data-direction="before"]').dispatchEvent('click');
   await page.waitForFunction(()=>S.messages[0]?.text==='历史记录 50');
   assert.equal(await page.locator('.messages > .message').count(),60);
-  await page.locator('[data-ws="history"][data-direction="before"]').click();
+  await page.locator('[data-ws="history"][data-direction="before"]').dispatchEvent('click');
   await page.waitForFunction(()=>S.messages[0]?.text==='历史记录 20');
-  await page.locator('[data-ws="history"][data-direction="before"]').click();
+  await page.locator('[data-ws="history"][data-direction="before"]').dispatchEvent('click');
   await page.waitForFunction(()=>S.messages[0]?.text==='历史记录 0');
+  assert.equal(await page.locator('.messages > .message').count(),60);
+  // Verify automatic scroll pagination independently of the button path.
+  await page.evaluate(()=>loadThread('chat-history'));
+  await page.waitForFunction(()=>S.messages[0]?.text==='历史记录 80');
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  await page.locator('.messages').evaluate(element=>{element.scrollTop=0;});
+  await page.waitForFunction(()=>S.messages[0]?.text==='历史记录 50');
   assert.equal(await page.locator('.messages > .message').count(),60);
   await page.evaluate(()=>objectMenu('chat','chat-history',null,{x:200,y:200}));
   await page.locator('[data-ws="choose-project"]').click();
