@@ -1,5 +1,34 @@
 # Desktop implementation — first increment
 
+## 2026-10-03 · T10 六题传输诊断与独立补跑
+
+- 分支 `codex/t10-transport-20261003` 直接基于 Claude 已合并的 `claude/determined-pasteur-jxpzw8@23eb0e2`（包含 `465e242`）。H 盘与 origin 已核对；推送后按用户本轮指令直接开始 T21，不等此小交付审阅。T21 会叠加在该未合并分支上，完成后再停下审阅。不开 PR、不合并。
+- 发现 → 原因 → 修复 → 验证：历史六题第一次连接错误就终结 → **评测夹具**显式设置 `maxRetries:0` 且在 attempt-failed 时封题 → 移除两处评测限制、恢复 DSH 默认重试，并把恢复后的尝试与最终失败区分 → 真实DSH+生产API夹具两次502后成功，3个相同provider请求、同一个turn/step、2条durable llm/retry、1条持久回答、无失败终态；真实DSH+计数代理夹具两次503后研究检索及回答成功，4实际请求/2步骤/2重试。**正式应用原本会重试，未改生产适配器。**
+- 核实推测：历史六题均零 llm/retry/llm/retry-started，零cap拦截，原请求3/2/1/1/1/3；所以“DSH重试计入6次上限并耗尽”**不成立**。六个本地502均约2.4–2.7秒连接终结，非120秒超时。原代理未记录错误码，旧socket/DNS/TLS/隧道根因无法恢复，不宣称上游返回502。原账本仅有message摘要哈希，不冒称完整bodyhash。
+- 补齐计数代理schema2：上游HTTP状态/错误code/type，与连接错误type/code/name/有限cause codes分开保存；不保存任意error message、响应正文、headers或key。每题计实际HTTP请求、模型步骤、重试数及每次usage。单会话同payload且前次是明确暂时错误时记同一步重试；成功后相同payload仍算新步，永久认证错误不去重。保留**每题6个模型步骤**，重试最多5次/步，实际请求另设有限上限36/题；结果schema2显式budgetUnit/globalEffectiveStepCap/globalCompletionCap，schema1旧账本拒绝复用且不回写。HTTP200空回复不推断为传输重试，未知种类保守计新步；DSH自身默认还可处理EMPTY_RESPONSE。
+- 上游默认normal重试5次，eligible EMPTY_RESPONSE/RATE_LIMIT/SERVER/TIMEOUT/TRANSPORT，500ms–10s退避、10%jitter；失败attempt不进入模型历史，默认预算是DSH当前策略的历史计数，不扩大生产默认为每步5次。本地代理另设上限是防止付费请求失控，不实现新的产品重试循环。
+- 新可重跑 `tests/dsh-production-retry.test.mjs` 与 `scripts/dsh-retry-ui-smoke.mjs` 验证生产API和浏览器。最终UI `retry-ui/run-IVNL79` 三实际请求、唯一回答、无error/failed终态、无JS/资源错误，中文浅色与英文深色截图：`.sciencescope-local/temp/t10-transport-validation/retry-ui/run-IVNL79/retry-recovered-{zh-light,en-dark}.png`，root已复核英文深色。durable-retry-receipt明确同turn1/step1的retry1/2与completed。此前手动浏览器fixture关闭方式与CDP读取流响应断言的开发尝试失败均保留，不计产品故障；独立worker最终exit0并关闭自有fixture/host/browser。
+- 聚焦root复验**21/21**，包括六项代理计数/认证/ECONNRESET/stream-cut/归属/有限重试/新旧schema、真实DSH恢复、冻结输入契约，日志 `t10-transport-validation/focused-root.log`；生产代码未改。既有**23/23 smoke**通过；实际默认并发2的 `npm test` 一次完成**263/263**，0 fail/cancel/skip，366.691秒、exit0。日志与回执 `t10-transport-validation/acceptance/run-XTdZKy/{summary.json,npm-test.log,npm-test-receipt.json}`，root核对最终统计。
+
+六题**单独补跑** `t10-transport-six-20261003`（deepseek-v4.1-flash、固定原问法/语料/6步骤及180s/120s超时，一次，不替换原52题）：
+
+|题目|旧请求/重试/cap|本次实际请求/步骤/重试|核心答案|额外论断全部支持|
+|---|---|---|---|---|
+|eth-01|3/0/0|3/3/0|full|是|
+|eth-04|2/0/0|4/4/0|full|否：从覆盖/指标数推断成熟度与“单点提示”|
+|uslib-03|1/0/0|4/4/0|full|否：统一培训加剧资源短板的因果推断|
+|talent-06|1/0/0|4/4/0|full|是|
+|dig-02|1/0/0|4/4/0|full|否：扁平表格星号归列不足以支持所称未显著|
+|dig-04|3/0/0|3/3/0|full|否：把就业选择系数当作就业质量列系数|
+
+本次核心**6/6**，所有实质论断有引用**1/6**、额外论断全部支持**2/6**，不能说六答案每个主张都正确。talent06冻结mapping指c33，实际原文支持在同p4的c32，保留原mapping并按全文核实。原52题39/52与失败记录/账本SHA完全不改，不合算“新52分数”。本次22实际请求均上游200、22模型步骤、重试0、cap0、工具偏离0；没有重现连接错误，真实重试证据来自上述本地真实DSH夹具。首次查询一次timeout关键词降级如实保留，不修改检索。
+
+真实请求/token：**22请求**、22usage已知，prompt**325427**、completion**8953**、total**334380**，cached**258176**、reasoning**3306**（后两者为子集，不额外加算）。真实模型审计0付费请求；本地模拟模型测试与UI另计，无token回执不虚报。清理回执显示ownedDSH/API/proxy关闭、临时凭据/model junction移除、用户key留在H工作区原忽略位置。输入gold/mapping/chunks与首尾源码receipt匹配，原数据/日志/截图不提交。
+- 本地证据根 `.sciencescope-local/temp/t10-transport-validation/`；历史逐题日志/哈希 `diagnosis/historical-six.{json,md}`，新run `.sciencescope-local/temp/t10-validation/live/t10-transport-six-20261003/{results,request-ledger,audit-six,telemetry-summary}.json`。root复核六条回答核心、额外错误及历史重试零计数。
+- 改动清单：`scripts/evals/hybrid-live-retrieval.mjs`、`scripts/dsh-retry-ui-smoke.mjs`、`tests/hybrid-live-runtime.test.mjs`、`tests/hybrid-live-proxy.test.mjs`、`tests/dsh-production-retry.test.mjs`、SYSTEM_SPEC、ROADMAP、本实施记录。无新依赖、无原型/界面文字/权限/排序改动；i18n检查3190fragments/1748历史missing，本轮新增UI missing0。白名单外只改评测/验收，不扩产品行为。
+- 限制：旧网络根因不可恢复，补跑未复现故障；没有重测原生/安装包。只完成传输小交付，不修改剩余回答质量失败；T21隔离与网络说明在下一分支实现。用户随后选择T21方案2（Full网络不单独审批、保护路径始终审批、OS出网控制记alpha后），此决定待T21接线。
+
+
 ## 2026-10-03 Review of T10 answering (Claude, cloud)
 
 Fast-forwarded `codex/t10-answering-20261003@465e242` into

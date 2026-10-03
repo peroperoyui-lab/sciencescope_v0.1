@@ -44,6 +44,7 @@ test('T10 single-pass continues local question failures and stops systemic failu
   const capped = { ...question, id: 'q1', prohibitedTools: [], stopReason: null, requestCount: { blockedCompletions: 1 }, hostErrors: [{ code: 'RATE_LIMIT', name: 'Error', message: 'DSH model request failed: 429' }] };
   assert.equal(shouldStopBatch({ singlePass: true, question: capped, proxyState: { ...proxyState, events: [{ questionId: 'q1', blockReason: 'question-cap', status: 429, forwarded: false }] } }), false);
   assert.equal(shouldStopBatch({ singlePass: true, question: { ...capped, requestCount: { blockedCompletions: 0 } }, proxyState }), true);
+  assert.equal(shouldStopBatch({ singlePass: false, question: { ...question, prohibitedTools: [], stopReason: null, terminal: 'completed', providerFailures: [{ code: 'SERVER' }] }, proxyState }), false, 'recovered attempts do not stop a completed batch');
 });
 
 test('T10 telemetry measures exact result serialization and records rules without request headers or answer text', () => {
@@ -62,7 +63,7 @@ test('T10 telemetry measures exact result serialization and records rules withou
   for (const proxy of ['http://public.example:8080', 'http://user:password@127.0.0.1:10808', 'https://127.0.0.1:10808']) assert.throws(() => validateUpstreamProxy(proxy));
 });
 
-test('T10 production API + real DSH + local fake model completes manifest, research_search, answer and proxy accounting', async () => {
+for (const failuresBeforeSuccess of [0, 2]) test(`T10 production API + real DSH completes manifest, search and answer after ${failuresBeforeSuccess} transient failures`, async () => {
   const tempRoot = path.resolve('.sciencescope-local/temp');
   await mkdir(tempRoot, { recursive: true });
   const root = await mkdtemp(path.join(tempRoot, 't10-live-runtime-e2e-'));
@@ -99,8 +100,14 @@ test('T10 production API + real DSH + local fake model completes manifest, resea
       const input = JSON.parse(body);
       const record = { input, headers: request.headers, path: request.url, method: request.method };
       requests.push(record);
+      if (requests.length <= failuresBeforeSuccess) {
+        response.writeHead(503, { 'content-type': 'application/json' });
+        response.end('{"error":{"code":"fixture_server_unavailable","message":"temporary fixture outage"}}');
+        return;
+      }
+      const effectiveRequest = requests.length - failuresBeforeSuccess;
       response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
-      if (requests.length === 1) {
+      if (effectiveRequest === 1) {
         const names = (input.tools ?? []).map(tool => tool.function?.name).filter(Boolean);
         record.toolNames = names;
         assert.ok(names.includes('research_search'), 'the __manifest handshake must register production research tools before the model request');
@@ -109,7 +116,7 @@ test('T10 production API + real DSH + local fake model completes manifest, resea
         done(response);
         return;
       }
-      if (requests.length === 2) {
+      if (effectiveRequest === 2) {
         const toolMessage = [...(input.messages ?? [])].reverse().find(message => message.role === 'tool');
         record.toolResult = String(toolMessage?.content ?? '');
         assert.match(record.toolResult, /\[S1 p\.1\]/u, 'the production search result must return the local paper citation to DSH');
@@ -190,13 +197,15 @@ test('T10 production API + real DSH + local fake model completes manifest, resea
     assert.equal(active.toolCalls[0].name, 'research_search');
     assert.deepEqual(active.toolSequence.map(event => event.name), ['research_search']);
     assert.deepEqual(active.researchModes.map(({ mode, fallbackReason }) => ({ mode, fallbackReason })), [{ mode: 'keyword', fallbackReason: 'model-missing' }]);
-    assert.equal(proxy.state.forwardedCompletions, 2, '__manifest is a local host-call, not a third provider completion');
-    assert.equal(proxy.state.questions[active.id].forwardedCompletions, 2);
-    assert.equal(requests.length, 2);
+    assert.equal(proxy.state.forwardedCompletions, 2 + failuresBeforeSuccess, '__manifest is a local host-call; retries are physical requests');
+    assert.equal(proxy.state.questions[active.id].forwardedCompletions, 2 + failuresBeforeSuccess);
+    assert.equal(proxy.state.questions[active.id].effectiveModelSteps, 2);
+    assert.equal(proxy.state.questions[active.id].retryAttempts, failuresBeforeSuccess);
+    assert.equal(requests.length, 2 + failuresBeforeSuccess);
     assert.ok(requests.every(request => request.headers['x-opencode-session'] === active.sessions[0].sessionId), 'both provider calls carry the same required DSH session header');
     assert.ok(requests.every(request => !request.headers['x-sciencescope-t10-session']), 'private attribution header never leaves the local proxy');
     assert.equal(requests[0].headers.authorization, `Bearer ${fixtureKey}`);
-    assert.equal(requests[0].toolNames.includes('research_search'), true);
+    assert.equal(requests[failuresBeforeSuccess].toolNames.includes('research_search'), true);
     assert.equal(active.toolCalls.some(call => call.name === '__manifest'), false, 'manifest handshake is not a model tool result');
     assert.equal(apiErrors.length, 0, JSON.stringify(apiErrors));
     researchResult = active.toolCalls[0].summary;
