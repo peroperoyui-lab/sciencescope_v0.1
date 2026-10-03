@@ -1,0 +1,473 @@
+{
+  "baseline": {
+    "commit": "edf02f33ccb720c1e0d9178cb03a11ea28f47052",
+    "tree": "9291646be6c4e94193492e51ca63592f84e89054",
+    "branch": "dot/flaky-survey-20261003",
+    "source": "508 individually verified blobs; exact original signed commit reconstructed and SHA verified; shallow history",
+    "node": "v24.19.0",
+    "npm": "11.9.0"
+  },
+  "scope": "Linux supplementary verification only; no product changes or Windows/native acceptance",
+  "finishedAt": "2026-10-03T19:48:10.662316+00:00",
+  "requiredFinalNonBrowserMatrix": {
+    "items": 22,
+    "localAttempts": 630,
+    "localPassed": 622,
+    "localFailed": 8,
+    "paidAttempts": 30,
+    "paidPassed": 30,
+    "skipped": 0,
+    "itemsWith30Attempts": 22
+  },
+  "localFinalItems": [
+    {
+      "item": "test:chat-branch-runtime",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 17.727,
+      "maxSeconds": 29.756,
+      "evidence": ".sciencescope-local/temp/dot/dsh-one/result.json"
+    },
+    {
+      "item": "test:dsh-production-retry",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 4.733,
+      "maxSeconds": 6.767,
+      "evidence": ".sciencescope-local/temp/dot/dsh-one/result.json"
+    },
+    {
+      "item": "test:expert-approval-runtime",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 13.706,
+      "maxSeconds": 29.683,
+      "evidence": ".sciencescope-local/temp/dot/dsh-one/result.json"
+    },
+    {
+      "item": "test:expert-discussion-runtime",
+      "attempts": 30,
+      "passed": 24,
+      "failed": 6,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 5.026,
+      "maxSeconds": 9.692,
+      "evidence": ".sciencescope-local/temp/dot/dsh-one/result.json"
+    },
+    {
+      "item": "test:hybrid-live-runtime",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 7.066,
+      "maxSeconds": 9.874,
+      "evidence": ".sciencescope-local/temp/dot/dsh-one/result.json"
+    },
+    {
+      "item": "test:research-tools-runtime",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 9.055,
+      "maxSeconds": 20.502,
+      "evidence": ".sciencescope-local/temp/dot/dsh-one/result.json"
+    },
+    {
+      "item": "test:session-fork-runtime",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 6.441,
+      "maxSeconds": 14.075,
+      "evidence": ".sciencescope-local/temp/dot/dsh-one/result.json"
+    },
+    {
+      "item": "smoke:assistant-api",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 34.677,
+      "maxSeconds": 40.681,
+      "evidence": ".sciencescope-local/temp/dot/dsh-two/results.json"
+    },
+    {
+      "item": "smoke:chat-api",
+      "attempts": 30,
+      "passed": 28,
+      "failed": 2,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 35.667,
+      "maxSeconds": 47.504,
+      "evidence": ".sciencescope-local/temp/dot/dsh-two/results.json"
+    },
+    {
+      "item": "test:credential-isolation",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 18.016,
+      "maxSeconds": 22.012,
+      "evidence": ".sciencescope-local/temp/dot/dsh-two/final-credential/results.json"
+    },
+    {
+      "item": "smoke:dsh-goal",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 2.978,
+      "maxSeconds": 4.337,
+      "evidence": ".sciencescope-local/temp/dot/dsh-two/results.json"
+    },
+    {
+      "item": "smoke:dsh-reopen",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 3.736,
+      "maxSeconds": 5.354,
+      "evidence": ".sciencescope-local/temp/dot/dsh-two/results.json"
+    },
+    {
+      "item": "smoke:dsh-stream",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 4.239,
+      "maxSeconds": 6.565,
+      "evidence": ".sciencescope-local/temp/dot/dsh-two/results.json"
+    },
+    {
+      "item": "test:provider-failure-surface",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 3.617,
+      "maxSeconds": 4.65,
+      "evidence": ".sciencescope-local/temp/dot/dsh-two/results.json"
+    },
+    {
+      "item": "test:reasoning-effort-wire",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 2.346,
+      "maxSeconds": 8.156,
+      "evidence": ".sciencescope-local/temp/dot/dsh-two/results.json"
+    },
+    {
+      "item": "test:role-prompt-runtime",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 4.467,
+      "maxSeconds": 8.214,
+      "evidence": ".sciencescope-local/temp/dot/dsh-two/results.json"
+    },
+    {
+      "item": "test:secret-isolation-runtime",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 7.942,
+      "maxSeconds": 17.249,
+      "evidence": ".sciencescope-local/temp/dot/dsh-two/results.json"
+    },
+    {
+      "item": "test:session-env",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 3.889,
+      "maxSeconds": 4.853,
+      "evidence": ".sciencescope-local/temp/dot/dsh-two/results.json"
+    },
+    {
+      "item": "smoke:skills-runtime",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 16.395,
+      "maxSeconds": 22.854,
+      "evidence": ".sciencescope-local/temp/dot/dsh-two/results.json"
+    },
+    {
+      "item": "test:tool-preamble-runtime",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 2.275,
+      "maxSeconds": 8.072,
+      "evidence": ".sciencescope-local/temp/dot/dsh-two/results.json"
+    },
+    {
+      "item": "smoke:dsh-approval",
+      "attempts": 30,
+      "passed": 30,
+      "failed": 0,
+      "skipped": 0,
+      "timeouts": 0,
+      "medianSeconds": 3.35,
+      "maxSeconds": 8.44,
+      "evidence": ".sciencescope-local/temp/dot/approval-repeat/summary.json"
+    }
+  ],
+  "browser": {
+    "status": "ENV_BLOCKED",
+    "items": 28,
+    "completed30RunSeries": 0,
+    "scripts": [
+      "assistant-api --ui",
+      "dsh-retry-ui",
+      "secret-isolation-ui",
+      "background-chat",
+      "chat-branch-ui",
+      "chat-ui",
+      "context-access-ui",
+      "creation-details",
+      "deliverables",
+      "desktop-interaction",
+      "desktop-navigation",
+      "discussion-ui",
+      "extensions-ui",
+      "failed-send-draft",
+      "features",
+      "i18n",
+      "marks-ui",
+      "minutes",
+      "python-env-ui",
+      "research-base-ui",
+      "research-input-ui",
+      "semantic-ui",
+      "settings-ui",
+      "shortcuts-ui",
+      "summary-policy-ui",
+      "viewer-ui",
+      "workbench-ui",
+      "workspace-ui"
+    ],
+    "realDshBrowserVariants": [
+      "assistant-api --ui",
+      "dsh-retry-ui",
+      "secret-isolation-ui"
+    ],
+    "reason": "Chromium launch fails before page load; independent AF_UNIX socket creation returns EPERM; supported escalation did not change this",
+    "bundledBrowser": "Playwright Chromium v1243 download failed ZIP integrity; system Chromium154.0.8037.57 attempted",
+    "adoptionClickVerified": false,
+    "evidence": [
+      ".sciencescope-local/temp/dot/browser-diagnostics/socket-probe.json",
+      ".sciencescope-local/temp/dot/discussion-preflight.log",
+      ".sciencescope-local/temp/dot/discussion-preflight-escalated.log",
+      ".sciencescope-local/temp/dot/playwright-install.log"
+    ]
+  },
+  "findings": [
+    {
+      "id": "callback-loss",
+      "status": "owner contract decision required; no proven application data loss",
+      "finalFailures": 6,
+      "attempts": 30,
+      "failureRate": 0.2,
+      "root": "session-control.mjs34 serial eventTail;242/246 unawaited terminal posts;340 response before drain; host.mjs447 removes callback observer",
+      "compensation": "discussion-service.mjs193–194 records authoritative returned entries; new fake-host API regression30/30 and full discussion-api6/6",
+      "diagnostic": "fresh persistent-observer30 rounds:6 callback losses, both full returned answers and both persistent terminal frames",
+      "evidence": ".sciencescope-local/temp/dot/dsh-one/expert-end-race-repro-30.json"
+    },
+    {
+      "id": "provider-capability-startup",
+      "status": "unresolved production availability observation; underlying startup exception hidden",
+      "finalFailures": 2,
+      "attempts": 30,
+      "failureRate": 0.06666666666666667,
+      "failedAttempts": [
+        8,
+        18
+      ],
+      "observed": "/api/providers/save HTTP501 before model turns",
+      "root": "desktop-api.mjs174–186 swallows web startup errors and leaves SDK host without provider service;188–190 saveProvider false;841/853 unavailable route",
+      "causeLimit": "15-second readiness cause is suggested by timing, not proven because exception is swallowed",
+      "evidence": ".sciencescope-local/temp/dot/dsh-two/logs/chat-api-smoke/"
+    }
+  ],
+  "testFixes": {
+    "linuxApproval": {
+      "before": "pwsh-only selection fails on Linux; no tool call",
+      "after": "platform-supported equivalent shell, original rejection assertions retained;30/30",
+      "evidence": ".sciencescope-local/temp/dot/approval-repeat/"
+    },
+    "credentialFixture": {
+      "original": {
+        "item": "test:credential-isolation",
+        "attempts": 30,
+        "passed": 26,
+        "failed": 4,
+        "skipped": 0,
+        "timeouts": 4,
+        "medianSeconds": 20.673,
+        "maxSeconds": 180.638,
+        "evidence": ".sciencescope-local/temp/dot/dsh-two/results.json"
+      },
+      "after": "allSettled retains successful resources before rethrow; fixture-only60s web startup bound; corrected30/30; production15s unchanged",
+      "evidence": ".sciencescope-local/temp/dot/dsh-two/credential-isolation-fix.diff"
+    },
+    "liveCredentialPath": {
+      "after": "real credential only existing host-side proxy; SDK synthetic localhost token; actual source-secret path protected; normal sessions noTools; initialization rollback",
+      "coverageChange": "unknown-model rejection is synthetic localhost404, not real-provider rejection; --long not run"
+    }
+  },
+  "paid": {
+    "provider": "OpenCode Go",
+    "requestedModel": "deepseek-v4.1-flash",
+    "final30": {
+      "requests": 30,
+      "passed": 30,
+      "failed": 0,
+      "transportFailures": 0,
+      "maxRequestsPerAttempt": 2,
+      "usage": {
+        "prompt_tokens": 20873,
+        "completion_tokens": 984,
+        "total_tokens": 21857,
+        "returned": 30,
+        "missing": 0
+      },
+      "evidence": ".sciencescope-local/temp/dot/live-repeat/summary.json"
+    },
+    "preflight": {
+      "requests": 1,
+      "promptTokens": 7058,
+      "completionTokens": 8,
+      "totalTokens": 7066,
+      "evidence": ".sciencescope-local/temp/dot/hardening-preflight.log"
+    },
+    "knownTotal": {
+      "requests": 31,
+      "promptTokens": 27931,
+      "completionTokens": 992,
+      "totalTokens": 28923
+    },
+    "earlierStoppedAttempt": {
+      "completedReceipts": 0,
+      "requests": "unverified",
+      "maximumRequests": 2,
+      "evidence": ".sciencescope-local/temp/dot/live-repeat-blocked/termination-check.json"
+    },
+    "actualBilling": "not verified",
+    "coverage": "authentication and simple completion only; local synthetic404 classification; no long-turn/quality/role-security acceptance"
+  },
+  "verification": {
+    "baselineNpm": {
+      "tests": 293,
+      "pass": 292,
+      "fail": 0,
+      "skipped": 1,
+      "seconds": 72.810169,
+      "evidence": ".sciencescope-local/temp/dot/npm-test-baseline.log"
+    },
+    "finalNpm": {
+      "tests": 294,
+      "pass": 293,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 1,
+      "todo": 0,
+      "seconds": 65.664906,
+      "evidence": ".sciencescope-local/temp/dot/npm-test-final.log"
+    },
+    "skip": "Windows file-sharing test in hybrid-live-proxy.test.mjs45; not a real-DSH integration case",
+    "wrapperUnitChecks": {
+      "passed": 17,
+      "evidence": ".sciencescope-local/temp/dot/flaky-repeat-wrapper-checks/parent-final-unit.log"
+    },
+    "fakeHostFallback": {
+      "attempts": 30,
+      "passed": 30,
+      "fullFilePassed": 6,
+      "evidence": ".sciencescope-local/temp/dot/fallback-check/summary.json"
+    },
+    "observedProtectedExposure": false,
+    "observedDataLoss": false,
+    "liveOwnedProcessLeftoversAfterCleanup": 0
+  },
+  "excluded": {
+    "nativeOnly": [
+      "assistant-window",
+      "native-api-token",
+      "native-assistant-geometry",
+      "native-client",
+      "native-windows",
+      "python-env-native",
+      "shutdown"
+    ],
+    "mockOnly": [
+      "dsh-policy"
+    ],
+    "absentPrerequisites": [
+      "python-env-local",
+      "python-env-mirror",
+      "python-goal-env-runtime",
+      "real-provider",
+      "real-stream"
+    ],
+    "notRun": [
+      "all --native variants",
+      "runtime-hardening --long"
+    ]
+  },
+  "replay": {
+    "catalog": "python3 -B scripts/evals/flaky-repeat.py --list",
+    "localExample": "python3 -B scripts/evals/flaky-repeat.py test:session-env",
+    "paidExample": "python3 -B scripts/evals/flaky-repeat.py live:runtime-hardening --live",
+    "wrapperTests": "python3 -B tests/flaky-repeat.test.py",
+    "constraints": "fixed catalog;30 serial attempts;180s attempt/10800s overall; local ignored evidence; owned-group cleanup; paid explicit opt-in exactly30/max60; no arbitrary args; skips/unfinished never pass"
+  },
+  "changedSourceSha256": {
+    "scripts/dsh-approval-smoke.mjs": "b048a21a9f283f68a458414502ba3b7295e0634cc67b1552bd35549e86d54fe7",
+    "scripts/evals/context-live-harness.mjs": "a8e6c95ac77e271bbe4127b5021b02e9a5b615b005551352bf9ae80b03cb01eb",
+    "scripts/evals/flaky-repeat.py": "2d50f909bb56025db6c91d45eaf083b987ac72b8f5e4ab7fa84ffc83e09e1b32",
+    "scripts/runtime-hardening-live-smoke.mjs": "d675d377ae2c0f1065b72a8cb1e9df2bb7db17e44741a3fc757149d076cb626d",
+    "tests/credential-isolation.test.mjs": "79d43b9acacaa240485173c8f897f0e828a5451de7f4cb8a0a52b7d878f685e9",
+    "tests/discussion-api.test.mjs": "c32e4b5f95c7c225fc000344d83b44ce1f411e6539da358d55e3a05720124e86",
+    "tests/flaky-repeat.test.py": "3232d91960cdcf3b9c4a5e3fa1cda3d85dd4bf32a86b8a0af6b89aef8d6941ec"
+  }
+}

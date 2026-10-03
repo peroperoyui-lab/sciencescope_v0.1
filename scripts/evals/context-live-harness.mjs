@@ -19,8 +19,12 @@ export async function createContextLiveHarness(name,{maxRequests=80,maxTokens=20
   const evidence={model:'deepseek-v4.1-flash',requests:[],blocked:0,errors:[],checks:{},turns:[]};
   const proxy=createServer((req,res)=>{
     if(req.method!=='POST'||req.url!=='/v1/chat/completions'){res.writeHead(404);res.end();return;}
+    if(req.headers.authorization!=='Bearer fixture'){
+      evidence.errors.push({code:'UNEXPECTED_LOCAL_AUTH'});
+      res.writeHead(403);res.end('{"error":"evaluation requires a synthetic localhost token"}');return;
+    }
     if(evidence.requests.length>=maxRequests){evidence.blocked++;res.writeHead(429);res.end('{"error":"evaluation request budget reached"}');return;}
-    const record={n:evidence.requests.length+1,at:new Date().toISOString(),status:null,usage:null};evidence.requests.push(record);
+    const record={n:evidence.requests.length+1,at:new Date().toISOString(),status:null,usage:null,localAuth:'synthetic'};evidence.requests.push(record);
     const upstream=httpsRequest('https://opencode.ai/zen/go/v1/chat/completions',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+key,'x-opencode-session':String(req.headers['x-opencode-session']||'sciencescope-'+name)},timeout:120000},response=>{
       record.status=response.statusCode;res.writeHead(response.statusCode,{'content-type':response.headers['content-type']||'text/event-stream'});
       if(response.statusCode>=400){response.resume();response.on('end',()=>res.end(JSON.stringify({error:'Provider HTTP '+response.statusCode})));return;}
@@ -36,14 +40,27 @@ export async function createContextLiveHarness(name,{maxRequests=80,maxTokens=20
     upstream.on('error',()=>{record.error='UPSTREAM_TRANSPORT_ERROR';if(!res.headersSent)res.writeHead(502);res.end('{"error":"upstream transport failed"}');});
     req.pipe(upstream);
   });
-  await new Promise(resolve=>proxy.listen(0,'127.0.0.1',resolve));
+  await new Promise((resolve,reject)=>{proxy.once('error',reject);proxy.listen(0,'127.0.0.1',resolve);});
   const model={providerId:'evaluation',modelId:evidence.model};
   const runtimeConfig={providers:{evaluation:{api:'openai-completions',baseURL:`http://127.0.0.1:${proxy.address().port}/v1`,apiKeyEnv:'SCIENCESCOPE_EVAL_KEY',models:[{id:model.modelId,contextWindow:131072,maxTokens}]}}};
-  const dsh=await createDshHost({home:path.join(root,'.sciencescope-local/dsh'),cwd:root,sessionHeaders:['x-opencode-session'],env:{SCIENCESCOPE_EVAL_KEY:key}});
-  const host={...dsh,getRuntimeConfig:async()=>runtimeConfig,listProviders:async()=>[]};
-  const desktopServer=desktop?await createDesktopServer({...apiOptions,dataRoot:root,runtimeHost:host,outputDir:path.join(root,'assets')}):null;
-  const api=desktopServer?null:await createDesktopApi({...apiOptions,dataRoot:root,runtimeHost:host,onError:error=>evidence.errors.push({code:error.code||'API_ERROR',name:error.name})});
-  const server=api?createServer((req,res)=>api.handle(req,res)):null;if(server)await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  // The real credential belongs only to this host-side upstream proxy. The SDK
+  // sees an inert localhost fixture token, never the real key in its environment.
+  let dsh,host,desktopServer,api,server;
+  try{
+    dsh=await createDshHost({home:path.join(root,'.sciencescope-local/dsh'),cwd:root,
+      protectedPaths:[path.resolve('.sciencescope-local/secret')],
+      sessionHeaders:['x-opencode-session'],env:{SCIENCESCOPE_EVAL_KEY:'fixture'}});
+    host={...dsh,getRuntimeConfig:async()=>runtimeConfig,listProviders:async()=>[]};
+    desktopServer=desktop?await createDesktopServer({...apiOptions,dataRoot:root,runtimeHost:host,outputDir:path.join(root,'assets')}):null;
+    api=desktopServer?null:await createDesktopApi({...apiOptions,dataRoot:root,runtimeHost:host,onError:error=>evidence.errors.push({code:error.code||'API_ERROR',name:error.name})});
+    server=api?createServer((req,res)=>api.handle(req,res)):null;
+    if(server)await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);});
+  }catch(error){
+    await desktopServer?.close().catch(()=>{});await api?.close().catch(()=>{});await dsh?.close().catch(()=>{});
+    if(server){server.closeAllConnections();await new Promise(resolve=>server.close(()=>resolve()));}
+    proxy.closeAllConnections();await new Promise(resolve=>proxy.close(()=>resolve()));
+    throw error;
+  }
   const port=desktopServer?Number(new URL(desktopServer.url).port):server.address().port;
   async function call(route,body) {
     const value=await new Promise((resolve,reject)=>{
