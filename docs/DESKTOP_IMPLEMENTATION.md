@@ -1,5 +1,25 @@
 # Desktop implementation — first increment
 
+## 2026-10-03 Review of T12 application layer (Claude, cloud)
+
+Fast-forwarded `codex/t12-branch-20261003@c49b1ae` (GPT-6.1 Sol, first task as
+implementer) into `claude/determined-pasteur-jxpzw8`.
+- Reviewed `scripts/chat-branching.mjs`: only Main chats branch (assistant
+  private chats refused); the requested mode must match the message
+  (`reply` on a completed final Main reply, `reask` on a user message after a
+  completed reply or the first message); the boundary must be a completed turn
+  listed by `/turns`; any failure releases the child session and removes the
+  new chat; an inherited automation goal is paused and cleared on the child.
+  Prefix copy uses parameterised SQL only.
+- Cloud re-run: `npm test` 242/242; chat-branch-ui, chat-ui, workspace-ui,
+  summary-policy-ui, assistant-api, i18n, desktop-navigation pass;
+  discussion-ui failed once and passed twice (known adoption-click flake).
+- `npm audit`: DOMPurify 3.4.15 low-severity advisory (GHSA-p98j-92pf-mc4p,
+  IN_PLACE + node-removing hook). Not used here, but bumped the exact pin to
+  3.4.16; audit clean; chat-ui, research-input-ui, viewer-ui pass.
+- Rules updated per user: subagents use GPT-6.1 Sol, Git delivery GPT-6 Luna;
+  real-model evaluation with the OpenCode Go key is encouraged.
+
 ## 2026-10-03 · T12 消息分支应用层与界面（验收通过，交付待 Claude 审阅）
 
 - 分支 `codex/t12-branch-20261003`，直接基于 `claude/determined-pasteur-jxpzw8@75f22dc3eff168181c9cea4699aaccb234bba0db`；没有叠加未审阅的任务。只做 T12，推送后等待 Claude 审阅，再开始 T10。
