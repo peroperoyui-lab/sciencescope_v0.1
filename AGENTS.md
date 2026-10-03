@@ -40,6 +40,9 @@ do not redesign them or import the rejected old GUI.
   still needs Astra's confirmation and Claude's review.
 - User clarification 2026-09-27: use the GPT-6 Sol / GPT-6 Luna models for new
   delegated work, not the older GPT-5.6 variants.
+- User revision 2026-10-03: GPT-6.1 Sol is now the delegated implementer (it
+  replaces Astra for cost). Everything this file and docs/tasks say about
+  "Astra" applies to it: same autonomy, same stop rules, same delivery.
 - Prioritize working features; use proportionate smoke/regression checks, not
   speculative test matrices or new frameworks just for testing.
 
