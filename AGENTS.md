@@ -53,6 +53,13 @@ do not redesign them or import the rejected old GUI.
   Claude to fix. It cannot do Windows native acceptance.
 - Prioritize working features; use proportionate smoke/regression checks, not
   speculative test matrices or new frameworks just for testing.
+- Few hard limits (user 2026-10-03, docs/tasks/T24_remove_hard_limits.md):
+  roles decide how much to write and what to write. Do not cap model output,
+  tool arguments, proposals, minutes or what a role reads. Keep only security
+  and permission boundaries, generous resource bounds that page or name what
+  they omitted (never truncate silently or discard written output) and the
+  provider's own declared limits. No "answer concisely / at most N" wording in
+  tool descriptions or prompts unless the user configured it.
 
 ## Implementation
 

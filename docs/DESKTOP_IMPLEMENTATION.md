@@ -1,5 +1,22 @@
 # Desktop implementation — first increment
 
+## 2026-10-03 Few hard limits: principle and T24 (Claude)
+
+- User: roles decide how much and what to write; the agent system states
+  boundaries briefly. Principle added to AGENTS.md. Audit of current caps is in
+  `docs/tasks/T24_remove_hard_limits.md`.
+- Likely cause of the reported truncation error: models are saved as `{id}`
+  only, so DSH sends its default `maxTokens` 32768. A `max-tokens` stop during a
+  tool call leaves no final text, and `host.send` reports "run ended without a
+  final text response". Experts with a non-`completed` stop are treated as
+  failed. T24 keeps the partial output and offers "continue".
+- Other caps found: proposal text 64000, research_propose fields
+  (300/64000/4000/8000), minutes 100000, expert prompt 400000 (conflicts with
+  EXPERT_CONTEXT), persona 16000, brief 40000, minutes input 20000 per message,
+  silent truncation of map nodes (400 chars) and chunks (20000 chars, rest lost),
+  tool RPC body 1 MiB, "answer concisely" in tool descriptions.
+- Product name: ScienceScope (window title in T22).
+
 ## 2026-10-03 Runtime port draft, T22/T23 briefs (Claude)
 
 - User question: DSH is an alpha framework and a large refactor may come
