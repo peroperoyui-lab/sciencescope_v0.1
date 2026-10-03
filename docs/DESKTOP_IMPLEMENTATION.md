@@ -1,5 +1,117 @@
 # Desktop implementation — first increment
 
+## 2026-10-03 · T10 回答环节改进（实现与重测已交付，质量限制待 Claude 审阅）
+
+- 分支 `codex/t10-answering-20261003`，直接基于已合并 T12 的 `claude/determined-pasteur-jxpzw8@9ba717b3051b3a1612f701258fb9d96639a1acc3`；无未合并叠加。实际 H 盘工作区 `<工作区>`、origin `peroperoyui-lab/sciencescope_v0.1` 已核对。完成本任务推送后停下，等 Claude 审阅再做 T21。交付 SHA 见同轮报告。
+- 先读取第3批七题的原始 DSH zstd 日志、结果与请求账本，再做修改前七题真实对照，之后才修改生产代码。历史 system 为 context API `t10.1`，工具描述已要求 research-first，但系统只列工具且保留通用 grep 指导；当前基线为 `t11.1`，不可把新规则误写成历史模型已收到的规则。历史四预算失败均为第7次请求被**本地每题6次 completion上限**拒绝（429 question-cap），不是上游限流或上下文耗尽；三工具偏离均在已用研究工具后尝试 grep。
+- 修改：context API `t11.2` 把全程文献工具路由、精确 ref 点读、摘录不证明不存在、足够证据即简短作答、具体缺口才再查找、可选 nextOrdinal、保留表格歧义与科学限定写入四角色系统简报和宿主工具描述；Main/全局搜索结果提示同步。模型指引不充当权限控制，不保证每次收敛。没有改检索排序、RRF、嵌入、范围过滤、160字搜索摘录、gold、问法或请求预算。
+- 读取缺陷独立复现 → 页引用解析后丢页码，改读首 chunk 的前邻段；前邻段还可能耗尽窗口使目标 chunk 完全缺席 → 保留来源/page、显式 page 优先；chunk 窗口先保证目标整段，无法一起容纳时跳过前邻段，能容纳时保留原文顺序，目标超预算仍整段返回 → 页码测试修复前6/8失败、chunk测试修复前2/10失败，最终读取10/10及范围/权限测试通过。历史七题与 baseline 的失败**没有证明**正确选中段被挤出，不能把独立缺陷当作它们的已证根因。跨项目歧义、私有/专家条目拒绝保持原语义。
+- 评测器新增 fresh `--single-pass`/固定题序选择、失败原样继续且永不重试 paid/interrupted 题；系统故障仍停批。记录每次结果 JSON/字段字符量、实际 provider system 规则/哈希/消息长度、工具序列与 usage；首尾源码8项哈希不变。配置既有 loopback 代理只对本次请求生效。付费 key 只在父计数代理，DSH 子进程只得一次性 localhost token；真实DSH/本地模拟 provider 回归验证子进程选项及账本没有付费 key。此为评测夹具凭据修复，不代表 T21 完成。
+
+历史七题逐题原因（search/read正文字符量来自未改的历史日志；search为完整JSON，read为正文）：
+
+|题目|search/read次数|search/read累计字符|发现 → 原因|
+|---|---|---|---|
+|delphi-05|11/2|53441/9425|正确 S3 p4/c21 连续命中，但摘录只露问卷开头；没有点读 c21，泛搜后读了 p7–8 结论，耗尽6请求。|
+|phys-02|7/4|30019/15136|step2 原文已支持生成式聊天机器人及总结/评析/写作/翻译；继续核对分类、列来源、空 item 检索及无关阅读，没有收尾。|
+|guide-05|3/8|11599/46069|step3 已读到 notably absent，step4 已识别正确答案；仍六次续读正文/结果/结论，step6 称已有扎实发现仍调用工具。|
+|know-07|5/4|14512/15597|前两次中文定位不准；后来摘录与推理已出现0.5%，先读 p8 再到 p9，最终没有剩余请求作答；不是正确 chunk 被挤出的证据。|
+|uslib-04|2/3|9510/11223|已读到讲座/讨论/跨学科交流并称核查参考文献非必需；仍用 grep 查[66]，评测取消。|
+|phys-03|1/2|6078/5092|BI/UB/SLO 全称已取得，问题从缩写扩张为 SLO 操作化核对，转 grep 被取消。|
+|dig-07|5/2|19656/13420|正确表11已命中，用 ref/cite 重读同一6710字符窗口；列对齐和单项/总体F有真实歧义，继续搜并 grep IVpost 被取消，应保留限定而非强猜。|
+
+历史搜索片段最大162字（含省略号）、title135、section154；单次搜索JSON117–7384字，未发现元数据膨胀。主要成本是重复搜索/读取，单纯再缩短160字摘录没有证据支持。原始逐次度量/推理/工具参数与系统SHA：`.sciencescope-local/temp/t10-answering-validation/diagnosis/historical-seven-cases.{json,md}`。
+
+修改前真实七题对照（`t10-answering-baseline7-20261003`，一次、不重试）为2 full（phys03/dig07）、1 partial（uslib04）、4 failed：delphi05/phys02/know07本地上限，guide05首请求120秒超时、无工具调用。32次转发，31次200有usage、1次本地504用量未知；无 grep。uslib04虽有部分支持却遗漏p9多方赞助/协作主题并错误否认依据，不能计full。
+
+最终固定52题（`t10-answering-full52-20261003`，一次、不重试、deepseek-v4.1-flash、原6请求/题及180秒/120秒预算）：
+
+- **39/52 full（75%）**，第1批43/52、第3批42/52。43个完成输出中另有2 partial（uslib04、phys06）、1 wrong（delphi03）、1 gold_conflict（guide04，忠于原文的18维代码本与旧gold作者身份表述冲突，继续单列、不改gold）。
+- 9空答案失败：delphi05/guide05/know05为本地question-cap；eth01/eth04/uslib03/talent06/dig02/dig04为本地计数代理在转发连接出错后返回502，**未得到有效上游响应**，没有记录具体网络错误码，用量未知，不能说网关返回502或查明网络根因。
+- 第3批失败题 phys02/phys03/know07/dig07 本次full；uslib04由失败变partial，仍漏p9证据。phys06仍把“该研究提出的问题”理解成通用物理教育问题类型学，遗漏使用频率；delphi03仍错指S4/S7框架而漏S3 p3 Lo框架。
+- delphi05本次5search/3read/2memory；c21在第2search rank7出现，却从未读S3，只读S4p3/S1开头/S7p1，空map/minutes加泛搜耗尽请求。guide05本次6search/4read；正确S6p1摘要在第5search出现后仍泛搜及读代码本，未收尾。**新失败know05**为7search/2read/2memory/1recall，错把“文章”指向检索评测或S5/S8，没有读S1p5gold。三题JSON结果累计29237/33036/27015字，片段仍≤162，不能归因于单条结果爆长。保留原失败；没有针对失败补跑或择优替换。
+- 全部206次实际请求收到t11.2 research-first规则；125search中121hybrid、4次明确timeout关键词降级（eth03/delphi05/guide02/guide05），116read；工具偏离0。总search JSON521303字、最大7792；总read JSON558232字、最大14740（模型显式读取预算不同）。向量超时原规则不变；首轮 npm/smoke 并行负载是本轮环境条件之一，未据此重新跑质量评测。
+- 所有实质论断附引用 **21/43**；所有额外论断实际有支持 **27/43**，16行额外论断存在问题；17行出现 API 不解析的复合/范围标签。引用存在性、API解析、原文支持分别评判，不能把非空引用视为正确。范围标签原样保留，未改引用解析器。逐题sourcequote及额外问题见独立audit-first26/last26；primary复核partial/wrong/冲突、旧七题及预算失败。前26涉及626chunks逐条验证text/page等于冻结语料，输入gold/mapping/chunks哈希不变。
+
+真实用量（cached/reasoning是子集，不重复加到total）：
+
+|运行|真实转发|有usage/未知|prompt|completion|total|cached|reasoning|
+|---|---:|---:|---:|---:|---:|---:|---:|
+|修改前7题|32|31/1|529814|13782|543596|417792|7498|
+|最终52题|206|200/6|2974283|80166|3054449|2531584|37053|
+|本轮合计|238|231/7|3504097|93948|3598045|2949376|44551|
+
+三次最终本地cap与三次baseline cap未转发，不计付费；7个连接/超时请求计入真实转发数，token未知不填0。审计本身付费0。真实DSH/localhost模拟模型结果独立：聚焦清单/规则/计数代理与读权限测试，assistant smoke12次localhost，付费0；夹具没有provider token usage不虚报。最终自有DSH/API/proxy与model junction关闭/移除，工作区key保留在原忽略路径。
+
+验证与截图：
+
+- 最终聚焦 **34/34**（真实DSH/provider-input、本地模拟模型、四角色清单、读取10项、scope、评测契约）；读取更广相关矩阵35/35另保留。
+- 首轮 `npm test` **254/255**：既有bound expert skills在DSH initialize30s超时，未进入assertion；与live/smoke并行负载。原失败日志保留 `t10-answering-validation/npm-test-final.log`。该文件隔离 **2/2**（5.917秒），无改动；live/smoke结束后实际默认 npm test **255/255**、fail/cancel/skip0、exit0、354856.9ms，受影响test7.165秒。未修改生产或测试超时，支持瞬时启动负载解释，不宣称修复新的运行时故障。最终日志 `acceptance/npm-default-final-e8fba367/npm-test.log`。
+- 既有浏览器/API smoke **23/23首轮全通过**，新增复验chat-branch与semantic后 **25/25**；生产资源路由、真实DSH助手私有隔离/重启/取消及资料库引用/权限通过。汇总 `acceptance/run-2XxFuZ/summary.json`。75张PNG副本含中英深浅，root目视复核资料库中文浅色/英文深色引文；Sol核对其余代表图。截图路径 `acceptance/run-2XxFuZ/research-base-ui-smoke/artifacts/.sciencescope-local/temp/t05-validation/research-base-ui/{sources-zh-light,citation-en-dark}.png` 与 `semantic-ui-smoke/`，其他路径见汇总。全部在 `.sciencescope-local/temp/t10-answering-validation/`，不进Git；本轮未重测Windows原生/安装包。
+- i18n extract3190 fragments/1748历史missing，本轮无新增UI文字，新增missing0；原型、desktop/i18n词典、依赖与功能开关未改。语法、diff-check及提交文件安全检查见交付报告。
+
+改动文件：`scripts/context/{policy,tools,research-tools}.mjs`、`scripts/research-base/{index,search}.mjs`、`scripts/evals/hybrid-live-retrieval.mjs`、`tests/{context-tools,hybrid-live-runtime,research-tools-runtime,research-read-citation}.test.mjs`，以及SYSTEM_SPEC、ROADMAP、本实施记录。RB_COMMON白名单外的index/search分别仅改搜索提示/页引用入口与read窗口，按用户已授权的根因明确缺陷修复；每项有读取/权限回归。context规则及评测器按T10补充所要求的行为和真实证据修改，无新依赖/架构。
+
+与任务书区别/未完成：没有进一步缩短摘录（历史已≤162且根因是探索/选读/过度查证）；以新的单次52题运行继续记录个题失败代替遇个题失败停整批，系统故障仍停、预算不扩大。没有重试刷分，质量**未整体提高**；剩余预算/错指问题、过强否认依据、额外论断及复合引用格式有待后续审阅。第二台云端对照、500不同论文首次索引、安装包/签名仍是既有未做项；T21安全边界与shell网络审批产品选择未做。下一任务仅在Claude审阅后开始。
+
+三批同一52题逐题比较如下（完整审计及输入SHA在本地 `t10-validation/live/t10-answering-full52-20261003/comparison-final52.json`；连接失败记作transport，不推断上游HTTP状态）：
+
+|题目|第1批|第3批|本次|失败来源|
+|---|---|---|---|---|
+|eth-01|full|full|failed|transport|
+|eth-02|full|full|full|—|
+|eth-03|full|full|full|—|
+|eth-04|full|full|failed|transport|
+|eth-05|full|full|full|—|
+|eth-06|full|full|full|—|
+|uslib-01|failed|full|full|—|
+|uslib-02|full|full|full|—|
+|uslib-03|full|full|failed|transport|
+|uslib-04|full|failed|partial|—|
+|uslib-05|full|full|full|—|
+|uslib-06|failed|full|full|—|
+|talent-01|full|full|full|—|
+|talent-02|full|full|full|—|
+|talent-03|full|full|full|—|
+|talent-04|full|full|full|—|
+|talent-05|full|full|full|—|
+|talent-06|full|full|failed|transport|
+|dig-01|full|full|full|—|
+|dig-02|full|full|failed|transport|
+|dig-03|full|full|full|—|
+|dig-04|full|full|failed|transport|
+|dig-05|full|full|full|—|
+|dig-06|full|full|full|—|
+|delphi-01|full|full|full|—|
+|delphi-02|full|full|full|—|
+|delphi-03|abstained|wrong|wrong|—|
+|delphi-04|full|full|full|—|
+|delphi-05|wrong|failed|failed|local_question_cap|
+|delphi-06|full|full|full|—|
+|phys-01|full|full|full|—|
+|phys-02|full|failed|full|—|
+|phys-03|full|failed|full|—|
+|phys-04|full|full|full|—|
+|phys-05|full|full|full|—|
+|phys-06|full|partial|partial|—|
+|guide-01|full|full|full|—|
+|guide-02|full|full|full|—|
+|guide-03|failed|full|full|—|
+|guide-04|gold_conflict|gold_conflict|gold_conflict|—|
+|guide-05|failed|failed|failed|local_question_cap|
+|guide-06|full|full|full|—|
+|know-01|full|full|full|—|
+|know-02|full|full|full|—|
+|know-03|full|full|full|—|
+|know-04|full|full|full|—|
+|know-05|full|full|failed|local_question_cap|
+|know-06|full|full|full|—|
+|phys-07|full|full|full|—|
+|guide-07|full|full|full|—|
+|know-07|failed|failed|full|—|
+|dig-07|failed|failed|full|—|
+
+
 ## 2026-10-03 Review of T12 application layer (Claude, cloud)
 
 Fast-forwarded `codex/t12-branch-20261003@c49b1ae` (GPT-6.1 Sol, first task as

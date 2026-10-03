@@ -1,8 +1,8 @@
 // Bounded T10 live evaluation. Default execution is an offline preflight;
-// provider traffic requires explicit pilot/full authorization flags.
+// provider traffic requires explicit live authorization and a selected phase.
 import assert from 'node:assert/strict';
 import { createServer, request as httpRequest } from 'node:http';
-import { request as httpsRequest } from 'node:https';
+import { Agent as HttpsAgent, request as httpsRequest } from 'node:https';
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, renameSync, writeFileSync } from 'node:fs';
 import { cp, lstat, mkdir, readFile, realpath, rm, stat, symlink, unlink, writeFile } from 'node:fs/promises';
@@ -13,6 +13,7 @@ import { createDshHost } from '../../adapters/runtime-dsh/host.mjs';
 import { createDesktopApi } from '../desktop-api.mjs';
 import { APPROVED_GOLD_SHA256, cloneDatabaseWithBackup, validateFrozenMapping } from './real-corpus-retrieval.mjs';
 import { embeddingManifest, verifyEmbeddingFiles } from '../research-base/model-assets.mjs';
+import { CONTEXT_API_VERSION } from '../context/tools.mjs';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const outputRoot = path.join(repo, '.sciencescope-local', 'temp', 't10-validation', 'live');
@@ -45,8 +46,10 @@ const isDirect = process.argv[1] && pathToFileURL(path.resolve(process.argv[1]))
 const safe = value => JSON.parse(JSON.stringify(value, (_name, item) => typeof item === 'string' && secretForRedaction ? item.split(secretForRedaction).join('[REDACTED]') : item));
 const json = value => `${JSON.stringify(safe(value), null, 2)}\n`;
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const result = { runName: 't10-hybrid-pilot', preflight: true };
+  const phases = argv.filter(arg => ['--pilot', '--full', '--single-pass'].includes(arg));
+  if (phases.length > 1) throw new Error('Choose exactly one live phase');
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--help' || arg === '-h') result.help = true;
@@ -54,20 +57,66 @@ function parseArgs(argv) {
     else if (arg === '--authorized-live') result.authorizedLive = true;
     else if (arg === '--pilot') result.phase = 'pilot';
     else if (arg === '--full') result.phase = 'full';
+    else if (arg === '--single-pass') { result.phase = 'single-pass'; result.continueAfterQuestionFailure = true; }
+    else if (arg === '--questions') result.questionIds = argv[++index]?.split(',');
+    else if (arg === '--upstream-proxy') result.upstreamProxy = validateUpstreamProxy(argv[++index]);
     else if (arg === '--pilot-reviewed') result.pilotReviewed = true;
     else if (arg === '--run-name') result.runName = argv[++index];
     else throw new Error(`Unknown option: ${arg}`);
   }
   if (!/^[a-zA-Z0-9_-]{1,64}$/u.test(result.runName ?? '')) throw new Error('run name must be 1–64 safe filename characters');
-  if (result.phase && !result.authorizedLive) throw new Error('Pilot/full phases require --authorized-live');
+  if (result.phase && !result.authorizedLive) throw new Error('Live phases require --authorized-live');
   if (result.phase === 'full' && !result.pilotReviewed) throw new Error('Full phase requires primary review of the completed three-question pilot and --pilot-reviewed');
-  if (result.authorizedLive && !result.phase) throw new Error('Choose exactly one of --pilot or --full with --authorized-live');
+  if (result.authorizedLive && !result.phase) throw new Error('Choose exactly one of --pilot, --full or --single-pass with --authorized-live');
   if (result.phase && result.preflight && argv.includes('--preflight')) throw new Error('Choose preflight or live phase, not both');
+  if (result.questionIds && result.phase && result.phase !== 'single-pass') throw new Error('--questions requires --single-pass (or offline preflight)');
   return result;
 }
 
+export function validateUpstreamProxy(value) {
+  const url = new URL(value);
+  if (url.protocol !== 'http:' || !['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) || url.username || url.password || url.pathname !== '/' || url.search || url.hash) throw new Error('upstream proxy must be an unauthenticated loopback HTTP proxy');
+  return url.origin;
+}
+
+export function selectQuestions(questions, ids) {
+  if (ids === undefined) return questions;
+  if (!Array.isArray(ids) || !ids.length || ids.some(id => !id) || new Set(ids).size !== ids.length) throw new Error('question selection must contain unique nonempty ids');
+  const approved = new Set(questions.map(question => question.id));
+  if (ids.some(id => !approved.has(id))) throw new Error('question selection contains an unapproved id');
+  const requested = new Set(ids);
+  return questions.filter(question => requested.has(question.id));
+}
+
+export function shouldStopBatch({ singlePass, question, proxyState }) {
+  const attributedFailure = question.prohibitedTools.length > 0 || question.providerFailures.length > 0 || question.requestCount.blockedCompletions > 0
+    || proxyState.events.some(event => event.questionId === question.id && event.forwarded && (event.status >= 400 || event.upstreamAborted || event.deadlineExceeded));
+  const systemic = proxyState.blockedUnattributed > 0 || proxyState.events.some(event => event.blockReason === 'global-cap')
+    || question.hostErrors.length > 0 && !attributedFailure || question.stopReason === 'RUNNER_FAILURE';
+  const failed = question.prohibitedTools.length || question.providerFailures.length || question.stopReason || question.requestCount.blockedCompletions;
+  return Boolean(systemic || !singlePass && failed);
+}
+
+export function resultMetrics(result) {
+  const fields = value => Object.fromEntries(['snippet', 'section', 'text', 'body', 'title', 'note'].filter(name => typeof value?.[name] === 'string').map(name => [name, value[name].length]));
+  return { serializedCharacters: JSON.stringify(result ?? null).length, fields: fields(result),
+    hits: (result?.hits ?? []).map(hit => ({ cite: hit.cite ?? null, ref: hit.ref ?? null, characters: fields(hit) })) };
+}
+
+export function requestReceipt(payload) {
+  const messages = Array.isArray(payload.messages) ? payload.messages : [];
+  const system = messages.filter(message => message.role === 'system' || message.role === 'developer').map(message => typeof message.content === 'string' ? message.content : JSON.stringify(message.content)).join('\n');
+  return { serializedCharacters: JSON.stringify(payload).length, model: typeof payload.model === 'string' ? payload.model : null,
+    messages: messages.map(message => { const content = typeof message.content === 'string' ? message.content : JSON.stringify(message.content ?? null); return { role: message.role, characters: content.length, sha256: hash(content) }; }),
+    toolNames: (payload.tools ?? []).map(tool => tool.function?.name).filter(name => typeof name === 'string'),
+    systemCharacters: system.length, systemSha256: hash(system), systemText: safe(system), contextApiVersion: CONTEXT_API_VERSION,
+    researchFirstRulePresent: /research questions use research_search first/i.test(system),
+    answerSufficiencyRulePresent: /Once direct evidence covers the requested scope, answer concisely/u.test(system),
+    maxTokens: payload.max_tokens ?? payload.max_completion_tokens ?? null, stream: payload.stream === true };
+}
+
 function usage() {
-  return `Usage:\n  node scripts/evals/hybrid-live-retrieval.mjs --preflight [--run-name NAME]\n  node scripts/evals/hybrid-live-retrieval.mjs --authorized-live --pilot [--run-name NAME]\n  node scripts/evals/hybrid-live-retrieval.mjs --authorized-live --full --pilot-reviewed [--run-name NAME]\n\nDefault is offline-only. Pilot sends the first 3 approved questions, max 6 completion requests per question (18 total). Full requires explicit review and caps the run at 312 completions. A question already marked RUNNING or present in the paid-request ledger is never retried.\n`;
+  return `Usage:\n  node scripts/evals/hybrid-live-retrieval.mjs --preflight [--run-name NAME] [--questions IDS]\n  node scripts/evals/hybrid-live-retrieval.mjs --authorized-live --pilot [--run-name NAME]\n  node scripts/evals/hybrid-live-retrieval.mjs --authorized-live --full --pilot-reviewed [--run-name NAME]\n  node scripts/evals/hybrid-live-retrieval.mjs --authorized-live --single-pass --run-name NAME [--questions IDS]\n\nDefault is offline-only. Pilot sends the first 3 approved questions, max 6 completion requests per question (18 total). Full requires explicit review and caps the run at 312 completions. Single-pass uses approved question order in its own directory, preserves failures and continues to the next question. Each selection is capped at 6 completion requests per question. A question already marked RUNNING or present in the paid-request ledger is never retried.\n`;
 }
 
 async function readInputs() {
@@ -312,11 +361,12 @@ export function assertRunIdentity(ledger, inputs, expectedProjectId) {
 
 /** Local attribution proxy. Credentials pass to the selected upstream but are
  * never persisted, inspected, or forwarded as evaluation/session headers. */
-export async function createCappedProxy({ evidencePath, maxCompletionRequests, maxPerQuestion = MAX_PER_QUESTION, upstreamOrigin = 'https://opencode.ai', allowTestLoopbackUpstream = false }) {
+export async function createCappedProxy({ evidencePath, maxCompletionRequests, maxPerQuestion = MAX_PER_QUESTION, upstreamOrigin = 'https://opencode.ai', allowTestLoopbackUpstream = false, upstreamProxy, upstreamCredential }) {
   if (!Number.isInteger(maxCompletionRequests) || maxCompletionRequests < 1) throw new TypeError('completion cap must be positive');
   const upstream = new URL(upstreamOrigin);
   const testLoopback = allowTestLoopbackUpstream && upstream.protocol === 'http:' && ['127.0.0.1', '::1', 'localhost'].includes(upstream.hostname);
   if (!(upstream.protocol === 'https:' && upstream.hostname === 'opencode.ai') && !testLoopback) throw new Error('T10 proxy upstream is fixed to the configured OpenCode gateway');
+  const upstreamAgent = upstreamProxy ? new HttpsAgent({ proxyEnv: { HTTPS_PROXY: validateUpstreamProxy(upstreamProxy) } }) : undefined;
   let state = { schema: 1, upstreamHost: upstream.host, allowedPrefix: REQUEST_PREFIX, maxPerQuestion, maxCompletionRequests, startedAt: new Date().toISOString(), completionAttempts: 0, forwardedCompletions: 0, blockedCompletions: 0, blockedUnattributed: 0, questions: {}, sessions: {}, sealedQuestions: {}, events: [] };
   if (existsSync(evidencePath)) {
     const previous = JSON.parse(await readFile(evidencePath, 'utf8'));
@@ -373,6 +423,16 @@ export async function createCappedProxy({ evidencePath, maxCompletionRequests, m
       perQuestion.bySessionKind[assignment.kind] = (perQuestion.bySessionKind[assignment.kind] ?? 0) + 1;
     }
     event.forwarded = true; state.events.push(event); persist();
+    const requestChunks = []; let requestBytes = 0;
+    request.on('data', chunk => { requestBytes += chunk.length; if (requestBytes <= 4 * 1024 * 1024) requestChunks.push(chunk); });
+    request.once('end', () => {
+      if (requestBytes > 4 * 1024 * 1024) event.requestReceipt = { bytes: requestBytes, omitted: 'request-over-4MiB' };
+      else {
+        try { event.requestReceipt = requestReceipt(JSON.parse(Buffer.concat(requestChunks).toString('utf8'))); }
+        catch { event.requestReceipt = { bytes: requestBytes, omitted: 'invalid-json' }; }
+      }
+      persist();
+    });
     let done = false, responseRef = null, deadline;
     const finish = (status, extra = {}) => {
       if (done) return;
@@ -380,8 +440,9 @@ export async function createCappedProxy({ evidencePath, maxCompletionRequests, m
     };
     const transport = upstream.protocol === 'https:' ? httpsRequest : httpRequest;
     const forwardedHeaders = providerForwardHeaders(request.headers, upstream.host);
+    if (upstreamCredential) forwardedHeaders.authorization = `Bearer ${upstreamCredential}`;
     const target = transport({ protocol: upstream.protocol, hostname: upstream.hostname, port: upstream.port || undefined, method: request.method,
-      path: requestUrl.pathname + requestUrl.search, headers: forwardedHeaders }, upstreamResponse => {
+      path: requestUrl.pathname + requestUrl.search, headers: forwardedHeaders, agent: upstreamAgent }, upstreamResponse => {
       responseRef = upstreamResponse;
       response.writeHead(upstreamResponse.statusCode || 502, Object.fromEntries(Object.entries(upstreamResponse.headers).filter(([name]) => !HOP_BY_HOP.has(name.toLowerCase()))));
       const decoder = new TextDecoder(); let pending = '';
@@ -411,7 +472,7 @@ export async function createCappedProxy({ evidencePath, maxCompletionRequests, m
   return {
     port: server.address().port, state, registerSession,
     sealQuestion(id, reason) { state.sealedQuestions[id] = { reason, at: new Date().toISOString() }; persist(); },
-    async close() { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); persist(); },
+    async close() { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); upstreamAgent?.destroy(); persist(); },
   };
 }
 
@@ -466,7 +527,12 @@ export async function createLiveHost({ paths, proxy, activeRef, credential = sec
       if (!owner || owner.questionId !== activeRef.current?.id) throw new Error('T10 tool invocation is not attributed to the active question');
       // Internal T17 registration handshake, not a model-selected tool call.
       // Keep the application's role/scope manifest intact and out of scoring.
-      if (invocation.name === '__manifest') return handler(invocation);
+      if (invocation.name === '__manifest') {
+        const manifest = await handler(invocation);
+        activeRef.current.manifestReceipt = { serializedCharacters: JSON.stringify(manifest).length, sha256: hash(JSON.stringify(manifest)), version: manifest?.version ?? manifest?.contextApiVersion ?? null };
+        await activeRef.persist();
+        return manifest;
+      }
       const current = activeRef.current;
       const call = { sessionKind: owner.kind, name: String(invocation.name).slice(0, 120), callId: String(invocation.callId ?? '').slice(0, 120), args: safe(invocation.args), summary: null };
       current.toolSequence.push({ type: 'tool-call', name: call.name, callId: call.callId, sessionKind: owner.kind });
@@ -476,6 +542,7 @@ export async function createLiveHost({ paths, proxy, activeRef, credential = sec
         throw new Error('This evaluation only allows read-only research/context tools.');
       }
       const result = await handler(invocation);
+      call.resultMetrics = resultMetrics(result);
       if (call.name === 'research_search') {
         call.summary = { mode: result?.mode ?? null, fallbackReason: result?.fallbackReason ?? null, hits: (result?.hits ?? []).map(hit => ({ cite: hit.cite ?? null, ref: hit.ref ?? null })) };
         current.researchModes.push({ mode: result?.mode ?? null, fallbackReason: result?.fallbackReason ?? null, citations: call.summary.hits.map(hit => hit.cite).filter(Boolean) });
@@ -496,12 +563,17 @@ async function runLive(args, runDir, inputs) {
   const resultPath = path.join(runDir, 'results.json');
   const requestLedgerPath = path.join(runDir, 'request-ledger.json');
   const lockPath = path.join(runDir, 'running.lock');
-  const globalCap = args.phase === 'pilot' ? PILOT_SIZE * MAX_PER_QUESTION : 52 * MAX_PER_QUESTION;
+  const selected = args.phase === 'pilot' ? inputs.questions.slice(0, PILOT_SIZE) : selectQuestions(inputs.questions, args.questionIds);
+  const globalCap = selected.length * MAX_PER_QUESTION;
+  const receiptFiles = ['scripts/context/tools.mjs', 'scripts/context/policy.mjs', 'scripts/context/research-tools.mjs', 'scripts/research-base/index.mjs', 'scripts/research-base/search.mjs', 'scripts/research-base/hybrid.mjs', 'scripts/research-base/semantic-service.mjs', 'scripts/evals/hybrid-live-retrieval.mjs'];
+  const rulesReceipt = Object.fromEntries(await Promise.all(receiptFiles.map(async file => [file, hash(await readFile(path.join(repo, file)))])));
   let ledger = {
     schema: 1, status: 'RUNNING', createdAt: new Date().toISOString(), phase: args.phase,
     model, promptPrefix: PREFIX, projectId, goldSha256: inputs.goldSha256, mappingSha256: inputs.mappingSha256,
     chunksSha256: inputs.chunksSha256, noGoldAnswersInModelContext: true, maxPerQuestion: MAX_PER_QUESTION,
     globalCompletionCap: globalCap, questions: [], phases: [], cleanup: null,
+    selectedQuestionIds: selected.map(question => question.id), continueAfterQuestionFailure: args.continueAfterQuestionFailure === true, rulesReceipt, contextApiVersion: CONTEXT_API_VERSION,
+    upstreamProxy: args.upstreamProxy ?? null,
   };
   let proxy, dsh, api, server, active, shuttingDown = false, lockOwned = false, saveTail = Promise.resolve();
   const activeRef = { get current() { return active; }, shuttingDown: false, persist: () => saveTail };
@@ -523,11 +595,16 @@ async function runLive(args, runDir, inputs) {
     if (existsSync(resultPath)) {
       ledger = JSON.parse(await readFile(resultPath, 'utf8'));
       assertRunIdentity(ledger, inputs, projectId);
+      if (args.phase === 'single-pass') {
+        assert.deepEqual(ledger.selectedQuestionIds, selected.map(question => question.id), 'single-pass selection changed');
+        assert.deepEqual(ledger.rulesReceipt, rulesReceipt, 'rules or harness changed during this single-pass run');
+        assert.equal(ledger.phase, 'single-pass', 'single-pass requires its own run directory');
+      }
       if (ledger.questions.some(row => row.status === 'RUNNING')) for (const row of ledger.questions) if (row.status === 'RUNNING') row.status = 'INTERRUPTED_NO_RETRY';
     }
     const pilotQuestions = inputs.questions.slice(0, PILOT_SIZE);
     if (args.phase === 'pilot') assert.ok(ledger.questions.every(row => pilotQuestions.some(question => question.id === row.id)), 'pilot cannot reopen a full run ledger');
-    else assert.ok(pilotQuestions.every(question => ledger.questions.some(row => row.id === question.id && row.status !== 'RUNNING' && row.status !== 'INTERRUPTED_NO_RETRY')), 'full phase requires a completed pilot; interrupted questions are never retried');
+    else if (args.phase === 'full') assert.ok(pilotQuestions.every(question => ledger.questions.some(row => row.id === question.id && row.status !== 'RUNNING' && row.status !== 'INTERRUPTED_NO_RETRY')), 'full phase requires a completed pilot; interrupted questions are never retried');
 
     const previousCounter = existsSync(requestLedgerPath) ? JSON.parse(await readFile(requestLedgerPath, 'utf8')) : null;
     for (const row of ledger.questions) {
@@ -536,8 +613,10 @@ async function runLive(args, runDir, inputs) {
       if (questionCounter > 0 && !row.requestCount) row.requestCount = questionCounter;
     }
     await persist();
-    proxy = await createCappedProxy({ evidencePath: requestLedgerPath, maxCompletionRequests: globalCap });
-    const host = await createLiveHost({ paths, proxy, activeRef, apiErrors: [] }); dsh = host;
+    proxy = await createCappedProxy({ evidencePath: requestLedgerPath, maxCompletionRequests: globalCap, upstreamProxy: args.upstreamProxy, upstreamCredential: secretForRedaction });
+    // Only the owned parent proxy holds the live credential; session processes
+    // receive a disposable localhost token, never the user's paid gateway key.
+    const host = await createLiveHost({ paths, proxy, activeRef, credential: `local-eval-${randomUUID()}`, apiErrors: [] }); dsh = host;
     api = await createDesktopApi({ dataRoot: paths.dataRoot, runtimeHost: host, onError: error => { if (active) active.hostErrors.push({ code: error.code ?? null, name: error.name, message: safe(String(error.message ?? '')) }); } });
     ({ server, origin: activeRef.origin } = await createLocalServer(api));
     await prepareProject(activeRef.origin);
@@ -547,7 +626,6 @@ async function runLive(args, runDir, inputs) {
     ledger.phases.push({ phase: args.phase, startedAt: new Date().toISOString(), globalCompletionCap: globalCap, semanticReady: true });
     await persist();
 
-    const selected = args.phase === 'pilot' ? inputs.questions.slice(0, PILOT_SIZE) : inputs.questions;
     const eligible = eligibleUnpaidQuestions(selected, ledger.questions, proxy.state);
     for (const question of eligible) {
       if (shuttingDown) break;
@@ -612,13 +690,13 @@ async function runLive(args, runDir, inputs) {
         await Promise.allSettled(active.sessions.map(session => dsh.releaseSession(session.sessionId)));
         await persist();
         console.log(JSON.stringify({ phase: args.phase, questionId: active.id, status: active.status, researchModes: active.researchModes.map(({ mode, fallbackReason }) => ({ mode, fallbackReason })), completionRequests: active.requestCount.forwardedCompletions ?? 0 }));
-        const fatal = active.prohibitedTools.length || active.providerFailures.length || active.stopReason || active.requestCount.blockedCompletions;
+        const fatal = shouldStopBatch({ singlePass: args.continueAfterQuestionFailure, question: active, proxyState: proxy.state });
         active = null;
         if (fatal) break;
       }
-      if (Date.now() > questionDeadline) break;
+      if (!args.continueAfterQuestionFailure && Date.now() > questionDeadline) break;
     }
-    const phaseQuestions = args.phase === 'pilot' ? inputs.questions.slice(0, PILOT_SIZE) : inputs.questions;
+    const phaseQuestions = selected;
     const finished = phaseQuestions.every(question => ledger.questions.some(row => row.id === question.id && row.status !== 'RUNNING'));
     ledger.status = `${args.phase.toUpperCase()}_${finished ? 'FINISHED' : 'STOPPED'}_AUDIT_PENDING`;
     await persist();
@@ -641,9 +719,12 @@ export async function main(argv = process.argv.slice(2)) {
   const args = parseArgs(argv);
   if (args.help) { console.log(usage()); return; }
   const inputs = await readInputs();
+  const selected = selectQuestions(inputs.questions, args.questionIds);
   const runDir = path.join(outputRoot, args.runName);
   if (!args.authorizedLive) {
     const result = await preflight(runDir, inputs);
+    result.selectedQuestionIds = selected.map(question => question.id);
+    await atomicWrite(path.join(runDir, 'preflight.json'), result);
     console.log(JSON.stringify(result));
     return result;
   }

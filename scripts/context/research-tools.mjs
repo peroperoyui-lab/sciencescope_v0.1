@@ -25,18 +25,23 @@ export function createScopedResearchTools({research, projectIds}) {
       return {mode:result.mode,...(result.fallbackReason?{fallbackReason:result.fallbackReason}:{}),hits:selected.map(hit=>({cite:hit.cite,ref:hit.ref,title:hit.title,section:hit.section??undefined,
         page:hit.page??undefined,snippet:hit.snippet,projectId:hit.projectId,
         ...(hit.item?{type:hit.item.type,subtype:hit.item.subtype,status:hit.item.claimStatus??hit.item.status}:{})})),
-        hint:(result.mode==='keyword'?'本次为关键词检索。 ':'')+'Use research_read for the full passage. Across projects, read the returned ref rather than a potentially ambiguous project-local citation label.'};
+        hint:(result.mode==='keyword'?'本次为关键词检索。 ':'')+'These are bounded excerpts, not evidence of absence. Use research_read with a promising hit\'s exact ref to verify missing detail. Once direct evidence covers the question, answer concisely with citations. Further lookups should resolve a specific missing fact or contradiction. Across projects, read the returned ref rather than a potentially ambiguous project-local citation label.'};
     }
     if (name === 'research_read') {
       let ref=args.ref;
+      let page=args.page;
       if(!ref && args.cite) {
         const ids=ctx.role==='global'?[null,...await projectIds()]:[ctx.projectId??null];
         const refs=new Map();
-        for(const projectId of ids){const match=research.retrieval.resolveCitation(args.cite,{projectId});if(match)refs.set(JSON.stringify(match.ref),match.ref);}
+        for(const projectId of ids){const match=research.retrieval.resolveCitation(args.cite,{projectId});if(match)refs.set(JSON.stringify(match.ref),match);}
         if(refs.size>1)throw new ContextAccessError('AMBIGUOUS_CITATION','This label identifies more than one project source; read the exact ref from research_search.');
-        ref=[...refs.values()][0];
+        const citation=[...refs.values()][0];
+        // Preserve the page through scope resolution; a chunk-neighbor read
+        // can otherwise omit the page explicitly requested by the citation.
+        ref=citation?.source?{type:'source',id:citation.source.id}:citation?.ref;
+        page=args.page??citation?.page;
       }
-      const result=await research.toolCall(name,{...args,ref:allowedRef(ref,ctx)},ctx);
+      const result=await research.toolCall(name,{...args,page,ref:allowedRef(ref,ctx)},ctx);
       // A public item must not expose a private/out-of-scope neighbour through
       // its evidence links (including the link's quote and note).
       if(Array.isArray(result.links))return {...result,links:result.links.filter(link=>{
