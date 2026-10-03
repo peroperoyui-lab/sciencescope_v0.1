@@ -49,7 +49,7 @@ function paint(e,{messages=true,bottom=false}={}){
   const policy=surface.querySelector('[data-assistant-action="policy"]');policy.textContent=e.executionMode==='full'?'完全接管':'询问';policy.classList.toggle('policy-caution',e.executionMode==='full');
   surface.querySelector('[data-assistant-action="effort"]').textContent=e.reasoningEffort||'模型默认';
   surface.querySelector('.assistant-attachments').innerHTML=e.attachments.map(file=>`<span class="ref-chip">${esc(file.title)}<button data-assistant-action="remove-attachment" data-id="${esc(file.id)}" aria-label="移除附件">×</button></span>`).join('');
-  const approvalHTML=e.approvals.map(a=>`<div class="assistant-approval"><strong>需要确认：${esc(a.toolName||'工具')}</strong><p>${esc(a.reason||'运行时请求操作授权。')}</p>${a.targetEnvironment?`<p><span>目标环境</span> · ${esc(a.targetEnvironment)}</p><pre>${esc((a.packages||[]).join('\n'))}</pre>`:''}<button data-assistant-action="approve" data-request="${esc(a.requestId)}" class="btn tiny">允许这次</button> <button data-assistant-action="reject" data-request="${esc(a.requestId)}" class="btn tiny">拒绝</button></div>`).join('');
+  const approvalHTML=e.approvals.map(a=>`<div class="assistant-approval" ${a.classification==='protected-path'?'data-protected-path-approval':''}><strong>需要确认：${esc(a.toolName||'工具')}</strong><p>${esc(a.reason||'运行时请求操作授权。')}</p>${a.classification==='protected-path'?`<strong class="protected-path-warning">涉及应用内部数据</strong><pre data-i18n-skip>${esc(a.commandSummary)}</pre>`:a.targetEnvironment?`<p><span>目标环境</span> · ${esc(a.targetEnvironment)}</p><pre>${esc((a.packages||[]).join('\n'))}</pre>`:''}<button data-assistant-action="approve" data-request="${esc(a.requestId)}" class="btn tiny">允许这次</button> <button data-assistant-action="reject" data-request="${esc(a.requestId)}" class="btn tiny">拒绝</button></div>`).join('');
   const approvalBox=surface.querySelector('.assistant-approvals');if(approvalBox._html!==approvalHTML){approvalBox.innerHTML=approvalHTML;approvalBox._html=approvalHTML;}
   const proposals=(e.proposals||[]).filter(p=>p.status==='pending');
   const proposalBox=surface.querySelector('.assistant-proposals'),proposalKey=proposals.map(p=>p.id).join(',');
@@ -205,9 +205,9 @@ window.addEventListener('click',async event=>{
     if(action==='choose-model'){const model={providerId:button.dataset.provider,modelId:button.dataset.model};await hostRequest('assistant/model',{scope:e.scope,ownerId:e.ownerId,model});e.model=model;e.reasoningEffort=undefined;closeMenu();paint(e,{messages:false});return;}
     if(action==='policy'){
       if(e.running||e.sending)return toast('请先等待本轮结束。');
-      composerMenu(button,'执行策略',[['ask','询问','需要额外授权的操作由运行时请求确认。'],['full','完全接管','允许工具按当前用户权限执行文件与命令操作，不逐次询问。']].map(([id,name,description])=>({label:name,description,caution:id==='full',action:'assistant-choice',attrs:`data-assistant-action="choose-policy" data-entry="${esc(e.key)}" data-mode="${id}"`})));return;
+      composerMenu(button,'执行策略',[['ask','询问','需要额外授权的操作由运行时请求确认。'],['full','完全接管','常规文件和命令操作不逐次审批，不限制网络访问；受保护路径始终需要审批，不提升 Windows 权限。网络外传防护属于已知限制。']].map(([id,name,description])=>({label:name,description,caution:id==='full',action:'assistant-choice',attrs:`data-assistant-action="choose-policy" data-entry="${esc(e.key)}" data-mode="${id}"`})));return;
     }
-    if(action==='choose-policy'){if(button.dataset.mode==='full'&&!await window.ScienceScopeWorkspace.confirmAction('完全接管','允许助手执行工具和文件操作，不逐次询问。','启用'))return;e.executionMode=button.dataset.mode;closeMenu();paint(e,{messages:false});return;}
+    if(action==='choose-policy'){if(button.dataset.mode==='full'&&!await window.ScienceScopeWorkspace.confirmAction('完全接管','常规操作不逐次审批，工具可能读写项目外文件并运行命令。受保护路径仍须审批；网络访问不受限制，网络外传防护属于已知限制。不更改 Windows 系统权限。','启用'))return;e.executionMode=button.dataset.mode;closeMenu();paint(e,{messages:false});return;}
     if(action==='effort'){
       if(e.running||e.sending||!e.model)return;
       const info=await hostRequest('model-info?'+new URLSearchParams(e.model));
