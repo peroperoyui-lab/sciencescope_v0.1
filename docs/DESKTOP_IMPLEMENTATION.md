@@ -1,5 +1,27 @@
 # Desktop implementation — first increment
 
+## 2026-10-03 Review of T10 answering (Claude, cloud)
+
+Fast-forwarded `codex/t10-answering-20261003@465e242` into
+`claude/determined-pasteur-jxpzw8`.
+- Reading the result: 39/52 full vs 43 (batch 1) and 42 (batch 3), but the
+  failure mix changed: drift away from research tools 3 → 0, budget
+  exhaustion 4 → 3, and 6 new transport failures that produced no upstream
+  answer. Of the 46 questions that got an answer, 39 are full. The answering
+  behaviour improved; the total is confounded by transport.
+- The transport failures were 502s from the evaluation's own usage-counting
+  proxy after a forwarding error, with no error code recorded. `dsh-base`
+  mounts `dsh-llm-retry` (normal mode: 5 retries for TRANSPORT/SERVER/TIMEOUT),
+  so the product path likely retries; a hypothesis to verify: retries counted
+  against the evaluation's 6-requests-per-question cap. Follow-up for the
+  implementer: record proxy error codes, confirm the product retries transient
+  errors (real DSH + a fixture that fails then succeeds), and re-run the 6
+  transport-failed questions as a separately reported infrastructure re-run
+  (they never produced a model answer, so this is not score-retrying).
+- Code reviewed: `read()` reserves the requested passage before admitting its
+  predecessor; page cites keep their page. Cloud re-run: `npm test` 255/255;
+  research-base-ui, context-access-ui, chat-ui pass.
+
 ## 2026-10-03 · T10 回答环节改进（实现与重测已交付，质量限制待 Claude 审阅）
 
 - 分支 `codex/t10-answering-20261003`，直接基于已合并 T12 的 `claude/determined-pasteur-jxpzw8@9ba717b3051b3a1612f701258fb9d96639a1acc3`；无未合并叠加。实际 H 盘工作区 `<工作区>`、origin `peroperoyui-lab/sciencescope_v0.1` 已核对。完成本任务推送后停下，等 Claude 审阅再做 T21。交付 SHA 见同轮报告。
