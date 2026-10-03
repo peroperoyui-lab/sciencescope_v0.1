@@ -43,6 +43,9 @@ do not redesign them or import the rejected old GUI.
 - User revision 2026-10-03: GPT-6.1 Sol is now the delegated implementer (it
   replaces Astra for cost). Everything this file and docs/tasks say about
   "Astra" applies to it: same autonomy, same stop rules, same delivery.
+  Its subagents use GPT-6.1 Sol (same price as GPT-6 Sol, close to Astra);
+  Git delivery uses GPT-6 Luna. Real-model evaluation with the user's
+  OpenCode Go key is encouraged wherever it adds evidence (cheap models).
 - Prioritize working features; use proportionate smoke/regression checks, not
   speculative test matrices or new frameworks just for testing.
 
