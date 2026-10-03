@@ -56,7 +56,11 @@ do not redesign them or import the rejected old GUI.
 
 ## Implementation
 
-Reuse DSH's supported SDK/profile, sessions, tools and history. Do not copy the old
+Reuse DSH's supported SDK/profile, sessions, tools and history. Product code
+depends only on the runtime port (docs/design/RUNTIME_PORT.md, 2026-10-03):
+only `adapters/runtime-*/` imports runtime packages, and a new runtime need is
+added to the port first. Record DSH limitations in its table; any runtime
+replacement is decided after alpha, not before. Do not copy the old
 ScienceScope backend wholesale or build another generic agent/provider framework.
 Check the selected upstream version before choosing APIs; its private Electron
 Desktop Host is not assumed to be a public Tauri integration API.
