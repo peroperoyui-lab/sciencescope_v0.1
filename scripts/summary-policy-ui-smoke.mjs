@@ -162,7 +162,12 @@ try{
   const conflictWrite=writes.find(write=>write.target==='map'&&write.op?.status==='review');
   assert.ok(logWrite&&conflictWrite,'accepted proposals create durable write receipts');
   await page.locator(`[data-summary-undo="${logWrite.id}"]`).click();
-  await page.waitForFunction(id=>document.querySelector(`[data-summary-undo="${id}"]`)?.disabled,logWrite.id);
+  let undoneAt=null;
+  for(let attempt=0;attempt<100&&!undoneAt;attempt++){
+    undoneAt=(await request(`summary/writes?chatId=${chatId}`)).writes.find(write=>write.id===logWrite.id)?.undoneAt;
+    if(!undoneAt)await page.waitForTimeout(100);
+  }
+  assert.ok(undoneAt,'undo receipt is durable before reading workbench');
   workbench=await request(`workbench?projectId=${projectId}`);assert.ok(!workbench.logs.some(log=>log.title==='接受的日志'),'successful undo removes only the summary-created log');
 
   for(const [language,theme,key] of visualStates.slice(0,3)){

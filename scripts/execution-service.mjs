@@ -8,7 +8,7 @@ export function createExecutionService({host,database,chatStore,bindings,onTurnP
   function attach(id,binding){
     if(rows.has(id)&&rows.get(id).binding===binding)return rows.get(id);
     rows.get(id)?.unsubscribe?.();
-    const state={...stored(id),binding,sessionId:binding.sessionId,approvals:new Map(),preview:'',automatic:false,turnEnds:new Map(),lastRunIdleSequence:0};rows.set(id,state);
+    const state={...stored(id),binding,sessionId:binding.sessionId,approvals:new Map(),preview:'',automatic:false,turnEnds:new Map(),autoAssistantMessages:new Map(),lastRunIdleSequence:0};rows.set(id,state);
     state.unsubscribe=host.observeSession(binding.sessionId,frame=>{
       const event=frame.type==='control-event'?frame.event:frame;
       if(event.type==='session-event'&&event.eventType==='goal/change'){
@@ -35,6 +35,20 @@ export function createExecutionService({host,database,chatStore,bindings,onTurnP
       if(event.type==='committed-event'&&event.eventType==='turn/end'&&Number.isSafeInteger(event.data?.turn)){
         state.turnEnds.set(event.data.turn,frame.sequence);
         while(state.turnEnds.size>8)state.turnEnds.delete(state.turnEnds.keys().next().value);
+        if(state.automatic){
+          const reason=event.data?.stopReason;
+          const status=reason==='completed'?'completed':reason==='aborted'?'cancelled':'failed';
+          const messageIds=state.autoAssistantMessages.get(event.data.turn)||[];
+          const userMessageId=state.automaticUserMessageId;
+          state.automaticUserMessageId=null;
+          const task=(writes.get(id)||Promise.resolve()).then(async()=>{
+            for(const messageId of messageIds)await chatStore.setMessageReceipt(id,messageId,{runtimeSeq:event.seq,completionStatus:status});
+            if(userMessageId)await chatStore.setMessageReceipt(id,userMessageId,{runtimeSeq:event.seq,completionStatus:status});
+            onTurnPersisted({chatId:id});
+          });
+          writes.set(id,task.catch(()=>{state.error='自动化轮次状态保存失败，请检查本地存储。';}));
+          state.autoAssistantMessages.delete(event.data.turn);
+        }
         const refresh=state.pythonEnvironmentRefresh;
         if(refresh&&refresh.turn===event.data.turn)refresh.turnEndSequence=frame.sequence;
         maybeCompletePythonEnvironmentRefresh(id,state);
@@ -48,7 +62,9 @@ export function createExecutionService({host,database,chatStore,bindings,onTurnP
       if(state.automatic&&event.type==='stream-start')state.preview='';
       if(state.automatic&&event.type==='text-delta')state.preview+=event.delta;
       if(state.automatic&&event.type==='committed-event'&&event.eventType==='assistant/message'&&event.data?.text){
-        const task=(writes.get(id)||Promise.resolve()).then(async()=>{await chatStore.appendMessage({chatId:id,id:`runtime-${binding.sessionId}-${event.seq}`,role:'assistant',text:event.data.text,created:new Date(event.time||Date.now()).toISOString()});onTurnPersisted({chatId:id});});
+        const messageId=`runtime-${binding.sessionId}-${event.seq}`;
+        const turnMessages=state.autoAssistantMessages.get(event.data.turn)||[];turnMessages.push(messageId);state.autoAssistantMessages.set(event.data.turn,turnMessages);
+        const task=(writes.get(id)||Promise.resolve()).then(async()=>{await chatStore.appendMessage({chatId:id,id:messageId,role:'assistant',text:event.data.text,created:new Date(event.time||Date.now()).toISOString(),completionStatus:'pending'});onTurnPersisted({chatId:id});});
         writes.set(id,task.catch(()=>{state.error='自动化结果保存失败，请暂停并检查本地存储。';}));state.preview='';
       }
     });
@@ -94,9 +110,9 @@ export function createExecutionService({host,database,chatStore,bindings,onTurnP
     const goal=state.goal;
     return {approvalCount:state.approvals.size, goalActive:bindings.get(id)?.goalActive===true || (goal?.phase==='active' && goal?.activation!=='disarmed'), goalPhase:goal?.phase==='active'&&goal?.activation==='disarmed'?'paused':goal?.phase||null};
   }
-  async function start(id,binding,objective,maxGoalRounds){
+  async function start(id,binding,objective,maxGoalRounds,userMessageId){
     if(maxGoalRounds!==undefined&&(!Number.isInteger(maxGoalRounds)||maxGoalRounds<1||maxGoalRounds>256))throw new TypeError('INVALID_GOAL_ROUND_LIMIT');
-    const state=attach(id,binding);state.automatic=true;binding.goalActive=true;
+    const state=attach(id,binding);state.automatic=true;state.automaticUserMessageId=userMessageId;binding.goalActive=true;
     try{state.goal=await host.sessionGoal({sessionId:binding.sessionId,objective,maxGoalRounds});persist(id,state);return state.goal;}
     catch(error){state.automatic=false;binding.goalActive=false;throw error;}
   }

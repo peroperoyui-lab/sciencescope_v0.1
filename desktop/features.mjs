@@ -9,7 +9,7 @@ import {hostRequest} from './host-client.mjs';
 export const FEATURES = {
   folderPicker: {hide: ['[data-creation-pick]', '[data-action="pick-project-folder"]']},
   inAppBrowser: {hide: ['[data-v="browser"]', '[data-route="browser-settings"]'], routes: ['browser', 'browser-settings'], menu: item => item.act === 'browser'},
-  branch: {hide: ['[data-v="branch-message"]'], routes: ['branch'], menu: item => item.act === 'branch-message'},
+  branch: {hide: ['[data-v="branch-message"]', '.branch-action'], routes: ['branch'], menu: item => item.act === 'branch-message'},
   usage: {hide: ['[data-route="usage"]'], routes: ['usage']},
   materialsPanel: {routes: ['context'], menu: item => item.act === 'annotations'},
   mapHistory: {hide: ['[data-action="map-history"]'], routes: ['map-history', 'version-note', 'diff']},

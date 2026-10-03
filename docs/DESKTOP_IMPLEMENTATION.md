@@ -1,5 +1,21 @@
 # Desktop implementation — first increment
 
+## 2026-10-03 · T12 消息分支应用层与界面（验收通过，交付待 Claude 审阅）
+
+- 分支 `codex/t12-branch-20261003`，直接基于 `claude/determined-pasteur-jxpzw8@75f22dc3eff168181c9cea4699aaccb234bba0db`；没有叠加未审阅的任务。只做 T12，推送后等待 Claude 审阅，再开始 T10。
+- 应用接口 `POST /api/chats/branch {chatId,messageId,mode}` 调用既有真实 DSH fork，绑定持久子会话，复制截至选中位置的展示记录及工具/研究输入/专家元数据。“从此回复分支”保留完整轮次；“从此处重新提问”退回上一轮，首条问题创建空对话。两种方式都预填关联问题为未发送草稿，附件/标记/上下文引用复用研究输入回执；文本编辑通过 `/api/chats/draft` 持久保存。来源链接定位精确消息。复制项目、模型、推理强度、人设快照、工作区、Python 对话绑定与执行模式；自动模式的活动目标清除，等待用户显式发送。
+- 主专家普通轮次与自动轮次记录真实 `endSeq` 和 completed/failed/cancelled 状态。自动工具循环只给最终文本提供入口。专家分支从讨论前 Main 边界 fork，展示前缀按名册顺序；新讨论 ID、采纳标记和 `mainSeen` 按包含的 Main 前缀重建。临时/助手会话、未知序号、未完成轮次无入口；忙状态与待发送队列由后端拒绝。
+- 聚焦回归：store/API **7/7**，包含 reply/reask/首条消息、持久草稿、模型/推理/Python/人设/工作区继承、源隔离、忙状态、专家乱序完成的可见前缀、审核采纳/已读边界及失败拒绝；兼容性 SQLite/旧文件迁移 **3/3**；i18n **2/2**。真实 DSH 应用回归 **1/1**：A/B 隔离、子/源继续、重启恢复、冷源 fork、自动模式无隐式请求均通过，最后聚焦 run 为 `.sciencescope-local/temp/t12-branch-validation/runtime/run-V6reDU/`，回执 `runtime/latest-result.json`。
+- 界面验收使用生产 API/资源路由与本地模拟 runtimeHost。开启开关前 browser `run-Fu7bfA` 与实际 Tauri/WebView2 native `run-kMs6P7` 均通过；开启后 browser `run-SOxGtP`、native `run-vkRsrE` 再通过。每次 7 次模拟宿主 send、4 次 branch API、3 次 fixture fork（边界 6/6/12），JS/资源/外部请求错误为 0。覆盖消息/菜单/输入框入口、关闭时隐藏、infoTip 不误触分支、来源跳转、附件/标记、失败重发草稿、流中入口、焦点与新草稿保留。`branch` 现检测 `forkSession` 与 `sessionTurns` 开启。两次原生均捕获 9 个 owned PID 并确认正常关闭后全部消失；开启后主 PID 21716、exit 0。
+- 本地截图（均不进 Git）：`.sciencescope-local/temp/t12-branch-validation/browser/run-SOxGtP/evidence/branch-{zh,en}-{light,dark}.png`，原生开启后同名文件在 `native/run-vkRsrE/evidence/`，初验在 `native/run-kMs6P7/evidence/`。primary 已复核浏览器中文浅色、英文深色与两次原生英文深色，Sol 复核其他状态。使用既有 2026-09-29 exe 加本次 Node/资源与实际 WebView2；不是候选安装包/签名/升级验收。
+- 发现 → 原因 → 修复 → 验证：流中输入框仍有上一回复分支按钮 → 仅结算时更新控件 → `live-chat` 在插入用户/回复节点后同步控件 → browser/native busy/streaming 回归通过；自动轮次缺少完成状态 → bridge 未投影 `turn/end` 原因，execution 未记录每轮边界 → additive `stopReason` 与排队保存 receipt → 自动成功/取消/失败单测及真实 DSH 自动两轮通过；升级后旧迁移使用位置 INSERT → 新消息/对话列导致列数变化 → 显式列名 → additive schema 上 legacy 迁移回归 3/3；冷源进程不在内存 → fork 前先恢复源绑定 → 复用 restoreExecution → 真实 DSH 重启后分支通过。
+- smoke 首轮失败保留：summary-policy 第21项在撤销按钮同步禁用后立刻读取日志 → 异步 API 未完成，断言竞态 → 仅修改 smoke 等待持久 `undoneAt` 后检查日志（一次中间尝试使用中文按钮文字，被英文界面阻挡，也保留日志）→ 修正后通过，生产总结语义未改。assistant-api UI 的 providers/save 501 → Windows 真实 DSH web 冷启动约18秒，超过基线已有15秒超时且 bootstrap 错误被捕获 → 仅验收夹具显式创建真实 host/web/provider 并用60秒启动预算 → no-ui 8次、UI 12次本地模拟模型调用通过，UI 回执在 `regression/assistant-ui-run-cd308b2c/assistant-api-smoke-ui.log`。产品启动时限未变。
+- 白名单外最小改动：`assistant-stream-bridge.mjs` 仅增加 stopReason 投影；`execution-service.mjs` 增加自动轮次 receipt；`application-database.mjs` 显式迁移列名；`live-chat.mjs` 同步入口与失败草稿；`features.mjs` 一并隐藏 infoTip 容器；`summary-policy-ui-smoke.mjs` 修正异步撤销断言；`assistant-api-smoke.mjs` 增加真实 DSH 夹具冷启动预算。分别由自动/真实DSH、迁移、browser/native、既有 smoke 验证。`host.mjs`、`session-control.mjs`、`discussion-service.mjs` 与原型 `ScienceScope.html` 未改。
+- 全量 `npm test` **242/242**，fail/cancel/skip 0、exit 0、355299 ms；日志 `.sciencescope-local/temp/t12-branch-validation/npm/run-13d256f8/npm-test.log`。npm 后仅修改独立 smoke 夹具（npm 不导入）和交付文档。i18n extract 最终 3190 fragments / 1748 historical missing，本轮新增界面文字 missing 0；原型未改，语法与 `git diff --check` 通过。
+- 既有浏览器/API smoke **23项最终全部通过**：前20项在 `regression/run-9ca5ec0c/`，summary-policy 修正后、assistant UI 修正后及 research-base UI 分别保留独立日志，综合索引在 `regression/latest-valid-evidence.json`。不是宣称首轮23/23；两个首轮失败与中间错误尝试均保留。T12 新 browser/native 验收另外记录。提交前扫描399个源码/文档文件，仅既有 tool-activity 测试的故意假key匹配，无本轮秘密；Git未跟踪 `.sciencescope-local`。
+- 与任务书的区别/未做：最新补充优先，标题使用“分支：原标题”，reply 同样预填草稿；旧消息不做不可靠序号补录（此前明确允许 UNKNOWN，最新“可补录”未设为必做）；工作文件夹共用，不提供文件快照；自动目标不随历史重新启动。应用聊天表 `chat_branch_drafts` 沿用聊天命名，RB_COMMON 的 `rb_` 前缀仅用于 Research Base 新表。既有产品 DSH web 15秒启动预算仍可能在慢冷启动时使 provider service 不可用，本轮仅调整验收夹具并记录该限制。无新增依赖；未做安装包、付费模型质量评测或后续任务。
+- 真实外部/付费模型请求 **0**，付费 token **0**；真实 DSH + localhost 模拟模型最后聚焦测试 **11 请求**，夹具未报告 token，不虚报为真实模型用量。其他本地模拟回归单列，不使用/移动评测凭据。所有运行状态、日志、截图和构建留在 Git 忽略的 `.sciencescope-local/`。
+
 ## 2026-10-02 System review while Codex usage was exhausted (Claude, cloud)
 
 - Repo health: `npm test` 238/238; no secrets tracked (the only key-like string

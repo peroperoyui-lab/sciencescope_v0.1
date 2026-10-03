@@ -141,9 +141,11 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   - 记录：用户与助手消息写入 `messages`；工具记录写入 `tool_activity`（有界、脱敏的展示投影；完整历史在 DSH）。
 - **验证**：`main-interrupt`、`main-outbox-api`、`chat-outbox`、`tool-activity`、`provider-failure-surface`、`reasoning-effort-wire` 单元测试；
   `chat-ui-smoke`、`failed-send-draft-smoke`；真实 OpenCode Go 小请求、停止、5.5 分钟长任务（原生，2026-09-23）。
-- **已知限制**：队列只接受纯文本轮次（带材料的输入会留在草稿里，需要再次确认）；从消息分支的入口仍关闭，没有 DSH 运行时分叉。
-- **T12 最近核对（2026-09-29）**：真实 DSH/本地模拟模型证明安装版0.1.6-alpha.1的SDK stdio不注册 `session/fork`；SessionStore内存fork也不能单独持久化继承上下文。按任务要求停在前置核查，待确认上游完整服务接线或SDK支持路径。没有用展示消息复制冒充模型上下文分支，也未打开开关；详见任务书T12。
-- **T12 运行时（2026-10-01，Claude）**：适配器新增 `/turns`、`/fork`，主程序侧新增 `sessionTurns`、`forkSession`。做法与上游 `SessionController.fork` 相同（`sessionQuery` 读日志，在已完成轮次处截断，`agents.create` 以前缀为种子创建子会话并持久化）。`tests/session-fork-runtime.test.mjs` 用真实 DSH 验证：子会话在新进程中只看到分支点之前的内容，源会话不受影响，子会话的轮次持久保存，没有已完成轮次时拒绝分支。应用层与界面尚未接入，`branch` 开关保持关闭。
+- **已知限制**：队列只接受纯文本轮次（带材料的输入会留在草稿里，需要再次确认）。
+- **从消息分支（T12）**：`POST /api/chats/branch {chatId,messageId,mode:'reply'|'reask'}` 创建“分支：原标题”，保存 `branchedFrom {chatId,messageId,title}`。“从此回复分支”使用该主专家轮次的 `endSeq`；“从此处重新提问”使用上一轮主专家回复，首条问题创建同项目、同设置的空对话。两种方式都把关联问题、附件、标记和上下文引用预填到可编辑、未发送的草稿，文本修改通过 `/api/chats/draft` 持久保存，接受发送时仅清除已发送的同文草稿。来源标题可点击回到精确原消息。
+- **运行时与展示边界**：使用 Claude 已接通的 DSH `/turns`、`/fork`（`sessionQuery` 读日志、`agents.create` 以完整轮次前缀创建持久子会话）。应用层复制可见前缀并重建消息身份、工具投影、研究输入回执和讨论元数据；不以展示文字替代模型历史。主专家每轮保存真实 `endSeq` 与完成状态，自动工具循环只给最终文本提供回复分支入口。生成中、失败、停止、源对话忙或有待发送队列时禁止分支。没有可靠序号的旧消息保持 `BRANCH_POINT_UNKNOWN`，本轮不猜测补录。
+- **讨论与设置**：专家回复处分支从讨论前最后一个主专家边界 fork，按界面名册顺序复制到该专家的展示记录；专家回复经既有后续发送机制进入主专家上下文。采纳标记保留；只有前缀含后续已完成 Main 轮次时保留 `mainSeen`。复制项目、模型、工作文件夹、人设快照、推理强度、Python 对话绑定和执行模式；自动模式不继承活动目标，仍需明确发送。双方会话独立，工作文件夹按任务设计共用，不创建文件快照。秘书、全局助手和临时聊天不提供入口。
+- **最近核对（2026-10-03）**：聚焦 store/API 7/7（含讨论排序、采纳与后续上下文），迁移 3/3，真实 DSH 应用回归 1/1（11 次本地模拟模型请求，付费 0），全量 npm 242/242、既有23项 smoke 最终通过（首轮两个失败及修正见实施记录）。浏览器与实际 Windows Tauri/WebView2 中英深浅色验收通过后开启 `branch`（检测 `forkSession` 与 `sessionTurns`），开启后均再验通过，原生9个owned PID已退出。本轮不代表安装包或 alpha 发布验收。
 
 ### 2.3 执行策略与自动化
 
@@ -488,7 +490,7 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
 - **状态**：✅（界面 smoke、文案审计）。
 - **技术实现**：
   - 宿主 `GET /api/status` 返回 `features`（`scripts/desktop-api.mjs` 的 `capabilities.features`）：
-    `pythonEnvs`、`folderPicker`（由原生外壳通过 `SCIENCESCOPE_NATIVE_FEATURES=pickFolder` 声明）、`inAppBrowser`、`branch`、`usage`、`materialsPanel`、`mapHistory`、`changeLog`、`pluginManagement`、`dataRelocation`。T05 的 `materialsPanel` 由真实 Research Base 服务检测开启；其余未完成项仍关闭。
+    `pythonEnvs`、`folderPicker`（由原生外壳通过 `SCIENCESCOPE_NATIVE_FEATURES=pickFolder` 声明）、`inAppBrowser`、`branch`、`usage`、`materialsPanel`、`mapHistory`、`changeLog`、`pluginManagement`、`dataRelocation`。T05 的 `materialsPanel` 由真实 Research Base 服务检测开启；T11 的 Python 与文件夹选择已接通；T12 的 `branch` 在浏览器和 Windows 原生验收后检测真实运行时分支方法开启；其余未完成项仍关闭。
   - 前端 `desktop/features.mjs`（在 `info-tip.mjs` 之后最先加载）：按 `FEATURES` 表注入 CSS 隐藏入口（默认隐藏，状态返回后再显示）；
     包装原型的 `menu()` 去掉隐藏功能的菜单项和指向隐藏路由的链接；包装 `go()` 使隐藏路由不可导航；命令面板同样过滤（`preferences.mjs`）。
   - 原型专属、永远不可达：`help`（页面目录）、`page-doc`（逐页开发说明）、`resume`、`run`、`compose`、`free`、`welcome`。
@@ -539,6 +541,7 @@ r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，
 | 状态 | `GET /api/status`（含 `features`，见 2.18）、`POST /api/open-url`、`GET /api/settings/info`、`POST /api/settings/open-folder` |
 | 工作区与对话 | `GET/POST /api/workspace`、`GET /api/chats`、`GET /api/chats/:id/messages`、`GET /api/chats/deliverable`、`POST /api/chats/deliverable/open`、`POST /api/chats/update|move|delete|mode|temporary-close` |
 | 主对话 | `POST /api/chat`（流）、`POST /api/chat/stop`、`GET/POST /api/chat/outbox`、`GET /api/chat/activity`、`GET /api/chat/search` |
+| 消息分支 | `POST /api/chats/branch {chatId,messageId,mode:'reply'|'reask'}`、`POST /api/chats/draft {chatId,text}`；消息分页返回 `branchMode`、`runtimeSeq`、`completionStatus`，对话返回 `branchedFrom`、`reasoningEffort`、`draftText` |
 | 执行 | `GET /api/execution`、`POST /api/execution/goal|approval` |
 | 研究资料库 | `/api/research/*`：sources（新增 sort/direction 与 total/hasMore）、source、sources/update|remove|ingest、sync、search、read、items、item（含 evidenceCount）、items/update|supersede（expectedRevision）、links、links/remove、proposals、proposals/decide、brief、cite、usage、formats（见 2.17 与设计文档 §6）；research-input contextRefs 增加 itemId |
 | 本地语义检索 | `GET /api/research/embedding` 状态/进度；`POST /api/research/embedding {action: enable|disable|download|rebuild}`；search 支持 q 与重复 queries 参数，返回 mode/fallbackReason（T10 验收中） |
@@ -560,7 +563,7 @@ r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，
 | 表 | 用途 | 负责模块 |
 |---|---|---|
 | `schema_migrations`、`workspaces`、`projects`、`profile` | 版本、工作区快照、项目、个人资料 | `application-database.mjs`、`chat-store.mjs` |
-| `chats`、`messages`、`runtime_bindings` | 对话、消息（按序号分页）、对话与 DSH 会话的绑定 | `chat-store.mjs` |
+| `chats`、`messages`、`runtime_bindings`、`chat_branch_drafts` | 对话、消息（按序号分页）、DSH 会话绑定、分支来源/推理强度、消息轮次边界/完成状态、分支可编辑草稿（新增字段均为兼容性迁移） | `chat-store.mjs` |
 | `tool_activity` | 工具调用的展示投影（含工具前导语；专家回答也记录） | `tool-activity.mjs` |
 | `chat_outbox`、`chat_outbox_state` | 主对话发送队列（重启后暂停） | `chat-outbox.mjs` |
 | `execution_sessions` | 每个对话的执行策略与自动化目标 | `execution-service.mjs` |
@@ -615,7 +618,7 @@ desktop-interaction 的认证/路由夹具改用生产宿主后，仍在旧选�
 ## 6. 尚未接入真实功能的部分（⬜）
 
 界面上不再显示"尚未开放"一类提示（2026-09-25 用户要求）。未完成功能的入口由功能开关隐藏（2.18），各有任务书：
-内置浏览器与浏览器设置（T08）、从消息分支（T12）、用量分析（T13）、导图历史 / 版本说明页 / 版本比较 / 修改记录（T14）、
+内置浏览器与浏览器设置（T08）、用量分析（T13）、导图历史 / 版本说明页 / 版本比较 / 修改记录（T14）、
 插件安装与更新（T15）、目录迁移（T16）。Python 环境与原生文件夹选择已由 T11 接入，见2.20。
 记忆分类与人工管理由 T05 接线，自动整理仍属 T09。另有尚无任务书的：通知、截图快捷键、系统全局热键、导图导出、日志"定位到消息"、安装包与数据保留升级（ROADMAP 阶段 B）。
 

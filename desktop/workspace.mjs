@@ -1,4 +1,5 @@
 import { hostRequest } from './host-client.mjs';
+import { infoTip } from './info-tip.mjs';
 import './workspace-layout.mjs';
 
 // Expert discussion answers carry their real author and model from the host.
@@ -21,7 +22,73 @@ const baseGo=go;
 // their entry points stay hidden until the host enables them (features.mjs).
 // Never present the prototype article as a website or fake an inherited history.
 browserPanel=()=>`<aside class="rightpanel browser-panel"><div class="panel-resizer" data-v-resize></div><div class="panelhead between"><h2>浏览器</h2>${vib('close','close-panel','关闭浏览器')}</div></aside>`;
-branchAt=()=>{};
+const branching=new Set(),draftWrites=new Map(),branchReasoningLoaded=new Set();
+const branchLabel=mode=>mode==='reask'?'从此处重新提问':'从此回复分支';
+const branchDescription=message=>message?.expert
+  ?'从讨论前最后一轮主专家回复的运行时上下文分支，并保留截至这条专家回复的展示记录。专家回复不会自动加入主专家历史；草稿仍需你发送。'
+  :message?.role==='user'
+    ?'从上一轮已完成的主专家回复分支；首条问题会创建空对话。此轮问题、附件与标记放入可编辑草稿，仍需你发送。'
+    :'保留截至这轮回复的模型上下文，后续两边独立继续。此轮问题、附件与标记放入可编辑草稿，仍需你发送。';
+function branchMode(message) {
+  if(temporary||message?.streaming||message?.cancelled||message?.failed)return null;
+  return ['reply','reask'].includes(message?.branchMode)?message.branchMode:null;
+}
+function branchControl(message,extraClass='') {
+  const mode=branchMode(message);if(!mode)return '';
+  return `<span class="branch-action ${extraClass}"><button type="button" data-v="branch-message" data-id="${esc(message.id)}" data-branch-mode="${mode}" title="${branchLabel(mode)}">${ic('branch')}<span>${branchLabel(mode)}</span></button>${infoTip(branchDescription(message))}</span>`;
+}
+const originalMessageHTML=messageHTML;
+messageHTML=function(message) {
+  const template=document.createElement('template');template.innerHTML=originalMessageHTML(message);
+  for(const button of template.content.querySelectorAll('[data-v="branch-message"]'))button.replaceWith(...htmlNodes(branchControl(message)));
+  return template.innerHTML;
+};
+function htmlNodes(html){const template=document.createElement('template');template.innerHTML=html;return [...template.content.childNodes];}
+function syncBranchControls() {
+  for(const message of S.messages||[]) {
+    const actions=document.querySelector(`[data-message-id="${CSS.escape(message.id)}"] .msg-actions`);if(!actions)continue;
+    actions.querySelector('.branch-action')?.remove();
+    actions.querySelector('[data-v="branch-message"]')?.remove();
+    actions.querySelector('[data-v="message-menu"]')?.insertAdjacentHTML('beforebegin',branchControl(message));
+  }
+  const tools=document.querySelector('.chatbottom .worktools');
+  if(tools){tools.querySelector('.branch-action')?.remove();tools.querySelector('[data-v="branch-message"]')?.remove();const latest=(S.messages||[]).at(-1);tools.querySelector('.spacer')?.insertAdjacentHTML('beforebegin',branchControl(latest));}
+}
+branchAt=async function(messageId,mode) {
+  if(!window.ScienceScopeFeatures?.has('branch')||temporary)return;
+  const source=V.chat,message=S.messages.find(m=>m.id===messageId);
+  mode??=branchMode(message);if(!mode||branching.has(source))return;
+  branching.add(source);
+  try {
+    const result=await hostRequest('chats/branch',{chatId:source,messageId,mode});
+    const {chats}=await hostRequest('chats');S.threads=chats;
+    if(V.chat!==source)return;
+    await loadThread(result.chatId);
+    if(V.chat===result.chatId)document.querySelector('[data-draft="main"]')?.focus();
+  }catch(error){toast(error.message);}finally{branching.delete(source);}
+};
+function saveBranchDraft(id,text,{keepalive=false}={}) {
+  const thread=S.threads.find(t=>t.id===id);if(!thread?.branchedFrom)return Promise.resolve();
+  thread.draftText=text;
+  const work=(draftWrites.get(id)||Promise.resolve()).catch(()=>{}).then(()=>hostRequest('chats/draft',{chatId:id,text},{keepalive}));
+  draftWrites.set(id,work);return work;
+}
+window.addEventListener('input',event=>{
+  if(!event.target.matches('[data-draft="main"]')||temporary)return;
+  void saveBranchDraft(V.chat,event.target.value).catch(error=>toast(error.message));
+},true);
+window.addEventListener('click',event=>{
+  const target=event.target.closest('[data-v="branch-message"],[data-v="message-menu"],[data-ws="branch-source"]');if(!target)return;
+  event.preventDefault();event.stopImmediatePropagation();
+  if(target.dataset.ws==='branch-source'){void window.ScienceScopeWorkspace.openMessage(target.dataset.chatId,target.dataset.messageId).catch(error=>toast(error.message));return;}
+  const message=S.messages.find(m=>m.id===target.dataset.id);
+  if(target.dataset.v==='branch-message'){closeMenu();void branchAt(target.dataset.id,target.dataset.branchMode);return;}
+  const mode=branchMode(message),items=[{text:'复制消息',act:'copy-message',attrs:`data-id="${esc(target.dataset.id)}"`,icon:'copy'}];
+  if(mode)items.push({text:branchLabel(mode),act:'branch-message',attrs:`data-id="${esc(message.id)}" data-branch-mode="${mode}"`,icon:'branch'});
+  items.push({text:'引用到输入框',act:'quote-message',attrs:`data-id="${esc(target.dataset.id)}"`,icon:'chat'},{text:'复制消息位置',act:'copy-message-link',attrs:`data-id="${esc(target.dataset.id)}"`,icon:'copy'});
+  menu(items,target,'消息');
+  document.querySelector('#v-menu [data-v="branch-message"] .menu-text')?.insertAdjacentHTML('afterend',infoTip(branchDescription(message),{tag:'span'}));
+},true);
 const historyNav=page=>page&&(page.before||page.after)?`<div class="history-navigation"><button data-ws="history" data-direction="before" ${!page.before?'disabled':''}>向上加载 30 条</button><span>滚动加载 · 共 ${Number(page.total)} 条</span><button data-ws="history" data-direction="after" ${!page.after?'disabled':''}>向下加载 30 条</button><button data-ws="history" data-direction="latest">回到最新</button></div>`:'';
 function scrollLatest(){state.scrollLock=true;requestAnimationFrame(()=>{const box=document.querySelector('.messages');if(box)box.scrollTop=box.scrollHeight;requestAnimationFrame(()=>{state.scrollLock=false;});});}
 
@@ -87,9 +154,15 @@ loadThread=async function(id,navigate=true) {
     state.draft=null;
     if(thread.projectId)setProject(thread.projectId);
     const data=chatData[id] || {};
-    if(page) {data.messages=page.messages.map(m=>({...m,time:m.time||m.created,...authorOf(m,thread.model?.modelId)}));state.pages.set(id,page);}
+    if(page) {
+      await draftWrites.get(id);
+      Object.assign(thread,page.chat);
+      data.messages=page.messages.map(m=>({...m,time:m.time||m.created,...authorOf(m,thread.model?.modelId)}));state.pages.set(id,page);
+      if(thread.branchedFrom&&!Object.hasOwn(data,'draft'))data.draft=thread.draftText||'';
+    }
     chatData[id]=data;restoreChat(id,data);S.chatName=thread.title;
     if(thread.model)window.ScienceScopeModels?.select(thread.model);
+    if(thread.branchedFrom&&!branchReasoningLoaded.has(id)&&window.ScienceScopeReasoning) {window.ScienceScopeReasoning.setDefault(thread.reasoningEffort);branchReasoningLoaded.add(id);}
     if(navigate)go('work');render();capMemory();scheduleSave();scrollLatest();
   } catch {toast('读取聊天失败，原对话未被覆盖。');}
 };
@@ -144,6 +217,8 @@ chat=function() {
     return template.innerHTML;
   }
   const page=state.pages.get(V.chat);
+  const tools=template.content.querySelector('.chatbottom .worktools');
+  tools?.querySelector('[data-v="branch-message"]')?.replaceWith(...htmlNodes(branchControl(S.messages.at(-1))));
   if(page&&(page.before||page.after)) {
     messages.insertAdjacentHTML('afterbegin',historyNav(page));
   }
@@ -152,9 +227,13 @@ chat=function() {
 };
 mainhead=function() {
   const html=baseMainhead();
-  if(focusedProject())return html;
   const template=document.createElement('template');template.innerHTML=html;
-  template.content.querySelector('#overview-trigger')?.remove();
+  if(!focusedProject())template.content.querySelector('#overview-trigger')?.remove();
+  const source=activeThread()?.branchedFrom;
+  if(source&&CHAT_ROUTES.has(route)) {
+    const name=S.threads.find(t=>t.id===source.chatId)?.title||source.title||source.chatId;
+    template.content.querySelector('.mainhead .grow')?.insertAdjacentHTML('beforeend',`<div class="branch-source"><span>分支自</span><span> · </span><button type="button" data-ws="branch-source" data-chat-id="${esc(source.chatId)}" data-message-id="${esc(source.messageId)}"><span data-i18n-skip>${esc(name)}</span></button></div>`);
+  }
   return template.innerHTML;
 };
 go=function(destination) {
@@ -237,6 +316,9 @@ function notifyProjectFocus() {
   });
 }
 function afterRender() {
+  const thread=activeThread();
+  if(thread?.branchedFrom&&!branchReasoningLoaded.has(thread.id)&&window.ScienceScopeReasoning){window.ScienceScopeReasoning.setDefault(thread.reasoningEffort);branchReasoningLoaded.add(thread.id);}
+  syncBranchControls();
   notifyProjectFocus();scheduleSave();const box=document.querySelector('.messages');if(!box||box.dataset.paged)return;box.dataset.paged='true';
   let lastTop=box.scrollTop;
   const tryLoad=delta=>{if(state.scrollLock||state.paging||!delta)return;if(delta<0&&box.scrollTop<140)void pageHistory('before');else if(delta>0&&box.scrollHeight-box.scrollTop-box.clientHeight<140)void pageHistory('after');};
@@ -352,13 +434,17 @@ window.addEventListener('pagehide',()=>{
 });
 
 window.ScienceScopeWorkspace={
-  focusedProject,afterRender,confirmAction,
+  focusedProject,afterRender,confirmAction,syncBranchControls,
+  saveBranchDraft,
   async openMessage(chatId,messageId){
+    const source=S.threads.find(thread=>thread.id===chatId);
+    if(!source){toast('来源对话或消息已不可用。');return;}
     await loadThread(chatId);
     if(V.chat!==chatId)return;
     if(V.pending.has(chatId)){toast('此对话正在运行，已打开最新进度。');return;}
     const page=await hostRequest(`chats/${encodeURIComponent(chatId)}/messages?around=${encodeURIComponent(messageId)}`);
-    if(V.chat!==chatId||!page)return;
+    if(V.chat!==chatId)return;
+    if(!page?.messages.some(message=>message.id===messageId)){toast('来源对话或消息已不可用。');return;}
     S.messages=page.messages.map(m=>({...m,time:m.created,...authorOf(m)}));
     state.pages.set(chatId,page);saveThread();render();
     requestAnimationFrame(()=>{
@@ -395,6 +481,7 @@ window.ScienceScopeWorkspace={
   async beforeSend(id) {
     await window.ScienceScopeWorkspace.ready;
     if(!state.ready)throw new Error('工作区尚未就绪，暂不能发送。');
+    await draftWrites.get(id);
     if(!V.surface) {const payload=snapshot();await hostRequest('workspace',payload);state.lastSaved=JSON.stringify(payload);}
     const page=state.pages.get(id);if(id===V.chat&&page?.after)await pageHistory('latest');
   },
@@ -403,6 +490,7 @@ window.ScienceScopeWorkspace={
     if(!thread.temporary&&!S.threads.some(t=>t.id===thread.id))S.threads.unshift(thread);
     if(!thread.temporary) {state.drafts.delete(thread.projectId||'independent');if(state.draft?.id===thread.id)state.draft=null;}
     if(V.chat===thread.id)S.chatName=thread.title;
+    if(thread.branchedFrom&&thread.draftText===text)thread.draftText='';
     scheduleSave();
   },
   async settled(id) {
@@ -417,11 +505,14 @@ window.ScienceScopeWorkspace={
       const thread=S.threads.find(t=>t.id===id);if(thread)Object.assign(thread,page.chat);
       // Preserve the live DOM/selection; evict old memory after each turn.
       if(V.chat===id) {
+        const saved=new Map(page.messages.map(message=>[message.id,message]));
+        for(const message of S.messages){const receipt=saved.get(message.id);if(receipt){message.branchMode=receipt.branchMode;message.runtimeSeq=receipt.runtimeSeq;message.completionStatus=receipt.completionStatus;}}
         S.messages=S.messages.slice(-PAGE_LIMIT);state.pages.set(id,page);saveThread();
         const box=document.querySelector('.messages');
         const nodes=[...(box?.querySelectorAll(':scope > .message') || [])];
         for(const node of nodes.slice(0,Math.max(0,nodes.length-PAGE_LIMIT)))node.remove();
         box?.querySelector('.history-navigation')?.remove();box?.insertAdjacentHTML('afterbegin',historyNav(page));
+        syncBranchControls();
       }
       else if(chatData[id])chatData[id].messages=[];
     }catch {toast('聊天记录状态未能刷新，请暂时保留窗口。');}

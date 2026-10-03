@@ -23,7 +23,7 @@
 | `pythonEnvs` | （没有时 Python 字段只提供"系统 Python"） | T11 | 已接通（2026-09-29）：检测实际 Python service；设置/绑定/审批/真实解释器通过 |
 | `folderPicker` | 新建窗口的"选择…"、创建项目页的"选择已有文件夹" | T11 | 已接通（2026-09-29）：Tauri主窗口 `pick_folder` +宿主 `SCIENCESCOPE_NATIVE_FEATURES=pickFolder`；真实Win32选择/取消及原生项目写入通过 |
 | `inAppBrowser` | 顶栏/视图菜单"内置浏览器"、设置"内置浏览器"页、路由 `browser` `browser-settings` | T08 | 浏览器窗口与网页保存可用；在此之前学术站点用系统浏览器打开（`POST /api/open-url`，已实现） |
-| `branch` | 消息下方"从此分支"、消息菜单"从此开始分支"、输入框上方"从此分支"、路由 `branch` | T12 | 保持关闭：2026-09-29实测当前SDK stdio无fork方法，底层内存fork不持久化；待完整上游接线及端到端验收 |
+| `branch` | 消息操作/菜单/输入框上方的“从此回复分支 / 从此处重新提问”（按消息完成状态选择）、路由 `branch` | T12 | 已接通（2026-10-03）：浏览器与 Windows Tauri/WebView2 验收后，检测宿主 `forkSession` 和 `sessionTurns`；旧消息未知序号、未完成轮次与助手会话不显示入口 |
 | `usage` | 设置"用量分析"、路由 `usage` | T13 | 用量记录与 `/api/usage` 可用 |
 | `materialsPanel` | 附件菜单"项目材料与引用"、路由 `context` | T05 | 已接通：宿主检测 Research Base 服务；真实资源/条目选择、草稿恢复及模型输入已通过浏览器与原生 smoke（2026-09-27） |
 | `mapHistory` | 导图编辑器"更新历史"、路由 `map-history` `version-note` `diff` | T14 | 导图历史、版本说明页、版本比较接通真实数据 |
