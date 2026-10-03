@@ -95,7 +95,9 @@ try {
       response.writeHead(200,{'content-type':'text/event-stream'});
       let tool,args;
       if(!readAttempted){readAttempted=true;tool=input.tools?.find(item=>item.function?.name==='read');assert.ok(tool,'read tool registered');args={file_path:credentialPath};}
-      else if(!shellAttempted){shellAttempted=true;tool=input.tools?.find(item=>item.function?.name==='pwsh');assert.ok(tool,'pwsh tool registered');args={command:`Get-Content -LiteralPath '${dbPath.replaceAll("'","''")}' -Raw | Set-Content -LiteralPath '${markerPath.replaceAll("'","''")}'`,description:'Local protected-path denial fixture'};}
+      else if(!shellAttempted){shellAttempted=true;tool=input.tools?.find(item=>item.function?.name==='pwsh')??input.tools?.find(item=>item.function?.name==='bash');assert.ok(tool,'shell tool registered');
+        // Windows registers pwsh; other platforms register bash with the same protected-path policy.
+        args={command:tool.function.name==='pwsh'?`Get-Content -LiteralPath '${dbPath.replaceAll("'","''")}' -Raw | Set-Content -LiteralPath '${markerPath.replaceAll("'","''")}'`:`cat '${dbPath.replaceAll("'","'\\''")}' > '${markerPath.replaceAll("'","'\\''")}'`,description:'Local protected-path denial fixture'};}
       if(tool){response.write(`data: ${JSON.stringify({choices:[{delta:{tool_calls:[{index:0,id:`t21-call-${requests.length}`,type:'function',function:{name:tool.function.name,arguments:JSON.stringify(args)}}]}}]})}\n\n`);response.write('data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\n');}
       else {assert.ok(readAttempted&&shellAttempted,'required fixture tools registered');response.write('data: {"choices":[{"delta":{"content":"T21_GUARDS_CONFIRMED"}}]}\n\ndata: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n');}
       response.end('data: [DONE]\n\n');
@@ -116,7 +118,8 @@ try {
   await page.locator('[data-v="mode-menu"]').first().click();
   await page.locator('[data-execution="mode"][data-mode="full"]').click();
   await page.locator('dialog.workspace-confirm button[value="confirm"]').click();
-  assert.equal(await page.evaluate(()=>window.ScienceScopeExecution.mode()),'full');
+  // The confirm dialog resolves asynchronously after its button closes it.
+  await page.waitForFunction(()=>window.ScienceScopeExecution.mode()==='full');
   await page.getByRole('textbox',{name:'主输入框'}).fill('Exercise the local protected path fixture once, then acknowledge the denials.');
   await page.getByRole('button',{name:'发送',exact:true}).click();
   await page.locator('[data-protected-path-approval]').waitFor({state:'visible',timeout:60000});

@@ -59,6 +59,15 @@ test('shell commands recognize protected paths and common variable expansions, w
     'Rscript plot.R', 'git status', 'curl https://example.org/paper', 'Invoke-WebRequest https://example.org',
     'Get-Content C:\\App\\.sciencescope-local\\state2\\paper', 'echo no secret', 'cat "$HOME/research/paper.md"'];
   for (const command of clean) assert.equal((await policy.inspectShell({ command, cwd: 'C:\\App\\research' })).protected, false, command);
+  // Review 2026-10-03: ancestors, globs, quote-split and code-built paths reach the root too.
+  const projectCwd = 'C:\\App\\.sciencescope-local\\projects\\p1';
+  const indirect = ['grep -r api_key ..\\..', 'Get-ChildItem -Recurse ..\\.. | Select-String key', 'find ../.. -name "*.sqlite"',
+    'cd ..\\.. && type state\\db', 'cat ../../stat?/db', 'Get-Content ..\\..\\st*\\db', 'cat ../../"state"/db', "cat ../../st''ate/db",
+    'python -c "print(open(\'../../\'+\'state/db\').read())"', 'D=../..; cat $D/state/db', 'ls ~', 'grep -r key C:\\App'];
+  for (const command of indirect) assert.equal((await policy.inspectShell({ command, cwd: projectCwd })).protected, true, command);
+  const routine = ['python -c "print(1 / 2)"', 'cat data/*.csv', 'ls ./figures/*.png', 'find . -name "*.py"', 'pip install numpy',
+    'git log -- src/a.py', 'curl -o paper.pdf https://example.org/a/b.pdf', 'Rscript -e "x <- c(1,2)/3"', 'ls ../p2', 'type ..\\p2\\notes.md'];
+  for (const command of routine) assert.equal((await policy.inspectShell({ command, cwd: projectCwd })).protected, false, command);
   assert.equal((await policy.inspectShell({ command: 'Get-ChildItem .', workdir: 'C:\\App\\.sciencescope-local\\state' })).protected, true);
   assert.equal((await policy.inspectShell({ command: 'Get-Content state', cwd: 'C:\\App\\.sciencescope-local' })).protected, true, 'bare protected directory argument is inspected');
 });
