@@ -1,5 +1,24 @@
 # Desktop implementation — first increment
 
+## 2026-10-03 Runtime port draft, T22/T23 briefs (Claude)
+
+- User question: DSH is an alpha framework and a large refactor may come
+  later. Decision: no migration before alpha. Low-cost insurance now:
+  `docs/design/RUNTIME_PORT.md` (draft) describes the ~30 host methods,
+  events, approval rules and data ownership. Measured: no `@deepseek-ai`
+  import outside `adapters/`. The only DSH-locked data is the model-context
+  history, and it has no neutral export yet. A DSH limitation table records
+  the evidence for a post-alpha decision.
+- T23 (after T09): boundary test, verified port doc, runtime contract test
+  entry (shell chosen per platform), neutral session export.
+- T22 (stage B, after batches 1–4): Windows x64 only. Bundled Node, native
+  modules and uv; data root moves to the user data directory (today it is
+  the repository); platform module; NSIS; updater; Authenticode (blocked on a
+  certificate); LICENSE and third-party notices. The repository has no
+  LICENSE yet. User decisions are listed in the brief.
+- Dot is supplementary evidence, not the main tester (its VM blocked 28
+  items through Unix sockets in its first run).
+
 ## 2026-10-03 Review of T10 transport, T21 and the T10 follow-up (Claude, cloud)
 
 - Merged into `claude/determined-pasteur-jxpzw8`: `codex/t10-transport-20261003@4f5506d`,
