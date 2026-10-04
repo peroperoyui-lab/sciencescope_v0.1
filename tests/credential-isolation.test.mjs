@@ -105,7 +105,17 @@ test('real SDK and web profiles share migrated/saved credentials while shell rec
   await new Promise(resolve => fixtureServer.listen(0, '127.0.0.1', resolve));
   try {
     const options = { home, cwd: workspace, credentialPath, protectedPaths: [home, path.dirname(credentialPath)] };
-    [host, web] = await Promise.all([createDshHost({ ...options, sessionHeaders: ['x-test'] }), createDshWebHost(options)]);
+    // Keep concurrent boot coverage, but retain every successful launch for
+    // cleanup if its peer rejects. Fixture startup gets a load-tolerant bound;
+    // production's default readiness deadline remains unchanged.
+    const launches = await Promise.allSettled([
+      createDshHost({ ...options, sessionHeaders: ['x-test'] }),
+      createDshWebHost({ ...options, timeoutMs: 60000 }),
+    ]);
+    if (launches[0].status === 'fulfilled') host = launches[0].value;
+    if (launches[1].status === 'fulfilled') web = launches[1].value;
+    const rejected = launches.find(launch => launch.status === 'rejected');
+    if (rejected) throw rejected.reason;
     const runtimeConfig = { providers: { fixture: { api: 'openai-completions', baseURL: `http://127.0.0.1:${fixtureServer.address().port}/v1`, apiKeyEnv: ref, models: [{ id: 'fixture', contextWindow: 32768, maxTokens: 256 }] }, dotenv: { api: 'openai-completions', baseURL: 'http://127.0.0.1:1/v1', apiKeyEnv: 'K', models: [] } } };
     const credentialInfo = await web.call('credentials', 'describe', { refs: [ref] });
     assert.equal(credentialInfo[ref].configured, true);
