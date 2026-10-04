@@ -9,7 +9,7 @@
 - 开工前已读 2026-10-03 审阅记录；合并后的受保护路径检查及引用行显示修复，在 Windows 基线验收通过。
 - 后续取回的远端 `91b471a` 为新任务/规则/许可及包元数据的文档更新，本任务仍以用户指定的 `edf02f3` 为代码基线。未把 T09 扩展为新的运行时迁移任务。
 - 不开 PR、不合并。完成并推送后停止，等 Claude 审阅；本轮未开始其他任务。
-- 主功能提交：`d60fc5471fc92b91f4e915b9b85ff11b78a147f0`；仅31个任务文件进入该提交，见本任务提交清单。ROADMAP、SYSTEM_SPEC和DESKTOP_IMPLEMENTATION的交付状态在后续文档专用提交中更新；最终分支HEAD以交付消息为准。
+- 主功能提交 `d60fc5471fc92b91f4e915b9b85ff11b78a147f0` 包含31个任务文件，并在同一提交更新 SYSTEM_SPEC、DESKTOP_IMPLEMENTATION、ROADMAP；后续文档专用提交补充本报告、ROADMAP、DESKTOP_IMPLEMENTATION的交付回执，最终分支HEAD以交付消息为准。
 
 ## 实现行为
 
