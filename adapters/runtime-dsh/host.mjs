@@ -158,8 +158,9 @@ export async function createDshHost(options = {}) {
   const streamAddress = streamServer.address();
   const streamEndpoint = `http://127.0.0.1:${streamAddress.port}/assistant-stream`;
 
-  async function startSession({ model, workspace, runtimeConfig, sessionId: requestedSessionId, noTools = false, persona, proposalTargetChatId, sessionEnv = {} } = {}) {
+  async function startSession({ model, workspace, runtimeConfig, sessionId: requestedSessionId, noTools = false, persona, proposalTargetChatId, sessionEnv = {}, maxTokens } = {}) {
     if (!model?.providerId || !model?.modelId) throw new TypeError('model.providerId and model.modelId are required');
+    if (maxTokens !== undefined && (!Number.isSafeInteger(maxTokens) || maxTokens < 1)) throw new TypeError('maxTokens must be a positive safe integer');
     if (model.reasoningEffort !== undefined && (typeof model.reasoningEffort !== 'string' || !/^[A-Za-z0-9._-]{1,80}$/u.test(model.reasoningEffort))) {
       throw new TypeError('model.reasoningEffort must be a non-empty DSH reasoning-effort id');
     }
@@ -233,11 +234,12 @@ export async function createDshHost(options = {}) {
         patches,
         dshHome: options.home,
         processCwd: workspace ?? cwd,
-        env: { ...sessionProcessEnv, SCIENCESCOPE_STREAM_ENDPOINT: streamEndpoint, SCIENCESCOPE_HOST_CALL_ENDPOINT: streamEndpoint.replace(/\/assistant-stream$/u, '/host-call'), SCIENCESCOPE_STREAM_TOKEN: streamToken, SCIENCESCOPE_STREAM_SESSION: sessionId, SCIENCESCOPE_PROVIDER: model.providerId, SCIENCESCOPE_MODEL: model.modelId, ...(persona === undefined ? {} : { SCIENCESCOPE_PERSONA: persona }), ...(proposalTargetChatId ? { SCIENCESCOPE_PROPOSAL_TARGET_CHAT_ID: proposalTargetChatId } : {}), ...(noTools ? { SCIENCESCOPE_NO_TOOLS: '1' } : {}) },
+        env: { ...sessionProcessEnv, SCIENCESCOPE_STREAM_ENDPOINT: streamEndpoint, SCIENCESCOPE_HOST_CALL_ENDPOINT: streamEndpoint.replace(/\/assistant-stream$/u, '/host-call'), SCIENCESCOPE_STREAM_TOKEN: streamToken, SCIENCESCOPE_STREAM_SESSION: sessionId, SCIENCESCOPE_PROVIDER: model.providerId, SCIENCESCOPE_MODEL: model.modelId, ...(persona === undefined ? {} : { SCIENCESCOPE_PERSONA: persona }), ...(proposalTargetChatId ? { SCIENCESCOPE_PROPOSAL_TARGET_CHAT_ID: proposalTargetChatId } : {}), ...(noTools ? { SCIENCESCOPE_NO_TOOLS: '1' } : {}), ...(maxTokens === undefined ? {} : { SCIENCESCOPE_MAX_TOKENS: String(maxTokens) }) },
         cwd: workspace ?? cwd,
         provider: model.providerId,
         model: model.modelId,
         ...(model.reasoningEffort === undefined ? {} : { reasoningEffort: ReasoningEffortId(model.reasoningEffort) }),
+        ...(maxTokens === undefined ? {} : { maxTokens }),
       });
       harnesses.set(key, harness);
     }

@@ -1,5 +1,6 @@
 import {infoTip} from './info-tip.mjs';
 import {hostRequest} from './host-client.mjs';
+import {memoryConsolidationSettingsContent} from './memory-consolidation.mjs';
 
 const summaryHelp='任务秘书在下列时机更新对话纪要。总结越少，专家和秘书收到的纪要之后原文越长；每 n 个新 token 用于触发总结，不会静默截断原文。';
 const workbenchHelp='导图、稿件版本、计划、日志有大量你的参与，非必要不开启。提议需要你逐条确认后才写入；直接更新只追加或标记，不改写你的内容，可撤销。';
@@ -13,7 +14,7 @@ function summaryContent(){return `<form data-summary-settings><h2>自动总结${
   <h3>随总结更新工作站${infoTip(workbenchHelp)}</h3>
   ${[['map','导图'],['versions','稿件版本说明'],['plans','计划'],['log','日志']].map(([key,label])=>`<label>${label}<select name="${key}"><option value="off" data-summary-off data-i18n-skip>关闭</option><option value="propose">提议</option><option value="apply">直接更新</option></select></label>`).join('')}
   </fieldset><p data-summary-feedback role="status"></p></form>`;}
-export function secretaryPreferencesContent(){return `<section data-secretary-preferences>${summaryContent()}<h2>文献版本整理</h2><form data-secretary-template><label>版本说明模板 · Markdown${infoTip('用于下一次整理说明；不会重写已有说明或原件。', {label: '模板说明'})}<textarea name="notesTemplate" maxlength="16000" required rows="8" disabled></textarea></label><button class="btn" type="submit" disabled>保存模板</button><p data-template-feedback role="status"></p></form><label><input type="checkbox" data-secretary-organize disabled> 导入材料后自动整理当前项目的版本说明${infoTip('只影响当前项目；整理会使用已选择的模型并产生 API 用量。', {label: '自动整理说明'})}</label><p data-organize-feedback role="status"></p></section>`;}
+export function secretaryPreferencesContent(){return `<section data-secretary-preferences>${summaryContent()}${memoryConsolidationSettingsContent()}<h2>文献版本整理</h2><form data-secretary-template><label>版本说明模板 · Markdown${infoTip('用于下一次整理说明；不会重写已有说明或原件。', {label: '模板说明'})}<textarea name="notesTemplate" maxlength="16000" required rows="8" disabled></textarea></label><button class="btn" type="submit" disabled>保存模板</button><p data-template-feedback role="status"></p></form><label><input type="checkbox" data-secretary-organize disabled> 导入材料后自动整理当前项目的版本说明${infoTip('只影响当前项目；整理会使用已选择的模型并产生 API 用量。', {label: '自动整理说明'})}</label><p data-organize-feedback role="status"></p></section>`;}
 const mounted=new WeakSet(),channel=new BroadcastChannel('sciencescope-workbench');
 function translateOffOptions(){for(const option of document.querySelectorAll('[data-summary-off]')){const text=document.documentElement.lang==='en'?(window.ScienceScopeI18n?.translate('关闭自动更新')||'Off'):'关闭';if(option.textContent!==text)option.textContent=text;}}
 new MutationObserver(translateOffOptions).observe(document.documentElement,{attributes:true,attributeFilter:['lang']});

@@ -40,7 +40,36 @@ async function request(route,body,{expected=200}={}){
   const text=await response.text();let value={};try{value=text?JSON.parse(text):{};}catch{value={text};}
   assert.equal(response.status,expected,`${route}: ${text}`);return value;
 }
-async function openPage(url=server.url){const target=await browser.newPage();await installApiToken(target,server);await target.goto(url);await target.waitForFunction(()=>window.ScienceScopeWorkspace?.ready);return target;}
+async function desktopReady(target){
+  await target.waitForFunction(()=>!!(window.ScienceScopeWorkspace?.ready&&window.ScienceScopeProfile?.ready&&window.ScienceScopePreferences?.ready&&window.ScienceScopeRoleSettings?.ready));
+  // Workspace completion does not cover the independent settings/profile/role
+  // initializers. Their completion can still remount settings.
+  await target.evaluate(async()=>{
+    window.__summarySmokeReadyEntered=true;
+    await Promise.all([window.ScienceScopeWorkspace.ready,window.ScienceScopeProfile.ready,window.ScienceScopePreferences.ready,window.ScienceScopeRoleSettings.ready]);
+    window.__summarySmokeDesktopReady=true;
+  });
+}
+async function openPage(url=server.url,{startupRegression=false}={}){
+  const target=await browser.newPage();await installApiToken(target,server);
+  let releaseRoles,rolesReached,rolesHandled;
+  const rolesGate=new Promise(resolve=>releaseRoles=resolve),rolesSeen=new Promise(resolve=>rolesReached=resolve);
+  const rolesDone=new Promise(resolve=>rolesHandled=resolve);
+  let handlingRoles=false;
+  const holdRoles=async route=>{handlingRoles=true;rolesReached();try{await rolesGate;await route.continue();}finally{rolesHandled();}};
+  if(startupRegression)await target.route('**/api/roles',holdRoles);
+  try{
+    await target.goto(url);const settled=desktopReady(target);
+    if(startupRegression){
+      await rolesSeen;
+      await target.waitForFunction(()=>window.__summarySmokeReadyEntered);
+      await target.evaluate(async()=>{await Promise.all([window.ScienceScopeWorkspace.ready,window.ScienceScopeProfile.ready,window.ScienceScopePreferences.ready]);});
+      assert.equal(await target.evaluate(()=>!!window.__summarySmokeDesktopReady),false,'startup readiness must await the delayed role configuration, even after workspace/preferences finish');
+      releaseRoles();
+    }
+    await settled;return target;
+  }finally{releaseRoles();if(startupRegression){if(handlingRoles)await rolesDone;await target.unroute('**/api/roles',holdRoles);}}
+}
 async function openSecretary(target=page){await target.evaluate(async chatId=>{await window.ScienceScopeWorkspace.ready;await window.SSV2.loadThread(chatId);if(V.panel!=='secretary')openPanel('secretary');},chatId);await target.waitForFunction(chatId=>window.ScienceScopeAssistants?.entry('secretary',chatId).loaded,chatId);}
 async function waitSettings(){await page.waitForFunction(()=>{
   const form=document.querySelector('[data-summary-settings]'),fieldset=form?.querySelector('fieldset');
@@ -49,7 +78,7 @@ async function waitSettings(){await page.waitForFunction(()=>{
   window.__summarySettingsMount={form,count};return count>=6;
 });}
 async function openMinutes(target=page){await target.locator('[data-v="workspace-menu"]').first().click();await target.locator('#v-menu [data-v="chat-minutes"]').click();await target.waitForSelector('#modal .minutes-dialog');}
-async function appearance(language,theme,target=page){await request('preferences',{language,theme});await target.reload();await target.waitForFunction(({language,theme})=>window.ScienceScopeWorkspace?.ready&&document.documentElement.lang===(language==='en'?'en':'zh-CN')&&document.documentElement.dataset.theme===theme,{language,theme});}
+async function appearance(language,theme,target=page){await request('preferences',{language,theme});await target.reload();await desktopReady(target);await target.waitForFunction(({language,theme})=>document.documentElement.lang===(language==='en'?'en':'zh-CN')&&document.documentElement.dataset.theme===theme,{language,theme});}
 async function screenshot(kind,key){
   await page.evaluate(async()=>{
     await document.fonts.ready;
@@ -119,7 +148,7 @@ try{
   await waitSummary(expectedSummary);await page.waitForFunction(()=>document.querySelector('[data-summary-feedback]')?.textContent.includes('已保存'));
 
   // A real host restart over the same data root proves durable settings.
-  await page.close();await server.close();server=await launch();page=await openPage();page.on('pageerror',error=>errors.push(error.message));
+  await page.close();await server.close();server=await launch();page=await openPage(server.url,{startupRegression:true});page.on('pageerror',error=>errors.push(error.message));
   await page.evaluate(()=>go('secretary-settings'));await waitSettings();
   assert.equal(await page.locator('[data-summary-settings] [name="messagesN"]').inputValue(),'12');
   assert.equal(await page.locator('[data-summary-settings] [name="tokensEnabled"]').isChecked(),false);

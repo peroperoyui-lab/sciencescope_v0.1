@@ -26,6 +26,7 @@
 | `branch` | 消息操作/菜单/输入框上方的“从此回复分支 / 从此处重新提问”（按消息完成状态选择）、路由 `branch` | T12 | 已接通（2026-10-03）：浏览器与 Windows Tauri/WebView2 验收后，检测宿主 `forkSession` 和 `sessionTurns`；旧消息未知序号、未完成轮次与助手会话不显示入口 |
 | `usage` | 设置"用量分析"、路由 `usage` | T13 | 用量记录与 `/api/usage` 可用 |
 | `materialsPanel` | 附件菜单"项目材料与引用"、路由 `context` | T05 | 已接通：宿主检测 Research Base 服务；真实资源/条目选择、草稿恢复及模型输入已通过浏览器与原生 smoke（2026-09-27） |
+| `memoryConsolidation` | 秘书设置的记忆整理表单、对话菜单“整理这段对话” | T09 | 检测宿主 `startSession/send` 与应用整理服务；2026-10-04 浏览器及 Windows Tauri/WebView2 的空闲提议、确认、来源定位和下一轮 Main 简报通过 |
 | `mapHistory` | 导图编辑器"更新历史"、路由 `map-history` `version-note` `diff` | T14 | 导图历史、版本说明页、版本比较接通真实数据 |
 | `changeLog` | 对话菜单"修改记录"、命令面板"查看修改记录"、路由 `changes` | T14 | 修改记录由真实事件生成 |
 | `pluginManagement` | （目前只删除了"尚待接入"说明；插件区只读） | T15 | 插件安装、更新、启停可用 |
