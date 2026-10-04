@@ -1,0 +1,196 @@
+{
+  "date": "2026-10-03",
+  "stage": "C",
+  "status": "PASS",
+  "baseline": "edf02f33ccb720c1e0d9178cb03a11ea28f47052",
+  "branch": "dot/upgrade-rehearsal-20261003",
+  "scope": "Linux API/SQLite/owned synthetic file data; real DSH + localhost model",
+  "nodes": [
+    {
+      "node": "98e560a",
+      "sha": "98e560a13356d18455d1f397b416812e2fceb63a",
+      "status": "PASS",
+      "rows": 40,
+      "tables": 29,
+      "files": 4,
+      "apiViews": 10,
+      "modelRequests": 10,
+      "unsupportedOldVersion": [
+        "expert-adoption",
+        "minutes",
+        "python-bindings",
+        "research-items",
+        "branched-conversation"
+      ],
+      "checks": [
+        "raw-storage-preservation",
+        "api-payload-preservation",
+        "runtime-history-resume",
+        "marks-quotes-library-functionality",
+        "independent-history-isolation",
+        "post-upgrade-chat-expert-functionality"
+      ],
+      "evidence": ".sciencescope-local/temp/dot/upgrade/matrix-pvnA2U/98e560a",
+      "intentionalRestartChanges": []
+    },
+    {
+      "node": "7eaa4aa",
+      "sha": "7eaa4aaae841eb1416df24a6a4c3cffbacca7c11",
+      "status": "PASS",
+      "rows": 49,
+      "tables": 38,
+      "files": 4,
+      "apiViews": 13,
+      "modelRequests": 14,
+      "unsupportedOldVersion": [
+        "python-bindings",
+        "branched-conversation"
+      ],
+      "checks": [
+        "raw-storage-preservation",
+        "api-payload-preservation",
+        "runtime-history-resume",
+        "marks-quotes-library-functionality",
+        "independent-history-isolation",
+        "post-upgrade-chat-expert-functionality"
+      ],
+      "evidence": ".sciencescope-local/temp/dot/upgrade/matrix-pvnA2U/7eaa4aa",
+      "intentionalRestartChanges": []
+    },
+    {
+      "node": "a3e79e2",
+      "sha": "a3e79e24f59b1da06eb91e941f1f816a9062671c",
+      "status": "PASS",
+      "rows": 52,
+      "tables": 41,
+      "files": 6,
+      "apiViews": 13,
+      "modelRequests": 13,
+      "unsupportedOldVersion": [
+        "python-bindings",
+        "branched-conversation"
+      ],
+      "checks": [
+        "raw-storage-preservation",
+        "api-payload-preservation",
+        "runtime-history-resume",
+        "marks-quotes-library-functionality",
+        "independent-history-isolation",
+        "post-upgrade-chat-expert-functionality"
+      ],
+      "evidence": ".sciencescope-local/temp/dot/upgrade/matrix-pvnA2U/a3e79e2",
+      "intentionalRestartChanges": []
+    },
+    {
+      "node": "46f4e8f",
+      "sha": "46f4e8f9bc100c70828baff21e15900fbf7a36a9",
+      "status": "PASS",
+      "rows": 60,
+      "tables": 46,
+      "files": 6,
+      "apiViews": 15,
+      "modelRequests": 13,
+      "unsupportedOldVersion": [
+        "branched-conversation"
+      ],
+      "checks": [
+        "raw-storage-preservation",
+        "api-payload-preservation",
+        "runtime-history-resume",
+        "marks-quotes-library-functionality",
+        "independent-history-isolation",
+        "post-upgrade-chat-expert-functionality"
+      ],
+      "evidence": ".sciencescope-local/temp/dot/upgrade/matrix-pvnA2U/46f4e8f",
+      "intentionalRestartChanges": []
+    },
+    {
+      "node": "edf02f3",
+      "sha": "edf02f33ccb720c1e0d9178cb03a11ea28f47052",
+      "status": "PASS",
+      "rows": 69,
+      "tables": 46,
+      "files": 6,
+      "apiViews": 16,
+      "modelRequests": 14,
+      "unsupportedOldVersion": [],
+      "checks": [
+        "raw-storage-preservation",
+        "api-payload-preservation",
+        "runtime-history-resume",
+        "marks-quotes-library-functionality",
+        "independent-history-isolation",
+        "branch-context-isolation",
+        "post-upgrade-chat-expert-functionality"
+      ],
+      "evidence": ".sciencescope-local/temp/dot/upgrade/matrix-pvnA2U/edf02f3",
+      "intentionalRestartChanges": [
+        {
+          "table": "chat_outbox_state",
+          "key": [
+            "upgrade-main"
+          ],
+          "column": "paused",
+          "before": 0,
+          "after": 1
+        }
+      ]
+    }
+  ],
+  "totalBaselineRows": 270,
+  "totalVerifiedFiles": 26,
+  "totalApiViews": 67,
+  "finalMatrixModelRequests": 64,
+  "paidRequests": 0,
+  "sameDataDirectories": true,
+  "productChanges": false,
+  "pushed": false,
+  "credentialMigration": {
+    "passed": true,
+    "successfulRepeatedRuns": 2,
+    "successfulLocalhostHandshakes": 6,
+    "sameHomeAcrossOldUpgradeRestart": true,
+    "legacyCredentialCreatedThroughOldRealDshApi": true,
+    "fullCredentialDocumentBytesPreserved": true,
+    "legacyCredentialRemoved": true,
+    "providerSettingsPreserved": true,
+    "linuxSecretDirectoryMode": "0700",
+    "linuxCredentialMode": "0600",
+    "restartUnchanged": true,
+    "historicalRuntimeContextRetained": true,
+    "noDummyInProviderBodiesOrRuntimeEvents": true,
+    "noDummyInOwnedLogsSettingsSessionsOrEvidence": true,
+    "paidProviderRequests": 0,
+    "realProviderAcceptance": false,
+    "windowsNativeAcceptance": false,
+    "regression": {
+      "tests": 4,
+      "pass": 4,
+      "fail": 0,
+      "skipped": 0,
+      "evidence": ".sciencescope-local/temp/dot/upgrade/credentials/regression-evidence/result.json"
+    }
+  },
+  "evidence": {
+    "matrix": ".sciencescope-local/temp/dot/upgrade/matrix-pvnA2U/summary.json",
+    "historicalSources": ".sciencescope-local/temp/dot/upgrade/source-metadata/historical-sources.json",
+    "credentials": ".sciencescope-local/temp/dot/upgrade/credentials/summary.json"
+  },
+  "notRun": [
+    "Windows installer/native/WebView2/ACL acceptance",
+    "real-provider or actual OpenCode key migration",
+    "managed Python interpreter/package upgrade",
+    "queued/in-flight outbox upgrade",
+    "secretary/global assistant histories and tool receipts",
+    "arbitrary production-user-data or all historical commits"
+  ],
+  "retainedExploratoryEvidence": [
+    ".sciencescope-local/temp/dot/upgrade/current-seed.log",
+    ".sciencescope-local/temp/dot/upgrade/current-seed-r2.log",
+    ".sciencescope-local/temp/dot/upgrade/edf02f3-r3/verify-first-failure.json",
+    ".sciencescope-local/temp/dot/upgrade/edf02f3-r3/verify-second-failure.json",
+    ".sciencescope-local/temp/dot/upgrade/7eaa4aa-verified/verify-result.json",
+    ".sciencescope-local/temp/dot/upgrade/a3e79e2-verified/seed-result.json",
+    ".sciencescope-local/temp/dot/upgrade/matrix-stable.log"
+  ]
+}
