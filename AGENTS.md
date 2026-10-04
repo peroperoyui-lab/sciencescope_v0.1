@@ -48,7 +48,8 @@ do not redesign them or import the rejected old GUI.
   OpenCode Go key is encouraged wherever it adds evidence (cheap models).
 - Dot (2026-10-03, docs/tasks/DOT.md): an Astra-level assistant on a Linux VM
   with unlimited tokens for verification, flaky-test hunting, data-preserving
-  upgrade rehearsal, red-teaming and multi-run evaluation. It works only on
+  upgrade rehearsal and multi-run evaluation (red-teaming cancelled
+  2026-10-04: Dot declines it). It works only on
   `dot/` branches, never changes product code, and reports defects for Sol or
   Claude to fix. It cannot do Windows native acceptance.
 - Prioritize working features; use proportionate smoke/regression checks, not
