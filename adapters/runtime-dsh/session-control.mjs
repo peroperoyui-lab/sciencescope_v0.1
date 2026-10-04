@@ -343,6 +343,9 @@ export function apply(ctx) {
         }
         if (req.url === '/experts') {
           const result = await runExperts(value);
+          // Deliver every queued expert event before answering: the host stops
+          // observing this run when the response arrives (Dot flaky survey B, 6/30).
+          await eventTail;
           res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ result })); return;
         }
         if(req.url==='/interrupt'){

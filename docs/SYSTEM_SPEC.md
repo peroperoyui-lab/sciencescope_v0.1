@@ -219,6 +219,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
       回答若用 DSH `present` 工具展示了文件（图片、文档等交付物），块末附 `[Files presented with this answer]` 列表（路径与说明）；
       只读取或中途修改过的文件、工具调用、工具结果、前导语都不传（2026-09-26 用户要求；此前传的是所有工具参数里出现过的路径）。
     - `identityPrompt()` 生成每位专家的身份与本轮任务说明（有序 / 被邀请 / 审核）。
+    - `/experts` 在回应前等待所有已排队的专家事件送达宿主，避免 `expert-end` 丢失（2026-10-04 修复，Dot 普查 6/30）。
     - 审核专家在第一次 `runExperts` 全部结束后单独运行，输入为同一前文 + 本轮各专家回答（`<answer speaker=…>`）。
     - `pendingForMain()`：主专家下一轮发送时，把它还没读过的、已采纳的专家回答作为一段"其他参与者的消息"放在用户消息前，发送成功后标记 `main_seen`。
     - `adopt()`：切换审核结论是否进入后续上下文。
@@ -355,7 +356,7 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
   每个输入框可选模型，推理强度只列模型声明支持的选项。
 - **状态**：✅（单元、DSH、真实模型）。
 - **技术实现**：`desktop/model-settings.mjs`、`provider-draft.mjs`（校验，不按模型名猜协议）、`reasoning.mjs`；
-  `adapters/runtime-dsh/web-host.mjs` 在回环地址启动 DSH 完整 Web profile；`provider-service.mjs` 调用其 `settings`、`credentials`、`llm.discoverModels`、`session.modelCatalog` 服务。
+  `adapters/runtime-dsh/web-host.mjs` 在回环地址启动 DSH 完整 Web profile；`provider-service.mjs` 调用其 `settings`、`credentials`、`llm.discoverModels`、`session.modelCatalog` 服务。该进程在后台启动（上限 60 秒），失败经 `onError` 报告并在下一次服务商调用时重试，不会让整次运行都无法配置服务商（2026-10-04 Claude 审阅修复，Dot 普查 2/30）。
   界面创建的 Provider 以 `sciencescope-` 开头，凭据存在 DSH 的文件型凭据库（不是系统钥匙串）。
   部分 Provider 需要会话亲和头：`state/runtime-client.json` 的 `sessionHeaders`，由 `host.mjs` 以启动补丁注入。
   接口：`GET /api/providers`、`POST /api/providers/save|discover|remove`、`GET /api/model-info`。

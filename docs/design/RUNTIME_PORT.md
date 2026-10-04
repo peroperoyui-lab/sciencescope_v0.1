@@ -37,7 +37,7 @@
 
 | 方法 | 语义 |
 |---|---|
-| `startSession({model, workspace, runtimeConfig, sessionId?, noTools?, persona?, proposalTargetChatId?, sessionEnv?})` → `sessionId` | 启动或恢复会话。给出已有 `sessionId` 时必须恢复其完整模型上下文。`model = {providerId, modelId, reasoningEffort?}`。`sessionEnv` 是 Python 环境等会话环境；同一会话不能以不同环境重复启动（需先 `releaseSession`） |
+| `startSession({model, workspace, runtimeConfig, sessionId?, noTools?, persona?, proposalTargetChatId?, sessionEnv?, maxTokens?})` → `sessionId` | 启动或恢复会话。`maxTokens`（T09 加入）只用于后台整理的短会话，T24 按"输出上限取模型声明值"复核。给出已有 `sessionId` 时必须恢复其完整模型上下文。`model = {providerId, modelId, reasoningEffort?}`。`sessionEnv` 是 Python 环境等会话环境；同一会话不能以不同环境重复启动（需先 `releaseSession`） |
 | `send({sessionId, text, onEvent})` → `{sessionId, finalResponse}` | 发送一轮用户消息，等整轮（含所有工具循环）结束才返回。没有最终文本时抛错，错误带服务商失败码。事件见 §4 |
 | `interrupt(sessionId)` | 停止当前轮，取消该会话的待审批请求 |
 | `releaseSession(sessionId)` | 释放会话进程；日志保留，可再次 `startSession` 恢复。宿主不为历史对话常驻进程 |
