@@ -40,6 +40,11 @@ export function apply(ctx) {
   // A model-created ordinary subagent must not inherit this application seam.
   const expertCreation = new AsyncLocalStorage();
   const agentOptions = { provider: process.env.SCIENCESCOPE_PROVIDER, model: process.env.SCIENCESCOPE_MODEL };
+  if (process.env.SCIENCESCOPE_MAX_TOKENS !== undefined) {
+    const maxTokens = Number(process.env.SCIENCESCOPE_MAX_TOKENS);
+    if (!Number.isSafeInteger(maxTokens) || maxTokens < 1) throw new TypeError('Invalid session output token budget');
+    agentOptions.maxTokens = maxTokens;
+  }
   const noTools = process.env.SCIENCESCOPE_NO_TOOLS === '1';
   function pauseForPythonEnvironmentRefresh(agent, source) {
     if (!pythonEnvironmentRefreshPending || !agent || String(agent.session?.id) !== sessionId) return null;

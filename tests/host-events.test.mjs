@@ -50,3 +50,32 @@ test('a running turn is not reported idle after its previous commit',async()=>{
   await new Promise(resolve=>setTimeout(resolve,35));assert.deepEqual(seen,['long-turn']);
   await events.close();
 });
+
+test('idle settings rearm from last activity; disabling preserves the clock',async t=>{
+  t.mock.timers.enable({apis:['setTimeout','Date'],now:1000});
+  let delay=100;const seen=[];
+  const events=createHostEvents({idleDelayFor:()=>delay});
+  events.on('chat.idle',value=>seen.push(value.chatId));
+  await events.emit('chat.turn.persisted',{chatId:'configured'});
+  t.mock.timers.tick(40);delay=null;events.refreshIdle();
+  t.mock.timers.tick(200);await Promise.resolve();assert.deepEqual(seen,[]);
+  delay=100;events.refreshIdle();t.mock.timers.tick(0);
+  await Promise.resolve();assert.deepEqual(seen,['configured']);
+  await events.emit('chat.turn.persisted',{chatId:'extended'});
+  t.mock.timers.tick(40);delay=200;events.refreshIdle();
+  t.mock.timers.tick(159);await Promise.resolve();assert.deepEqual(seen,['configured']);
+  t.mock.timers.tick(1);await Promise.resolve();assert.deepEqual(seen,['configured','extended']);
+  await events.close();
+});
+
+test('busy idle rearm waits a full interval and does not spin at zero delay',async t=>{
+  t.mock.timers.enable({apis:['setTimeout','Date'],now:1000});
+  let busy=true,checks=0;const seen=[];
+  const events=createHostEvents({idleDelayFor:()=>100,isBusy:()=>{checks++;return busy;}});
+  events.on('chat.idle',value=>seen.push(value.chatId));
+  await events.emit('chat.turn.persisted',{chatId:'busy'});
+  t.mock.timers.tick(100);assert.equal(checks,1);
+  busy=false;t.mock.timers.tick(99);await Promise.resolve();assert.deepEqual(seen,[]);
+  t.mock.timers.tick(1);await Promise.resolve();assert.deepEqual(seen,['busy']);
+  assert.equal(checks,2);await events.close();
+});
