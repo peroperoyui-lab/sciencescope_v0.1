@@ -1,6 +1,6 @@
 # T09 记忆整理与多轮对照评测交付报告
 
-> 实现、Windows 验收和两组各三轮真实评测已完成；等待 Git 推送回执。功能闭环通过，合成题未证明核心事实准确率有整理增益；预算失败及来源推论如实保留，等待 Claude 审阅。
+> 已交付，等待 Claude 审阅。主功能提交 `d60fc5471fc92b91f4e915b9b85ff11b78a147f0` 位于分支 `codex/t09-memory-consolidation-20261004`；该提交包含任务实现、Windows 验收证据说明及本报告。功能闭环通过，合成题未证明核心事实准确率有整理增益；预算失败及来源推论如实保留。文档专用后续提交及最终分支 HEAD 见交付消息。
 
 ## 工作区、基线与交付
 
@@ -9,7 +9,7 @@
 - 开工前已读 2026-10-03 审阅记录；合并后的受保护路径检查及引用行显示修复，在 Windows 基线验收通过。
 - 后续取回的远端 `91b471a` 为新任务/规则/许可及包元数据的文档更新，本任务仍以用户指定的 `edf02f3` 为代码基线。未把 T09 扩展为新的运行时迁移任务。
 - 不开 PR、不合并。完成并推送后停止，等 Claude 审阅；本轮未开始其他任务。
-- 交付SHA以该分支实际远端HEAD及本次最终交付消息为准；本地Git提交前不宣称推送成功。
+- 主功能提交：`d60fc5471fc92b91f4e915b9b85ff11b78a147f0`；仅31个任务文件进入该提交，见本任务提交清单。ROADMAP、SYSTEM_SPEC和DESKTOP_IMPLEMENTATION的交付状态在后续文档专用提交中更新；最终分支HEAD以交付消息为准。
 
 ## 实现行为
 
@@ -50,7 +50,7 @@
 
 当前串行 27 项全部通过：chat-ui、discussion-ui、marks-ui、research-input-ui、settings-ui、workspace-ui、desktop-navigation、failed-send-draft、workbench-ui、shortcuts-ui、extensions-ui、background-chat、desktop-interaction、creation-details、features、deliverables、i18n、minutes、viewer-ui、context-access-ui、summary-policy-ui、assistant-api（含 UI）、research-base-ui、chat-branch-ui、semantic-ui、dsh-retry-ui、secret-isolation-ui。基线 dsh-approval 也已通过；最终 npm 覆盖相应审批运行时回归，不宣称本次重复跑了未在列表内的 smoke。
 
-提交前安全扫描源码/文档448文件、文本证据6544文件：active key 精确字节零命中、ignored 本地文件零跟踪；扫描不宣称已解压二进制历史。i18n 全量 3220 片段/1751 历史 missing；最终再次运行 `node scripts/i18n-extract.mjs --missing`，exit0，本轮变化的 22 个中文片段新增 missing=0。最终核对回执见audit-final/delivery-key-scan-latest.json，全部本地证据不进Git。
+提交前安全扫描源码/文档448文件、文本证据6545文件（最新扫描）：active key 精确字节零命中、ignored 本地文件零跟踪；扫描不宣称已解压二进制历史。i18n 全量 3220 片段/1751 历史 missing；最终再次运行 `node scripts/i18n-extract.mjs --missing`，exit0，本轮变化的 22 个中文片段新增 missing=0。最终核对回执见audit-final/delivery-key-scan-latest.json，全部本地证据不进Git。
 
 最终 npm 的 305 个运行时/界面/测试源码起讫哈希零漂移；来源修复后已复核回执。上述两次 npm、原失败 UI 和早期被暂停的 smoke 都保留独立日志，未拼成一次无失败运行。
 

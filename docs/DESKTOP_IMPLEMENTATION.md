@@ -10,7 +10,7 @@
 - 正式六组全部完成及独立来源审计：不整理严格18/19/18，均18.33/30（61.11%）；整理20/19/22，均20.33/30（67.78%）。人工核心事实两组各90/90，全论断及引用语义支持86/90（95.56%）与88/90（97.78%），无依据运行说明5/2条，引文字面保真问题19/23处分列。基础设施终结失败0，实际15传输重试全部恢复；54整理阶段39完成/15reasoning-only8192预算失败，不补跑。117候选111全文支持/6附加推论，80提议77支持/3附加推论、9次supersede、1重复episode；正确noop两条通用教训。短合成语料加同等生产概览/纪要预载已达事实天花板，严格分差不能宣称整理增益。
 - 正式费用614物理/599有效/15重试，prompt6526158＋completion500734=7026892已知tokens、15usage未知；stage108物理/555633tokens已含，不再加算。含预验总账650物理/624有效/26重试、7196254已知tokens/28usage未知、unfinished0。系列04:44:01–06:15:09UTC完整执行，exec46124 exit0，周期记录的11唯一自有PID全部退出；六组同一852ff2…来源哈希和12源码+3夹具15项冻结核对PASS。最后答案审移除3条派生注释复制残留，另存erratum1、原版保留、任何分数不变。最终聚合、180逐题矩阵与root审核回执：`.sciencescope-local/temp/t09-validation/{formal-aggregate-20261004T062230615Z.json,final-question-matrix.md,t09-formal-final-evidence-receipt-20261004.json}`。
 - 预验去重36物理/25有效/11重试，169362已知tokens、13usage未知。直连TLS错误12请求无回答；本机10808代理TLS有效，只配置评测父代理、不改产品网络。旧2048截断JSON、旧8192来源提示附加推论、最后来源提示预验2完成/1reasoning-only预算失败均保留。最后预验4候选逐条支持不能外推正式质量；所有key仅H父代理读，子会话拿一次性localhost token。
-- 改动31文件，无新依赖/原型/核心store修改。runtime opt-in预算、dynamic idle、preview时钟、API/UI/build/features/i18n/inbox guard、旧T10helper可选tools/kind、角色局部surface及回归属用户已授权的最小范围扩展；逐文件原因、完整测试/截图路径、失败根因、任务差异和未完成项见 `T09_MEMORY_REPORT_2026-10-04.md`。新22中文片段missing0。完成Git推送后停止等Claude审阅；未开始其他任务，实际远端SHA以交付回执为准。
+- 改动31文件，无新依赖/原型/核心store修改。runtime opt-in预算、dynamic idle、preview时钟、API/UI/build/features/i18n/inbox guard、旧T10helper可选tools/kind、角色局部surface及回归属用户已授权的最小范围扩展；逐文件原因、完整测试/截图路径、失败根因、任务差异和未完成项见 `T09_MEMORY_REPORT_2026-10-04.md`。新22中文片段missing0。主功能提交 `d60fc5471fc92b91f4e915b9b85ff11b78a147f0` 已推送；文档专用后续提交更新交付状态，最终分支HEAD以交付回执为准。停止等Claude审阅，未开始其他任务。
 
 ## 2026-10-03 Review of T10 transport, T21 and the T10 follow-up (Claude, cloud)
 
