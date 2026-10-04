@@ -9,6 +9,7 @@
 > - 最近核对：2026-09-24，基线 `main@98e560a`（Claude 对照代码逐项核对）；2.2、2.4、2.5、2.16 于同日随界面刷新、标记与专家讨论修订（分支 `claude/determined-pasteur-jxpzw8`，未合并）更新；2026-09-25 新增 2.17 研究资料库（同一分支）；2026-09-26 新增 2.5b 对话纪要与历史回查，2.5 专家前文改为纪要 + 其后原文（同一分支）。
 > - 最近核对补充：2026-09-27，T17 上下文查阅层已接入生产服务（context API `t17.1`、宿主工具清单、秘书跟进游标、全局概览哈希与范围隔离）。`node D:/nodejs/node_modules/npm/bin/npm-cli.js test` 159/159 通过（196.890 秒，日志 `.sciencescope-local/temp/t17-validation/npm-test-final.log`）；20 项既有浏览器/API smoke、新 context UI smoke、四角色真实 DSH 工具清单测试 4/4（Astra 已复核）及 T17 live 评测均通过；T17 UI 生成 8 张截图，代表性画面已人工复核（`.sciencescope-local/temp/t17-validation/context-access-ui/`）。live 评测为 20 轮 Main 后秘书正确回答纪要/编号/待办，全局助手跨项目下钻；28 个 HTTP 200 请求、prompt 298542、completion 2598、无 API 错误。T17 原生客户端未重测；不据此宣称全产品 alpha 或整批原生验收通过。
 > - 历史过程与每次验收细节见 `DESKTOP_IMPLEMENTATION.md`（按日期的开发日志）；本文件只写当前结果。
+> - 最近核对补充：2026-10-05，T24：Windows最终 `npm test`371/371，既有31项smoke及browser/Tauri原生长输出/继续通过；额外旧policy mock补齐后单跑通过。模型容量、正常max-tokens、长资料/提议/纪要、用户累计token设置已实现；D用户数量限制保持。旧/新各三轮真实24案例：55物理/49有效/6重试、779661已知token及7usage未知。论文完成和整理核心任务覆盖改善，科学限定和提议完整支持未提高；4案例终结基础设施失败与模型/产品失败分列，详见 `T24_LIMITS_REPORT_2026-10-05.md`、`T24_SOURCE_AUDIT_2026-10-05.md`；不是安装包或alpha发布验收。
 > - 最近核对补充：2026-09-27，Astra 在 Windows 完成 r4 阶段1与T04（阶段2），最终136/136测试、19项原有smoke和新viewer smoke，原生PDF/标记/公式验收通过。阶段3关键词、本地e5-small和52题真实模型审计已完成，包含质量失败及有界取消样本；详见2.17及实施记录。不代表安装包或全部科研质量验收通过。
 
 **状态标记**
@@ -138,6 +139,7 @@ ScienceScope 只做应用编排和展示记录，不另造 agent 框架或 Provi
   - 前导语：`host.mjs` 在收到 `tool-call` 时，把本次尝试中上一个工具边界之后写出的文字从可见回答中移出（发 `text-replace`），
     作为该调用的 `preamble` 字段；`tool_activity` 新增 `preamble` 列；DSH 自身的会话历史保持完整。
   - Provider 错误被归类为固定中文提示（认证、限流、网络、找不到模型、超出上下文），原始 Provider 文本不进界面。
+  - T24：`max-tokens` 是正常的模型上限终态，保留长文本或空文本与工具回执，主专家/秘书/全局助手的回复显示“已达到模型输出上限”和“继续”。`POST /api/chat/continue`、`/api/assistant/continue` 根据宿主记录校验最新回复，在原 DSH 会话另发继续指令，追加新回复，不覆盖原文或已有草稿；过期回复返回 409。用户提问不会出现继续按钮。自动化独立 projection 也保存空/非空模型上限回复；仍在运行的目标须用户先暂停。容量设置变化仅在下一轮释放空闲进程并恢复同一会话后应用。真实 DSH 的生成结束后仍等待有序本地流交付队列排空，避免细粒度长流误报交付失败。
   - 记录：用户与助手消息写入 `messages`；工具记录写入 `tool_activity`（有界、脱敏的展示投影；完整历史在 DSH）。
 - **验证**：`main-interrupt`、`main-outbox-api`、`chat-outbox`、`tool-activity`、`provider-failure-surface`、`reasoning-effort-wire` 单元测试；
   `chat-ui-smoke`、`failed-send-draft-smoke`；真实 OpenCode Go 小请求、停止、5.5 分钟长任务（原生，2026-09-23）。
@@ -255,6 +257,8 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
 - **验证**：`deliverables-smoke`（缩略图为真实图片、文档卡片、重新加载后仍显示、只读过的文件和任意路径被拒、专家前文只含展示的文件）。
 - **最近核对**：2026-09-26（Claude，云端）。
 
+- **T24 专家上限与续写（最近核对2026-10-04）**：达到模型输出上限的专家回复保留全部已生成正文，显示上限状态和继续入口；未完成审核不能采纳。`POST /api/discussion/continue {chatId,messageId}` 从宿主绑定恢复原专家子会话、模型/人设/技能/工具范围/审批，保留历史，不推进Main或自动注入结束结果。已继续的旧段入口关闭；完成的审核合并原部分段后仍须用户采纳才加入后续上下文。Python执行环境已变化时明确拒绝恢复，避免把旧会话带入错误环境。专家输入、人设与简报不再有400000/16000/40000字符应用限制；内部RPC资源边界64 MiB且返回显式413，前文24万字符资源概览仍逐条注明省略范围并可回查。上游上下文能力及余量行为见Runtime Port限制表。
+
 ### 2.5b 对话纪要与历史回查（2026-09-27，含 T17 查阅层）
 - **用途与操作**：任务秘书为每个对话维护一份纪要（研究目标、已定结论与出处编号、被否定的方案、分歧、各方立场、文稿与文件状态、待办），
   纪要由既有服务按规则更新；T17 移除了每轮主对话后的无条件总结。T18 已接入按消息/token/进出项目设置化触发并通过本任务验收。
@@ -263,11 +267,11 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
 - **状态**：🟡。T17 离线测试、真实 DSH 工具清单、浏览器/API smoke 与 context UI smoke 已通过；T17 原生客户端未重测。
 - T18 当前实现分支为 `codex/t18-summary-policy-20260927`，叠加已推送的 T17 `5ea220f`；本任务验收已通过。22 项浏览器/API smoke 均通过；12 张截图已生成，root 已复核设置/提议界面及英文深色纪要窗口。
 - **技术实现**：
-  - `scripts/chat-minutes.mjs`：表 `chat_minutes(chat_id, revision, text, through_ordinal, author 'secretary'|'user', updated_at)`，每版保留。更新 = 上一版纪要 + 新消息（每步 ≤6 万字符，可多步），用秘书角色的模型（未设置时用对话模型），`noTools` 会话，用完释放；T17 不改变既有纪要内容，也不恢复每轮主对话总结。消息编号为对话序号 +1。
+  - `scripts/chat-minutes.mjs`：表 `chat_minutes(chat_id, revision, text, through_ordinal, author 'secretary'|'user', updated_at)`，每版保留。更新 = 上一版纪要 + 完整新消息（约6万字符的批次目标，单条超过目标仍整条送达，可多步），用秘书角色的模型（未设置时用对话模型），`noTools` 会话，用完释放；T24 移除单条2万字符截断及纪要10万字符拒绝，用户编辑超过64 MiB时明确资源错误且保留旧版。T17 不改变既有纪要内容，也不恢复每轮主对话总结。消息编号为对话序号 +1。
     T18 另存 Markdown 使用 `chat_minutes_markdown_status` 记录导出路径/错误；写入先临时文件再原子改名，数据库纪要仍是唯一来源。用户编辑与秘书生成均触发版本回调，初始纪要生成期间的用户编辑优先。
   - `scripts/secretary-preferences.mjs`、`scripts/context/estimate.mjs`、`scripts/summary-policy.mjs`：`secretary_preferences.summary_json` 采用默认讨论后、20 条消息、30000 估算 token、进入/离开项目和 Markdown 开启，工作站 `map|versions|plans|log` 默认 `off`；消息阈值 4–500、token 阈值 2000–500000。事件策略使用 CJK 每字 1 token、其他字符每 4 字符 1 token 的稳定估算；Main/讨论沿用纪要防抖，项目切换串行处理脏对话，启用离开项目规则时关闭写入 `summary_pending`，启动后 30 秒处理。
   - `scripts/summary-workbench.mjs`：纪要成功后按 `off|propose|apply` 处理工作站建议；`summary_proposals` 等待用户接受，`summary_writes` 记录来源与前后状态，撤销遇到目标已变化返回 409。当前 host 不支持可宣称的原生 JSON Schema constrained-generation，生产通过提示 JSON 格式并由本地 allowlist 严格校验；导图秘书新增节点保留 `origin: 'secretary'`，桌面工作站已显示“秘书添加”。
-  - `scripts/context/registry.mjs`、`policy.mjs`、`sources/*.mjs`：context API `t17.1` 的资料源注册表与范围表；`conversation`、`minutes`、`log`、`plans`、`map`、`versions`、`status`、`workspace` 均通过依赖注入读取。`chat_recall` 检索只返回有意界定的摘录，按编号读取才返回完整消息；工具调用、工具结果、前导语、临时/助手私聊和资料库私有条目不进入上下文。
+  - `scripts/context/registry.mjs`、`policy.mjs`、`sources/*.mjs`：context API `t11.2` 的资料源注册表与范围表；`conversation`、`minutes`、`log`、`plans`、`map`、`versions`、`status`、`workspace` 均通过依赖注入读取。`chat_recall` 检索只返回有意界定的摘录，按编号读取才返回完整消息；T24 查询不再截断或限6问法，搜索支持 `limit/offset/next` 分页，单批资源边界10000结果，向量与关键词固定排序避免分页漏项；状态保留完整导图节点与待办，工作区概览仍明确标为概览并可下钻。工具调用、工具结果、前导语、临时/助手私聊和资料库私有条目不进入上下文。
   - `scripts/context/catch-up.mjs`、`scripts/assistant-chat-service.mjs`：秘书每轮发送前生成跟进包，使用 `context_cursors` 游标；只有成功完成且未取消的发送才提交游标。大积压先以最多 60 秒等待纪要刷新，再发送纪要与尾部原文；240000 字符安全边界逐条列出省略编号，不静默截断。
   - 原 `scripts/project-memory.mjs` 已迁入 `scripts/context/`，旧文件删除；既有工具名称与参数保持兼容。主专家/专家/秘书按会话范围读取；全局助手通过 `workspace_overview` 概览后按 `projectId`/`chatId` 下钻。
     `chat_recall` 按编号一次最多 40 条 / 6 万字符并返回 `next`；检索返回最多 12 条带编号片段。
@@ -355,9 +359,11 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
 - **用途与操作**：添加、编辑、删除 Provider（协议、地址、模型列表），填写只写的 API key，可从端点发现模型；
   每个输入框可选模型，推理强度只列模型声明支持的选项。
 - **状态**：✅（单元、DSH、真实模型）。
+  最近核对补充（2026-10-04，T24）：模型容量保存、重载和下一轮应用已由真实DSH本地provider浏览器验收；完整Windows回归、原生和三轮真实评测结果见实施记录本日T24节，不能把运行时默认称为已验证服务商容量。
 - **技术实现**：`desktop/model-settings.mjs`、`provider-draft.mjs`（校验，不按模型名猜协议）、`reasoning.mjs`；
   `adapters/runtime-dsh/web-host.mjs` 在回环地址启动 DSH 完整 Web profile；`provider-service.mjs` 调用其 `settings`、`credentials`、`llm.discoverModels`、`session.modelCatalog` 服务。该进程在后台启动（上限 60 秒），失败经 `onError` 报告并在下一次服务商调用时重试，不会让整次运行都无法配置服务商（2026-10-04 Claude 审阅修复，Dot 普查 2/30）。
   界面创建的 Provider 以 `sciencescope-` 开头，凭据存在 DSH 的文件型凭据库（不是系统钥匙串）。
+  T24 保存发现结果的模型名称、`contextWindow` 和 `maxTokens`。模型表单显示每模型最大输出，可修改；留空移除覆盖，未知时明确显示DSH默认32768，而非推断供应商容量。`model-info` 返回容量及configured/runtime-default来源，保留推理能力。发现配置和用户覆盖均由DSH profile保存，不能区分它们的历史来源。上游仍按估计剩余上下文减去4096余量下调请求输出；这是已记录的DSH限制。
   部分 Provider 需要会话亲和头：`state/runtime-client.json` 的 `sessionHeaders`，由 `host.mjs` 以启动补丁注入。
   接口：`GET /api/providers`、`POST /api/providers/save|discover|remove`、`GET /api/model-info`。
 - **验证**：`model-settings`、`provider-draft` 单元测试；`real-provider-smoke`、`runtime-hardening-live-smoke`。
@@ -452,15 +458,18 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
 
 ### 2.17 研究资料库
 
+- **T24 长内容（最近核对2026-10-04）**：`research_propose` 不再限标题/正文/结构化内容/LaTeX/理由/引文/备注的语义长度；标题仅界面折叠，原文保留。完整记录超过64 MiB时明确资源错误，旧记录与待审提议不改；秘书长提案及编辑草稿亦不再限64000，Main正式发送的用户消息限制仍列为D待用户决定。复合引用不再限32成员或2048字符，异常资源输入字面保留。解析长段按20000字符无损拆分（不拆UTF-16代理对），保原页码/锚点与sourceOrdinal/字符区间，索引可重建，原件和目录独立保留。`research_read` 请求窗口可到64 MiB，整段不裁切；页/范围/来源返回hasMore、nextOrdinal及继续说明。简报短条目明确指向research_read全文。检索问法/查询原文无截断，底层向量接口接受更多问法和较大返回数量，安全范围过滤不放宽。
+
 - **T09 记忆整理（2026-10-04，已实现，待 Claude 审阅）**：应用服务订阅 T17 `chat.idle`，默认空闲10分钟，可在秘书设置关闭或调整1–1440分钟、显式选模型，也可用对话菜单“整理这段对话”。只读取新增消息区间及纪要版本差异；历史纪要纠正另附编号对应原文，不重写整段对话总结。仅 Main 可整理，助手私聊、临时和私有对话排除。游标、运行状态和去重存于同一 SQLite；不常驻会话进程。
-- 整理使用两个有界 `noTools` 模型会话：JSON候选抽取，再对每个候选的同类共享有效 item top-5 作批量 `create/update/supersede/noop` 判断。候选最多8条；原文最多40消息/24000字符/估算8000token，纪要差异6000字符；单次输入48000字符/估算12000token，累计估算30000token（两次输出预算提前全额预留，包含推理内容；不是账单token）。DSH每次实际输出上限8192token，文本另限12000/16000字符。解析、证据或预算失败不推进游标、不产生半批提议、不自动重新整理；DSH暂时性传输重试保持既有规则。明确选择的模型不可用时报错，没有自动换模型。
+- **T24 整理现状（2026-10-05，实现与验收完成，待审阅）**：候选抽取与同类共享有效 item top-5 的 `create/update/supersede/noop` 判断使用独立 `noTools` 会话，输出取所选模型配置；移除8192输出、字符、8候选、40消息与输入预算硬限制。纪要差异及对应完整原文按模型上下文容量无损分批，跨窗比较先独立读取原文页并持久保存逐字引文支持的候选观察，再分页判断；观察仍是未确认模型结果，引文存在不证明推论正确。决策冲突或完整单条观察装不下时明确保留待处理状态，不推进游标；调整容量后可手动接续。`max-tokens` 在原会话继续，旧部分输出、失败请求未提交的流文本均在状态中保留。游标只在批次提议完整提交后推进，`rb_consolidation_pending` 保存来源定位、哈希、进度和模型输出，来源或模型变化后重新规划。解析/证据失败不自动重新整理；DSH暂时性重试保持既有规则，没有自动换模型。
+- **用户成本设置**：每次整理累计 `tokenLimit` 默认100000，可修改或留空关闭。输入与输出均计入；请求前按原文、格式、已保留上下文与完整输出预留估算，请求后优先计服务商实际总token，缺失/全零用保守估算并标明。超预算跳过后续批次，已生成内容不截断、未处理游标不推进，下次接续。估算不是账单或严格费用保证；DSH无可靠价格，不能把未知价格0解释为免费。默认依据T09 54阶段已知 P50/P95/最高9969/15641/17084，约最高值5.85倍，可覆盖两次32768输出预留加常见输入；旧样本受原上限约束，并非无上限成本预测。
 - 所有非noop候选只调用 `store.propose`，origin保留整理身份、对话、区间和纪要版本，证据必须逐字匹配对应消息。来源由宿主回执、引用、资源、条目及成功的网页工具活动判定；网页/文献标 `payload.originTrust='external'` 并保存来源，删除source/chunk目录后历史回执仍保留external与原定位。收件箱显示外部来源提示、原文定位、接受/修改后接受/拒绝。确认前不进入有效记忆或简报；编辑确认不能降级来源、移出项目或丢掉原文证据；更新/取代修订冲突保持等待确认。精确quote只证明出处，不保证模型候选的事实均受支持。
 - **T09 最近核对（2026-10-04，待 Claude 审阅）**：Windows合并基线npm293/293及secret-isolation-ui/discussion-ui/dsh-approval通过。最终实际npm332/332、0fail/cancel/skip/todo（471186.5209ms），既有27项smoke全部PASS，T09 browser/native各PASS16图、下一Main确认记忆简报及自有进程正常退出；均为本地模拟provider，真实DSH本地provider独立2/2。真实deepseek-v4.1-flash两组各3轮30题：不整理严格18/19/18（均18.33/30），整理20/19/22（均20.33/30）；人工核心事实均30/30，全部论断及引用语义支持29/29/28与29/29/30。原分数/失败不覆盖，严格分差主要是格式和字段，短纪要预载导致事实天花板，不能宣称整理效用已提高。基础设施终结失败0，54整理阶段39完成/15输出预算失败；117候选111完整支持，80提议77完整支持、3附加推论，1重复事件，人工确认不可省略。正式614物理/599有效/15重试、7026892已知tokens、15usage未知；预验另36请求169362tokens，合计650请求7196254已知tokens、28usage未知。六组来源哈希和12冻结源码一致，180答案/三组候选独立来源审完成。i18n新增22片段missing0；完整逐题矩阵、发现→原因→修复→验证、截图和限制见实施记录及T09交付报告；安装包/升级/签名未测。
 - **T10 补充最近核对（2026-10-04，待 Claude 审阅）**：共享纯解析器支持 `[S3, p.4]`、`[S3 p4]`、`[S3; S5]`、`[S3 p.4–5]`；API additive `citations/raw/parseStatus/unrecognized`，兼容完整单引用的 `citation`。UI 保持回答原文，复合来源菜单、从范围首页打开阅读器；未知/部分未知格式字面保留并有界记录，畸形括号及非法序号候选也进入审计。单来源范围按 maxChars/400段有界读取，返回范围/实际页/截断与续读；多来源须分别读，原权限及项目歧义规则保持。引用/read/report26/26、生产parser路由、浏览器与Windows原生通过；最终npm281/281，既有23smoke及branch/semantic/retryUI通过。首轮npm生成资源清单断言280/281失败经根因修复后复验，首轮日志保留；有效28项验收为派生汇总，详细证据与四种语言主题截图见实施记录顶部。
 - **三轮当前状态观察（2026-10-04）**：deepseek-v4.1-flash 固定52题核心完整40/41/42，平均41/52；基础设施失败1/2/1单列，排除后的质量分母51/50/51，平均完整率80.93%。第二轮 EPERM 中断保留原记录，仅独立补六个未尝试题、know04不重发，不能称该原始run无中断完成。预算失败2/3/3、工具偏离1/2/4，额外实质无依据论断18/17/10；全论断有依据且引用完整22/20/23题。664实际转发、630有效步骤、34网络重试，已知9185479tokens、37请求usage未知。提示/工具八项源码冻结，第二轮后只修评测落盘、全部结束后只修答案后提取并追加派生语法回执。旧43/42/39单次记录与旧六题补跑不覆盖、不用于因果结论；逐题原文审计/矩阵见交付报告。
 - **T10 传输诊断（2026-10-03）**：旧六题共11请求、零重试、零cap；评测显式 `maxRetries:0` 与首次失败封题使连接故障直接终结，非重试耗尽6请求。正式应用真实DSH默认重试已通过两次502后成功及浏览器无错误验收，未修改生产适配器。计数代理schema2恢复默认重试，按每题6个模型步骤计预算，实际请求/重试另列并有限制，记录上游HTTP/错误码及连接类型/原因码，旧schema1不回写。六题独立补跑22请求、零重试、核心6/6；旧52题39/52原记录不覆盖。额外论断支持2/6、全部实质论断有引用1/6，连接故障本次未出现，旧socket根因因缺日志不可恢复。用量、回归及限制见实施记录顶部。
 - **T10 回答改进最近核对（2026-10-03，待 Claude 审阅）**：修改前先审计历史七题并做一次真实七题对照，再冻结代码单次重测同一52题；原题集与预算不变、失败未重试。真实核心答案39/52（第1批43、第3批42），43完成输出另有2 partial/1 wrong/1 gold_conflict；9空答案为3本地6请求上限、6计数代理转发连接失败（未获有效上游响应、用量未知）。工具偏离0；原失败phys02/03、know07、dig07本次full，delphi05/guide05仍预算失败、know05新增预算失败，整体质量未提升。额外论断支持27/43、所有实质论断有引用21/43；范围/复合格式解析失败单列。实际npm最终255/255（首轮一个DSH启动超时保留、隔离及最终复验通过），既有23smoke与branch/semantic共25/25首轮通过；本轮未测原生/安装包。完整逐题、原因、用量、图与限制见实施记录顶部。
-- **回答查找规则（2026-10-03，context API `t11.2`）**：四角色的系统简报与宿主工具清单要求整个文献查找过程使用 `research_search/research_read`；短摘录不构成不存在的证据，优先点读精确命中。证据覆盖问题后简短作答，新增查找针对具体缺口或矛盾；`nextOrdinal` 是可选续读，保留表格歧义、科学限定和缺失证据。工具结果提示同样规则。这些是模型指引，不是权限控制，不能保证每次回答收敛或正确。
+- **回答查找规则（最近核对2026-10-04，context API `t11.2`）**：四角色的系统简报与宿主工具清单要求整个文献查找过程使用 `research_search/research_read`；短摘录不构成不存在的证据，优先点读精确命中。证据覆盖问题后作答并逐项引用，新增查找针对具体缺口或矛盾；T24 删除“简短作答/Answer concisely”等模型长度偏好，默认Main仍按需解释基础概念，用户自定义提示词和已绑定快照不改。`nextOrdinal` 是可选续读，保留表格歧义、科学限定和缺失证据。工具结果提示同样规则。这些是模型指引，不是权限控制，不能保证每次回答收敛或正确。
 - **读取行为（2026-10-03）**：`research_read({cite:'[S3 p.4]'})` 保留来源与页码，读取指定页；显式 `page` 优先，跨项目同名引用仍拒绝并要求精确 ref。读取 chunk ref 时先保证目标段落进入窗口，前邻段与目标无法一起容纳时跳过前邻段；能容纳时保持原文顺序。目标整段超过 `maxChars` 仍完整返回（沿用整段不截断规则），页与来源续读不变。排序、嵌入、范围过滤与160字搜索摘录未改。
 
 - **Windows收口补充（2026-09-29）**：t10.2修改后的完整npm219/219通过；恢复后的500合成来源、88491条向量全部索引并持久化，索引/写入42.31分钟、RSS峰值1495MiB，零Provider请求。为8篇语料重复负载，不是500不同论文；恢复总时长不包含关机前，不能作为连续首次构建全程。第二台云端对照仍未测，真实答案质量仍按t10.1固定52题42/52报告。下条保留阶段检查记录，最终本机状态以本条和实施记录最新日期节为准。
@@ -562,7 +571,7 @@ r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，
 | 执行 | `GET /api/execution`、`POST /api/execution/goal|approval` |
 | 研究资料库 | `/api/research/*`：sources（新增 sort/direction 与 total/hasMore）、source、sources/update|remove|ingest、sync、search、read、items、item（含 evidenceCount）、items/update|supersede（expectedRevision）、links、links/remove、proposals、proposals/decide、brief、cite、usage、formats（见 2.17 与设计文档 §6）；research-input contextRefs 增加 itemId |
 | 本地语义检索 | `GET /api/research/embedding` 状态/进度；`POST /api/research/embedding {action: enable|disable|download|rebuild}`；search 支持 q 与重复 queries 参数，返回 mode/fallbackReason（T10 验收中） |
-| 记忆整理 | `POST /api/research/consolidate {chatId}`；`GET /api/research/consolidate/status?chatId=`；`GET/POST /api/research/consolidate/settings {enabled,idleMinutes,model}`（T09，所有候选仍通过既有proposals/decide确认） |
+| 记忆整理 | `POST /api/research/consolidate {chatId}`；`GET /api/research/consolidate/status?chatId=`；`GET/POST /api/research/consolidate/settings {enabled,idleMinutes,model,tokenLimit}`（T09/T24，null关闭成本预算，所有候选仍通过既有proposals/decide确认） |
 | 对话纪要与自动总结 | `GET/POST /api/chats/minutes`、`POST /api/chats/minutes/refresh`、`POST /api/projects/focus`、`GET/POST /api/secretary/preferences`、`GET /api/summary/proposals?chatId`、`POST /api/summary/proposals/decide`、`GET /api/summary/writes?chatId`、`POST /api/summary/writes/undo`（2.5b、T18） |
 | 专家讨论与名册 | `GET/POST /api/experts`（每项含 `kind: expert|reviewer`、`skills: string[]`）、`POST /api/discussion`（流；`expertIds` 仅接受参加专家，`reviewerId` 可选参加专家或独立审核）、`POST /api/discussion/adopt`、`POST /api/discussion/cancel` |
 | 秘书与全局助手 | `GET /api/assistant`、`POST /api/assistant/chat`（流）、`/assistant/draft|model|approval|stop|proposal/resolve` |

@@ -125,7 +125,7 @@ test('real backend consolidation stages keep old history, propose and confirm on
     assert.equal(result.active.consolidation.proposalIds.length,1);assert.equal(result.active.decisions[0].status,'accepted');
     assert.equal(result.requests.effectiveModelSteps,2);assert.equal(result.requests.forwardedCompletions,2);
   }
-  assert.deepEqual(providerCalls.map(row=>row.max_completion_tokens??row.max_tokens),[8192,8192,8192,8192]);
+  assert.deepEqual(providerCalls.map(row=>row.max_completion_tokens??row.max_tokens),[32768,32768,32768,32768],'unknown model capacity uses the runtime default, without the former consolidation output cap');
   const db=(await import('../scripts/application-database.mjs')).openApplicationDatabaseSync({stateDir:path.join(app,'.sciencescope-local/state')});
   try{
     const items=db.db.prepare('SELECT body,status FROM rb_items ORDER BY created_at').all();assert.equal(items.length,2);

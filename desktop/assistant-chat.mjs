@@ -23,7 +23,7 @@ function entry(scope,ownerId=scope==='global'?'global':V.chat){
 }
 function visible(e){return [...document.querySelectorAll('.assistant-surface')].find(el=>el.dataset.scope===e.scope&&el.dataset.owner===e.ownerId);}
 function bubble(m,scope){
-  return `<article class="assistant-message ${m.role==='user'?'user':''}" data-assistant-message="${esc(m.id)}"><small>${esc(m.role==='user'?(window.ScienceScopeProfile?.name()||'用户'):m.role==='system'?'状态':label(scope))}</small><div class="turn-activity-host">${activityHTML(m)}</div><div class="message-text rendered-markdown">${renderMarkdown(m.text)}</div></article>`;
+  return `<article class="assistant-message ${m.role==='user'?'user':''}" data-assistant-message="${esc(m.id)}"><small>${esc(m.role==='user'?(window.ScienceScopeProfile?.name()||'用户'):m.role==='system'?'状态':label(scope))}</small><div class="turn-activity-host">${activityHTML(m)}</div><div class="message-text rendered-markdown">${renderMarkdown(m.text)}</div>${m.completionStatus==='max-tokens'?`<div class="model-output-status" role="status"><span>已达到模型输出上限</span><button class="btn tiny" data-assistant-action="continue" data-message-id="${esc(m.id)}">继续</button></div>`:''}</article>`;
 }
 function surfaceHTML(scope){
   const e=entry(scope);queueMicrotask(()=>void load(e));
@@ -100,10 +100,10 @@ function saveDraft(e){
   e.draftWrites.catch(()=>{e.error='草稿未保存，请暂时保留窗口。';paint(e,{messages:false});});
   return e.draftWrites;
 }
-async function send(e){
-  if(e.sending||e.running||!e.draft.trim())return;
+async function send(e,continueMessageId){
+  if(e.sending||e.running||(!continueMessageId&&!e.draft.trim()))return;
   if(!e.model){e.error='请先选择模型。';paint(e,{messages:false});return;}
-  const text=e.draft,userId='msg-'+crypto.randomUUID(),attachmentIds=e.attachments.map(file=>file.id);let answer,accepted=false;
+  const text=continueMessageId?'Continue your previous response from where the model output limit stopped it. Preserve the existing conclusions and evidence; avoid repeating text already written.':e.draft,userId='msg-'+crypto.randomUUID(),attachmentIds=continueMessageId?[]:e.attachments.map(file=>file.id);let answer,accepted=false;
   e.sending=true;e.error='';paint(e,{messages:false});
   let timer;
   const incremental=()=>{
@@ -114,9 +114,9 @@ async function send(e){
     if(follow)box.scrollTop=box.scrollHeight;
   };
   try{
-    await saveDraft(e);
-    const researchInput=await window.ScienceScopeResearchInput?.capture(e.scope,e.ownerId);
-    await streamChat({scope:e.scope,ownerId:e.ownerId,model:e.model,text,userMessageId:userId,researchInput,contextChatId:e.contextChatId||undefined,executionMode:e.executionMode,reasoningEffort:e.reasoningEffort,attachmentIds},event=>{
+    if(!continueMessageId)await saveDraft(e);
+    const researchInput=continueMessageId?undefined:await window.ScienceScopeResearchInput?.capture(e.scope,e.ownerId);
+    await streamChat({scope:e.scope,ownerId:e.ownerId,model:e.model,text,userMessageId:userId,...(continueMessageId?{messageId:continueMessageId}:{}),researchInput,contextChatId:e.contextChatId||undefined,executionMode:e.executionMode,reasoningEffort:e.reasoningEffort,attachmentIds},event=>{
       if(event.type==='accepted'){
         accepted=true;e.running=true;
         answer={id:event.assistantMessageId,role:'assistant',text:''};
@@ -125,11 +125,11 @@ async function send(e){
       }
       if(event.type==='text-delta'&&answer){answer.text+=event.delta;timer??=setTimeout(incremental,50);}
       if(['text-replace','text-reset'].includes(event.type)&&answer){answer.text=event.text||'';timer??=setTimeout(incremental,50);}
-      if(event.type==='completed'&&answer&&typeof event.text==='string')answer.text=event.text;
+      if(event.type==='completed'&&answer&&typeof event.text==='string'){answer.text=event.text;answer.completionStatus=event.stopReason==='max-tokens'?'max-tokens':'completed';}
       if(event.type==='main-draft-proposal'){e.proposals??=[];e.proposals.push({id:event.proposalId,text:event.text,status:'pending'});paint(e,{messages:false});}
       if(['tool-call','tool-result'].includes(event.type)&&answer){recordTool(answer,event);const node=[...visible(e)?.querySelectorAll('[data-assistant-message]')||[]].find(node=>node.dataset.assistantMessage===answer.id)?.querySelector('.turn-activity-host');if(node)node.innerHTML=activityHTML(answer);}
-    },'/api/assistant/chat');
-  }catch(error){e.error=error.message;if(!accepted)e.draft=text;for(const id of attachmentIds)if(!e.attachments.some(file=>file.id===id))e.attachments.push({id,title:id});}
+    },continueMessageId?'/api/assistant/continue':'/api/assistant/chat');
+  }catch(error){e.error=error.message;if(!accepted&&!continueMessageId)e.draft=text;for(const id of attachmentIds)if(!e.attachments.some(file=>file.id===id))e.attachments.push({id,title:id});}
   finally{
     clearTimeout(timer);e.sending=false;e.running=false;
     const error=e.error;if(accepted)await load(e,true);if(error)e.error=error;
@@ -173,6 +173,7 @@ window.addEventListener('click',async event=>{
   const action=button.dataset.assistantAction;
   try{
     if(action==='send')return await send(e);
+    if(action==='continue')return await send(e,button.dataset.messageId);
     if(action==='summary-accept'||action==='summary-dismiss'){
       button.disabled=true;
       try{const result=await hostRequest('summary/proposals/decide',{id:button.dataset.id,accept:action==='summary-accept'});await loadSummaryProposals(e);const channel=new BroadcastChannel('sciencescope-workbench');channel.postMessage({projectId:result.projectId,plans:result.target==='plans'});channel.close();}

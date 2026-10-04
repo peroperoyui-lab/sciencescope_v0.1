@@ -22,8 +22,6 @@ import { estimateTokens } from './context/estimate.mjs';
 // lagging far behind) are older messages left out, and the input says so.
 const VERBATIM_CHARS = 240000;
 const OVERLAP = 4; // messages before the minutes' coverage, kept for continuity
-const MAX_MESSAGE = 200000; // safety bound only; answers are passed whole
-const MAX_ANSWER_FOR_REVIEW = 200000; // safety bound only
 const MAX_FILES = 12;
 const PRESENT_TOOLS = new Set(['present']);
 
@@ -32,7 +30,7 @@ export class DiscussionError extends Error {
 }
 
 const quoteAttr = (value) => String(value).replace(/"/g, "'").replace(/[\r\n]+/g, ' ');
-const clip = (text, max) => text.length > max ? `${text.slice(0, max)}\n[…truncated]` : text;
+const usable = reason => reason === 'completed' || reason === 'max-tokens';
 
 // Files a completed `present` call declared as deliverables of its answer:
 // [{path, description?}] from the call's (redacted) argument preview.
@@ -52,7 +50,7 @@ export function identityPrompt(expert, { kind, participants }) {
     `Participants: the user (speaker "User"); the Main expert (speaker "Main expert"), the user's primary agent with its own tools and history${others.length ? `; the other experts ${others.join(', ')}` : ''}.`,
     `In the conversation below every message is labelled with its speaker. Only messages labelled "${expert.label}" are yours; speak only for yourself, never as the Main expert or another expert.`,
   ];
-  if (kind === 'review') lines.push('You are the reviewing expert of this panel round. The experts\' answers for this round follow the user\'s message. For each answer check facts, evidence, methods and conclusions against the conversation and the material; name specific errors or unsupported claims per expert, note where they agree and disagree, then give a short overall judgement. Do not simply restate the answers.');
+  if (kind === 'review') lines.push('You are the reviewing expert of this panel round. The experts\' answers for this round follow the user\'s message. For each answer check facts, evidence, methods and conclusions against the conversation and the material; name specific errors or unsupported claims per expert, note where they agree and disagree, then give an overall judgement. Do not simply restate the answers.');
   else if (kind === 'ordered') lines.push(`Panel consultation: ${participants.length} experts answer the user's message independently and in parallel. You cannot see the other experts' answers for this round; give your own assessment.`);
   else lines.push(`The user invited you (@${expert.label}) into their conversation with the Main expert to answer their latest message. Answer from your expertise; the Main expert and the user will read your answer.`);
   return lines.join('\n');
@@ -68,13 +66,17 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
   // context_json: the expert's measured context at the end of its answer.
   for (const [name, definition] of [['review', 'INTEGER NOT NULL DEFAULT 0'], ['adopted', 'INTEGER NOT NULL DEFAULT 1'], ['main_seen', 'INTEGER NOT NULL DEFAULT 0'], ['context_json', 'TEXT']])
     if (!columns.has(name)) db.exec(`ALTER TABLE discussion_entries ADD COLUMN ${name} ${definition}`);
+  db.exec(`CREATE TABLE IF NOT EXISTS discussion_continuations(chat_id TEXT NOT NULL,message_id TEXT NOT NULL,parent_session_id TEXT NOT NULL,child_session_id TEXT NOT NULL,expert_json TEXT NOT NULL,continued_from TEXT,continued_to TEXT,PRIMARY KEY(chat_id,message_id));`);
+  if(!db.prepare('PRAGMA table_info(discussion_continuations)').all().some(column=>column.name==='environment_key'))db.exec('ALTER TABLE discussion_continuations ADD COLUMN environment_key TEXT');
   const active = new Map();
 
   function entriesFor(chatId, messageIds) {
     if (!messageIds.length) return new Map();
     const marks = messageIds.map(() => '?').join(',');
     const rows = db.prepare(`SELECT * FROM discussion_entries WHERE chat_id=? AND message_id IN (${marks})`).all(chatId, ...messageIds);
-    return new Map(rows.map((row) => [row.message_id, { runId: row.run_id, expertId: row.expert_id, label: row.label, role: row.role, model: row.model_json ? JSON.parse(row.model_json) : null, stopReason: row.stop_reason, position: row.position, review: row.review === 1, adopted: row.adopted === 1, mainSeen: row.main_seen === 1 }]));
+    const bindings = db.prepare('SELECT message_id,continued_from,continued_to FROM discussion_continuations WHERE chat_id=?').all(chatId);
+    const links = new Map(bindings.map(row=>[row.message_id,row]));
+    return new Map(rows.map((row) => [row.message_id, { runId: row.run_id, expertId: row.expert_id, label: row.label, role: row.role, model: row.model_json ? JSON.parse(row.model_json) : null, stopReason: row.stop_reason, position: row.position, review: row.review === 1, adopted: row.adopted === 1, mainSeen: row.main_seen === 1, canContinue:row.stop_reason==='max-tokens'&&links.has(row.message_id)&&!links.get(row.message_id).continued_to, continuedFrom:links.get(row.message_id)?.continued_from??null }]));
   }
 
   const filesOf = (chatId, messageIds) => {
@@ -91,6 +93,16 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
   const speakerTag = (entry) => `speaker="${quoteAttr(entry.label)}"${entry.role ? ` role="${quoteAttr(entry.role)}"` : ''}`;
   // The answer as its peers see it: final text, then the files it presented.
   const answerBlock = (tag, text, files) => `<message ${tag}>\n${text}${files.length ? `\n[Files presented with this answer]\n${files.map((file) => `- ${file.path}${file.description ? ` — ${file.description}` : ''}`).join('\n')}` : ''}\n</message>`;
+  const reviewText = (chatId,messageId,text) => {
+    const pieces=[text],seen=new Set([messageId]);let current=messageId;
+    for (;;) {
+      const link=db.prepare('SELECT continued_from FROM discussion_continuations WHERE chat_id=? AND message_id=?').get(chatId,current);
+      if(!link?.continued_from||seen.has(link.continued_from))break;
+      const prior=db.prepare('SELECT m.text FROM messages m JOIN discussion_entries e ON e.chat_id=m.chat_id AND e.message_id=m.id WHERE m.chat_id=? AND m.id=? AND e.review=1').get(chatId,link.continued_from);
+      if(!prior)break;pieces.unshift(prior.text);seen.add(link.continued_from);current=link.continued_from;
+    }
+    return pieces.length>1?`[Completed reviewer answer, including its earlier partial segments]\n${pieces.join('\n\n[Reviewer continuation]\n\n')}`:text;
+  };
 
   // The conversation so far as every participant may see it: the secretary's
   // minutes of the whole conversation, then every later message verbatim (user,
@@ -107,7 +119,9 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
     start = Math.max(0, start - OVERLAP);
     const blocks = []; let used = 0, first = all.length;
     for (let index = all.length - 1; index >= start; index -= 1) {
-      const block = minutes.format(all[index]);
+      const state=db.prepare('SELECT stop_reason,review,adopted FROM discussion_entries WHERE chat_id=? AND message_id=?').get(chatId,all[index].id);
+      const message=state?.review===1&&state.adopted===1?{...all[index],text:reviewText(chatId,all[index].id,all[index].text)}:all[index];
+      const block = minutes.format(state?.stop_reason==='max-tokens'?{...message,text:`[Partial answer: output reached the model limit; unfinished.]\n${message.text}`}:message);
       if (blocks.length && used + block.length > VERBATIM_CHARS) break;
       blocks.push(block); used += block.length; first = index;
     }
@@ -127,7 +141,7 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
    *   context:string, requestText:string, userMessage:{id:string,text:string}, chatModel:object,
    *   onEvent:(event:object)=>void}} input
    */
-  async function run({ chatId, sessionId, experts, reviewer = null, kind, context, requestText, userMessage, chatModel, onEvent }) {
+  async function run({ chatId, sessionId, experts, reviewer = null, kind, context, requestText, userMessage, chatModel, environmentKey, onEvent }) {
     if (active.has(chatId)) throw new DiscussionError('DISCUSSION_BUSY', '这个对话的专家讨论仍在进行。', 409);
     if (kind !== 'ordered') reviewer = null;
     if (!Array.isArray(experts)) throw new DiscussionError('INVALID_EXPERTS', '参加者列表格式无效。');
@@ -152,18 +166,22 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
       const ids = new Map(everyone.map((expert) => [expert.id, `msg-${randomUUID()}`]));
       const modelOf = (expert) => expert.model || chatModel;
       onEvent({ type: 'accepted', runId, kind, userMessageId: userMessage.id, experts: everyone.map((expert) => ({ id: expert.id, label: expert.label, role: expert.role, model: modelOf(expert), messageId: ids.get(expert.id), review: expert === reviewer })) });
-      const writes = []; const texts = new Map();
+      const writes = []; const texts = new Map(); const snapshots = new Map();
       const record = (entry) => {
         const expert = everyone.find((item) => item.id === entry.expertId);
         if (!expert) return;
-        const text = entry.text || (entry.stopReason === 'aborted' ? '已停止，未生成回答。' : '本轮未生成回答。');
+        const text = entry.text || (entry.stopReason === 'aborted' ? '已停止，未生成回答。' : entry.stopReason==='max-tokens' ? '' : '本轮未生成回答。');
         const messageId = ids.get(expert.id); const review = expert === reviewer;
-        if (entry.stopReason === 'completed' && entry.text) texts.set(expert.id, entry.text);
+        if (usable(entry.stopReason) && entry.text) texts.set(expert.id, entry.stopReason === 'max-tokens' ? `[Partial answer: output reached the model limit; unfinished.]\n${entry.text}` : entry.text);
         writes.push(chatStore.appendMessage({ chatId, id: messageId, role: 'assistant', text }).then(() => {
           db.prepare('INSERT OR REPLACE INTO discussion_entries(chat_id,message_id,run_id,expert_id,label,role,model_json,stop_reason,position,review,adopted,main_seen,context_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,0,?)')
             .run(chatId, messageId, runId, expert.id, expert.label, expert.role, JSON.stringify(modelOf(expert)), entry.stopReason, everyone.indexOf(expert), review ? 1 : 0, review ? 0 : 1, entry.context ? JSON.stringify(entry.context) : null);
+          if(entry.childSessionId) {
+            const snapshot=snapshots.get(expert.id);
+            db.prepare('INSERT OR IGNORE INTO discussion_continuations(chat_id,message_id,parent_session_id,child_session_id,expert_json,environment_key) VALUES(?,?,?,?,?,?)').run(chatId,messageId,sessionId,entry.childSessionId,JSON.stringify(snapshot),environmentKey??null);
+          }
         }));
-        onEvent({ type: 'expert-end', runId, expertId: expert.id, messageId, text, stopReason: entry.stopReason, ms: entry.ms, review });
+        onEvent({ type: 'expert-end', runId, expertId: expert.id, messageId, text, stopReason: entry.stopReason, ms: entry.ms, review, canContinue:entry.stopReason==='max-tokens'&&!!entry.childSessionId });
       };
       const receipts = [];
       const forward = (seen) => (event) => {
@@ -189,13 +207,15 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
       const runPanel = async (panelRunId, prompt, panel, promptFor) => {
         const seen = new Set();
         active.set(chatId, { runId: panelRunId, sessionId });
-        const result = await host.runExperts({ sessionId, runId: panelRunId, prompt, experts: panel.map((expert) => expertSpec(expert, promptFor(expert))), onEvent: forward(seen) });
+        const specs=panel.map(expert=>({...expertSpec(expert,promptFor(expert)),model:modelOf(expert)}));
+        for(const spec of specs)snapshots.set(spec.id,JSON.parse(JSON.stringify(spec)));
+        const result = await host.runExperts({ sessionId, runId: panelRunId, prompt, experts: specs, onEvent: forward(seen) });
         // Events are best-effort; the returned result is authoritative.
         for (const entry of result ?? []) if (!seen.has(entry.expertId)) { seen.add(entry.expertId); record(entry); }
         return result ?? [];
       };
       const results = await runPanel(runId, shared, experts, (expert) => identityPrompt(expert, { kind, participants: experts }));
-      let failed = results.filter((entry) => entry.stopReason !== 'completed').length;
+      let failed = results.filter((entry) => !usable(entry.stopReason)).length;
       if (reviewer) {
         const answered = experts.filter((expert) => texts.has(expert.id));
         if (!answered.length || results.some((entry) => entry.stopReason === 'aborted')) {
@@ -203,10 +223,10 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
           failed += 1;
         } else {
           await Promise.all(writes);
-          const answers = answered.map((expert) => `<answer ${speakerTag(expert, [])}>\n${clip(texts.get(expert.id), MAX_ANSWER_FOR_REVIEW)}\n</answer>`).join('\n');
+          const answers = answered.map((expert) => `<answer ${speakerTag(expert, [])}>\n${texts.get(expert.id)}\n</answer>`).join('\n');
           onEvent({ type: 'review-start', runId, expertId: reviewer.id, messageId: ids.get(reviewer.id) });
           const reviewRun = await runPanel(`${runId}-review`, `${shared}\n\n[This round's expert answers]\n${answers}\n[End of this round's answers]`, [reviewer], (expert) => identityPrompt(expert, { kind: 'review', participants: [...experts, reviewer] }));
-          failed += reviewRun.filter((entry) => entry.stopReason !== 'completed').length;
+          failed += reviewRun.filter((entry) => !usable(entry.stopReason)).length;
         }
       }
       await Promise.all(writes); await Promise.all(receipts);
@@ -221,6 +241,41 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
     if (!current) return { stopped: false };
     await host.cancelExperts({ sessionId: current.sessionId, runId: current.runId });
     return { stopped: true };
+  }
+  async function continueAnswer({chatId,messageId,sessionId,environmentKey,prompt='Continue your previous answer from where it stopped. Preserve its reasoning and complete the remaining work.',onEvent}) {
+    if(active.has(chatId))throw new DiscussionError('DISCUSSION_BUSY','这个对话的专家讨论仍在进行。',409);
+    const original=db.prepare('SELECT * FROM discussion_entries WHERE chat_id=? AND message_id=?').get(chatId,messageId);
+    const binding=db.prepare('SELECT * FROM discussion_continuations WHERE chat_id=? AND message_id=?').get(chatId,messageId);
+    if(!original||original.stop_reason!=='max-tokens'||!binding)throw new DiscussionError('EXPERT_NOT_CONTINUABLE','这份专家回答没有可继续的运行上下文。',409);
+    if(binding.parent_session_id!==sessionId)throw new DiscussionError('EXPERT_PARENT_MISMATCH','专家上下文不属于当前主对话。',409);
+    if(binding.environment_key!==null&&binding.environment_key!==(environmentKey??null))throw new DiscussionError('EXPERT_ENV_CHANGED','专家运行环境已更改。恢复原环境后可继续，或发起新的专家回答；原回答与运行历史保留。',409);
+    if(binding.continued_to)throw new DiscussionError('EXPERT_ALREADY_CONTINUED','这份回答已继续；请使用后续回答。',409);
+    if(typeof host.continueExpert!=='function')throw new DiscussionError('CONTINUATION_UNAVAILABLE','运行时暂不支持恢复这份专家回答。',503);
+    const expert=JSON.parse(binding.expert_json),runId=`discussion-${randomUUID().replaceAll('-','')}`,answerId=`msg-${randomUUID()}`;
+    active.set(chatId,{runId,sessionId});
+    const receipts=[];let terminal;
+    try {
+      db.prepare('INSERT INTO discussion_rounds VALUES(?,?,?,?,?)').run(runId,chatId,'continued',prompt,new Date().toISOString());
+      onEvent({type:'accepted',runId,kind:'continued',continuedFrom:messageId,experts:[{id:expert.id,label:original.label,role:original.role,model:JSON.parse(original.model_json),messageId:answerId,review:original.review===1}]});
+      const result=await host.continueExpert({sessionId,runId,childSessionId:binding.child_session_id,expert,prompt,onEvent:event=>{
+        if(event.type==='expert-end'){terminal=event;return;}
+        const forwarded={...event,messageId:answerId};
+        if(event.type==='expert-tool'||event.type==='expert-tool-result') {
+          forwarded.type=event.type==='expert-tool'?'tool-call':'tool-result';
+          if(toolActivity)receipts.push(toolActivity.record({chatId,assistantMessageId:answerId,...forwarded}).catch(()=>{}));
+        }
+        onEvent(forwarded);
+      }});
+      const entry=result??terminal;if(!entry)throw new Error('expert continuation returned no terminal result');
+      const text=entry.text || (entry.stopReason==='aborted'?'已停止，未生成回答。':entry.stopReason==='max-tokens'?'':'本轮未生成回答。');
+      await chatStore.appendMessage({chatId,id:answerId,role:'assistant',text});
+      db.prepare('INSERT INTO discussion_entries(chat_id,message_id,run_id,expert_id,label,role,model_json,stop_reason,position,review,adopted,main_seen,context_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,0,?)').run(chatId,answerId,runId,original.expert_id,original.label,original.role,original.model_json,entry.stopReason,original.position,original.review,original.review?0:1,entry.context?JSON.stringify(entry.context):null);
+      db.prepare('INSERT INTO discussion_continuations(chat_id,message_id,parent_session_id,child_session_id,expert_json,continued_from,environment_key) VALUES(?,?,?,?,?,?,?)').run(chatId,answerId,sessionId,binding.child_session_id,binding.expert_json,messageId,binding.environment_key);
+      if(usable(entry.stopReason))db.prepare('UPDATE discussion_continuations SET continued_to=? WHERE chat_id=? AND message_id=?').run(answerId,chatId,messageId);
+      await Promise.all(receipts);await toolActivity?.settle({chatId,assistantMessageId:answerId});
+      onEvent({type:'expert-end',runId,expertId:expert.id,messageId:answerId,text,stopReason:entry.stopReason,ms:entry.ms,review:original.review===1,continuedFrom:messageId,canContinue:entry.stopReason==='max-tokens'});
+      const failed=usable(entry.stopReason)?0:1;onEvent({type:'completed',runId,failed});return {runId,failed,messageId:answerId};
+    }finally{active.delete(chatId);}
   }
 
   // A reviewer's check joins later context only when the user adopts it. Once
@@ -238,10 +293,10 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
   // of its next turn; `commit` marks them delivered once that turn is accepted.
   function pendingForMain(chatId) {
     const rows = db.prepare(`SELECT e.*, m.text, m.ordinal FROM discussion_entries e JOIN messages m ON m.chat_id=e.chat_id AND m.id=e.message_id
-      WHERE e.chat_id=? AND e.adopted=1 AND e.main_seen=0 AND e.stop_reason='completed' ORDER BY m.ordinal`).all(chatId);
+      WHERE e.chat_id=? AND e.adopted=1 AND e.main_seen=0 AND e.stop_reason IN ('completed','max-tokens') ORDER BY m.ordinal`).all(chatId);
     if (!rows.length) return { text: '', commit: () => {} };
     const files = filesOf(chatId, rows.map((row) => row.message_id));
-    const blocks = rows.map((row) => answerBlock(speakerTag({ label: row.label, role: row.review ? `${row.role || ''} reviewer`.trim() : row.role }), clip(row.text, MAX_MESSAGE), files.get(row.message_id) || []));
+    const blocks = rows.map((row) => answerBlock(speakerTag({ label: row.label, role: row.review ? `${row.role || ''} reviewer`.trim() : row.role }), `${row.stop_reason==='max-tokens'?'[Partial answer: output reached the model limit; unfinished.]\n':''}${row.review?reviewText(chatId,row.message_id,row.text):row.text}`, files.get(row.message_id) || []));
     const text = `[Expert messages in this conversation since your last turn. They were written by other participants, not by you; tool calls are not included.]\n${blocks.join('\n')}\n[End of expert messages]\n\n`;
     return { text, commit: () => { const mark = db.prepare('UPDATE discussion_entries SET main_seen=1 WHERE chat_id=? AND message_id=?'); for (const row of rows) mark.run(chatId, row.message_id); } };
   }
@@ -258,5 +313,5 @@ export function createDiscussionService({ host, chatStore, db, toolActivity, min
     return out;
   }
 
-  return { run, cancel, adopt, entriesFor, pendingForMain, transcript, contexts, busy: (chatId) => active.has(chatId) };
+  return { run, continueAnswer, cancel, adopt, entriesFor, pendingForMain, transcript, contexts, busy: (chatId) => active.has(chatId) };
 }

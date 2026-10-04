@@ -42,15 +42,15 @@ const decision = (patch = {}) => ({ candidateIndex: 0, op: 'create', targetId: n
 test('idle subscriptions, settings, manual runs, durable cursors and two isolated noTools requests', async () => {
   const f = await fixture();
   try {
-    assert.deepEqual(f.service.getSettings(), { enabled: true, idleMinutes: 10, model: null });
+    assert.deepEqual(f.service.getSettings(), { enabled: true, idleMinutes: 10, model: null, tokenLimit: 100000 });
     f.service.updateSettings({ enabled: false, idleMinutes: 3 });
     await f.events.emit('chat.idle', { chatId: 'c' }); assert.equal(f.state.sends, 0);
     const run = await f.service.consolidate('c');
     assert.equal(run.throughOrdinal, 2); assert.equal(run.counts.proposals, 1); assert.equal(run.proposalIds.length, 1); assert.equal(run.running, false);
     assert.deepEqual(run.range, { from: 1, to: 2 }); assert.equal(run.budget.requests, 2);
-    assert.deepEqual(f.state.starts.map(value => [value.noTools, value.maxTokens]), [[true, 8192], [true, 8192]]);
-    assert.ok(run.budget.tokens >= 2 * 8192, 'reserve both complete provider output budgets, including reasoning');
-    assert.ok(run.budget.tokens <= CONSOLIDATION_LIMITS.totalTokens);
+    assert.deepEqual(f.state.starts.map(value => [value.noTools, value.maxTokens]), [[true, 32768], [true, 32768]]);
+    assert.ok(run.budget.tokens >= 2 * 32768, 'reserve both complete provider output budgets, including reasoning');
+    assert.ok(run.budget.tokens <= CONSOLIDATION_LIMITS.tokenLimit);
     assert.ok(f.state.prompts[0].includes('"memory":["preference","goal","decision"'), 'the model receives the same subtype mapping the parser validates');
     assert.deepEqual(f.state.releases, ['short-1', 'short-2']); assert.equal(f.store.listItems({ projectId: 'p' }).length, 0);
     assert.equal(f.store.getProposal(run.proposalIds[0]).status, 'pending');
@@ -200,16 +200,16 @@ test('whole batch decision errors and model failures leave cursor and inbox unch
   } finally { await f.close(); }
 });
 
-test('input and output budgets reject oversized messages without truncation or cursor advancement', async () => {
-  const f = await fixture();
-  try {
-    f.db.prepare('UPDATE messages SET text=? WHERE id=?').run('字'.repeat(CONSOLIDATION_LIMITS.sourceTokens + 1), 'u');
-    await assert.rejects(f.service.consolidate('c'), { code: 'INPUT_BUDGET_EXCEEDED' }); assert.equal(f.state.sends, 0);
-    f.db.prepare('UPDATE messages SET text=? WHERE id=?').run('We choose endpoint B.', 'u');
-    f.host.send = async () => ({ finalResponse: 'x'.repeat(CONSOLIDATION_LIMITS.extractChars + 1) });
-    await assert.rejects(f.service.consolidate('c'), { code: 'OUTPUT_BUDGET_EXCEEDED' });
-    assert.equal(f.service.status('c').throughOrdinal, 0); assert.equal(f.state.releases.length, 1);
-  } finally { await f.close(); }
+test('complete sources and long candidates are not limited by old character or schema budgets', async () => {
+  const f=await fixture();try {
+    const text='We choose endpoint B.'+'字'.repeat(30000);f.db.prepare('UPDATE messages SET text=? WHERE id=?').run(text,'u');
+    f.state.extract={candidates:Array.from({length:10},(_,i)=>candidate({title:'Endpoint '+i,body:'The study uses endpoint B. '+ 'x'.repeat(5000)}))};
+    f.state.decisions={decisions:Array.from({length:10},(_,i)=>decision({candidateIndex:i}))};
+    f.service.updateSettings({tokenLimit:null});const run=await f.service.consolidate('c');
+    assert.equal(run.throughOrdinal,2);assert.equal(run.counts.candidates,10);assert.ok(f.state.prompts[0].includes(text));
+    assert.equal(f.store.getProposal(run.proposalIds[0]).payload.item.body.length,5027);
+    assert.ok(f.state.starts.every(s=>s.maxTokens===32768));
+  }finally{await f.close();}
 });
 
 test('Main can execute concurrently after snapshot; duplicate triggers share the run and shutdown releases only owned sessions', async () => {
@@ -271,21 +271,12 @@ test('blank and unadopted review windows are examined once and do not leak into 
   } finally { await f.close(); }
 });
 
-test('minutes corrections referring to earlier messages are deferred until corresponding originals can be supplied', async () => {
-  const f = await fixture();
-  try {
-    f.db.prepare('INSERT INTO chat_minutes VALUES(?,?,?,?,?,?)').run('c', 1, 'Decision endpoint B #1', 2, 'secretary', new Date().toISOString());
-    await f.service.consolidate('c');
-    await f.chats.appendMessage({ chatId: 'c', id: 'new-message', role: 'user', text: 'Another task is pending.' });
-    f.minutes.edit('c', 'Decision endpoint C #1', 1);
-    f.state.extract = { candidates: [] };
-    const next = await f.service.consolidate('c');
-    assert.equal(next.throughOrdinal, 3); assert.equal(next.minutesRevision, 1);
-    assert.ok(!f.state.prompts[2].includes('Decision endpoint C'));
-    const correction = await f.service.consolidate('c');
-    assert.equal(correction.minutesRevision, 2); assert.equal(correction.sourceMode, 'minutes-revision');
-    assert.ok(f.state.prompts[3].includes('Decision endpoint C')); assert.ok(f.state.prompts[3].includes('We choose endpoint B.'));
-  } finally { await f.close(); }
+test('historical corrections include full originals immediately without moving historical cursor', async () => {
+ const f=await fixture();try {
+ f.db.prepare('INSERT INTO chat_minutes VALUES(?,?,?,?,?,?)').run('c',1,'Decision endpoint B #1',2,'secretary',new Date().toISOString());await f.service.consolidate('c');
+ await f.chats.appendMessage({chatId:'c',id:'new-message',role:'user',text:'Another task is pending.'});f.minutes.edit('c','Decision endpoint C #1',1);f.state.extract={candidates:[]};
+ const run=await f.service.consolidate('c');assert.equal(run.throughOrdinal,3);assert.equal(run.minutesRevision,2);assert.ok(f.state.prompts[2].includes('We choose endpoint B.'));assert.ok(f.state.prompts[2].includes('Decision endpoint C'));
+ }finally{await f.close();}
 });
 
 test('mixed old/new minutes references supply complete originals and advance revision with only the new batch cursor', async () => {
@@ -321,26 +312,12 @@ test('mixed old/new minutes references supply complete originals and advance rev
   } finally { await f.close(); }
 });
 
-test('mixed-reference historical evidence over budget remains deferred without truncating old originals', async () => {
-  const f = await fixture();
-  try {
-    f.db.prepare('INSERT INTO chat_minutes VALUES(?,?,?,?,?,?)').run('c', 1, 'Endpoint B #1.', 2, 'user', new Date().toISOString());
-    f.state.extract = { candidates: [] };
-    await f.service.consolidate('c');
-    f.db.prepare('UPDATE messages SET text=? WHERE id=?').run('字'.repeat(CONSOLIDATION_LIMITS.sourceTokens + 1), 'u');
-    await f.chats.appendMessage({ chatId: 'c', id: 'new-message', role: 'user', text: 'Endpoint C replaces B.' });
-    f.db.prepare('INSERT INTO chat_minutes VALUES(?,?,?,?,?,?)').run('c', 2, 'Endpoint C #3 replaces B #1.', 3, 'user', new Date().toISOString());
-    const next = await f.service.consolidate('c');
-    assert.equal(next.throughOrdinal, 3); assert.equal(next.minutesRevision, 1);
-    const prompt = f.state.prompts[1];
-    assert.deepEqual(JSON.parse(prompt.split('\nOriginal messages:')[1]).map(message => message.ordinal), [3]);
-    assert.ok(!prompt.includes('字')); assert.ok(!prompt.includes('Endpoint C #3 replaces B #1.'));
-    assert.ok(prompt.includes('Minutes delta deferred:true'));
-    assert.ok(prompt.includes('omitted changed lines pending corresponding evidence, not an absence of change'));
-    await assert.rejects(f.service.consolidate('c'), { code: 'INPUT_BUDGET_EXCEEDED' });
-    assert.equal(f.service.status('c').minutesRevision, 1);
-    assert.equal(f.state.sends, 2);
-  } finally { await f.close(); }
+test('large historical evidence and minute corrections retain complete originals', async () => {
+ const f=await fixture();try {
+ f.db.prepare('INSERT INTO chat_minutes VALUES(?,?,?,?,?,?)').run('c',1,'Endpoint B #1.',2,'user',new Date().toISOString());f.state.extract={candidates:[]};await f.service.consolidate('c');
+ const original='字'.repeat(9000);f.db.prepare('UPDATE messages SET text=? WHERE id=?').run(original,'u');await f.chats.appendMessage({chatId:'c',id:'new-message',role:'user',text:'Endpoint C replaces B.'});f.db.prepare('INSERT INTO chat_minutes VALUES(?,?,?,?,?,?)').run('c',2,'Endpoint C #3 replaces B #1.',3,'user',new Date().toISOString());
+ const run=await f.service.consolidate('c');assert.equal(run.throughOrdinal,3);assert.equal(run.minutesRevision,2);assert.ok(f.state.prompts[1].includes(original));assert.ok(f.state.prompts[1].includes('Endpoint C #3 replaces B #1.'));
+ }finally{await f.close();}
 });
 
 test('comparison quotes come only from selected public messages even when an authentic quote does not support the body', async () => {
@@ -418,3 +395,125 @@ for (const type of ['source', 'chunk']) {
     } finally { await f.close(); }
   });
 }
+
+test('cost preflight skips without cursor or calls; saved null resumes and actual usage refunds reservation', async () => {
+ const f=await fixture({send:async(text,state)=>({finalResponse:JSON.stringify(text.startsWith('Extract')?{candidates:[candidate()]}:{decisions:[decision()]}),usage:{totalTokens:100,inputTokens:60,outputTokens:40,requests:1,unknownRequests:0}})});
+ try {f.service.updateSettings({tokenLimit:1});const skip=await f.service.consolidate('c');assert.equal(skip.state,'skipped');assert.equal(skip.skipReason,'token-limit');assert.equal(skip.throughOrdinal,0);assert.equal(f.state.sends,0);
+ f.service.updateSettings({tokenLimit:34000});const done=await f.service.consolidate('c');assert.equal(done.state,'completed');assert.equal(done.budget.tokens,200);assert.equal(done.budget.estimatedRequests,0);assert.equal(done.throughOrdinal,2);assert.equal(f.state.sends,2);
+ assert.throws(()=>f.service.updateSettings({tokenLimit:0}),{code:'INVALID_CONSOLIDATION_SETTINGS'});f.service.updateSettings({tokenLimit:null});assert.equal(f.service.getSettings().tokenLimit,null);
+ }finally{await f.close();}
+});
+
+test('output limit retains partial JSON and session across a cost skip and resumes without re-extraction', async () => {
+ const extraction=JSON.stringify({candidates:[candidate()]});let sends=0;
+ const f=await fixture({send:async(text,state)=>{sends++;if(sends===1)return {finalResponse:extraction.slice(0,60),stopReason:'max-tokens',usage:{totalTokens:32000,requests:1,unknownRequests:0}};if(sends===2)return {finalResponse:extraction.slice(60),stopReason:'completed',usage:{totalTokens:100,requests:1,unknownRequests:0}};return {finalResponse:JSON.stringify({decisions:[decision()]}),usage:{totalTokens:100,requests:1,unknownRequests:0}};}});
+ try {f.service.updateSettings({tokenLimit:34000});const skip=await f.service.consolidate('c');assert.equal(skip.state,'skipped');assert.equal(skip.throughOrdinal,0);assert.equal(skip.pending.partialOutput,extraction.slice(0,60));const session=skip.pending.sessionId;assert.ok(session);assert.equal(sends,1);
+ await f.service.close();const restarted=createMemoryConsolidator({db:f.db,host:f.host,chatStore:f.chats,minutes:f.minutes,store:f.store,retrieval:f.retrieval,modelFor:()=>model});restarted.updateSettings({tokenLimit:null});const done=await restarted.consolidate('c');assert.equal(done.state,'completed');assert.equal(done.throughOrdinal,2);assert.equal(sends,3);assert.equal(f.state.starts[1].sessionId,session);assert.ok(f.state.prompts[1].startsWith('Continue the JSON'));await restarted.close();
+ }finally{await f.close();}
+});
+
+test('single oversized message uses durable lossless source offsets; a skipped fragment does not advance the whole message', async () => {
+ let sends=0;const f=await fixture({service:{modelInfoFor:()=>({limits:{contextWindow:3000,maxOutputTokens:200,source:'declared'}})},send:async()=>{sends++;return {finalResponse:JSON.stringify({candidates:[]}),usage:{totalTokens:500,requests:1,unknownRequests:0}};}});
+ try {const text=Array.from({length:1200},(_,i)=>`段落${i}具有不同科学记录。`).join('\n');f.db.prepare('UPDATE messages SET text=? WHERE id=?').run(text,'u');f.service.updateSettings({tokenLimit:3100});const skip=await f.service.consolidate('c');assert.equal(skip.state,'skipped');assert.equal(skip.throughOrdinal,0);assert.ok(sends>=1);
+ const first=sends;f.service.updateSettings({tokenLimit:null});const done=await f.service.consolidate('c');assert.equal(done.throughOrdinal,2);assert.equal(done.state,'completed');
+ const delivered=f.state.prompts.filter(p=>p.startsWith('Extract')).flatMap(p=>JSON.parse(p.split('Original messages:')[1])).filter(m=>m.id==='u');assert.equal(delivered.map(m=>m.text).join(''),text);assert.ok(delivered.every(m=>m.sourceSpan.sha256));assert.ok(first<sends);
+ }finally{await f.close();}
+});
+
+test('completed whole batches retain proposals and cursor when a later batch is skipped', async () => {
+ const f=await fixture({service:{modelInfoFor:()=>({limits:{contextWindow:6000,maxOutputTokens:1000,source:'declared'}})},send:async text=>{
+ if(text.startsWith('Extract')){const messages=JSON.parse(text.split('Original messages:')[1]);return {finalResponse:JSON.stringify({candidates:[candidate({title:messages[0].id,evidence:[{messageId:messages[0].id,quote:'We choose endpoint B.'}]})]}),usage:{totalTokens:1200,unknownRequests:0}};}
+ return {finalResponse:JSON.stringify({decisions:[decision()]}),usage:{totalTokens:1200,unknownRequests:0}};
+ }});
+ try {const source='We choose endpoint B.'+'x'.repeat(11000);f.db.prepare('UPDATE messages SET text=? WHERE id=?').run(source,'u');f.db.prepare('UPDATE messages SET text=? WHERE id=?').run(source,'a');f.service.updateSettings({tokenLimit:5300});const skip=await f.service.consolidate('c');assert.equal(skip.state,'skipped');assert.equal(skip.throughOrdinal,1);assert.equal(skip.proposalIds.length,1);assert.equal(skip.completedBatches,1);assert.equal(f.store.listProposals().length,1);
+ f.service.updateSettings({tokenLimit:null});const done=await f.service.consolidate('c');assert.equal(done.throughOrdinal,2);assert.equal(done.proposalIds.length,1);assert.equal(f.store.listProposals().length,2);
+ }finally{await f.close();}
+});
+
+test('model declares output limit; cache and reasoning are not double counted; missing usage is labelled', async () => {
+ const f=await fixture({service:{modelInfoFor:()=>({limits:{contextWindow:20000,maxOutputTokens:4000,source:'declared'}})},send:async text=>({finalResponse:JSON.stringify(text.startsWith('Extract')?{candidates:[candidate()]}:{decisions:[decision()]}),usage:{inputTokens:100,cacheReadTokens:50,cacheWriteTokens:20,outputTokens:30,reasoningTokens:10,unknownRequests:0}})});
+ try {const run=await f.service.consolidate('c');assert.equal(run.budget.tokens,400);assert.equal(run.budget.estimatedRequests,0);assert.equal(run.limits.source,'declared');assert.ok(f.state.starts.every(s=>s.maxTokens===4000));}
+ finally{await f.close();}
+ const unknown=await fixture();try{const run=await unknown.service.consolidate('c');assert.equal(run.budget.estimatedRequests,2);assert.equal(run.budget.usageSource,'actual-and-estimated');}finally{await unknown.close();}
+});
+
+test('source changes refuse a saved fragment checkpoint without promoting partial candidates', async () => {
+ const f=await fixture({service:{modelInfoFor:()=>({limits:{contextWindow:3000,maxOutputTokens:200,source:'declared'}})},send:async()=>({finalResponse:'{"candidates":[]}',usage:{totalTokens:500,unknownRequests:0}})});
+ try {f.db.prepare('UPDATE messages SET text=? WHERE id=?').run('字'.repeat(10000),'u');f.service.updateSettings({tokenLimit:3000});const skipped=await f.service.consolidate('c');assert.equal(skipped.throughOrdinal,0);f.db.prepare('UPDATE messages SET text=? WHERE id=?').run('User corrected source.','u');f.service.updateSettings({tokenLimit:null});await assert.rejects(f.service.consolidate('c'),{code:'CHECKPOINT_SOURCE_CHANGED'});assert.equal(f.store.listProposals().length,0);assert.equal(f.db.prepare('SELECT count(*) n FROM rb_consolidation_pending').get().n,0);}
+ finally{await f.close();}
+});
+
+
+test('over-window compared item is delivered losslessly before the final decision', async () => {
+ const f=await fixture({service:{modelInfoFor:()=>({limits:{contextWindow:4000,maxOutputTokens:300,source:'declared'}})},send:async text=>({finalResponse:JSON.stringify(text.startsWith('Extract')?{candidates:[candidate()]}:text.startsWith('Inspect')?{observations:[]}:{decisions:[decision()]}),usage:{totalTokens:100,unknownRequests:0}})});
+ try{const body='Endpoint protocol. '+Array.from({length:900},(_,i)=>`Measurement-${i} is retained.`).join('\n')+' Final endpoint B.';const item=f.store.createItem({type:'memory',subtype:'decision',projectId:'p',title:'Endpoint',body});f.service.updateSettings({tokenLimit:null});const run=await f.service.consolidate('c');assert.equal(run.state,'completed');
+ const parts=f.state.prompts.filter(p=>p.startsWith('Inspect')).map(p=>JSON.parse(p.split('Source:')[1])).filter(p=>p.id===item.id);assert.ok(parts.length>1);assert.equal(parts.map(p=>p.text).join(''),JSON.stringify(f.store.getItem(item.id)));assert.ok(f.state.starts.every(s=>!s.sessionId),'source pages use independent sessions without accumulated context');assert.equal(run.throughOrdinal,2);
+ }finally{await f.close();}
+});
+
+
+test('typed provider context overflow re-pages the unchanged source rather than losing bytes', async () => {
+ let failed=false;const f=await fixture({send:async text=>{if(!failed){failed=true;throw Object.assign(new Error('provider rejected context'),{code:'CONTEXT_OVERFLOW'});}return {finalResponse:'{"candidates":[]}',usage:{totalTokens:50,unknownRequests:0}};}});
+ try{const original='We choose endpoint B.'+'x'.repeat(6000);f.db.prepare('UPDATE messages SET text=? WHERE id=?').run(original,'u');f.service.updateSettings({tokenLimit:null});const run=await f.service.consolidate('c');assert.equal(run.state,'completed');assert.equal(run.throughOrdinal,2);const delivered=f.state.prompts.slice(1).flatMap(p=>JSON.parse(p.split('Original messages:')[1])).filter(m=>m.id==='u');assert.equal(delivered.map(m=>m.text).join(''),original);assert.equal(run.budget.estimatedRequests,1);}
+ finally{await f.close();}
+});
+
+test('minutes evidence ranges expand every original message before revision cursor advances', async () => {
+ const f=await fixture();try{await f.chats.appendMessage({chatId:'c',id:'u3',role:'user',text:'Endpoint B remains current.'});f.db.prepare('INSERT INTO chat_minutes VALUES(?,?,?,?,?,?)').run('c',1,'Endpoint B #1–#3.',3,'user',new Date().toISOString());f.state.extract={candidates:[]};const run=await f.service.consolidate('c');assert.equal(run.minutesRevision,1);const originals=JSON.parse(f.state.prompts[0].split('Original messages:')[1]);assert.deepEqual(originals.map(m=>m.ordinal),[1,2,3]);}
+ finally{await f.close();}
+});
+
+test('a continuation may return a complete JSON replacement while the prior prefix remains diagnostic', async () => {
+ let sends=0;const f=await fixture({send:async text=>{sends++;return sends===1?{finalResponse:'{"candidates":[',stopReason:'max-tokens',usage:{totalTokens:10,unknownRequests:0}}:{finalResponse:JSON.stringify(text.startsWith('Compare')?{decisions:[decision()]}:{candidates:[candidate()]}),usage:{totalTokens:10,unknownRequests:0}};}});
+ try{f.service.updateSettings({tokenLimit:null});const run=await f.service.consolidate('c');assert.equal(run.state,'completed');assert.equal(run.proposalIds.length,1);assert.equal(sends,3);}
+ finally{await f.close();}
+});
+
+test('long user minutes are processed in complete delta pages with corresponding original evidence', async () => {
+ const f=await fixture({service:{modelInfoFor:()=>({limits:{contextWindow:3500,maxOutputTokens:300,source:'declared'}})},send:async text=>{if(text.startsWith('Inspect')){const source=JSON.parse(text.split('Source:')[1]);return {finalResponse:JSON.stringify({observations:[{sourceId:source.id,quote:source.text,fact:'Observed original text.'}]}),usage:{totalTokens:100,unknownRequests:0}};}return {finalResponse:'{"candidates":[]}',usage:{totalTokens:100,unknownRequests:0}};}});
+ try{const long='用户确认'+Array.from({length:900},(_,i)=>`科学协议第${i}条保留原始测量。`).join('')+' #1–#2';f.db.prepare('INSERT INTO chat_minutes VALUES(?,?,?,?,?,?)').run('c',1,long,2,'user',new Date().toISOString());f.service.updateSettings({tokenLimit:null});const run=await f.service.consolidate('c');assert.equal(run.state,'completed');assert.equal(run.minutesRevision,1);const deltas=f.state.prompts.filter(p=>p.startsWith('Extract')).map(p=>JSON.parse(p.split('Minutes delta:')[1].split('\nOriginal messages:')[0]));assert.equal(deltas.flatMap(d=>d.added).join(''),long);assert.equal(run.throughOrdinal,2);}
+ finally{await f.close();}
+});
+
+test('oversized validated observations page decisions conservatively preserve disagreement', async () => {
+ let decide=0;const f=await fixture({service:{modelInfoFor:()=>({limits:{contextWindow:5000,maxOutputTokens:300,source:'declared'}})},send:async text=>{
+ if(text.startsWith('Extract'))return {finalResponse:JSON.stringify({candidates:[candidate()]}),usage:{totalTokens:50,unknownRequests:0}};
+ if(text.startsWith('Inspect')){const source=JSON.parse(text.split('Source:')[1]);const quote=source.text.slice(0,180);return {finalResponse:JSON.stringify({observations:Array.from({length:15},()=>({sourceId:source.id,quote,fact:'Source states endpoint protocol.'}))}),usage:{totalTokens:50,unknownRequests:0}};}
+ decide++;return {finalResponse:JSON.stringify({decisions:[decision({op:decide%2?'create':'noop',rationale:'Only inspected page supports this response.'})]}),usage:{totalTokens:50,unknownRequests:0}};
+ }});
+ try{f.store.createItem({type:'memory',subtype:'decision',projectId:'p',title:'Endpoint',body:'Endpoint protocol. '+'x'.repeat(30000)});f.service.updateSettings({tokenLimit:null});const run=await f.service.consolidate('c');assert.equal(run.state,'skipped');assert.equal(run.skipReason,'observation-conflict');assert.ok(decide>1);assert.equal(run.observationConflicts,1);assert.equal(run.proposalIds.length,0);assert.equal(run.throughOrdinal,0);}
+ finally{await f.close();}
+});
+
+test('consistent operations across actual over-window observation pages commit once and account every call', async () => {
+ let sends=0,decisions=0;const f=await fixture({service:{modelInfoFor:()=>({limits:{contextWindow:5000,maxOutputTokens:300,source:'declared'}})},send:async text=>{sends++;let value;
+ if(text.startsWith('Extract'))value={candidates:[candidate()]};else if(text.startsWith('Inspect')){const source=JSON.parse(text.split('Source:')[1]);value={observations:Array.from({length:15},()=>({sourceId:source.id,quote:source.text.slice(0,180),fact:'Original supports the endpoint protocol.'}))};}else{decisions++;value={decisions:[decision()]};}
+ return {finalResponse:JSON.stringify(value),usage:{totalTokens:50,unknownRequests:0}};
+ }});
+ try{f.store.createItem({type:'memory',subtype:'decision',projectId:'p',title:'Endpoint',body:'Endpoint protocol. '+'x'.repeat(30000)});f.service.updateSettings({tokenLimit:null});const run=await f.service.consolidate('c');assert.equal(run.state,'completed');assert.ok(decisions>1);assert.equal(run.proposalIds.length,1);assert.equal(run.throughOrdinal,2);assert.equal(run.budget.tokens,sends*50);assert.equal(run.budget.requests,sends);assert.ok(f.state.prompts.filter(p=>p.startsWith('Compare')).every(p=>p.includes('omitted pages are still pending, not evidence of absence')));}
+ finally{await f.close();}
+});
+
+test('an observation stays whole with its supporting quote; context skip resumes after capacity change', async () => {
+ let capacity=5000;const quote='Support text '+ 'x'.repeat(1800);const fact='Detailed fact '+ 'y'.repeat(18000);
+ const f=await fixture({service:{modelInfoFor:()=>({limits:{contextWindow:capacity,maxOutputTokens:300,source:'configured'}})},send:async text=>{const value=text.startsWith('Extract')?{candidates:[candidate()]}:text.startsWith('Inspect')?{observations:[{sourceId:JSON.parse(text.split('Source:')[1]).id,quote:JSON.parse(text.split('Source:')[1]).text.slice(0,1800),fact}]}:{decisions:[decision()]};return {finalResponse:JSON.stringify(value),usage:{totalTokens:50,unknownRequests:0}};}});
+ try{f.store.createItem({type:'memory',subtype:'decision',projectId:'p',title:'Endpoint',body:quote+'z'.repeat(25000)});f.service.updateSettings({tokenLimit:null});const skipped=await f.service.consolidate('c');assert.equal(skipped.state,'skipped');assert.equal(skipped.skipReason,'model-context');assert.equal(skipped.throughOrdinal,0);assert.equal(skipped.proposalIds.length,0);
+ const checkpoint=JSON.parse(f.db.prepare('SELECT checkpoint_json FROM rb_consolidation_pending').get().checkpoint_json);assert.equal(checkpoint.blockedObservation.fact,fact);assert.ok(checkpoint.read.observations.some(o=>o.quote===checkpoint.blockedObservation.quote&&o.fact===checkpoint.blockedObservation.fact));capacity=100000;const done=await f.service.consolidate('c');assert.equal(done.state,'completed');assert.equal(done.throughOrdinal,2);
+ }finally{await f.close();}
+});
+
+test('over-window minutes ranges deliver every original and retain exact evidence', async () => {
+ const f=await fixture({service:{modelInfoFor:()=>({limits:{contextWindow:4500,maxOutputTokens:300,source:'declared'}})},send:async text=>{
+ if(text.startsWith('Inspect')){const source=JSON.parse(text.split('Source:')[1]);return {finalResponse:JSON.stringify({observations:[{sourceId:source.id,quote:source.text.slice(0,100),fact:'Explicit original evidence.'}]}),usage:{totalTokens:50,unknownRequests:0}};}return {finalResponse:'{"candidates":[]}',usage:{totalTokens:50,unknownRequests:0}};
+ }});
+ try{for(const id of ['u','a'])f.db.prepare('UPDATE messages SET text=? WHERE id=?').run(id+' '.repeat(100)+'x'.repeat(13000),id);await f.chats.appendMessage({chatId:'c',id:'u3',role:'user',text:'Third original.'+'x'.repeat(13000)});f.db.prepare('INSERT INTO chat_minutes VALUES(?,?,?,?,?,?)').run('c',1,'Correction cites #1–#3.',3,'user',new Date().toISOString());f.service.updateSettings({tokenLimit:null});const run=await f.service.consolidate('c');assert.equal(run.state,'completed');assert.equal(run.minutesRevision,1);
+ const sources=f.state.prompts.filter(p=>p.startsWith('Inspect')).map(p=>JSON.parse(p.split('Source:')[1]));assert.deepEqual([...new Set(sources.map(p=>p.id))].sort(),['a','u','u3']);assert.equal(run.throughOrdinal,3);
+ }finally{await f.close();}
+});
+
+test('failed stream output is retained as uncommitted; later explicit run does not concatenate it', async () => {
+ const f=await fixture();let calls=0;f.host.send=async input=>{calls++;input.onEvent?.({type:'text-delta',delta:calls===1?'uncommitted prefix':'fresh complete output'});if(calls===1)throw new Error('stream-cut');return {finalResponse:JSON.stringify(input.text.startsWith('Extract')?{candidates:[]}:{decisions:[]}),usage:{totalTokens:50,unknownRequests:0}};};
+ try{f.service.updateSettings({tokenLimit:null});await assert.rejects(f.service.consolidate('c'),{code:'MODEL_FAILED'});const failed=f.service.status('c');assert.equal(failed.retainedOutputs[0].text,'uncommitted prefix');assert.equal(failed.retainedOutputs[0].committed,false);assert.equal(failed.throughOrdinal,0);
+ const done=await f.service.consolidate('c');assert.equal(done.state,'completed');assert.equal(done.throughOrdinal,2);assert.equal(calls,2);assert.ok(f.state.starts.every(s=>!s.sessionId));
+ }finally{await f.close();}
+});

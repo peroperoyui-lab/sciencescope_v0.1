@@ -234,6 +234,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   const minutes=createChatMinutes({db:database.db,host,chatStore,onError,modelFor:secretaryModel,getPreferences:summaryPreferences,onUpdated:value=>summaryWorkbench.onMinutesUpdated(value),onDiagnostic:summaryDiagnostic});
   const summaryPolicy=createSummaryPolicy({db:database.db,events,minutes,chatStore,getPreferences:summaryPreferences,onError,onDiagnostic:summaryDiagnostic});
   consolidator=createMemoryConsolidator({db:database.db,host,chatStore,minutes,store:research.store,retrieval:research.retrieval,events,modelFor:secretaryModel,
+    modelInfoFor:model=>host?.getModelInfo?.(model),
     validateModel:async model=>{if(host?.listProviders){const providers=await host.listProviders();if(!providers.some(provider=>provider.id===model.providerId&&provider.models?.some(value=>(typeof value==='string'?value:value.id)===model.modelId)))throw new ConsolidationError('MODEL_NOT_AVAILABLE',503);}return true;},
     isBusy:chatId=>pending.has(chatId)||mainRuns.has(chatId)||discussions?.busy(chatId)||execution?.snapshot(chatId).goalActive,
     onDiagnostic:({type,chatId,runId,state,code})=>console.info('[consolidation]',JSON.stringify({type,chatId,runId,state,code}))});
@@ -403,7 +404,9 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   // Shared by Main turns and expert discussions: start (or resume) the chat's
   // DSH session and persist its binding exactly once.
   async function ensureMainBinding({key,input,projectFolder,modelRoute,modelKey,reasoningEffort}) {
-    if(bindings.has(key)&&await needsPythonRefresh(bindings.get(key).sessionId,input.chatId,input.projectId)){
+    const runtimeConfig=await host.getRuntimeConfig?.();
+    const runtimeConfigKey=JSON.stringify(runtimeConfig??null);
+    if(bindings.has(key)&&((bindings.get(key).runtimeConfigKey!==undefined&&bindings.get(key).runtimeConfigKey!==runtimeConfigKey)||await needsPythonRefresh(bindings.get(key).sessionId,input.chatId,input.projectId))){
       await host.releaseSession(bindings.get(key).sessionId);bindings.delete(key);
     }
     if (bindings.has(key)) return bindings.get(key);
@@ -415,8 +418,8 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     const workspace = input.temporary ? path.join(dataRoot,'.sciencescope-local','temp','quick',input.chatId) : (originalWorkspace || projectFolder || chosen || path.join(projects,'independent'));
     await mkdir(workspace,{recursive:true});
     const persona=input.temporary?roleSettings.get('main').prompt:roleSettings.bind(input.chatId,'main',{existing:!!chatStore.getBinding(input.chatId)}).prompt;
-    const session = await startContextSession({model:{...modelRoute,...(reasoningEffort === undefined ? {} : {reasoningEffort})},workspace,runtimeConfig:host.getRuntimeConfig ? await host.getRuntimeConfig() : undefined,sessionId:input.temporary ? undefined : chatStore.getBinding(input.chatId) ?? undefined,persona,pythonEnvId:firstAcceptedMessage?input.pythonEnvId:undefined},{role:input.temporary?'temporary':'main',chatId:input.chatId,mainChatId:input.temporary?null:input.chatId,projectId:input.projectId??null});
-    bindings.set(key,{sessionId:typeof session === 'string' ? session : session.sessionId,modelKey,lastUsed:Date.now()});
+    const session = await startContextSession({model:{...modelRoute,...(reasoningEffort === undefined ? {} : {reasoningEffort})},workspace,runtimeConfig,sessionId:input.temporary ? undefined : chatStore.getBinding(input.chatId) ?? undefined,persona,pythonEnvId:firstAcceptedMessage?input.pythonEnvId:undefined},{role:input.temporary?'temporary':'main',chatId:input.chatId,mainChatId:input.temporary?null:input.chatId,projectId:input.projectId??null});
+    bindings.set(key,{sessionId:typeof session === 'string' ? session : session.sessionId,modelKey,runtimeConfigKey,lastUsed:Date.now()});
     if (!input.temporary) {
       await chatStore.ensureChat({chatId:input.chatId,projectId:input.projectId ?? null,title:input.title || input.text,model:input.model});
       if(firstAcceptedMessage&&input.pythonEnvId!==undefined)await python.bind({scope:'chat',targetId:input.chatId,envId:input.pythonEnvId});
@@ -485,7 +488,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       const expertContext=context+(brief.text?`${brief.text}\n\n`:'')+(recalled.text?`${recalled.text}\n\n`:'');
       response.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store'});
       const emit=event=>{if(!response.destroyed)response.write(JSON.stringify(event)+'\n');};
-      const discussionResult=await discussions.run({chatId:input.chatId,sessionId:binding.sessionId,experts:panel,reviewer,kind,context:expertContext,requestText:compiled.text,chatModel:modelRoute,
+      const discussionResult=await discussions.run({chatId:input.chatId,sessionId:binding.sessionId,environmentKey:sessionPython.get(binding.sessionId)?.key,experts:panel,reviewer,kind,context:expertContext,requestText:compiled.text,chatModel:modelRoute,
         userMessage:{id:userMessageId,text},
         onEvent:event=>{
           if(event.type==='accepted'){
@@ -509,7 +512,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   const binary = (response,status,body,type) => { response.writeHead(status,{'Content-Type':type,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}); response.end(body); };
   async function handle(request,response) {
     const requestUrl = new URL(request.url,'http://127.0.0.1');
-    const route = requestUrl.pathname;
+    let route = requestUrl.pathname;
     if (!route.startsWith('/api/')) return false;
     if (request.headers.host !== `127.0.0.1:${request.socket.localPort}`) { json(response,403,{message:'仅允许本地客户端访问。'}); return true; }
     if (request.headers.origin && request.headers.origin !== `http://${request.headers.host}`) { json(response,403,{message:'请求来源不匹配。'}); return true; }
@@ -709,6 +712,14 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         }
         json(response,200,{stopped:true,chatId:input.chatId,temporary:input.temporary === true}); return true;
       }
+      if(route==='/api/assistant/continue'){
+        input={scope:input.scope,ownerId:input.ownerId,continueMessageId:input.messageId,
+          model:conversations.getSettings(input.scope,input.ownerId).model,
+          text:'Continue your previous response from where the model output limit stopped it. Preserve the existing conclusions and evidence; avoid repeating text already written.',
+          userMessageId:input.userMessageId,executionMode:conversations.getSettings(input.scope,input.ownerId).executionMode,
+          reasoningEffort:conversations.getSettings(input.scope,input.ownerId).reasoningEffort??undefined};
+        route='/api/assistant/chat';
+      }
       if(route==='/api/assistant/chat'){
         const compiled=await researchInput.compile({...input,...input.researchInput,text:input.text,projectId:input.scope==='secretary'?chatStore.getChat(input.ownerId)?.projectId??null:null,attachmentIds:[...new Set([...(input.attachmentIds||[]),...(input.researchInput?.attachmentIds||[])])]});
         input.researchContext=compiled.text;
@@ -873,7 +884,39 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       }
       if (route === '/api/discussion/adopt') { if(!discussions)throw new DiscussionError('RUNTIME_UNAVAILABLE','当前运行时不支持专家讨论。',503); json(response,200,{entry:discussions.adopt(String(input.chatId||''),String(input.messageId||''),input.adopted===true)}); return true; }
       if (route === '/api/discussion/cancel') { json(response,200,discussions?await discussions.cancel(input.chatId):{stopped:false}); return true; }
+      if(route==='/api/discussion/continue'){
+        if(!discussions?.continueAnswer)throw new DiscussionError('RUNTIME_UNAVAILABLE','当前运行时不支持专家续写。',503);
+        const chat=chatStore.getChat(input.chatId);
+        if(!chat||chat.deletedAt)throw new DiscussionError('CHAT_NOT_FOUND','对话不存在。',404);
+        if(pending.has(chat.id)||execution?.busy(chat.id)||discussions.busy(chat.id))throw new DiscussionError('CHAT_BUSY','这个对话仍在运行，请等待或停止。',409);
+        pending.add(chat.id);
+        try{
+          const projectFolder=chat.projectId?(await workbench.call(chat.projectId,'get')).folder:undefined;
+          const modelRoute={providerId:chat.model.providerId,modelId:chat.model.modelId};
+          const binding=await ensureMainBinding({key:chat.id,input:{chatId:chat.id,projectId:chat.projectId,model:chat.model,text:'专家继续回复'},projectFolder,modelRoute,modelKey:JSON.stringify(modelRoute),reasoningEffort:chat.reasoningEffort??undefined});
+          await execution.configure(chat.id,binding,input.executionMode==='full'?'full':'ask');
+          await discussions.continueAnswer({chatId:chat.id,messageId:input.messageId,sessionId:binding.sessionId,environmentKey:sessionPython.get(binding.sessionId)?.key,onEvent:event=>{
+            if(event.type==='accepted')for(const expert of event.experts??[])expertTurnMessages.set(expertTurnKey(binding.sessionId,expert.id),{chatId:chat.id,messageId:expert.messageId});
+            if(!response.headersSent)response.writeHead(200,{'Content-Type':'application/x-ndjson','Cache-Control':'no-store'});
+            if(!response.destroyed)response.write(JSON.stringify(event)+'\n');
+          }});
+          binding.lastUsed=Date.now();void events.emit('discussion.finished',{chatId:chat.id});response.end();
+        }finally{pending.delete(chat.id);for(const [key,value]of expertTurnMessages)if(value.chatId===chat.id)expertTurnMessages.delete(key);}
+        return true;
+      }
       if (route === '/api/discussion') { await handleDiscussion(input,response); return true; }
+      if(route==='/api/chat/continue'){
+        if(!/^[A-Za-z0-9_-]{1,160}$/u.test(input.chatId??'')||!/^[A-Za-z0-9_-]{1,160}$/u.test(input.messageId??'')){json(response,400,{code:'INVALID_MESSAGE_ID',message:'消息标识无效。'});return true;}
+        const chat=chatStore.getChat(input.chatId),message=chatStore.getMessage(input.chatId,input.messageId);
+        if(!chat||chat.deletedAt||conversations.isAssistant(chat.id)||!message||message.role!=='assistant'||message.completionStatus!=='max-tokens'){
+          json(response,409,{code:'CONTINUATION_UNAVAILABLE',message:'这条回复没有可继续的模型上限状态。'});return true;
+        }
+        if(database.db.prepare('SELECT 1 FROM messages WHERE chat_id=? AND ordinal>? LIMIT 1').get(chat.id,message.ordinal)){
+          json(response,409,{code:'CONTINUATION_STALE',message:'此回复之后已有新消息，请在当前对话中说明要继续的内容。'});return true;
+        }
+        input={chatId:chat.id,projectId:chat.projectId,model:chat.model,reasoningEffort:chat.reasoningEffort??undefined,executionMode:input.executionMode==='full'?'full':'ask',userMessageId:input.userMessageId,assistantMessageId:input.assistantMessageId,text:'Continue your previous response from where the model output limit stopped it. Preserve the existing conclusions and evidence; avoid repeating text already written.',researchInput:{attachmentIds:[],messageQuotes:[],annotations:[],contextRefs:[]}};
+        route='/api/chat';
+      }
       if (route !== '/api/chat') { json(response,501,{message:'当前 DSH 接口尚未开放此操作。'}); return true; }
       if(input.outboxId) {
         const saved=outbox.list(input.chatId).items.find(item=>item.id===input.outboxId);
@@ -1007,8 +1050,9 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
           let endSeq=null;
           if(typeof host.sessionTurns==='function')try{const turns=await host.sessionTurns({sessionId:bindings.get(key).sessionId});endSeq=turns.turns?.at(-1)?.endSeq??null;}catch{}
           if(run)run.persisted=true;
-          await chatStore.setMessageReceipt(input.chatId,input.userMessageId,{runtimeSeq:Number.isSafeInteger(endSeq)?endSeq:null,completionStatus:'completed'});
-          await chatStore.appendMessage({chatId:input.chatId,id:input.assistantMessageId,role:'assistant',text:finalEvent.text,runtimeSeq:Number.isSafeInteger(endSeq)?endSeq:null,completionStatus:'completed'});
+          const completionStatus=finalEvent.stopReason==='max-tokens'?'max-tokens':'completed';
+          await chatStore.setMessageReceipt(input.chatId,input.userMessageId,{runtimeSeq:Number.isSafeInteger(endSeq)?endSeq:null,completionStatus});
+          await chatStore.appendMessage({chatId:input.chatId,id:input.assistantMessageId,role:'assistant',text:finalEvent.text,runtimeSeq:Number.isSafeInteger(endSeq)?endSeq:null,completionStatus});
           void events.emit('chat.turn.persisted',{chatId:input.chatId});
         }
         successful=!!finalEvent;

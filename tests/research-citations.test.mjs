@@ -44,8 +44,8 @@ test('compound groups preserve every member and unknown raw text', () => {
     assert.equal(result.citations.length, 0, raw);
     assert.ok(result.unrecognized.length, raw);
   }
-  assert.equal(parseCitationLabel(`[${Array(33).fill('S3').join(';')}]`).unrecognized[0].reason, 'too-many-citations');
-  assert.equal(parseCitationLabel('S'.repeat(2049)).unrecognized[0].reason, 'label-too-long');
+  assert.equal(parseCitationLabel(`[${Array(33).fill('S3').join(';')}]`).citations.length, 33);
+  assert.equal(parseCitationLabel('S'.repeat(2049)).unrecognized[0].reason, 'unsupported-format');
 });
 
 test('prose extraction preserves whole groups and offsets without guessing bibliography numbers', () => {
@@ -65,7 +65,7 @@ test('malformed explicit source labels remain auditable prose candidates', () =>
   assert.deepEqual(extractCitationLabels('[1, 2] (2026) [section] [paper](https://example.test) [S3\np.4]'),[]);
   assert.deepEqual(extractCitationLabels('(source [S3][S5])').map(row=>row.raw),['[S3]','[S5]'],'outer prose parentheses cannot swallow explicit inner source labels');
   const large=extractCitationLabels('[S3 '+ 'x'.repeat(2049)+']');
-  assert.equal(large[0].unrecognized[0].reason,'label-too-long');
+  assert.equal(large[0].unrecognized[0].reason,'unsupported-format');
 });
 
 test('cite API adds compound resolution, keeps legacy single citation and reports missing members', async () => {

@@ -24,6 +24,11 @@ export function createProviderService(call) {
       id, name:p.displayName || id, baseUrl:p.baseURL || '',
       protocol:Object.keys(protocols).find(key=>protocols[key]===p.api) || '',
       models:(p.models || []).map(m=>typeof m === 'string' ? m : m.id),
+      modelSettings:Object.fromEntries((p.models || []).map(m=>{
+        const value=typeof m==='string'?{id:m}:m;
+        return [value.id,Object.fromEntries(['name','maxTokens','contextWindow'].filter(key=>value[key]!==undefined).map(key=>[key,value[key]]))];
+      })),
+      modelDefaults:{maxTokens:p.defaultMaxTokens??32768,contextWindow:p.defaultContextWindow??262144},
       configured:credentials[p.apiKeyEnv || keyRef(id)]?.configured === true,
       saved:true,
     }));
@@ -41,7 +46,12 @@ export function createProviderService(call) {
       ...previous,
       displayName:data.name, baseURL:data.baseUrl, api:protocols[data.protocol],
       apiKeyEnv:credentialRef,
-      models:data.models.map(id=>previous.models?.find(m=>m.id===id) || {id}),
+      models:data.models.map(id=>{
+        const old=previous.models?.find(m=>(typeof m==='string'?m:m.id)===id);
+        const profile={...(typeof old==='object'?old:{}),id};
+        for(const [field,value] of Object.entries(data.modelSettings?.[id]??{})){if(value===null)delete profile[field];else profile[field]=value;}
+        return profile;
+      }),
     };
     await call('settings','mutate',{ns:namespace,ops:[{op:'set',path:['providers',id],value:next}],expectedRevision:section.revision});
     if (typeof input.apiKey === 'string' && input.apiKey.trim()) await call('credentials','set',{ref:credentialRef,value:input.apiKey.trim()});
@@ -65,10 +75,19 @@ export function createProviderService(call) {
     await call('settings','mutate',{ns:namespace,ops:[{op:'unset',path:['providers',id]}],expectedRevision:section.revision});
   }
   async function getModelInfo({providerId,modelId}) {
+    const section=await view();
     const catalog=await call('session','modelCatalog',{});
     const info=catalog.groups?.find(group=>group.id===providerId)?.models.find(model=>model.id===modelId);
     if(!info)throw new Error('The selected model is not available in the DSH catalog');
-    return {reasoning:info.reasoning || null};
+    const provider=section.value?.providers?.[providerId];
+    const profile=provider?.models?.find(model=>(typeof model==='string'?model:model.id)===modelId);
+    const settings={...(typeof profile==='object'?profile:{}),...provider?.modelOverrides?.[modelId]};
+    return {reasoning:info.reasoning || null,limits:{
+      contextWindow:settings.contextWindow??provider?.defaultContextWindow??262144,
+      maxOutputTokens:settings.maxTokens??provider?.defaultMaxTokens??32768,
+      source:settings.maxTokens!==undefined||provider?.defaultMaxTokens!==undefined?'configured':'runtime-default',
+      contextSource:settings.contextWindow!==undefined||provider?.defaultContextWindow!==undefined?'configured':'runtime-default',
+    }};
   }
   return {listProviders,saveProvider,discoverModels,removeProvider,getModelInfo,getRuntimeConfig:async()=> (await view()).value};
 }

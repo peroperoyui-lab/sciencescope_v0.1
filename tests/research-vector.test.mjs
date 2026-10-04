@@ -122,3 +122,26 @@ test('upsert replaces stale document versions and rejects invalid embeddings ato
   }
 });
 
+
+test('more than six search phrasings remain semantic searches in real sqlite-vec', async () => {
+ const f=await fixture();let store;try{
+  store=await createVectorStore({dbPath:f.dbPath,embedding:fakeEmbedding(),modelId:'local/test',modelVersion:'v1',dimensions:3});
+  const doc={ref:{type:'message',id:'message-alpha'},version:'1',text:'alpha'};await store.upsertDocuments([doc]);
+  const queries=Array.from({length:9},(_,i)=>`alpha phrasing ${i}`);const result=await store.search({queries,candidates:[doc],limit:35});
+  assert.equal(result.fallbackReason,undefined);assert.equal(result.rankings.length,9);assert.ok(result.rankings.every(r=>r.length===1&&r[0].ref.id===doc.ref.id));
+ }finally{await store?.close();await f.close();}
+});
+
+test('semantic rankings preserve more than thirty authorized hits and stable pages across filter batches', async () => {
+ const f=await fixture();let store;try{
+  store=await createVectorStore({dbPath:f.dbPath,embedding:fakeEmbedding(),modelId:'local/test',modelVersion:'v1',dimensions:3});
+  // Identical vectors stress ties at both the old thirty-hit cutoff and the
+  // 500-candidate sqlite metadata filter boundary. Private is not authorized.
+  const docs=Array.from({length:540},(_,i)=>({ref:{type:'message',id:`message-${String(i).padStart(4,'0')}`},version:'1',text:'alpha semantic-only evidence'}));
+  const privateDoc={ref:{type:'message',id:'message-private'},version:'1',text:'alpha private'};await store.upsertDocuments([...docs,privateDoc]);
+  const complete=await store.search({queries:['alpha'],candidates:[...docs].reverse(),limit:540});assert.equal(complete.rankings[0].length,540);assert.ok(!complete.rankings[0].some(row=>row.ref.id===privateDoc.ref.id));
+  const first=await store.search({queries:['alpha'],candidates:docs,limit:35});assert.equal(first.rankings[0].length,35);assert.deepEqual(first.rankings[0],complete.rankings[0].slice(0,35));
+  const again=await store.search({queries:['alpha'],candidates:docs,limit:540});assert.deepEqual(again.rankings[0],complete.rankings[0]);assert.equal(again.rankings[0].slice(35,70).length,35);
+  await assert.rejects(store.search({queries:['alpha'],candidates:docs,limit:10001}),{code:'VECTOR_SEARCH_RESOURCE_LIMIT'});
+ }finally{await store?.close();await f.close();}
+});

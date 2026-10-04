@@ -10,7 +10,7 @@ export function createWorkspaceSource(deps) {
   const facade = deps.facade ?? workbenchFacade({ db: deps.db, workbench: deps.workbench });
   const status = createStatusSource({ ...deps, facade });
   return { id, sections, describe, async read(scope, args = {}) {
-    const query = typeof args.query === 'string' ? args.query.trim().slice(0, 200) : '';
+    const query = typeof args.query === 'string' ? args.query.trim() : '';
     const assistantTable = Boolean(database.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='assistant_conversations'").get());
     const temporaryColumn = ['temporary', 'is_temporary', 'temporary_flag'].find((name) => new Set(database.prepare('PRAGMA table_info(chats)').all().map((column) => column.name)).has(name));
     const visible = `${temporaryColumn ? `AND COALESCE(c."${temporaryColumn}",0)=0` : ''} ${assistantTable ? "AND NOT EXISTS (SELECT 1 FROM assistant_conversations a WHERE a.chat_id=c.id)" : ''}`;

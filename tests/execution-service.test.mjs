@@ -102,4 +102,25 @@ test('Python environment refresh waits for turn/end, later run-idle, and durable
   } finally { releaseAppend(); await execution.close(); }
 });
 
+test('automatic outputs retain length terminals including empty incomplete-tool text',async()=>{
+  const base=path.resolve('.sciencescope-local/temp/t24-validation');await mkdir(base,{recursive:true});
+  const root=await mkdtemp(path.join(base,'execution-length-'));roots.push(root);
+  const chatStore=await new ChatStore({stateDir:root}).init();stores.push(chatStore);
+  await chatStore.ensureChat({chatId:'auto-length',projectId:null,title:'Automatic output'});
+  let receive;const host={observeSession(_id,callback){receive=callback;return()=>{};},async configurePolicy(){},async sessionGoal(){return{id:'goal-length',revision:1,phase:'active',activation:'armed'};},async getGoal(){return null;}};
+  const binding={sessionId:'session-length'},execution=createExecutionService({host,database:{db:chatStore.db.db},chatStore,bindings:new Map([['auto-length',binding]])});
+  try{
+    await execution.configure('auto-length',binding,'auto');await execution.start('auto-length',binding,'continue',5);
+    for(const [index,text,reason,status]of [[1,'retained partial','max-tokens','max-tokens'],[2,'','max-tokens','max-tokens'],[3,'finished','completed','completed'],[4,'cancelled partial','aborted','cancelled'],[5,'failed partial','error','failed']]){
+      receive({type:'committed-event',eventType:'assistant/message',seq:index*10,sequence:index*10,data:{turn:index,text,hasToolCalls:index===2}});
+      receive({type:'committed-event',eventType:'turn/end',seq:index*10+1,sequence:index*10+1,data:{turn:index,stopReason:reason}});
+      await execution.waitForTurnWrites('auto-length');
+      const message=chatStore.getMessage('auto-length',`runtime-session-length-${index*10}`);
+      assert.ok(message,`committed turn ${index} persists even with empty visible text`);
+      assert.equal(message.text,text);assert.equal(message.runtimeSeq,index*10+1);assert.equal(message.completionStatus,status);
+      assert.equal(message.usage??null,null,'observer does not invent a usage receipt');
+    }
+  }finally{await execution.close();}
+});
+
 test.after(async () => { for (const store of stores) store.close(); for (const root of roots) await rm(root, { recursive: true, force: true }); });

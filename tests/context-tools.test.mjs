@@ -14,7 +14,7 @@ test('versioned lookup rules prioritize scoped research tools for every role',()
     assert.match(rules,/nextOrdinal/);
     assert.match(rules,/cite evidence for each claim/);
     assert.match(rules,/throughout the answer, including follow-up verification/);
-    assert.match(rules,/Once direct evidence covers the requested scope, answer concisely/);
+    assert.match(rules,/Once direct evidence covers the requested scope, answer/);
     assert.match(rules,/specific missing fact or contradiction/);
     assert.match(rules,/nextOrdinal is optional continuation/);
     assert.match(rules,/ambiguities.*rather than guessing/);

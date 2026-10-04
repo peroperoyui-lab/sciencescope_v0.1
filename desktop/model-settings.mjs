@@ -13,11 +13,17 @@ let busy = false;
 let notice = '';
 let selectedModel = null;
 window.ScienceScopeModels = {selected:()=>selectedModel, available:()=>host.available,select(model){selectedModel=model;S.settings.model=model?.modelId || '未连接模型';}};
-function emptyDraft() { return { name: '', baseUrl: '', protocol: '', models: '' }; }
+function emptyDraft() { return { name: '', baseUrl: '', protocol: '', models: '', modelSettings:{} }; }
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const action = (label, name, extra = '', style = '') => `<button type="button" class="btn ${style}" data-api-action="${name}" ${extra}>${label}</button>`;
 const error = name => `<span class="api-error" id="api-error-${name}">${escape(errors[name] || '')}</span>`;
 const input = (name, title, placeholder) => `<div class="field"><label class="label" for="api-${name}">${title}</label><input id="api-${name}" data-api-field="${name}" value="${escape(draft[name])}" placeholder="${escape(placeholder)}" aria-describedby="api-error-${name}" aria-invalid="${!!errors[name]}">${error(name)}</div>`;
+function outputSettings() {
+  const ids=[...new Set(draft.models.split(/\r?\n/u).map(id=>id.trim()).filter(Boolean))];
+  const fallback=draft.modelDefaults?.maxTokens??32768;
+  return ids.map(id=>`<div class="field api-output-limit"><label>${escape(id)} · 最大输出 token${infoTip('优先使用服务商发现结果。未知时沿用运行时默认值；你可明确修改，下一轮生效。达到上限后内容保留，可继续。',{label:'最大输出说明'})}</label><input type="number" min="1" step="1" data-api-model-limit="${escape(id)}" value="${escape(draft.modelSettings?.[id]?.maxTokens??'')}" placeholder="${escape(fallback)}" aria-label="${escape(id)} 最大输出 token"><small>${draft.modelSettings?.[id]?.maxTokens===undefined?'运行时默认值':'已配置的模型容量'} · ${escape(draft.modelSettings?.[id]?.maxTokens??fallback)}</small></div>`).join('');
+}
+function paintOutputSettings(){const surface=document.querySelector('[data-api-output-settings]');if(surface)surface.innerHTML=outputSettings();}
 
 function providerRow(p,index) {
   const status = p.saved ? p.configured ? '已保存 · 未测试' : '已保存 · 未设置密钥' : '草稿 · 未连接';
@@ -51,6 +57,7 @@ providerPage = function () {
   <div class="field"><label class="label" for="api-key-preview">API Key${infoTip('密钥不会保存在页面草稿或研究文件中。',{label:'API Key 说明'})}</label><input id="api-key-preview" type="password" ${host.saveProvider ? '' : 'disabled'} placeholder="${host.saveProvider ? '输入 API Key（不回显已存密钥）' : '凭证存储接通后可填写'}" autocomplete="off"></div>
   <div class="between api-model-heading"><h3>模型</h3><button type="button" class="btn" data-api-action="discover" ${!host.discoverModels || busy ? 'disabled' : ''}>${busy ? '处理中…' : '获取模型列表'}</button></div>
   <div class="field"><label class="label" for="api-models">模型 ID${infoTip('每行一个，可直接手动填写服务商提供的准确模型 ID。',{label:'模型 ID 说明'})}</label><textarea id="api-models" data-api-field="models" rows="4" placeholder="服务商提供的准确模型 ID" aria-describedby="api-error-models" aria-invalid="${!!errors.models}">${escape(draft.models)}</textarea>${error('models')}</div>
+  <section data-api-output-settings>${outputSettings()}</section>${error('modelSettings')}
   <details class="card subtle"><summary>连接说明</summary><p class="muted">地址请按服务商文档填写；协议不会根据模型名自动猜测。模型列表由 DSH 查询，不支持列表的服务可直接手填模型 ID。编辑时留空密钥会保留原密钥。</p></details>
   <div class="saverow">${action('取消', 'back')}<button type="submit" class="btn primary" ${busy ? 'disabled' : ''}>${busy ? '保存中…' : host.saveProvider ? '保存服务' : '保存草稿'}</button></div>
   </form></div>`;
@@ -60,6 +67,9 @@ function navigate(page) { closeMenu(); go(page); }
 window.addEventListener('input', event => {
   const field = event.target.dataset?.apiField;
   if (field && Object.hasOwn(draft, field)) draft[field] = event.target.value;
+  if(field==='models')paintOutputSettings();
+  const modelId=event.target.dataset?.apiModelLimit;
+  if(modelId){draft.modelSettings??={};draft.modelSettings[modelId]={...draft.modelSettings[modelId],maxTokens:event.target.value};}
 }, true);
 window.addEventListener('change', event => {
   const field = event.target.dataset?.apiField;
@@ -119,15 +129,21 @@ window.addEventListener('click', async event => {
     try {
       const result = await hostRequest('providers/discover', {...check.value,id:editing === null ? undefined : drafts[editing]?.id,apiKey});
       draft.models = [...new Set([...draft.models.split('\n').map(x=>x.trim()).filter(Boolean),...result.models.map(m => typeof m === 'string' ? m : m.id)])].join('\n');
+      draft.modelSettings??={};
+      for(const model of result.models)if(model&&typeof model==='object'&&typeof model.id==='string'){
+        const previous=draft.modelSettings[model.id]??{};
+        draft.modelSettings[model.id]={...Object.fromEntries(['name','maxTokens','contextWindow'].filter(key=>model[key]!==undefined).map(key=>[key,model[key]])),...previous};
+      }
       notice = result.models.length ? '已获取模型列表，请确认后保存。' : '服务未返回模型，可以手动填写模型 ID。';
       document.getElementById('api-models').value = draft.models;
+      paintOutputSettings();
       toast(notice);
     } catch(error) { toast(error.message + '；仍可手动填写模型 ID。'); }
     finally { busy = false; }
     return;
   }
   if (operation === 'new') { editing = null; draft = emptyDraft(); errors = {}; navigate('provider'); }
-  else if (operation === 'edit' && drafts[index]) { editing = index; draft = {...drafts[index], models: drafts[index].models.join('\n')}; errors = {}; navigate('provider'); }
+  else if (operation === 'edit' && drafts[index]) { editing = index; draft = {...drafts[index],modelSettings:structuredClone(drafts[index].modelSettings??{}), models: drafts[index].models.join('\n')}; errors = {}; navigate('provider'); }
   else if (operation === 'remove' && drafts[index]) {
     if (drafts[index].saved) {
       const approved = window.ScienceScopeWorkspace?.confirmAction

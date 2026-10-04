@@ -38,7 +38,7 @@
 | 方法 | 语义 |
 |---|---|
 | `startSession({model, workspace, runtimeConfig, sessionId?, noTools?, persona?, proposalTargetChatId?, sessionEnv?, maxTokens?})` → `sessionId` | 启动或恢复会话。`maxTokens`（T09 加入）只用于后台整理的短会话，T24 按"输出上限取模型声明值"复核。给出已有 `sessionId` 时必须恢复其完整模型上下文。`model = {providerId, modelId, reasoningEffort?}`。`sessionEnv` 是 Python 环境等会话环境；同一会话不能以不同环境重复启动（需先 `releaseSession`） |
-| `send({sessionId, text, onEvent})` → `{sessionId, finalResponse}` | 发送一轮用户消息，等整轮（含所有工具循环）结束才返回。没有最终文本时抛错，错误带服务商失败码。事件见 §4 |
+| `send({sessionId, text, onEvent})` → `{sessionId, finalResponse, stopReason?, usage?}` | 发送一轮用户消息，等整轮（含所有工具循环）结束才返回。`stopReason: 'max-tokens'` 是达到模型输出上限的正常终止，保留本轮可见文本及工具回执；可见文本为空也不当作错误。用户可在同一会话发送继续指令。其他无最终文本的失败仍携服务商失败码。`usage` 见下方；旧调用者仍可只读 `finalResponse`。事件见 §4 |
 | `interrupt(sessionId)` | 停止当前轮，取消该会话的待审批请求 |
 | `releaseSession(sessionId)` | 释放会话进程；日志保留，可再次 `startSession` 恢复。宿主不为历史对话常驻进程 |
 | `waitForSessionIdle(sessionId, {timeout})` | 等会话空闲 |
@@ -56,10 +56,12 @@
 | `text-replace` | `text` | 用新文本替换已显示的回答：一次失败的尝试被丢弃，或工具调用前的"前言"被移到工具卡片 |
 | `tool-call` | `turn, step, callId, name, argumentsPreview, preamble?` | 工具调用开始；`preamble` 是调用前模型写的说明，属于工具卡片而不是回答 |
 | `tool-result` | `turn, step, callId, isError, resultPreview` | 工具结果 |
-| `completed` | `text` | 本轮最终回答 |
+| `completed` | `text, stopReason?, usage?` | 本轮终止；达到模型上限时 `stopReason: 'max-tokens'`，文字保留，不能冒称任务已经完整完成 |
 | 控制事件 | 见 §5、§6 | 经同一回调透传 |
 
 不变式：同一 `callId` 的 call 与 result 属于同一 `turn`；失败的尝试不会进入模型历史；重试由运行时负责（当前每步最多 5 次，针对传输 / 服务端 / 超时 / 空回复）。
+
+T24 用量回执（additive）：`usage` 汇总本次 `send` 所有已提交模型步骤的服务商用量，字段为 `totalTokens`、`inputTokens`（未缓存输入）、`outputTokens`、`cacheReadTokens`、`cacheWriteTokens`、`reasoningTokens` 及 `requests`、`unknownRequests`。优先使用服务商 `totalTokens`；不存在时按未缓存输入＋缓存读取＋缓存写入＋输出合计，reasoning 是输出子集，不再次相加。未知用量不得当作 0；产品成本设置在缺回执时使用估算并标明。服务商失败/重试未提供的用量不能由适配器虚构，付费评测物理重试另记。
 
 ## 5. 执行策略与审批
 
@@ -87,6 +89,7 @@
 | `scheduleSessionEnvRefresh(sessionId)` | 下一轮前刷新会话环境（Python） |
 | `sessionGoal / getGoal / pauseGoal / resumeGoal / completeGoal / clearGoal` | 自动化目标（目前只在主对话启用） |
 | `runExperts({sessionId, runId, prompt, experts, onEvent})` | 有序讨论：各专家并发执行、各自独立子会话，结果按固定顺序展示。事件 `expert-start / expert-delta / expert-reset / expert-tool / expert-tool-result / expert-end`（带 `runId`、专家 id） |
+| `continueExpert({sessionId, runId, childSessionId, expert, prompt, onEvent})` | T24：恢复宿主记录的原专家子会话，发送显式继续指令，返回单个专家结果。`sessionId` 是其父会话；`childSessionId` 及不可变 `expert` 快照只能来自宿主持久化绑定，界面只提供聊天/消息身份。适配器验证原子会话所属父会话并重建人设、绑定技能、宿主工具归属与审批策略；不能自动向 Main 注入子会话结束通知。`runExperts` 的结果与 `expert-end` additive 提供 opaque `childSessionId`，用于达到上限后的恢复；每次执行后释放进程，保留历史。继续结果在展示记录中追加，不改写已生成文字；未完成审核仍需完成后由用户采纳 |
 | `cancelExperts({sessionId, runId})` | 取消本轮专家，并作废他们的待审批请求 |
 
 ## 7. 宿主工具与数据归属
@@ -97,7 +100,7 @@
 
 ## 8. 服务商与技能
 
-- `ProviderService`：`listProviders`、`saveProvider`、`removeProvider`、`discoverModels`、`getModelInfo`（返回推理能力）、`getRuntimeConfig`。凭据只写入凭据文件，不回传明文。
+- `ProviderService`：`listProviders`、`saveProvider`、`removeProvider`、`discoverModels`、`getModelInfo`、`getRuntimeConfig`。凭据只写入凭据文件，不回传明文。`getModelInfo({providerId,modelId})` additive 返回 `limits:{contextWindow,maxOutputTokens,source,contextSource}`，容量来源为 `configured`（保存的模型配置，可能来自发现结果或用户修改）或 `runtime-default`（未知容量时的运行时默认），并保留 `reasoning`。DSH profile 不存两种配置的来源差别，不能声称辨别了服务商声明和用户覆盖。保存链路保留发现结果中的名称、上下文窗口与最大输出；显式用户修改可覆盖最大输出，留空移除覆盖并恢复默认。容量不是价格，不得把缺失价格解释为免费。模型配置更改在下一轮开始前通过释放空闲进程并恢复同一会话应用，运行中的轮次保持原配置。
 - `SkillManager`：列出、读取、启停、导入、删除技能。
 - 能力声明 `capabilities`：`sessions`、`tokenStreaming`、`reasoningEffort`、`providerSave`、`providerDiscover` 等。产品代码按能力决定是否显示入口，不按实现名判断。
 
@@ -114,6 +117,9 @@
 | 策略、目标 | `scripts/dsh-policy-smoke.mjs`、`scripts/dsh-goal-smoke.mjs` |
 | 重试 | `tests/dsh-production-retry.test.mjs` |
 | 专家与专家审批 | `tests/expert-discussion-runtime.test.mjs`、`tests/expert-approval-runtime.test.mjs` |
+| 模型输出上限、空 partial、usage 与流交付积压 | `tests/model-output-runtime.test.mjs`；`/prompt` 必须等模型结束及有序展示队列排空后回应，generation idle 不等于 delivery idle |
+| 专家原子会话继续、应用恢复与隔离 | `tests/expert-continuation-runtime.test.mjs`、`tests/output-continuation-api.test.mjs`；失败/取消的续写尝试保留，不消费原 partial 恢复入口 |
+| 自动化输出 receipt | `tests/execution-service.test.mjs`；自动化同样保存空/非空 max-tokens 状态，运行中目标仍须用户先暂停 |
 | 人设、宿主工具 | `tests/role-prompt-runtime.test.mjs`、`tests/research-tools-runtime.test.mjs` |
 | 受保护路径与凭据 | `tests/secret-isolation-runtime.test.mjs`、`tests/credential-isolation.test.mjs` |
 
@@ -127,5 +133,7 @@
 | 2026-10-03 | 分支没有公开 API | T12 用 `sessionQuery` 与 `agents.create` 组合实现，随上游升级需要复验 |
 | 2026-10-03 | 依赖 alpha 版本（`0.1.6-alpha.1`） | 上游接口仍在变；升级 DSH 单独立任务、单独验收 |
 | 2026-10-03 | 会话日志导出只有浏览器 ZIP（`dsh-session-log-export`） | 没有中立格式；T23 自行实现导出 |
+| 2026-10-04 | 已安装 pi-ai 按 provider route 取目录默认；ScienceScope 自定义 route 未保存发现容量时默认输出 32768、上下文 262144。公开 session 目录不提供价格或输出容量 | T24 用端点发现和支持的模型 profile 字段保留容量，未知时显示运行时默认并允许用户修改；不根据 URL 猜供应商 |
+| 2026-10-04 | 上游 pi-ai 请求构造还会按上下文估算减去 4096 余量，下调请求输出容量；one-shot 子代理不支持 `subagents.prompt` | T24 不 fork 依赖；公开 `agents.resume` 恢复由宿主管理的专家子会话，恢复角色/工具/审批边界。上游上下文余量行为如实保留为运行时限制 |
 
 **决策时点**：alpha 发布之后。依据本表、上游破坏性变更频率和每次升级 DSH 的实际成本，决定继续使用、替换部分能力，还是更换运行时。在此之前不做迁移。

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 const ROLES = new Set(['main', 'secretary', 'global']);
-const MAIN_PROMPT = "You are ScienceScope's Main research coordinator. Coordinate rigorous scientific reasoning grounded in evidence, explicit methods, assumptions, and uncertainty, and make next steps clear. When the user asks, explain the method, formulas, statistical assumptions, and evidential basis so they can understand, judge, and correct the analysis. Do not launch into lengthy basic teaching unless requested; do not infer scientific conclusions from a private user profile. Do not act as a general coding agent.";
+const MAIN_PROMPT = "You are ScienceScope's Main research coordinator. Coordinate rigorous scientific reasoning grounded in evidence, explicit methods, assumptions, and uncertainty, and make next steps clear. When the user asks, explain the method, formulas, statistical assumptions, and evidential basis so they can understand, judge, and correct the analysis. Explain basic concepts when the user requests them; do not infer scientific conclusions from a private user profile. Do not act as a general coding agent.";
 const BUILTIN = Object.freeze({
   main: MAIN_PROMPT,
   global: "You are ScienceScope's private global assistant. Use the workspace overview and scoped context tools to understand public research progress across projects. Private assistant chats, temporary chats and private library items are excluded. Use only capabilities granted by the runtime and accurately report actions and results.",
@@ -32,7 +32,11 @@ function effortValue(effort) {
   return effort;
 }
 function promptValue(prompt) {
-  if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 16000) invalid('Invalid prompt');
+  if (typeof prompt !== 'string' || !prompt.trim()) invalid('Invalid prompt');
+  if (Buffer.byteLength(prompt,'utf8') > 64 * 1024 * 1024) {
+    const error = new RoleSettingsError('提示词超过 64 MiB 资源上限；本次未保存，已有提示词和会话绑定保持完整。');
+    error.code = 'ROLE_PROMPT_RESOURCE_LIMIT'; error.status = 413; throw error;
+  }
   return prompt.trim();
 }
 function clone(value) { return value == null ? value : JSON.parse(JSON.stringify(value)); }

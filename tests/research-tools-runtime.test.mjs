@@ -140,7 +140,7 @@ test('host manifests give Main, expert, secretary and global the scoped context 
     }
     assert.match(JSON.stringify(mainRequest.input.messages.filter(message=>message.role==='system')),/BRIEF_MARKER 主要终点/,'the brief is part of the Main system prompt');
     assert.match(JSON.stringify(mainRequest.input.messages.filter(message=>message.role==='system')),/For research questions use research_search first/,'versioned lookup priority reaches the actual DSH model input through configureBrief');
-    assert.match(JSON.stringify(mainRequest.input.messages.filter(message=>message.role==='system')),/Once direct evidence covers the requested scope, answer concisely/,'answer sufficiency reaches the actual provider system input');
+    assert.match(JSON.stringify(mainRequest.input.messages.filter(message=>message.role==='system')),/Once direct evidence covers the requested scope, answer and cite evidence for each claim/,'evidence sufficiency reaches the actual provider system input without a length preference');
     for(const request of [mainRequest,expertRequest,secretaryRequest,globalRequest]){
       assert.match(requestTool(request,'research_search').description,/throughout the answer, including follow-up verification/);
       assert.match(requestTool(request,'research_read').description,/nextOrdinal is optional continuation/);

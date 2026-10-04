@@ -50,7 +50,7 @@ test('main builtin prompt sets rigorous research persona without changing saved 
     assert.match(builtin, /evidence.*methods.*assumptions.*uncertainty/s);
     assert.match(builtin, /formulas.*statistical assumptions.*evidential basis/s);
     assert.match(builtin, /understand, judge, and correct/);
-    assert.match(builtin, /lengthy basic teaching unless requested/);
+    assert.match(builtin, /Explain basic concepts when the user requests them/);
     assert.match(builtin, /private user profile/);
     assert.doesNotMatch(builtin, /teaching tutor/);
     const bound = f.store.bind('main-persona-chat', 'main', { existing: true });

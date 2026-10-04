@@ -37,6 +37,13 @@ window.addEventListener('click',async event=>{
   catch(error){toast(error.message);}
   finally {stopping.delete(chatId);syncRunButton();}
 },true);
+window.addEventListener('click',async event=>{
+  const button=event.target.closest('[data-main-continue]');if(!button)return;
+  event.preventDefault();event.stopImmediatePropagation();
+  button.disabled=true;
+  try{await submitMain('Continue your previous response from where the model output limit stopped it. Preserve the existing conclusions and evidence; avoid repeating text already written.',[],{continueMessageId:button.dataset.mainContinue});}
+  finally{button.disabled=false;}
+},true);
 
 // Only Main text is wired in this increment. Do not pretend demo discussion or
 // secretary actions execute real agents. The original design remains untouched.
@@ -57,7 +64,7 @@ submitMain = async function(text, annotations = S.annotations, options = {}) {
   const thread = window.ScienceScopeWorkspace?.resolveThread(chatId) || S.threads.find(t => t.id === chatId);
   if (!thread || V.pending.has(chatId)) return false;
   let researchInput;
-try{researchInput=options.outboxId?{attachmentIds:[],messageQuotes:[],annotations:[],contextRefs:[]}:await window.ScienceScopeResearchInput.capture('main',chatId);if(!options.outboxId){const legacy=getThreadData(chatId).contextRefs||[];for(const ref of legacy){if(ref.messageId&&ref.chatId&&ref.text)researchInput.messageQuotes.push({id:ref.id,revision:0,sourceChatId:ref.chatId,sourceMessageId:ref.messageId,selectedText:ref.text});else throw new Error('旧材料引用没有真实原件标识，请移除后重新附加；草稿已保留。');}researchInput.annotations.push(...await window.ScienceScopeResearchInput.legacyAnnotations(annotations,thread.projectId));}}catch(error){toast(error.message);return false;}
+try{researchInput=options.outboxId||options.continueMessageId?{attachmentIds:[],messageQuotes:[],annotations:[],contextRefs:[]}:await window.ScienceScopeResearchInput.capture('main',chatId);if(!options.outboxId&&!options.continueMessageId){const legacy=getThreadData(chatId).contextRefs||[];for(const ref of legacy){if(ref.messageId&&ref.chatId&&ref.text)researchInput.messageQuotes.push({id:ref.id,revision:0,sourceChatId:ref.chatId,sourceMessageId:ref.messageId,selectedText:ref.text});else throw new Error('旧材料引用没有真实原件标识，请移除后重新附加；草稿已保留。');}researchInput.annotations.push(...await window.ScienceScopeResearchInput.legacyAnnotations(annotations,thread.projectId));}}catch(error){toast(error.message);return false;}
   if (!text.trim()) return false;
   const inputBefore = chatId===V.chat ? S.drafts.main : chatData[chatId]?.draft;
   const reasoningEffort=options.snapshot?.reasoningEffort??window.ScienceScopeReasoning?.value();
@@ -85,7 +92,7 @@ try{researchInput=options.outboxId?{attachmentIds:[],messageQuotes:[],annotation
     if (follow) box.scrollTop = box.scrollHeight;
   };
   try {
-    await streamChat({projectId:thread.projectId || null, chatId, model, text,researchInput,reasoningEffort,executionMode, title:thread.title==='新对话'?text.trim().slice(0,40):thread.title, userMessageId:userId, assistantMessageId:answerId, temporary:!!thread.temporary, workspaceChoice:thread.workspaceChoice||{mode:'new'}, ...(thread.pythonEnvId?{pythonEnvId:thread.pythonEnvId}:{}),...(options.outboxId?{outboxId:options.outboxId}:{})}, event => {
+    await streamChat({projectId:thread.projectId || null, chatId, model, text,researchInput,reasoningEffort,executionMode,...(options.continueMessageId?{messageId:options.continueMessageId}:{}), title:thread.title==='新对话'?text.trim().slice(0,40):thread.title, userMessageId:userId, assistantMessageId:answerId, temporary:!!thread.temporary, workspaceChoice:thread.workspaceChoice||{mode:'new'}, ...(thread.pythonEnvId?{pythonEnvId:thread.pythonEnvId}:{}),...(options.outboxId?{outboxId:options.outboxId}:{})}, event => {
       if (event.type === 'accepted' && !accepted) {
         const previousBox=chatId===V.chat?document.querySelector('.messages'):null;
         const previousTop=previousBox?.scrollTop || 0;
@@ -94,7 +101,7 @@ try{researchInput=options.outboxId?{attachmentIds:[],messageQuotes:[],annotation
         // Creation choices become persisted host bindings after acceptance.
         // A later environment menu selection must not be overwritten by this draft.
         delete thread.pythonEnvId;
-        if(!options.outboxId)void window.ScienceScopeResearchInput.accepted('main',chatId,researchInput).catch(error=>toast(error.message));
+        if(!options.outboxId&&!options.continueMessageId)void window.ScienceScopeResearchInput.accepted('main',chatId,researchInput).catch(error=>toast(error.message));
         void window.ScienceScopeActivity?.refresh();
         thread.model=model;
         window.ScienceScopeWorkspace?.accepted(thread,text);
@@ -104,7 +111,7 @@ try{researchInput=options.outboxId?{attachmentIds:[],messageQuotes:[],annotation
         d.messages.push({id:userId,role:'user',text,researchInput,time:vtime()});
         d.messages.push({id:answerId,role:'assistant',name:'主专家',label:model.modelId,text:'',streaming:true,time:vtime()});
         d.messages=d.messages.slice(-60);
-        if (!options.outboxId) {
+        if (!options.outboxId&&!options.continueMessageId) {
           if (chatId === V.chat && S.drafts.main === inputBefore) S.drafts.main = '';
           else if (d.draft === inputBefore) d.draft = '';
         }
@@ -158,16 +165,16 @@ try{researchInput=options.outboxId?{attachmentIds:[],messageQuotes:[],annotation
       }
       if(event.type==='completed' && typeof event.text==='string' && !event.background) {
         const answer=data().messages?.find(m=>m.id===answerId);
-        if(answer)answer.text=event.text;
+        if(answer){answer.text=event.text;answer.completionStatus=event.stopReason==='max-tokens'?'max-tokens':'completed';}
       }
-    });
+    },options.continueMessageId?'/api/chat/continue':'/api/chat');
     thread.updated = vtime();
     return true;
   } catch(error) {
-    if(accepted&&!options.outboxId)await window.ScienceScopeResearchInput.restore('main',chatId,researchInput).catch(()=>toast('材料草稿恢复失败；已发送快照仍保留在消息记录中，请检查后重试。'));
+    if(accepted&&!options.outboxId&&!options.continueMessageId)await window.ScienceScopeResearchInput.restore('main',chatId,researchInput).catch(()=>toast('材料草稿恢复失败；已发送快照仍保留在消息记录中，请检查后重试。'));
     // Acceptance cleared the composer; a failed turn gives the text back for
     // retry, but never overwrites anything the user typed in the meantime.
-    if(accepted&&!options.outboxId) {
+    if(accepted&&!options.outboxId&&!options.continueMessageId) {
       if(chatId===V.chat) {
         const input=document.querySelector('[data-draft="main"]');
         if(!S.drafts.main&&!input?.value) {

@@ -20,10 +20,10 @@ function invalidQuery(message) {
   return error;
 }
 
-/** Accept legacy query and bounded multi-query inputs, preserving first-seen order. */
+/** Accept complete legacy/multi-query inputs, preserving first-seen order. */
 export function normalizeHybridQueries({ query, queries } = {}) {
-  if (queries !== undefined && (!Array.isArray(queries) || queries.length === 0 || queries.length > 6)) {
-    throw invalidQuery('最多提供 6 个检索问法。');
+  if (queries !== undefined && (!Array.isArray(queries) || queries.length === 0)) {
+    throw invalidQuery('检索问法须为非空数组。');
   }
   const supplied = [...(query === undefined ? [] : [query]), ...(queries ?? [])];
   if (!supplied.length) throw invalidQuery('请输入检索词。');
@@ -32,13 +32,13 @@ export function normalizeHybridQueries({ query, queries } = {}) {
   for (const value of supplied) {
     if (typeof value !== 'string') throw invalidQuery('检索问法必须是文本。');
     const text = value.trim();
-    if (!text || text.length > 2000) throw invalidQuery('每个检索问法须为 1–2000 个字符。');
+    if (!text) throw invalidQuery('检索问法不能为空。');
     const key = text.normalize('NFKC').toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
     result.push(text);
   }
-  if (!result.length || result.length > 6) throw invalidQuery('最多提供 6 个不重复检索问法。');
+  if (!result.length) throw invalidQuery('请输入检索词。');
   return result;
 }
 

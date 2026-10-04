@@ -165,7 +165,7 @@ export function createAssistantConversations({ chatStore }) {
       const chat=rowValue(db,scope,ownerId);
       return {model:row?.model_json?JSON.parse(row.model_json):(chat?.model_json?JSON.parse(chat.model_json):null),reasoningEffort:row?.reasoning_effort??null,executionMode:row?.execution_mode??'ask'};
     },
-    saveProposal(id,ownerId,text){if(typeof text!=='string'||!text.trim()||text.length>64000)throw new TypeError('Invalid proposal');db.prepare('INSERT INTO assistant_draft_proposals(id,owner_id,text,status,created) VALUES(?,?,?,\'pending\',?)').run(id,ownerId,text,new Date().toISOString());return {id,ownerId,text,status:'pending'};},
+    saveProposal(id,ownerId,text){if(typeof text!=='string'||!text.trim())throw new TypeError('Invalid proposal');db.prepare('INSERT INTO assistant_draft_proposals(id,owner_id,text,status,created) VALUES(?,?,?,\'pending\',?)').run(id,ownerId,text,new Date().toISOString());return {id,ownerId,text,status:'pending'};},
     listProposals(ownerId){return db.prepare('SELECT id,owner_id AS ownerId,text,status,created FROM assistant_draft_proposals WHERE owner_id=? ORDER BY created').all(ownerId);},
     resolveProposal(ownerId,id){const result=db.prepare("UPDATE assistant_draft_proposals SET status='handled' WHERE id=? AND owner_id=? AND status='pending'").run(id,ownerId);if(!result.changes)throw new AssistantConversationError('PROPOSAL_NOT_FOUND','提案不存在或已处理。',404);return this.listProposals(ownerId).find(p=>p.id===id);},
     isAssistant(chatId) {
@@ -177,7 +177,8 @@ export function createAssistantConversations({ chatStore }) {
     },
     saveDraft(scope, ownerId, text) {
       checkScope(scope, ownerId);
-      if (typeof text !== "string"||text.length>64000) throw new AssistantConversationError('INVALID_DRAFT','助手草稿过长或格式无效。');
+      if (typeof text !== "string") throw new AssistantConversationError('INVALID_DRAFT','助手草稿格式无效。');
+      if (Buffer.byteLength(text,'utf8')>64*1024*1024) throw new AssistantConversationError('DRAFT_RESOURCE_LIMIT','助手草稿超过 64 MiB 资源上限；完整提案仍可在提案列表查看。',413);
       return serial(() => {
         ownerChat(scope,ownerId);
         db.prepare(`INSERT INTO assistant_drafts(scope,owner_id,text,updated) VALUES(?,?,?,?)

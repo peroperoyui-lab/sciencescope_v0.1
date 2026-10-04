@@ -194,3 +194,20 @@ test('T10 resumed schema 2 preserves retry chain and rejects historical accounti
   await assert.rejects(createCappedProxy(f.options), /fresh run/);
   assert.equal(await readFile(f.evidencePath, 'utf8'), historical);
 });
+
+test('long-output evaluations may choose a larger request deadline without changing historical ledgers',async t=>{
+  const f=await fixture(t,(_count,_request,response)=>{
+    response.writeHead(200,{'content-type':'text/event-stream'});
+    response.write('data: {"choices":[{"delta":{"reasoning_content":"working"}}]}\n\n');
+    setTimeout(()=>response.end('data: {"choices":[{"delta":{"content":"done"},"finish_reason":"stop"}],"usage":{"prompt_tokens":10,"completion_tokens":20,"total_tokens":30}}\n\ndata: [DONE]\n\n'),90);
+  },{requestTimeoutMs:500});
+  assert.equal(await f.send(),200);
+  assert.equal(f.proxy.state.requestTimeoutMs,500);
+  assert.equal(f.proxy.state.events[0].status,200);
+  assert.equal(f.proxy.state.events[0].usage.total_tokens,30);
+  await f.proxy.close();
+  const before=await readFile(f.evidencePath,'utf8');
+  await assert.rejects(createCappedProxy({...f.options,requestTimeoutMs:120000}),/deadline cannot change/);
+  assert.equal(await readFile(f.evidencePath,'utf8'),before);
+  await assert.rejects(createCappedProxy({...f.options,evidencePath:path.join(path.dirname(f.evidencePath),'invalid.json'),requestTimeoutMs:0}),/positive integer/);
+});

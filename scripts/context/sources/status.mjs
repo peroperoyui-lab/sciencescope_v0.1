@@ -17,7 +17,7 @@ export function createStatusSource(deps) {
     const logs = (value.logs || []).slice(-5).map((log) => ({ title: log.title, date: log.date || log.time, text: log.text, note: log.note }));
     const versions = value.versions || [];
     const latestVersion = versions.at(-1) ? { name: versions.at(-1).name, number: versions.at(-1).number, status: versions.at(-1).status, notes: versions.at(-1).note, summary: versions.at(-1).summary } : null;
-    const nodes = (value.map?.nodes || []).map((node) => ({ id: node.id, text: String(node.text || '').slice(0, 400), status: node.status || null }));
+    const nodes = (value.map?.nodes || []).map((node) => ({ id: node.id, text: String(node.text || ''), status: node.status || null }));
     const minutes = target.chatId ? await minutesSource.read(scope, args) : { minutes: null };
     let todo = '';
     if (typeof minutes.minutes === 'string') {
@@ -29,7 +29,7 @@ export function createStatusSource(deps) {
           if (/^\s*(?:#{1,6}\s*)?(?:[1-6][.)]|研究问题|已定结论|被否定|未决问题|各参与者|文稿与文件)\b/i.test(line)) break;
           rest.push(line);
         }
-        todo = rest.join('\n').trim().slice(0, 4000);
+        todo = rest.join('\n').trim();
       }
     }
     const result = { projectId: target.projectId, projectName, map: { nodes }, pendingPlans, recentLogs: logs, latestVersion, minutesTodos: todo, ...(scopeNote?{scopeNote}:{}) };
