@@ -253,7 +253,7 @@ export function createMemoryConsolidator({ db, host, chatStore, minutes, store, 
           budget.streamChars = event.type === 'text-replace' ? String(event.text ?? '').length : (budget.streamChars ?? 0) + event.delta.length;
           if (budget.streamChars > maxChars) { streamExceeded = true; void Promise.resolve(host.interrupt?.(sessionId)).catch(() => {}); }
         }
-      } }), new Promise((_, reject) => { timer = setTimeout(() => reject(new ConsolidationError('CONSOLIDATION_TIMEOUT', 504)), timeoutMs); timer.unref?.(); })]);
+      } }), new Promise((_, reject) => { timer = setTimeout(() => reject(new ConsolidationError('CONSOLIDATION_TIMEOUT', 504)), timeoutMs); })]);
       if (closed) fail('CONSOLIDATION_CLOSED', 409);
       if (streamExceeded) fail('OUTPUT_BUDGET_EXCEEDED');
       if (response?.cancelled || ['failed', 'error', 'cancelled', 'stopped'].includes(response?.type ?? response?.status)) fail('MODEL_FAILED', 502);

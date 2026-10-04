@@ -1,5 +1,42 @@
 # Desktop implementation — first increment
 
+## 2026-10-04 Review of T09 and Dot's B/C (Claude, cloud)
+
+- Merged `codex/t09-memory-consolidation-20261004@6c9177d`,
+  `dot/flaky-survey-20261003@96d3e16` and `dot/upgrade-rehearsal-20261003@30b97e4`.
+- **T09.** Consolidation, inbox decisions and external provenance read
+  correctly. Real evaluation, three runs per side: 67.78% with consolidation,
+  61.11% without. Core facts are 90/90 on both sides, so the gain is format
+  and wording, not factual accuracy. T09 followed its brief's per-run token
+  budget, which the new few-hard-limits principle replaces. Those caps (output
+  8192 tokens, character limits that interrupt the stream, input limits that
+  fail the run; 15 of 54 stages failed on them) are added to T24 as A2.
+- **Fixed in review: memory-consolidation test cancellation.** The model-call
+  timeout timer was `unref`'d. With a never-settling fake model, Node 22 ended
+  the event loop and cancelled that test and the 9 after it (Linux; Sol's
+  Windows run passed). The timer is cleared in `finally`, so `unref` was not
+  needed. 23/23 now.
+- **Dot C (upgrade rehearsal): PASS.** Five versions (`98e560a`, `7eaa4aa`,
+  `a3e79e2`, `46f4e8f`, `edf02f3`) were opened by the current code, with 270
+  baseline records, files and API views preserved; credential migration was
+  checked with a dummy key. Scope: Linux, representative data, no installer.
+- **Dot B (flaky survey): two product defects, both fixed in review.**
+  1. Lost expert end events (6/30): `/experts` answered before the queued
+     event posts were delivered, and the host stopped observing on the
+     response. `session-control.mjs` now awaits the event queue before
+     answering. Before: 6/30 fails in Dot's run; after: 0/12 here.
+  2. Provider settings unavailable for a whole session (2/30 → 501): the DSH
+     web (settings) process had a 15 s start limit inside a `try` that
+     swallowed the error, so the provider service was never attached.
+     `desktop-api.mjs` now starts it in the background with 60 s, reports a
+     failure through `onError` and retries on the next provider call.
+     chat-api smoke 6/6.
+  Dot's browser smokes were blocked by its VM (AF_UNIX sockets). Its test
+  fixes (approval smoke shell per platform, credential fixture cleanup) are
+  merged.
+- Verification (cloud, Linux): `npm test` 332/333 (1 skipped, 0 cancelled);
+  T09 smokes and 8 existing browser smokes pass.
+
 ## 2026-10-04 · T09 记忆整理与多轮对照（Windows，已完成，待 Claude 审阅）
 
 - 分支 `codex/t09-memory-consolidation-20261004` 直接基于用户指定的已合并 `edf02f33ccb720c1e0d9178cb03a11ea28f47052`；唯一工作区 `<工作区>`，origin已核。开工先读2026-10-03审阅记录，Windows基线实际 `npm test`293/293及secret-isolation-ui、discussion-ui、dsh-approval三个smoke通过。

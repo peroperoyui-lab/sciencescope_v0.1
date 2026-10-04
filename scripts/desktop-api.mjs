@@ -61,7 +61,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   let consolidator;
   const events = createHostEvents({onError,idleDelayFor:()=>consolidator?.getSettings().enabled===false?null:(consolidator?.getSettings().idleMinutes??10)*idleMinuteMs,isBusy:chatId=>pending.has(chatId)||mainRuns.has(chatId)||discussions?.busy(chatId)||execution?.snapshot(chatId).goalActive});
   let host = runtimeHost;
-  let web = runtimeWeb;
+  let web = runtimeWeb, webStart = null, ensureWeb = async () => web;
   const bindings = new Map();
   const startingContexts = new Map();
   const openedAssistants = new Set();
@@ -183,8 +183,18 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     host = await createDshHost({home,cwd:projects,sessionHeaders,credentialPath,protectedPaths});
     const {createDshWebHost} = await import('../adapters/runtime-dsh/web-host.mjs');
     const {createProviderService} = await import('../adapters/runtime-dsh/provider-service.mjs');
-    web = await createDshWebHost({home,cwd:projects,credentialPath,protectedPaths});
-    if (typeof web.call === 'function') Object.assign(host,createProviderService(web.call));
+    // The DSH settings process starts in the background. A slow or failed start
+    // is retried on the next provider call instead of disabling provider
+    // settings for the whole session (Dot flaky survey B: 501 after a 15 s start).
+    ensureWeb=()=>{
+      if(web?.call)return Promise.resolve(web);
+      webStart??=createDshWebHost({home,cwd:projects,credentialPath,protectedPaths,timeoutMs:60000})
+        .then(started=>{web=started;return started;})
+        .catch(error=>{webStart=null;onError?.(error);throw error;});
+      return webStart;
+    };
+    Object.assign(host,createProviderService(async(...args)=>(await ensureWeb()).call(...args)));
+    void ensureWeb().catch(()=>{});
     }
   } catch { /* Missing/unavailable runtime is shown as unavailable, never faked. */ }
   const capabilities = {
@@ -599,6 +609,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(route==='/api/skills'&&request.method==='GET'){json(response,200,await skills.list());return true;}
       if(route==='/api/skills/read'&&request.method==='GET'){json(response,200,await skills.read({name:requestUrl.searchParams.get('name')}));return true;}
       if(route==='/api/plugins/inventory'&&request.method==='GET'){
+        try{await ensureWeb();}catch{}
         if(!web?.call){json(response,200,{available:false,entries:[],agentPresets:[]});return true;}
         try{json(response,200,{...await web.call('pluginInventory','list',{}),available:true});}catch{json(response,200,{available:false,entries:[],agentPresets:[]});}return true;
       }
@@ -1045,6 +1056,6 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
     await summaryPolicy.shutdown();await summaryPolicy.close();
     const draining=events.close();
     await Promise.all([consolidator.close(),summaryWorkbench.close(),minutes.close()]);await draining;
-    await assistants.close();await Promise.allSettled([host?.close(),web?.close(),skills.close(),python.close()]);await execution?.close();await chatStore.queue;await profileStore.queue;await research.ingest.idle();await semantic.close();chatStore.close?.();profileStore.close?.();
+    await assistants.close();await Promise.allSettled([host?.close(),webStart?webStart.then(started=>started.close(),()=>{}):web?.close(),skills.close(),python.close()]);await execution?.close();await chatStore.queue;await profileStore.queue;await research.ingest.idle();await semantic.close();chatStore.close?.();profileStore.close?.();
   }};
 }
