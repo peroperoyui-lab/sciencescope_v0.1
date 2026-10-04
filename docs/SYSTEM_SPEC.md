@@ -451,6 +451,10 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
 
 ### 2.17 研究资料库
 
+- **T09 记忆整理（2026-10-04，已实现，待 Claude 审阅）**：应用服务订阅 T17 `chat.idle`，默认空闲10分钟，可在秘书设置关闭或调整1–1440分钟、显式选模型，也可用对话菜单“整理这段对话”。只读取新增消息区间及纪要版本差异；历史纪要纠正另附编号对应原文，不重写整段对话总结。仅 Main 可整理，助手私聊、临时和私有对话排除。游标、运行状态和去重存于同一 SQLite；不常驻会话进程。
+- 整理使用两个有界 `noTools` 模型会话：JSON候选抽取，再对每个候选的同类共享有效 item top-5 作批量 `create/update/supersede/noop` 判断。候选最多8条；原文最多40消息/24000字符/估算8000token，纪要差异6000字符；单次输入48000字符/估算12000token，累计估算30000token（两次输出预算提前全额预留，包含推理内容；不是账单token）。DSH每次实际输出上限8192token，文本另限12000/16000字符。解析、证据或预算失败不推进游标、不产生半批提议、不自动重新整理；DSH暂时性传输重试保持既有规则。明确选择的模型不可用时报错，没有自动换模型。
+- 所有非noop候选只调用 `store.propose`，origin保留整理身份、对话、区间和纪要版本，证据必须逐字匹配对应消息。来源由宿主回执、引用、资源、条目及成功的网页工具活动判定；网页/文献标 `payload.originTrust='external'` 并保存来源，删除source/chunk目录后历史回执仍保留external与原定位。收件箱显示外部来源提示、原文定位、接受/修改后接受/拒绝。确认前不进入有效记忆或简报；编辑确认不能降级来源、移出项目或丢掉原文证据；更新/取代修订冲突保持等待确认。精确quote只证明出处，不保证模型候选的事实均受支持。
+- **T09 最近核对（2026-10-04，待 Claude 审阅）**：Windows合并基线npm293/293及secret-isolation-ui/discussion-ui/dsh-approval通过。最终实际npm332/332、0fail/cancel/skip/todo（471186.5209ms），既有27项smoke全部PASS，T09 browser/native各PASS16图、下一Main确认记忆简报及自有进程正常退出；均为本地模拟provider，真实DSH本地provider独立2/2。真实deepseek-v4.1-flash两组各3轮30题：不整理严格18/19/18（均18.33/30），整理20/19/22（均20.33/30）；人工核心事实均30/30，全部论断及引用语义支持29/29/28与29/29/30。原分数/失败不覆盖，严格分差主要是格式和字段，短纪要预载导致事实天花板，不能宣称整理效用已提高。基础设施终结失败0，54整理阶段39完成/15输出预算失败；117候选111完整支持，80提议77完整支持、3附加推论，1重复事件，人工确认不可省略。正式614物理/599有效/15重试、7026892已知tokens、15usage未知；预验另36请求169362tokens，合计650请求7196254已知tokens、28usage未知。六组来源哈希和12冻结源码一致，180答案/三组候选独立来源审完成。i18n新增22片段missing0；完整逐题矩阵、发现→原因→修复→验证、截图和限制见实施记录及T09交付报告；安装包/升级/签名未测。
 - **T10 补充最近核对（2026-10-04，待 Claude 审阅）**：共享纯解析器支持 `[S3, p.4]`、`[S3 p4]`、`[S3; S5]`、`[S3 p.4–5]`；API additive `citations/raw/parseStatus/unrecognized`，兼容完整单引用的 `citation`。UI 保持回答原文，复合来源菜单、从范围首页打开阅读器；未知/部分未知格式字面保留并有界记录，畸形括号及非法序号候选也进入审计。单来源范围按 maxChars/400段有界读取，返回范围/实际页/截断与续读；多来源须分别读，原权限及项目歧义规则保持。引用/read/report26/26、生产parser路由、浏览器与Windows原生通过；最终npm281/281，既有23smoke及branch/semantic/retryUI通过。首轮npm生成资源清单断言280/281失败经根因修复后复验，首轮日志保留；有效28项验收为派生汇总，详细证据与四种语言主题截图见实施记录顶部。
 - **三轮当前状态观察（2026-10-04）**：deepseek-v4.1-flash 固定52题核心完整40/41/42，平均41/52；基础设施失败1/2/1单列，排除后的质量分母51/50/51，平均完整率80.93%。第二轮 EPERM 中断保留原记录，仅独立补六个未尝试题、know04不重发，不能称该原始run无中断完成。预算失败2/3/3、工具偏离1/2/4，额外实质无依据论断18/17/10；全论断有依据且引用完整22/20/23题。664实际转发、630有效步骤、34网络重试，已知9185479tokens、37请求usage未知。提示/工具八项源码冻结，第二轮后只修评测落盘、全部结束后只修答案后提取并追加派生语法回执。旧43/42/39单次记录与旧六题补跑不覆盖、不用于因果结论；逐题原文审计/矩阵见交付报告。
 - **T10 传输诊断（2026-10-03）**：旧六题共11请求、零重试、零cap；评测显式 `maxRetries:0` 与首次失败封题使连接故障直接终结，非重试耗尽6请求。正式应用真实DSH默认重试已通过两次502后成功及浏览器无错误验收，未修改生产适配器。计数代理schema2恢复默认重试，按每题6个模型步骤计预算，实际请求/重试另列并有限制，记录上游HTTP/错误码及连接类型/原因码，旧schema1不回写。六题独立补跑22请求、零重试、核心6/6；旧52题39/52原记录不覆盖。额外论断支持2/6、全部实质论断有引用1/6，连接故障本次未出现，旧socket根因因缺日志不可恢复。用量、回归及限制见实施记录顶部。
@@ -483,7 +487,7 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
   - 使用回执：每轮记录用到了哪些记录（brief / search / read / context / recall）；讨论通过 accepted 事件里的专家回答身份绑定，各专家回执和提议均指向其自己的回答，结束后清理映射。
   - 旧的 `knowledge` 表逐行镜像为条目（`legacy_id`）；原有的 `/api/knowledge` 保留兼容，新资料库页面使用 Research Base 接口。
 - **状态**：🟡 后端与智能体工具已实现并测试（单元、真实 DSH、真实模型）；T04 文档解析/阅读器、T05 分类与管理界面已验证（含原生），文献元数据（T06）、
-  证据台账界面（T07）、浏览器（T08）、自动整理（T09）未完成；T10 混合检索已接线、仍在验收（默认 multilingual-e5-small，更换入口以后再做），完成状态以本节顶部为准，任务书在 `docs/tasks/`。
+  证据台账界面（T07）、浏览器（T08）未完成；T09自动整理已实现，验收与质量限制见本节顶部；T10 混合检索已接线、仍在验收（默认 multilingual-e5-small，更换入口以后再做），完成状态以本节顶部为准，任务书在 `docs/tasks/`。
 - **技术实现**：`scripts/research-base/`
   - `schema.mjs`（表）、`store.mjs`（校验、FTS 维护、提议、修订、回执）、`text-index.mjs`（中文二元组）、`search.mjs`（检索、阅读、引用、简报）、
     `ingest.mjs`（后台解析队列、分段）、`parsers/`（注册表 + text / markdown / latex / pdf / docx）、`index.mjs`（路由与工具入口）。
@@ -557,6 +561,7 @@ r4 最终复验（2026-09-27）：英文深浅色 − / □ / × 再次通过，
 | 执行 | `GET /api/execution`、`POST /api/execution/goal|approval` |
 | 研究资料库 | `/api/research/*`：sources（新增 sort/direction 与 total/hasMore）、source、sources/update|remove|ingest、sync、search、read、items、item（含 evidenceCount）、items/update|supersede（expectedRevision）、links、links/remove、proposals、proposals/decide、brief、cite、usage、formats（见 2.17 与设计文档 §6）；research-input contextRefs 增加 itemId |
 | 本地语义检索 | `GET /api/research/embedding` 状态/进度；`POST /api/research/embedding {action: enable|disable|download|rebuild}`；search 支持 q 与重复 queries 参数，返回 mode/fallbackReason（T10 验收中） |
+| 记忆整理 | `POST /api/research/consolidate {chatId}`；`GET /api/research/consolidate/status?chatId=`；`GET/POST /api/research/consolidate/settings {enabled,idleMinutes,model}`（T09，所有候选仍通过既有proposals/decide确认） |
 | 对话纪要与自动总结 | `GET/POST /api/chats/minutes`、`POST /api/chats/minutes/refresh`、`POST /api/projects/focus`、`GET/POST /api/secretary/preferences`、`GET /api/summary/proposals?chatId`、`POST /api/summary/proposals/decide`、`GET /api/summary/writes?chatId`、`POST /api/summary/writes/undo`（2.5b、T18） |
 | 专家讨论与名册 | `GET/POST /api/experts`（每项含 `kind: expert|reviewer`、`skills: string[]`）、`POST /api/discussion`（流；`expertIds` 仅接受参加专家，`reviewerId` 可选参加专家或独立审核）、`POST /api/discussion/adopt`、`POST /api/discussion/cancel` |
 | 秘书与全局助手 | `GET /api/assistant`、`POST /api/assistant/chat`（流）、`/assistant/draft|model|approval|stop|proposal/resolve` |
@@ -632,7 +637,7 @@ desktop-interaction 的认证/路由夹具改用生产宿主后，仍在旧选�
 界面上不再显示"尚未开放"一类提示（2026-09-25 用户要求）。未完成功能的入口由功能开关隐藏（2.18），各有任务书：
 内置浏览器与浏览器设置（T08）、用量分析（T13）、导图历史 / 版本说明页 / 版本比较 / 修改记录（T14）、
 插件安装与更新（T15）、目录迁移（T16）。Python 环境与原生文件夹选择已由 T11 接入，见2.20。
-记忆分类与人工管理由 T05 接线，自动整理仍属 T09。另有尚无任务书的：通知、截图快捷键、系统全局热键、导图导出、日志"定位到消息"、安装包与数据保留升级（ROADMAP 阶段 B）。
+记忆分类与人工管理由 T05 接线，T09自动整理已实现，验收状态见2.17顶部。另有尚无任务书的：通知、截图快捷键、系统全局热键、导图导出、日志"定位到消息"、安装包与数据保留升级（ROADMAP 阶段 B）。
 
 ## 7. 如何维护本文档
 

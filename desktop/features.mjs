@@ -10,6 +10,7 @@ export const FEATURES = {
   folderPicker: {hide: ['[data-creation-pick]', '[data-action="pick-project-folder"]']},
   inAppBrowser: {hide: ['[data-v="browser"]', '[data-route="browser-settings"]'], routes: ['browser', 'browser-settings'], menu: item => item.act === 'browser'},
   branch: {hide: ['[data-v="branch-message"]', '.branch-action'], routes: ['branch'], menu: item => item.act === 'branch-message'},
+  memoryConsolidation: {hide:['[data-memory-consolidation-settings]','[data-v="memory-consolidate"]'],menu:item=>item.act==='memory-consolidate'},
   usage: {hide: ['[data-route="usage"]'], routes: ['usage']},
   materialsPanel: {routes: ['context'], menu: item => item.act === 'annotations'},
   mapHistory: {hide: ['[data-action="map-history"]'], routes: ['map-history', 'version-note', 'diff']},

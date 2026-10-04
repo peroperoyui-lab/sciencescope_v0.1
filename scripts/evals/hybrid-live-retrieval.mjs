@@ -558,7 +558,10 @@ function countUsageEvents(proxy, questionId) {
     .map(event => ({ sequence: event.sequence, sessionKind: event.sessionKind, status: event.status, isRetry: event.isRetry ?? null, modelStep: event.modelStep ?? null, retryIndex: event.retryIndex ?? null, upstreamStatus: event.upstreamStatus ?? null, upstreamErrorCode: event.upstreamErrorCode ?? null, upstreamErrorType: event.upstreamErrorType ?? null, connectionErrorType: event.connectionErrorType ?? null, connectionErrorCode: event.connectionErrorCode ?? null, connectionCauseCodes: event.connectionCauseCodes ?? [], usage: event.usage ?? null }));
 }
 
-export async function createLiveHost({ paths, proxy, activeRef, credential = secretForRedaction, dshFactory = createDshHost }) {
+export async function createLiveHost({ paths, proxy, activeRef, credential = secretForRedaction, dshFactory = createDshHost,
+  allowedTools = ['research_search', 'research_read', 'project_memory', 'chat_recall'], sessionKind } = {}) {
+  if (!Array.isArray(allowedTools) || allowedTools.some(name => typeof name !== 'string' || !name)) throw new TypeError('evaluation allowedTools must be names');
+  const permittedTools = new Set(allowedTools);
   const dsh = await dshFactory({ home: paths.home, cwd: paths.projects, sessionHeaders: [SESSION_HEADER, OPENCODE_SESSION_HEADER], env: { SCIENCESCOPE_T10_RETRIEVAL_KEY: credential } });
   const runtimeConfig = { providers: { [model.providerId]: {
     api: 'openai-completions', baseURL: `http://127.0.0.1:${proxy.port}${REQUEST_PREFIX}`, apiKeyEnv: 'SCIENCESCOPE_T10_RETRIEVAL_KEY',
@@ -578,13 +581,13 @@ export async function createLiveHost({ paths, proxy, activeRef, credential = sec
       // under options.sessionId before calling this wrapper. DSH also requires
       // the stable session- prefix; a separate eval identity breaks both seams.
       const sessionId = options.sessionId ?? `session-${randomUUID().replaceAll('-', '')}`;
-      const kind = options.noTools === true ? 'minutes' : 'main';
+      const kind = sessionKind?.(options, active) ?? (options.noTools === true ? 'minutes' : 'main');
       proxy.registerSession(sessionId, { questionId: active.id, kind });
       active.sessions.push({ sessionId, kind }); ownedSessions.set(sessionId, { questionId: active.id, kind });
       await activeRef.persist();
       const session = await dsh.startSession({ ...options, workspace, sessionId });
       dsh.observeSession(session, frame => {
-        if (frame.type === 'tool-call' && !['research_search', 'research_read', 'project_memory', 'chat_recall'].includes(frame.name)) {
+        if (frame.type === 'tool-call' && !permittedTools.has(frame.name)) {
           const owner = activeRef.current;
           if (!owner) return;
           owner.prohibitedTools.push({ sessionId, name: String(frame.name).slice(0, 120), callId: String(frame.callId ?? '').slice(0, 120) });
@@ -612,7 +615,7 @@ export async function createLiveHost({ paths, proxy, activeRef, credential = sec
       const current = activeRef.current;
       const call = { sessionKind: owner.kind, name: String(invocation.name).slice(0, 120), callId: String(invocation.callId ?? '').slice(0, 120), args: safe(invocation.args), summary: null };
       current.toolSequence.push({ type: 'tool-call', name: call.name, callId: call.callId, sessionKind: owner.kind });
-      if (!['research_search', 'research_read', 'project_memory', 'chat_recall'].includes(call.name)) {
+      if (!permittedTools.has(call.name)) {
         current.prohibitedTools.push({ name: call.name, callId: call.callId });
         proxy.sealQuestion(current.id, 'non-research-tool-attempt');
         throw new Error('This evaluation only allows read-only research/context tools.');

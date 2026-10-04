@@ -32,6 +32,7 @@ import {listSystemFonts} from './system-fonts.mjs';
 import {createDeliverables,DeliverableError} from './deliverables.mjs';
 import {createChatMinutes,MinutesError} from './chat-minutes.mjs';
 import {createHostEvents} from './host-events.mjs';
+import {createMemoryConsolidator,ConsolidationError} from './research-base/consolidate.mjs';
 import {subscribeHostBackground} from './host-background.mjs';
 import {createSummaryPolicy} from './summary-policy.mjs';
 import {createSummaryWorkbench,SummaryWorkbenchError} from './summary-workbench.mjs';
@@ -55,8 +56,10 @@ function publicRuntimeMessage(error) {
   return '运行时请求失败；请检查模型配置和网络连接。';
 }
 
-export async function createDesktopApi({onError, dataRoot = defaultRoot, runtimeHost = null, runtimeWeb = null, apiToken = null, openUrl = openExternalUrl, listFonts = listSystemFonts, pythonOptions = {}, pythonBootstrap = runtimeHost === null && dataRoot === defaultRoot} = {}) {
-  const events = createHostEvents({onError,isBusy:chatId=>pending.has(chatId)||mainRuns.has(chatId)||discussions?.busy(chatId)||execution?.snapshot(chatId).goalActive});
+export async function createDesktopApi({onError, dataRoot = defaultRoot, runtimeHost = null, runtimeWeb = null, apiToken = null, openUrl = openExternalUrl, listFonts = listSystemFonts, pythonOptions = {}, pythonBootstrap = runtimeHost === null && dataRoot === defaultRoot, idleMinuteMs = 60000} = {}) {
+  if (!Number.isFinite(idleMinuteMs) || idleMinuteMs <= 0) throw new TypeError('Idle clock unit must be positive');
+  let consolidator;
+  const events = createHostEvents({onError,idleDelayFor:()=>consolidator?.getSettings().enabled===false?null:(consolidator?.getSettings().idleMinutes??10)*idleMinuteMs,isBusy:chatId=>pending.has(chatId)||mainRuns.has(chatId)||discussions?.busy(chatId)||execution?.snapshot(chatId).goalActive});
   let host = runtimeHost;
   let web = runtimeWeb;
   const bindings = new Map();
@@ -200,6 +203,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       branch:typeof host?.forkSession==='function'&&typeof host?.sessionTurns==='function', // T12 browser/native acceptance passed
       usage:false,             // T13 usage analytics
       materialsPanel:typeof research.store.listSources==='function', // T05 real research material selection
+      memoryConsolidation:typeof host?.startSession==='function'&&typeof host?.send==='function', // T09 host-owned proposal service
       mapHistory:false,        // T14 map history, version notes, diff
       changeLog:false,         // T14 per-chat change log
       pluginManagement:false,  // T15 DSH plugin install/update/enable
@@ -219,6 +223,10 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   const summaryWorkbench=createSummaryWorkbench({db:database.db,host,chatStore,workbench:workbench.store,getPreferences:summaryPreferences,modelFor:secretaryModel,events,onError,onDiagnostic:summaryDiagnostic});
   const minutes=createChatMinutes({db:database.db,host,chatStore,onError,modelFor:secretaryModel,getPreferences:summaryPreferences,onUpdated:value=>summaryWorkbench.onMinutesUpdated(value),onDiagnostic:summaryDiagnostic});
   const summaryPolicy=createSummaryPolicy({db:database.db,events,minutes,chatStore,getPreferences:summaryPreferences,onError,onDiagnostic:summaryDiagnostic});
+  consolidator=createMemoryConsolidator({db:database.db,host,chatStore,minutes,store:research.store,retrieval:research.retrieval,events,modelFor:secretaryModel,
+    validateModel:async model=>{if(host?.listProviders){const providers=await host.listProviders();if(!providers.some(provider=>provider.id===model.providerId&&provider.models?.some(value=>(typeof value==='string'?value:value.id)===model.modelId)))throw new ConsolidationError('MODEL_NOT_AVAILABLE',503);}return true;},
+    isBusy:chatId=>pending.has(chatId)||mainRuns.has(chatId)||discussions?.busy(chatId)||execution?.snapshot(chatId).goalActive,
+    onDiagnostic:({type,chatId,runId,state,code})=>console.info('[consolidation]',JSON.stringify({type,chatId,runId,state,code}))});
   subscribeHostBackground({events,organizer,workbench:{get:projectId=>workbench.call(projectId,'get')},modelFor:()=>roleSettings.get('secretary').model});
   semantic.setMessageProvider(()=>chatStore.listChats().filter(chat=>ensureMainChat(database.db,chat.id,{required:false})).flatMap(chat=>
     minutes.messagesAfter(chat.id,0).map(message=>({ref:{type:'message',id:JSON.stringify([chat.id,message.id])},version:messageVectorVersion(message.text),text:message.text,group:'chat:'+chat.id}))));
@@ -602,6 +610,8 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
         json(response,200,{providers:host.listProviders ? await host.listProviders() : []}); return true;
       }
       if(route==='/api/research/embedding'&&request.method==='GET'){json(response,200,semantic.status());return true;}
+      if(route==='/api/research/consolidate/settings'&&request.method==='GET'){json(response,200,consolidator.getSettings());return true;}
+      if(route==='/api/research/consolidate/status'&&request.method==='GET'){json(response,200,consolidator.status(requestUrl.searchParams.get('chatId')||''));return true;}
       if(route.startsWith('/api/research/')&&request.method==='GET'){const body=await research.handleGet(route,requestUrl);if(body!==undefined){json(response,200,body);return true;}}
       if (request.method !== 'POST' || !request.headers['content-type']?.startsWith('application/json')) { json(response,405,{message:'请求方式无效。'}); return true; }
       const chunks = []; let length = 0;
@@ -639,6 +649,9 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(route==='/api/summary/writes/undo'){json(response,200,await summaryWorkbench.undo(input));return true;}
       if(input.researchInput!==undefined&&(!input.researchInput||typeof input.researchInput!=='object'||Array.isArray(input.researchInput))){json(response,400,{code:'INVALID_RESEARCH_INPUT',message:'研究输入格式无效，未发送。'});return true;}
       if(route==='/api/research/embedding'){json(response,200,await semantic.configure(input.action));return true;}
+      if(route==='/api/research/consolidate/settings'){const settings=consolidator.updateSettings(input);events.refreshIdle();json(response,200,settings);return true;}
+      if(route==='/api/research/consolidate'){json(response,200,await consolidator.consolidate(input.chatId));return true;}
+      if(route==='/api/research/proposals/decide')input.edits=consolidator.validateProposalDecision(input.id,input);
       if(route.startsWith('/api/research/')){const body=await research.handlePost(route,input);if(body!==undefined){semantic.rebuild();json(response,200,body);return true;}}
       if(route==='/api/experts'){const enabledSkillIds=(await skills.list()).skills.filter(skill=>skill.enabled&&skill.valid!==false).map(skill=>skill.name);json(response,200,{experts:experts.save(input.experts,{enabledSkillIds}),available:!!discussions});return true;}
       if(route==='/api/skills/save'){json(response,200,await skills.save(input));return true;}
@@ -1015,6 +1028,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
       if(!response.headersSent&&error instanceof SummaryWorkbenchError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof ContextAccessError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof ResearchBaseError){json(response,error.status,{code:error.code,message:error.message});return true;}
+      if(!response.headersSent&&error instanceof ConsolidationError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&error instanceof PythonEnvironmentError){json(response,error.status,{code:error.code,message:error.message});return true;}
       if(!response.headersSent&&(error instanceof ExpertRosterError||error instanceof DiscussionError)){json(response,error.status,{code:error.code,message:error.message});return true;}
       if (error instanceof WorkbenchApiError||error instanceof RoleSettingsError||error instanceof SkillManagerError) { json(response,error.status,{code:error.code,message:error.message}); return true; }
@@ -1030,7 +1044,7 @@ export async function createDesktopApi({onError, dataRoot = defaultRoot, runtime
   return {handle,close:async()=>{
     await summaryPolicy.shutdown();await summaryPolicy.close();
     const draining=events.close();
-    await Promise.all([summaryWorkbench.close(),minutes.close()]);await draining;
+    await Promise.all([consolidator.close(),summaryWorkbench.close(),minutes.close()]);await draining;
     await assistants.close();await Promise.allSettled([host?.close(),web?.close(),skills.close(),python.close()]);await execution?.close();await chatStore.queue;await profileStore.queue;await research.ingest.idle();await semantic.close();chatStore.close?.();profileStore.close?.();
   }};
 }
