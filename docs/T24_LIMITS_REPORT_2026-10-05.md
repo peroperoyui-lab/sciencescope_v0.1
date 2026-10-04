@@ -1,6 +1,8 @@
 # T24 · 智能体长度限制与可恢复输出
 
-状态：实现、Windows 验证和三轮来源审计完成，待推送回执；随后停止等待 Claude 审阅。
+状态：实现、Windows 验证和三轮来源审计完成，已推送，停止等待 Claude 审阅。
+
+远端分支 **`codex/t24-limits-20261004`**，功能提交 **`e5833e48a88bc4f39bd31bd1f965da6c749e86fe`**，已推送并用 `ls-remote` 完整SHA核验；本报告的交付收据补充由后续纯文档提交保存，最终分支HEAD在交付回复中报告。不开PR、不合并。
 
 唯一工作区 `H:\ScienceScope_v0.1-desktop`，origin `https://github.com/peroperoyui-lab/sciencescope_v0.1.git`。分支 `codex/t24-limits-20261004`；产品基线 `18476bdeac101d466505c6bf8c8adc838336635e`，任务书与用户 A2 决定快进纳入至 `29e4cef746e7f5f8740053f47cabbd6f47f8b19a`。前置 T09 已合并，没有叠在未合并任务上。未开 PR、未合并共享分支。
 
@@ -215,4 +217,4 @@ new-r2/new-r3 tail 确实比较完整4079字旧协议，尾部14天可见并正�
 
 仍有限制：上游 pi-ai 会按可用上下文扣除 4096 输出安全余量，未 fork 依赖；真实 gateway 仅返回模型 ID，不能验证服务商真实容量；整理模型可能产生 unsupported 候选、noop 丢事实或语义重复，用户确认仍必要；本次直接 runtime/A2 验证不代表付费生产 UI 全链路、安装包、升级或签名。D 产品取舍、alpha 后操作系统出网控制和 T23/T06/T07 均未实施。
 
-验收与来源审计完成。实际远端 SHA 由最终 Git 推送回执补充；推送成功后停止，等待 Claude 审阅。
+验收与来源审计完成，功能提交已在远端。暂存曾被0字节遗留index.lock阻止，确认没有活动Git进程后将锁保存到本地忽略目录，再提交；暂存前/后扫描均无真实key或本地产物入Git。源审计拼接的CRLF/末尾空行已清理，`git diff --check`通过。交付后停止，等待 Claude 审阅，未开始T23/T06/T07。
