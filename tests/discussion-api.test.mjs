@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { createDesktopApi } from '../scripts/desktop-api.mjs';
 
-async function fixture() {
+async function fixture({ emitExpertEnds = true } = {}) {
   const base = path.resolve('.sciencescope-local/temp'); await mkdir(base, { recursive: true });
   const root = await mkdtemp(path.join(base, 'discussion-api-'));
   const state = { runs: [], starts: 0, toolHandler: null, invokeResearchTools: false, researchCalls: [] };
@@ -18,8 +18,8 @@ async function fixture() {
     setToolHandler: (fn) => { state.toolHandler = fn; },
     send: async ({ text, onEvent }) => { state.mainPrompts = [...(state.mainPrompts || []), text]; onEvent({ type: 'text-delta', delta: 'MAIN_REPLY' }); onEvent({ type: 'completed', text: 'MAIN_REPLY' }); return { finalResponse: 'MAIN_REPLY' }; },
     runExperts: async ({ sessionId, runId, prompt, experts, onEvent }) => {
-      state.runs.push({ sessionId, runId, prompt, experts });
       const result = experts.map((expert) => ({ expertId: expert.id, stopReason: state.failedExpertId === expert.id ? 'max-tokens' : 'completed', text: state.failedExpertId === expert.id ? '' : `${expert.id.toUpperCase()}_VIEW`, ms: 5 }));
+      state.runs.push({ sessionId, runId, prompt, experts, result });
       if (experts[0].id === 'methodologist') onEvent({ type: 'expert-tool', runId, expertId: 'methodologist', callId: 'call-1', name: 'read', argumentsPreview: '{"path":"paper_versions/draft.md"}', preamble: 'Let me read the draft.' });
       if (experts[0].id === 'methodologist') {
         onEvent({ type: 'expert-tool', runId, expertId: 'methodologist', callId: 'call-2', name: 'present', argumentsPreview: '{"files":[{"path":"figures/fig1.png","description":"Effect sizes"}]}' });
@@ -33,7 +33,7 @@ async function fixture() {
           const proposal = await state.toolHandler({ sessionId, name: 'research_propose', args: { op: 'create', item: { type: 'memory', subtype: 'decision', scope: 'personal', title: `Proposal ${entry.expertId} ${runId}`, body: `Decision from ${entry.expertId} in ${runId}` }, rationale: 'Test expert message provenance.' }, callId: `propose-${entry.expertId}`, expertId: entry.expertId });
           state.researchCalls.push({ expertId: entry.expertId, search, proposal });
         }
-        onEvent({ type: 'expert-end', runId, ...entry });
+        if (emitExpertEnds) onEvent({ type: 'expert-end', runId, ...entry });
       }
       return result;
     },
@@ -183,6 +183,41 @@ test('ordered panel: shared transcript, roster order, reviewer after all, adopti
     assert.equal(onlyReviewer.status, 400); assert.equal(onlyReviewer.events[0].code, 'NO_EXPERTS');
     const otherModel = await f.send('POST', '/api/discussion', { chatId: 'chat-d', projectId: null, model: { providerId: 'fixture', modelId: 'other' }, text: 'x', expertIds: ['methodologist'] });
     assert.equal(otherModel.status, 409);
+  } finally { await f.close(); }
+});
+
+test('returned expert results persist and complete the API round without expert-end callbacks', async () => {
+  const f = await fixture({ emitExpertEnds: false });
+  try {
+    const chatId = 'chat-result-fallback';
+    const round = await f.send('POST', '/api/discussion', { chatId, projectId: null, model, kind: 'ordered', text: 'Check the claim.', expertIds: ['red-team', 'methodologist'], reviewerId: 'statistician', userMessageId: 'user-result-fallback' });
+    assert.equal(round.status, 200);
+    assert.equal(f.state.runs.length, 2, 'returned panel answers still trigger the reviewer');
+    const returned = f.state.runs.flatMap((run) => run.result);
+    const ends = round.events.filter((event) => event.type === 'expert-end');
+    assert.deepEqual(ends.map(({ expertId, text, stopReason, ms }) => ({ expertId, text, stopReason, ms })), returned, 'every authoritative entry is forwarded once in returned order');
+    assert.deepEqual(ends.map((event) => event.review), [false, false, true]);
+    assert.equal(round.events[0].type, 'accepted');
+    assert.deepEqual(round.events.at(-1), { type: 'completed', runId: round.events[0].runId, failed: 0 });
+    const reviewStart = round.events.findIndex((event) => event.type === 'review-start');
+    assert.ok(reviewStart > round.events.indexOf(ends[1]), 'review starts after both fallback panel completions');
+    assert.ok(reviewStart < round.events.indexOf(ends[2]), 'review result precedes final completion');
+    for (const entry of f.state.runs[0].result) assert.ok(f.state.runs[1].prompt.includes(entry.text), 'reviewer receives each returned panel answer');
+
+    const messages = (await f.send('GET', `/api/chats/${chatId}/messages`)).events[0].messages;
+    assert.equal(messages.length, 4, 'user and all three returned expert messages are persisted');
+    assert.deepEqual(messages.slice(1).map((message) => [message.id, message.text, message.expert.expertId, message.expert.stopReason, message.expert.review, message.expert.adopted]), ends.map((event) => [event.messageId, event.text, event.expertId, event.stopReason, event.review, !event.review]));
+    assert.deepEqual(ends.map((event) => event.messageId), round.events[0].experts.map((expert) => expert.messageId), 'fallback preserves accepted message identities');
+
+    await f.send('POST', '/api/chat', { chatId, projectId: null, model, text: 'What next?', userMessageId: 'user-before-adoption', assistantMessageId: 'main-before-adoption' });
+    for (const entry of f.state.runs[0].result) assert.ok(f.state.mainPrompts[0].includes(entry.text));
+    assert.doesNotMatch(f.state.mainPrompts[0], /STATISTICIAN_VIEW/, 'fallback review stays out of Main context until adopted');
+    const adopted = await f.send('POST', '/api/discussion/adopt', { chatId, messageId: ends[2].messageId, adopted: true });
+    assert.equal(adopted.status, 200);
+    assert.equal(adopted.events[0].entry.adopted, true);
+    await f.send('POST', '/api/chat', { chatId, projectId: null, model, text: 'Use the review.', userMessageId: 'user-after-adoption', assistantMessageId: 'main-after-adoption' });
+    assert.match(f.state.mainPrompts[1], /STATISTICIAN_VIEW/);
+    assert.doesNotMatch(f.state.mainPrompts[1], /METHODOLOGIST_VIEW|RED-TEAM_VIEW/, 'completed fallback answers are not sent to Main twice');
   } finally { await f.close(); }
 });
 
