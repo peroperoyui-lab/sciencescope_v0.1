@@ -50,7 +50,13 @@ window.addEventListener('click',async event=>{
   }catch(error){form.querySelector('[data-role-feedback]').textContent=error.message;}finally{button.disabled=false;}
 },true);
 roleChannel.onmessage=()=>void refresh();
-const ready=refresh().then(()=>{if(['persona','experts','secretary-settings','assistant-settings'].includes(route))render();});
+const ready=refresh().then(()=>{
+  // The role catalog can finish after the independent preference forms have
+  // loaded. Populate its own surface without discarding those forms or drafts.
+  const surface=document.querySelector('[data-role-settings-surface]');
+  if(surface&&surface.dataset.roleSettingsSurface===route)surface.innerHTML=roleSettingsContent(route);
+  else if(route==='experts')render();
+});
 window.ScienceScopeRoleSettings={ready,async applyNewDraft(chatId){const before=window.ScienceScopeModels?.selected();await ready;const config=roles.find(r=>r.role==='main');if(V.chat!==chatId||V.pending.has(chatId)||window.ScienceScopeModels?.selected()!==before)return;if(config?.model){window.ScienceScopeModels?.select(config.model);window.ScienceScopeReasoning?.setDefault(config.reasoningEffort);render();}}};
 // Populate capabilities when a settings form is mounted, without remounting it.
 const mounted=new WeakSet();new MutationObserver(()=>{for(const form of document.querySelectorAll('[data-role-form]'))if(!mounted.has(form)){mounted.add(form);void efforts(form);}}).observe(document.body,{childList:true,subtree:true});
