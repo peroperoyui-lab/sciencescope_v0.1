@@ -46,22 +46,28 @@ export function createAssistantChatService({host,conversations,chatStore,dataRoo
     try{
       const context=await contextFor(input);
       chat=await conversations.ensure(input.scope,input.ownerId,input.model);
+      if(input.continueMessageId){
+        const previous=chatStore.getMessage(chat.id,input.continueMessageId);
+        if(!previous||previous.role!=='assistant'||previous.completionStatus!=='max-tokens')throw new AssistantChatError('CONTINUATION_UNAVAILABLE','这条回复没有可继续的模型上限状态。',409);
+        if(chatStore.db.db.prepare('SELECT 1 FROM messages WHERE chat_id=? AND ordinal>? LIMIT 1').get(chat.id,previous.ordinal))throw new AssistantChatError('CONTINUATION_STALE','此回复之后已有新消息，请在当前对话中说明要继续的内容。',409);
+      }
       const userId=input.userMessageId||'msg-'+randomUUID();
       if(!/^[A-Za-z0-9_-]{1,160}$/.test(userId))throw new AssistantChatError('INVALID_MESSAGE_ID','消息标识无效。');
       if(chatStore.db.db.prepare('SELECT 1 FROM messages WHERE chat_id=? AND id=?').get(chat.id,userId))throw new AssistantChatError('DUPLICATE_MESSAGE','此消息已接收，不会重复调用模型。',409);
       const packet=contextAccess?await (input.scope==='secretary'?contextAccess.catchUp({conversationId:chat.id,chatId:input.ownerId}):contextAccess.overview({conversationId:chat.id})):null;
       let binding=sessions.get(chat.id);
+      const runtimeConfig=await host.getRuntimeConfig?.(),runtimeConfigKey=JSON.stringify(runtimeConfig??null);
       const projectId=input.scope==='secretary'?chatStore.getChat(input.ownerId)?.projectId??null:null;
       if(input.pythonEnvId!==undefined&&bindPython)await bindPython({scope:'chat',targetId:chat.id,envId:input.pythonEnvId});
-      if(binding&&needsPythonRefresh&&await needsPythonRefresh(binding.sessionId,chat.id,projectId)){
+      if(binding&&((binding.runtimeConfigKey!==undefined&&binding.runtimeConfigKey!==runtimeConfigKey)||(needsPythonRefresh&&await needsPythonRefresh(binding.sessionId,chat.id,projectId)))){
         binding.unsubscribe?.();await host.releaseSession(binding.sessionId);sessions.delete(chat.id);binding=null;
       }
       if(!binding){
         const workspace=path.join(dataRoot,'.sciencescope-local','assistant-workspaces',chat.id);await mkdir(workspace,{recursive:true});
         const persona=roleSettings?.bind(chat.id,input.scope,{existing:!!chatStore.getBinding(chat.id)}).prompt||personas[input.scope];
-        const options={model:chat.model,workspace,runtimeConfig:await host.getRuntimeConfig?.(),sessionId:chatStore.getBinding(chat.id)||undefined,persona,proposalTargetChatId:input.scope==='secretary'?input.ownerId:undefined};
+        const options={model:chat.model,workspace,runtimeConfig,sessionId:chatStore.getBinding(chat.id)||undefined,persona,proposalTargetChatId:input.scope==='secretary'?input.ownerId:undefined};
         const sessionId=await (startContextSession?startContextSession(options,{role:input.scope,chatId:chat.id,mainChatId:input.scope==='secretary'?input.ownerId:null,projectId:input.scope==='secretary'?chatStore.getChat(input.ownerId)?.projectId??null:null}):host.startSession(options));
-        binding={sessionId,lastUsed:Date.now()};sessions.set(chat.id,binding);
+        binding={sessionId,runtimeConfigKey,lastUsed:Date.now()};sessions.set(chat.id,binding);
         await chatStore.markRuntimeBinding(chat.id,sessionId,workspace);
       }
       run.sessionId=binding.sessionId;
@@ -78,21 +84,23 @@ export function createAssistantChatService({host,conversations,chatStore,dataRoo
       // Do not overwrite a newer persisted draft from another input event.
       if(conversations.getDraft(input.scope,input.ownerId)===input.text)await conversations.saveDraft(input.scope,input.ownerId,'');
       accept();accepted=true;emit({type:'accepted',chatId:chat.id,userMessageId:userId,assistantMessageId:answerId});
-      let receipts=Promise.resolve();
+      let receipts=Promise.resolve(),terminal;
       try{
-        await host.send({sessionId:binding.sessionId,text:context+(packet?.text||'')+(input.researchContext??((input.attachmentContext||'')+input.text)),onEvent:event=>{
+        const result=await host.send({sessionId:binding.sessionId,text:context+(packet?.text||'')+(input.researchContext??((input.attachmentContext||'')+input.text)),onEvent:event=>{
           if(event.type==='main-draft-proposal'&&input.scope==='secretary'){conversations.saveProposal(event.proposalId,input.ownerId,event.text);emit(event);}
           if(event.type==='text-delta'){text+=event.delta;emit(event);}
           if(event.type==='text-replace'||event.type==='text-reset'){text=event.text||'';emit(event);}
           if(event.type==='tool-call'||event.type==='tool-result'){receipts=receipts.then(()=>toolActivity.record({chatId:chat.id,assistantMessageId:answerId,...event,argumentsPreview:event.arguments??event.argumentsPreview,resultPreview:event.result??event.resultPreview}));emit(event);}
-          if(event.type==='completed'&&typeof event.text==='string'&&!text)text=event.text;
+          if(event.type==='completed'){terminal=event;if(typeof event.text==='string'&&!text)text=event.text;}
         }});
+        terminal=result??terminal;
       }catch(error){if(!run.cancelled)throw error;}
       await receipts;
-      if(text)await chatStore.appendMessage({chatId:chat.id,id:answerId,role:'assistant',text});
+      const completionStatus=run.cancelled?'cancelled':terminal?.stopReason==='max-tokens'?'max-tokens':'completed';
+      if(text||completionStatus==='max-tokens')await chatStore.appendMessage({chatId:chat.id,id:answerId,role:'assistant',text,completionStatus});
       if(!run.cancelled)await packet?.commit({type:'completed'});
       if(run.cancelled)await chatStore.appendMessage({chatId:chat.id,role:'system',text:'用户已停止本次回复；已生成内容保留。'});
-      emit({type:run.cancelled?'cancelled':'completed',text,chatId:chat.id});
+      emit({type:run.cancelled?'cancelled':'completed',text,chatId:chat.id,...(terminal?.stopReason?{stopReason:terminal.stopReason}:{}),...(terminal?.usage?{usage:terminal.usage}:{})});
     }catch(error){
       if(accepted&&chat){
         if(text)await chatStore.appendMessage({chatId:chat.id,id:answerId,role:'assistant',text});

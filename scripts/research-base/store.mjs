@@ -17,9 +17,15 @@ const newId = (prefix) => `${prefix}_${randomUUID().replaceAll('-', '').slice(0,
 const ID = /^[A-Za-z0-9_-]{1,160}$/u;
 const id = (value, name = 'id') => (typeof value === 'string' && ID.test(value) ? value : bad(`无效的${name}。`));
 const optionalId = (value, name) => (value == null ? null : id(value, name));
-const text = (value, name, max, { required = false } = {}) => {
+const MAX_RECORD_BYTES = 64 * 1024 * 1024;
+const checkRecordSize = (value, name) => {
+  if (Buffer.byteLength(JSON.stringify(value), 'utf8') > MAX_RECORD_BYTES)
+    throw new ResearchBaseError('RESEARCH_RESOURCE_LIMIT', `${name}超过 64 MiB 资源上限；本次未保存，已有记录保持完整。请分成多条提议。`, 413);
+};
+const text = (value, name, max = Infinity, { required = false } = {}) => {
   if (value == null || value === '') { if (required) bad(`${name}不能为空。`); return null; }
-  if (typeof value !== 'string' || value.length > max) bad(`${name}须为不超过 ${max} 个字符的文本。`);
+  if (typeof value !== 'string') bad(`${name}须为文本。`);
+  if (value.length > max) bad(`${name}须为不超过 ${max} 个字符的文本。`);
   return value;
 };
 const oneOf = (value, list, name) => (list.includes(value) ? value : bad(`${name}取值无效：${value}`));
@@ -31,12 +37,11 @@ const scopeOf = (value) => (value === 'personal' || value === 'project' || /^exp
 // compatible) but the listed ones are checked.
 function validatePayload(type, subtype, payload = {}) {
   if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) bad('body_json 须为对象。');
-  if (JSON.stringify(payload).length > 64000) bad('结构化内容过长。');
   if (type === 'claim') {
     if (payload.claimStatus !== undefined) oneOf(payload.claimStatus, CLAIM_STATUS, '主张状态');
   }
   if (type === 'model') {
-    if (payload.latex !== undefined) text(payload.latex, 'LaTeX', 20000);
+    if (payload.latex !== undefined) text(payload.latex, 'LaTeX');
     if (payload.variables !== undefined && !Array.isArray(payload.variables)) bad('variables 须为数组。');
     for (const variable of payload.variables ?? []) if (!variable || typeof variable.symbol !== 'string') bad('每个变量须有 symbol。');
     if (payload.assumptions !== undefined && !Array.isArray(payload.assumptions)) bad('assumptions 须为数组。');
@@ -152,15 +157,32 @@ export function createResearchStore({ db }) {
   function replaceChunks(sourceId, chunks, { parser, pages = null, contentStatus = 'parsed', parseError = null } = {}) {
     const source = getSource(sourceId); if (!source) throw new ResearchBaseError('SOURCE_NOT_FOUND', '来源不存在。', 404);
     if (!Array.isArray(chunks) || chunks.length > 50000) bad('分段结果无效。');
+    checkRecordSize(chunks, '解析分段');
+    const passages = [];
+    const hasSplitPassages = chunks.some(chunk => typeof chunk?.text === 'string' && chunk.text.length > 20000);
+    chunks.forEach((chunk, sourceOrdinal) => {
+      if (!chunk || typeof chunk.text !== 'string' || !chunk.text.trim()) return;
+      const split = chunk.text.length > 20000;
+      const absoluteOffsets = Number.isSafeInteger(chunk.charStart) && chunk.charStart >= 0 && Number.isSafeInteger(chunk.charEnd) && chunk.charEnd - chunk.charStart === chunk.text.length;
+      for (let start = 0; start < chunk.text.length;) {
+        let end = Math.min(start + 20000, chunk.text.length);
+        if (end < chunk.text.length && /[\uD800-\uDBFF]/u.test(chunk.text[end - 1]) && /[\uDC00-\uDFFF]/u.test(chunk.text[end])) end--;
+        passages.push({...chunk, text:chunk.text.slice(start,end),
+          charStart:split ? (absoluteOffsets ? chunk.charStart + start : null) : chunk.charStart ?? null,
+          charEnd:split ? (absoluteOffsets ? chunk.charStart + end : null) : chunk.charEnd ?? null,
+          anchor:hasSplitPassages ? {...chunk.anchor, split:{sourceOrdinal,start,end}} : chunk.anchor});
+        start = end;
+      }
+    });
+    checkRecordSize(passages, '解析分段投影');
     return tx(() => {
       for (const row of db.prepare('SELECT id FROM rb_chunks WHERE source_id=?').all(sourceId)) ftsDelete('chunk', row.id);
       db.prepare('DELETE FROM rb_chunks WHERE source_id=?').run(sourceId);
       const insert = db.prepare('INSERT INTO rb_chunks(id,source_id,ordinal,page,section,kind,text,char_start,char_end,anchor_json) VALUES(?,?,?,?,?,?,?,?,?,?)');
-      chunks.forEach((chunk, ordinal) => {
-        if (!chunk || typeof chunk.text !== 'string' || !chunk.text.trim()) return;
+      passages.forEach((chunk, ordinal) => {
         const chunkId = `${sourceId}-c${ordinal}`;
         insert.run(chunkId, sourceId, ordinal, Number.isInteger(chunk.page) ? chunk.page : null, chunk.section ? String(chunk.section).slice(0, 500) : null,
-          CHUNK_KINDS.includes(chunk.kind) ? chunk.kind : 'paragraph', chunk.text.slice(0, 20000), chunk.charStart ?? null, chunk.charEnd ?? null, chunk.anchor ? JSON.stringify(chunk.anchor) : null);
+          CHUNK_KINDS.includes(chunk.kind) ? chunk.kind : 'paragraph', chunk.text, chunk.charStart ?? null, chunk.charEnd ?? null, chunk.anchor ? JSON.stringify(chunk.anchor) : null);
         ftsPut('chunk', chunkId, source.projectId, chunk.section || '', chunk.text);
       });
       db.prepare('UPDATE rb_sources SET content_status=?, parser=?, parse_error=?, pages=?, updated_at=? WHERE id=?').run(contentStatus, parser ?? null, parseError, pages, now(), sourceId);
@@ -191,8 +213,8 @@ export function createResearchStore({ db }) {
     const scope = scopeOf(input.scope ?? existing?.scope ?? (input.projectId ?? existing?.projectId ? 'project' : 'personal'));
     const projectId = input.projectId !== undefined ? optionalId(input.projectId, '项目标识') : existing?.projectId ?? null;
     if (scope === 'project' && !projectId) bad('项目范围的条目需要项目标识。');
-    const title = text(input.title ?? existing?.title, '标题', 300, { required: true });
-    const body = text(input.body ?? existing?.body ?? '', '正文', 64000) ?? '';
+    const title = text(input.title ?? existing?.title, '标题', undefined, { required: true });
+    const body = text(input.body ?? existing?.body ?? '', '正文') ?? '';
     const payload = validatePayload(type, subtype, input.payload ?? existing?.payload ?? {});
     const visibility = oneOf(input.visibility ?? existing?.visibility ?? 'shared', VISIBILITY, '可见性');
     const confidence = input.confidence ?? existing?.confidence ?? null;
@@ -201,7 +223,9 @@ export function createResearchStore({ db }) {
     if (!Number.isInteger(importance) || importance < 1 || importance > 5) bad('重要性须为 1–5。');
     const pinned = input.pinned ?? existing?.pinned ?? false;
     const validFrom = text(input.validFrom ?? existing?.validFrom ?? null, 'validFrom', 40);
-    return { type, subtype, scope, projectId, title, body, payload, visibility, confidence, importance, pinned: !!pinned, validFrom };
+    const value = { type, subtype, scope, projectId, title, body, payload, visibility, confidence, importance, pinned: !!pinned, validFrom };
+    checkRecordSize(value, '研究条目');
+    return value;
   }
   function createItem(input = {}, { status = 'active', createdBy = 'user', origin = {}, legacyId = null } = {}) {
     const value = normalizeItem(input);
@@ -262,7 +286,8 @@ export function createResearchStore({ db }) {
   const ref = (value, name) => { if (!value || !REF_TYPES.includes(value.type)) bad(`${name} 引用类型无效。`); return { type: value.type, id: id(value.id, `${name} 标识`) }; };
   function link({ from, to, relation, note = null, quote = null, locator = null, strength = null }, { createdBy = 'user' } = {}) {
     const a = ref(from, 'from'); const b = ref(to, 'to'); oneOf(relation, LINK_RELATIONS, '关系');
-    text(note, '备注', 4000); text(quote, '引文', 8000);
+    text(note, '备注'); text(quote, '引文');
+    checkRecordSize({from:a,to:b,relation,note,quote,locator,strength}, '证据链接');
     const linkId = newId('lnk');
     db.prepare('INSERT INTO rb_links VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(from_type,from_id,to_type,to_id,relation) DO UPDATE SET note=excluded.note, quote=excluded.quote, locator_json=excluded.locator_json, strength=excluded.strength')
       .run(linkId, a.type, a.id, b.type, b.id, relation, note, quote, locator ? JSON.stringify(locator) : null, strength, String(createdBy).slice(0, 120), now());
@@ -281,7 +306,8 @@ export function createResearchStore({ db }) {
   /** Validate now so a bad proposal fails for the agent, not later for the user. */
   function propose({ op, targetId = null, payload = {}, rationale = null, projectId = null }, { origin = {} } = {}) {
     oneOf(op, PROPOSAL_OPS, '操作');
-    text(rationale, '理由', 4000);
+    text(rationale, '理由');
+    checkRecordSize({op,targetId,payload,rationale,projectId}, '研究提议');
     if (op === 'create' || op === 'supersede') normalizeItem({ projectId, ...payload.item, projectId: payload.item?.projectId ?? projectId });
     if (op === 'update') { if (!getItem(targetId)) bad('要修改的条目不存在。'); normalizeItem(payload.item ?? {}, getItem(targetId)); }
     if (op === 'supersede' || op === 'archive') { const target = getItem(targetId); if (!target || target.status !== 'active') bad('目标条目不存在或已失效。'); }
@@ -309,6 +335,7 @@ export function createResearchStore({ db }) {
     const finish = (status, resultId = null) => { db.prepare('UPDATE rb_proposals SET status=?, result_id=?, decided_at=?, decided_by=? WHERE id=?').run(status, resultId, now(), decidedBy, proposal.id); return { proposal: getProposal(proposal.id), resultId }; };
     if (!accept) return finish('rejected');
     const payload = edits ? { ...proposal.payload, ...edits, item: { ...proposal.payload.item, ...edits.item } } : proposal.payload;
+    checkRecordSize({payload,rationale:proposal.rationale}, '研究提议');
     const origin = { ...proposal.origin, proposalId: proposal.id };
     const author = proposal.origin.role ? `agent:${proposal.origin.role}${proposal.origin.expertId ? ':' + proposal.origin.expertId : ''}` : 'agent';
     let resultId = null;

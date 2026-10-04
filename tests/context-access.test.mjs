@@ -50,6 +50,7 @@ test('context access enforces secretary scope and global drill-down', async () =
   const status = await access.call('project_memory', { section: 'status' }, secretary);
   assert.equal(status.pendingPlans[0].title, 'Finish status wiring');
   assert.equal(status.minutesTodos, '- Finish status wiring');
+  assert.equal(status.map.nodes[0].text,'Alpha root '+'x'.repeat(600),'status retains the complete map node');
   assert.equal(status.recentLogs[0].text, 'Completed the baseline review');
   assert.equal((await access.call('project_memory', { section: 'log' }, secretary)).log[0].text, 'Completed the baseline review');
   assert.match((await access.call('project_memory', { section: 'map' }, secretary)).map, /x{500}/);
@@ -59,6 +60,25 @@ test('context access enforces secretary scope and global drill-down', async () =
   const workspace = await access.call('workspace_overview', {}, { role: 'global', chatId: 'aux-global' });
   assert.equal(typeof workspace.commit, 'undefined');
   assert.equal(workspace.independentChats[0].chatId, 'independent');
+});
+
+test('conversation searches retain long query tails and page beyond thirty hits without losing scope',async()=>{
+  const f=await fixture();
+  for(let n=1;n<=43;n++)await f.chatStore.appendMessage({chatId:'c1',id:'long-'+n,role:'user',text:'stable reference tail-marker '+n});
+  let vectorLimit=0;
+  const access=createContextAccess({db:f.chatStore.db.db,chatStore:f.chatStore,minutes:f.minutes,workbench:f.workbench,vectorRetriever:{async search({candidates,limit}){vectorLimit=limit;return {rankings:[candidates.slice(0,limit)]};}}});
+  const ctx={role:'secretary',mainChatId:'c1',projectId:'p1'};
+  const long='unmatched-prefix '.repeat(35)+'tail-marker';
+  const result=await access.call('chat_recall',{query:long,limit:35},ctx);
+  assert.equal(result.results.length,35);assert.ok(vectorLimit>=35);assert.ok(result.next);
+  const second=await access.call('chat_recall',result.next,ctx);
+  assert.equal(new Set([...result.results,...second.results].map(row=>row.n)).size,45,'no repeated or missing permitted message');
+  assert.ok(second.results.some(row=>row.excerpt.includes('tail-marker')));
+  const keyword=createContextAccess({db:f.chatStore.db.db,chatStore:f.chatStore,minutes:f.minutes,workbench:f.workbench});
+  const raw=await keyword.call('chat_recall',{query:long,limit:50},ctx);
+  assert.equal(raw.results.length,43,'tail term after the former 400-char and 12-term limits remains searchable');
+  f.records.set('c1',{revision:1,throughOrdinal:45,text:'7. To-dos\n'+'long todo '.repeat(600)+'FINAL_TODO'});
+  assert.ok((await access.call('project_memory',{section:'status'},ctx)).minutesTodos.endsWith('FINAL_TODO'));
 });
 
 test('catch-up cursor advances only on successful completion and overview is changed-only', async () => {

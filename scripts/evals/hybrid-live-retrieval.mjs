@@ -401,18 +401,20 @@ export function assertRunIdentity(ledger, inputs, expectedProjectId) {
 
 /** Local attribution proxy. Credentials pass to the selected upstream but are
  * never persisted, inspected, or forwarded as evaluation/session headers. */
-export async function createCappedProxy({ evidencePath, maxCompletionRequests, maxPerQuestion = MAX_PER_QUESTION, upstreamOrigin = 'https://opencode.ai', allowTestLoopbackUpstream = false, upstreamProxy, upstreamCredential }) {
+export async function createCappedProxy({ evidencePath, maxCompletionRequests, maxPerQuestion = MAX_PER_QUESTION, upstreamOrigin = 'https://opencode.ai', allowTestLoopbackUpstream = false, upstreamProxy, upstreamCredential, requestTimeoutMs = 120000 }) {
   if (!Number.isInteger(maxCompletionRequests) || maxCompletionRequests < 1) throw new TypeError('completion cap must be positive');
   if (!Number.isInteger(maxPerQuestion) || maxPerQuestion < 1) throw new TypeError('question cap must be positive');
+  if (!Number.isSafeInteger(requestTimeoutMs) || requestTimeoutMs < 1) throw new TypeError('request timeout must be a positive integer');
   const upstream = new URL(upstreamOrigin);
   const testLoopback = allowTestLoopbackUpstream && upstream.protocol === 'http:' && ['127.0.0.1', '::1', 'localhost'].includes(upstream.hostname);
   if (!(upstream.protocol === 'https:' && upstream.hostname === 'opencode.ai') && !testLoopback) throw new Error('T10 proxy upstream is fixed to the configured OpenCode gateway');
   const upstreamAgent = upstreamProxy ? new HttpsAgent({ proxyEnv: { HTTPS_PROXY: validateUpstreamProxy(upstreamProxy) } }) : undefined;
   const maxPhysicalRequests = maxCompletionRequests * (MAX_TRANSPORT_RETRIES + 1);
-  let state = { schema: 2, budgetUnit: 'effective-model-step', maxTransportRetries: MAX_TRANSPORT_RETRIES, maxPhysicalRequests, upstreamHost: upstream.host, allowedPrefix: REQUEST_PREFIX, maxPerQuestion, maxCompletionRequests, startedAt: new Date().toISOString(), completionAttempts: 0, forwardedCompletions: 0, effectiveModelSteps: 0, retryAttempts: 0, blockedCompletions: 0, blockedUnattributed: 0, questions: {}, sessions: {}, sealedQuestions: {}, events: [] };
+  let state = { schema: 2, budgetUnit: 'effective-model-step', requestTimeoutMs, maxTransportRetries: MAX_TRANSPORT_RETRIES, maxPhysicalRequests, upstreamHost: upstream.host, allowedPrefix: REQUEST_PREFIX, maxPerQuestion, maxCompletionRequests, startedAt: new Date().toISOString(), completionAttempts: 0, forwardedCompletions: 0, effectiveModelSteps: 0, retryAttempts: 0, blockedCompletions: 0, blockedUnattributed: 0, questions: {}, sessions: {}, sealedQuestions: {}, events: [] };
   if (existsSync(evidencePath)) {
     const previous = JSON.parse(await readFile(evidencePath, 'utf8'));
     if (previous.schema !== 2 || previous.budgetUnit !== state.budgetUnit || previous.maxTransportRetries !== MAX_TRANSPORT_RETRIES || previous.upstreamHost !== upstream.host || previous.allowedPrefix !== REQUEST_PREFIX || previous.maxPerQuestion !== maxPerQuestion) throw new Error('existing request ledger is incompatible with this proxy; use a fresh run to preserve historical accounting');
+    if ((previous.requestTimeoutMs??120000)!==requestTimeoutMs) throw new Error('request deadline cannot change in an existing ledger; use a fresh run');
     if (previous.maxCompletionRequests > maxCompletionRequests) throw new Error('completion cap cannot shrink when resuming');
     state = { ...previous, maxCompletionRequests, maxPhysicalRequests, resumedAt: [...(previous.resumedAt ?? []), new Date().toISOString()] };
   }
@@ -539,7 +541,7 @@ export async function createCappedProxy({ evidencePath, maxCompletionRequests, m
       upstreamResponse.once('aborted', () => { finish(502, { upstreamAborted: true, ...connectionError(null) }); if (!response.writableEnded) response.destroy(); });
       upstreamResponse.once('error', error => { finish(502, connectionError(error)); if (!response.writableEnded) response.destroy(); });
     });
-    deadline = setTimeout(() => { finish(504, { deadlineExceeded: true, ...connectionError(null, 'TIMEOUT') }); responseRef?.destroy(); target.destroy(new Error('request deadline')); }, 120_000);
+    deadline = setTimeout(() => { finish(504, { deadlineExceeded: true, ...connectionError(null, 'TIMEOUT') }); responseRef?.destroy(); target.destroy(new Error('request deadline')); }, requestTimeoutMs);
     target.once('error', error => { if (!response.headersSent) response.writeHead(502, { 'content-type': 'application/json' }); if (!response.writableEnded) response.end('{"error":"evaluation upstream unavailable"}'); finish(502, connectionError(error)); });
     response.once('close', () => { if (!response.writableEnded) { finish(499, { downstreamAborted: true, ...connectionError(null, 'TIMEOUT') }); responseRef?.destroy(); target.destroy(); } });
     target.end(body);

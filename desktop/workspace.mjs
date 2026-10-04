@@ -41,6 +41,10 @@ const originalMessageHTML=messageHTML;
 messageHTML=function(message) {
   const template=document.createElement('template');template.innerHTML=originalMessageHTML(message);
   for(const button of template.content.querySelectorAll('[data-v="branch-message"]'))button.replaceWith(...htmlNodes(branchControl(message)));
+  if(message.role==='assistant'&&message.completionStatus==='max-tokens'&&!message.expert&&!temporary){
+    const article=template.content.querySelector('article');
+    article?.append(...htmlNodes(`<div class="model-output-status" role="status"><span>已达到模型输出上限</span><button type="button" class="btn tiny" data-main-continue="${esc(message.id)}">继续</button>${infoTip('保留已生成内容，在原会话中接着写。新的回复单独保存，原回复不会被覆盖。',{label:'继续回复说明'})}</div>`));
+  }
   return template.innerHTML;
 };
 function htmlNodes(html){const template=document.createElement('template');template.innerHTML=html;return [...template.content.childNodes];}
@@ -50,6 +54,9 @@ function syncBranchControls() {
     actions.querySelector('.branch-action')?.remove();
     actions.querySelector('[data-v="branch-message"]')?.remove();
     actions.querySelector('[data-v="message-menu"]')?.insertAdjacentHTML('beforebegin',branchControl(message));
+    const article=actions.closest('article');
+    if(!message.expert)article?.querySelector('.model-output-status')?.remove();
+    if(message.role==='assistant'&&message.completionStatus==='max-tokens'&&!message.expert&&!temporary)article?.insertAdjacentHTML('beforeend',`<div class="model-output-status" role="status"><span>已达到模型输出上限</span><button type="button" class="btn tiny" data-main-continue="${esc(message.id)}">继续</button>${infoTip('保留已生成内容，在原会话中接着写。新的回复单独保存，原回复不会被覆盖。',{label:'继续回复说明'})}</div>`);
   }
   const tools=document.querySelector('.chatbottom .worktools');
   if(tools){tools.querySelector('.branch-action')?.remove();tools.querySelector('[data-v="branch-message"]')?.remove();const latest=(S.messages||[]).at(-1);tools.querySelector('.spacer')?.insertAdjacentHTML('beforebegin',branchControl(latest));}
@@ -506,13 +513,14 @@ window.ScienceScopeWorkspace={
       // Preserve the live DOM/selection; evict old memory after each turn.
       if(V.chat===id) {
         const saved=new Map(page.messages.map(message=>[message.id,message]));
-        for(const message of S.messages){const receipt=saved.get(message.id);if(receipt){message.branchMode=receipt.branchMode;message.runtimeSeq=receipt.runtimeSeq;message.completionStatus=receipt.completionStatus;}}
+        for(const message of S.messages){const receipt=saved.get(message.id);if(receipt){message.branchMode=receipt.branchMode;message.runtimeSeq=receipt.runtimeSeq;message.completionStatus=receipt.completionStatus;if(receipt.expert)message.expert=receipt.expert;}}
         S.messages=S.messages.slice(-PAGE_LIMIT);state.pages.set(id,page);saveThread();
         const box=document.querySelector('.messages');
         const nodes=[...(box?.querySelectorAll(':scope > .message') || [])];
         for(const node of nodes.slice(0,Math.max(0,nodes.length-PAGE_LIMIT)))node.remove();
         box?.querySelector('.history-navigation')?.remove();box?.insertAdjacentHTML('afterbegin',historyNav(page));
         syncBranchControls();
+        window.ScienceScopeDiscussion?.syncControls?.();
       }
       else if(chatData[id])chatData[id].messages=[];
     }catch {toast('聊天记录状态未能刷新，请暂时保留窗口。');}

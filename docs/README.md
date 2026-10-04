@@ -35,6 +35,8 @@
 | 文件 | 内容 |
 |---|---|
 | `docs/DESKTOP_IMPLEMENTATION.md` | 开发与验收日志，最新在最上面；**1.0.0-alpha 原始计划在其中"1.0.0-alpha 内测交付计划（2026-09-19）"一节，现已整理进 `ROADMAP.md`** |
+| `docs/T24_LIMITS_REPORT_2026-10-05.md` | T24 长内容、模型上限继续、用户整理成本设置的 Windows 验证、三轮真实对照、来源审计与保留限制 |
+| `docs/T24_SOURCE_AUDIT_2026-10-05.md` | T24 真实三轮论文回答的逐句来源审计：短摘录、页码/段落定位、无依据论断与计算错误 |
 | `docs/T10_TRANSPORT_FOLLOWUP_REPORT_2026-10-04.md` | T10 传输补充交付的三轮结果、逐题历史对比与额外无依据论断审计；原回答、日志和论文证据留在 H 盘忽略目录 |
 | `docs/REVIEW_CLAUDE_2026-09-23.md` | Claude 的深度审阅与路线建议（历史快照） |
 | `docs/WEB_REVIEW_HANDOFF.md` | 2026-09-20 网页端审阅交接（历史快照） |

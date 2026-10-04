@@ -4,6 +4,7 @@ import * as sqliteVec from 'sqlite-vec';
 
 const REF_TYPES = new Set(['source', 'chunk', 'item', 'message']);
 const FILTER_BATCH = 500;
+const MAX_SEARCH_RESULTS = 10000;
 const hashRef = (ref, version) => createHash('sha256')
   .update(`${ref.type}\0${ref.id}\0${version}`)
   .digest('hex');
@@ -171,11 +172,13 @@ export async function createVectorStore({ dbPath, embedding, modelId, modelVersi
   async function search({ queries, candidates, limit = 30, signal } = {}) {
     ensureOpen();
     if (signal?.aborted) return { rankings: [], fallbackReason: 'timeout' };
-    if (!Array.isArray(queries) || queries.length < 1 || queries.length > 6 || queries.some((q) => typeof q !== 'string')) {
+    if (!Array.isArray(queries) || queries.length < 1 || queries.some((q) => typeof q !== 'string')) {
       throw invalid('Search queries are invalid.');
     }
     const allowed = candidatesForSearch(candidates);
-    const boundedLimit = Math.max(1, Math.min(30, Number(limit) || 30));
+    if (!Number.isSafeInteger(limit) || limit < 1) throw invalid('Search limit must be a positive integer.');
+    if (limit > MAX_SEARCH_RESULTS) throw invalid('Search limit exceeds the 10000-result resource boundary; request up to 10000 authorized results and page that stable ranking.', 'VECTOR_SEARCH_RESOURCE_LIMIT');
+    const boundedLimit = limit;
     if (!allowed.length) return { rankings: queries.map(() => []) };
     const embeddingStatus = typeof embedding.status === 'function' ? embedding.status() : null;
     if (embeddingStatus && embeddingStatus.ready === false) {
@@ -218,7 +221,10 @@ export async function createVectorStore({ dbPath, embedding, modelId, modelVersi
           WHERE embedding MATCH ? AND k=? AND model_id=? AND model_version=?
             AND candidate_key IN (${marks}) ORDER BY distance`);
         statement.setReadBigInts(true);
-        const rows = statement.all(blob, Math.min(boundedLimit, keys.length), modelId, modelVersion, ...keys);
+        // Retrieve each authorized filter batch in full before the stable
+        // distance/ref ordering. A smaller K would arbitrarily choose among
+        // equal-distance rows and can change membership between page requests.
+        const rows = statement.all(blob, keys.length, modelId, modelVersion, ...keys);
         for (const row of rows) {
           const doc = docForVector.get(row.rowid, modelId, modelVersion);
           if (!doc) continue;

@@ -62,12 +62,12 @@ function savePanel(chatId = V.chat) {
 
 // Live status of each expert in the running round, shown on its message and
 // on the participants strip.
-const STATES = {waiting: '等待中', running: '作答中', tool: '使用工具', review: '等待其他专家', done: '已完成', failed: '未完成', stopped: '已停止'};
+const STATES = {waiting: '等待中', running: '作答中', tool: '使用工具', review: '等待其他专家', done: '已完成', limit:'已达到模型输出上限', failed: '未完成', stopped: '已停止'};
 const live = new Map();
 function stateOf(message) {
   if (message.streaming) return live.get(message.id) || 'running';
   const reason = message.expert?.stopReason;
-  return !reason || reason === 'completed' ? 'done' : reason === 'aborted' ? 'stopped' : 'failed';
+  return !reason || reason === 'completed' ? 'done' : reason==='max-tokens'?'limit':reason === 'aborted' ? 'stopped' : 'failed';
 }
 function reviewBar(message) {
   const expert = message.expert;
@@ -76,14 +76,50 @@ function reviewBar(message) {
   return `<div class="review-adopt" data-review-bar="${esc(message.id)}"><span>审核结论${infoTip('审核结论默认不进入后续上下文。\n点击"加入后续上下文"后，它会随下一轮一起提供给主专家和各位专家。',{label:'审核结论说明'})}</span><button class="btn tiny ${expert.adopted ? 'soft' : 'primary'}" data-review-adopt="${esc(message.id)}" aria-pressed="${!!expert.adopted}" ${expert.mainSeen ? 'disabled' : ''}>${label}</button></div>`;
 }
 const baseMessageHTML = messageHTML;
+const continuationControl=message=>message.expert?.stopReason==='max-tokens'&&message.expert.canContinue?`<div class="model-output-status"><button type="button" class="btn tiny" data-expert-continue="${esc(message.id)}">继续</button>${infoTip('在这位专家原来的子会话中接着写，保留原回答。未完成的审核仍需完成后再决定是否加入后续上下文。',{label:'专家继续说明'})}</div>`:'';
+function syncControls(){
+  for(const message of S.messages||[]){
+    if(!message.expert)continue;
+    const node=document.getElementById('message-'+message.id);if(!node)continue;
+    const state=stateOf(message);node.dataset.expertState=state;
+    const status=node.querySelector('.expert-state');if(status){status.dataset.state=state;status.textContent=STATES[state];}
+    node.querySelector('.model-output-status')?.remove();
+    node.querySelector('.review-adopt')?.remove();
+    node.querySelector('.msg-actions')?.insertAdjacentHTML('beforebegin',reviewBar(message)+continuationControl(message));
+  }
+}
 messageHTML = function(message) {
   let html = baseMessageHTML(message);
   if (!message.expert || message.role !== 'assistant') return html;
   const state = stateOf(message);
   html = html.replace(/<article\b([^>]*?)class="message /, `<article$1data-expert-state="${state}" class="message expert-message ${message.expert.review ? 'review-message ' : ''}`);
   html = html.replace('<time title=', `${message.expert.review ? '<span class="expert-badge">审核</span>' : ''}<span class="expert-state" data-state="${state}">${STATES[state]}</span><time title=`);
-  return html.replace('<div class="msg-actions">', reviewBar(message) + '<div class="msg-actions">');
+  return html.replace('<div class="msg-actions">', reviewBar(message) + (message.expert.stopReason==='max-tokens'&&message.expert.canContinue?`<div class="model-output-status"><button type="button" class="btn tiny" data-expert-continue="${esc(message.id)}">继续</button>${infoTip('在这位专家的原子会话中接着写，保留原回答。未完成的审核仍需完成后再决定是否加入后续上下文。',{label:'专家继续说明'})}</div>`:'') + '<div class="msg-actions">');
 };
+
+window.addEventListener('click',async event=>{
+  const button=event.target.closest('[data-expert-continue]');if(!button)return;
+  event.preventDefault();event.stopImmediatePropagation();const chatId=V.chat;
+  if(V.pending.has(chatId))return;V.pending.add(chatId);button.disabled=true;
+  let answer;
+  try{
+    await streamChat({chatId,messageId:button.dataset.expertContinue,executionMode:window.ScienceScopeExecution?.mode()==='full'?'full':'ask'},seen=>{
+      if(seen.type==='accepted'){
+        const expert=seen.experts[0];answer={id:expert.messageId,role:'assistant',text:'',name:expert.label,label:expert.model?.modelId,streaming:true,time:vtime(),expert:{expertId:expert.id,label:expert.label,role:expert.role,model:expert.model,review:!!expert.review,adopted:false,continuedFrom:seen.continuedFrom}};
+        const target=chatId===V.chat?S:chatData[chatId];if(target){target.messages??=[];target.messages.push(answer);target.messages=target.messages.slice(-60);}
+        if(chatId===V.chat){const box=document.querySelector('.messages');box?.insertAdjacentHTML('beforeend',messageHTML(answer));const keep=new Set(S.messages.map(m=>m.id));for(const node of box?.querySelectorAll(':scope > .message')||[])if(!keep.has(node.dataset.messageId))node.remove();}
+      }
+      if(!answer)return;
+      if(seen.type==='expert-delta')answer.text+=seen.delta;
+      if(seen.type==='expert-reset')answer.text='';
+      if(seen.type==='tool-call'||seen.type==='tool-result'){recordTool(answer,seen);if(chatId===V.chat)paintActivity(answer);}
+      if(seen.type==='expert-end'){answer.text=seen.text;answer.streaming=false;answer.expert={...answer.expert,stopReason:seen.stopReason,canContinue:seen.canContinue};}
+      if(chatId!==V.chat)return;const node=document.getElementById('message-'+answer.id);if(node?.querySelector('.message-text'))node.querySelector('.message-text').innerHTML=renderMarkdown(answer.text);
+      if(seen.type==='expert-end')syncControls();
+    },'/api/discussion/continue');
+  }catch(error){toast(error.message);}
+  finally{V.pending.delete(chatId);button.disabled=false;saveThread();await window.ScienceScopeWorkspace?.settled(chatId);window.ScienceScopeMainRun?.sync();}
+},true);
 
 async function submitDiscussion(text, {kind, expertIds, reviewerId = null}) {
   const chatId = V.chat;
@@ -131,6 +167,8 @@ async function submitDiscussion(text, {kind, expertIds, reviewerId = null}) {
       }
     }
     else if (next) node.querySelector('.msg-actions')?.insertAdjacentHTML('beforebegin', next);
+    node.querySelector('.model-output-status')?.remove();
+    if(answer.expert.stopReason==='max-tokens'&&answer.expert.canContinue)node.querySelector('.msg-actions')?.insertAdjacentHTML('beforebegin',`<div class="model-output-status"><button type="button" class="btn tiny" data-expert-continue="${esc(answer.id)}">继续</button>${infoTip('在这位专家的原子会话中接着写，保留原回答。未完成的审核仍需完成后再决定是否加入后续上下文。',{label:'专家继续说明'})}</div>`);
     if (follow) box.scrollTop = box.scrollHeight;
   };
   const schedule = messageId => { if (!pendingPaint.has(messageId)) { pendingPaint.add(messageId); setTimeout(() => { pendingPaint.delete(messageId); paintAnswer(messageId); }, 60); } };
@@ -184,7 +222,7 @@ async function submitDiscussion(text, {kind, expertIds, reviewerId = null}) {
         setState(answer.id, event.type === 'tool-call' ? 'tool' : 'running');
       }
       if (event.type === 'expert-end') {
-        answer.text = event.text; answer.streaming = false; answer.expert = {...answer.expert, stopReason: event.stopReason};
+        answer.text = event.text; answer.streaming = false; answer.expert = {...answer.expert, stopReason: event.stopReason,canContinue:event.canContinue};
         for (const call of answer.toolActivity || []) if (call.status === 'running') call.status = 'interrupted';
         live.delete(answer.id);
         if (chatId === V.chat) paintActivity(answer);
@@ -346,5 +384,5 @@ window.addEventListener('mousedown', event => {
 }, true);
 window.addEventListener('blur', closeMention);
 
-window.ScienceScopeDiscussion = Object.freeze({roster: () => roster, reload: async () => { await loadRoster(); paintStrip(); return roster; }, mentionedExperts, panel: () => panelOf()});
+window.ScienceScopeDiscussion = Object.freeze({roster: () => roster, reload: async () => { await loadRoster(); paintStrip(); return roster; }, mentionedExperts, panel: () => panelOf(),syncControls});
 void loadRoster().then(paintStrip);

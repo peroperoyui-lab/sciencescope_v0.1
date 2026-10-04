@@ -11,11 +11,12 @@ import { setApprovalPolicy } from '@deepseek-ai/dsh-user-approval';
 import { PERSONA_PREFIX_SECTION } from '@deepseek-ai/dsh-system-prompt';
 import { isTokenDelta } from '@deepseek-ai/dsh-llm';
 import { isSkillName } from '@deepseek-ai/dsh-skill';
+import { applyChildComposition, finalAssistantOutput } from '@deepseek-ai/dsh-subagent';
 import { previewValue } from '../../scripts/tool-activity.mjs';
 import { markExternalContent } from './external-content.mjs';
 
 export const name = 'sciencescope-session-control';
-export const inject = ['agents', 'goals', 'approval', 'sandboxPolicy', 'llm', 'systemPrompt'];
+export const inject = ['agents', 'goals', 'approval', 'sandboxPolicy', 'llm', 'systemPrompt', 'scienceScopeAssistantStream'];
 
 export function apply(ctx) {
   const endpoint = process.env.SCIENCESCOPE_STREAM_ENDPOINT;
@@ -114,10 +115,10 @@ export function apply(ctx) {
     installModelSelection(agentCtx,selection);
     if(proposalTargetChatId) agentCtx.tools.register(defineTool({
       name:'propose_main_draft',description:'Propose a draft instruction for the Main expert. This only waits for user review; it never sends the instruction.',
-      parameters:{text:{type:'string',required:true,description:'Draft text, at most 64000 characters.'}},
+      parameters:{text:{type:'string',required:true,description:'Draft text for user review.'}},
       output:{schema:{type:'object',additionalProperties:false,properties:{status:{type:'string',required:true},proposalId:{type:'string',required:true}}},render:(_args,value)=>[{type:'text',text:JSON.stringify(value)}]},
       async execute(args){
-        if(typeof args.text!=='string'||!args.text.trim()||args.text.length>64000)throw new Error('text must be 1-64000 characters');
+        if(typeof args.text!=='string'||!args.text.trim())throw new Error('text must be nonempty');
         const proposalId=randomUUID();await postEvent({type:'main-draft-proposal',proposalId,text:args.text});
         return {status:'awaiting_user_review',proposalId};
       }
@@ -201,15 +202,15 @@ export function apply(ctx) {
     const subagents = ctx.get('subagents');
     if (!subagents?.start) throw new Error('DSH subagent service is unavailable');
     if (typeof value.runId !== 'string' || !EXPERT_ID.test(value.runId) || expertRuns.has(value.runId)) throw new Error('invalid expert run id');
-    if (typeof value.prompt !== 'string' || !value.prompt.trim() || value.prompt.length > 400000) throw new Error('expert prompt is required');
+    if (typeof value.prompt !== 'string' || !value.prompt.trim()) throw new Error('expert prompt is required');
     const experts = Array.isArray(value.experts) ? value.experts : [];
     if (!experts.length || experts.length > 8) throw new Error('between 1 and 8 experts are required');
     const boundSkillsByExpert = new Map();
     for (const expert of experts) {
       if (!expert || typeof expert.id !== 'string' || !EXPERT_ID.test(expert.id)) throw new Error('invalid expert id');
-      if (typeof expert.persona !== 'string' || !expert.persona.trim() || expert.persona.length > 16000) throw new Error('expert persona is required');
+      if (typeof expert.persona !== 'string' || !expert.persona.trim()) throw new Error('expert persona is required');
       if (expert.model !== undefined && (typeof expert.model?.providerId !== 'string' || typeof expert.model?.modelId !== 'string')) throw new Error('invalid expert model');
-      if (expert.prompt !== undefined && (typeof expert.prompt !== 'string' || !expert.prompt.trim() || expert.prompt.length > 400000)) throw new Error('invalid expert prompt');
+      if (expert.prompt !== undefined && (typeof expert.prompt !== 'string' || !expert.prompt.trim())) throw new Error('invalid expert prompt');
       boundSkillsByExpert.set(expert.id, validateBoundSkills(expert));
     }
     if (new Set(experts.map((expert) => expert.id)).size !== experts.length) throw new Error('duplicate expert id');
@@ -243,7 +244,7 @@ export function apply(ctx) {
           const text = outcome.output.filter((block) => block?.type === 'text').map((block) => block.text).join('');
           // The expert's context at the end of its answer (its input plus its own tool work).
           let context = null; try { context = measureContext(run.localAgent?.session); } catch { /* measurement is best-effort */ }
-          const entry = { expertId: expert.id, stopReason: outcome.stopReason, text, ...(outcome.diagnostic ? { diagnostic: outcome.diagnostic.slice(0, 500) } : {}), ...(context ? { context } : {}), ms: Date.now() - startedAt };
+          const entry = { expertId: expert.id, childSessionId: String(run.id), stopReason: outcome.stopReason, text, ...(outcome.diagnostic ? { diagnostic: outcome.diagnostic.slice(0, 500) } : {}), ...(context ? { context } : {}), ms: Date.now() - startedAt };
           void postEvent({ type: 'expert-end', runId: value.runId, ...entry });
           return entry;
         } catch (error) {
@@ -270,6 +271,48 @@ export function apply(ctx) {
     const observed = await query.observeSession(id);
     try { return { header: observed.header, events: [...observed.events] }; }
     finally { observed[Symbol.dispose]?.(); }
+  };
+  const continueExpert = async (value) => {
+    const expert = value.expert;
+    if (typeof value.runId !== 'string' || !EXPERT_ID.test(value.runId) || expertRuns.has(value.runId)) throw new Error('invalid expert run id');
+    if (!expert || typeof expert.id !== 'string' || !EXPERT_ID.test(expert.id) || typeof expert.persona !== 'string' || !expert.persona.trim()) throw new Error('invalid expert snapshot');
+    if (typeof value.childSessionId !== 'string' || !value.childSessionId || typeof value.prompt !== 'string' || !value.prompt.trim()) throw new Error('child identity and continuation prompt are required');
+    if (expert.model !== undefined && (typeof expert.model?.providerId !== 'string' || typeof expert.model?.modelId !== 'string')) throw new Error('invalid expert model');
+    const observed = await observeLog(value.childSessionId);
+    if (String(observed.header.parentSession) !== sessionId || observed.header.origin !== 'subagent') throw new Error('expert child does not belong to this parent');
+    const boundSkills = validateBoundSkills(expert);
+    const controller = new AbortController(); expertRuns.set(value.runId, controller);
+    const startedAt = Date.now(); let resumed;
+    void postEvent({type:'expert-start',runId:value.runId,expertId:expert.id});
+    try {
+      const creation = {binding:{runId:value.runId,expertId:expert.id,expertLabel:String(expert.label || expert.id).slice(0,80)},...(boundSkills === undefined ? {} : {boundSkills}),policy:ctx.approval.effectivePolicy(handle.agent.session),claimed:false};
+      const toolFilter = expert.tools === 'none' ? {allow:[]} : boundSkills === undefined ? undefined : {deny:['skill']};
+      const options = {...(expert.model ? {provider:expert.model.providerId,model:expert.model.modelId} : {}),...(typeof expert.reasoningEffort === 'string' ? {reasoningEffort:expert.reasoningEffort} : {})};
+      resumed = await expertCreation.run(creation, () => ctx.agents.resume({
+        resumeSessionId:value.childSessionId,parentAgent:handle.agent,agentOptions:options,signal:controller.signal,
+        setup: childCtx => applyChildComposition(childCtx,handle.agent,{persona:expert.persona,...(toolFilter ? {toolFilter} : {})}),
+      }));
+      const agent = resumed.agent; const boundary = (await observeLog(value.childSessionId)).events.length;
+      const abort = () => agent.cancel({kind:'parent'});
+      controller.signal.addEventListener('abort',abort,{once:true});
+      try {
+        controller.signal.throwIfAborted();
+        agent.followup(createUserMessage({content:[{type:'text',text:value.prompt}],source:{kind:'user'}}));
+        await agent.whenIdle();
+      } finally { controller.signal.removeEventListener('abort',abort); }
+      const own = (await observeLog(value.childSessionId)).events.slice(boundary);
+      const reason = own.findLast(event=>event.type==='turn/end')?.data?.reason?.kind;
+      const stopReason = ['completed','max-tokens','aborted'].includes(reason) ? reason : reason === 'blocked' ? 'refusal' : 'error';
+      const text = (finalAssistantOutput(own) ?? []).filter(block=>block.type==='text').map(block=>block.text).join('');
+      let context = null; try { context = measureContext(agent.session); } catch {}
+      const entry = {expertId:expert.id,childSessionId:value.childSessionId,stopReason,text,...(context ? {context} : {}),ms:Date.now()-startedAt};
+      void postEvent({type:'expert-end',runId:value.runId,...entry}); return entry;
+    } catch(error) {
+      const entry = {expertId:expert.id,childSessionId:value.childSessionId,stopReason:controller.signal.aborted ? 'aborted' : 'error',text:'',diagnostic:String(error?.message ?? error).slice(0,500),ms:Date.now()-startedAt};
+      void postEvent({type:'expert-end',runId:value.runId,...entry}); return entry;
+    } finally {
+      await resumed?.dispose().catch(()=>{}); expertChildren.delete(value.childSessionId); childText.delete(value.childSessionId); expertRuns.delete(value.runId);
+    }
   };
   const completedTurns = async () => {
     const { events } = await observeLog(sessionId);
@@ -304,14 +347,22 @@ export function apply(ctx) {
     return { sessionId: childId, boundarySeq: boundary.seq, inheritedEventCount: cut };
   };
   const server = createServer(async (req, res) => {
-    if (req.method !== 'POST' || !['/prompt', '/goal', '/policy', '/reasoning', '/model', '/persona', '/brief', '/interrupt', '/approval/reply', '/context-usage', '/experts', '/experts/cancel', '/python-env/refresh', '/turns', '/fork'].includes(req.url)) { res.writeHead(404); res.end(); return; }
-    let body = ''; req.setEncoding('utf8'); req.on('data', (chunk) => { body += chunk; if(Buffer.byteLength(body)>2*1024*1024)req.destroy(); });
+    if (req.method !== 'POST' || !['/prompt', '/goal', '/policy', '/reasoning', '/model', '/persona', '/brief', '/interrupt', '/approval/reply', '/context-usage', '/experts', '/experts/continue', '/experts/cancel', '/python-env/refresh', '/turns', '/fork'].includes(req.url)) { res.writeHead(404); res.end(); return; }
+    let body = '', bytes = 0, exceeded = false; req.setEncoding('utf8'); req.on('data', (chunk) => {
+      bytes += Buffer.byteLength(chunk);
+      if(bytes > 64*1024*1024) { if(!exceeded) { exceeded=true; body=''; res.writeHead(413,{'content-type':'application/json'});res.end(JSON.stringify({error:'Request exceeds the 64 MiB resource limit; send smaller segments.'})); } }
+      else if(!exceeded) body += chunk;
+    });
     req.on('end', async () => {
+      if(exceeded)return;
       try {
         const value = JSON.parse(body);
         if (value.token !== token || value.sessionId !== sessionId) throw new Error('invalid session control request');
         await ready;
         const session = handle.agent.session;
+        if(req.url==='/experts/continue') {
+          const result=await continueExpert(value);await eventTail;res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({result}));return;
+        }
         if (req.url === '/turns' || req.url === '/fork') {
           const result = req.url === '/turns' ? await completedTurns() : await forkSession(value.atSeq);
           res.writeHead(200, { 'content-type': 'application/json' });
@@ -366,7 +417,7 @@ export function apply(ctx) {
           await ctx.llm.resolveCallConfig(next); Object.assign(agentOptions,next); selection.current=next; if(value.reasoningEffort===undefined) { delete agentOptions.reasoningEffort; delete selection.current.reasoningEffort; } res.writeHead(204);res.end();return;
         }
         if (req.url === '/brief') {
-          if (typeof value.text !== 'string' || value.text.length > 40000) throw new Error('brief text must be a string up to 40000 characters');
+          if (typeof value.text !== 'string') throw new Error('brief text must be a string');
           await configureBrief(value.text);
           res.writeHead(204); res.end(); return;
         }
@@ -378,6 +429,9 @@ export function apply(ctx) {
           if (typeof value.text !== 'string' || !value.text.trim()) throw new Error('text is required');
           handle.agent.followup(createUserMessage({ content: [{ type: 'text', text: value.text }], source: { kind: 'user' } }));
           await handle.agent.whenIdle();
+          // The bridge's queued run-idle follows committed messages and every
+          // text delta. Finish /prompt only after that presentation barrier.
+          await ctx.get('scienceScopeAssistantStream').drain();
         } else if (req.url === '/goal') {
           const ref = value.ref;
           let result;

@@ -174,8 +174,12 @@ test('searchHybrid validates and deduplicates query inputs and keeps search sync
     await retrieval.searchHybrid({ query: 'alpha', queries: ['beta', ' alpha ', 'BETA'], projectId: 'p1' });
     assert.deepEqual(calls[0], ['alpha', 'beta']);
     await assert.rejects(retrieval.searchHybrid({ queries: [] }), { code: 'INVALID_QUERY' });
-    await assert.rejects(retrieval.searchHybrid({ queries: Array.from({ length: 7 }, (_, i) => `q${i}`) }), { code: 'INVALID_QUERY' });
-    await assert.rejects(retrieval.searchHybrid({ query: 'x'.repeat(2001) }), { code: 'INVALID_QUERY' });
+    const many=Array.from({length:9},(_,i)=>`query${i}`);
+    await retrieval.searchHybrid({queries:many,projectId:'p1'});
+    assert.deepEqual(calls.at(-1),many,'every distinct question reaches the retriever');
+    const long='source-specific context '.repeat(180)+'tail-marker';
+    await retrieval.searchHybrid({query:long,projectId:'p1'});
+    assert.deepEqual(calls.at(-1),[long],'long question retains its tail');
     await assert.rejects(retrieval.searchHybrid({ queries: ['ok', ''] }), { code: 'INVALID_QUERY' });
   } finally { await f.close(); }
 });

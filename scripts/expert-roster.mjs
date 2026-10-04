@@ -33,7 +33,11 @@ function normalize(expert, position, enabledSkillIds) {
   if (typeof id !== 'string' || !ID.test(id)) throw new ExpertRosterError('专家标识只能包含字母、数字、下划线和短横线。');
   if (typeof label !== 'string' || !label.trim() || label.length > 40) throw new ExpertRosterError('专家名称须为 1–40 个字符。');
   if (typeof role !== 'string' || role.length > 40) throw new ExpertRosterError('专家职责标签不能超过 40 个字符。');
-  if (typeof persona !== 'string' || !persona.trim() || persona.length > 16000) throw new ExpertRosterError('专家提示词须为 1–16000 个字符。');
+  if (typeof persona !== 'string' || !persona.trim()) throw new ExpertRosterError('专家提示词须为非空文本。');
+  if (Buffer.byteLength(persona,'utf8') > 64 * 1024 * 1024) {
+    const error = new ExpertRosterError('专家提示词超过 64 MiB 资源上限；本次未保存，已有专家配置保持完整。');
+    error.code = 'EXPERT_PROMPT_RESOURCE_LIMIT'; error.status = 413; throw error;
+  }
   if (model !== null && (typeof model?.providerId !== 'string' || !model.providerId || typeof model?.modelId !== 'string' || !model.modelId)) throw new ExpertRosterError('专家模型无效。');
   if (reasoningEffort !== null && (typeof reasoningEffort !== 'string' || !/^[A-Za-z0-9._-]{1,80}$/u.test(reasoningEffort))) throw new ExpertRosterError('专家推理强度无效。');
   if (kind !== 'expert' && kind !== 'reviewer') throw new ExpertRosterError('专家类型只能是参加专家或独立审核。');

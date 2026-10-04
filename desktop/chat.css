@@ -43,3 +43,4 @@ html[data-show-scrollbars] *{scrollbar-width:thin!important}
 html[data-show-scrollbars] *::-webkit-scrollbar{display:block!important;width:8px!important;height:8px!important}
 html[data-show-scrollbars] *::-webkit-scrollbar-thumb{background:#bbc1b7;border-radius:5px}
 .settings-path{display:block;overflow-wrap:anywhere;user-select:text}
+.model-output-status{display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin-top:10px}

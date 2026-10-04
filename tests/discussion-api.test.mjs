@@ -18,7 +18,7 @@ async function fixture({ emitExpertEnds = true } = {}) {
     setToolHandler: (fn) => { state.toolHandler = fn; },
     send: async ({ text, onEvent }) => { state.mainPrompts = [...(state.mainPrompts || []), text]; onEvent({ type: 'text-delta', delta: 'MAIN_REPLY' }); onEvent({ type: 'completed', text: 'MAIN_REPLY' }); return { finalResponse: 'MAIN_REPLY' }; },
     runExperts: async ({ sessionId, runId, prompt, experts, onEvent }) => {
-      const result = experts.map((expert) => ({ expertId: expert.id, stopReason: state.failedExpertId === expert.id ? 'max-tokens' : 'completed', text: state.failedExpertId === expert.id ? '' : `${expert.id.toUpperCase()}_VIEW`, ms: 5 }));
+      const result = experts.map((expert) => ({ expertId: expert.id, ...(state.failedExpertId === expert.id ? {childSessionId:`child-${expert.id}`} : {}), stopReason: state.failedExpertId === expert.id ? 'max-tokens' : 'completed', text: state.failedExpertId === expert.id ? state.partialText??'' : `${expert.id.toUpperCase()}_VIEW`, ms: 5 }));
       state.runs.push({ sessionId, runId, prompt, experts, result });
       if (experts[0].id === 'methodologist') onEvent({ type: 'expert-tool', runId, expertId: 'methodologist', callId: 'call-1', name: 'read', argumentsPreview: '{"path":"paper_versions/draft.md"}', preamble: 'Let me read the draft.' });
       if (experts[0].id === 'methodologist') {
@@ -228,6 +228,8 @@ test('incomplete reviewer cannot be adopted through the API', async () => {
     const round = await f.send('POST', '/api/discussion', { chatId: 'chat-failed-review', projectId: null, model, kind: 'ordered', text: 'Review this claim.', expertIds: ['methodologist'], reviewerId: 'statistician' });
     const review = round.events.find((event) => event.type === 'expert-end' && event.review);
     assert.equal(review.stopReason, 'max-tokens');
+    assert.equal(round.events.at(-1).failed,0,'provider length is normal termination, not a failed expert');
+    assert.equal(review.canContinue,true);
     const adoption = await f.send('POST', '/api/discussion/adopt', { chatId: 'chat-failed-review', messageId: review.messageId, adopted: true });
     assert.equal(adoption.status, 409);
     assert.equal(adoption.events[0].code, 'REVIEW_NOT_COMPLETED');

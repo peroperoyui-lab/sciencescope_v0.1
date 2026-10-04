@@ -8,7 +8,7 @@ import { infoTip } from '../desktop/info-tip.mjs';
 async function mount() {
   const handlers = {};
   const context = createContext({
-    PROTOCOLS, validateProviderDraft, infoTip,
+    PROTOCOLS, validateProviderDraft, infoTip, structuredClone,
     hostRequest: async () => { throw new Error('No host in offline UI test'); },
     modelsPage() {}, providerPage() {}, pageintro: (title, note, button = '') => title + note + button,
     ic: () => '', S: {settings:{}}, render() {}, closeMenu() {},

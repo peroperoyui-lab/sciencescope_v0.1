@@ -5,7 +5,6 @@ import { presentedFiles } from './discussion-service.mjs';
 import { estimateTokens } from './context/estimate.mjs';
 
 const BATCH_CHARS = 60000;       // new messages per update step
-const MAX_MESSAGE_CHARS = 20000; // bounded input with an explicit recall note
 const DEBOUNCE_MS = 1500;
 
 export class MinutesError extends Error {
@@ -79,7 +78,7 @@ export function createChatMinutes({ db, host, chatStore, modelFor, getPreference
       ...(row.expert_role ? { speakerRole: row.expert_role } : {}),
     }));
   }
-  const format = (message, cap = Infinity) => `<message n="${message.ordinal}" speaker="${message.speaker.replace(/"/g, "'")}"${message.speakerRole ? ` role="${message.speakerRole.replace(/"/g, "'")}"` : ''}>\n${message.text.length > cap ? `${message.text.slice(0, cap)}\n[…long message shortened here; read it in full with chat_recall from ${message.ordinal} to ${message.ordinal}]` : message.text}${message.files?.length ? `\n[Files presented with this answer]\n${message.files.map((file) => `- ${file.path}${file.description ? ` — ${file.description}` : ''}`).join('\n')}` : ''}\n</message>`;
+  const format = (message) => `<message n="${message.ordinal}" speaker="${message.speaker.replace(/"/g, "'")}"${message.speakerRole ? ` role="${message.speakerRole.replace(/"/g, "'")}"` : ''}>\n${message.text}${message.files?.length ? `\n[Files presented with this answer]\n${message.files.map((file) => `- ${file.path}${file.description ? ` — ${file.description}` : ''}`).join('\n')}` : ''}\n</message>`;
 
   function markdownStatus(chatId) {
     const row = db.prepare('SELECT chat_id,path,error,updated_at FROM chat_minutes_markdown_status WHERE chat_id=?').get(chatId);
@@ -158,8 +157,8 @@ export function createChatMinutes({ db, host, chatStore, modelFor, getPreference
     while (pending.length) {
       if (closed) return current(chatId);
       const batch = []; let size = 0;
-      for (const message of pending) { const block = format(message, MAX_MESSAGE_CHARS); if (batch.length && size + block.length > BATCH_CHARS) break; batch.push(message); size += block.length; }
-      const prompt = `${MINUTES_PROMPT}\n\n[Previous minutes${minutes ? ` (revision ${minutes.revision}, by the ${minutes.author}, covering messages up to #${minutes.throughOrdinal})` : ''}]\n${minutes?.text || '(none yet)'}\n[End of previous minutes]\n\n[New messages #${batch[0].ordinal}–#${batch.at(-1).ordinal}]\n${batch.map((message) => format(message, MAX_MESSAGE_CHARS)).join('\n')}\n[End of new messages]`;
+      for (const message of pending) { const block = format(message); if (batch.length && size + block.length > BATCH_CHARS) break; batch.push(message); size += block.length; }
+      const prompt = `${MINUTES_PROMPT}\n\n[Previous minutes${minutes ? ` (revision ${minutes.revision}, by the ${minutes.author}, covering messages up to #${minutes.throughOrdinal})` : ''}]\n${minutes?.text || '(none yet)'}\n[End of previous minutes]\n\n[New messages #${batch[0].ordinal}–#${batch.at(-1).ordinal}]\n${batch.map((message) => format(message)).join('\n')}\n[End of new messages]`;
       let sessionId;
       try {
         if (closed) return current(chatId);
@@ -212,7 +211,8 @@ export function createChatMinutes({ db, host, chatStore, modelFor, getPreference
     /** A user's edit becomes the next revision; it keeps the coverage it replaced. */
     edit(chatId, text, expectedRevision) {
       if (closed) throw new MinutesError('MINUTES_CLOSED', '纪要服务已关闭。', 409);
-      if (typeof text !== 'string' || !text.trim() || text.length > 100000) throw new MinutesError('INVALID_MINUTES', '纪要须为 1–100000 个字符。');
+      if (typeof text !== 'string' || !text.trim()) throw new MinutesError('INVALID_MINUTES', '纪要须为非空文本。');
+      if (Buffer.byteLength(text, 'utf8') > 64 * 1024 * 1024) throw new MinutesError('MINUTES_RESOURCE_LIMIT', '纪要超过 64 MiB 资源上限；本次编辑未保存，已有纪要与历史保持完整。', 413);
       const latest = current(chatId);
       if ((latest?.revision ?? 0) !== expectedRevision) throw new MinutesError('MINUTES_CHANGED', '纪要已被更新，请刷新后再编辑。', 409);
       const saved = insert(chatId, text.trim(), latest?.throughOrdinal ?? 0, 'user');

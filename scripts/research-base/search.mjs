@@ -163,7 +163,7 @@ export function createResearchSearch({ store }) {
    */
   function search(input = {}) {
     const { query } = input;
-    if (typeof query !== 'string' || !query.trim() || query.length > 2000) throw new ResearchBaseError('INVALID_QUERY', '请输入 1–2000 个字符的检索词。');
+    if (typeof query !== 'string' || !query.trim()) throw new ResearchBaseError('INVALID_QUERY', '请输入检索词。');
     const options = normalizedOptions(input);
     const k = Math.max(1, Math.min(50, Number(input.k) || 8));
     return keywordSearch(query.trim(), options, k);
@@ -247,7 +247,7 @@ export function createResearchSearch({ store }) {
 
   /** Bounded reading window. Sources read by page or passage ordinal. */
   function read({ ref, page, toPage, fromOrdinal, maxChars = 6000, audience = 'user', expertId } = {}) {
-    maxChars = Math.max(500, Math.min(20000, Number(maxChars) || 6000));
+    maxChars = Math.max(1, Math.min(64*1024*1024, Number(maxChars) || 6000));
     if (!ref?.type || typeof ref.id !== 'string') throw new ResearchBaseError('INVALID_REF', '请提供要阅读的记录。');
     if (toPage != null && ref.type !== 'source') throw new ResearchBaseError('INVALID_CITATION', '引用页码范围需要来源 ref。');
     if (ref.type === 'item') {
@@ -278,7 +278,9 @@ export function createResearchSearch({ store }) {
         // One bounded query, even for a very large range; no loop per page.
         chunks = db.prepare('SELECT id FROM rb_chunks WHERE source_id=? AND page>=? AND page<=? AND ordinal>=? ORDER BY ordinal LIMIT 400')
           .all(source.id, Number(page), Number(toPage), Math.max(0, Number(fromOrdinal) || 0)).map(row => store.getChunk(row.id));
-      } else chunks = store.chunksOf(source.id, page != null ? { page: Number(page), limit: 400 } : { fromOrdinal: Number(fromOrdinal) || 0, limit: 200 });
+      } else chunks = page!=null
+        ? db.prepare('SELECT id FROM rb_chunks WHERE source_id=? AND page=? AND ordinal>=? ORDER BY ordinal LIMIT 400').all(source.id,Number(page),Math.max(0,Number(fromOrdinal)||0)).map(row=>store.getChunk(row.id))
+        : store.chunksOf(source.id,{fromOrdinal:Number(fromOrdinal)||0,limit:10000});
     } else throw new ResearchBaseError('INVALID_REF', '只能阅读来源、段落或条目。');
     const parts = []; let used = 0; let last = null;
     for (const chunk of chunks) {
@@ -290,7 +292,12 @@ export function createResearchSearch({ store }) {
     const range = toPage == null ? {} : { fromPage: Number(page), toPage: Number(toPage), readPages: [...new Set(chunks.slice(0, parts.length).map(chunk => chunk.page))],
       truncated: last ? Boolean(db.prepare('SELECT 1 FROM rb_chunks WHERE source_id=? AND page>=? AND page<=? AND ordinal>? LIMIT 1').get(source.id, Number(page), Number(toPage), last.ordinal)) : false };
     const cite = toPage == null ? citeOf.source(source) : `[${source.label} p.${Number(page)}${Number(page) !== Number(toPage) ? `–${Number(toPage)}` : ''}]`;
-    return { ref: { type: 'source', id: source.id }, cite, source: sourceBrief(source), contentStatus: source.contentStatus, text: parts.join('\n').trim(), nextOrdinal: last ? last.ordinal + 1 : null, pages: source.pages, ...range };
+    const hasMore=last?Boolean(toPage!=null
+      ? db.prepare('SELECT 1 FROM rb_chunks WHERE source_id=? AND page>=? AND page<=? AND ordinal>? LIMIT 1').get(source.id,Number(page),Number(toPage),last.ordinal)
+      : page!=null?db.prepare('SELECT 1 FROM rb_chunks WHERE source_id=? AND page=? AND ordinal>? LIMIT 1').get(source.id,Number(page),last.ordinal)
+      : db.prepare('SELECT 1 FROM rb_chunks WHERE source_id=? AND ordinal>? LIMIT 1').get(source.id,last.ordinal)):false;
+    return { ref: { type: 'source', id: source.id }, cite, source: sourceBrief(source), contentStatus: source.contentStatus, text: parts.join('\n').trim(), nextOrdinal: last ? last.ordinal + 1 : null, pages: source.pages, ...range,
+      hasMore,...(hasMore?{hint:'This read is a page of the complete source. Continue with research_read using this source ref, the same page/range and nextOrdinal as fromOrdinal to read the remaining passages.'}:{}),...(Number(maxChars)>=64*1024*1024?{resourceLimitChars:64*1024*1024}:{}) };
   }
 
   /** Resolve every explicit member; unknown members stay inspectable. */
@@ -354,7 +361,7 @@ export function createResearchSearch({ store }) {
       }
       if (lines.length) sections.push(`### ${block.title}\n${lines.join('\n')}`);
     }
-    const text = sections.length ? `[ScienceScope project brief — the user's confirmed long-term memory for this work. Cite entries by their [@id]. Propose changes with research_propose; never assume an entry changed unless the user confirms.]\n${sections.join('\n\n')}` : '';
+    const text = sections.length ? `[ScienceScope project brief — the user's confirmed long-term memory for this work. This is an overview; use research_read with an entry's exact ref or [@id] for its complete text. Cite entries by their [@id]. Propose changes with research_propose; never assume an entry changed unless the user confirms.]\n${sections.join('\n\n')}` : '';
     return { text, refs };
   }
 

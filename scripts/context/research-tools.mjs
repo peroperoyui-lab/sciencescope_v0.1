@@ -26,7 +26,7 @@ export function createScopedResearchTools({research, projectIds}) {
       return {mode:result.mode,...(result.fallbackReason?{fallbackReason:result.fallbackReason}:{}),hits:selected.map(hit=>({cite:hit.cite,ref:hit.ref,title:hit.title,section:hit.section??undefined,
         page:hit.page??undefined,snippet:hit.snippet,projectId:hit.projectId,
         ...(hit.item?{type:hit.item.type,subtype:hit.item.subtype,status:hit.item.claimStatus??hit.item.status}:{})})),
-        hint:(result.mode==='keyword'?'本次为关键词检索。 ':'')+'These are bounded excerpts, not evidence of absence. Use research_read with a promising hit\'s exact ref to verify missing detail. Once direct evidence covers the question, answer concisely with citations. Further lookups should resolve a specific missing fact or contradiction. Across projects, read the returned ref rather than a potentially ambiguous project-local citation label.'};
+        hint:(result.mode==='keyword'?'本次为关键词检索。 ':'')+'These are bounded excerpts, not evidence of absence. Use research_read with a promising hit\'s exact ref to verify missing detail. Once direct evidence covers the question, answer with citations. Further lookups should resolve a specific missing fact or contradiction. Across projects, read the returned ref rather than a potentially ambiguous project-local citation label.'};
     }
     if (name === 'research_read') {
       let ref=args.ref;

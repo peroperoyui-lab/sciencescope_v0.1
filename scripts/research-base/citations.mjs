@@ -1,7 +1,6 @@
 // Shared by the host, desktop citation chips and evaluation. This module is
 // deliberately pure: a recognized label is syntax, never proof of a source.
-const MAX_LABEL_CHARS = 2048;
-const MAX_CITATIONS = 32;
+const MAX_LABEL_BYTES = 64 * 1024 * 1024;
 const WRAPPERS = new Map([['[', ']'], ['［', '］'], ['【', '】'], ['(', ')'], ['（', '）']]);
 const positiveInteger = value => Number.isSafeInteger(Number(value)) && Number(value) > 0;
 const normalizeSyntax = value => value.replace(/[！-～]/gu, char => String.fromCharCode(char.charCodeAt(0) - 0xfee0));
@@ -11,8 +10,9 @@ export function parseCitationLabel(value) {
   const raw = typeof value === 'string' ? value : '';
   const citations = []; const unrecognized = [];
   const unknown = (text, reason = 'unsupported-format') => unrecognized.push({ raw: text, reason });
-  if (!raw.trim() || raw.length > MAX_LABEL_CHARS) {
-    unknown(raw, raw.length > MAX_LABEL_CHARS ? 'label-too-long' : 'empty-label');
+  const resourceExceeded = raw.length > MAX_LABEL_BYTES || (raw.length > MAX_LABEL_BYTES / 3 && new TextEncoder().encode(raw).byteLength > MAX_LABEL_BYTES);
+  if (!raw.trim() || resourceExceeded) {
+    unknown(raw, resourceExceeded ? 'label-too-long' : 'empty-label');
     return { raw, citations, parseStatus: 'unrecognized', unrecognized };
   }
   let body = raw.trim();
@@ -24,10 +24,6 @@ export function parseCitationLabel(value) {
     body = body.slice(1, -1);
   }
   const members = body.split(/[;；]|[,，](?=\s*(?:S\d|@))/iu);
-  if (members.length > MAX_CITATIONS) {
-    unknown(raw, 'too-many-citations');
-    return { raw, citations, parseStatus: 'unrecognized', unrecognized };
-  }
   for (const member of members) {
     const text = member.trim();
     // Only these narrow punctuation variants are normalized. Original text

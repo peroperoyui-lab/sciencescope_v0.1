@@ -77,9 +77,30 @@ export function validateProviderDraft(input) {
   const parsed = parseModels(input.models);
   if (!parsed.ok) errors.models = "请填写至少一个模型 ID。";
 
+  const modelSettings = {};
+  if (input.modelSettings !== undefined) {
+    if (!isPlainObject(input.modelSettings)) errors.modelSettings = "模型容量配置无效。";
+    else for (const modelId of parsed.models ?? []) {
+      const settings = input.modelSettings[modelId];
+      if (settings === undefined) continue;
+      if (!isPlainObject(settings)) { errors.modelSettings = "模型容量配置无效。"; continue; }
+      const value = {};
+      for (const field of ['maxTokens', 'contextWindow']) {
+        if (settings[field] === undefined) continue;
+        if (settings[field] === null || settings[field] === '') {value[field]=null;continue;}
+        const number = Number(settings[field]);
+        if (!Number.isSafeInteger(number) || number < 1) errors.modelSettings = "模型容量须为正整数。";
+        else value[field] = number;
+      }
+      if (typeof settings.name === 'string' && settings.name.trim()) value.name = settings.name;
+      modelSettings[modelId] = value;
+    }
+  }
+
   if (Object.keys(errors).length > 0) return { ok: false, errors };
   return {
     ok: true,
-    value: { name, baseUrl: base.baseUrl, protocol, models: parsed.models },
+    value: { name, baseUrl: base.baseUrl, protocol, models: parsed.models,
+      ...(input.modelSettings === undefined ? {} : {modelSettings}) },
   };
 }

@@ -37,7 +37,7 @@ export function createExecutionService({host,database,chatStore,bindings,onTurnP
         while(state.turnEnds.size>8)state.turnEnds.delete(state.turnEnds.keys().next().value);
         if(state.automatic){
           const reason=event.data?.stopReason;
-          const status=reason==='completed'?'completed':reason==='aborted'?'cancelled':'failed';
+          const status=reason==='completed'?'completed':reason==='max-tokens'?'max-tokens':reason==='aborted'?'cancelled':'failed';
           const messageIds=state.autoAssistantMessages.get(event.data.turn)||[];
           const userMessageId=state.automaticUserMessageId;
           state.automaticUserMessageId=null;
@@ -61,7 +61,7 @@ export function createExecutionService({host,database,chatStore,bindings,onTurnP
       }
       if(state.automatic&&event.type==='stream-start')state.preview='';
       if(state.automatic&&event.type==='text-delta')state.preview+=event.delta;
-      if(state.automatic&&event.type==='committed-event'&&event.eventType==='assistant/message'&&event.data?.text){
+      if(state.automatic&&event.type==='committed-event'&&event.eventType==='assistant/message'&&typeof event.data?.text==='string'){
         const messageId=`runtime-${binding.sessionId}-${event.seq}`;
         const turnMessages=state.autoAssistantMessages.get(event.data.turn)||[];turnMessages.push(messageId);state.autoAssistantMessages.set(event.data.turn,turnMessages);
         const task=(writes.get(id)||Promise.resolve()).then(async()=>{await chatStore.appendMessage({chatId:id,id:messageId,role:'assistant',text:event.data.text,created:new Date(event.time||Date.now()).toISOString(),completionStatus:'pending'});onTurnPersisted({chatId:id});});

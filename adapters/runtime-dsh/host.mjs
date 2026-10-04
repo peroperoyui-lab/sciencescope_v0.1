@@ -24,6 +24,21 @@ const SECRET_ENV_PLUGIN = new URL('./credential-isolation.mjs', import.meta.url)
 const PROTECTED_PATH_PLUGIN = new URL('./protected-path-policy.mjs', import.meta.url).href;
 const TURN_TIMEOUT_MS = 300000;
 const STREAM_TIMEOUT_MS = 2500;
+const REQUEST_BYTES = 64 * 1024 * 1024;
+
+// Committed model steps only; reasoning is already part of outputTokens.
+function usageReceipt(records) {
+  const receipt = { requests: records.length, unknownRequests: 0 };
+  for (const usage of records) {
+    if (!usage || !Number.isFinite(usage.inputTokens) || !Number.isFinite(usage.outputTokens) || !['totalTokens','inputTokens','outputTokens','cacheReadTokens','cacheWriteTokens'].some(field=>usage[field]>0)) { receipt.unknownRequests++; continue; }
+    for (const field of ['inputTokens','outputTokens','cacheReadTokens','cacheWriteTokens','reasoningTokens']) {
+      if (Number.isFinite(usage[field])) receipt[field] = (receipt[field] ?? 0) + usage[field];
+    }
+    const total = Number.isFinite(usage.totalTokens) ? usage.totalTokens : usage.inputTokens + usage.outputTokens + (usage.cacheReadTokens ?? 0) + (usage.cacheWriteTokens ?? 0);
+    receipt.totalTokens = (receipt.totalTokens ?? 0) + total;
+  }
+  return receipt;
+}
 
 async function loadSdk() {
   try {
@@ -101,9 +116,10 @@ export async function createDshHost(options = {}) {
   let toolHandler = null;
   const streamServer = createServer((request, response) => {
     if (request.method === 'POST' && request.url === '/host-call') {
-      let body = ''; request.setEncoding('utf8');
-      request.on('data', (chunk) => { body += chunk; if (body.length > 1024*1024) request.destroy(); });
+      let body = '', bytes = 0, exceeded = false; request.setEncoding('utf8');
+      request.on('data', (chunk) => { bytes += Buffer.byteLength(chunk); if (bytes > REQUEST_BYTES) { if (!exceeded) { exceeded = true; body = ''; response.writeHead(413, {'content-type':'application/json'}); response.end(JSON.stringify({error:'Request exceeds the 64 MiB resource limit; send smaller segments.'})); } } else if (!exceeded) body += chunk; });
       request.on('end', async () => {
+        if (exceeded) return;
         const reply = (status, value) => { response.writeHead(status, { 'content-type': 'application/json' }); response.end(JSON.stringify(value)); };
         try {
           const message = JSON.parse(body);
@@ -128,12 +144,12 @@ export async function createDshHost(options = {}) {
       return;
     }
     if (request.method !== 'POST' || request.url !== '/assistant-stream') { response.writeHead(404); response.end(); return; }
-    let body = '';
+    let body = '', bytes = 0, exceeded = false;
     request.setEncoding('utf8');
-    request.on('data', (chunk) => { body += chunk; if (body.length > 2*1024*1024) request.destroy(); });
+    request.on('data', (chunk) => { bytes += Buffer.byteLength(chunk); if (bytes > REQUEST_BYTES) { if (!exceeded) { exceeded = true; body = ''; response.writeHead(413, {'content-type':'application/json'}); response.end(JSON.stringify({error:'Stream frame exceeds the 64 MiB resource limit; send smaller segments.'})); } } else if (!exceeded) body += chunk; });
     request.on('end', () => {
+      if (exceeded) return;
       try {
-        if (body.length > 2*1024*1024) throw new Error('control frame too large');
         const message = JSON.parse(body);
         const receiver = streamReceivers.get(message.sessionId);
         if (!receiver || message.token !== receiver.token) { response.writeHead(401); response.end(); return; }
@@ -270,8 +286,22 @@ export async function createDshHost(options = {}) {
     let beforeAttempt = '';
     let toolBoundary = 0;
     let lastFailure;
+    let stopReason;
+    const committedUsage = [];
     receiver.onMessage = (message) => {
       if (message.type === 'attempt-failed') lastFailure = message;
+      if (message.type === 'committed-event') {
+        if (message.eventType === 'assistant/message') {
+          committedUsage.push(message.data?.usage);
+          // Durable committed text repairs a lost delta without duplicating it.
+          // Text accompanying executable tools remains a preamble until tool-call.
+          if(!message.data?.hasToolCalls&&typeof message.data?.text==='string') {
+            const committedText=beforeAttempt+message.data.text;
+            if(committedText!==visibleText){visibleText=committedText;onEvent?.({type:'text-replace',text:visibleText});}
+          }
+        }
+        if (message.eventType === 'turn/end') stopReason = message.data?.stopReason;
+      }
       if (message.type === 'control-event') {
         if (message.event && typeof message.event === 'object') onEvent?.(message.event);
         return;
@@ -318,11 +348,11 @@ export async function createDshHost(options = {}) {
       const deadline = Date.now() + STREAM_TIMEOUT_MS;
       while (!drained && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 10));
       if (!drained) throw new Error('DSH assistant stream did not finish delivery');
-      const result = { sessionId, finalResponse: visibleText, events: [], notifications: [] };
-      if (!result.finalResponse?.trim()) {
+      const result = { sessionId, finalResponse: visibleText, stopReason: stopReason ?? 'completed', usage: usageReceipt(committedUsage), events: [], notifications: [] };
+      if (!result.finalResponse?.trim() && stopReason !== 'max-tokens') {
         throw new Error(lastFailure ? `DSH model request failed (${lastFailure.code}): ${lastFailure.message}` : 'DSH run ended without a final text response', lastFailure ? { cause: { code: lastFailure.code } } : undefined);
       }
-      onEvent?.({ type: 'completed', sessionId, text: result.finalResponse, committed: true });
+      onEvent?.({ type: 'completed', sessionId, text: result.finalResponse, stopReason: result.stopReason, usage: result.usage, committed: true });
       return result;
     } finally { receiver.onMessage = () => {}; }
   }
@@ -452,10 +482,20 @@ export async function createDshHost(options = {}) {
     applicationApprovals.cancelExperts(sessionId, expertRuns.get(`${sessionId}:${runId}`), 'expert run cancelled');
     return control(sessionId, '/experts/cancel', { runId });
   }
+  async function continueExpert({sessionId,runId,childSessionId,expert,prompt,onEvent} = {}) {
+    const runKey = `${sessionId}:${runId}`;
+    expertRuns.set(runKey, new Set([expert?.id]));
+    const stop = typeof onEvent === 'function' ? observeSession(sessionId, frame => {
+      const event = frame.type === 'control-event' ? frame.event : frame;
+      if (event?.runId === runId && ['expert-start','expert-end','expert-delta','expert-reset','expert-tool','expert-tool-result'].includes(event.type)) onEvent(event);
+    }) : () => {};
+    try { return await control(sessionId, '/experts/continue', {runId,childSessionId,expert,prompt}, {timeout:0}); }
+    finally { stop(); expertRuns.delete(runKey); }
+  }
 
   const pause = pauseGoal;
   const resume = resumeGoal;
-  return { startSession, send, releaseSession, sessionTurns, forkSession, close, observeSession, waitForSessionIdle, sessionGoal, getGoal, pause, resume, pauseGoal, resumeGoal, completeGoal,clearGoal, configurePolicy,configureReasoning,configureModel,configurePersona,configureBrief,setToolHandler,requestApplicationApproval,scheduleSessionEnvRefresh,interrupt,replyApproval,getContextUsage,runExperts,cancelExperts, capabilities: DSH_CAPABILITIES };
+  return { startSession, send, releaseSession, sessionTurns, forkSession, close, observeSession, waitForSessionIdle, sessionGoal, getGoal, pause, resume, pauseGoal, resumeGoal, completeGoal,clearGoal, configurePolicy,configureReasoning,configureModel,configurePersona,configureBrief,setToolHandler,requestApplicationApproval,scheduleSessionEnvRefresh,interrupt,replyApproval,getContextUsage,runExperts,continueExpert,cancelExperts, capabilities: DSH_CAPABILITIES };
 }
 
 export default { createDshHost, DSH_CAPABILITIES };

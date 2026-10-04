@@ -52,7 +52,7 @@ test('consolidation routes authenticate, persist settings and reject unavailable
   const f=await fixture();try{
     assert.equal((await f.call('research/consolidate/settings',undefined,false)).status,401);
     assert.equal((await f.call('research/consolidate',{chatId:'main'},false)).status,401);
-    const settings={enabled:false,idleMinutes:17,model};assert.deepEqual((await f.call('research/consolidate/settings',settings)).body,settings);
+    const settings={enabled:false,idleMinutes:17,model,tokenLimit:100000};assert.deepEqual((await f.call('research/consolidate/settings',settings)).body,settings);
     assert.deepEqual((await f.call('research/consolidate/settings')).body,settings);
     assert.equal((await f.call('research/consolidate/settings',{idleMinutes:0})).status,400);
     await f.call('research/consolidate/settings',{model:null});
@@ -75,7 +75,7 @@ test('external consolidation provenance survives edited acceptance and cannot be
     const accepted=await f.call('research/proposals/decide',{id:proposal.id,accept:true,edits:{item:{title:'User edited endpoint',body:'Approved paired endpoint.'}}});assert.equal(accepted.status,200);
     const item=(await f.call('research/item?id='+accepted.body.resultId)).body.item;
     assert.equal(item.title,'User edited endpoint');assert.equal(item.payload.originTrust,'external');assert.deepEqual(item.payload.sourceRefs,proposal.payload.item.payload.sourceRefs);
-    assert.equal(f.state.requests.length,2);assert.ok(f.state.sessions.every(session=>session.noTools===true));assert.deepEqual(f.state.sessions.map(session=>session.maxTokens),[8192,8192]);
+    assert.equal(f.state.requests.length,2);assert.ok(f.state.sessions.every(session=>session.noTools===true));assert.deepEqual(f.state.sessions.map(session=>session.maxTokens),[32768,32768]);
   }finally{await f.close();}
 });
 

@@ -1,5 +1,22 @@
 # Desktop implementation — first increment
 
+## 2026-10-05 · T24 去掉智能体硬限制（Windows，交付收口）
+
+- 工作区仅 `<工作区>`，origin `peroperoyui-lab/sciencescope_v0.1`；分支 `codex/t24-limits-20261004`，产品基线为用户指定 `18476bd`，开工前已读本页T09/Dot审阅。任务分支快进纳入文档补充至 `29e4cef`（含用户批准A2累计token设置），没有叠在未合并任务上、未开PR或合并共享分支。
+- 合并基线Windows实际npm333/333、0fail/cancel/skip/todo，474686.7684ms；32项既有及指定smoke全部通过，308源码哈希未变，96个观测自有PID正常退出。原生新隔离目录首次启动，未等provider GET完成立即保存，首次200并重载保留配置；真实DSH设置服务，本地dummy凭据，无付费调用。未注入设置进程启动失败，不宣称已测该重试路径。证据 `.sciencescope-local/temp/t24-validation/baseline/` 与 `baseline-native/run-v2eB3A/`。
+- A：模型profile保留发现容量、未知默认32768可修改；下一轮空闲释放/原session恢复应用。`max-tokens` 正常保留长/空输出，主专家与助手继续原session，专家恢复同child历史与角色/技能/工具/审批，未完成审核完成后仍由用户采纳；Main不自动推进或被注入子结果。长研究提议/秘书提议/纪要/引用不再语义拒绝；内部64MiB RPC显式413，权限边界不变。真实DSH本地测试证明usage、未完成tool不执行、preamble不混入答案、同session与coldchild边界。
+- A2：用户设置累计token默认100000/null关闭，input+output记账，preflight估算包含完整输出预留，actualusage优先、缺失保守估算标明；不截输出、成本跳过不推进未完成游标。完整纪要差异/原文无损分批，独立页观察及决策检查点，所有候选仍进收件箱；冲突及单观察过窗可恢复状态，external/private守旧。默认参考旧54阶段P50/P95/max9969/15641/17084（旧受上限约束，非无上限账单预测）。三次root审阅定位并修正观察引文拆分丢支持、超窗纪要区间漏中间原文、失败流不可见，回归43/43。
+- B/C：长parser段落无损拆分并保持锚点/可信偏移，重建/删除FTS与原件目录独立；完整纪要输入、人设/简报与状态节点/待办；research_read宽松分页、概览明确全文回查。更多查询完整送达下游，向量固定完整排序后分页，修正旧6问法/30结果底层残留及分页rank深度变化漏项。默认prompt/tool不再要求简洁，用户自定义/已绑定人设不重写；D数量产品限制仅列建议，不放宽。
+- 明确缺陷：继续失败覆盖助手/主草稿 → 恢复分支未排除继续 → 继续不改已有草稿/材料；专家继续控件被workspace通用同步删除、旧专家metadata不刷新 → 按角色同步并持久回填、审核立即可采纳；用户turn回执max-tokens误显示继续 → 入口只给assistant；续写预校验前HTTP200 → 延迟到accepted；对应API3/3与真实DSH本地browser已有通过证据，最终native/全套仍在运行。
+- 首轮npm368项364pass/4fail（旧concise与memory-eval8192断言），memory UI四字段及locale夹具失败均保原日志；按新设计修断言/夹具。最终冻结代码npm371/371、0fail/cancel/skip/todo，672531.5857ms，包含自动化length/empty与失败专家续写恢复。drain后既有31smoke＋新browser/native及当时npm共34/34，自有615PID正常退出；最后受影响9项复验含新增policy旧mock失败，根因补齐后独立复验收口，不用它冒称产品回归。最终路径 `.sciencescope-local/temp/t24-validation/{verified/suite-f08CfM,final-frozen/affected-8cVNZ2}/`。
+- 真实评测预注册24case：旧/新各3轮，真实17页论文逐节审核＋T09 lumen、61消息窗口与协议3000字符后修订三合成整理案例。同模型deepseek-v4.1-flash、同来源、固定调用/截止预算、new用户成本预算关闭，原失败不刷分。公开gateway模型列表仅返回ID，容量262144/32768为DSH默认、非验证供应商声明。首次old-r1science持续reasoning SSE被共享代理绝对120s截止掐断，5物理/1有效/4重试、usage全未知；case10分钟退出后credential扫描目录link触发EISDIR。本地基础设施失败保原始，禁止重发；修扫描isFile/junction并补本地证明，共享proxy追加可配置截止（默认120s守旧，旧ledger不可改）9/9回归。冻结r2为剩余23case统一590s请求/600s案例，并保留r1清单和错误；模型质量与基础设施分开。
+- 真实评测流暴露generation-idle不等于delivery-idle：大量HTTP帧积压超旧2.5秒，现/public Cordis drain等完整队列，不增加固定timeout；1600细粒度delta/3ms持久化积压>4秒回归通过。初版多帧zstd只解header是评测capture缺陷，原DSH日志完整，离线逐帧恢复不重发。新r1A2三案例delivery失败原样保留，r3只派发15未attempted，前9case及镜像/manifest不覆盖。
+- 最后runtime审修两明确遗漏：自动化max-tokens仍failed且empty不存，改正常receipt/空string；专家error/aborted无条件消费原partial入口，改只有usable终态消费、失败attempt仍保存。旧代码先失败/修后execution3/3、outputAPI4/4，coldresume同child、伪造ID无效、失败审核不可采纳，不自动暂停目标。
+- 六论文终审：旧r1代理截止infra剔除，旧r2/r3length无typed停因未继续；新1/2原session续完成，新3单次完成。事实均值旧15.25/19、新18.33/19；限定旧5.25/6、新4.67/6，限定没有改善。全部逐句额外/错误短摘录与sourcepage在 `T24_SOURCE_AUDIT_2026-10-05.md`，不按字数/引用定位评分。A2三轮核心成功旧0/1/0共1/9，新0(infra3)/2/3共5/9，排infra后5/6；实际proposal支持旧10/11、新22/25，不称记忆准确率改善。新2窗口61消息但5/6事实，新3全部6事实仍2附加错误接受；所有8未支持候选按题列明。
+- 正式24cases共55物理/49有效/6重试，prompt351233+completion428428=779661已知tokens，7usage未知，0blocked；旧r1science5请求deadline与两已恢复ECONNRESET分列。前后worker/candidate/590s截止修订留档，非严格同版本因果实验。冻结清单及24ledger root核对PASS，A2原items/cursor/history独立复核18/18。
+- browser/native各18本地requests，Main74815字/秘书76817/研究76017全部保存，设置容量72000实际应用、token250000持久；每组16中英浅深截图 `output-ui/run-obV5Bp`、`run-SbsmGg`，预算可见另各4render-only图（0模型），root已视检。没有把动画中间帧、featuremock隐藏或Tauri closeack当产品缺陷。实际18476bd新增52中文片段missing0，历史missing不伪称清零。
+- 修改文件、任务书最小扩展、全部失败根因、评测限制、D保持清单见 `T24_LIMITS_REPORT_2026-10-05.md`。Git交付尚在收口，推送后以实际远端SHA回执为准；未开PR/合并共享分支。安装包、升级与alpha发布不属于本任务；完成后停止等待Claude审阅，T23/T06/T07未开始。
+
 ## 2026-10-04 Review of T09 and Dot's B/C (Claude, cloud)
 
 - Merged `codex/t09-memory-consolidation-20261004@6c9177d`,

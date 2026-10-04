@@ -214,7 +214,8 @@ for (const failuresBeforeSuccess of [0, 2]) test(`T10 production API + real DSH 
     assert.ok(active.toolCalls[0].resultMetrics.hits[0].characters.snippet > 0);
     assert.equal(proxy.state.events[0].requestReceipt.researchFirstRulePresent, true);
     assert.ok(proxy.state.events[0].requestReceipt.systemText.includes('research_search'));
-    assert.match(proxy.state.events[0].requestReceipt.systemText,/Once direct evidence covers the requested scope, answer concisely/);
+    assert.match(proxy.state.events[0].requestReceipt.systemText,/Once direct evidence covers the requested scope, answer and cite evidence for each claim/);
+    assert.doesNotMatch(proxy.state.events[0].requestReceipt.systemText,/answer concisely/);
     assert.equal(JSON.stringify(proxy.state).includes(fixtureKey), false);
 
     const usage = await call(`/api/research/usage?chatId=${encodeURIComponent(chatId)}&messageId=a-t10-runtime`);

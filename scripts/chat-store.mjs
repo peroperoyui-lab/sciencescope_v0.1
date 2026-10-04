@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { openApplicationDatabaseSync } from "./application-database.mjs";
 const ID = /^[A-Za-z0-9_-]{1,160}$/u;
 const clone = (v) => JSON.parse(JSON.stringify(v));
-const COMPLETION_STATES = new Set(['pending','completed','failed','cancelled']);
+const COMPLETION_STATES = new Set(['pending','completed','failed','cancelled','max-tokens']);
 function safeId(v, n = "id") {
   if (typeof v !== "string" || !ID.test(v)) throw new TypeError(`Invalid ${n}`);
   return v;
