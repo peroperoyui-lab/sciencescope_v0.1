@@ -1,5 +1,26 @@
 # Desktop implementation — first increment
 
+## 2026-10-05 Review of T24 (Claude, cloud)
+
+- Fast-forward of `codex/t24-limits-20261004@b3e012a` (66 files).
+- Read: output cap from the model's declared capacity, editable per model;
+  `max-tokens` keeps the partial answer and offers "continue" for Main,
+  experts and assistants (continuation is refused when later messages exist);
+  committed text repairs lost deltas; host request bodies up to 64 MiB with a
+  413 message; consolidation uses the per-run token budget, and skipped
+  batches keep their cursor.
+- Verification (cloud, Linux): `npm test` 370/371 (1 skipped); 12 browser and
+  API smokes pass (chat, discussion, workspace, settings, research base,
+  memory consolidation, summary policy, context access, secret isolation,
+  policy, chat-api, stream).
+- Note for later: the continue action sends a fixed English instruction as a
+  visible user message. It is accurate (it is what the model receives) but
+  reads oddly in the Chinese UI; consider a short localized label in the
+  transcript while sending the same instruction.
+- Cost: Sol spent about three hours. A 720-line source audit was committed to
+  the repository. QUEUE rule 10 now asks for proportionate test runs,
+  evaluations and reports.
+
 ## 2026-10-05 · T24 去掉智能体硬限制（Windows，已推送，待 Claude 审阅）
 
 - 工作区仅 `H:\ScienceScope_v0.1-desktop`，origin `peroperoyui-lab/sciencescope_v0.1`；分支 `codex/t24-limits-20261004`，产品基线为用户指定 `18476bd`，开工前已读本页T09/Dot审阅。任务分支快进纳入文档补充至 `29e4cef`（含用户批准A2累计token设置），没有叠在未合并任务上、未开PR或合并共享分支。
