@@ -2,7 +2,7 @@
 
 > 本文件只记录**要去哪里、按什么顺序、现在走到哪一步**。
 > 功能现在怎样工作看 `SYSTEM_SPEC.md`；过程和验收细节看 `DESKTOP_IMPLEMENTATION.md`（按日期记录）；具体任务看 `docs/tasks/`。
-> 最近更新：2026-10-05（整体复盘后用户要求按第一性原理整体换血：总纲 `design/ARCHITECTURE.md`，重建阶段 R0–R6 待用户确认；在此之前不派新任务）。
+> 最近更新：2026-10-05（用户确认按第一性原理重建：总纲 `design/ARCHITECTURE.md`（已确认），核心模型 `design/CORE_MODEL.md`，代码风格 `CODE_STYLE.md`；阶段 R0–R3 由 Claude 在云端完成，L1 由 Sol 做 Windows 本地化，R4–R6 交给 Sol；旧任务表 T06–T24 仅作功能参考，见 ARCHITECTURE §8）。
 
 ## 目标：1.0.0-alpha（内测版）
 标准（摘自原计划）：每个核心功能都有**候选安装包**上的实测证据；程序退出后没有残留进程；升级后数据完整；卸载默认保留研究数据；签名可核查。

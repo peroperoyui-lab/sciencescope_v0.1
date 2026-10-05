@@ -37,24 +37,27 @@ workflow, helping the user understand and advance their own research project
    security tests. Keep the cheap measures that already exist: keys live in a
    separate credentials file, never in environment variables or tracked files.
 6. **Visual baseline.** The approved `ScienceScope.html`, logo, colours and layout.
-   The GUI is bilingual (中文 / English; every new string needs an entry in
-   `desktop/i18n-en.mjs`). Explanations go behind the "i" info tip; status,
+   The GUI is bilingual (中文 / English; every new string needs an English entry,
+   `app/ui/i18n/en.js` for new code). Explanations go behind the "i" info tip; status,
    errors and data stay visible. Unfinished features stay hidden behind
-   feature flags (`desktop/features.mjs`), never shown as "coming soon".
+   feature flags, never shown as "coming soon".
    No fake data presented as real.
 7. **Runtime.** DSH through the runtime port only (`docs/design/RUNTIME_PORT.md`):
-   only `adapters/runtime-*/` imports runtime packages. Whether to keep DSH is
+   only `app/runtime/` (old line: `adapters/runtime-*/`) imports runtime packages. Whether to keep DSH is
    decided after alpha.
 
 ## Engineering rules
 
-- Readable, maintainable code comes first: `docs/CODE_STYLE.md` (written in S1).
-  Until then: one statement per line, lines of at most 100 characters, files of
-  roughly 400 lines or fewer, one responsibility per module.
-- Frontend: new features register through the UI registry (S4). Do not add new
-  wrappers around prototype globals (`render`, `objectMenu`, `submitMain`, …).
-- Database changes go through the migration registry (S2), never through ad-hoc
-  `CREATE`/`ALTER` in module start-up.
+- **Rebuild in progress** (`docs/design/ARCHITECTURE.md` §5, stages R0–R6). New
+  code goes into `app/` following `docs/design/CORE_MODEL.md`. The old line
+  (`desktop/`, `scripts/`, `adapters/`) is frozen as reference (tag
+  `v0-prototype`): no new features there, only fixes needed to keep it running.
+  It is deleted after the R5 cutover.
+- Readable, maintainable code comes first: `docs/CODE_STYLE.md`, enforced by
+  `npm run check` (format, lint, types, tests).
+- Frontend: Preact + htm components in `app/ui/`, rendered from data; never wrap
+  or override another module's functions.
+- Database changes only through numbered migrations in `app/core/db/migrations/`.
 - "Fix" or "implement" means connecting the feature end to end, not hiding or
   deleting it, unless the user asks. A setting needs a stored value and a real
   consumer.
@@ -70,6 +73,9 @@ workflow, helping the user understand and advance their own research project
   **Sol** (GPT-6.1 Sol): implementation and Windows acceptance; its subagents
   use GPT-6.1 Sol, Git delivery uses GPT-6 Luna. **Dot**: Linux verification,
   upgrade rehearsal and evaluation on `dot/` branches only; no product code.
+- Rebuild workflow: Claude builds R0–R3 in the cloud (Linux) and sets the
+  baselines; Codex pulls to Windows and Sol localizes (L1); afterwards Sol takes
+  the heavy work (R4–R6) with short briefs, Claude reviews diffs.
 - One task, one brief: goal, files it may change, done criteria, things not to
   do. About one to two hours of work; if it grows, stop and report.
 - Verification: related tests while working; the full suite (`npm test`, later

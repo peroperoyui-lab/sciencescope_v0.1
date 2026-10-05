@@ -22,7 +22,9 @@
 | `docs/design/RESEARCH_BASE.md` | 研究资料库：统一数据后端、长期记忆、混合检索、文档解析、浏览器、最低配置 |
 | `docs/design/RESEARCH_MEMO_2026-09-25.md` | 调研备忘：记忆系统、知识管理、检索、文档工具、浏览器（每项标明核实方式） |
 | `docs/REVIEW_2026-10-05.md` | 整体复盘：流程、前端架构、代码风格、数据升级连续性、统一编辑、alpha 路线（S0–S5）与待用户决定的事项 |
-| `docs/design/ARCHITECTURE.md` | **总纲**：第一性原理的五个原语（参与者、工具、会议、工作区、事件）、现有功能归位、代码结构、重建阶段 R0–R6（草案，待用户确认） |
+| `docs/design/ARCHITECTURE.md` | **总纲（已确认）**：五个原语、关键决定、代码结构、重建阶段 R0–R6、协作方式、功能清单 |
+| `docs/design/CORE_MODEL.md` | 核心模型：数据根、表、事件、工作区资源、参与者定义、发言规则、上下文组装、内置工具、接口 |
+| `docs/CODE_STYLE.md` | 代码风格与检查工具（`npm run check`） |
 | `docs/design/DATA_AND_ROLES.md` | 数据布局（安装目录 `data/`：文件 + 一个 SQLite）与角色模型（一套工具、修改即生效可撤销）；S2、S3 按此实现 |
 | `docs/archive/` | 已被取代的旧规则与文档（如 2026-10-05 前的 AGENTS.md） |
 | `docs/design/RUNTIME_PORT.md` | 运行时接口：产品代码对智能体运行时（当前 DSH）的全部依赖、契约测试与 DSH 限制表（初稿，T23 核对） |
