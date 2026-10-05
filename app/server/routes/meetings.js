@@ -1,4 +1,6 @@
 import { LOCAL_USER_ID } from '../../core/defaults.js';
+import { attachment } from '../attachment.js';
+import { meetingMarkdown } from '../../services/export.js';
 
 const user = { actorId: LOCAL_USER_ID };
 
@@ -52,6 +54,15 @@ export function registerMeetingRoutes(router, core, conductor) {
   router.post('/api/meetings/:id/interrupt', async ({ params }) => {
     await conductor?.interrupt(params.id);
     return { interrupted: true };
+  });
+  router.get('/api/meetings/:id/export', async ({ params, response }) => {
+    const meeting = core.meetings.get(params.id);
+    response.writeHead(200, {
+      'content-type': 'text/markdown; charset=utf-8',
+      'content-disposition': attachment(`${meeting.title}.md`),
+    });
+    response.end(await meetingMarkdown(core, params.id));
+    return undefined;
   });
   router.get('/api/search', ({ query }) => ({
     messages: core.messages.search(query.get('q') ?? ''),

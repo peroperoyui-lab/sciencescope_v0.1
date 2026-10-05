@@ -7,12 +7,15 @@ import { html } from '../html.js';
 import { navigate, useRoute } from '../route.js';
 import { AllChats } from './all-chats.js';
 import { Welcome } from './home.js';
+import { MapEditor } from './map-editor.js';
 import { MeetingView } from './meeting.js';
 import { Overlays } from './overlays.js';
+import { ProjectNew } from './project-new.js';
 import { SettingsView } from './settings.js';
 import { Footbar, Topbar } from './shell.js';
 import { Sidebar } from './sidebar.js';
 import { Workbench } from './workbench.js';
+import { WorkbenchPage } from './workbench-pages.js';
 
 /**
  * Window shortcuts from Settings → 快捷键. Fields that are recording a
@@ -47,7 +50,9 @@ export function App() {
   // Re-render everything when the language changes.
   useAppState((state) => state.settings?.appearance?.language);
   const projectId = useAppState((state) => {
-    if (route.view === 'workbench' || route.view === 'new') return route.id;
+    if (['workbench', 'new', 'plans', 'journal', 'files', 'map'].includes(route.view)) {
+      return route.id;
+    }
     if (route.view === 'meeting') {
       const meetingId = route.id.split('/')[0];
       return state.meetings.find((meeting) => meeting.id === meetingId)?.projectId ?? null;
@@ -70,15 +75,29 @@ export function App() {
     />`;
   } else if (route.view === 'workbench') page = html`<${Workbench} projectId=${route.id} />`;
   else if (route.view === 'all') page = html`<${AllChats} />`;
-  else if (route.view === 'settings') {
+  else if (route.view === 'project-new') page = html`<${ProjectNew} />`;
+  else if (route.view === 'plans' || route.view === 'journal' || route.view === 'files') {
+    page = html`<${WorkbenchPage} view=${route.view} projectId=${route.id} />`;
+  } else if (route.view === 'settings') {
     page = html`<${SettingsView} page=${route.id} projectName=${projectName} />`;
   } else page = html`<${Welcome} projectId=${route.view === 'new' ? route.id : null} />`;
+
+  // The map editor takes the whole window, as in the prototype.
+  if (route.view === 'map') {
+    return html`<${Topbar} projectName=${projectName} projectId=${projectId} />
+      <${MapEditor} projectId=${route.id} />
+      <${Footbar} projectId=${projectId} />
+      <${Overlays} />`;
+  }
 
   return html`<${Topbar} projectName=${projectName} projectId=${projectId} />
     <div class="app">
       <${Sidebar} route=${route} currentProjectId=${projectId} />
       ${page}
     </div>
-    <${Footbar} />
+    <${Footbar}
+      meetingId=${route.view === 'meeting' ? route.id.split('/')[0] : null}
+      projectId=${projectId}
+    />
     <${Overlays} />`;
 }

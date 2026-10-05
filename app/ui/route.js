@@ -4,12 +4,13 @@
 //   #/meeting/<meetingId>    a meeting
 //   #/workbench/<projectId>  a project's workbench
 //   #/all                    browse all meetings
+//   #/project-new            create a project
 //   #/settings/<page>        a settings page (general, models, experts…)
 //   #/plans/<projectId>, #/journal/<projectId>, #/files/<projectId>, #/map/<projectId>
 //                            a workbench area on its own page
 import { useEffect, useState } from 'preact/hooks';
 
-/** @typedef {{ view: 'home' | 'all', id?: string } | { view: 'new' | 'meeting' | 'workbench' | 'settings' | 'plans' | 'journal' | 'files' | 'map', id: string }} Route */
+/** @typedef {{ view: 'home' | 'all' | 'project-new', id?: string } | { view: 'new' | 'meeting' | 'workbench' | 'settings' | 'plans' | 'journal' | 'files' | 'map', id: string }} Route */
 
 const WITH_ID = ['meeting', 'workbench', 'new', 'settings', 'plans', 'journal', 'files', 'map'];
 
@@ -19,6 +20,7 @@ export function parseRoute(hash = location.hash) {
   const id = rest.map(decodeURIComponent).join('/');
   if (WITH_ID.includes(view) && id) return { view: /** @type {any} */ (view), id };
   if (view === 'all') return { view: 'all' };
+  if (view === 'project-new') return { view: 'project-new' };
   return { view: 'home' };
 }
 
@@ -26,6 +28,7 @@ export function parseRoute(hash = location.hash) {
 export function routeHref(route) {
   if (route.view === 'home') return '#/';
   if (route.view === 'all') return '#/all';
+  if (route.view === 'project-new') return '#/project-new';
   return `#/${route.view}/${route.id.split('/').map(encodeURIComponent).join('/')}`;
 }
 

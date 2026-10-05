@@ -21,3 +21,7 @@
   padding: 48px;
   color: var(--danger);
 }
+#app > .editor {
+  flex: 1;
+  min-height: 0;
+}

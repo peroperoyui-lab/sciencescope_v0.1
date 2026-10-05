@@ -8,6 +8,7 @@ import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
 import { navigate } from '../route.js';
 import { FieldForm } from './overlays.js';
+import { ProjectSummary } from './project-summary.js';
 import { ProfileForm } from './shell.js';
 
 const byRecent = (a, b) => b.updatedAt.localeCompare(a.updatedAt);
@@ -159,6 +160,7 @@ export function Sidebar({ route, currentProjectId }) {
   const meetings = useAppState((state) => state.meetings);
   const settings = useAppState((state) => state.settings);
   const [collapsed, setCollapsed] = useState(/** @type {Record<string, boolean>} */ ({}));
+  const [peek, setPeek] = useState(false);
 
   const visible = meetings.filter(listed).sort(byRecent);
   const activeProjects = projects.filter((project) => !project.archived);
@@ -169,6 +171,9 @@ export function Sidebar({ route, currentProjectId }) {
     route.view === 'meeting' && route.id.split('/')[0] === meeting.id;
   const isActiveProject = (project) => route.view === 'workbench' && route.id === project.id;
   const userName = settings?.profile?.name || t('用户');
+  const peekProject = activeProjects.find(
+    (p) => p.id === (currentProjectId ?? activeProjects[0]?.id),
+  );
 
   function openWorkbench() {
     const projectId = currentProjectId ?? activeProjects[0]?.id;
@@ -177,17 +182,7 @@ export function Sidebar({ route, currentProjectId }) {
   }
 
   function newProject() {
-    actions.openModal(
-      t('新建项目'),
-      html`<${FieldForm}
-        label=${t('项目名称')}
-        submitText=${t('创建')}
-        onSubmit=${async (name) => {
-          const project = await actions.createProject(name);
-          navigate({ view: 'workbench', id: project.id });
-        }}
-      />`,
-    );
+    navigate({ view: 'project-new' });
   }
 
   return html`<aside class="sidebar">
@@ -205,7 +200,24 @@ export function Sidebar({ route, currentProjectId }) {
         >
           <${Icon} name="cube" /><span>${t('工作站')}</span>
         </button>
+        ${
+          peekProject &&
+          html`<button
+            class="iconbtn"
+            title=${t('工作站简略信息')}
+            aria-label=${t('工作站简略信息')}
+            aria-expanded=${peek}
+            onClick=${() => setPeek(!peek)}
+          >
+            <${Icon} name="summary" />
+          </button>`
+        }
       </div>
+      ${
+        peek &&
+        peekProject &&
+        html`<${ProjectSummary} project=${peekProject} onClose=${() => setPeek(false)} />`
+      }
       <button class="side-search" onClick=${actions.openPalette}>
         <${Icon} name="search" /><span>${t('搜索')}</span><kbd>Ctrl+K</kbd>
       </button>

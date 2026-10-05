@@ -44,18 +44,7 @@ export function Topbar({ projectName, projectId }) {
       {
         text: t('新建项目'),
         icon: 'folder',
-        run: () =>
-          actions.openModal(
-            t('新建项目'),
-            html`<${FieldForm}
-              label=${t('项目名称')}
-              submitText=${t('创建')}
-              onSubmit=${async (name) => {
-                const project = await actions.createProject(name);
-                navigate({ view: 'workbench', id: project.id });
-              }}
-            />`,
-          ),
+        run: () => navigate({ view: 'project-new' }),
       },
     ],
     [
@@ -169,8 +158,42 @@ export function Topbar({ projectName, projectId }) {
   </div>`;
 }
 
-export function Footbar() {
+/** 状态栏 → 导出: the open meeting as Markdown, the current project as a zip. */
+function useExportMenu(meetingId, projectId) {
+  const actions = useActions();
+  return (event) =>
+    actions.openMenu(
+      event,
+      [
+        ...(meetingId
+          ? [
+              {
+                text: t('导出当前对话（Markdown）'),
+                icon: 'download',
+                run: () =>
+                  actions.attempt(() => actions.download(`/api/meetings/${meetingId}/export`)),
+              },
+            ]
+          : []),
+        ...(projectId
+          ? [
+              {
+                text: t('导出项目快照'),
+                icon: 'download',
+                run: () =>
+                  actions.attempt(() => actions.download(`/api/projects/${projectId}/export`)),
+              },
+            ]
+          : []),
+      ],
+      t('导出'),
+    );
+}
+
+/** @param {{ meetingId?: string | null, projectId?: string | null }} props */
+export function Footbar({ meetingId = null, projectId = null }) {
   const connected = useAppState((state) => state.connected);
+  const exportMenu = useExportMenu(meetingId, projectId);
   const text =
     connected === null
       ? t('正在连接本机服务…')
@@ -181,6 +204,7 @@ export function Footbar() {
     <span class="badge-dot"></span>
     <span class="foot-text">${text}</span>
     <span class="spacer"></span>
+    ${(meetingId || projectId) && html`<button onClick=${exportMenu}>${t('导出')}</button>`}
   </footer>`;
 }
 

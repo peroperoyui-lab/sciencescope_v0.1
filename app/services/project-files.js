@@ -1,0 +1,87 @@
+// The project folder view (项目文件夹): the external folder the user bound to
+// the project, or else the project's own folder under the data root. These
+// are the user's files; ScienceScope only lists, creates, renames and adds
+// them when the user asks.
+import { mkdir, readdir, rename, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { AppError } from '../core/errors.js';
+
+/** @param {import('../core/index.js').Core} core */
+export function createProjectFiles(core) {
+  /** The folder shown for a project. @param {string} projectId */
+  function rootOf(projectId) {
+    const project = core.projects.get(projectId);
+    return project.folder ?? path.join(core.paths.projects, project.dirName);
+  }
+
+  /** An absolute path inside the project folder. */
+  function inside(projectId, relative = '') {
+    const root = rootOf(projectId);
+    const target = path.resolve(root, relative);
+    if (target !== root && !target.startsWith(root + path.sep)) {
+      throw new AppError('PATH_OUTSIDE_PROJECT', '只能操作项目文件夹里的内容。');
+    }
+    return { root, target };
+  }
+
+  const toRelative = (root, file) => path.relative(root, file).split(path.sep).join('/');
+
+  return {
+    rootOf,
+    /** Absolute path of an entry. @param {string} projectId @param {string} [relative] */
+    locate: (projectId, relative) => inside(projectId, relative).target,
+
+    /** Entries of a folder, folders first. @param {string} projectId @param {string} [folder] */
+    async list(projectId, folder = '') {
+      const { root, target } = inside(projectId, folder);
+      let entries = [];
+      try {
+        entries = await readdir(target, { withFileTypes: true });
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+      return {
+        root,
+        entries: entries
+          .map((entry) => ({
+            name: entry.name,
+            path: toRelative(root, path.join(target, entry.name)),
+            kind: entry.isDirectory() ? 'folder' : 'file',
+          }))
+          .sort((a, b) =>
+            a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'folder' ? -1 : 1,
+          ),
+      };
+    },
+
+    /** @param {string} projectId @param {string} folder New folder's relative path. */
+    async makeFolder(projectId, folder) {
+      await mkdir(inside(projectId, folder).target, { recursive: true });
+    },
+
+    /** @param {string} projectId @param {string} from @param {string} to Relative paths. */
+    async rename(projectId, from, to) {
+      try {
+        await rename(inside(projectId, from).target, inside(projectId, to).target);
+      } catch (error) {
+        if (error.code === 'ENOENT') throw new AppError('FILE_NOT_FOUND', '找不到这个文件。', 404);
+        throw error;
+      }
+    },
+
+    /**
+     * Add a file the user chose (sent as base64).
+     * @param {string} projectId @param {string} file Relative path @param {string} base64
+     */
+    async add(projectId, file, base64) {
+      const { target } = inside(projectId, file);
+      await mkdir(path.dirname(target), { recursive: true });
+      await writeFile(target, Buffer.from(base64, 'base64'), { flag: 'wx' }).catch((error) => {
+        if (error.code === 'EEXIST') {
+          throw new AppError('FILE_EXISTS', '已有同名文件，请先改名。', 409);
+        }
+        throw error;
+      });
+    },
+  };
+}

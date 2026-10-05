@@ -55,8 +55,8 @@ test(
       await shot('home');
 
       await page.locator('.navsection').getByRole('button', { name: '新建项目' }).click();
-      await page.locator('#modal input').fill('城市就业韧性');
-      await page.locator('#modal').getByRole('button', { name: '创建' }).click();
+      await page.getByLabel('项目名称').fill('城市就业韧性');
+      await page.getByRole('button', { name: '创建项目' }).click();
       await page.getByText('本项目日志').waitFor();
 
       await page.locator('.mainhead').getByRole('button', { name: '新建项目内聊天' }).click();
@@ -98,14 +98,14 @@ test(
       await page.locator('.command-results button', { hasText: '清洗面板数据' }).first().waitFor();
       await page.keyboard.press('Escape');
 
-      await page.locator('.sidebar').getByRole('button', { name: '工作站' }).click();
+      await page.locator('.sidebar').getByRole('button', { name: '工作站', exact: true }).click();
       await page.locator('.plancard', { hasText: '清洗面板数据' }).waitFor();
       await shot('workbench');
       await page.locator('.wb-left').getByRole('button', { name: '撤销' }).first().click();
       await page.locator('.wb-left').getByText('已撤销').waitFor();
       assert.equal(await page.locator('.plancard', { hasText: '清洗面板数据' }).count(), 0);
 
-      await page.getByRole('button', { name: '视图' }).click();
+      await page.getByRole('button', { name: '视图', exact: true }).click();
       await page.getByRole('menuitemcheckbox', { name: 'English' }).click();
       await page.getByText('No project log entries yet').waitFor();
       await shot('workbench-en');

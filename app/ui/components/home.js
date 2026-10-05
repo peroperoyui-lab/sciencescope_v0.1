@@ -17,17 +17,20 @@ function shortStamp(iso) {
   return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function SiteForm() {
+/** Add a site, or edit `site`. @param {{ site?: { name: string, url: string } }} props */
+function SiteForm({ site }) {
   const actions = useActions();
   const sites = useAppState((state) => state.settings?.sites ?? []);
-  const [name, setName] = useState('');
-  const [url, setUrl] = useState('https://');
+  const [name, setName] = useState(site?.name ?? '');
+  const [url, setUrl] = useState(site?.url ?? 'https://');
   async function submit(event) {
     event.preventDefault();
     actions.closeModal();
-    await actions.attempt(() =>
-      actions.updateSettings({ sites: [...sites, { name: name.trim(), url: url.trim() }] }),
-    );
+    const entry = { name: name.trim(), url: url.trim() };
+    const next = site
+      ? sites.map((candidate) => (candidate === site ? entry : candidate))
+      : [...sites, entry];
+    await actions.attempt(() => actions.updateSettings({ sites: next }));
   }
   return html`<form onSubmit=${submit}>
     <div class="field">
@@ -41,7 +44,7 @@ function SiteForm() {
     <div class="row" style="justify-content:flex-end">
       <button type="button" class="btn" onClick=${actions.closeModal}>${t('取消')}</button>
       <button type="submit" class="btn primary" disabled=${!name.trim() || !url.trim()}>
-        ${t('添加')}
+        ${site ? t('保存') : t('添加')}
       </button>
     </div>
   </form>`;
@@ -50,36 +53,76 @@ function SiteForm() {
 function Sites() {
   const actions = useActions();
   const sites = useAppState((state) => state.settings?.sites ?? []);
-  const remove = (site) =>
-    actions.attempt(() =>
-      actions.updateSettings({ sites: sites.filter((candidate) => candidate !== site) }),
+  const store = (next) => actions.attempt(() => actions.updateSettings({ sites: next }));
+  const moveSite = (index, step) => {
+    const next = sites.slice();
+    [next[index], next[index + step]] = [next[index + step], next[index]];
+    store(next);
+  };
+  const addSite = () => actions.openModal(t('新增站点'), html`<${SiteForm} />`);
+  const siteMenu = (event, site, index) =>
+    actions.openMenu(
+      event,
+      [
+        { text: t('打开站点'), icon: 'browser', run: () => open(site.url, '_blank', 'noopener') },
+        {
+          text: t('编辑站点'),
+          icon: 'edit',
+          run: () => actions.openModal(t('编辑站点'), html`<${SiteForm} site=${site} />`),
+        },
+        ...(index > 0 ? [{ text: t('上移'), icon: 'up', run: () => moveSite(index, -1) }] : []),
+        ...(index < sites.length - 1
+          ? [{ text: t('下移'), icon: 'down', run: () => moveSite(index, 1) }]
+          : []),
+        { sep: true },
+        {
+          text: t('移除站点'),
+          icon: 'trash',
+          danger: true,
+          run: () => store(sites.filter((candidate) => candidate !== site)),
+        },
+      ],
+      site.name,
     );
   return html`<div>
-    <div class="between"><small>${t('常用学术站点')}</small></div>
+    <div class="between">
+      <small>${t('常用学术站点')}</small>
+      <button
+        class="iconbtn"
+        title=${t('站点菜单')}
+        aria-label=${t('站点菜单')}
+        onClick=${(event) =>
+          actions.openMenu(
+            event,
+            [
+              { text: t('添加站点'), icon: 'plus', run: addSite },
+              ...sites.map((site, index) => ({
+                text: site.name,
+                icon: 'edit',
+                run: () =>
+                  actions.openModal(t('编辑站点'), html`<${SiteForm} site=${sites[index]} />`),
+              })),
+            ],
+            t('管理站点'),
+          )}
+      >
+        <${Icon} name="more" />
+      </button>
+    </div>
     <div class="sites">
       ${sites.map(
-        (site) =>
+        (site, index) =>
           html`<button
             key=${site.name}
             class="site"
             title=${site.url}
             onClick=${() => open(site.url, '_blank', 'noopener')}
-            onContextMenu=${(event) =>
-              actions.openMenu(
-                event,
-                [{ text: t('移除站点'), icon: 'trash', danger: true, run: () => remove(site) }],
-                site.name,
-              )}
+            onContextMenu=${(event) => siteMenu(event, site, index)}
           >
             ${site.name}
           </button>`,
       )}
-      <button
-        class="iconbtn"
-        title=${t('新增站点')}
-        aria-label=${t('新增站点')}
-        onClick=${() => actions.openModal(t('新增站点'), html`<${SiteForm} />`)}
-      >
+      <button class="iconbtn" title=${t('新增站点')} aria-label=${t('新增站点')} onClick=${addSite}>
         <${Icon} name="plus" />
       </button>
     </div>

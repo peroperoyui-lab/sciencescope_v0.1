@@ -1,6 +1,6 @@
 // Projects: a row plus a readable folder `projects/<name>-<id>/` for its files.
 // The external research folder (`folder`) is only referenced, never written to.
-import { mkdir, readdir } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { AppError } from './errors.js';
 import { projectDirName } from './paths.js';
@@ -107,36 +107,5 @@ export function createProjects({ db, events, paths, now, newId }) {
     return get(id);
   }
 
-  /**
-   * Entries of a folder inside the project's own folder, folders first.
-   * @param {string} id
-   * @param {string} [folder] Relative path inside the project folder.
-   */
-  async function files(id, folder = '') {
-    const root = path.join(paths.projects, get(id).dirName);
-    const target = path.resolve(root, folder);
-    if (target !== root && !target.startsWith(root + path.sep)) {
-      throw new AppError('PATH_OUTSIDE_PROJECT', '只能查看项目文件夹里的内容。');
-    }
-    let entries = [];
-    try {
-      entries = await readdir(target, { withFileTypes: true });
-    } catch (error) {
-      if (error.code !== 'ENOENT') throw error;
-    }
-    return {
-      root,
-      entries: entries
-        .map((entry) => ({
-          name: entry.name,
-          path: path.relative(root, path.join(target, entry.name)).split(path.sep).join('/'),
-          kind: entry.isDirectory() ? 'folder' : 'file',
-        }))
-        .sort((a, b) =>
-          a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'folder' ? -1 : 1,
-        ),
-    };
-  }
-
-  return { get, list, create, update, files };
+  return { get, list, create, update };
 }

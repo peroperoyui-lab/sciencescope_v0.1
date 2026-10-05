@@ -2,13 +2,13 @@
 // projects, this project's log, and the bottom row with the change history,
 // the research map and the project folder. Every edit is a workspace edit,
 // recorded as a revision that anyone (people or AIs) can undo.
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { formatTime, t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
-import { fitView, layoutMap, mapConnections } from '../map-layout.js';
 import { renderMarkdown } from '../markdown.js';
+import { OP_LABELS, RESOURCE_LABELS, useProjectRevisions } from '../project-changes.js';
 import { navigate } from '../route.js';
 import {
   appendPlan,
@@ -19,7 +19,8 @@ import {
   replacePlan,
 } from '../workbench-text.js';
 import { MainHead } from './mainhead.js';
-import { OP_LABELS, RESOURCE_LABELS, useProjectRevisions } from '../project-changes.js';
+import { MapCanvas } from './map-canvas.js';
+import { ProjectFolder } from './project-folder.js';
 import { FieldForm } from './overlays.js';
 
 /**
@@ -75,8 +76,12 @@ function PlanForm({ projectId, projects }) {
   </form>`;
 }
 
-/** Plans of every project plus the global plans. @param {{ project: any, projects: any[] }} props */
-function PlanStrip({ project, projects }) {
+/**
+ * Plans of every project plus the global plans: a strip on the workbench, or
+ * the full page (`full`, 查看全部).
+ * @param {{ project: any, projects: any[], full?: boolean }} props
+ */
+export function PlanStrip({ project, projects, full = false }) {
   const actions = useActions();
   const keys = ['global', ...projects.map((p) => p.id)];
   const files = useResources(keys.map((key) => ['plans', key]));
@@ -121,46 +126,59 @@ function PlanStrip({ project, projects }) {
       card.text,
     );
 
+  const add = () =>
+    actions.openModal(
+      t('添加计划'),
+      html`<${PlanForm} projectId=${project.id} projects=${projects} />`,
+    );
+  const cardList = html`${cards.map(
+    (card) =>
+      html`<article
+        key=${`${card.key}:${card.line}`}
+        tabindex="0"
+        role="button"
+        class=${`plancard ${card.done ? 'done' : ''}`}
+        onClick=${() => edit(card)}
+        onContextMenu=${(event) => menu(event, card)}
+      >
+        <button
+          class="iconbtn"
+          title=${t('计划菜单')}
+          aria-label=${t('计划菜单')}
+          onClick=${(event) => menu(event, card)}
+        >
+          <${Icon} name="more" />
+        </button>
+        <div class="row">
+          <${Icon} name=${card.done ? 'check' : 'clock'} /><strong>${card.text}</strong>
+        </div>
+        <small>${scopeName(card.key)}</small>
+      </article>`,
+  )}`;
+
+  if (full) {
+    return html`<div class="content">
+      <div class="pageintro between">
+        <h1 style="margin:0">${t('全局计划')}</h1>
+        <div class="row">
+          <button class="btn primary" onClick=${add}>+ ${t('添加计划')}</button>
+        </div>
+      </div>
+      <div class="wb-plan-grid">
+        ${cardList}${!cards.length && html`<div class="empty">${t('暂无计划')}</div>`}
+      </div>
+    </div>`;
+  }
   return html`<section class="wb-top">
     <div class="sectionline">
       ${t('全局计划')} <span class="spacer"></span>
-      <button
-        class="btn tiny"
-        onClick=${() =>
-          actions.openModal(
-            t('添加计划'),
-            html`<${PlanForm} projectId=${project.id} projects=${projects} />`,
-          )}
-      >
-        + ${t('添加计划')}
+      <button class="btn tiny" onClick=${add}>+ ${t('添加计划')}</button>
+      <button class="btn tiny" onClick=${() => navigate({ view: 'plans', id: project.id })}>
+        ${t('查看全部')}
       </button>
     </div>
     <div class="planstrip">
-      ${cards.map(
-        (card) =>
-          html`<article
-            key=${`${card.key}:${card.line}`}
-            tabindex="0"
-            role="button"
-            class=${`plancard ${card.done ? 'done' : ''}`}
-            onClick=${() => edit(card)}
-            onContextMenu=${(event) => menu(event, card)}
-          >
-            <button
-              class="iconbtn"
-              title=${t('计划菜单')}
-              aria-label=${t('计划菜单')}
-              onClick=${(event) => menu(event, card)}
-            >
-              <${Icon} name="more" />
-            </button>
-            <div class="row">
-              <${Icon} name=${card.done ? 'check' : 'clock'} /><strong>${card.text}</strong>
-            </div>
-            <small>${scopeName(card.key)}</small>
-          </article>`,
-      )}
-      ${!cards.length && html`<div class="inline-empty">${t('暂无计划')}</div>`}
+      ${cardList}${!cards.length && html`<div class="inline-empty">${t('暂无计划')}</div>`}
     </div>
   </section>`;
 }
@@ -195,8 +213,11 @@ function LogForm({ projectId }) {
   </form>`;
 }
 
-/** @param {{ project: any }} props */
-function JournalStrip({ project }) {
+/**
+ * This project's log: cards on the workbench, or the full page (`full`).
+ * @param {{ project: any, full?: boolean }} props
+ */
+export function JournalStrip({ project, full = false }) {
   const actions = useActions();
   const [file] = useResources([['log', project.id]]);
   const entries = parseLog(file?.text ?? '');
@@ -232,16 +253,58 @@ function JournalStrip({ project }) {
       entry.title,
     );
 
+  const add = () => actions.openModal(t('添加日志'), html`<${LogForm} projectId=${project.id} />`);
+  const brief = (entry) =>
+    actions.openModal(
+      entry.title,
+      html`<p>${entry.body.split(/\n\s*\n/)[0] || t('没有详细内容。')}</p>`,
+    );
+
+  if (full) {
+    return html`<div class="content">
+      <div class="pageintro between">
+        <h1 style="margin:0">${t('项目日志')}</h1>
+        <div class="row"><button class="btn primary" onClick=${add}>${t('添加日志')}</button></div>
+      </div>
+      <div class="stack">
+        ${entries.map(
+          (entry) =>
+            html`<article
+              class="card"
+              key=${entry.start}
+              onContextMenu=${(event) => menu(event, entry)}
+            >
+              <div class="between">
+                <h2 style="margin:0">${entry.title}</h2>
+                <div class="row">
+                  <small>${entry.date}</small>
+                  <button
+                    class="iconbtn"
+                    title=${t('日志菜单')}
+                    aria-label=${t('日志菜单')}
+                    onClick=${(event) => menu(event, entry)}
+                  >
+                    <${Icon} name="more" />
+                  </button>
+                </div>
+              </div>
+              <div
+                class="rendered-markdown"
+                dangerouslySetInnerHTML=${{ __html: renderMarkdown(entry.body || t('没有详细内容。')) }}
+              ></div>
+            </article>`,
+        )}
+      </div>
+      ${!entries.length && html`<div class="empty">${t('暂无项目日志')}</div>`}
+    </div>`;
+  }
   return html`<section class="wb-top">
     <div class="sectionline">
       ${t('本项目日志')} <small>${project.name}</small>
       <span class="spacer"></span>
-      <button
-        class="btn tiny"
-        onClick=${() =>
-          actions.openModal(t('添加日志'), html`<${LogForm} projectId=${project.id} />`)}
-      >
-        + ${t('添加日志')}
+      <button class="btn tiny" onClick=${add}>+ ${t('添加日志')}</button>
+      <button class="btn tiny" onClick=${() => navigate({ view: 'journal', id: project.id })}>
+        ${t('查看全部')}
       </button>
     </div>
     <div class="journalstrip">
@@ -252,7 +315,16 @@ function JournalStrip({ project }) {
             class="journalcard"
             onContextMenu=${(event) => menu(event, entry)}
           >
+            <button
+              class="iconbtn"
+              title=${t('日志菜单')}
+              aria-label=${t('日志菜单')}
+              onClick=${(event) => menu(event, entry)}
+            >
+              <${Icon} name="more" />
+            </button>
             <h3>${entry.title}</h3>
+            <button onClick=${() => brief(entry)}>${t('简述')} ›</button>
             <button onClick=${() => details(entry)}>${t('日志详情')} ›</button>
             <span class="stamp">${entry.date}</span>
           </article>`,
@@ -303,35 +375,14 @@ function Changes({ project }) {
   </div>`;
 }
 
-/** @param {{ project: any }} props */
+/** The workbench's map preview; the editor opens from its corner. @param {{ project: any }} props */
 function ResearchMap({ project }) {
   const actions = useActions();
   const [file] = useResources([['map', project.id]]);
-  const [collapsed, setCollapsed] = useState(/** @type {Record<string, boolean>} */ ({}));
   const [selected, setSelected] = useState(/** @type {string | null} */ (null));
-  const [view, setView] = useState({ x: 18, y: 18, scale: 1 });
-  const viewport = useRef(null);
-  const drag = useRef(null);
-  const fitted = useRef(false);
   const nodes = file?.value?.nodes ?? [];
-  const positions = layoutMap(nodes, collapsed);
   const edit = (op, args) =>
     actions.attempt(() => actions.editResource('map', project.id, op, args));
-
-  useLayoutEffect(() => {
-    if (fitted.current || !file || !viewport.current) return;
-    fitted.current = true;
-    const { clientWidth, clientHeight } = viewport.current;
-    setView(fitView(positions, clientWidth, clientHeight));
-  }, [file]);
-
-  const fit = () => {
-    const { clientWidth, clientHeight } = viewport.current;
-    setView(fitView(positions, clientWidth, clientHeight));
-  };
-  const zoom = (factor) =>
-    setView({ ...view, scale: Math.min(2, Math.max(0.2, view.scale * factor)) });
-
   const nodeForm = (title, value, save) =>
     actions.openModal(
       title,
@@ -344,19 +395,16 @@ function ResearchMap({ project }) {
     );
   const addChild = (parent) =>
     nodeForm(t('添加节点'), '', (text) => edit('addNode', { node: { parent, text } }));
+  const editNode = (node) =>
+    nodeForm(t('编辑节点'), node.text, (text) =>
+      edit('updateNode', { id: node.id, changes: { text } }),
+    );
   const nodeMenu = (event, node) =>
     actions.openMenu(
       event,
       [
         { text: t('添加子节点'), icon: 'plus', run: () => addChild(node.id) },
-        {
-          text: t('编辑'),
-          icon: 'edit',
-          run: () =>
-            nodeForm(t('编辑节点'), node.text, (text) =>
-              edit('updateNode', { id: node.id, changes: { text } }),
-            ),
-        },
+        { text: t('编辑'), icon: 'edit', run: () => editNode(node) },
         { sep: true },
         {
           text: t('删除节点'),
@@ -370,161 +418,25 @@ function ResearchMap({ project }) {
 
   return html`<div class="wb-map">
     <div class="wb-title">
+      <button
+        class="iconbtn"
+        title=${t('打开研究导图编辑窗口')}
+        aria-label=${t('打开研究导图编辑窗口')}
+        onClick=${() => navigate({ view: 'map', id: project.id })}
+      >
+        <${Icon} name="expand" />
+      </button>
       <span class="grow">${t('研究框架与进展')}</span>
-      <button
-        class="iconbtn"
-        title=${t('添加节点')}
-        aria-label=${t('添加节点')}
-        onClick=${() => addChild(null)}
-      >
-        <${Icon} name="plus" />
-      </button>
+      <span class="tag">${t('预览')}</span>
     </div>
-    <div
-      class="mapviewport"
-      data-edit="false"
-      ref=${viewport}
-      onPointerDown=${(event) => {
-        if (event.target.closest('.mapnode')) return;
-        drag.current = { x: event.clientX - view.x, y: event.clientY - view.y };
-        event.currentTarget.setPointerCapture(event.pointerId);
-      }}
-      onPointerMove=${(event) => {
-        if (!drag.current) return;
-        setView({ ...view, x: event.clientX - drag.current.x, y: event.clientY - drag.current.y });
-      }}
-      onPointerUp=${() => {
-        drag.current = null;
-      }}
-    >
-      <span class="readbadge">${t('缩放 / 拖动 / 右键编辑')}</span>
-      <div
-        class="mapscene"
-        style=${{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}
-      >
-        <svg class="connections">
-          <g fill="none" stroke="#9bac8f" stroke-width="1.5">
-            ${mapConnections(positions).map((d, index) => html`<path key=${index} d=${d} />`)}
-          </g>
-        </svg>
-        ${positions.map((p) => {
-          const hasChildren = nodes.some((node) => node.parent === p.node.id);
-          const open = hasChildren && !collapsed[p.node.id];
-          return html`<div
-            key=${p.node.id}
-            class=${`mapnode ${p.root ? 'root' : 'secondary'} ${selected === p.node.id ? 'selected' : ''}`}
-            style=${{ left: `${p.x}px`, top: `${p.y}px`, width: `${p.w}px`, minHeight: `${p.h}px` }}
-            tabindex="0"
-            onClick=${() => setSelected(p.node.id)}
-            onDblClick=${() =>
-              nodeForm(t('编辑节点'), p.node.text, (text) =>
-                edit('updateNode', { id: p.node.id, changes: { text } }),
-              )}
-            onContextMenu=${(event) => nodeMenu(event, p.node)}
-          >
-            <div
-              class="nodetext"
-              dangerouslySetInnerHTML=${{ __html: renderMarkdown(p.node.text) }}
-            ></div>
-            <button
-              class="nodeplus"
-              aria-label=${open ? t('收起分支') : hasChildren ? t('展开分支') : t('新增分支')}
-              onClick=${(event) => {
-                event.stopPropagation();
-                if (hasChildren) setCollapsed({ ...collapsed, [p.node.id]: open });
-                else addChild(p.node.id);
-              }}
-            >
-              ${open ? '−' : '+'}
-            </button>
-          </div>`;
-        })}
-      </div>
-      ${
-        !nodes.length &&
-        html`<div
-          class="inline-empty"
-          style="position:absolute;inset:auto 0 45% 0;text-align:center"
-        >
-          <button class="btn tiny" onClick=${() => addChild(null)}>+ ${t('添加第一个节点')}</button>
-        </div>`
-      }
-    </div>
-    <div class="mapfoot">
-      <button class="iconbtn" title=${t('适应画布')} aria-label=${t('适应画布')} onClick=${fit}>
-        <${Icon} name="search" />
-      </button>
-      <span class="spacer"></span>
-      <button aria-label=${t('缩小')} onClick=${() => zoom(1 / 1.15)}>−</button>
-      <span>${Math.round(view.scale * 100)}%</span>
-      <button aria-label=${t('放大')} onClick=${() => zoom(1.15)}>+</button>
-      <button onClick=${fit}>${t('适应')}</button>
-    </div>
-  </div>`;
-}
-
-/** @param {{ projectId: string, path: string, depth: number }} props */
-function FolderEntries({ projectId, path, depth }) {
-  const actions = useActions();
-  const version = useAppState((state) => state.workspaceVersion);
-  const [listing, setListing] = useState(/** @type {any} */ (null));
-  const [open, setOpen] = useState(/** @type {Record<string, boolean>} */ ({}));
-  useEffect(() => {
-    actions
-      .projectFiles(projectId, path)
-      .then(setListing)
-      .catch((error) => actions.toast(error.message));
-  }, [projectId, path, version]);
-  if (!listing) return null;
-  return html`${listing.entries.map(
-    (entry) =>
-      html`<button
-          key=${entry.path}
-          class="wb-file-row"
-          style=${{ paddingLeft: `${depth * 16 + 4}px` }}
-          onClick=${() => entry.kind === 'folder' && setOpen({ ...open, [entry.path]: !open[entry.path] })}
-        >
-          ${
-            entry.kind === 'folder'
-              ? html`<${Icon} name="folder" />`
-              : html`<span class="wb-file-icon">${entry.name.split('.').pop().slice(0, 4)}</span>`
-          }
-          <span>${entry.name}</span>
-        </button>
-        ${
-          open[entry.path] &&
-          html`<${FolderEntries} projectId=${projectId} path=${entry.path} depth=${depth + 1} />`
-        }`,
-  )}`;
-}
-
-/** @param {{ project: any }} props */
-function ProjectFolder({ project }) {
-  const actions = useActions();
-  const [root, setRoot] = useState('');
-  const [refresh, setRefresh] = useState(0);
-  useEffect(() => {
-    actions
-      .projectFiles(project.id)
-      .then((listing) => setRoot(listing.root))
-      .catch(() => {});
-  }, [project.id]);
-  return html`<div class="wb-right">
-    <div class="wb-title">
-      <span class="grow">${t('项目文件夹')}</span>
-      <button
-        class="iconbtn"
-        title=${t('刷新')}
-        aria-label=${t('刷新')}
-        onClick=${() => setRefresh(refresh + 1)}
-      >
-        <${Icon} name="refresh" />
-      </button>
-    </div>
-    <div class="filetree">
-      <div class="wb-path" title=${root}>${root}</div>
-      <${FolderEntries} key=${refresh} projectId=${project.id} path="" depth=${0} />
-    </div>
+    <${MapCanvas}
+      nodes=${nodes}
+      selected=${selected}
+      onSelect=${setSelected}
+      onAddChild=${addChild}
+      onEditNode=${editNode}
+      onNodeMenu=${nodeMenu}
+    />
   </div>`;
 }
 

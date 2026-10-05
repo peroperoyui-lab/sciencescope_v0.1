@@ -25,6 +25,8 @@ export const initialState = {
   /** @type {Record<string, any>} */ running: {},
   /** Bumped on every workspace change so open views can reload. */
   workspaceVersion: 0,
+  /** Bumped after the person changes files in a project folder. */
+  filesVersion: 0,
   /** Popups over the window: one menu, one dialog, one toast, the search palette. */
   overlay: {
     /** @type {null | { items: any[], label: string, x: number, y: number }} */ menu: null,

@@ -1,17 +1,42 @@
 import { LOCAL_USER_ID } from '../../core/defaults.js';
+import { attachment } from '../attachment.js';
+import { AppError } from '../../core/errors.js';
+import { exportProject } from '../../services/export.js';
+import { createProjectFiles } from '../../services/project-files.js';
+import { openPath } from '../../services/system.js';
 
 const user = { actorId: LOCAL_USER_ID };
 
 /** @param {import('../router.js').Router} router @param {import('../../core/index.js').Core} core */
 export function registerProjectRoutes(router, core) {
+  const files = createProjectFiles(core);
   router.get('/api/projects', ({ query }) =>
     core.projects.list({ includeArchived: query.get('archived') === '1' }),
   );
   router.post('/api/projects', ({ body }) => core.projects.create(body, user));
   router.get('/api/projects/:id', ({ params }) => core.projects.get(params.id));
   router.get('/api/projects/:id/files', ({ params, query }) =>
-    core.projects.files(params.id, query.get('path') ?? ''),
+    files.list(params.id, query.get('path') ?? ''),
   );
+  // { op: 'mkdir', path } | { op: 'rename', path, to } | { op: 'add', path, base64 } | { op: 'open', path }
+  router.post('/api/projects/:id/files', async ({ params, body }) => {
+    const relative = String(body.path ?? '');
+    if (body.op === 'mkdir') await files.makeFolder(params.id, relative);
+    else if (body.op === 'rename') await files.rename(params.id, relative, String(body.to ?? ''));
+    else if (body.op === 'add') await files.add(params.id, relative, String(body.base64 ?? ''));
+    else if (body.op === 'open') openPath(files.locate(params.id, relative));
+    else throw new AppError('UNKNOWN_OP', `不支持的操作：${body.op}`);
+    return { done: true };
+  });
+  router.get('/api/projects/:id/export', async ({ params, response }) => {
+    const { name, zip } = await exportProject(core, params.id);
+    response.writeHead(200, {
+      'content-type': 'application/zip',
+      'content-disposition': attachment(name),
+    });
+    response.end(zip);
+    return undefined;
+  });
   router.patch('/api/projects/:id', ({ params, body }) =>
     core.projects.update(params.id, body, user),
   );

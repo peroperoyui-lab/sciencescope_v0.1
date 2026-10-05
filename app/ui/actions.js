@@ -154,9 +154,9 @@ export function createActions(api, store) {
     navigate({ view: 'meeting', id: meeting.id });
   }
 
-  /** @param {string} name */
-  async function createProject(name) {
-    const project = await api.post('/api/projects', { name });
+  /** @param {string} name @param {{ description?: string, folder?: string | null }} [details] */
+  async function createProject(name, details = {}) {
+    const project = await api.post('/api/projects', { name, ...details });
     apply('project.created', project);
     return project;
   }
@@ -200,6 +200,26 @@ export function createActions(api, store) {
   /** Entries of a folder inside the project's own folder. @param {string} projectId @param {string} [folder] */
   const projectFiles = (projectId, folder = '') =>
     api.get(`/api/projects/${projectId}/files?path=${encodeURIComponent(folder)}`);
+
+  /** @param {string} projectId @param {{ op: string, path?: string, to?: string, base64?: string }} body */
+  async function fileOp(projectId, body) {
+    const result = await api.post(`/api/projects/${projectId}/files`, body);
+    store.update((state) => ({ ...state, filesVersion: state.filesVersion + 1 }));
+    return result;
+  }
+
+  /**
+   * Save a file the host produces (exports): the browser downloads it and
+   * takes the name from the response.
+   * @param {string} route
+   */
+  async function download(route) {
+    const link = document.createElement('a');
+    link.href = `${route}${route.includes('?') ? '&' : '?'}token=${encodeURIComponent(api.token)}`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+  }
 
   const systemInfo = () => api.get('/api/system');
   /** @param {string} folder A name from systemInfo().folders, or `project:<id>`. @param {string} [path] */
@@ -288,6 +308,8 @@ export function createActions(api, store) {
     projectFiles,
     systemInfo,
     openFolder,
+    fileOp,
+    download,
     keyRefs,
     saveKey,
     discoverModels,
