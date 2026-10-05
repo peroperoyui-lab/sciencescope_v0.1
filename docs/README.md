@@ -21,6 +21,7 @@
 |---|---|
 | `docs/design/RESEARCH_BASE.md` | 研究资料库：统一数据后端、长期记忆、混合检索、文档解析、浏览器、最低配置 |
 | `docs/design/RESEARCH_MEMO_2026-09-25.md` | 调研备忘：记忆系统、知识管理、检索、文档工具、浏览器（每项标明核实方式） |
+| `docs/REVIEW_2026-10-05.md` | 整体复盘：流程、前端架构、代码风格、数据升级连续性、统一编辑、alpha 路线（S0–S5）与待用户决定的事项 |
 | `docs/design/RUNTIME_PORT.md` | 运行时接口：产品代码对智能体运行时（当前 DSH）的全部依赖、契约测试与 DSH 限制表（初稿，T23 核对） |
 | `docs/design/PYTHON_ENVIRONMENTS.md` | Python 运行环境：内置 3.14、uv 共享缓存、按任务分配 |
 | `docs/design/EXPERT_CONTEXT.md` | 专家的长上下文：共享纪要 + 近期原文 + 按需回查（建议方案，待确认） |
