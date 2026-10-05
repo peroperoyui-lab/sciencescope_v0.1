@@ -21,9 +21,9 @@ export function visibleMessages(messages) {
 
 /**
  * @param {{ participant: { id: string, name: string, definition?: { prompt: string } },
- *   meeting: { title: string, policy: any },
+ *   meeting: { id?: string, title: string, policy: any },
  *   members: Array<{ id: string, name: string, kind: string, roleNote?: string }>,
- *   project: { name: string, description: string, folder: string | null } | null,
+ *   project: { id?: string, name: string, description: string, folder: string | null } | null,
  *   workFolder: string }} input
  * @returns {string}
  */
@@ -40,10 +40,12 @@ export function buildInstructions({ participant, meeting, members, project, work
     '',
     '## 这场会议',
     `- 你是：${participant.name}。记录里标为“${participant.name}”的发言是你自己说的。`,
-    `- 会议：${meeting.title}`,
+    `- 会议：${meeting.title}${meeting.id ? `（id：${meeting.id}）` : ''}`,
   ];
   if (project) {
-    lines.push(`- 项目：${project.name}${project.description ? `——${project.description}` : ''}`);
+    const id = project.id ? `（id：${project.id}）` : '';
+    const about = project.description ? `——${project.description}` : '';
+    lines.push(`- 项目：${project.name}${id}${about}`);
     if (project.folder) lines.push(`- 用户的项目文件夹：${project.folder}`);
   } else {
     lines.push('- 这场会议不属于某个项目。');

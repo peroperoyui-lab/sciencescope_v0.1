@@ -2,6 +2,7 @@
 
 - 起草：Claude，2026-10-05。总纲见 `ARCHITECTURE.md`。本文随实现修订；实现与本文不一致时，以代码和测试为准，并同步本文。
 - **R1 已实现（2026-10-05）**：§1–§5、§9 的数据层、事件、工作区、参与者、会议、消息、本地接口与命令行，代码在 `app/core`、`app/server`、`app/main.js`、`app/cli.js`。§6–§8（发言规则的执行、上下文组装、内置工具）在 R2 实现。
+- **R2 已实现（2026-10-05）**：运行时接口 `app/runtime/port.js`；DSH 适配 `app/runtime/dsh/`（一个插件 + 桥接服务）；测试用 `app/runtime/scripted.js`；上下文组装 `app/core/context.js`；发言记录 `app/core/turns.js`；内置工具 `app/services/tools.js`；`direct` 发言规则 `app/services/conductor.js` + `turn-runner.js`；服务商 `app/services/providers.js`；整体装配 `app/app.js`。`round`、`autonomous` 与后台参与者在 R4。
 
 ## 1. 数据根
 
@@ -114,7 +115,9 @@ tools: { prefer: [research_search], avoid: [] }
    - 其他参与者看到的是回答的最终文字，以及该回答展示的文件；
    - 看不到工具调用、工具结果和前言；
    - 未采纳的审核结论不进入其他参与者的上下文。
-4. **不截断**。超出模型上下文窗口时，先换用更新的纪要；仍然超出，就在开头写明省略了哪些消息，并说明可以用 `workspace_read` 回查。
+4. **不截断**。超出模型上下文窗口时，先换用更新的纪要；仍然超出，就在开头写明省略了哪些消息，并说明可以用 `workspace_read` 回查（R4 实现；R2 尚未做窗口估算）。
+5. **工具前言**：同一步里写在工具调用之前的文字，记在该工具调用的 `preamble` 上，不进入回答正文。
+6. **闲置释放**：一个会话闲置 10 分钟后结束其进程，下次发言时按会话 id 恢复（DSH 持久化了工作记忆）。
 
 ## 8. 内置工具（R2）
 
@@ -123,6 +126,8 @@ tools: { prefer: [research_search], avoid: [] }
 | `workspace_read` | `resource`, `id?`, `query?` | 读或列出任意资源；包括会议与消息（可跨会议、跨项目） |
 | `workspace_edit` | `resource`, `op`, `args` | 修改资源，记修订，返回修订 id |
 | `workspace_undo` | `revisionId` | 撤销一条修订 |
+
+`workspace_read` 的 `target` 另有 `overview`（全部项目与会议）、`project`、`meeting`（分页读记录）、`changes`（更改记录）。
 | `research_search` / `research_read` / `research_write` | 见资料库 | R4 移植 |
 
 运行时自带的文件、命令、present、技能、MCP 工具原样提供。
@@ -141,5 +146,6 @@ tools: { prefer: [research_search], avoid: [] }
 - 启动：`node app/main.js [--data <目录>] [--port <端口>]`，标准输出一行 `{ url, token, dataRoot }`。数据根：`--data`，其次 `SCIENCESCOPE_DATA`，开发默认 `.sciencescope-local/data`。
 - 命令行：`node app/cli.js <命令>`（projects、project-create、meetings、meeting-create、post、messages、read、edit、history、undo）。
 - 事件：`GET /api/events?since=<seq>`（SSE；浏览器的 EventSource 用 `?token=` 传口令）。
+- R2 新增：`POST /api/meetings/:id/interrupt`、`GET /api/turns/:id`（含工具调用）、`POST /api/providers/keys/:keyRef`（只写入凭据文件，不返回）。服务商与默认模型在 `/api/settings` 的 `providers`、`models.default` 中。
 - 本地口令：每次启动生成，所有接口校验（沿用旧版做法）。
 - 路由文件只做参数解析与调用 core / services，每个领域一个文件。

@@ -2,7 +2,7 @@
 
 > 本文件只记录**要去哪里、按什么顺序、现在走到哪一步**。
 > 功能现在怎样工作看 `SYSTEM_SPEC.md`；过程和验收细节看 `DESKTOP_IMPLEMENTATION.md`（按日期记录）；具体任务看 `docs/tasks/`。
-> 最近更新：2026-10-05。重建进行中（总纲 `design/ARCHITECTURE.md`）。R0 完成（PR #11 合入 main，合并提交 `6d2b10c`）。**R1 完成**：`app/core` 数据层（迁移、备份、版本保护）、事件流、工作区（文件资源、修订、撤销、程序外修改检测）、项目 / 参与者 / 会议 / 消息、本地接口与 SSE、命令行；`npm run check` 21 项通过。Windows 交接见 `handoff/R1_WINDOWS.md`。下一步 R2（运行时、上下文组装、内置工具）。
+> 最近更新：2026-10-05。重建进行中（总纲 `design/ARCHITECTURE.md`）。R0、R1 完成（R1 Windows 验证 `1a1f402` 已合并，标签 `v0-prototype` 已补打）。**R2 完成**：运行时接口与精简 DSH 适配（一个插件 + 桥接）、上下文组装、发言记录、内置工具（workspace_read / edit / undo）、`direct` 发言规则、服务商配置；真实 DSH + 本地模拟模型的单会话与全链路测试通过；`npm run check` 33 项通过（2 项仅 Windows）。Windows 交接见 `handoff/R2_WINDOWS.md`。下一步 R3（界面骨架）。
 
 ## 目标：1.0.0-alpha（内测版）
 R1 Windows 验收（2026-10-05）：`codex/r1-windows-20261005`，安装与 `npm run check` 23/23通过；中文CLI流程、普通/SSE连接下Ctrl+C退出和WAL清理通过。真实文件占用触发的EPERM已加短暂重试、明确提示和临时文件清理；待Claude审阅合入，尚未进行R3后的原生接线。

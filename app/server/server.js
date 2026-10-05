@@ -8,6 +8,7 @@ import { registerEventRoutes } from './routes/events.js';
 import { registerMeetingRoutes } from './routes/meetings.js';
 import { registerParticipantRoutes } from './routes/participants.js';
 import { registerProjectRoutes } from './routes/projects.js';
+import { registerProviderRoutes } from './routes/providers.js';
 import { registerWorkspaceRoutes } from './routes/workspace.js';
 
 // Generous resource bound for request bodies (attachments travel separately).
@@ -42,13 +43,15 @@ function tokenMatches(given, expected) {
 
 /**
  * @param {{ core: import('../core/index.js').Core, token: string,
- *   hooks?: { onMessagePosted?: (message: any) => void } }} options
+ *   conductor?: { interrupt: (meetingId: string) => Promise<void> } }} options
+ *   Without a conductor (core-only tests) posting a message triggers no answers.
  */
-export function createAppServer({ core, token, hooks = {} }) {
+export function createAppServer({ core, token, conductor }) {
   const router = createRouter();
   registerProjectRoutes(router, core);
   registerParticipantRoutes(router, core);
-  registerMeetingRoutes(router, core, hooks);
+  registerMeetingRoutes(router, core, conductor);
+  registerProviderRoutes(router, core);
   registerWorkspaceRoutes(router, core);
   registerEventRoutes(router, core);
 

@@ -8,12 +8,13 @@ function optionalNumber(value) {
 }
 
 /**
+ * Posting a message stores it; the conductor reacts to the stored event and
+ * starts the answers, so this route does not wait for them.
  * @param {import('../router.js').Router} router
  * @param {import('../../core/index.js').Core} core
- * @param {{ onMessagePosted?: (message: any) => void }} [hooks] R2 attaches the
- *   speaking policy here so a posted message can trigger responses.
+ * @param {{ interrupt: (meetingId: string) => Promise<void> }} [conductor]
  */
-export function registerMeetingRoutes(router, core, hooks = {}) {
+export function registerMeetingRoutes(router, core, conductor) {
   router.get('/api/meetings', ({ query }) => {
     const projectId = query.get('projectId');
     return core.meetings.list({
@@ -38,17 +39,23 @@ export function registerMeetingRoutes(router, core, hooks = {}) {
       limit: optionalNumber(query.get('limit')),
     }),
   );
-  router.post('/api/meetings/:id/messages', ({ params, body }) => {
-    const message = core.messages.post({
+  router.post('/api/meetings/:id/messages', ({ params, body }) =>
+    core.messages.post({
       meetingId: params.id,
       authorId: body.authorId ?? LOCAL_USER_ID,
       text: body.text,
       refs: body.refs,
       replyTo: body.replyTo,
-    });
-    hooks.onMessagePosted?.(message);
-    return message;
+    }),
+  );
+  router.post('/api/meetings/:id/interrupt', async ({ params }) => {
+    await conductor?.interrupt(params.id);
+    return { interrupted: true };
   });
+  router.get('/api/turns/:id', ({ params }) => ({
+    turn: core.turns.get(params.id),
+    toolCalls: core.turns.toolCalls(params.id),
+  }));
   router.patch('/api/messages/:id', ({ params, body }) =>
     core.messages.update(params.id, { adopted: body.adopted }),
   );

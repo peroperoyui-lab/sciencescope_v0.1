@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Start ScienceScope's local host: open the data root, start the HTTP server
-// and print one JSON line `{ "url", "token" }` for the native shell.
+// Start ScienceScope's local host and print one JSON line `{ url, token,
+// dataRoot }` for the native shell.
 //
 //   node app/main.js [--data <folder>] [--port <number>]
 //
@@ -26,18 +26,15 @@ const dataRoot =
   process.env.SCIENCESCOPE_DATA ??
   path.join(repoRoot, '.sciencescope-local', 'data');
 
-const { createCore } = await import('./core/index.js');
-const { createAppServer } = await import('./server/server.js');
+const { createApp } = await import('./app.js');
 
-const core = await createCore({ dataRoot });
 const token = randomBytes(32).toString('hex');
-const server = createAppServer({ core, token });
-const url = await server.listen({ port: Number(values.port ?? 0) });
-process.stdout.write(`${JSON.stringify({ url, token, dataRoot: core.paths.root })}\n`);
+const app = await createApp({ dataRoot, token });
+const url = await app.listen({ port: Number(values.port ?? 0) });
+process.stdout.write(`${JSON.stringify({ url, token, dataRoot: app.core.paths.root })}\n`);
 
 async function shutdown() {
-  await server.close();
-  core.close();
+  await app.close();
   process.exit(0);
 }
 process.on('SIGINT', shutdown);

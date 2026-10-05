@@ -9,6 +9,9 @@ export const DEFAULT_SETTINGS = {
   profile: { name: '', bio: '' },
   appearance: { language: 'zh', theme: 'system', density: 'comfortable', font: '' },
   composer: { sendKey: 'enter' },
+  // Model providers (keys are stored separately, see services/providers.js).
+  providers: [],
+  // The model AIs use unless their own definition names one.
   models: { default: null },
 };
 

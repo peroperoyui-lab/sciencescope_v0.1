@@ -21,11 +21,37 @@ const STATUS_BY_STOP = {
  * @param {{ core: import('../core/index.js').Core,
  *   runtime: import('../runtime/port.js').Runtime, runtimeName: string,
  *   tools: ReturnType<typeof import('./tools.js').createTools>,
- *   defaultModel: () => Promise<import('../runtime/port.js').ModelChoice | null> }} deps
+ *   defaultModel: () => Promise<import('../runtime/port.js').ModelChoice | null>,
+ *   idleReleaseMs?: number }} deps
+ *   A session idle for `idleReleaseMs` is released (its process ends); the next
+ *   turn resumes it. Historical meetings keep no process alive.
  */
-export function createTurnRunner({ core, runtime, runtimeName, tools, defaultModel }) {
+export function createTurnRunner({
+  core,
+  runtime,
+  runtimeName,
+  tools,
+  defaultModel,
+  idleReleaseMs = 10 * 60 * 1000,
+}) {
   /** @type {Map<string, string>} turn id → runtime session id, for interrupts */
   const active = new Map();
+  /** @type {Map<string, NodeJS.Timeout>} session id → pending release */
+  const releases = new Map();
+
+  function holdSession(sessionId) {
+    clearTimeout(releases.get(sessionId));
+    releases.delete(sessionId);
+  }
+
+  function releaseLater(sessionId) {
+    const timer = setTimeout(() => {
+      releases.delete(sessionId);
+      void runtime.release(sessionId).catch(() => {});
+    }, idleReleaseMs);
+    timer.unref();
+    releases.set(sessionId, timer);
+  }
 
   async function nameMap() {
     const names = new Map();
@@ -165,6 +191,7 @@ export function createTurnRunner({ core, runtime, runtimeName, tools, defaultMod
         nameOf,
       });
       active.set(turn.id, sessionId);
+      holdSession(sessionId);
       const result = await runtime.send(sessionId, input, onEvent);
       const status = STATUS_BY_STOP[result.stopReason] ?? 'failed';
       const finalText = text || (status === 'failed' ? (result.error ?? '这次发言失败了。') : text);
@@ -186,7 +213,9 @@ export function createTurnRunner({ core, runtime, runtimeName, tools, defaultMod
       });
       return core.turns.end(turn.id, { status: 'failed', stopReason: 'error' });
     } finally {
+      const sessionId = active.get(turn.id);
       active.delete(turn.id);
+      if (sessionId) releaseLater(sessionId);
     }
   }
 

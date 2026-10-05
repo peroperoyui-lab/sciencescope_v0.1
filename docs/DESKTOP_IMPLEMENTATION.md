@@ -1,5 +1,27 @@
 # Desktop implementation — first increment
 
+## 2026-10-05 Rebuild R2 (Claude, cloud)
+
+- Merged Sol's R1 Windows fixes (`1a1f402`: rename retry, locked-file tests).
+- R2:
+  - `runtime/port.js` and a scripted runtime for tests;
+  - lean DSH adapter: one plugin in the DSH process (events, tool calls back to
+    the host, prompt/interrupt/instructions) plus one bridge in ours; providers
+    and the credentials path are passed as a patch; approvals set to never;
+  - `core/context.js`: instructions with ids, seed (minutes plus full record),
+    follow-ups (new messages only), visibility (no unfinished or unadopted
+    messages), mentions;
+  - `core/turns.js` with migration 002 (tool-call preamble);
+  - `services/tools.js` (workspace_read/edit/undo);
+  - `services/turn-runner.js` (streaming, preamble moved to the tool card,
+    max-tokens kept, interrupt, idle release after 10 minutes);
+  - `services/conductor.js` (direct policy, mentions, restart recovery);
+  - `app.js` assembling the host.
+- Verification: `npm run check` 33 pass and 2 Windows-only skips. Two real-DSH
+  tests use a local fixture model: a single session (instructions, streaming,
+  tool round trip, resume) and the end-to-end flow (API, conductor, DSH, tool,
+  plans file, revision attributed to agent_main).
+
 ## 2026-10-05 R1 Windows acceptance (Codex)
 
 - Integration baseline `3e9046d`, branch `codex/r1-windows-20261005`, H-drive workspace.

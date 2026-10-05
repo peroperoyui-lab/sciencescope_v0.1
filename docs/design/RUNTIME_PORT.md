@@ -1,5 +1,14 @@
 # 运行时接口（Runtime Port）· 初稿
 
+> **2026-10-05 重建后**：新代码的运行时接口是 `app/runtime/port.js`（`startSession`、`send`、`interrupt`、`setInstructions`、`release`、`close`，以及运行时事件）。DSH 实现在 `app/runtime/dsh/`：
+> - 每个会话一个 DSH 进程，进程内只有一个插件 `plugin.js`，负责事件流、把工具调用转回宿主、处理 prompt / interrupt / instructions；
+> - 宿主侧是一个桥接服务 `bridge.js`；
+> - 服务商配置与凭据文件路径以补丁传入，key 不进入环境变量；
+> - 审批策略设为 never（安全不是当前重点）。
+>
+> 会议记录归 ScienceScope，DSH 会话只是工作记忆。下文描述的是旧线（`adapters/runtime-dsh/`）的接口，R5 切换后删除。§10 的 DSH 限制表继续有效。
+
+
 - 起草：Claude，2026-10-03。状态：**初稿**，描述现有 DSH 适配层实际提供的能力；T23 负责补全契约测试与会话导出。
 - 目的：ScienceScope 的产品代码只依赖本文件描述的接口，不依赖 DSH。将来如果更换或自研智能体运行时，新实现只要满足本接口并通过契约测试，就可以逐步替换。
 - 原则：
