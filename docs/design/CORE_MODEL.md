@@ -34,7 +34,7 @@
 | `turns` | id, meeting_id, participant_id, trigger_message_id, status, stop_reason, usage_json, started_at, ended_at | AI 的一次发言 |
 | `tool_calls` | id, turn_id, seq, name, args_json, result_json, status, presented（是否展示给用户）, started_at, ended_at | 工具调用，完整保存，不截断 |
 | `runtime_sessions` | meeting_id, participant_id, runtime, session_id, last_seq | AI 在某会议中的工作记忆指针；`last_seq` = 它已看到的最后一条消息 |
-| `revisions` | id, resource, resource_id, op, before_json, after_json, actor_id, meeting_id, turn_id, undone_by, created_at | 每次修改；撤销 = 写一条反向修订 |
+| `revisions` | id, resource, resource_key（`资源:键`）, op, before_text, after_text, after_hash, actor_id, meeting_id, turn_id, undone_by, created_at | 每次修改保存前后全文；撤销 = 写一条反向修订；程序外的修改记为 `external` |
 | `events` | seq, type, project_id, meeting_id, actor_id, payload_json, created_at | 变更流，给界面与后台参与者订阅 |
 
 资料库沿用 `rb_*` 表（R4 移植时纳入迁移注册表）；设置不进数据库。
@@ -67,11 +67,13 @@
 | `plans` | `projects/<p>/workbench/plans.md`；全局计划在 `plans.md` | Markdown 任务列表 |
 | `log` | `projects/<p>/workbench/log.md` | Markdown，每条一个二级标题（日期 + 标题） |
 | `versions` | `projects/<p>/workbench/versions/<组>/` | 原件 + `.notes.md` |
-| `minutes` | `projects/<p>/minutes/<会议>.md` | Markdown；历史版本在 `revisions` |
+| `minutes` | `projects/<p>/minutes/<会议 id>.md`；不属于项目的会议在 `minutes/<会议 id>.md` | Markdown；历史版本在 `revisions` |
 | `notes` | `projects/<p>/notes/*.md` | Markdown |
 | `agent` | `agents/<id>.md` | YAML 头（name、model、effort、tools、skills）+ 正文（人设） |
 | `skill` | `skills/<name>/SKILL.md` | 运行时的技能格式 |
-| `project` / `meeting` | 表 | — |
+| `settings` | `settings.json`（键固定为 `app`） | JSON；读取时与默认值合并；操作 `patch` / `write` |
+
+键：`map`、`log` 为项目 id；`plans` 为项目 id 或 `global`；`minutes` 为会议 id；`notes` 为 `项目 id/名称`；`agent` 为参与者 id。文本资源的操作：`write`、`append`、`replace`（`find` → `with`）、`delete`；导图另有 `addNode`、`updateNode`、`removeNode`（连同子树与相关连线）、`addEdge`、`removeEdge`。撤销时如果之后还有修改，返回 `REVISION_CONFLICT`。
 
 用户在程序外编辑文件：读取时比较修改时间和哈希，变化了就记一条 `actor = external` 的修订并发事件。
 
@@ -127,13 +129,17 @@ tools: { prefer: [research_search], avoid: [] }
 
 ## 9. 本地接口（`app/server`）
 
-- REST 风格 JSON：
-  - `/api/projects`
-  - `/api/meetings`、`/api/meetings/:id/messages`（GET 分页；POST 发消息，按发言规则触发回应）
-  - `/api/participants`
-  - `/api/resources/:resource`（GET / POST op）
-  - `/api/revisions`（GET；POST `:id/undo`）
-  - `/api/settings`
-- 事件：`/api/events`（SSE）。
+- JSON 接口（R1 已实现）：
+  - `GET/POST /api/projects`、`GET/PATCH /api/projects/:id`
+  - `GET/POST /api/participants`、`GET/PATCH /api/participants/:id`
+  - `GET/POST /api/meetings`（`?projectId=`、`?global=1`、`?attachedTo=`）、`GET/PATCH /api/meetings/:id`、`POST /api/meetings/:id/fork`
+  - `GET /api/meetings/:id/messages`（`before` / `after` / `limit`）、`POST /api/meetings/:id/messages`（R2 起按发言规则触发回应）、`PATCH /api/messages/:id`（审核采纳）
+  - `GET /api/resources`、`GET /api/resources/:resource?key=`、`GET /api/resources/:resource/keys?scope=`、`POST /api/resources/:resource`（`{ key, op, args }`）
+  - `GET /api/revisions`、`GET /api/revisions/:id`、`POST /api/revisions/:id/undo`
+  - `GET/PATCH /api/settings`
+- 错误统一为 `{ code, message }` 加对应状态码。
+- 启动：`node app/main.js [--data <目录>] [--port <端口>]`，标准输出一行 `{ url, token, dataRoot }`。数据根：`--data`，其次 `SCIENCESCOPE_DATA`，开发默认 `.sciencescope-local/data`。
+- 命令行：`node app/cli.js <命令>`（projects、project-create、meetings、meeting-create、post、messages、read、edit、history、undo）。
+- 事件：`GET /api/events?since=<seq>`（SSE；浏览器的 EventSource 用 `?token=` 传口令）。
 - 本地口令：每次启动生成，所有接口校验（沿用旧版做法）。
 - 路由文件只做参数解析与调用 core / services，每个领域一个文件。
