@@ -1,9 +1,10 @@
 // Projects: a row plus a readable folder `projects/<name>-<id>/` for its files.
 // The external research folder (`folder`) is only referenced, never written to.
-import { mkdir, rename as renameDir } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { AppError } from './errors.js';
 import { projectDirName } from './paths.js';
+import { renameWithRetry } from './rename.js';
 
 /** @typedef {{ id: string, name: string, description: string, dirName: string,
  *   folder: string | null, pinned: boolean, archived: boolean,
@@ -82,7 +83,7 @@ export function createProjects({ db, events, paths, now, newId }) {
     if (!name) throw new AppError('NAME_REQUIRED', '请填写项目名称。');
     if (name !== project.name) {
       dirName = projectDirName(name, id);
-      await renameDir(
+      await renameWithRetry(
         path.join(paths.projects, project.dirName),
         path.join(paths.projects, dirName),
       );

@@ -14,6 +14,8 @@
 
 **状态标记**
 
+R1 Windows 核对（2026-10-05）：新 `app/` 核心的项目中文目录、会议/消息和计划CLI已通过。原子写入与项目目录改名对 `EPERM/EBUSY/EACCES` 短暂重试（50/100/200/400 ms），仍失败时返回 `PATH_BUSY`/409，提示关闭占用窗口或检查权限；原文件、项目记录及修订保持，临时写入文件清理。Windows真实无delete-sharing句柄回归通过。`app/main.js` 普通及活跃SSE下Ctrl+C退出0，WAL/SHM清理且重开数据完整；`npm run check`格式/lint/类型及23测试通过。旧线 `desktop/scripts/adapters` 未改，原生外壳接线仍属L1。
+
 | 标记 | 含义 |
 |---|---|
 | ✅ | 已实现，并有自动测试或真实验收证据（证据类型写在"验证"一栏） |

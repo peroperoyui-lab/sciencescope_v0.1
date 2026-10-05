@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { access, readFile, writeFile } from 'node:fs/promises';
+import { access, readFile, readdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { withCore } from '../../testing.js';
+import { lockWindowsFile, withCore } from '../../testing.js';
 
 test('edits write readable files, record revisions and publish events', () =>
   withCore('workspace', async (core) => {
@@ -114,3 +114,34 @@ test('settings merge stored values over defaults; global minutes live at the roo
     });
     await access(path.join(core.paths.globalMinutes, `${meeting.id}.md`));
   }));
+
+test(
+  'an occupied plan is preserved on failure and a transient lock recovers atomically',
+  { skip: process.platform !== 'win32' },
+  () =>
+    withCore('atomic-locked', async (core) => {
+      const project = await core.projects.create({ name: '中文项目' });
+      const edit = (text) =>
+        core.workspace.edit({ resource: 'plans', key: project.id, op: 'write', args: { text } });
+      await edit('完整旧计划');
+      const file = path.join(core.paths.projects, project.dirName, 'workbench', 'plans.md');
+      const unlock = await lockWindowsFile(file);
+      try {
+        await assert.rejects(edit('不能提交的计划'), { code: 'PATH_BUSY', status: 409 });
+        assert.equal(await readFile(file, 'utf8'), '完整旧计划');
+        assert.equal(core.workspace.history({ resource: 'plans', key: project.id }).length, 1);
+        assert.deepEqual(await readdir(path.dirname(file)), ['plans.md']);
+      } finally {
+        await unlock();
+      }
+      const release = await lockWindowsFile(file);
+      const writing = edit('完整新计划');
+      const released = new Promise((resolve, reject) =>
+        setTimeout(() => release().then(resolve, reject), 120),
+      );
+      await Promise.all([writing, released]);
+      assert.equal(await readFile(file, 'utf8'), '完整新计划');
+      assert.equal(core.workspace.history({ resource: 'plans', key: project.id }).length, 2);
+      assert.deepEqual(await readdir(path.dirname(file)), ['plans.md']);
+    }),
+);

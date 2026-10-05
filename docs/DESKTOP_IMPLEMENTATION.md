@@ -1,5 +1,22 @@
 # Desktop implementation — first increment
 
+## 2026-10-05 R1 Windows acceptance (Codex)
+
+- Integration baseline `3e9046d`, branch `codex/r1-windows-20261005`, H-drive workspace.
+- `npm install` succeeded (0 vulnerabilities); `npm run check` passed format,
+  lint, types and 23/23 tests on Windows (Node 25.8.1).
+- A real Windows file handle denying delete sharing reproduced `EPERM` for
+  file replacement and project-folder rename; failed writes left `.tmp` files.
+  Added 50/100/200/400 ms rename retries, `PATH_BUSY`/409 on persistent locks,
+  and temporary-file cleanup. Tests prove old text/revisions/project metadata
+  remain unchanged on refusal and a released transient lock recovers.
+- CLI project/meeting/message/plan flow preserves Chinese paths and UTF-8 text;
+  Node 24.19.0 `app/main.js` exits 0 on real Ctrl+C both normally and with active
+  SSE. WAL/SHM files disappear, reopened data is intact; owned processes exit.
+- Evidence only in `.sciencescope-local/temp/r1-windows-validation/`; no paid
+  calls or changes to the frozen old-code directories. `v0-prototype` target is
+  `6d2b10c`, as specified by the handoff; tag/push receipt is reported at delivery.
+
 ## 2026-10-05 Rebuild R0 and R1 (Claude, cloud)
 
 - R0: old line merged into main (PR #11, `6d2b10c`); style tooling and `npm run check`.
