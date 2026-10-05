@@ -1,0 +1,101 @@
+// A runtime for tests: each reply comes from a script function instead of a
+// model. Scripts can stream text, call ScienceScope tools and choose how the
+// turn ends, so conductor behaviour is testable without a model or DSH.
+
+/**
+ * @typedef {{ sessionId: string, input: string, inputs: string[], instructions: string,
+ *   call: (name: string, args: any) => Promise<any>, signal: AbortSignal }} ScriptContext
+ * @typedef {(context: ScriptContext) => AsyncIterable<
+ *   string | { stop: 'max_tokens' | 'failed', error?: string }>} Script
+ */
+
+/**
+ * @param {{ script: Script }} options
+ * @returns {import('./port.js').Runtime & { sessions: Map<string, any> }}
+ */
+export function createScriptedRuntime({ script }) {
+  const sessions = new Map();
+  let counter = 0;
+
+  return {
+    sessions,
+    async startSession({ sessionId, instructions, tools, onToolCall, model, workFolder }) {
+      const id = sessionId ?? `scripted-${++counter}`;
+      const existing = sessions.get(id);
+      sessions.set(id, {
+        id,
+        instructions,
+        tools,
+        onToolCall,
+        model,
+        workFolder,
+        inputs: existing?.inputs ?? [],
+        controller: null,
+      });
+      return id;
+    },
+
+    async send(sessionId, input, onEvent) {
+      const session = sessions.get(sessionId);
+      if (!session) throw new Error(`No scripted session ${sessionId}`);
+      session.inputs.push(input);
+      session.controller = new AbortController();
+      const { signal } = session.controller;
+      let calls = 0;
+      let text = '';
+      onEvent({ type: 'attempt-start' });
+      try {
+        const steps = script({
+          sessionId,
+          input,
+          inputs: session.inputs,
+          instructions: session.instructions,
+          signal,
+          call: async (name, args) => {
+            const callId = `call-${++calls}`;
+            onEvent({ type: 'step-end', text, hasToolCalls: true });
+            text = '';
+            onEvent({ type: 'tool-call', callId, name, args });
+            try {
+              const result = await session.onToolCall({ name, args, callId, signal });
+              onEvent({ type: 'tool-result', callId, isError: false, result });
+              return result;
+            } catch (error) {
+              onEvent({
+                type: 'tool-result',
+                callId,
+                isError: true,
+                result: String(error.message),
+              });
+              throw error;
+            }
+          },
+        });
+        for await (const step of steps) {
+          if (signal.aborted) return { stopReason: 'cancelled' };
+          if (typeof step === 'string') {
+            text += step;
+            onEvent({ type: 'text-delta', delta: step });
+          } else if ('stop' in step) {
+            onEvent({ type: 'step-end', text, hasToolCalls: false });
+            return { stopReason: step.stop, error: step.error };
+          }
+        }
+        onEvent({ type: 'step-end', text, hasToolCalls: false });
+        return { stopReason: signal.aborted ? 'cancelled' : 'completed' };
+      } finally {
+        session.controller = null;
+      }
+    },
+
+    async interrupt(sessionId) {
+      sessions.get(sessionId)?.controller?.abort();
+    },
+    async setInstructions(sessionId, instructions) {
+      const session = sessions.get(sessionId);
+      if (session) session.instructions = instructions;
+    },
+    async release() {},
+    async close() {},
+  };
+}

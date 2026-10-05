@@ -10,6 +10,7 @@ import { createMessages } from './messages.js';
 import { createParticipants } from './participants.js';
 import { dataPaths } from './paths.js';
 import { createProjects } from './projects.js';
+import { createTurns } from './turns.js';
 import { agent, log, minutes, notes, plans } from './workspace/resources/documents.js';
 import { map } from './workspace/resources/map.js';
 import { settings } from './workspace/resources/settings.js';
@@ -34,6 +35,7 @@ export async function createCore({ dataRoot, now = nowIso, newId = defaultNewId 
   const participants = createParticipants({ db, events, workspace, now, newId });
   const meetings = createMeetings({ db, events, now, newId });
   const messages = createMessages({ db, events, meetings, now, newId });
+  const turns = createTurns({ db, events, meetings, now, newId });
 
   await ensureDefaultParticipants({ db, participants });
 
@@ -45,6 +47,7 @@ export async function createCore({ dataRoot, now = nowIso, newId = defaultNewId 
     participants,
     meetings,
     messages,
+    turns,
     close: () => db.close(),
   };
 }

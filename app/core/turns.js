@@ -1,0 +1,203 @@
+// Turns (one AI speaking once), their tool calls, and each AI's runtime
+// session pointer per meeting (its working memory and how far it has read).
+import { AppError } from './errors.js';
+
+/** @typedef {'running' | 'done' | 'max_tokens' | 'cancelled' | 'failed'} TurnStatus */
+
+const nullable = (value) => (value == null ? null : String(value));
+
+function toTurn(row) {
+  return {
+    id: String(row.id),
+    meetingId: String(row.meeting_id),
+    participantId: String(row.participant_id),
+    triggerMessageId: nullable(row.trigger_message_id),
+    status: /** @type {TurnStatus} */ (String(row.status)),
+    stopReason: nullable(row.stop_reason),
+    usage: row.usage_json == null ? null : JSON.parse(String(row.usage_json)),
+    startedAt: String(row.started_at),
+    endedAt: nullable(row.ended_at),
+  };
+}
+
+function toToolCall(row) {
+  return {
+    id: String(row.id),
+    turnId: String(row.turn_id),
+    seq: Number(row.seq),
+    callId: nullable(row.call_id),
+    name: String(row.name),
+    args: JSON.parse(String(row.args_json)),
+    result: row.result_json == null ? null : JSON.parse(String(row.result_json)),
+    status: String(row.status),
+    preamble: String(row.preamble),
+    startedAt: String(row.started_at),
+    endedAt: nullable(row.ended_at),
+  };
+}
+
+/**
+ * @param {{ db: import('./db/database.js').Db, events: any, meetings: any,
+ *   now: () => string, newId: (prefix: string) => string }} deps
+ */
+export function createTurns({ db, events, meetings, now, newId }) {
+  function scope(meetingId, actorId) {
+    return { projectId: meetings.get(meetingId).projectId, meetingId, actorId };
+  }
+
+  /** @param {string} id */
+  function get(id) {
+    const row = db.prepare('SELECT * FROM turns WHERE id = ?').get(id);
+    if (!row) throw new AppError('TURN_NOT_FOUND', '找不到这次发言。', 404);
+    return toTurn(row);
+  }
+
+  /**
+   * @param {{ meetingId: string, participantId: string, triggerMessageId?: string | null }} input
+   */
+  function start({ meetingId, participantId, triggerMessageId = null }) {
+    const id = newId('turn');
+    return db.transaction(() => {
+      db.prepare(
+        `INSERT INTO turns (id, meeting_id, participant_id, trigger_message_id, status, started_at)
+         VALUES (?, ?, ?, ?, 'running', ?)`,
+      ).run(id, meetingId, participantId, triggerMessageId, now());
+      const turn = get(id);
+      events.record('turn.started', turn, scope(meetingId, participantId));
+      return turn;
+    });
+  }
+
+  /**
+   * @param {string} id
+   * @param {{ status: TurnStatus, stopReason?: string | null, usage?: any }} result
+   */
+  function end(id, { status, stopReason = null, usage = null }) {
+    const turn = get(id);
+    return db.transaction(() => {
+      db.prepare(
+        'UPDATE turns SET status = ?, stop_reason = ?, usage_json = ?, ended_at = ? WHERE id = ?',
+      ).run(status, stopReason, usage == null ? null : JSON.stringify(usage), now(), id);
+      const ended = get(id);
+      events.record('turn.ended', ended, scope(turn.meetingId, turn.participantId));
+      return ended;
+    });
+  }
+
+  /** Turns still marked running, e.g. after the program was closed mid-turn. */
+  function running() {
+    return db.prepare("SELECT * FROM turns WHERE status = 'running'").all().map(toTurn);
+  }
+
+  /**
+   * @param {{ turnId: string, callId: string, name: string, args: any, preamble?: string }} input
+   */
+  function startToolCall({ turnId, callId, name, args, preamble = '' }) {
+    const turn = get(turnId);
+    const id = newId('tool');
+    return db.transaction(() => {
+      const last = db
+        .prepare('SELECT MAX(seq) AS seq FROM tool_calls WHERE turn_id = ?')
+        .get(turnId);
+      db.prepare(
+        `INSERT INTO tool_calls (id, turn_id, seq, call_id, name, args_json, status, preamble, started_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'running', ?, ?)`,
+      ).run(
+        id,
+        turnId,
+        Number(last?.seq ?? 0) + 1,
+        callId,
+        name,
+        JSON.stringify(args ?? null),
+        preamble,
+        now(),
+      );
+      const call = toToolCall(db.prepare('SELECT * FROM tool_calls WHERE id = ?').get(id));
+      events.record('tool.started', call, scope(turn.meetingId, turn.participantId));
+      return call;
+    });
+  }
+
+  /**
+   * @param {string} turnId
+   * @param {string} callId
+   * @param {{ result: any, isError: boolean }} outcome
+   */
+  function endToolCall(turnId, callId, { result, isError }) {
+    const turn = get(turnId);
+    const row = db
+      .prepare('SELECT * FROM tool_calls WHERE turn_id = ? AND call_id = ?')
+      .get(turnId, callId);
+    if (!row) return null;
+    return db.transaction(() => {
+      db.prepare(
+        'UPDATE tool_calls SET result_json = ?, status = ?, ended_at = ? WHERE id = ?',
+      ).run(JSON.stringify(result ?? null), isError ? 'failed' : 'done', now(), row.id);
+      const call = toToolCall(db.prepare('SELECT * FROM tool_calls WHERE id = ?').get(row.id));
+      events.record('tool.ended', call, scope(turn.meetingId, turn.participantId));
+      return call;
+    });
+  }
+
+  /** @param {string} turnId */
+  function toolCalls(turnId) {
+    return db
+      .prepare('SELECT * FROM tool_calls WHERE turn_id = ? ORDER BY seq')
+      .all(turnId)
+      .map(toToolCall);
+  }
+
+  /**
+   * The runtime session holding an AI's working memory in a meeting.
+   * @param {string} meetingId
+   * @param {string} participantId
+   * @returns {{ runtime: string, sessionId: string, lastSeq: number } | null}
+   */
+  function session(meetingId, participantId) {
+    const row = db
+      .prepare('SELECT * FROM runtime_sessions WHERE meeting_id = ? AND participant_id = ?')
+      .get(meetingId, participantId);
+    if (!row) return null;
+    return {
+      runtime: String(row.runtime),
+      sessionId: String(row.session_id),
+      lastSeq: Number(row.last_seq),
+    };
+  }
+
+  /**
+   * @param {string} meetingId
+   * @param {string} participantId
+   * @param {{ runtime: string, sessionId: string, lastSeq: number }} value
+   */
+  function saveSession(meetingId, participantId, { runtime, sessionId, lastSeq }) {
+    db.prepare(
+      `INSERT INTO runtime_sessions (meeting_id, participant_id, runtime, session_id, last_seq)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT (meeting_id, participant_id)
+       DO UPDATE SET runtime = excluded.runtime, session_id = excluded.session_id,
+         last_seq = excluded.last_seq`,
+    ).run(meetingId, participantId, runtime, sessionId, lastSeq);
+  }
+
+  /** Forget a session so the next turn rebuilds working memory from the record. */
+  function dropSession(meetingId, participantId) {
+    db.prepare('DELETE FROM runtime_sessions WHERE meeting_id = ? AND participant_id = ?').run(
+      meetingId,
+      participantId,
+    );
+  }
+
+  return {
+    get,
+    start,
+    end,
+    running,
+    startToolCall,
+    endToolCall,
+    toolCalls,
+    session,
+    saveSession,
+    dropSession,
+  };
+}

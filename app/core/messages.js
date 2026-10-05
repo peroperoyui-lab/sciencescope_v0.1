@@ -131,6 +131,17 @@ export function createMessages({ db, events, meetings, now, newId }) {
   }
 
   /**
+   * Replace the streamed text shown so far (not stored): used when a failed
+   * attempt is dropped or text before a tool call moves into the tool card.
+   * @param {string} id
+   * @param {string} text
+   */
+  function streamReplace(id, text) {
+    const message = get(id);
+    events.transient('message.replace', { id, text }, scopeOf(message, message.authorId));
+  }
+
+  /**
    * A page of messages by sequence number.
    * @param {string} meetingId
    * @param {{ before?: number, after?: number, limit?: number }} [page]
@@ -180,5 +191,5 @@ export function createMessages({ db, events, meetings, now, newId }) {
       .map(toMessage);
   }
 
-  return { get, post, update, streamDelta, list, since };
+  return { get, post, update, streamDelta, streamReplace, list, since };
 }
