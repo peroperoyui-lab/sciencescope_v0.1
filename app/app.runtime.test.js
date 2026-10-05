@@ -13,6 +13,8 @@ const textOf = (content) =>
 
 function startFixtureModel() {
   const server = createServer(async (req, res) => {
+    assert.equal(req.headers['x-test-session'], 'r2-session');
+    assert.equal(req.headers.authorization, 'Bearer fixture');
     let body = '';
     for await (const chunk of req) body += chunk;
     const { messages } = JSON.parse(body);
@@ -70,7 +72,6 @@ test('a person posts, the main expert answers through DSH and edits the plan', a
   const app = await createApp({
     dataRoot: dir,
     token: TOKEN,
-    extraEnv: { SCIENCESCOPE_FIXTURE_KEY: 'fixture' },
   });
   const url = await app.listen();
   const call = async (method, route, body) => {
@@ -82,6 +83,7 @@ test('a person posts, the main expert answers through DSH and edits the plan', a
     return response.json();
   };
   try {
+    await call('POST', '/api/providers/keys/SCIENCESCOPE_FIXTURE_KEY', { key: 'fixture' });
     await call('PATCH', '/api/settings', {
       providers: [
         {
@@ -89,6 +91,7 @@ test('a person posts, the main expert answers through DSH and edits the plan', a
           baseUrl: `http://127.0.0.1:${fixture.port}/v1`,
           api: 'openai-completions',
           keyRef: 'SCIENCESCOPE_FIXTURE_KEY',
+          headers: { 'x-test-session': 'r2-session' },
           models: [{ id: 'fixture', contextWindow: 32768, maxTokens: 1024 }],
         },
       ],

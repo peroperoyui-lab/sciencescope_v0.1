@@ -1,5 +1,33 @@
 # Desktop implementation — first increment
 
+## 2026-10-05 R2 Windows acceptance (Codex)
+
+- Baseline `2afa40f`, branch `codex/r2-windows-20261005`, H-drive workspace.
+  `npm install` succeeded (0 vulnerabilities); final `npm run check` passed
+  format/lint/types and 35/35 tests, including both real DSH fixture tests.
+- OpenCode Go returned HTTP 400 without `x-opencode-session`: provider settings
+  now forward optional `headers` through the existing DSH provider config.
+  The end-to-end test stores its key through the credential API and checks
+  authorization and a custom session header at the local model endpoint.
+- The interruption test hung because its 20 ms sleep preceded session startup
+  on Windows. It now waits for the generator to install its abort listener;
+  the related six tests and full suite pass. Initial failure log is preserved.
+- `node app/main.js --data <Chinese data root>` plus credential/settings,
+  project/meeting/message APIs ran `deepseek-v4.1-flash`: the actual plans file
+  contains 清洗数据 and its revision has `actorId=agent_main`. A counting gateway
+  forwards DSH's credential/header through the local network proxy without
+  recording secrets. Six paid requests: four HTTP 200, two HTTP 400 (initial
+  missing configuration; then a missing header in the validation gateway).
+  Reported usage totals 65,374 tokens; neither 400 reported usage.
+- Windows `file:///<工作区>/.../plugin.js`, Chinese cwd/data/temp and real console
+  Ctrl+C passed on Node 24.21.0: app exit 0, captured app/DSH processes gone,
+  WAL/SHM removed. Idle release passed with a temporary 2-second runner setting
+  and a real DSH/local model; production default remains 600,000 ms. Ten actual
+  minutes were not timed. Validation assertions were corrected for revision
+  metadata and reused PIDs; paid model results were retained without rerunning.
+- Evidence: `.sciencescope-local/temp/r2-windows-validation/summary.json`,
+  preserved failed runs and final check log. No frozen old-code/UI edits.
+
 ## 2026-10-05 Rebuild R2 (Claude, cloud)
 
 - Merged Sol's R1 Windows fixes (`1a1f402`: rename retry, locked-file tests).

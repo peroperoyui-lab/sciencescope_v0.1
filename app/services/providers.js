@@ -10,7 +10,7 @@ import YAML from 'yaml';
 /**
  * @typedef {{ id: string, name?: string, baseUrl: string,
  *   api: 'openai-completions' | 'openai-responses' | 'anthropic-messages',
- *   keyRef: string,
+ *   keyRef: string, headers?: Record<string, string>,
  *   models: Array<{ id: string, name?: string, contextWindow?: number, maxTokens?: number }> }} Provider
  */
 
@@ -50,6 +50,7 @@ export function runtimeProviderConfig(providers) {
       api: provider.api,
       baseURL: provider.baseUrl,
       apiKeyEnv: provider.keyRef,
+      ...(provider.headers ? { headers: { ...provider.headers } } : {}),
       models: provider.models.map((model) => ({
         id: model.id,
         ...(model.name ? { name: model.name } : {}),

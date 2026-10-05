@@ -152,20 +152,26 @@ test('an answer cut by the output limit keeps its text and says so', () =>
     },
   ));
 
-test('interrupting stops the answer and keeps what was written', () =>
-  withMeeting(
+test('interrupting stops the answer and keeps what was written', async () => {
+  let started;
+  const answering = new Promise((resolve) => (started = resolve));
+  await withMeeting(
     async function* ({ signal }) {
       yield '开始';
-      await new Promise((resolve) => signal.addEventListener('abort', resolve, { once: true }));
+      await new Promise((resolve) => {
+        signal.addEventListener('abort', resolve, { once: true });
+        started();
+      });
       yield '不应出现';
     },
     async ({ core, meeting, conductor }) => {
       core.messages.post({ meetingId: meeting.id, authorId: LOCAL_USER_ID, text: '写吧' });
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await answering;
       await conductor.interrupt(meeting.id);
       await conductor.idle();
       const answer = core.messages.list(meeting.id).messages.at(-1);
       assert.equal(answer.status, 'cancelled');
       assert.equal(answer.text, '开始');
     },
-  ));
+  );
+});
