@@ -6,6 +6,7 @@ import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
+import { navigate } from '../route.js';
 
 function useModelMenu() {
   const actions = useActions();
@@ -23,23 +24,26 @@ function useModelMenu() {
       `${current.provider} · ${current.model}`)
     : t('未连接模型');
   const open = (event) => {
-    if (!choices.length) {
-      event.preventDefault();
-      actions.toast(t('还没有配置模型服务。'));
-      return;
-    }
     actions.openMenu(
       event,
-      choices.map((choice) => ({
-        text: choice.text,
-        check: current?.provider === choice.provider && current?.model === choice.model,
-        run: () =>
-          actions.attempt(() =>
-            actions.updateSettings({
-              models: { default: { provider: choice.provider, model: choice.model } },
-            }),
-          ),
-      })),
+      [
+        ...choices.map((choice) => ({
+          text: choice.text,
+          check: current?.provider === choice.provider && current?.model === choice.model,
+          run: () =>
+            actions.attempt(() =>
+              actions.updateSettings({
+                models: { default: { provider: choice.provider, model: choice.model } },
+              }),
+            ),
+        })),
+        ...(choices.length ? [{ sep: true }] : []),
+        {
+          text: t('管理模型与 API'),
+          icon: 'gear',
+          run: () => navigate({ view: 'settings', id: 'models' }),
+        },
+      ],
       t('模型'),
     );
   };

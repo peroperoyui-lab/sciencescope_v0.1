@@ -296,6 +296,14 @@ export function Sidebar({ route, currentProjectId }) {
       >
         ${userName}
       </button>
+      <button
+        class="iconbtn"
+        title=${t('设置')}
+        aria-label=${t('设置')}
+        onClick=${() => navigate({ view: 'settings', id: 'general' })}
+      >
+        <${Icon} name="gear" />
+      </button>
     </div>
   </aside>`;
 }

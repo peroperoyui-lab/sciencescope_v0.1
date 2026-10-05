@@ -9,10 +9,20 @@ export const DEFAULT_SETTINGS = {
   profile: { name: '', bio: '' },
   appearance: {
     language: 'zh',
-    theme: 'system',
-    density: 'comfortable',
+    theme: 'light',
+    density: 'standard',
     font: '',
+    codeFontSize: 14,
+    chatFontSize: 16,
+    reduceMotion: false,
     scrollbars: false,
+  },
+  // Window shortcuts, recorded in Settings → 快捷键.
+  shortcuts: {
+    search: 'Ctrl+K',
+    browse: 'Ctrl+Shift+K',
+    newChat: 'Ctrl+N',
+    independentChat: 'Ctrl+Alt+N',
   },
   composer: { sendKey: 'enter' },
   // Academic sites on the welcome page.

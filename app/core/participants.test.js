@@ -8,7 +8,19 @@ import { LOCAL_USER_ID } from './defaults.js';
 test('first start creates the local user and the default AIs as editable files', () =>
   withCore('participants', async (core) => {
     const ids = core.participants.list().map((participant) => participant.id);
-    assert.deepEqual(ids, [LOCAL_USER_ID, 'agent_main', 'agent_secretary', 'agent_assistant']);
+    assert.deepEqual(ids, [
+      LOCAL_USER_ID,
+      'agent_main',
+      'agent_secretary',
+      'agent_assistant',
+      'agent_methodologist',
+      'agent_statistician',
+      'agent_red_team',
+      'agent_reviewer',
+    ]);
+    const reviewer = await core.participants.get('agent_reviewer');
+    assert.equal(reviewer.definition.panel, 'reviewer');
+    assert.equal(reviewer.definition.enabled, false);
 
     const secretary = await core.participants.get('agent_secretary');
     assert.equal(secretary.name, '任务秘书');

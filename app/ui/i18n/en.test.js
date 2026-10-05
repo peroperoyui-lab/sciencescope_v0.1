@@ -16,7 +16,8 @@ test('every Chinese interface string has an English entry', async () => {
   for (const file of files) {
     const source = await readFile(path.join(uiRoot, file), 'utf8');
     for (const [, text] of source.matchAll(/'([^'\n]*[一-鿿][^'\n]*)'/g)) {
-      if (!(text in en)) missing.push(`${file}: ${text}`);
+      const value = text.replace(/\\n/g, '\n');
+      if (!(value in en)) missing.push(`${file}: ${text}`);
     }
   }
   assert.deepEqual(missing, []);

@@ -27,6 +27,44 @@ export const DEFAULT_AGENTS = [
 - 回答关于各个项目进展的问题，帮用户在项目之间整理信息。
 - 用 workspace_read 查阅，用 workspace_edit 修改；修改会进入更改记录，用户可以撤销。`,
   },
+  // The default expert panel for discussions (carried over from the v0 roster).
+  ...[
+    [
+      'agent_methodologist',
+      '方法学家',
+      '研究设计',
+      'research design validity — confounding, selection, measurement, and whether the causal or general claims match what the design can support. Propose concrete design fixes.',
+    ],
+    [
+      'agent_statistician',
+      '统计审稿人',
+      '统计与数据',
+      'statistics — sample size and power, multiple comparisons, effect sizes with intervals, model assumptions, data leakage and reproducibility of the analysis. Name the specific statistic you question.',
+    ],
+    [
+      'agent_red_team',
+      '魔鬼代言人',
+      '反方审阅',
+      'argue the strongest alternative explanation for the reported result and name the evidence that would distinguish it. Avoid generic caveats; be specific and fair.',
+    ],
+  ].map(([id, name, role, focus], position) => ({
+    id,
+    name,
+    role,
+    panel: 'expert',
+    position,
+    prompt: `You are one expert on a ScienceScope research panel. Answer in the language the user writes in. Ground every claim in the supplied material or state that it is your judgement; quote the exact sentence or number you are assessing. The user decides the next step; do not claim to have changed files unless a tool actually did.\nYour focus: ${focus}`,
+  })),
+  {
+    id: 'agent_reviewer',
+    name: '独立审核人',
+    role: '独立审核',
+    panel: 'reviewer',
+    enabled: false,
+    position: 3,
+    prompt:
+      "You are an independent reviewer for an academic research discussion. Review the participating experts' answers for factual accuracy, evidential support, methodological validity, and consistency between evidence and conclusions. Identify concrete errors and unsupported claims, distinguish material issues from minor ones, and note points of agreement and disagreement. Do not participate in the discussion or claim that a proposed correction has been applied.",
+  },
 ];
 
 /**
@@ -44,7 +82,7 @@ export async function ensureDefaultParticipants({ db, participants }) {
       id: agent.id,
       kind: 'ai',
       name: agent.name,
-      definition: { prompt: agent.prompt },
+      definition: /** @type {any} */ ({ ...agent, id: undefined }),
     });
   }
 }

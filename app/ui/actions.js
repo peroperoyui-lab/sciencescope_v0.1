@@ -1,20 +1,12 @@
 // What the user can do: each action calls the host and records the result in
 // the store. Later changes arrive through the event stream anyway; recording
 // the direct result keeps the interface responsive.
-import { setLanguage } from './i18n/index.js';
+import { applyAppearance } from './appearance.js';
 import { navigate } from './route.js';
 import { applyEvent } from './state.js';
 
 export const LOCAL_USER_ID = 'person_user';
 
-/** Language and the scrollbar preference, which the legacy styles read from <html>. */
-function applyAppearance(settings) {
-  setLanguage(settings.appearance?.language);
-  document.documentElement.toggleAttribute(
-    'data-show-scrollbars',
-    Boolean(settings.appearance?.scrollbars),
-  );
-}
 export const MAIN_EXPERT_ID = 'agent_main';
 
 /**
@@ -178,6 +170,23 @@ export function createActions(api, store) {
   const projectFiles = (projectId, folder = '') =>
     api.get(`/api/projects/${projectId}/files?path=${encodeURIComponent(folder)}`);
 
+  const systemInfo = () => api.get('/api/system');
+  /** @param {string} folder A name from systemInfo().folders, or `project:<id>`. @param {string} [path] */
+  const openFolder = (folder, path) => api.post('/api/system/open', { folder, path });
+  const keyRefs = async () => (await api.get('/api/providers/keys')).refs;
+  /** @param {string} keyRef @param {string} key */
+  const saveKey = (keyRef, key) =>
+    api.post(`/api/providers/keys/${encodeURIComponent(keyRef)}`, { key });
+  const discoverModels = async (provider) =>
+    (await api.post('/api/providers/discover', provider)).models;
+  /** A participant with its definition (AIs). @param {string} id */
+  const getParticipant = (id) => api.get(`/api/participants/${id}`);
+  /** @param {string} id @param {Record<string, any>} definition */
+  const updateParticipant = (id, definition) =>
+    api.patch(`/api/participants/${id}`, { definition });
+  /** @param {{ kind: 'ai' | 'human', name: string, definition?: any }} input */
+  const createParticipant = (input) => api.post('/api/participants', input);
+
   const setOverlay = (patch) =>
     store.update((state) => ({ ...state, overlay: { ...state.overlay, ...patch } }));
   let toastTimer;
@@ -244,6 +253,14 @@ export function createActions(api, store) {
     undo,
     search,
     projectFiles,
+    systemInfo,
+    openFolder,
+    keyRefs,
+    saveKey,
+    discoverModels,
+    getParticipant,
+    updateParticipant,
+    createParticipant,
     openMenu,
     closeMenu: () => setOverlay({ menu: null }),
     openModal,

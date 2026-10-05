@@ -1,24 +1,10 @@
-// The interface in a real browser against the real host with a scripted AI:
-// a person creates a project, starts a meeting, asks a question, watches the
-// answer stream in with its tool card, then finds the AI's plan on the
-// workbench and undoes it. Skipped where no Chromium is installed.
-//
-// Set SCIENCESCOPE_SCREENSHOTS=<folder> to save screenshots of each view.
+// The meeting path in a real browser against the real host with a scripted
+// AI: a person creates a project, starts a meeting, asks a question, watches
+// the answer stream in with its tool card, searches, then finds the AI's plan
+// on the workbench and undoes it.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
-import { mkdir } from 'node:fs/promises';
-import path from 'node:path';
-import { createApp } from '../app.js';
-import { createScriptedRuntime } from '../runtime/scripted.js';
-import { tempDir } from '../testing.js';
-
-const CHROMIUM = [
-  process.env.SCIENCESCOPE_CHROMIUM,
-  '/opt/pw-browsers/chromium',
-  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-].find((candidate) => candidate && existsSync(candidate));
-const SCREENSHOTS = process.env.SCIENCESCOPE_SCREENSHOTS;
+import { browserSkip, withBrowserApp } from './browser-testing.js';
 
 const pause = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -39,26 +25,9 @@ async function* script({ instructions, call }) {
 
 test(
   'a person meets the main expert in the interface and undoes its plan edit',
-  {
-    skip: CHROMIUM ? false : 'no Chromium found',
-  },
-  async () => {
-    const { chromium } = await import('playwright-core');
-    const { dir, cleanup } = await tempDir('ui');
-    const app = await createApp({
-      dataRoot: dir,
-      token: 'ui-token',
-      runtime: createScriptedRuntime({ script }),
-      runtimeName: 'scripted',
-    });
-    const url = await app.listen();
-    const browser = await chromium.launch({ executablePath: CHROMIUM });
-    const shot = async (page, name) => {
-      if (!SCREENSHOTS) return;
-      await mkdir(SCREENSHOTS, { recursive: true });
-      await page.screenshot({ path: path.join(SCREENSHOTS, `${name}.png`) });
-    };
-    try {
+  { skip: browserSkip },
+  () =>
+    withBrowserApp('ui-meeting', script, async ({ page, app, shot }) => {
       await app.core.workspace.edit(
         {
           resource: 'settings',
@@ -68,12 +37,8 @@ test(
         },
         {},
       );
-      const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-      const errors = [];
-      page.on('pageerror', (error) => errors.push(error.message));
-      await page.goto(`${url}/?token=ui-token`);
       await page.getByText('今天想研究什么？').waitFor();
-      await shot(page, 'home');
+      await shot('home');
 
       await page.locator('.navsection').getByRole('button', { name: '新建项目' }).click();
       await page.locator('#modal input').fill('城市就业韧性');
@@ -93,7 +58,7 @@ test(
       );
       assert.equal(await answer.locator('.message-text strong').textContent(), '清洗面板数据');
       assert.equal(await page.locator('.tree-row.child.active').count(), 1);
-      await shot(page, 'meeting');
+      await shot('meeting');
 
       await page.keyboard.press('Control+K');
       await page.getByPlaceholder('搜索项目、对话或消息…').fill('面板');
@@ -102,7 +67,7 @@ test(
 
       await page.locator('.sidebar').getByRole('button', { name: '工作站' }).click();
       await page.locator('.plancard', { hasText: '清洗面板数据' }).waitFor();
-      await shot(page, 'workbench');
+      await shot('workbench');
       await page.locator('.wb-left').getByRole('button', { name: '撤销' }).first().click();
       await page.locator('.wb-left').getByText('已撤销').waitFor();
       assert.equal(await page.locator('.plancard', { hasText: '清洗面板数据' }).count(), 0);
@@ -110,12 +75,6 @@ test(
       await page.getByRole('button', { name: '视图' }).click();
       await page.getByRole('menuitemcheckbox', { name: 'English' }).click();
       await page.getByText('No project log entries yet').waitFor();
-      await shot(page, 'workbench-en');
-      assert.deepEqual(errors, []);
-    } finally {
-      await browser.close();
-      await app.close();
-      await cleanup();
-    }
-  },
+      await shot('workbench-en');
+    }),
 );

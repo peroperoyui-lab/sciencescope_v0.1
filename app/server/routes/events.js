@@ -26,6 +26,8 @@ export function registerEventRoutes(router, core) {
       'cache-control': 'no-cache',
       connection: 'keep-alive',
     });
+    // Send the headers now so the browser reports the stream as open.
+    response.write(': connected\n\n');
 
     const send = (event) => {
       if (event.seq != null) {

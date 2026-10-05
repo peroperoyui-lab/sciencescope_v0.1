@@ -1,0 +1,112 @@
+/* Copied from desktop/document-readers.css (old line) as the visual baseline. */
+.file-preview-content {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+.document-reader {
+  min-height: 300px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.reader-controls,
+.reader-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 6px 0;
+}
+.reader-controls:empty {
+  display: none;
+}
+.reader-controls input {
+  width: 64px;
+}
+.reader-surface {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.reader-surface * {
+  user-select: text;
+}
+.reader-surface table {
+  border-collapse: collapse;
+}
+.reader-surface td,
+.reader-surface th {
+  border: 1px solid var(--line);
+  padding: 6px;
+}
+.reader-surface img {
+  max-width: 100%;
+}
+.reader-surface .cm-editor {
+  height: 100%;
+  background: var(--paper);
+  color: var(--ink);
+}
+.reader-surface .cm-gutters {
+  background: var(--sunken);
+  color: var(--muted);
+  border-color: var(--line);
+}
+.reader-pdf {
+  position: relative;
+  padding: 0;
+  min-height: 300px;
+  background: var(--sunken);
+}
+.reader-pdf-scroll {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+}
+.reader-pdf .textLayer {
+  user-select: text;
+}
+.reader-error {
+  color: var(--danger);
+  padding: 4px;
+}
+/* Trusted reader chrome, not CSS supplied by an imported DOCX. The original
+   page stays paper-white in dark mode, just like the PDF's actual page. */
+.reader-surface .docx-wrapper {
+  padding: 16px;
+  background: var(--sunken);
+  width: max-content;
+  min-width: 100%;
+  box-sizing: border-box;
+}
+.reader-surface .docx-wrapper > section.docx {
+  background: #fff;
+  color: #111;
+  box-shadow: 0 2px 8px #0004;
+  position: relative;
+  margin: 0 auto 16px;
+  padding: 24px;
+  box-sizing: border-box;
+}
+.ss-math-block,
+.katex-display {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.rendered-markdown .hljs-keyword,
+.rendered-markdown .hljs-selector-tag {
+  color: var(--accent);
+}
+.rendered-markdown .hljs-comment {
+  color: var(--muted);
+}

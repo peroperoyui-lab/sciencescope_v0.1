@@ -9,6 +9,7 @@ import { registerMeetingRoutes } from './routes/meetings.js';
 import { registerParticipantRoutes } from './routes/participants.js';
 import { registerProjectRoutes } from './routes/projects.js';
 import { registerProviderRoutes } from './routes/providers.js';
+import { registerSystemRoutes } from './routes/system.js';
 import { registerWorkspaceRoutes } from './routes/workspace.js';
 import { serveStatic } from './static.js';
 
@@ -55,6 +56,7 @@ export function createAppServer({ core, token, conductor }) {
   registerProviderRoutes(router, core);
   registerWorkspaceRoutes(router, core);
   registerEventRoutes(router, core);
+  registerSystemRoutes(router, core);
 
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', 'http://localhost');
