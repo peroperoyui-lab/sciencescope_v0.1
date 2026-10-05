@@ -82,7 +82,12 @@ export function createScriptedRuntime({ script }) {
           }
         }
         onEvent({ type: 'step-end', text, hasToolCalls: false });
-        return { stopReason: signal.aborted ? 'cancelled' : 'completed' };
+        // Context pressure as DSH reports it: here simply the characters sent so far.
+        const usedTokens = session.inputs.join('').length + session.instructions.length;
+        return {
+          stopReason: signal.aborted ? 'cancelled' : 'completed',
+          usage: { context: { usedTokens, contextWindow: null, estimated: true } },
+        };
       } finally {
         session.controller = null;
       }

@@ -9,10 +9,11 @@ import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
 import { renderMarkdown } from '../markdown.js';
-import { navigate } from '../route.js';
+import { navigate, routeHref } from '../route.js';
 import { Composer } from './composer.js';
 import { MainHead } from './mainhead.js';
 import { FieldForm } from './overlays.js';
+import { ProjectSummary } from './project-summary.js';
 
 const EMPTY = [];
 
@@ -74,11 +75,69 @@ function MessageActions({ message }) {
     >
       <${Icon} name="branch" /><span>${t('从此分支')}</span>
     </button>
+    <button
+      title=${t('消息菜单')}
+      aria-label=${t('消息菜单')}
+      onClick=${(event) =>
+        actions.openMenu(
+          event,
+          [
+            {
+              text: t('复制消息'),
+              icon: 'copy',
+              run: () => navigator.clipboard?.writeText(message.text),
+            },
+            { text: t('引用到输入框'), icon: 'chat', run: () => actions.quote(message) },
+            {
+              text: t('复制消息位置'),
+              icon: 'link',
+              run: () =>
+                navigator.clipboard?.writeText(
+                  `${location.origin}/${routeHref({ view: 'meeting', id: `${message.meetingId}/${message.id}` })}`,
+                ),
+            },
+          ],
+          t('消息'),
+        )}
+    >
+      <${Icon} name="more" />
+    </button>
   </div>`;
 }
 
-/** @param {{ message: any, author: any, roleNote: string }} props */
-function Message({ message, author, roleNote }) {
+/** What the person can do after an answer that did not finish. @param {{ message: any }} props */
+function OutputStatus({ message }) {
+  const actions = useActions();
+  const note = STATUS_NOTES[message.status];
+  if (!note) return null;
+  return html`<div class="model-output-status">
+    <span>${t(note)}</span>
+    ${
+      message.status === 'max_tokens'
+        ? html`<button
+            class="btn tiny"
+            onClick=${() =>
+              actions.attempt(() =>
+                actions.postMessage(
+                  message.meetingId,
+                  t('请从上次因输出上限停下的地方继续，保留已写的结论和依据，不要重复已写内容。'),
+                ),
+              )}
+          >
+            ${t('继续')}
+          </button>`
+        : html`<button
+            class="btn tiny"
+            onClick=${() => actions.attempt(() => actions.retry(message.id))}
+          >
+            ${t('重试')}
+          </button>`
+    }
+  </div>`;
+}
+
+/** @param {{ message: any, author: any, roleNote: string, target: boolean }} props */
+function Message({ message, author, roleNote, target }) {
   const draft = useAppState((state) => state.drafts[message.id]);
   const calls = useAppState((state) =>
     message.turnId ? (state.toolCalls[message.turnId] ?? EMPTY) : EMPTY,
@@ -94,17 +153,18 @@ function Message({ message, author, roleNote }) {
       : author?.name || message.authorId;
   const created = new Date(message.createdAt);
   const time = html`<time title=${message.createdAt}>${clock(created)}</time>`;
-  const note = STATUS_NOTES[message.status];
-
   if (human) {
-    return html`<article class="message user" data-message-id=${message.id}>
+    return html`<article
+      class=${`message user ${target ? 'msg-target' : ''}`}
+      data-message-id=${message.id}
+    >
       <div class="messagehead">${name} ${time}</div>
       <div class="messagebody"><div class="message-text">${message.text}</div></div>
       <${MessageActions} message=${message} />
     </article>`;
   }
   return html`<article
-    class="message"
+    class=${`message ${target ? 'msg-target' : ''}`}
     data-message-id=${message.id}
     data-streaming=${streaming || undefined}
   >
@@ -118,7 +178,7 @@ function Message({ message, author, roleNote }) {
         class="message-text rendered-markdown"
         dangerouslySetInnerHTML=${{ __html: text ? renderMarkdown(text) : '' }}
       ></div>
-      ${note && html`<div class="model-output-status">${t(note)}</div>`}
+      <${OutputStatus} message=${message} />
     </div>
     ${!streaming && html`<${MessageActions} message=${message} />`}
   </article>`;
@@ -139,8 +199,56 @@ function useStickToBottom(dependency) {
   return { scroller, onScroll };
 }
 
-/** @param {{ meetingId: string }} props */
-export function MeetingView({ meetingId }) {
+/**
+ * 查找当前对话: messages containing the text; Enter / arrows step through them.
+ * @param {{ messages: any[], onTarget: (id: string | null) => void, onClose: () => void }} props
+ */
+function FindBar({ messages, onTarget, onClose }) {
+  const [text, setText] = useState('');
+  const [index, setIndex] = useState(0);
+  const input = useRef(null);
+  const lower = text.trim().toLowerCase();
+  const matches = lower ? messages.filter((m) => m.text.toLowerCase().includes(lower)) : [];
+  const current = matches.length ? Math.min(index, matches.length - 1) : 0;
+  useEffect(() => input.current?.focus(), []);
+  useEffect(() => onTarget(matches[current]?.id ?? null), [lower, current, matches.length]);
+  const step = (by) => matches.length && setIndex((current + by + matches.length) % matches.length);
+  return html`<div class="findbar">
+    <input
+      ref=${input}
+      placeholder=${t('查找当前对话')}
+      aria-label=${t('查找当前对话')}
+      value=${text}
+      onInput=${(event) => {
+        setText(event.currentTarget.value);
+        setIndex(0);
+      }}
+      onKeyDown=${(event) => {
+        if (event.key === 'Escape') onClose();
+        if (event.key === 'Enter' && !event.isComposing) step(event.shiftKey ? -1 : 1);
+      }}
+    />
+    <small>${lower ? (matches.length ? `${current + 1} / ${matches.length}` : '0 / 0') : ''}</small>
+    <button
+      class="iconbtn"
+      title=${t('上一个')}
+      aria-label=${t('上一个')}
+      onClick=${() => step(-1)}
+    >
+      <${Icon} name="up" />
+    </button>
+    <button class="iconbtn" title=${t('下一个')} aria-label=${t('下一个')} onClick=${() => step(1)}>
+      <${Icon} name="down" />
+    </button>
+    <span class="spacer"></span>
+    <button class="iconbtn" title=${t('关闭查找')} aria-label=${t('关闭查找')} onClick=${onClose}>
+      <${Icon} name="close" />
+    </button>
+  </div>`;
+}
+
+/** @param {{ meetingId: string, focusMessageId?: string }} props */
+export function MeetingView({ meetingId, focusMessageId }) {
   const actions = useActions();
   const meeting = useAppState((state) => state.meetings.find((m) => m.id === meetingId));
   const project = useAppState((state) => state.projects.find((p) => p.id === meeting?.projectId));
@@ -151,8 +259,36 @@ export function MeetingView({ meetingId }) {
   const running = useAppState((state) =>
     Object.values(state.running).some((turn) => turn.meetingId === meetingId),
   );
+  const compact = useAppState((state) => state.settings?.appearance?.transcript === 'compact');
   const [loadError, setLoadError] = useState('');
+  const [finding, setFinding] = useState(false);
+  const [summary, setSummary] = useState(false);
+  const [target, setTarget] = useState(focusMessageId ?? null);
   const { scroller, onScroll } = useStickToBottom([messages, drafts]);
+
+  // Ctrl+F opens the find bar for this meeting.
+  useEffect(() => {
+    const onKey = (event) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+        event.preventDefault();
+        setFinding(true);
+      }
+    };
+    const onFind = () => setFinding(true);
+    addEventListener('keydown', onKey);
+    addEventListener('sciencescope:find', onFind);
+    return () => {
+      removeEventListener('keydown', onKey);
+      removeEventListener('sciencescope:find', onFind);
+    };
+  }, []);
+  // Scroll the found (or linked) message into view.
+  useEffect(() => {
+    if (!target) return;
+    scroller.current
+      ?.querySelector(`[data-message-id="${target}"]`)
+      ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [target, messages]);
 
   useEffect(() => {
     setLoadError('');
@@ -189,6 +325,13 @@ export function MeetingView({ meetingId }) {
       run: () =>
         actions.attempt(() => actions.updateMeeting(meeting.id, { pinned: !meeting.pinned })),
     },
+    { sep: true },
+    {
+      text: t('创建新对话'),
+      icon: 'chat',
+      run: () => navigate(project ? { view: 'new', id: project.id } : { view: 'home' }),
+    },
+    { text: t('创建独立新对话'), icon: 'plus', run: () => navigate({ view: 'home' }) },
     ...(project
       ? [
           {
@@ -215,6 +358,26 @@ export function MeetingView({ meetingId }) {
     <${MainHead} crumb=${project?.name ?? t('独立对话')} title=${meeting.title}>
       <button
         class="iconbtn"
+        title=${t('查找当前对话 · Ctrl F')}
+        aria-label=${t('查找当前对话 · Ctrl F')}
+        onClick=${() => setFinding(true)}
+      >
+        <${Icon} name="search" />
+      </button>
+      ${
+        project &&
+        html`<button
+          class="iconbtn"
+          title=${t('项目置顶摘要')}
+          aria-label=${t('项目置顶摘要')}
+          aria-expanded=${summary}
+          onClick=${() => setSummary(!summary)}
+        >
+          <${Icon} name="summary" />
+        </button>`
+      }
+      <button
+        class="iconbtn"
         title=${t('工作区菜单')}
         aria-label=${t('工作区菜单')}
         onClick=${(event) => actions.openMenu(event, menuItems, meeting.title)}
@@ -223,8 +386,19 @@ export function MeetingView({ meetingId }) {
       </button>
     <//>
     <div class="mainbody">
-      <div class="chatlayout">
+      <div class=${`chatlayout ${compact ? 'hide-tools' : ''}`}>
         <div class="chatcol">
+          ${
+            finding &&
+            html`<${FindBar}
+              messages=${messages ?? EMPTY}
+              onTarget=${setTarget}
+              onClose=${() => {
+                setFinding(false);
+                setTarget(null);
+              }}
+            />`
+          }
           <div
             class="messages"
             tabindex="0"
@@ -255,6 +429,7 @@ export function MeetingView({ meetingId }) {
                     (message.authorId === LOCAL_USER_ID ? { kind: 'human' } : null)
                   }
                   roleNote=${roleOf(message.authorId)}
+                  target=${message.id === target}
                 />`;
             })}
           </div>
@@ -267,6 +442,7 @@ export function MeetingView({ meetingId }) {
             </div>
             <${Composer}
               key=${meeting.id}
+              meetingId=${meeting.id}
               running=${running}
               onStop=${() => actions.attempt(() => actions.interrupt(meeting.id))}
               onSend=${(text) => actions.postMessage(meeting.id, text)}
@@ -275,5 +451,6 @@ export function MeetingView({ meetingId }) {
         </div>
       </div>
     </div>
+    ${summary && project && html`<${ProjectSummary} project=${project} onClose=${() => setSummary(false)} />`}
   </main>`;
 }

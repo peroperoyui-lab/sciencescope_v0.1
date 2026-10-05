@@ -101,6 +101,8 @@ test('a DSH session follows instructions, streams, calls our tools and resumes',
     const events = [];
     const first = await runtime.send(sessionId, 'HELLO', (event) => events.push(event));
     assert.equal(first.stopReason, 'completed');
+    // The context ring's measurement: what the next request would carry.
+    assert.ok(first.usage.context.usedTokens > 0);
     const streamed = events
       .filter((event) => event.type === 'text-delta')
       .map((event) => event.delta)

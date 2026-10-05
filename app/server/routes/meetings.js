@@ -12,7 +12,8 @@ function optionalNumber(value) {
  * starts the answers, so this route does not wait for them.
  * @param {import('../router.js').Router} router
  * @param {import('../../core/index.js').Core} core
- * @param {{ interrupt: (meetingId: string) => Promise<void> }} [conductor]
+ * @param {{ interrupt: (meetingId: string) => Promise<void>,
+ *   retry: (messageId: string) => Promise<unknown> }} [conductor]
  */
 export function registerMeetingRoutes(router, core, conductor) {
   router.get('/api/meetings', ({ query }) => {
@@ -59,6 +60,11 @@ export function registerMeetingRoutes(router, core, conductor) {
     turn: core.turns.get(params.id),
     toolCalls: core.turns.toolCalls(params.id),
   }));
+  router.post('/api/messages/:id/retry', ({ params }) => {
+    // The new answer arrives through the event stream.
+    conductor?.retry(params.id).catch(() => {});
+    return { retrying: true };
+  });
   router.patch('/api/messages/:id', ({ params, body }) =>
     core.messages.update(params.id, { adopted: body.adopted }),
   );

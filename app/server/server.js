@@ -45,7 +45,8 @@ function tokenMatches(given, expected) {
 
 /**
  * @param {{ core: import('../core/index.js').Core, token: string,
- *   conductor?: { interrupt: (meetingId: string) => Promise<void> } }} options
+ *   conductor?: { interrupt: (meetingId: string) => Promise<void>,
+ *     retry: (messageId: string) => Promise<unknown> } }} options
  *   Without a conductor (core-only tests) posting a message triggers no answers.
  */
 export function createAppServer({ core, token, conductor }) {

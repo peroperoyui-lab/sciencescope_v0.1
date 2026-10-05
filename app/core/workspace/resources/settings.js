@@ -16,6 +16,8 @@ export const DEFAULT_SETTINGS = {
     chatFontSize: 16,
     reduceMotion: false,
     scrollbars: false,
+    // 'compact' hides tool activity cards in meetings (视图 → 简洁执行记录).
+    transcript: 'full',
   },
   // Window shortcuts, recorded in Settings → 快捷键.
   shortcuts: {

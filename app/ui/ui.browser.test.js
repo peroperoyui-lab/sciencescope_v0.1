@@ -33,7 +33,21 @@ test(
           resource: 'settings',
           key: 'app',
           op: 'patch',
-          args: { changes: { models: { default: { provider: 'scripted', model: 'scripted' } } } },
+          args: {
+            changes: {
+              providers: [
+                {
+                  id: 'scripted',
+                  name: 'Scripted',
+                  api: 'openai-completions',
+                  baseUrl: 'http://127.0.0.1:9/v1',
+                  keyRef: 'SCIENCESCOPE_SCRIPTED_KEY',
+                  models: [{ id: 'scripted', contextWindow: 100000 }],
+                },
+              ],
+              models: { default: { provider: 'scripted', model: 'scripted' } },
+            },
+          },
         },
         {},
       );
@@ -59,6 +73,25 @@ test(
       assert.equal(await answer.locator('.message-text strong').textContent(), '清洗面板数据');
       assert.equal(await page.locator('.tree-row.child.active').count(), 1);
       await shot('meeting');
+
+      await page.locator('.usage-ring[data-context-known="true"]').waitFor();
+      await page
+        .locator('.mainhead')
+        .getByRole('button', { name: '查找当前对话 · Ctrl F' })
+        .click();
+      await page.getByPlaceholder('查找当前对话').fill('清洗');
+      await page.locator('.message.msg-target', { hasText: '清洗面板数据' }).waitFor();
+      await page.keyboard.press('Escape');
+      await answer.getByRole('button', { name: '消息菜单' }).click();
+      await page.getByRole('menuitem', { name: '引用到输入框' }).click();
+      await page.waitForFunction(() =>
+        /** @type {HTMLTextAreaElement} */ (
+          document.querySelector('.composer textarea')
+        )?.value.startsWith('> 已记下'),
+      );
+      await page.locator('.mainhead').getByRole('button', { name: '项目置顶摘要' }).click();
+      await page.locator('.project-flyout .flyfile', { hasText: '计划' }).first().waitFor();
+      await page.getByRole('button', { name: '关闭项目摘要' }).click();
 
       await page.keyboard.press('Control+K');
       await page.getByPlaceholder('搜索项目、对话或消息…').fill('面板');

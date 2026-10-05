@@ -14,25 +14,6 @@ function nativeWindow() {
   return globalThis.__TAURI__?.window?.getCurrentWindow?.() ?? null;
 }
 
-function ShortcutList() {
-  const rows = [
-    ['Ctrl N', t('新对话')],
-    ['Ctrl K', t('搜索与命令')],
-    ['Ctrl Shift K', t('浏览全部对话')],
-    ['Enter', t('发送')],
-    ['Shift Enter', t('换行')],
-    ['Esc', t('关闭菜单或对话框')],
-  ];
-  return html`<div>
-    ${rows.map(
-      ([key, text]) =>
-        html`<div class="listrow" key=${key}>
-          <span class="grow">${text}</span><kbd>${key}</kbd>
-        </div>`,
-    )}
-  </div>`;
-}
-
 function About() {
   return html`<div>
     <p>ScienceScope · ${t('本地学术研究助手')}</p>
@@ -48,7 +29,18 @@ export function Topbar({ projectName, projectId }) {
   const language = currentLanguage();
   const groups = [
     [
-      { text: t('新聊天'), icon: 'chat', key: 'Ctrl N', run: () => navigate({ view: 'home' }) },
+      {
+        text: t('新聊天'),
+        icon: 'chat',
+        key: settings?.shortcuts?.newChat,
+        run: () => navigate(projectId ? { view: 'new', id: projectId } : { view: 'home' }),
+      },
+      {
+        text: t('独立快速聊天'),
+        icon: 'chat',
+        key: settings?.shortcuts?.independentChat,
+        run: () => navigate({ view: 'home' }),
+      },
       {
         text: t('新建项目'),
         icon: 'folder',
@@ -66,12 +58,32 @@ export function Topbar({ projectName, projectId }) {
           ),
       },
     ],
-    [{ text: t('搜索与命令'), icon: 'search', key: 'Ctrl K', run: actions.openPalette }],
+    [
+      {
+        text: t('查找当前对话'),
+        icon: 'search',
+        key: 'Ctrl+F',
+        run: () => dispatchEvent(new Event('sciencescope:find')),
+      },
+      {
+        text: t('搜索与命令'),
+        icon: 'search',
+        key: settings?.shortcuts?.search,
+        run: actions.openPalette,
+      },
+      { sep: true },
+      {
+        text: t('复制选中文字'),
+        icon: 'copy',
+        key: 'Ctrl+C',
+        run: () => navigator.clipboard?.writeText(String(getSelection() ?? '')),
+      },
+    ],
     [
       {
         text: t('浏览全部对话'),
         icon: 'chat',
-        key: 'Ctrl Shift K',
+        key: settings?.shortcuts?.browse,
         run: () => navigate({ view: 'all' }),
       },
       ...(projectId
@@ -92,6 +104,16 @@ export function Topbar({ projectName, projectId }) {
             appearance: { scrollbars: !settings?.appearance?.scrollbars },
           }),
       },
+      {
+        text: t('简洁执行记录'),
+        check: settings?.appearance?.transcript === 'compact',
+        run: () =>
+          actions.updateSettings({
+            appearance: {
+              transcript: settings?.appearance?.transcript === 'compact' ? 'full' : 'compact',
+            },
+          }),
+      },
       { sep: true },
       {
         text: '中文',
@@ -108,7 +130,7 @@ export function Topbar({ projectName, projectId }) {
       {
         text: t('键盘快捷键'),
         icon: 'gear',
-        run: () => actions.openModal(t('键盘快捷键'), html`<${ShortcutList} />`),
+        run: () => navigate({ view: 'settings', id: 'shortcuts' }),
       },
       {
         text: t('关于 ScienceScope'),

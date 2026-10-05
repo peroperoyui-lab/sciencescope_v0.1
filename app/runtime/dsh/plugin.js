@@ -156,6 +156,27 @@ export function apply(ctx) {
     }
   };
 
+  // What the next request would carry against the model's window (the same
+  // measurement the v0 adapter used); shown as the input box's context ring.
+  const measureContext = () => {
+    const session = handle?.agent?.session;
+    if (!session) return null;
+    const pressure = ctx.get('sessionProjections')?.snapshot(session, ['contextPressure'])
+      ?.values?.contextPressure;
+    const measured =
+      pressure?.projectedTokens === undefined && pressure?.pressureTokens === undefined
+        ? ctx.get('tokenMeter')?.measure(session)
+        : undefined;
+    const usedTokens =
+      pressure?.projectedTokens ?? pressure?.pressureTokens ?? measured?.totalTokens;
+    return {
+      usedTokens: Number.isInteger(usedTokens) ? usedTokens : null,
+      contextWindow: Number.isInteger(pressure?.contextWindow) ? pressure.contextWindow : null,
+      estimated:
+        pressure?.projectedTokens !== undefined || measured?.baseline?.kind === 'estimated',
+    };
+  };
+
   const agentOptions = { provider: config.model.provider, model: config.model.model };
   if (config.model.maxTokens) agentOptions.maxTokens = config.model.maxTokens;
   let handle;
@@ -179,9 +200,15 @@ export function apply(ctx) {
           await handle.agent.whenIdle();
           await queue;
           const kind = turnEnd?.kind;
+          let context = null;
+          try {
+            context = measureContext();
+          } catch {
+            // The measurement is best effort.
+          }
           reply(200, {
             stopReason: STOP_REASONS[kind] ?? 'failed',
-            usage: turnEnd?.usage,
+            usage: context ? { ...turnEnd?.usage, context } : turnEnd?.usage,
             ...(STOP_REASONS[kind] ? {} : { error: lastFailure?.message ?? kind ?? 'no turn end' }),
           });
         } else if (req.url === '/interrupt') {

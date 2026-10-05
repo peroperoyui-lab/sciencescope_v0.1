@@ -175,3 +175,22 @@ test('interrupting stops the answer and keeps what was written', async () => {
     },
   );
 });
+
+test('a failed answer can be retried and the same AI answers again', () => {
+  let attempts = 0;
+  return withMeeting(
+    async function* () {
+      attempts += 1;
+      if (attempts === 1) yield { stop: 'failed', error: 'HTTP 502' };
+      else yield '这次成功了';
+    },
+    async ({ meeting, say, conductor, core }) => {
+      const failed = (await say('先看数据')).at(-1);
+      assert.equal(failed.status, 'failed');
+      await conductor.retry(failed.id);
+      const answer = core.messages.list(meeting.id).messages.at(-1);
+      assert.equal(answer.text, '这次成功了');
+      assert.equal(answer.authorId, 'agent_main');
+    },
+  );
+});

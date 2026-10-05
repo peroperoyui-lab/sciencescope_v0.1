@@ -3,6 +3,7 @@
 // mentioned AIs answer in order of mention, otherwise the meeting's default
 // respondent (or its first AI member). `round` and `autonomous` come in R4.
 import { mentionedParticipants } from '../core/context.js';
+import { AppError } from '../core/errors.js';
 
 /**
  * @param {{ core: import('../core/index.js').Core,
@@ -83,6 +84,23 @@ export function createConductor({ core, runner }) {
       });
     },
     stop: () => unsubscribe(),
+    /**
+     * Answer again after a failed or stopped answer: the same participant
+     * responds to the same message, in a new turn.
+     * @param {string} messageId The failed answer.
+     */
+    retry(messageId) {
+      const message = core.messages.get(messageId);
+      if (!message.turnId) throw new AppError('NOT_AN_ANSWER', '只能重试 AI 的回答。');
+      const turn = core.turns.get(message.turnId);
+      return enqueue(message.meetingId, () =>
+        runner.run({
+          meetingId: message.meetingId,
+          participantId: turn.participantId,
+          triggerMessageId: turn.triggerMessageId,
+        }),
+      );
+    },
     /** @param {string} meetingId */
     interrupt: (meetingId) => runner.interrupt(meetingId),
     /** Resolves when every queued turn has finished (tests, shutdown). */

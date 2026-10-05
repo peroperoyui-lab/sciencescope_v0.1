@@ -40,6 +40,7 @@ const PATHS = {
   refresh: 'M20 6v6h-6 M4 18v-6h6 M19 10a8 8 0 0 0-14-5 M5 14a8 8 0 0 0 14 5',
   help: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20 M9 8a3 3 0 1 1 5 3c-2 1-2 1-2 3 M12 17h.01',
   copy: 'M9 9h11v11H9z M5 15H4V4h11v1',
+  up: 'm6 15 6-6 6 6',
 };
 
 /** @param {{ name: string }} props */

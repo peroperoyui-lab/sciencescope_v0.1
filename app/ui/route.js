@@ -5,11 +5,13 @@
 //   #/workbench/<projectId>  a project's workbench
 //   #/all                    browse all meetings
 //   #/settings/<page>        a settings page (general, models, experts…)
+//   #/plans/<projectId>, #/journal/<projectId>, #/files/<projectId>, #/map/<projectId>
+//                            a workbench area on its own page
 import { useEffect, useState } from 'preact/hooks';
 
-/** @typedef {{ view: 'home' | 'all', id?: string } | { view: 'new' | 'meeting' | 'workbench' | 'settings', id: string }} Route */
+/** @typedef {{ view: 'home' | 'all', id?: string } | { view: 'new' | 'meeting' | 'workbench' | 'settings' | 'plans' | 'journal' | 'files' | 'map', id: string }} Route */
 
-const WITH_ID = ['meeting', 'workbench', 'new', 'settings'];
+const WITH_ID = ['meeting', 'workbench', 'new', 'settings', 'plans', 'journal', 'files', 'map'];
 
 /** @returns {Route} */
 export function parseRoute(hash = location.hash) {

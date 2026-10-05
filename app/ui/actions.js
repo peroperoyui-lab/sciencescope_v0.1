@@ -30,7 +30,19 @@ export function createActions(api, store) {
     set({ settings, projects, meetings, participants });
     stopFollowing = api.follow(
       seq,
-      (event) => store.update((state) => applyEvent(state, event)),
+      (event) => {
+        store.update((state) => applyEvent(state, event));
+        // Settings can be changed by an AI or another window; reload them.
+        if (event.type === 'resource.changed' && event.payload.resource === 'settings') {
+          api
+            .get('/api/settings')
+            .then((next) => {
+              applyAppearance(next);
+              set({ settings: next });
+            })
+            .catch(() => {});
+        }
+      },
       (connected) => set({ connected }),
     );
   }
@@ -60,11 +72,18 @@ export function createActions(api, store) {
 
   async function loadTurn(turnId) {
     const { turn, toolCalls } = await api.get(`/api/turns/${turnId}`);
-    store.update((state) => ({
-      ...state,
-      toolCalls: { ...state.toolCalls, [turnId]: toolCalls },
-      running: turn.status === 'running' ? { ...state.running, [turn.id]: turn } : state.running,
-    }));
+    store.update((state) => {
+      // The event stream may already have reported a newer state of this turn.
+      const known = state.turns[turn.id];
+      if (known?.endedAt)
+        return { ...state, toolCalls: { ...state.toolCalls, [turnId]: toolCalls } };
+      return {
+        ...state,
+        toolCalls: { ...state.toolCalls, [turnId]: toolCalls },
+        turns: { ...state.turns, [turn.id]: turn },
+        running: turn.status === 'running' ? { ...state.running, [turn.id]: turn } : state.running,
+      };
+    });
   }
 
   /**
@@ -103,6 +122,18 @@ export function createActions(api, store) {
   /** @param {string} meetingId */
   async function interrupt(meetingId) {
     await api.post(`/api/meetings/${meetingId}/interrupt`);
+  }
+
+  /** Answer again after a failed or stopped answer. @param {string} messageId */
+  const retry = (messageId) => api.post(`/api/messages/${messageId}/retry`);
+
+  /** Put a message into the meeting's input box as a quote. @param {any} message */
+  function quote(message) {
+    const text = `${message.text
+      .split('\n')
+      .map((line) => `> ${line}`)
+      .join('\n')}\n\n`;
+    set({ quote: { meetingId: message.meetingId, text, at: Date.now() } });
   }
 
   /** Add archived meetings to the store (they are not loaded at start). */
@@ -243,6 +274,8 @@ export function createActions(api, store) {
     interrupt,
     updateMeeting,
     loadArchived,
+    retry,
+    quote,
     forkMeeting,
     createProject,
     updateProject,

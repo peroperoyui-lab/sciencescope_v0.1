@@ -17,6 +17,10 @@ export const initialState = {
   /** @type {Record<string, string>} */ drafts: {},
   /** turnId → tool calls in order. */
   /** @type {Record<string, any[]>} */ toolCalls: {},
+  /** Turns seen so far (for usage and the context ring): turnId → turn. */
+  /** @type {Record<string, any>} */ turns: {},
+  /** Text to insert into a meeting's input box ("引用到输入框"). */
+  /** @type {null | { meetingId: string, text: string, at: number }} */ quote: null,
   /** Running turns: turnId → turn. */
   /** @type {Record<string, any>} */ running: {},
   /** Bumped on every workspace change so open views can reload. */
@@ -85,9 +89,17 @@ export function applyEvent(state, { type, payload }) {
     case 'message.replace':
       return { ...state, drafts: { ...state.drafts, [payload.id]: payload.text } };
     case 'turn.started':
-      return { ...state, running: { ...state.running, [payload.id]: payload } };
+      return {
+        ...state,
+        turns: { ...state.turns, [payload.id]: payload },
+        running: { ...state.running, [payload.id]: payload },
+      };
     case 'turn.ended':
-      return { ...state, running: without(state.running, payload.id) };
+      return {
+        ...state,
+        turns: { ...state.turns, [payload.id]: payload },
+        running: without(state.running, payload.id),
+      };
     case 'tool.started':
     case 'tool.ended': {
       const calls = upsert(state.toolCalls[payload.turnId] ?? [], payload).sort(

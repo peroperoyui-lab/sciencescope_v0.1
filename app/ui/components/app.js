@@ -49,7 +49,8 @@ export function App() {
   const projectId = useAppState((state) => {
     if (route.view === 'workbench' || route.view === 'new') return route.id;
     if (route.view === 'meeting') {
-      return state.meetings.find((meeting) => meeting.id === route.id)?.projectId ?? null;
+      const meetingId = route.id.split('/')[0];
+      return state.meetings.find((meeting) => meeting.id === meetingId)?.projectId ?? null;
     }
     return null;
   });
@@ -59,8 +60,15 @@ export function App() {
   );
 
   let page;
-  if (route.view === 'meeting') page = html`<${MeetingView} meetingId=${route.id} />`;
-  else if (route.view === 'workbench') page = html`<${Workbench} projectId=${route.id} />`;
+  if (route.view === 'meeting') {
+    // `#/meeting/<id>/<messageId>` links to one message.
+    const [meetingId, messageId] = route.id.split('/');
+    page = html`<${MeetingView}
+      key=${meetingId}
+      meetingId=${meetingId}
+      focusMessageId=${messageId}
+    />`;
+  } else if (route.view === 'workbench') page = html`<${Workbench} projectId=${route.id} />`;
   else if (route.view === 'all') page = html`<${AllChats} />`;
   else if (route.view === 'settings') {
     page = html`<${SettingsView} page=${route.id} projectName=${projectName} />`;

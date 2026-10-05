@@ -165,7 +165,8 @@ export function Sidebar({ route, currentProjectId }) {
   const pinnedProjects = activeProjects.filter((project) => project.pinned);
   const pinnedMeetings = visible.filter((meeting) => meeting.pinned);
   const standalone = visible.filter((meeting) => !meeting.projectId);
-  const isActiveMeeting = (meeting) => route.view === 'meeting' && route.id === meeting.id;
+  const isActiveMeeting = (meeting) =>
+    route.view === 'meeting' && route.id.split('/')[0] === meeting.id;
   const isActiveProject = (project) => route.view === 'workbench' && route.id === project.id;
   const userName = settings?.profile?.name || t('用户');
 
