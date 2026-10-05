@@ -1,0 +1,109 @@
+/* The workbench: plan cards, log cards, research map and change history. */
+.workbench {
+  padding: 20px 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.wbsection h3 {
+  margin: 0;
+}
+.wbsection > .between {
+  margin-bottom: 10px;
+}
+.plancards,
+.logcards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.plancard,
+.logcard {
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--raised);
+  padding: 14px 16px;
+  font-size: 13px;
+  box-shadow: var(--shadow-1);
+}
+.plancard {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-height: 64px;
+  cursor: pointer;
+}
+.plancard input {
+  margin-top: 3px;
+}
+.plancard.done span {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.plancards .empty,
+.logcards .empty {
+  grid-column: 1 / -1;
+  text-align: left;
+}
+.logcard summary {
+  font-weight: 600;
+  cursor: pointer;
+}
+.logcard .markdown {
+  margin-top: 8px;
+  font-size: 13px;
+}
+.note {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.wbgrid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 16px;
+}
+.mapsection,
+.changes {
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--raised);
+  padding: 16px;
+}
+.changes h3 {
+  margin-bottom: 8px;
+}
+.maptree,
+.maptree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.maptree ul {
+  margin-left: 14px;
+  padding-left: 12px;
+  border-left: 1px solid var(--line-strong);
+}
+.mapnode {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--paper);
+  font-size: 13px;
+}
+.mapnode .iconbtn {
+  opacity: 0;
+}
+.mapnode:hover .iconbtn,
+.mapnode .iconbtn:focus-visible {
+  opacity: 1;
+}
+@media (max-width: 1000px) {
+  .wbgrid {
+    grid-template-columns: 1fr;
+  }
+}

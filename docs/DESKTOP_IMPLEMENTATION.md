@@ -1,5 +1,20 @@
 # Desktop implementation — first increment
 
+## 2026-10-05 R3 interface skeleton (Claude, cloud Linux)
+
+- `app/ui/`: Preact + htm without a build step, served by the host
+  (`app/server/static.js`; vendor builds from node_modules via an import map).
+  One state object updated by `applyEvent`; actions call the API; hash routes.
+- Views: sidebar (projects, meetings, pin/rename/archive), home (first message
+  starts a meeting), meeting (streaming, tool cards with preamble/args/result,
+  interrupt, fork, @mention, earlier pages), workbench (global/project plans,
+  log, map tree, change history with undo). zh/en with a coverage test.
+- New `GET /api/events/head`; `app/main.js` prints a `ui` address.
+- Browser test (`app/ui/ui.browser.test.js`): real host + scripted AI in
+  headless Chromium, create project → meeting → streamed answer with tool card
+  → plan on the workbench → undo → English. `npm run check`: 35 pass, 2 skipped
+  (Windows-only). Screenshots: `.sciencescope-local/temp/r3shots/`.
+
 ## 2026-10-05 R2 Windows acceptance (Codex)
 
 - Baseline `2afa40f`, branch `codex/r2-windows-20261005`, H-drive workspace.

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Start ScienceScope's local host and print one JSON line `{ url, token,
+// Start ScienceScope's local host and print one JSON line `{ url, token, ui,
 // dataRoot }` for the native shell.
 //
 //   node app/main.js [--data <folder>] [--port <number>]
@@ -31,7 +31,9 @@ const { createApp } = await import('./app.js');
 const token = randomBytes(32).toString('hex');
 const app = await createApp({ dataRoot, token });
 const url = await app.listen({ port: Number(values.port ?? 0) });
-process.stdout.write(`${JSON.stringify({ url, token, dataRoot: app.core.paths.root })}\n`);
+// `ui` opens the interface in the native window or, during development, a browser.
+const ui = `${url}/?token=${token}`;
+process.stdout.write(`${JSON.stringify({ url, token, ui, dataRoot: app.core.paths.root })}\n`);
 
 async function shutdown() {
   await app.close();

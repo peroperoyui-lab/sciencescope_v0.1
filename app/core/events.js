@@ -99,6 +99,11 @@ export function createEvents(db, { now }) {
       }));
   }
 
+  /** The newest stored event's sequence number (0 when there is none). */
+  function head() {
+    return Number(db.prepare('SELECT MAX(seq) AS seq FROM events').get()?.seq ?? 0);
+  }
+
   /**
    * @param {(event: AppEvent) => void} listener
    * @returns {() => void} Unsubscribe.
@@ -108,5 +113,5 @@ export function createEvents(db, { now }) {
     return () => listeners.delete(listener);
   }
 
-  return { record, transient, since, subscribe };
+  return { record, transient, since, head, subscribe };
 }

@@ -10,6 +10,7 @@ import { registerParticipantRoutes } from './routes/participants.js';
 import { registerProjectRoutes } from './routes/projects.js';
 import { registerProviderRoutes } from './routes/providers.js';
 import { registerWorkspaceRoutes } from './routes/workspace.js';
+import { serveStatic } from './static.js';
 
 // Generous resource bound for request bodies (attachments travel separately).
 const MAX_BODY_BYTES = 64 * 1024 * 1024;
@@ -64,6 +65,7 @@ export function createAppServer({ core, token, conductor }) {
     };
     try {
       if (!url.pathname.startsWith('/api/')) {
+        if (request.method === 'GET' && (await serveStatic(url.pathname, response))) return;
         throw new AppError('NOT_FOUND', '没有这个地址。', 404);
       }
       const bearer = request.headers.authorization?.replace(/^Bearer /, '');

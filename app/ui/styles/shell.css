@@ -1,0 +1,240 @@
+/* Window chrome: top bar, sidebar, main area and status bar. */
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.topbar {
+  height: 40px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px 0 12px;
+  background: var(--side);
+  border-bottom: 1px solid var(--line);
+  user-select: none;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.brand img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+.topbar .muted {
+  font-size: 12.5px;
+  margin-right: 8px;
+}
+.windowctl {
+  display: flex;
+}
+.windowctl button {
+  width: 40px;
+  height: 32px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.windowctl button:last-child:hover {
+  background: #c42b1c;
+  color: #fff;
+}
+
+.app {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.sidebar {
+  width: var(--sidebar);
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 8px 8px;
+  background: var(--side);
+  border-right: 1px solid var(--line);
+  overflow: hidden;
+}
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 36px;
+  padding: 0 11px;
+  border-radius: var(--r-md);
+  text-align: left;
+  font-weight: 500;
+  font-size: 14px;
+}
+.nav:hover {
+  background: var(--hover);
+}
+.nav.active {
+  background: var(--press);
+  color: var(--accent-ink);
+}
+.navscroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-bottom: 8px;
+}
+.navsection {
+  height: 28px;
+  margin-top: 12px;
+  padding: 0 4px 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--faint);
+}
+.navproject {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 4px;
+  font-size: 13px;
+}
+.navproject .rowmenu,
+.chatnav .rowmenu {
+  opacity: 0;
+}
+.navproject:hover .rowmenu,
+.chatnav:hover .rowmenu,
+.rowmenu:focus-within {
+  opacity: 1;
+}
+.chatnav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 4px 0 11px;
+  border-radius: var(--r-md);
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.chatnav.nested {
+  padding-left: 30px;
+}
+.chatnav:hover {
+  background: var(--hover);
+}
+.chatnav.active {
+  background: var(--press);
+  color: var(--ink);
+}
+.navempty {
+  padding: 4px 11px;
+  font-size: 12px;
+  color: var(--faint);
+}
+.inline-input {
+  height: 26px !important;
+  font-size: 13px !important;
+}
+.userbar {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.mainhead {
+  height: 56px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 16px 0 24px;
+  border-bottom: 1px solid var(--line);
+}
+.crumb {
+  font-size: 12px;
+  color: var(--muted);
+}
+.crumb a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
+.head-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+}
+.mainbody {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.foot {
+  height: 26px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  background: var(--side);
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.foot button {
+  font-size: 11.5px;
+  padding: 1px 8px;
+}
+.statusdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.statusdot.ok {
+  background: var(--accent);
+}
+.statusdot.off {
+  background: var(--danger);
+}
+
+.home {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 72px 28px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+.homehero img {
+  width: 56px;
+  height: 56px;
+  opacity: 0.3;
+  mix-blend-mode: multiply;
+  margin-bottom: 12px;
+}
+.recent h3 {
+  color: var(--muted);
+  font-size: 12px;
+}

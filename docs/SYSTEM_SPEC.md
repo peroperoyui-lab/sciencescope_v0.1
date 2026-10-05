@@ -14,6 +14,8 @@
 
 **状态标记**
 
+R3 云端（2026-10-05，Claude）：新 `app/ui/` 界面骨架（Preact + htm，由 `app/main.js` 的本地服务直接提供，地址见启动输出的 `ui`）。可建项目和会议、置顶/重命名/归档，会议中流式显示回答与工具卡片（前言、参数、结果）、打断、从此分支、@ 提及；工作站显示全局/项目计划、项目日志、导图树和更改记录，可直接编辑并撤销任何人（包括 AI）的修改；中英切换。Linux 无头 Chromium 下真实服务 + 脚本化 AI 的浏览器测试通过，`npm run check` 35 通过、2 项仅 Windows 跳过。原生外壳尚未接入（L1），旧界面仍是可用版本。
+
 R2 Windows 核对（2026-10-05）：新 `app/` 服务商配置支持可选 `headers` 并透传到 DSH；OpenCode Go 可配置 `x-opencode-session`，key 仍经凭据接口写入独立文件。真实便宜模型通过 HTTP 会议流程修改中文项目的 `plans.md`，修订执行者为 `agent_main`；6次真实请求（4 HTTP200、2 HTTP400），65,374已知token，失败请求用量未报告。Windows盘符 `file://` 插件加载、中文工作/临时目录、实际 Ctrl+C 退出0及已捕获 app/DSH 进程清理通过，WAL/SHM消失。闲置释放以交接允许的2秒设置通过真实DSH/本地模型验证，生产默认10分钟未改；未实等10分钟。最终 `npm run check`35/35；证据在 `.sciencescope-local/temp/r2-windows-validation/`，不代表界面或安装包验收。
 
 R1 Windows 核对（2026-10-05）：新 `app/` 核心的项目中文目录、会议/消息和计划CLI已通过。原子写入与项目目录改名对 `EPERM/EBUSY/EACCES` 短暂重试（50/100/200/400 ms），仍失败时返回 `PATH_BUSY`/409，提示关闭占用窗口或检查权限；原文件、项目记录及修订保持，临时写入文件清理。Windows真实无delete-sharing句柄回归通过。`app/main.js` 普通及活跃SSE下Ctrl+C退出0，WAL/SHM清理且重开数据完整；`npm run check`格式/lint/类型及23测试通过。旧线 `desktop/scripts/adapters` 未改，原生外壳接线仍属L1。

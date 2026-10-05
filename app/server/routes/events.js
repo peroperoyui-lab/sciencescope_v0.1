@@ -12,6 +12,9 @@ function frame(event) {
 
 /** @param {import('../router.js').Router} router @param {import('../../core/index.js').Core} core */
 export function registerEventRoutes(router, core) {
+  // Where to start following after loading current state.
+  router.get('/api/events/head', () => ({ seq: core.events.head() }));
+
   router.get('/api/events', ({ query, request, response }) => {
     const lastEventId = request.headers['last-event-id'];
     let lastSent = Number(query.get('since') ?? lastEventId ?? 0) || 0;

@@ -3,6 +3,7 @@
 - 起草：Claude，2026-10-05。总纲见 `ARCHITECTURE.md`。本文随实现修订；实现与本文不一致时，以代码和测试为准，并同步本文。
 - **R1 已实现（2026-10-05）**：§1–§5、§9 的数据层、事件、工作区、参与者、会议、消息、本地接口与命令行，代码在 `app/core`、`app/server`、`app/main.js`、`app/cli.js`。§6–§8（发言规则的执行、上下文组装、内置工具）在 R2 实现。
 - **R2 已实现（2026-10-05）**：运行时接口 `app/runtime/port.js`；DSH 适配 `app/runtime/dsh/`（一个插件 + 桥接服务）；测试用 `app/runtime/scripted.js`；上下文组装 `app/core/context.js`；发言记录 `app/core/turns.js`；内置工具 `app/services/tools.js`；`direct` 发言规则 `app/services/conductor.js` + `turn-runner.js`；服务商 `app/services/providers.js`；整体装配 `app/app.js`。`round`、`autonomous` 与后台参与者在 R4。
+- **R3 已实现（2026-10-05）**：界面骨架 `app/ui/`（Preact + htm，无构建步骤；由本地服务直接提供，见 §10）。
 
 ## 1. 数据根
 
@@ -149,3 +150,14 @@ tools: { prefer: [research_search], avoid: [] }
 - R2 新增：`POST /api/meetings/:id/interrupt`、`GET /api/turns/:id`（含工具调用）、`POST /api/providers/keys/:keyRef`（只写入凭据文件，不返回）。服务商与默认模型在 `/api/settings` 的 `providers`、`models.default` 中。
 - 本地口令：每次启动生成，所有接口校验（沿用旧版做法）。
 - 路由文件只做参数解析与调用 core / services，每个领域一个文件。
+- R3 新增：`GET /api/events/head`（`{ seq }`，界面加载完现状后从这里开始订阅）。`/api/` 以外的 GET 返回界面静态文件，不需要口令。
+
+## 10. 界面（`app/ui`，R3）
+
+- 入口：`node app/main.js` 输出的 `ui` 地址（`<url>/?token=<口令>`）；口令随后存入会话存储并从地址栏去掉。原生外壳打开同一地址。
+- 依赖：`preact`、`htm`、`marked`、`dompurify` 与思源黑体字体，由 `app/server/static.js` 从 `node_modules` 提供，页面用 import map 引用；不打包、不复制到仓库。
+- 结构：`api.js`（请求与事件流）→ `state.js`（一个状态对象；`applyEvent` 按 id 合并事件，重放无害）→ `actions.js`（用户操作）→ `components/`（`app`、`shell`、`sidebar`、`home`、`meeting`、`workbench`、`common`）。组件只读状态、调用 actions，不互相包裹或覆盖。
+- 路由在地址的 hash：`#/`、`#/meeting/<id>`、`#/workbench/<projectId>`。
+- 文字：组件里写中文，`i18n/en.js` 给出英文；测试检查每个中文字符串都有英文条目。语言存于 `settings.appearance.language`，状态栏可切换。
+- 样式：`styles/*.css`，色值与尺寸沿用已批准原型及其刷新层（`desktop/refresh.css`）。
+- 已有视图：侧栏（新会议、工作站、置顶、项目及其会议、独立会议；置顶 / 重命名 / 归档）；首页（第一句话即开会）；会议（流式回答、工具卡片含前言与参数结果、状态提示、复制、从此分支、@ 提及、打断、加载更早消息）；工作站（全局与项目计划、项目日志、导图树、更改记录与撤销）。
