@@ -55,3 +55,9 @@
 .assistant-panel .detached-body {padding-top:24px;}
 .topbar .brand img,.homehero img,.assistant-orb img {mix-blend-mode:multiply;}
 .profile-entry {text-align:left;font-size:12px;padding:0;background:transparent;border:0;cursor:pointer;}
+.branch-action {display:inline-flex;align-items:center;gap:2px;}
+.branch-action .info-tip {width:18px!important;height:18px!important;padding:0!important;}
+.branch-source {display:flex;align-items:center;font-size:11px;line-height:1.25;color:var(--muted);}
+.branch-source button {padding:0;border:0;background:transparent;color:var(--accent);cursor:pointer;max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.branch-source button:hover {text-decoration:underline;}
+.mainhead:has(.branch-source) {height:70px;}

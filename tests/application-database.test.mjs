@@ -21,6 +21,11 @@ test('legacy records migrate once, preserve files and reopen with exact history/
   await writeFile(path.join(root,'chat-pages/chat-old/00000000.json'),JSON.stringify([{id:'m1',role:'user',text:'原文',created:'2026-01-01'},{id:'m2',role:'assistant',text:'回复',created:'2026-01-01'}]));
   const store=await new ChatStore({stateDir:root}).init();handles.push(store);
   assert.equal(store.getBinding('chat-old'),'session-old');assert.equal((await store.pageMessages('chat-old')).total,2);
+  // Replay the unchanged legacy import against the additive T12 schema.
+  // Named INSERT columns keep the import compatible with the extra fields.
+  store.db.db.prepare('DELETE FROM schema_migrations WHERE version=1').run();
+  const upgraded=await new ChatStore({stateDir:root}).init();handles.push(upgraded);
+  assert.equal((await upgraded.pageMessages('chat-old')).total,2);
   await store.appendMessage({chatId:'chat-old',id:'m3',role:'user',text:'新消息'});
   await store.appendMessage({chatId:'chat-old',id:'m1',role:'user',text:'重复不覆盖'});
   assert.equal((await store.pageMessages('chat-old')).total,3);

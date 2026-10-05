@@ -5,6 +5,8 @@ import test from "node:test";
 import { ChatStore } from "../scripts/chat-store.mjs";
 import { createAssistantConversations } from "../scripts/assistant-conversations.mjs";
 import { AssistantChatError, createAssistantChatService } from "../scripts/assistant-chat-service.mjs";
+import {createContextAccess} from '../scripts/context/registry.mjs';
+import {createChatMinutes} from '../scripts/chat-minutes.mjs';
 
 const model = { providerId: "fake", modelId: "assistant" };
 
@@ -17,6 +19,8 @@ class FakeHost {
     this.policies = [];
     this.models = [];
     this.failModel = false;
+    this.failNextSend = false;
+    this.blockNextSend = false;
   }
   async startSession(input) {
     const sessionId = input.sessionId || `session-${this.starts.length + 1}`;
@@ -32,6 +36,11 @@ class FakeHost {
   async send({ sessionId, text, onEvent }) {
     this.sends.push({ sessionId, text });
     const session = this.sessions.get(sessionId);
+    if (this.failNextSend) { this.failNextSend = false; throw new Error("fixture send failed"); }
+    if (this.blockNextSend) {
+      this.blockNextSend = false;
+      await new Promise((resolve) => { session.release = resolve; });
+    }
     if (session?.persona.includes("global") && text.includes("stop me")) {
       await new Promise((resolve) => { session.release = resolve; });
     }
@@ -46,11 +55,14 @@ class FakeHost {
 async function fixture() {
   const root = await mkdtemp(path.join(path.resolve(".sciencescope-local/temp"), "assistant-service-"));
   const chatStore = await new ChatStore({ stateDir: root }).init();
+  await chatStore.updateWorkspace({projects:[{id:'project-a',name:'Project A'},{id:'project-b',name:'Project B'}]});
   await chatStore.ensureChat({ chatId: "main-a", projectId: "project-a", title: "Main A" });
   await chatStore.ensureChat({ chatId: "main-b", projectId: "project-b", title: "Main B" });
   const conversations = createAssistantConversations({ chatStore });
   const host = new FakeHost();
-  const service = createAssistantChatService({ host, conversations, chatStore, dataRoot: root });
+  const minutes=createChatMinutes({db:chatStore.db.db,chatStore,host,modelFor:()=>null});
+  const contextAccess=createContextAccess({db:chatStore.db.db,chatStore,minutes,workbench:{get:async()=>({map:{nodes:[]},logs:[],versions:[]}),plans:async()=>[]}});
+  const service = createAssistantChatService({ host, conversations, chatStore, dataRoot: root,contextAccess });
   return { root, chatStore, conversations, host, service };
 }
 
@@ -90,7 +102,7 @@ test("failed model switch leaves saved model unchanged", async () => { const f=a
 
 test("explicit model selection creates an empty assistant conversation without a runtime", async () => { const f=await fixture(); const selected={providerId:"fake",modelId:"selected"}; try { const settings=await f.service.changeModel("global","global",selected,"low"); assert.deepEqual(settings,{model:selected,reasoningEffort:"low",executionMode:"ask"}); assert.equal(f.host.starts.length,0); assert.equal((await f.chatStore.pageMessages(f.conversations.get("global","global").chatId)).total,0); } finally { await closeFixture(f); } });
 
-test("only explicit main context is excerpted, excluding system/tool/private material", async () => {
+test("secretary automatically follows bound Main without an explicit excerpt, excluding system/tool/private material", async () => {
   const f = await fixture();
   try {
     await f.chatStore.appendMessage({ chatId: "main-a", id: "main-user", role: "user", text: "main user material" });
@@ -98,7 +110,7 @@ test("only explicit main context is excerpted, excluding system/tool/private mat
     await f.chatStore.appendMessage({ chatId: "main-a", id: "main-system", role: "system", text: "do not include system material" });
     const privateChat = await f.conversations.ensure("global", "global", model);
     await f.chatStore.appendMessage({ chatId: privateChat.id, id: "private", role: "user", text: "private material" });
-    await f.service.send({ scope: "secretary", ownerId: "main-a", contextChatId: "main-a", model, text: "summarize", userMessageId: "context-u" }, { accept() {}, emit() {} });
+    await f.service.send({ scope: "secretary", ownerId: "main-a", model, text: "summarize", userMessageId: "context-u" }, { accept() {}, emit() {} });
     const sent = f.host.sends.at(-1).text;
     assert.match(sent, /main user material/);
     assert.match(sent, /main assistant material/);
@@ -152,4 +164,35 @@ test("duplicate user message id does not send to the model twice", async () => {
     );
     assert.equal(f.host.sends.length, 1);
   } finally { await closeFixture(f); }
+});
+
+test("secretary context cursor advances only after a successful service send", async () => {
+  const seed = async (f) => {
+    await f.chatStore.appendMessage({ chatId: "main-a", id: "cursor-user", role: "user", text: "durable Main progress" });
+    await f.chatStore.appendMessage({ chatId: "main-a", id: "cursor-answer", role: "assistant", text: "durable Main answer" });
+  };
+  const cursor = (f) => f.chatStore.db.db.prepare("SELECT seen_ordinal,minutes_revision FROM context_cursors WHERE conversation_id=? AND target_chat_id=?").get(f.conversations.get("secretary", "main-a")?.id ?? "", "main-a");
+
+  const failed = await fixture();
+  try {
+    await seed(failed); failed.host.failNextSend = true;
+    await assert.rejects(failed.service.send({ scope: "secretary", ownerId: "main-a", model, text: "failed secretary turn", userMessageId: "cursor-failed" }, { accept() {}, emit() {} }), /fixture send failed/);
+    assert.equal(cursor(failed), undefined, "failed send must not create or advance a cursor");
+  } finally { await closeFixture(failed); }
+
+  const stopped = await fixture();
+  try {
+    await seed(stopped); stopped.host.blockNextSend = true;
+    const run = stopped.service.send({ scope: "secretary", ownerId: "main-a", model, text: "stopped secretary turn", userMessageId: "cursor-stopped" }, { accept() {}, emit() {} });
+    while (stopped.host.sends.length === 0) await new Promise((resolve) => setTimeout(resolve, 5));
+    await stopped.service.stop("secretary", "main-a"); await run;
+    assert.equal(cursor(stopped), undefined, "stopped send must not create or advance a cursor");
+  } finally { await closeFixture(stopped); }
+
+  const successful = await fixture();
+  try {
+    await seed(successful);
+    await successful.service.send({ scope: "secretary", ownerId: "main-a", model, text: "successful secretary turn", userMessageId: "cursor-success" }, { accept() {}, emit() {} });
+    assert.deepEqual({ ...cursor(successful) }, { seen_ordinal: 2, minutes_revision: 0 });
+  } finally { await closeFixture(successful); }
 });

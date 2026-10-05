@@ -11,8 +11,9 @@ import {createChatStore,ProfileStore} from './chat-store.mjs';
 const base=path.join(defaultRoot,'.sciencescope-local','temp');await mkdir(base,{recursive:true});
 const root=await mkdtemp(path.join(base,'workspace-ui-'));
 process.env.TEMP=root;process.env.TMP=root;
-const artifacts=path.join(defaultRoot,'.sciencescope-local','workspace-ui');await mkdir(artifacts,{recursive:true});
+const artifacts=path.join(defaultRoot,'.sciencescope-local','temp','workspace-ui');await mkdir(artifacts,{recursive:true});
 const store=await createChatStore({stateDir:path.join(root,'state')});
+const historyRequests=[];
 const profileStore=await new ProfileStore({stateDir:path.join(root,'state')}).init();
 await store.updateWorkspace({projects:[{id:'project-a',name:'真实交互验收项目',desc:'比较方法与证据'},{id:'project-b',name:'第二个项目'}],pins:[],projectExpanded:{'project-a':true},lastChatId:null});
 const model={providerId:'fixture',modelId:'offline-long-model-name'};
@@ -31,7 +32,7 @@ const server=http.createServer(async(req,res)=>{
     if(url.pathname==='/api/workspace')return send(req.method==='POST'?await store.updateWorkspace(input):await store.getWorkspace());
     if(url.pathname==='/api/chats')return send({chats:store.listChats()});
     const match=url.pathname.match(/^\/api\/chats\/(.+)\/messages$/);
-    if(match)return send(await store.pageMessages(match[1],Object.fromEntries(url.searchParams)));
+    if(match){if(match[1]==='chat-history')historyRequests.push(Object.fromEntries(url.searchParams));return send(await store.pageMessages(match[1],Object.fromEntries(url.searchParams)));}
     if(url.pathname==='/api/chats/move')return send(await store.move(input.chatId,input.projectId));
     if(url.pathname==='/api/chats/delete')return send(await store.remove(input.chatId));
     if(url.pathname==='/api/chats/update')return send(await store.updateMetadata(input.chatId,input));
@@ -94,13 +95,15 @@ try {
   await page.locator('#overview-trigger').click();
   await page.waitForTimeout(250);
   assert.equal(await page.locator('.chatcol.summary-docked').count(),1);
-  await page.locator('.mainhead [data-v="browser"]').click();
+  // Any right panel docks beside the summary; the in-app browser is hidden until T08.
+  assert.equal(await page.locator('.mainhead [data-v="browser"]').isVisible(),false);
+  await page.locator('.mainhead [data-v="secretary"]').click();
   await page.waitForTimeout(250);
   assert.equal(await page.locator('#project-flyout').count(),0);
   await page.locator('#overview-trigger').click();
   assert.equal(await page.locator('.chatcol.summary-docked').count(),0);
   const overlayX=(await page.locator('#project-flyout').boundingBox()).x;
-  await page.locator('.browser-panel .panelhead [data-v="close-panel"]').click();
+  await page.locator('.rightpanel .panelhead [data-v="close-panel"]').first().click();
   await page.waitForTimeout(250);
   assert.equal(await page.locator('#project-flyout').count(),1);
   assert.ok((await page.locator('#project-flyout').boundingBox()).x>overlayX);
@@ -116,19 +119,32 @@ try {
   await page.locator('[data-route="quick"]').click({button:'right'});
   assert.equal(await page.locator('#v-menu button').count(),3);
   await page.locator('[data-v="ws-new-independent"]').click();
+  await page.locator('#modal [data-creation-start]').click();await page.waitForFunction(()=>!document.querySelector('#modal'));
   assert.equal(await page.evaluate(()=>activeThread().projectId),null);
   await page.locator('[data-route="quick"]').click({button:'right'});
   assert.equal(await page.locator('#v-menu button').count(),2);await page.keyboard.press('Escape');
   await page.evaluate(()=>loadThread('chat-history'));
   assert.equal(await page.locator('.messages > .message').count(),60);
-  await page.locator('[data-ws="history"][data-direction="before"]').click();
+  const pageRequestStart=historyRequests.length;
+  // Playwright auto-scrolls an offscreen button before clicking it, which also
+  // invokes scroll pagination. Exercise the button and scroll paths separately.
+  await page.locator('[data-ws="history"][data-direction="before"]').dispatchEvent('click');
   await page.waitForFunction(()=>S.messages[0]?.text==='历史记录 50');
   assert.equal(await page.locator('.messages > .message').count(),60);
-  await page.locator('[data-ws="history"][data-direction="before"]').click();
+  await page.locator('[data-ws="history"][data-direction="before"]').dispatchEvent('click');
   await page.waitForFunction(()=>S.messages[0]?.text==='历史记录 20');
-  await page.locator('[data-ws="history"][data-direction="before"]').click();
+  await page.locator('[data-ws="history"][data-direction="before"]').dispatchEvent('click');
   await page.waitForFunction(()=>S.messages[0]?.text==='历史记录 0');
   assert.equal(await page.locator('.messages > .message').count(),60);
+  assert.deepEqual(historyRequests.slice(pageRequestStart).map(request=>request.before),['80','50','20'],'each button event loads exactly one page');
+  await page.evaluate(()=>loadThread('chat-history'));
+  await page.waitForFunction(()=>S.messages[0]?.text==='历史记录 80');
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+  const scrollRequestStart=historyRequests.length;
+  await page.locator('.messages').evaluate(element=>{element.scrollTop=0;});
+  await page.waitForFunction(()=>S.messages[0]?.text==='历史记录 50');
+  assert.equal(await page.locator('.messages > .message').count(),60);
+  assert.deepEqual(historyRequests.slice(scrollRequestStart).map(request=>request.before),['80'],'one upward scroll loads one page');
   await page.evaluate(()=>objectMenu('chat','chat-history',null,{x:200,y:200}));
   await page.locator('[data-ws="choose-project"]').click();
   await page.locator('[data-v="ws-move"][data-project="project-a"]').click();

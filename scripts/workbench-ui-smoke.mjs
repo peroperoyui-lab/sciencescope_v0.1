@@ -13,7 +13,17 @@ const temp=path.join(defaultRoot,'.sciencescope-local/temp');await mkdir(temp,{r
 const root=await mkdtemp(path.join(temp,'workbench-ui-'));
 const apiToken=randomBytes(32).toString('hex');
 process.env.TEMP=root;process.env.TMP=root;
-const api=await createDesktopApi({dataRoot:root,apiToken});
+let organizeRuns=0,sessionNumber=0;
+const runtimeHost={
+  capabilities:{tokenStreaming:true},close:async()=>{},setToolHandler:()=>{},listProviders:async()=>[{id:'offline',name:'Offline',models:['m'],configured:true,saved:true}],
+  getRuntimeConfig:async()=>({}),startSession:async()=>`session-workbench-${++sessionNumber}`,releaseSession:async()=>{},
+  send:async({text})=>{
+    if(String(text).startsWith('You keep the minutes of a research conversation'))return {finalResponse:'# 研究问题与目标\n工作站 smoke 历史。'};
+    assert.ok(String(text).startsWith('你是项目文件秘书。'),'fixture receives a version organization request');
+    organizeRuns+=1;await new Promise(resolve=>setTimeout(resolve,700));return {finalResponse:'# 版本说明\nAUTO_ORGANIZED_NOTE'};
+  },
+};
+const api=await createDesktopApi({dataRoot:root,apiToken,runtimeHost});
 const entry=await buildDesktop();
 const server=http.createServer(async(req,res)=>{
   if(await api.handle(req,res))return;
@@ -26,9 +36,11 @@ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const url=`http://127.0.0.1:${server.address().port}`;
 const requestHeaders=(contentType=false)=>({...(contentType?{'Content-Type':'application/json'}:{}),Authorization:`Bearer ${apiToken}`});
 const post=async(route,data)=>{const response=await fetch(url+'/api/'+route,{method:'POST',headers:requestHeaders(true),body:JSON.stringify(data)});assert.equal(response.status,200,await response.clone().text());return response.json();};
+const get=async route=>{const response=await fetch(url+'/api/'+route,{headers:requestHeaders()});assert.equal(response.status,200,await response.clone().text());return response.json();};
 let context;
 try{
   await post('workspace',{projects:[{id:'wb-test',name:'工作站验收'}],pins:[],projectExpanded:{},lastChatId:null});
+  await post('roles/save',{role:'secretary',config:{prompt:'Offline secretary',model:{providerId:'offline',modelId:'m'},reasoningEffort:null}});
   const seed=await createChatStore({stateDir:path.join(root,'.sciencescope-local/state')});
   await seed.ensureChat({chatId:'long-chat',title:'双向历史',projectId:'wb-test'});
   for(let i=0;i<160;i++)await seed.appendMessage({chatId:'long-chat',id:'history-'+i,role:i%2?'assistant':'user',text:'历史 '+i+'\n\n'+('可追溯内容。'.repeat(15))});
@@ -58,9 +70,21 @@ try{
   await page.locator('[data-v="new-record"][data-kind="log"]').click();
   await page.locator('#record-title').fill('真实日志');await page.locator('#record-text').fill('文件与导图已核对');await page.locator('[data-v="save-record"]').click();
   await page.waitForFunction(()=>!V.editor);
-  await post('workbench/import',{projectId:'wb-test',name:'paper.md',base64:Buffer.from('# Real original\n').toString('base64')});
-  await page.evaluate(()=>window.ScienceScopeWorkbench.refresh());
+  await page.locator('[data-wb-organize]').check();
+  let autoOrganize=false;
+  for(let i=0;i<40&&!autoOrganize;i++){autoOrganize=(await get('workbench?projectId=wb-test')).autoOrganize;if(!autoOrganize)await page.waitForTimeout(100);}
+  assert.equal(autoOrganize,true,'auto-organize preference is durable before the import');
+  const chooserPromise=page.waitForEvent('filechooser');await page.locator('[data-action="upload-version"]').click();const chooser=await chooserPromise;
+  await chooser.setFiles({name:'paper.md',mimeType:'text/markdown',buffer:Buffer.from('# Real original\n')});
+  await page.waitForFunction(()=>S.versions.length===1);
+  await page.waitForFunction(()=>document.querySelectorAll('.versionrow').length===1);
   assert.equal(await page.locator('.versionrow').count(),1);
+  let organized;
+  for(let i=0;i<50&&!organized;i++){const snapshot=await get('workbench?projectId=wb-test');organized=snapshot.versions[0]?.status==='organized';if(!organized)await page.waitForTimeout(200);}
+  assert.equal(organized,true,'the host event completed automatic organization');
+  await page.waitForFunction(()=>document.querySelector('.versionrow')?.textContent.includes('附说明 MD'),null,{timeout:10000});
+  assert.equal(organizeRuns,1,'host event organized the imported version once');
+  assert.match(await page.locator('.versionrow').innerText(),/附说明 MD/,'background receipt polling refreshes the version note in place');
   await page.evaluate(()=>go('map'));
   await page.locator('[data-node="root"]').dblclick();
   await page.locator('.wb-node-editor').fill('**完整内容**\n'+ '长文字'.repeat(200));
@@ -89,7 +113,7 @@ try{
   const overflow=await page.locator('[data-node="root"] .nodetext').evaluate(el=>el.scrollWidth>el.clientWidth+2);
   assert.equal(overflow,false,'long text wraps horizontally');
   await page.evaluate(()=>go('workbench'));
-  const artifacts=path.join(defaultRoot,'.sciencescope-local/workbench-ui');await mkdir(artifacts,{recursive:true});
+  const artifacts=path.join(defaultRoot,'.sciencescope-local/temp/workbench-ui');await mkdir(artifacts,{recursive:true});
   await page.screenshot({path:path.join(artifacts,'workbench.png')});
   await page.evaluate(()=>go('map'));await page.screenshot({path:path.join(artifacts,'map.png')});
   const resource=await post('library/import',{projectId:'wb-test',name:'evidence.txt',base64:Buffer.from('Original source, not accepted knowledge.').toString('base64')});

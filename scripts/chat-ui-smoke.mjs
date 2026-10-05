@@ -8,7 +8,7 @@ import { buildDesktop } from './build-desktop.mjs';
 import { defaultRoot } from './prepare-desktop.mjs';
 
 const entry = await buildDesktop();
-const output = path.join(defaultRoot,'.sciencescope-local','ui-smoke');
+const output = path.join(defaultRoot,'.sciencescope-local','temp','ui-smoke');
 await mkdir(output,{recursive:true});
 process.env.TEMP=output;process.env.TMP=output;
 let finishReply;
@@ -99,7 +99,7 @@ try {
   assert.equal(await page.locator('.rendered-markdown pre code').innerText(),'print("SCIENCESCOPE_OK")\n');
   assert.equal(await page.locator('.rendered-markdown table tbody tr').count(),1);
   assert.equal(await page.locator('.rendered-markdown li').count(),2);
-  assert.equal(await page.locator('.rendered-markdown pre').evaluate(el=>getComputedStyle(el).borderRadius),'8px');
+  assert.equal(await page.locator('.rendered-markdown pre').evaluate(el=>getComputedStyle(el).borderRadius),'12px');
   assert.equal(await page.locator('.message[data-streaming]').count(),1);
   assert.equal(await page.locator('[data-main-stop]').count(),1);
   await page.locator('.messagebody').last().evaluate(el=>el.style.minHeight='1800px');
@@ -127,6 +127,8 @@ try {
   assert.match(await page.locator('.rendered-markdown').last().innerText(),/最后一段/);
   assert.equal(await page.locator('[data-main-stop]').count(),0);
   assert.equal(await page.locator('.turn-activity[open]').count(),1,'user-expanded details stay open after completion');
+  await page.locator('[data-v="copy-message"]').first().click();
+  await page.waitForFunction(()=>document.querySelector('[data-v="copy-message"][data-copied]')?.textContent.includes('已复制'));
   await page.evaluate(()=>{window.smokeSecond=window.SS.submitMain('请等待停止。');});
   await page.waitForSelector('[data-main-stop]');
   await page.waitForFunction(()=>S.messages.filter(m=>m.role==='assistant').length===2);
@@ -151,7 +153,28 @@ try {
   assert.doesNotMatch(sanitized,/<script|<button|data-v|href=["']javascript:|<img/i);
   assert.deepEqual(errors,[]);
   assert.equal(requests,4);
-  console.log(JSON.stringify({markdown:true,incrementalBeforeCompletion:true,draftAndFocusPreserved:true,toolGroupingAndDetails:true,readingPositionPreserved:true,stopButton:true,queuedSend:true,localRequests:requests,realProviderRequests:0}));
+  // Math in answers (user screenshot 2026-09-27: formulas showed as raw TeX).
+  const math=await page.evaluate(async()=>{
+    const {renderMarkdown}=await import('/desktop/markdown.mjs');
+    const box=document.createElement('div');box.className='message-text rendered-markdown';
+    box.innerHTML=renderMarkdown('指数：\n\n$$ISI = \\frac{10000}{\\sqrt{G_0 I_0 \\bar{G}\\bar{I}}}$$\n\n其中 $G_0$、$I_0$ 为空腹值，均值 $\\bar{G}\\bar{I}$。\n\n| 项 | 式 |\n|---|---|\n| 公式 | $x^2$ |\n\n价格 $5 and $10，代码 `$a$` 与\n\n```\nconst s = "$b$";\n```\n\n坏式 $\\frac{1}{$ 不会报错。');
+    document.body.append(box);
+    const r={display:box.querySelectorAll('.ss-math-block .katex-display').length,inline:box.querySelectorAll('.katex').length,
+      text:(()=>{const c=box.cloneNode(true);c.querySelectorAll('.katex-mathml').forEach(e=>e.remove());return c.textContent;})(),code:[...box.querySelectorAll('code')].map(c=>c.textContent).join('|'),
+      font:getComputedStyle(box.querySelector('.katex')).fontFamily,scripts:box.querySelectorAll('script,[onerror],[style*="url("]').length};
+    await document.fonts.ready;r.fontLoaded=document.fonts.check('16px KaTeX_Main');
+    return r;});
+  assert.equal(math.display,1,'display math');
+  assert.ok(math.inline>=5,'inline math, table cell and display rendered by KaTeX');
+  assert.doesNotMatch(math.text,/\$\$|\\sqrt|\\bar|\$G_0\$/,'no raw TeX left for valid formulas');
+  assert.match(math.text,/价格 \$5 and \$10/,'currency stays text');
+  assert.match(math.code,/\$a\$/);assert.match(math.code,/\$b\$/);
+  assert.match(math.font,/KaTeX_Main/);assert.equal(math.fontLoaded,true,'KaTeX font served by the production router');
+  assert.equal(math.scripts,0);
+  await page.evaluate(()=>document.querySelector('body > .message-text.rendered-markdown').scrollIntoView());
+  await page.screenshot({path:path.join(output,'math.png')});
+  await page.evaluate(()=>document.querySelector('body > .message-text.rendered-markdown').remove());
+  console.log(JSON.stringify({math:true,markdown:true,incrementalBeforeCompletion:true,draftAndFocusPreserved:true,toolGroupingAndDetails:true,readingPositionPreserved:true,stopButton:true,queuedSend:true,localRequests:requests,realProviderRequests:0}));
 } finally {
   finishReply(); secondRelease(); thirdRelease(); await browser?.close(); server.closeAllConnections();
   await new Promise(resolve=>server.close(resolve));

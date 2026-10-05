@@ -68,7 +68,17 @@ openPanel = function(type) {
 };
 
 render=function() {
+  // A late render (any module finishing a load) rebuilds the page and dropped an
+  // open in-app dialog, e.g. the new-chat details right after creating a project
+  // (found 2026-09-29). Keep the open dialog, its inputs and focus when the route
+  // is unchanged; navigating away still closes it.
+  const before=route,openModal=document.getElementById('modal');
+  const focused=openModal?.contains(document.activeElement)?document.activeElement:null;
   baseRender();
+  if(openModal&&!openModal.isConnected&&route===before&&!document.getElementById('modal')){
+    document.body.append(openModal);
+    focused?.focus({preventScroll:true});
+  }
   syncWorkspaceLayout();
   window.ScienceScopeWorkspace?.afterRender();
 };

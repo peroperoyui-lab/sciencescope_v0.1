@@ -22,11 +22,17 @@ export function apply(ctx) {
     req.end(body);
   });
   const enqueue = (message) => { const result = sendTail = sendTail.then(() => send(message)); return result; };
+  // Public Cordis service: agent idle means generation has ended, while the
+  // ordered localhost presentation queue may still contain thousands of frames.
+  ctx.provide('scienceScopeAssistantStream', { drain: async () => {
+    let pending;
+    do { pending = sendTail; await pending; } while (pending !== sendTail);
+  } });
   const committed = (data) => {
     const message = data?.message ?? data;
     const content = Array.isArray(message?.content) ? message.content : [];
     const text = content.filter((block) => block?.type === 'text' && typeof block.text === 'string').map((block) => block.text).join('');
-    return {turn:data?.turn,step:data?.step,...(message?.id === undefined ? {} : { messageId: message.id }),text};
+    return {turn:data?.turn,step:data?.step,...(message?.id === undefined ? {} : { messageId: message.id }),text,hasToolCalls:content.some(block=>block?.type==='tool-call'),...(data?.usage ? {usage:data.usage} : {}),...(data?.reason?.kind ? {stopReason:data.reason.kind} : {})};
   };
   ctx.on('agent/assistant-stream', ({ agent, frame }) => {
     if (String(agent.session.id) !== sessionId) return;

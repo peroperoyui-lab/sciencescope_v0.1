@@ -1,3 +1,4 @@
+import {infoTip} from './info-tip.mjs';
 import {hostRequest} from './host-client.mjs';
 const labels={main:'主专家',secretary:'任务秘书',global:'全局助手'};
 let roles=[],providers=[],failure='';
@@ -10,11 +11,11 @@ export function roleSettingsContent(target){
   const modelValue=config.model?JSON.stringify(config.model):'';
   const choices=providers.flatMap(p=>p.models.map(modelId=>({value:JSON.stringify({providerId:p.id,modelId}),label:p.name+' / '+modelId})));
   if(modelValue&&!choices.some(c=>c.value===modelValue))choices.push({value:modelValue,label:config.model.modelId+'（当前服务列表中不存在）'});
-  return `<form data-role-form="${id}"><h2>${labels[id]}设置</h2><p>${id==='main'?'它是统筹者，不建议给予主专家特定角色。':'提示词描述职责，不代替工具权限设置。'}</p>
+  return `<form data-role-form="${id}"><h2>${labels[id]}设置${infoTip(id==='main'?'它是统筹者，不建议给予主专家特定角色。':'提示词描述职责，不代替工具权限设置。',{label:'角色说明'})}</h2>
     <div class="field"><label>角色 system prompt</label><textarea name="prompt" maxlength="16000" required style="min-height:240px">${esc(config.prompt)}</textarea></div>
     <div class="field"><label>新对话默认模型</label><select name="model">${option('','由输入框选择',!modelValue)}${choices.map(c=>option(c.value,c.label,c.value===modelValue)).join('')}</select></div>
-    <div class="field"><label>默认思考强度</label><select name="effort">${option('','模型默认',!config.reasoningEffort)}${config.reasoningEffort?option(config.reasoningEffort,config.reasoningEffort,true):''}</select><small data-effort-note>仅使用模型公开支持的强度。</small></div>
-    <p>已保存版本 ${config.revision}。保存用于新对话；已有对话须空闲时显式应用提示词。应用不会切换模型或清空历史。</p>
+    <div class="field"><label>默认思考强度${infoTip('只列出当前模型公开支持的强度。', {label: '思考强度说明'})}</label><select name="effort">${option('','模型默认',!config.reasoningEffort)}${config.reasoningEffort?option(config.reasoningEffort,config.reasoningEffort,true):''}</select><small data-effort-note></small></div>
+    <p>已保存版本 ${config.revision}${infoTip('保存后用于新对话；已有对话须在空闲时点击“应用”才会使用新提示词。应用不会切换模型或清空历史。', {label: '保存与应用说明'})}</p>
     <p data-role-feedback role="status"></p><div class="saverow"><button type="submit" class="btn primary">保存配置</button><button type="button" class="btn" data-role-apply="${id}">应用已保存提示词到${id==='global'?'全局助手':'当前'+labels[id]}</button></div>
     <details><summary>最近应用记录</summary><button type="button" class="btn tiny" data-role-history="${id}">读取记录</button><div data-role-receipts></div></details>
   </form>`;
@@ -28,7 +29,7 @@ async function efforts(form){
   if(!model){form.elements.effort.innerHTML=option('','模型默认',true);return;}
   try{const info=await hostRequest('model-info?'+new URLSearchParams(JSON.parse(model)));if(!form.isConnected||form.elements.model.value!==model)return;
     form.elements.effort.innerHTML=option('','模型默认',!selected)+(info.reasoning?.efforts||[]).map(item=>option(item.id,item.name,item.id===selected)).join('');
-    form.querySelector('[data-effort-note]').textContent=info.reasoning?.efforts?.length?'能力来自当前运行时模型描述。':'此模型未声明可调强度，使用默认。';
+    form.querySelector('[data-effort-note]').textContent=info.reasoning?.efforts?.length?'':'此模型未声明可调强度，使用默认。';
   }catch{form.querySelector('[data-effort-note]').textContent='模型能力读取失败，保存前请核对模型配置。';}
 }
 window.addEventListener('change',event=>{const form=event.target.closest('[data-role-form]');if(form&&event.target.name==='model'){form.elements.effort.innerHTML=option('','模型默认',true);void efforts(form);}},true);
@@ -49,7 +50,13 @@ window.addEventListener('click',async event=>{
   }catch(error){form.querySelector('[data-role-feedback]').textContent=error.message;}finally{button.disabled=false;}
 },true);
 roleChannel.onmessage=()=>void refresh();
-const ready=refresh().then(()=>{if(['persona','experts','secretary-settings','assistant-settings'].includes(route))render();});
+const ready=refresh().then(()=>{
+  // The role catalog can finish after the independent preference forms have
+  // loaded. Populate its own surface without discarding those forms or drafts.
+  const surface=document.querySelector('[data-role-settings-surface]');
+  if(surface&&surface.dataset.roleSettingsSurface===route)surface.innerHTML=roleSettingsContent(route);
+  else if(route==='experts')render();
+});
 window.ScienceScopeRoleSettings={ready,async applyNewDraft(chatId){const before=window.ScienceScopeModels?.selected();await ready;const config=roles.find(r=>r.role==='main');if(V.chat!==chatId||V.pending.has(chatId)||window.ScienceScopeModels?.selected()!==before)return;if(config?.model){window.ScienceScopeModels?.select(config.model);window.ScienceScopeReasoning?.setDefault(config.reasoningEffort);render();}}};
 // Populate capabilities when a settings form is mounted, without remounting it.
 const mounted=new WeakSet();new MutationObserver(()=>{for(const form of document.querySelectorAll('[data-role-form]'))if(!mounted.has(form)){mounted.add(form);void efforts(form);}}).observe(document.body,{childList:true,subtree:true});

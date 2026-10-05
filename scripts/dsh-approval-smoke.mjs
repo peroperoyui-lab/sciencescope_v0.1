@@ -6,13 +6,15 @@ import assert from 'node:assert/strict';
 import {createDshHost} from '../adapters/runtime-dsh/host.mjs';
 const base=path.resolve('.sciencescope-local/temp');await mkdir(base,{recursive:true});
 const root=await mkdtemp(path.join(base,'approval-'));let count=0,approvals=0,fixtureError;
+const shellName=process.platform==='win32'?'pwsh':'bash';
+const command=process.platform==='win32'?"Write-Output 'APPROVAL_FIXTURE'":"printf 'APPROVAL_FIXTURE'";
 const fixture=createServer(async(req,res)=>{
   let body='';for await(const chunk of req)body+=chunk;const input=JSON.parse(body);count++;
   res.writeHead(200,{'Content-Type':'text/event-stream'});
   if(count===1){
-    const tool=input.tools?.find(t=>/pwsh$/.test(t.function?.name));
-    if(!tool){fixtureError='No pwsh tool';res.end('data: [DONE]\n\n');return;}
-    res.write(`data: ${JSON.stringify({choices:[{delta:{tool_calls:[{index:0,id:'call-approval',type:'function',function:{name:tool.function.name,arguments:JSON.stringify({command:"Write-Output 'APPROVAL_FIXTURE'",description:'Local approval test',sandbox_permissions:'danger-full-access',justification:'Local fixture requests permission; the test rejects it.'})}}]}}]})}\n\n`);
+    const tool=input.tools?.find(t=>t.function?.name===shellName);
+    if(!tool){fixtureError=`No ${shellName} tool`;res.end('data: [DONE]\n\n');return;}
+    res.write(`data: ${JSON.stringify({choices:[{delta:{tool_calls:[{index:0,id:'call-approval',type:'function',function:{name:tool.function.name,arguments:JSON.stringify({command,description:'Local approval test',sandbox_permissions:'danger-full-access',justification:'Local fixture requests permission; the test rejects it.'})}}]}}]})}\n\n`);
     res.write('data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}\n\n');
   }else{res.write('data: {"choices":[{"delta":{"content":"DENIED_ACK"}}]}\n\n');res.write('data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\n');}
   res.end('data: [DONE]\n\n');

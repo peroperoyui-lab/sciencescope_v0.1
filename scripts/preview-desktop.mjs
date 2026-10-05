@@ -3,19 +3,19 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
-import { buildDesktop, DESKTOP_ASSETS } from './build-desktop.mjs';
+import { buildDesktop, DESKTOP_ASSETS, VENDOR_ASSETS, GENERATED_ASSETS } from './build-desktop.mjs';
 import { createDesktopApi } from './desktop-api.mjs';
 
-export async function createDesktopServer({dataRoot,outputDir,runtimeHost}={}) {
+export async function createDesktopServer({dataRoot,outputDir,runtimeHost,openUrl,listFonts,pythonOptions,pythonBootstrap,idleMinuteMs}={}) {
 const entry = await buildDesktop({outputDir});
 const root = path.dirname(entry);
 const apiToken = randomBytes(32).toString('hex');
-const api = await createDesktopApi({dataRoot,runtimeHost,apiToken});
+const api = await createDesktopApi({dataRoot,runtimeHost,apiToken,...(openUrl?{openUrl}:{}),...(listFonts?{listFonts}:{}),...(pythonOptions?{pythonOptions}:{}),...(pythonBootstrap===undefined?{}:{pythonBootstrap}),...(idleMinuteMs===undefined?{}:{idleMinuteMs})});
 const routes = new Map([
   ['/', ['index.html','text/html; charset=utf-8']],
-  ['/desktop/vendor/marked.mjs',['desktop/vendor/marked.mjs','text/javascript; charset=utf-8']],
-  ['/desktop/vendor/purify.mjs',['desktop/vendor/purify.mjs','text/javascript; charset=utf-8']],
 ]);
+for(const [file,,type] of VENDOR_ASSETS)routes.set('/desktop/vendor/'+file,['desktop/vendor/'+file,type]);
+for(const [file,type] of GENERATED_ASSETS)routes.set('/desktop/'+file,['desktop/'+file,type]);
 // Build and serve the same declared assets; new modules cannot silently 404.
 for(const file of DESKTOP_ASSETS)routes.set('/desktop/'+file,['desktop/'+file,file.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8']);
   const server = http.createServer(async (request,response) => {

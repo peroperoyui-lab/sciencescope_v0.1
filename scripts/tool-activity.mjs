@@ -46,6 +46,8 @@ export function createToolActivityProjection({ chatStore } = {}) {
     is_error INTEGER NOT NULL DEFAULT 0, arguments_preview TEXT, result_preview TEXT,
     updated_at TEXT NOT NULL, PRIMARY KEY(chat_id, assistant_message_id, call_id)
   ); CREATE INDEX IF NOT EXISTS tool_activity_message ON tool_activity(chat_id, assistant_message_id);`);
+  // Execution preamble: the model's own words right before this call.
+  if (!db.prepare('PRAGMA table_info(tool_activity)').all().some((column) => column.name === 'preamble')) db.exec('ALTER TABLE tool_activity ADD COLUMN preamble TEXT');
   const validate = (v, name) => { if (typeof v !== 'string' || !/^[A-Za-z0-9_-]{1,160}$/u.test(v)) throw new TypeError(`Invalid ${name}`); return v; };
   const record = (input = {}) => chatStore._mutate(() => {
     const chatId = validate(input.chatId, 'chatId');
@@ -59,11 +61,12 @@ export function createToolActivityProjection({ chatStore } = {}) {
     const result = input.resultPreview === undefined ? existing?.result_preview ?? null : previewValue(input.resultPreview);
     const turn = Number.isInteger(input.turn) ? input.turn : existing?.turn ?? null;
     const step = Number.isInteger(input.step) ? input.step : existing?.step ?? null;
+    const preamble = typeof input.preamble === 'string' && input.preamble.trim() ? input.preamble.replace(/\r/g, '').slice(0, 4000) : existing?.preamble ?? null;
     const isError = input.isError === undefined ? Boolean(existing?.is_error) : Boolean(input.isError);
     const updated = new Date().toISOString();
-    db.prepare(`INSERT INTO tool_activity(chat_id,assistant_message_id,call_id,turn,step,name,status,is_error,arguments_preview,result_preview,updated_at)
-      VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(chat_id,assistant_message_id,call_id) DO UPDATE SET turn=excluded.turn,step=excluded.step,name=excluded.name,status=excluded.status,is_error=excluded.is_error,arguments_preview=excluded.arguments_preview,result_preview=excluded.result_preview,updated_at=excluded.updated_at`)
-      .run(chatId, assistantMessageId, callId, turn, step, name, status, isError ? 1 : 0, args, result, updated);
+    db.prepare(`INSERT INTO tool_activity(chat_id,assistant_message_id,call_id,turn,step,name,status,is_error,arguments_preview,result_preview,preamble,updated_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(chat_id,assistant_message_id,call_id) DO UPDATE SET turn=excluded.turn,step=excluded.step,name=excluded.name,status=excluded.status,is_error=excluded.is_error,arguments_preview=excluded.arguments_preview,result_preview=excluded.result_preview,preamble=excluded.preamble,updated_at=excluded.updated_at`)
+      .run(chatId, assistantMessageId, callId, turn, step, name, status, isError ? 1 : 0, args, result, preamble, updated);
     return row(db.prepare('SELECT * FROM tool_activity WHERE chat_id=? AND assistant_message_id=? AND call_id=?').get(chatId, assistantMessageId, callId));
   });
   const settle = ({ chatId, assistantMessageId } = {}) => chatStore._mutate(() => {
@@ -85,5 +88,5 @@ export function createToolActivityProjection({ chatStore } = {}) {
 
 function row(value) {
   if (!value) return null;
-  return { chatId: value.chat_id, assistantMessageId: value.assistant_message_id, callId: value.call_id, turn: value.turn, step: value.step, name: value.name, status: value.status, isError: Boolean(value.is_error), ...(value.arguments_preview === null ? {} : { argumentsPreview: value.arguments_preview }), ...(value.result_preview === null ? {} : { resultPreview: value.result_preview }), updatedAt: value.updated_at };
+  return { chatId: value.chat_id, assistantMessageId: value.assistant_message_id, callId: value.call_id, turn: value.turn, step: value.step, name: value.name, status: value.status, isError: Boolean(value.is_error), ...(value.arguments_preview === null ? {} : { argumentsPreview: value.arguments_preview }), ...(value.result_preview === null ? {} : { resultPreview: value.result_preview }), ...(value.preamble ? { preamble: value.preamble } : {}), updatedAt: value.updated_at };
 }

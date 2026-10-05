@@ -8,6 +8,9 @@ import assert from 'node:assert/strict';
 import {createDesktopApi} from './desktop-api.mjs';
 import {buildDesktop} from './build-desktop.mjs';
 import {chromium} from 'playwright-core';
+import {createDshHost} from '../adapters/runtime-dsh/host.mjs';
+import {createDshWebHost} from '../adapters/runtime-dsh/web-host.mjs';
+import {createProviderService} from '../adapters/runtime-dsh/provider-service.mjs';
 const base=path.resolve('.sciencescope-local/temp');await mkdir(base,{recursive:true});
 const root=await mkdtemp(path.join(base,'assistant-api-'));
 const apiToken=randomBytes(32).toString('hex');
@@ -29,7 +32,17 @@ const fixture=createServer(async(req,res)=>{
   setTimeout(()=>res.end('data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n'),250);
 });
 await new Promise(r=>fixture.listen(0,'127.0.0.1',r));
-async function launch(){api=await createDesktopApi({dataRoot:root,apiToken,onError:error=>{if(process.env.SCIENCESCOPE_FIXTURE_DIAGNOSTICS==='1')console.error(error);}});server=createServer(async(q,r)=>{
+async function launch(){
+  const home=path.join(root,'.sciencescope-local','dsh'),cwd=path.join(root,'.sciencescope-local','projects');
+  let runtimeHost,runtimeWeb;
+  try{
+    await mkdir(cwd,{recursive:true});
+    runtimeHost=await createDshHost({home,cwd,sessionHeaders:[],timeoutMs:60000});
+    runtimeWeb=await createDshWebHost({home,cwd,timeoutMs:60000});
+    if(typeof runtimeWeb.call==='function')Object.assign(runtimeHost,createProviderService(runtimeWeb.call));
+    api=await createDesktopApi({dataRoot:root,runtimeHost,runtimeWeb,apiToken,onError:error=>{if(process.env.SCIENCESCOPE_FIXTURE_DIAGNOSTICS==='1')console.error(error);}});
+  }catch(error){await Promise.allSettled([runtimeWeb?.close?.(),runtimeHost?.close?.()]);throw error;}
+  server=createServer(async(q,r)=>{
   if(await api.handle(q,r))return;
   try{
     const pathname=new URL(q.url,'http://localhost').pathname;
@@ -37,7 +50,8 @@ async function launch(){api=await createDesktopApi({dataRoot:root,apiToken,onErr
     if(!file.startsWith(path.dirname(entry)+path.sep))throw new Error('outside asset root');
     r.setHeader('Content-Type',file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css':'text/javascript');r.end(await readFile(file));
   }catch{r.writeHead(404);r.end();}
-});await new Promise(r=>server.listen(0,'127.0.0.1',r));origin=`http://127.0.0.1:${server.address().port}/api/`;}
+  });await new Promise(r=>server.listen(0,'127.0.0.1',r));origin=`http://127.0.0.1:${server.address().port}/api/`;
+}
 async function close(){await api?.close();server?.closeAllConnections();if(server)await new Promise(r=>server.close(r));api=null;server=null;}
 async function request(route,body){return fetch(origin+route,{method:body?'POST':'GET',headers:{...(body?{'Content-Type':'application/json'}:{}),Authorization:`Bearer ${apiToken}`},body:body?JSON.stringify(body):undefined});}
 async function json(route,body){const r=await request(route,body);assert.equal(r.status,200,route);return r.json();}
@@ -61,10 +75,18 @@ try{
   assert.equal((await json('chats/main-a/messages')).total,2);
   assert.equal((await request('chat',{chatId:a.chat.id,projectId:null,model,text:'ILLEGAL_REUSE'})).status,403);
   assert.equal((await request(`chats/${a.chat.id}/messages`)).status,404);
-  for(const call of calls.slice(1)){
-    assert.ok(call.tools?.length,'assistant receives actual runtime tools');
-    assert.doesNotMatch(JSON.stringify(call.messages),/MAIN_PUBLIC_SENTINEL/);
-  }
+  const privateGlobalCall=calls.find(call=>JSON.stringify(call.messages).includes('PRIVATE_GLOBAL_SENTINEL'));
+  const privateSecretaryCall=calls.find(call=>JSON.stringify(call.messages).includes('PRIVATE_SECRETARY_SENTINEL'));
+  assert.ok(privateGlobalCall?.tools?.length,'global assistant receives actual runtime tools');
+  assert.ok(privateSecretaryCall?.tools?.length,'secretary receives actual runtime tools');
+  assert.match(JSON.stringify(privateSecretaryCall.messages),/MAIN_PUBLIC_SENTINEL/,'secretary automatically catches up with its bound Main chat');
+  assert.doesNotMatch(JSON.stringify(privateSecretaryCall.messages),/PRIVATE_GLOBAL_SENTINEL/,'secretary never receives the global private chat');
+  await stream('assistant/chat',{scope:'global',ownerId:'global',model,text:'GLOBAL_FOCUS_QUERY',contextChatId:'main-a'});
+  const focusedGlobal=calls.findLast(call=>JSON.stringify(call.messages).includes('GLOBAL_FOCUS_QUERY'));
+  const focusMessage=focusedGlobal.messages.find(message=>JSON.stringify(message).includes('[User focus:'));
+  const focusText=typeof focusMessage.content==='string'?focusMessage.content:JSON.stringify(focusMessage.content);
+  assert.match(focusText,/"chatId":"main-a"/,'global focus carries the selected Main identity');
+  assert.doesNotMatch(focusText,/<message n=/,'global focus does not inject a Main transcript excerpt');
   assert.ok(calls.some(call=>JSON.stringify(call.messages).includes('SECRETARY_ROLE_BEFORE')),'new secretary consumes saved prompt');
   await json('roles/save',{role:'secretary',config:{prompt:'SECRETARY_ROLE_AFTER',model,reasoningEffort:null}});
   await close();await launch();

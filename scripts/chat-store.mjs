@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { openApplicationDatabaseSync } from "./application-database.mjs";
 const ID = /^[A-Za-z0-9_-]{1,160}$/u;
 const clone = (v) => JSON.parse(JSON.stringify(v));
+const COMPLETION_STATES = new Set(['pending','completed','failed','cancelled','max-tokens']);
 function safeId(v, n = "id") {
   if (typeof v !== "string" || !ID.test(v)) throw new TypeError(`Invalid ${n}`);
   return v;
@@ -77,6 +78,15 @@ export class ChatStore {
     await mkdir(this.stateDir, { recursive: true });
     this.db = openApplicationDatabaseSync({ stateDir: this.stateDir });
     this.database = this.db;
+    const sql = this.db.db;
+    const addColumn = (table, name, definition) => {
+      if (!sql.prepare(`PRAGMA table_info(${table})`).all().some((column) => column.name === name)) sql.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${definition}`);
+    };
+    addColumn("messages", "runtime_seq", "INTEGER");
+    addColumn("messages", "completion_status", "TEXT");
+    addColumn("chats", "branched_from_json", "TEXT");
+    addColumn("chats", "reasoning_effort", "TEXT");
+    sql.exec("CREATE TABLE IF NOT EXISTS chat_branch_drafts(chat_id TEXT PRIMARY KEY REFERENCES chats(id) ON DELETE CASCADE, text TEXT NOT NULL)");
     return this;
   }
   close() {
@@ -94,6 +104,8 @@ export class ChatStore {
       archived: Boolean(r.archived),
       unread: Boolean(r.unread),
       ...(r.deleted_at ? { deletedAt: r.deleted_at } : {}),
+      ...(r.branched_from_json ? { branchedFrom: JSON.parse(r.branched_from_json) } : {}),
+      ...(r.reasoning_effort ? { reasoningEffort: r.reasoning_effort } : {}),
     };
   }
   _chat(id) {
@@ -139,6 +151,10 @@ export class ChatStore {
   }
   getRuntimeWorkspace(id) {
     return this._chat(safeId(id, "chatId"))?.runtime_workspace ?? null;
+  }
+  async setReasoningEffort(id, effort) {
+    safeId(id,"chatId"); if(effort!==null&&effort!==undefined&&(typeof effort!=="string"||!/^[A-Za-z0-9._-]{1,80}$/u.test(effort)))throw new TypeError("Invalid reasoning effort");
+    return this._mutate(()=>{this.db.db.prepare("UPDATE chats SET reasoning_effort=? WHERE id=?").run(effort??null,id);return this.getChat(id);});
   }
   async ensureChat({ chatId, projectId = null, title = "", model }) {
     chatId = safeId(chatId, "chatId");
@@ -195,12 +211,16 @@ export class ChatStore {
     role,
     text,
     created,
+    runtimeSeq,
+    completionStatus,
   }) {
     chatId = safeId(chatId, "chatId");
     id = safeId(id, "messageId");
     if (
       !["user", "assistant", "system"].includes(role) ||
-      typeof text !== "string"
+      typeof text !== "string" ||
+      (runtimeSeq !== undefined && runtimeSeq !== null && (!Number.isSafeInteger(runtimeSeq) || runtimeSeq < 0)) ||
+      (completionStatus !== undefined && completionStatus !== null && !COMPLETION_STATES.has(completionStatus))
     )
       throw new TypeError("Invalid message");
     return this._mutate(() => {
@@ -208,19 +228,19 @@ export class ChatStore {
       if (!c) throw new Error("CHAT_NOT_FOUND");
       const old = this.db.db
         .prepare(
-          "SELECT id,role,text,created FROM messages WHERE chat_id=? AND id=?",
+          "SELECT id,role,text,created,runtime_seq AS runtimeSeq,completion_status AS completionStatus FROM messages WHERE chat_id=? AND id=?",
         )
         .get(chatId, id);
       if (old) return old;
       const at = created || new Date().toISOString(),
         ordinal = c.message_count;
       this.db.db
-        .prepare("INSERT INTO messages VALUES(?,?,?,?,?,?)")
-        .run(chatId, ordinal, id, role, text, at);
+        .prepare("INSERT INTO messages(chat_id,ordinal,id,role,text,created,runtime_seq,completion_status) VALUES(?,?,?,?,?,?,?,?)")
+        .run(chatId, ordinal, id, role, text, at, Number.isSafeInteger(runtimeSeq) ? runtimeSeq : null, completionStatus ?? null);
       this.db.db
         .prepare("UPDATE chats SET message_count=?,updated=? WHERE id=?")
         .run(ordinal + 1, at, chatId);
-      return { id, role, text, created: at };
+      return { id, role, text, created: at, runtimeSeq: Number.isSafeInteger(runtimeSeq) ? runtimeSeq : null, completionStatus: completionStatus ?? null };
     });
   }
   async pageMessages(chatId, { before, after, limit = 60 } = {}) {
@@ -242,7 +262,7 @@ export class ChatStore {
       end = Math.min(boundary, start + limit);
     const messages = this.db.db
       .prepare(
-        "SELECT id,role,text,created FROM messages WHERE chat_id=? AND ordinal>=? AND ordinal<? ORDER BY ordinal",
+        "SELECT id,role,text,created,ordinal,runtime_seq AS runtimeSeq,completion_status AS completionStatus FROM messages WHERE chat_id=? AND ordinal>=? AND ordinal<? ORDER BY ordinal",
       )
       .all(chatId, start, end);
     return {
@@ -254,6 +274,52 @@ export class ChatStore {
       hasMoreBefore: start > 0,
       hasMoreAfter: end < total,
     };
+  }
+  async setMessageReceipt(chatId, id, { runtimeSeq, completionStatus } = {}) {
+    safeId(chatId, "chatId"); safeId(id, "messageId");
+    if (runtimeSeq !== undefined && runtimeSeq !== null && (!Number.isSafeInteger(runtimeSeq) || runtimeSeq < 0)) throw new TypeError("Invalid runtimeSeq");
+    if (completionStatus !== undefined && completionStatus !== null && !COMPLETION_STATES.has(completionStatus)) throw new TypeError("Invalid completionStatus");
+    return this._mutate(() => {
+      if (!this.db.db.prepare("SELECT 1 FROM messages WHERE chat_id=? AND id=?").get(chatId, id)) throw new Error("MESSAGE_NOT_FOUND");
+      this.db.db.prepare("UPDATE messages SET runtime_seq=COALESCE(?,runtime_seq),completion_status=COALESCE(?,completion_status) WHERE chat_id=? AND id=?")
+        .run(runtimeSeq ?? null, completionStatus ?? null, chatId, id);
+      return true;
+    });
+  }
+  getMessage(chatId, id) {
+    safeId(chatId, "chatId"); safeId(id, "messageId");
+    return this.db.db.prepare("SELECT id,role,text,created,ordinal,runtime_seq AS runtimeSeq,completion_status AS completionStatus FROM messages WHERE chat_id=? AND id=?").get(chatId, id) ?? null;
+  }
+  async setBranchDraft(chatId, text) {
+    safeId(chatId, "chatId"); if (typeof text !== "string") throw new TypeError("Invalid draft");
+    return this._mutate(() => {
+      if (!this._chat(chatId)) throw new Error("CHAT_NOT_FOUND");
+      if (text) this.db.db.prepare("INSERT INTO chat_branch_drafts(chat_id,text) VALUES(?,?) ON CONFLICT(chat_id) DO UPDATE SET text=excluded.text").run(chatId, text);
+      else this.db.db.prepare("DELETE FROM chat_branch_drafts WHERE chat_id=?").run(chatId);
+      return text;
+    });
+  }
+  getBranchDraft(chatId) { safeId(chatId, "chatId"); return this.db.db.prepare("SELECT text FROM chat_branch_drafts WHERE chat_id=?").get(chatId)?.text ?? null; }
+  branchPrefix({ sourceChatId, newChatId, title, projectId, model, runtimeWorkspace, branchedFrom, messages, draft, reasoningEffort, copyPresentation }) {
+    safeId(sourceChatId, "chatId"); safeId(newChatId, "chatId");
+    return this._mutate(() => {
+      if (!this._chat(sourceChatId)) throw new Error("CHAT_NOT_FOUND");
+      const now = new Date().toISOString();
+      this.db.db.prepare("INSERT INTO chats(id,project_id,title,updated,model_json,runtime_workspace,branched_from_json,reasoning_effort) VALUES(?,?,?,?,?,?,?,?)")
+        .run(newChatId, projectId ?? null, title, now, model ? JSON.stringify(model) : null, runtimeWorkspace ?? null, branchedFrom ? JSON.stringify(branchedFrom) : null, reasoningEffort ?? this._chat(sourceChatId).reasoning_effort ?? null);
+      const insert = this.db.db.prepare("INSERT INTO messages(chat_id,ordinal,id,role,text,created,runtime_seq,completion_status) VALUES(?,?,?,?,?,?,?,?)");
+      let ordinal = 0;
+      const messageIds = new Map();
+      for (const message of messages) {
+        const id = `branch-${randomUUID()}`;
+        messageIds.set(message.id, id);
+        insert.run(newChatId, ordinal++, id, message.role, message.text, message.created, message.runtimeSeq ?? null, message.completionStatus ?? null);
+      }
+      this.db.db.prepare("UPDATE chats SET message_count=? WHERE id=?").run(ordinal, newChatId);
+      if (draft) this.db.db.prepare("INSERT INTO chat_branch_drafts(chat_id,text) VALUES(?,?)").run(newChatId, draft);
+      copyPresentation?.(messageIds);
+      return this.getChat(newChatId);
+    });
   }
   async updateMetadata(id, patch = {}) {
     safeId(id, "chatId");

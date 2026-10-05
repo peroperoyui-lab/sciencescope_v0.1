@@ -34,6 +34,7 @@ try {
   await page.evaluate(()=>window.ScienceScopeWorkspace.ready);
   await page.evaluate(()=>{window.ScienceScopeModels={available:()=>true,selected:()=>({providerId:'fixture',modelId:'fixture'})};});
   await page.locator('[data-route="quick"]').first().click();
+  await page.locator('#modal [data-creation-start]').click();await page.waitForFunction(()=>!document.querySelector('#modal'));
   const first=await page.evaluate(()=>V.chat);
   await page.locator('[data-draft="main"]').fill('第一条消息');
   await page.locator('[data-v="send"][data-scope="main"]').click();
@@ -47,6 +48,7 @@ try {
   usedTokens=500;
   await page.waitForFunction(()=>document.querySelector('[data-usage="main"]')?.style.getPropertyValue('--context-pct')==='10%');
   await page.locator('[data-route="quick"]').first().click();
+  await page.locator('#modal [data-creation-start]').click();await page.waitForFunction(()=>!document.querySelector('#modal'));
   assert.notEqual(await page.evaluate(()=>V.chat),first);
   assert.equal(await page.locator('[data-draft="main"]').inputValue(),'');
   assert.equal(await page.locator('[data-usage="main"]').getAttribute('data-context-known'),'false');
@@ -58,7 +60,7 @@ try {
      return event.defaultPrevented;
    }),true);
   await page.evaluate(()=>openPanel('browser'));
-  assert.match(await page.locator('.browser-panel').innerText(),/尚未接入/);
+  assert.doesNotMatch(await page.locator('.browser-panel').innerText(),/尚未|示例|原型/,'no notice or sample page');
   assert.equal(await page.locator('.browser-document').count(),0);
   await page.evaluate(()=>openPalette());
   await page.locator('#command-query').fill('LOCAL_REPLY');

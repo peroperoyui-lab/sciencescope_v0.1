@@ -50,7 +50,7 @@ test('main builtin prompt sets rigorous research persona without changing saved 
     assert.match(builtin, /evidence.*methods.*assumptions.*uncertainty/s);
     assert.match(builtin, /formulas.*statistical assumptions.*evidential basis/s);
     assert.match(builtin, /understand, judge, and correct/);
-    assert.match(builtin, /lengthy basic teaching unless requested/);
+    assert.match(builtin, /Explain basic concepts when the user requests them/);
     assert.match(builtin, /private user profile/);
     assert.doesNotMatch(builtin, /teaching tutor/);
     const bound = f.store.bind('main-persona-chat', 'main', { existing: true });
@@ -77,5 +77,28 @@ test('malformed settings fail with typed 400 error', () => {
   try {
     assert.throws(() => f.store.save('nope', { prompt: 'x' }), e => e instanceof RoleSettingsError && e.code === 'INVALID_ROLE_SETTINGS' && e.status === 400);
     assert.throws(() => f.store.save('main', { prompt: '   ' }), e => e.code === 'INVALID_ROLE_SETTINGS');
+  } finally { close(f); }
+});
+
+test('legacy defaults update only untouched revision zero rows and preserve bindings and receipts', () => {
+  const f = fixture('legacy-upgrade');
+  const legacy = {
+    global: "You are ScienceScope's private global assistant. Use only explicitly supplied context; do not claim to inspect unrelated projects. You may use capabilities granted by the runtime and must accurately report actions and results.",
+    secretary: "You are ScienceScope's private task secretary. Use only explicitly supplied context, may use capabilities granted by the runtime, and must accurately report actions and results.",
+  };
+  try {
+    for (const role of Object.keys(legacy)) f.db.prepare('UPDATE role_settings SET prompt=?,revision=0 WHERE role=?').run(legacy[role], role);
+    f.db.prepare('INSERT OR REPLACE INTO role_bindings(chat_id,role,prompt,revision) VALUES(?,?,?,?)').run('legacy-bound', 'global', legacy.global, 0);
+    f.db.prepare('INSERT OR REPLACE INTO role_prompt_receipts(id,chat_id,role,revision,at) VALUES(?,?,?,?,?)').run('legacy-receipt', 'legacy-bound', 'global', 0, '2026-01-01T00:00:00.000Z');
+    const upgraded = createRoleSettings({ db: f.db });
+    assert.equal(upgraded.get('global').prompt, builtinRolePrompts.global); assert.equal(upgraded.get('global').revision, 0);
+    assert.equal(upgraded.get('secretary').prompt, builtinRolePrompts.secretary); assert.equal(upgraded.get('secretary').revision, 0);
+    assert.deepEqual(upgraded.getBinding('legacy-bound'), { chatId: 'legacy-bound', role: 'global', prompt: legacy.global, revision: 0 });
+    assert.deepEqual(upgraded.listReceipts('legacy-bound').map((row) => ({ ...row })), [{ id: 'legacy-receipt', chatId: 'legacy-bound', role: 'global', revision: 0, at: '2026-01-01T00:00:00.000Z' }]);
+
+    for (const role of Object.keys(legacy)) f.db.prepare('UPDATE role_settings SET prompt=?,revision=1 WHERE role=?').run(legacy[role], role);
+    const edited = createRoleSettings({ db: f.db });
+    assert.equal(edited.get('global').prompt, legacy.global); assert.equal(edited.get('global').revision, 1);
+    assert.equal(edited.get('secretary').prompt, legacy.secretary); assert.equal(edited.get('secretary').revision, 1);
   } finally { close(f); }
 });

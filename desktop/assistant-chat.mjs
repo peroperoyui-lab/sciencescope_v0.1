@@ -3,9 +3,12 @@ import {hostRequest,streamChat} from './host-client.mjs';
 import {renderMarkdown} from './markdown.mjs';
 import {composerMenu} from './composer-menu.mjs';
 import {recordTool,activityHTML} from './turn-activity.mjs';
+import {infoTip} from './info-tip.mjs';
+import {showPythonChoice} from './python-settings.mjs';
 
 const entries=new Map();
 const navigation=new BroadcastChannel('sciencescope-navigation');
+setInterval(()=>{if(!document.hidden)for(const e of entries.values())if(e.scope==='secretary'&&visible(e))void loadSummaryProposals(e);},5000);
 navigation.onmessage=async({data})=>{
   if(V.surface||!data||data.type!=='navigate')return;
   await window.ScienceScopeWorkspace.ready;
@@ -20,18 +23,20 @@ function entry(scope,ownerId=scope==='global'?'global':V.chat){
 }
 function visible(e){return [...document.querySelectorAll('.assistant-surface')].find(el=>el.dataset.scope===e.scope&&el.dataset.owner===e.ownerId);}
 function bubble(m,scope){
-  return `<article class="assistant-message ${m.role==='user'?'user':''}" data-assistant-message="${esc(m.id)}"><small>${esc(m.role==='user'?(window.ScienceScopeProfile?.name()||'用户'):m.role==='system'?'状态':label(scope))}</small><div class="turn-activity-host">${activityHTML(m)}</div><div class="message-text rendered-markdown">${renderMarkdown(m.text)}</div></article>`;
+  return `<article class="assistant-message ${m.role==='user'?'user':''}" data-assistant-message="${esc(m.id)}"><small>${esc(m.role==='user'?(window.ScienceScopeProfile?.name()||'用户'):m.role==='system'?'状态':label(scope))}</small><div class="turn-activity-host">${activityHTML(m)}</div><div class="message-text rendered-markdown">${renderMarkdown(m.text)}</div>${m.completionStatus==='max-tokens'?`<div class="model-output-status" role="status"><span>已达到模型输出上限</span><button class="btn tiny" data-assistant-action="continue" data-message-id="${esc(m.id)}">继续</button></div>`:''}</article>`;
 }
 function surfaceHTML(scope){
   const e=entry(scope);queueMicrotask(()=>void load(e));
   return `<section class="assistant-surface" data-scope="${scope}" data-owner="${esc(e.ownerId)}">
     <div class="assistant-messages" aria-label="${label(scope)}对话记录" tabindex="0"></div>
     <div class="assistant-feedback" role="status"></div>
-<div class="assistant-controls"><button class="btn tiny" data-assistant-action="history">较早记录</button><button class="btn tiny" data-assistant-action="latest">最新</button><span class="grow"></span><button class="btn tiny" data-assistant-action="context" title="在主对话选中文字，选择引用至本角色；仅发送所选片段。">引用对话</button></div>
+<div class="assistant-controls"><button class="btn tiny" data-assistant-action="history">较早记录</button><button class="btn tiny" data-assistant-action="latest">最新</button><span class="grow"></span>${scope==='global'?'<button class="btn tiny" data-assistant-action="context">以此对话为准</button>':''}</div>
+    ${scope==='secretary'?`<div class="assistant-follow-up"><span data-follow-up></span>${infoTip('发送前自动跟进主对话的新消息与工作站状态；回复失败或被停止时不推进位置。仍可选中文字添加标记。')}</div>`:''}
     <div class="assistant-approvals"></div>
     <div class="assistant-proposals"></div>
-    <div class="composer assistant-composer"><div class="assistant-attachments"></div><textarea data-assistant-input aria-label="${label(scope)}输入" placeholder="${scope==='global'?'想问什么？':'先问清楚，再决定下一步…'}"></textarea>
-    <div class="composerbar"><button data-assistant-action="upload" class="iconbtn" title="添加文件">${ic('plus')}</button><button data-assistant-action="policy" class="btn tiny">询问</button><span class="spacer"></span><button data-assistant-action="model" class="btn assistant-model">选择模型</button><button data-assistant-action="effort" class="btn tiny">模型默认</button><button data-assistant-action="send" class="sendbtn" aria-label="发送给${label(scope)}">${ic('arrow')}</button><button data-assistant-action="stop" class="sendbtn" aria-label="停止回复" hidden>■</button></div></div>
+    ${scope==='secretary'?'<div class="assistant-summary-proposals"></div>':''}
+    <div class="composer assistant-composer"><div class="assistant-attachments"></div><textarea data-assistant-input aria-label="${label(scope)}输入" placeholder="${scope==='global'?'哪些项目还有待办？也可以指定项目查阅。':'先问清楚，再决定下一步…'}"></textarea>
+    <div class="composerbar"><button data-assistant-action="upload" class="iconbtn" title="添加文件">${ic('plus')}</button><button data-assistant-action="policy" class="btn tiny">询问</button><button data-assistant-action="python" class="btn tiny" title="Python 环境">Py</button><span class="spacer"></span><button data-assistant-action="model" class="btn assistant-model">选择模型</button><button data-assistant-action="effort" class="btn tiny">模型默认</button><button data-assistant-action="send" class="sendbtn" aria-label="发送给${label(scope)}">${ic('arrow')}</button><button data-assistant-action="stop" class="sendbtn" aria-label="停止回复" hidden>■</button></div></div>
   </section>`;
 }
 function paint(e,{messages=true,bottom=false}={}){
@@ -44,15 +49,33 @@ function paint(e,{messages=true,bottom=false}={}){
   const policy=surface.querySelector('[data-assistant-action="policy"]');policy.textContent=e.executionMode==='full'?'完全接管':'询问';policy.classList.toggle('policy-caution',e.executionMode==='full');
   surface.querySelector('[data-assistant-action="effort"]').textContent=e.reasoningEffort||'模型默认';
   surface.querySelector('.assistant-attachments').innerHTML=e.attachments.map(file=>`<span class="ref-chip">${esc(file.title)}<button data-assistant-action="remove-attachment" data-id="${esc(file.id)}" aria-label="移除附件">×</button></span>`).join('');
-  const approvalHTML=e.approvals.map(a=>`<div class="assistant-approval"><strong>需要确认：${esc(a.toolName||'工具')}</strong><p>${esc(a.reason||'运行时请求操作授权。')}</p><button data-assistant-action="approve" data-request="${esc(a.requestId)}" class="btn tiny">允许这次</button> <button data-assistant-action="reject" data-request="${esc(a.requestId)}" class="btn tiny">拒绝</button></div>`).join('');
+  const approvalHTML=e.approvals.map(a=>`<div class="assistant-approval" ${a.classification==='protected-path'?'data-protected-path-approval':''}><strong>需要确认：${esc(a.toolName||'工具')}</strong><p>${esc(a.reason||'运行时请求操作授权。')}</p>${a.classification==='protected-path'?`<strong class="protected-path-warning">涉及应用内部数据</strong><pre data-i18n-skip>${esc(a.commandSummary)}</pre>`:a.targetEnvironment?`<p><span>目标环境</span> · ${esc(a.targetEnvironment)}</p><pre>${esc((a.packages||[]).join('\n'))}</pre>`:''}<button data-assistant-action="approve" data-request="${esc(a.requestId)}" class="btn tiny">允许这次</button> <button data-assistant-action="reject" data-request="${esc(a.requestId)}" class="btn tiny">拒绝</button></div>`).join('');
   const approvalBox=surface.querySelector('.assistant-approvals');if(approvalBox._html!==approvalHTML){approvalBox.innerHTML=approvalHTML;approvalBox._html=approvalHTML;}
   const proposals=(e.proposals||[]).filter(p=>p.status==='pending');
   const proposalBox=surface.querySelector('.assistant-proposals'),proposalKey=proposals.map(p=>p.id).join(',');
   if(proposalBox.dataset.ids!==proposalKey){proposalBox.dataset.ids=proposalKey;proposalBox.innerHTML=proposals.map(p=>`<details open class="assistant-proposal" data-proposal="${esc(p.id)}"><summary>秘书提案 · 请审阅</summary><textarea aria-label="编辑秘书提案">${esc(p.text)}</textarea><button class="btn tiny" data-assistant-action="apply-proposal" data-id="${esc(p.id)}">确认填入主对话草稿</button> <button class="btn tiny" data-assistant-action="dismiss-proposal" data-id="${esc(p.id)}">忽略</button></details>`).join('');}
+  const summaryBox=surface.querySelector('.assistant-summary-proposals');
+  if(summaryBox){
+    const items=(e.summaryProposals||[]).filter(item=>item.status==='pending'),key=JSON.stringify(items);
+    if(summaryBox._key!==key){summaryBox._key=key;summaryBox.innerHTML=items.length?`<details open class="assistant-proposal"><summary>待确认的工作站更新（${items.length}）</summary>${items.map(item=>`<article><strong>${esc(({map:'导图',versions:'稿件版本说明',plans:'计划',log:'日志'})[item.target]||item.target)}</strong><div data-i18n-skip>${esc(summaryOperationText(item.op))}</div><button class="btn tiny" data-assistant-action="summary-accept" data-id="${esc(item.id)}">接受</button> <button class="btn tiny" data-assistant-action="summary-dismiss" data-id="${esc(item.id)}">忽略</button></article>`).join('')}</details>`:'';}
+  }
   surface.querySelector('[data-assistant-action="send"]').hidden=e.running||e.sending;
   surface.querySelector('[data-assistant-action="stop"]').hidden=!(e.running||e.sending);
-  surface.querySelector('[data-assistant-action="context"]').textContent=e.contextChatId?'已引用对话 · 点击取消':'引用对话';
+  const focusButton=surface.querySelector('[data-assistant-action="context"]');if(focusButton)focusButton.textContent=e.contextChatId?'已指定对话 · 点击取消':'以此对话为准';
+  const followUp=surface.querySelector('[data-follow-up]');if(followUp)followUp.textContent=`已跟进到主对话第 ${e.followUp?.seenOrdinal??0} 条 · 纪要第 ${e.followUp?.minutesRevision??0} 版`;
   surface.querySelector('[data-assistant-action="history"]').disabled=!e.before||e.running||e.sending;
+}
+function summaryOperationText(op={}) {
+  const node=op.nodeId||op.parentId,plan=op.planId,version=op.versionId;
+  return [op.title,op.note,op.text,node?(S.nodes||[]).find(item=>item.id===node)?.text||node:null,op.status,
+    plan?(S.plans||[]).find(item=>item.id===plan)?.title||plan:null,
+    version?(S.versions||[]).find(item=>item.id===version)?.name||version:null].filter(value=>typeof value==='string').join(' · ');
+}
+async function loadSummaryProposals(e){
+  if(e.scope!=='secretary'||e.summaryLoading||!S.threads.some(thread=>thread.id===e.ownerId))return;
+  e.summaryLoading=true;
+  try{const result=await hostRequest('summary/proposals?'+new URLSearchParams({chatId:e.ownerId}));e.summaryProposals=result.proposals;paint(e,{messages:false});}
+  catch(error){e.error=error.message;paint(e,{messages:false});}finally{e.summaryLoading=false;}
 }
 async function load(e,force=false){
   if(e.loading)return;
@@ -61,12 +84,13 @@ async function load(e,force=false){
   try{
     const snapshot=await hostRequest('assistant?'+new URLSearchParams({scope:e.scope,ownerId:e.ownerId}));
     e.messages=snapshot.messages;e.before=snapshot.before;e.running=snapshot.running;e.chat=snapshot.chat;
+    e.followUp=snapshot.followUp;
     if(!e.loaded&&!e.edited)e.draft=snapshot.draft||'';
     e.model=snapshot.chat?.model||e.model||snapshot.roleDefaults?.model||window.ScienceScopeModels?.selected()||null;
     if(!e.loaded){e.attachments=snapshot.attachments||[];e.executionMode=snapshot.settings?.executionMode||'ask';e.reasoningEffort=snapshot.settings?.reasoningEffort||(!snapshot.chat?snapshot.roleDefaults?.reasoningEffort:undefined)||undefined;}
     e.approvals=snapshot.approvals||[];
     e.proposals=snapshot.proposals||[];
-    e.loaded=true;e.error='';
+    e.loaded=true;e.error='';void loadSummaryProposals(e);
   }catch(error){e.error=error.message;}finally{e.loading=false;paint(e,{bottom:!e.loaded});}
 }
 function saveDraft(e){
@@ -76,10 +100,10 @@ function saveDraft(e){
   e.draftWrites.catch(()=>{e.error='草稿未保存，请暂时保留窗口。';paint(e,{messages:false});});
   return e.draftWrites;
 }
-async function send(e){
-  if(e.sending||e.running||!e.draft.trim())return;
+async function send(e,continueMessageId){
+  if(e.sending||e.running||(!continueMessageId&&!e.draft.trim()))return;
   if(!e.model){e.error='请先选择模型。';paint(e,{messages:false});return;}
-  const text=e.draft,userId='msg-'+crypto.randomUUID(),attachmentIds=e.attachments.map(file=>file.id);let answer,accepted=false;
+  const text=continueMessageId?'Continue your previous response from where the model output limit stopped it. Preserve the existing conclusions and evidence; avoid repeating text already written.':e.draft,userId='msg-'+crypto.randomUUID(),attachmentIds=continueMessageId?[]:e.attachments.map(file=>file.id);let answer,accepted=false;
   e.sending=true;e.error='';paint(e,{messages:false});
   let timer;
   const incremental=()=>{
@@ -90,9 +114,9 @@ async function send(e){
     if(follow)box.scrollTop=box.scrollHeight;
   };
   try{
-    await saveDraft(e);
-    const researchInput=await window.ScienceScopeResearchInput?.capture(e.scope,e.ownerId);
-    await streamChat({scope:e.scope,ownerId:e.ownerId,model:e.model,text,userMessageId:userId,researchInput,contextChatId:e.contextChatId||undefined,executionMode:e.executionMode,reasoningEffort:e.reasoningEffort,attachmentIds},event=>{
+    if(!continueMessageId)await saveDraft(e);
+    const researchInput=continueMessageId?undefined:await window.ScienceScopeResearchInput?.capture(e.scope,e.ownerId);
+    await streamChat({scope:e.scope,ownerId:e.ownerId,model:e.model,text,userMessageId:userId,...(continueMessageId?{messageId:continueMessageId}:{}),researchInput,contextChatId:e.contextChatId||undefined,executionMode:e.executionMode,reasoningEffort:e.reasoningEffort,attachmentIds},event=>{
       if(event.type==='accepted'){
         accepted=true;e.running=true;
         answer={id:event.assistantMessageId,role:'assistant',text:''};
@@ -101,11 +125,11 @@ async function send(e){
       }
       if(event.type==='text-delta'&&answer){answer.text+=event.delta;timer??=setTimeout(incremental,50);}
       if(['text-replace','text-reset'].includes(event.type)&&answer){answer.text=event.text||'';timer??=setTimeout(incremental,50);}
-      if(event.type==='completed'&&answer&&typeof event.text==='string')answer.text=event.text;
+      if(event.type==='completed'&&answer&&typeof event.text==='string'){answer.text=event.text;answer.completionStatus=event.stopReason==='max-tokens'?'max-tokens':'completed';}
       if(event.type==='main-draft-proposal'){e.proposals??=[];e.proposals.push({id:event.proposalId,text:event.text,status:'pending'});paint(e,{messages:false});}
       if(['tool-call','tool-result'].includes(event.type)&&answer){recordTool(answer,event);const node=[...visible(e)?.querySelectorAll('[data-assistant-message]')||[]].find(node=>node.dataset.assistantMessage===answer.id)?.querySelector('.turn-activity-host');if(node)node.innerHTML=activityHTML(answer);}
-    },'/api/assistant/chat');
-  }catch(error){e.error=error.message;if(!accepted)e.draft=text;for(const id of attachmentIds)if(!e.attachments.some(file=>file.id===id))e.attachments.push({id,title:id});}
+    },continueMessageId?'/api/assistant/continue':'/api/assistant/chat');
+  }catch(error){e.error=error.message;if(!accepted&&!continueMessageId)e.draft=text;for(const id of attachmentIds)if(!e.attachments.some(file=>file.id===id))e.attachments.push({id,title:id});}
   finally{
     clearTimeout(timer);e.sending=false;e.running=false;
     const error=e.error;if(accepted)await load(e,true);if(error)e.error=error;
@@ -149,6 +173,12 @@ window.addEventListener('click',async event=>{
   const action=button.dataset.assistantAction;
   try{
     if(action==='send')return await send(e);
+    if(action==='continue')return await send(e,button.dataset.messageId);
+    if(action==='summary-accept'||action==='summary-dismiss'){
+      button.disabled=true;
+      try{const result=await hostRequest('summary/proposals/decide',{id:button.dataset.id,accept:action==='summary-accept'});await loadSummaryProposals(e);const channel=new BroadcastChannel('sciencescope-workbench');channel.postMessage({projectId:result.projectId,plans:result.target==='plans'});channel.close();}
+      finally{button.disabled=false;}return;
+    }
     if(action==='apply-proposal'||action==='dismiss-proposal'){
       if(action==='apply-proposal'){
         if(V.chat!==e.ownerId)return toast('请先打开此秘书对应的主对话。');
@@ -161,6 +191,12 @@ window.addEventListener('click',async event=>{
       e.proposals=e.proposals.filter(p=>p.id!==button.dataset.id);paint(e,{messages:false});return;
     }
     if(action==='stop'){await hostRequest('assistant/stop',{scope:e.scope,ownerId:e.ownerId});return;}
+    if(action==='python'){
+      await showPythonChoice(button,{scope:'chat',targetId:e.chat?.id,onChoose:async envId=>{
+        if(!e.chat?.id){if(!e.model)throw new Error('请先选择模型。');await hostRequest('assistant/model',{scope:e.scope,ownerId:e.ownerId,model:e.model});const snapshot=await hostRequest('assistant?'+new URLSearchParams({scope:e.scope,ownerId:e.ownerId}));e.chat=snapshot.chat;}
+        await hostRequest('python/bind',{scope:'chat',targetId:e.chat.id,envId});
+      }});return;
+    }
     if(action==='model'){
       if(e.running||e.sending)return toast('请先停止或等待本轮回复完成。');
       const {providers}=await hostRequest('providers');
@@ -170,9 +206,9 @@ window.addEventListener('click',async event=>{
     if(action==='choose-model'){const model={providerId:button.dataset.provider,modelId:button.dataset.model};await hostRequest('assistant/model',{scope:e.scope,ownerId:e.ownerId,model});e.model=model;e.reasoningEffort=undefined;closeMenu();paint(e,{messages:false});return;}
     if(action==='policy'){
       if(e.running||e.sending)return toast('请先等待本轮结束。');
-      composerMenu(button,'执行策略',[['ask','询问','需要额外授权的操作由运行时请求确认。'],['full','完全接管','允许工具按当前用户权限执行文件与命令操作，不逐次询问。']].map(([id,name,description])=>({label:name,description,caution:id==='full',action:'assistant-choice',attrs:`data-assistant-action="choose-policy" data-entry="${esc(e.key)}" data-mode="${id}"`})));return;
+      composerMenu(button,'执行策略',[['ask','询问','需要额外授权的操作由运行时请求确认。'],['full','完全接管','常规文件和命令操作不逐次审批，不限制网络访问；受保护路径始终需要审批，不提升 Windows 权限。网络外传防护属于已知限制。']].map(([id,name,description])=>({label:name,description,caution:id==='full',action:'assistant-choice',attrs:`data-assistant-action="choose-policy" data-entry="${esc(e.key)}" data-mode="${id}"`})));return;
     }
-    if(action==='choose-policy'){if(button.dataset.mode==='full'&&!await window.ScienceScopeWorkspace.confirmAction('完全接管','允许助手执行工具和文件操作，不逐次询问。','启用'))return;e.executionMode=button.dataset.mode;closeMenu();paint(e,{messages:false});return;}
+    if(action==='choose-policy'){if(button.dataset.mode==='full'&&!await window.ScienceScopeWorkspace.confirmAction('完全接管','常规操作不逐次审批，工具可能读写项目外文件并运行命令。受保护路径仍须审批；网络访问不受限制，网络外传防护属于已知限制。不更改 Windows 系统权限。','启用'))return;e.executionMode=button.dataset.mode;closeMenu();paint(e,{messages:false});return;}
     if(action==='effort'){
       if(e.running||e.sending||!e.model)return;
       const info=await hostRequest('model-info?'+new URLSearchParams(e.model));
@@ -186,7 +222,10 @@ window.addEventListener('click',async event=>{
       picker.onchange=async()=>{try{for(const file of picker.files){if(e.attachments.length>=8)throw new Error('每次最多添加 8 个文件。');if(file.size>20*1024*1024)throw new Error('单个文件不能超过 20 MiB。');const base64=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=reject;reader.readAsDataURL(file);});const resource=await hostRequest('library/import',{name:file.name,base64});e.attachments.push({id:resource.id,title:resource.title});await saveDraft(e);paint(e,{messages:false});}}catch(error){e.error=error.message;paint(e,{messages:false});}};picker.click();return;
     }
     if(action==='context'){
-      toast('请在主对话中选中文字，然后选择引用至任务秘书或全局助手；只发送选中片段。');
+      if(e.scope!=='global')return;
+      if(e.contextChatId){e.contextChatId='';paint(e,{messages:false});return;}
+      const {chats}=await hostRequest('chats');
+      composerMenu(button,'以此对话为准',chats.filter(chat=>!chat.deletedAt).map(chat=>({label:chat.title,action:'assistant-choice',attrs:`data-assistant-action="choose-context" data-entry="${esc(e.key)}" data-chat="${esc(chat.id)}"`})));
       return;
     }
     if(action==='choose-context'){e.contextChatId=button.dataset.chat;closeMenu();paint(e,{messages:false});return;}

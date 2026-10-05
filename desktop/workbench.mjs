@@ -1,3 +1,4 @@
+import {infoTip} from './info-tip.mjs';
 import './workspace.mjs';
 import {hostRequest,hostBlob} from './host-client.mjs';
 import {renderMarkdown} from './markdown.mjs';
@@ -34,6 +35,32 @@ async function hydrateAssets(){
   }
 }
 const organizing=new Set();
+const organizationWatches=new Set();
+// Host events own automatic organization; watch only this import's receipts.
+// Never reload/apply the map or disturb another route while the job runs.
+function watchOrganization(projectId,ids){
+  const pending=new Set(ids),deadline=Date.now()+180000;
+  const watch={timer:null};organizationWatches.add(watch);
+  async function poll(){
+    try{
+      const value=await hostRequest(`workbench?projectId=${encodeURIComponent(projectId)}`);
+      for(const id of pending)if(value.versions.find(version=>version.id===id)?.status!=='stored')pending.delete(id);
+      const old=cache.get(projectId);
+      if(old&&JSON.stringify(old.versions)!==JSON.stringify(value.versions)){
+        // Keep an unsaved map and its revision intact so save still detects conflict.
+        cache.set(projectId,{...old,versions:value.versions});
+        if(projectId===S.projectId){
+          S.versions=structuredClone(value.versions);
+          if(['workbench','versions'].includes(route)&&!document.querySelector('#record-editor'))render();
+        }
+      }
+    }catch(error){if(projectId===S.projectId)toast(error.message);pending.clear();}
+    if(organizationWatches.has(watch)&&pending.size&&Date.now()<deadline)watch.timer=setTimeout(poll,2000);
+    else organizationWatches.delete(watch);
+  }
+  watch.timer=setTimeout(poll,500);
+}
+window.addEventListener('beforeunload',()=>{for(const watch of organizationWatches)clearTimeout(watch.timer);organizationWatches.clear();});
 async function organize(versionId){
   if(organizing.has(versionId))return;
   const model=window.ScienceScopeModels?.selected();
@@ -83,6 +110,11 @@ channel.onmessage=({data})=>{if(data.plans){hostRequest('workbench/plans').then(
 const baseAfter=window.ScienceScopeWorkspace.afterRender;
 window.ScienceScopeWorkspace.afterRender=function(...args){
   baseAfter?.(...args);if(!ready)return;
+  for(const element of document.querySelectorAll('.mapnode[data-node]')){
+    const node=S.nodes.find(node=>node.id===element.dataset.node);
+    if(node?.origin==='secretary'&&!element.querySelector('.wb-secretary-origin')){const badge=document.createElement('small');badge.className='wb-secretary-origin';badge.textContent='秘书添加';element.append(badge);}
+    if(node?.status&&!element.querySelector('.wb-node-status')){const badge=document.createElement('small');badge.className='wb-node-status';badge.textContent=node.status;element.append(badge);}
+  }
   const key=S.projectId+':'+route;
   if(key!==viewKey){
     const changedProject=viewKey.split(':')[0]!==S.projectId;viewKey=key;
@@ -162,18 +194,22 @@ mapViewport=edit=>{
 };
 fitMap=()=>{const vp=document.querySelector('#mapviewport'),p=mapPositions();if(!vp||!p.length||!vp.clientWidth)return;const minX=Math.min(...p.map(n=>n.x)),minY=Math.min(...p.map(n=>n.y)),width=Math.max(...p.map(n=>n.x+n.w))-minX,height=Math.max(...p.map(n=>n.y+n.h))-minY;const scale=Math.max(.1,Math.min(1,(vp.clientWidth-60)/width,(vp.clientHeight-60)/height));mapView={scale,x:(vp.clientWidth-width*scale)/2-minX*scale,y:(vp.clientHeight-height*scale)/2-minY*scale};applyMapView();};
 const baseMapEditor=mapEditor;
-mapEditor=()=>baseMapEditor().replace(/<button[^>]*(?:data-action="back-workbench"|data-v="back-workbench-v2")[\s\S]*?<\/button>/,'')
+mapEditor=()=>baseMapEditor()
+  .replace('<label class="label">节点内容 · Markdown</label>',`<label class="label">节点内容 · Markdown${infoTip('Enter 新建同级；Shift+Enter 块内换行。\n右键、拖入或粘贴图片 / Markdown。',{label:'节点编辑说明'})}</label>`)
+  .replace('<div class="hint">Enter 新建同级 · Shift+Enter 块内换行<br>右键、拖入或粘贴图片 / Markdown</div>','')
+  .replace('<div class="hint">用户与各级 Agent 都可管理。会议秘书负责日常整理，并与版本说明 MD 互相引用。</div>','').replace(/<button[^>]*(?:data-action="back-workbench"|data-v="back-workbench-v2")[\s\S]*?<\/button>/,'')
   .replace('当前为浏览器内存原型 · 保存后同步预览',dirty?'尚未保存 · 保存后更新预览':'项目文件 · 保存后更新预览')
   .replace('<div class="toolbar-scroll">',`<div class="toolbar-scroll">${button('游离节点','floating')}${button('连线','connect')}`);
 mapChanged=(label='编辑导图')=>{dirty=true;S.mapHistory.unshift({label,source:window.ScienceScopeProfile?.name()||'用户',time:new Date().toLocaleString()});render();const status=document.querySelector('#mapsavestate');if(status)status.textContent='尚未保存 · 保存后更新预览';};
 
 async function upload(filesToImport,kind,nodeId=S.mapSelected){
   if(!current())throw new Error('请先打开项目工作站。');
+  const projectId=S.projectId,autoOrganize=current().autoOrganize;
   if(kind!=='map'&&dirty)await saveMap();
   const imported=[];
   for(const file of filesToImport){
     if(kind==='map'&&!/\.(png|jpe?g|gif|webp|md|txt)$/i.test(file.name))throw new Error('节点支持 PNG/JPEG/GIF/WebP 图片或 Markdown 文本。');
-    const result=await hostRequest(kind==='map'?'workbench/asset':'workbench/import',{projectId:S.projectId,...await fileBody(file)});
+    const result=await hostRequest(kind==='map'?'workbench/asset':'workbench/import',{projectId,...await fileBody(file),...(kind==='map'?{}:{model:window.ScienceScopeModels?.selected()})});
     if(kind!=='map')imported.push(result.id);
     if(kind==='map'){
       const node=S.nodes.find(n=>n.id===nodeId);if(!node)continue;
@@ -182,7 +218,7 @@ async function upload(filesToImport,kind,nodeId=S.mapSelected){
     }
   }
   if(kind==='map'){await saveMap();render();}
-  else {await load();toast('原件已保存到项目目录。');if(current()?.autoOrganize)for(const id of imported)await organize(id);}
+  else {await load(projectId);toast('原件已保存到项目目录。');if(autoOrganize&&imported.length)watchOrganization(projectId,imported);}
 }
 function pick(kind){const input=document.createElement('input');input.type='file';input.multiple=true;if(kind==='map')input.accept='.png,.jpg,.jpeg,.gif,.webp,.md,.txt';input.onchange=()=>upload([...input.files],kind).catch(e=>toast(e.message));input.click();}
 const originalHandleFiles=handleFiles;
@@ -216,7 +252,7 @@ window.addEventListener('click',async event=>{
     else if(action==='undo-map'||action==='redo-map'){const source=action==='undo-map'?mapUndo:mapRedo,target=action==='undo-map'?mapRedo:mapUndo;if(source.length){target.push(mapSnapshot());const snapshot=source.pop();S.nodes=snapshot.nodes;S.mapEdges=snapshot.edges;mapChanged(action==='undo-map'?'撤销导图编辑':'重做导图编辑');}}
     else if(action==='complete-plan'){const plans=structuredClone(S.plans),plan=plans.find(p=>p.id===el.dataset.id);if(plan)plan.done=!plan.done;await persistRecords('plan',plans);render();}
     else if(action==='logs'){allLogs=true;go('journal');}
-    else if(action==='bind')modal('绑定项目目录',`<p class="hint">不会移动已有文件。已有聊天保留原执行目录；新聊天使用新目录。</p><input id="wb-folder" value="${esc(current()?.folder||'')}" placeholder="绝对目录路径">${button('绑定','bind-save')}`);
+    else if(action==='bind')modal('绑定项目目录',`<label class="label" for="wb-folder">项目目录${infoTip('不会移动已有文件。已有聊天保留原执行目录；新聊天使用新目录。',{label:'绑定目录说明'})}</label><input id="wb-folder" value="${esc(current()?.folder||'')}" placeholder="绝对目录路径">${button('绑定','bind-save')}`);
     else if(action==='bind-save'){await hostRequest('workbench/bind',{projectId:S.projectId,folder:document.querySelector('#wb-folder').value});document.querySelector('#modal')?.remove();await load();}
     else if(action==='refresh'){if(dirty)throw new Error('请先保存导图草稿，再刷新项目。');await load();}
     else if(['up','folder'].includes(action)){await files(action==='up'?folder.split('/').slice(0,-1).join('/'):el.dataset.path);render();}

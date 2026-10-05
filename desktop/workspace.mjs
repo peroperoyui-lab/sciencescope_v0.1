@@ -1,4 +1,5 @@
 import { hostRequest } from './host-client.mjs';
+import { infoTip } from './info-tip.mjs';
 import './workspace-layout.mjs';
 
 // Expert discussion answers carry their real author and model from the host.
@@ -17,14 +18,84 @@ const baseMainhead=mainhead;
 const baseThreadRow=threadRow;
 const baseObjectMenu=objectMenu;
 const baseGo=go;
-// Retain the panel location, but never present the prototype article as a website.
-browserPanel=()=>`<aside class="rightpanel browser-panel"><div class="panel-resizer" data-v-resize></div><div class="panelhead between"><h2>浏览器</h2>${vib('close','close-panel','关闭浏览器')}</div><div class="empty" style="padding:32px 20px">网页浏览尚未接入。</div></aside>`;
-window.addEventListener('click',event=>{
-  const action=event.target.closest('[data-v]')?.dataset.v;
-  if(!['browser-go','browser-back','browser-forward','browser-refresh','browser-newtab','browser-add','cite-page','external-browser'].includes(action))return;
-  event.preventDefault();event.stopImmediatePropagation();toast('网页浏览尚未接入。');
+// The in-app browser (T08) and runtime branching (T12) are optional features:
+// their entry points stay hidden until the host enables them (features.mjs).
+// Never present the prototype article as a website or fake an inherited history.
+browserPanel=()=>`<aside class="rightpanel browser-panel"><div class="panel-resizer" data-v-resize></div><div class="panelhead between"><h2>浏览器</h2>${vib('close','close-panel','关闭浏览器')}</div></aside>`;
+const branching=new Set(),draftWrites=new Map(),branchReasoningLoaded=new Set();
+const branchLabel=mode=>mode==='reask'?'从此处重新提问':'从此回复分支';
+const branchDescription=message=>message?.expert
+  ?'从讨论前最后一轮主专家回复的运行时上下文分支，并保留截至这条专家回复的展示记录。专家回复不会自动加入主专家历史；草稿仍需你发送。'
+  :message?.role==='user'
+    ?'从上一轮已完成的主专家回复分支；首条问题会创建空对话。此轮问题、附件与标记放入可编辑草稿，仍需你发送。'
+    :'保留截至这轮回复的模型上下文，后续两边独立继续。此轮问题、附件与标记放入可编辑草稿，仍需你发送。';
+function branchMode(message) {
+  if(temporary||message?.streaming||message?.cancelled||message?.failed)return null;
+  return ['reply','reask'].includes(message?.branchMode)?message.branchMode:null;
+}
+function branchControl(message,extraClass='') {
+  const mode=branchMode(message);if(!mode)return '';
+  return `<span class="branch-action ${extraClass}"><button type="button" data-v="branch-message" data-id="${esc(message.id)}" data-branch-mode="${mode}" title="${branchLabel(mode)}">${ic('branch')}<span>${branchLabel(mode)}</span></button>${infoTip(branchDescription(message))}</span>`;
+}
+const originalMessageHTML=messageHTML;
+messageHTML=function(message) {
+  const template=document.createElement('template');template.innerHTML=originalMessageHTML(message);
+  for(const button of template.content.querySelectorAll('[data-v="branch-message"]'))button.replaceWith(...htmlNodes(branchControl(message)));
+  if(message.role==='assistant'&&message.completionStatus==='max-tokens'&&!message.expert&&!temporary){
+    const article=template.content.querySelector('article');
+    article?.append(...htmlNodes(`<div class="model-output-status" role="status"><span>已达到模型输出上限</span><button type="button" class="btn tiny" data-main-continue="${esc(message.id)}">继续</button>${infoTip('保留已生成内容，在原会话中接着写。新的回复单独保存，原回复不会被覆盖。',{label:'继续回复说明'})}</div>`));
+  }
+  return template.innerHTML;
+};
+function htmlNodes(html){const template=document.createElement('template');template.innerHTML=html;return [...template.content.childNodes];}
+function syncBranchControls() {
+  for(const message of S.messages||[]) {
+    const actions=document.querySelector(`[data-message-id="${CSS.escape(message.id)}"] .msg-actions`);if(!actions)continue;
+    actions.querySelector('.branch-action')?.remove();
+    actions.querySelector('[data-v="branch-message"]')?.remove();
+    actions.querySelector('[data-v="message-menu"]')?.insertAdjacentHTML('beforebegin',branchControl(message));
+    const article=actions.closest('article');
+    if(!message.expert)article?.querySelector('.model-output-status')?.remove();
+    if(message.role==='assistant'&&message.completionStatus==='max-tokens'&&!message.expert&&!temporary)article?.insertAdjacentHTML('beforeend',`<div class="model-output-status" role="status"><span>已达到模型输出上限</span><button type="button" class="btn tiny" data-main-continue="${esc(message.id)}">继续</button>${infoTip('保留已生成内容，在原会话中接着写。新的回复单独保存，原回复不会被覆盖。',{label:'继续回复说明'})}</div>`);
+  }
+  const tools=document.querySelector('.chatbottom .worktools');
+  if(tools){tools.querySelector('.branch-action')?.remove();tools.querySelector('[data-v="branch-message"]')?.remove();const latest=(S.messages||[]).at(-1);tools.querySelector('.spacer')?.insertAdjacentHTML('beforebegin',branchControl(latest));}
+}
+branchAt=async function(messageId,mode) {
+  if(!window.ScienceScopeFeatures?.has('branch')||temporary)return;
+  const source=V.chat,message=S.messages.find(m=>m.id===messageId);
+  mode??=branchMode(message);if(!mode||branching.has(source))return;
+  branching.add(source);
+  try {
+    const result=await hostRequest('chats/branch',{chatId:source,messageId,mode});
+    const {chats}=await hostRequest('chats');S.threads=chats;
+    if(V.chat!==source)return;
+    await loadThread(result.chatId);
+    if(V.chat===result.chatId)document.querySelector('[data-draft="main"]')?.focus();
+  }catch(error){toast(error.message);}finally{branching.delete(source);}
+};
+function saveBranchDraft(id,text,{keepalive=false}={}) {
+  const thread=S.threads.find(t=>t.id===id);if(!thread?.branchedFrom)return Promise.resolve();
+  thread.draftText=text;
+  const work=(draftWrites.get(id)||Promise.resolve()).catch(()=>{}).then(()=>hostRequest('chats/draft',{chatId:id,text},{keepalive}));
+  draftWrites.set(id,work);return work;
+}
+window.addEventListener('input',event=>{
+  if(!event.target.matches('[data-draft="main"]')||temporary)return;
+  void saveBranchDraft(V.chat,event.target.value).catch(error=>toast(error.message));
 },true);
-branchAt=()=>toast('运行时分支尚未接通；不会伪造已继承的模型历史。可以先创建新对话。');
+window.addEventListener('click',event=>{
+  const target=event.target.closest('[data-v="branch-message"],[data-v="message-menu"],[data-ws="branch-source"]');if(!target)return;
+  event.preventDefault();event.stopImmediatePropagation();
+  if(target.dataset.ws==='branch-source'){void window.ScienceScopeWorkspace.openMessage(target.dataset.chatId,target.dataset.messageId).catch(error=>toast(error.message));return;}
+  const message=S.messages.find(m=>m.id===target.dataset.id);
+  if(target.dataset.v==='branch-message'){closeMenu();void branchAt(target.dataset.id,target.dataset.branchMode);return;}
+  const mode=branchMode(message),items=[{text:'复制消息',act:'copy-message',attrs:`data-id="${esc(target.dataset.id)}"`,icon:'copy'}];
+  if(mode)items.push({text:branchLabel(mode),act:'branch-message',attrs:`data-id="${esc(message.id)}" data-branch-mode="${mode}"`,icon:'branch'});
+  items.push({text:'引用到输入框',act:'quote-message',attrs:`data-id="${esc(target.dataset.id)}"`,icon:'chat'},{text:'复制消息位置',act:'copy-message-link',attrs:`data-id="${esc(target.dataset.id)}"`,icon:'copy'});
+  menu(items,target,'消息');
+  document.querySelector('#v-menu [data-v="branch-message"] .menu-text')?.insertAdjacentHTML('afterend',infoTip(branchDescription(message),{tag:'span'}));
+},true);
 const historyNav=page=>page&&(page.before||page.after)?`<div class="history-navigation"><button data-ws="history" data-direction="before" ${!page.before?'disabled':''}>向上加载 30 条</button><span>滚动加载 · 共 ${Number(page.total)} 条</span><button data-ws="history" data-direction="after" ${!page.after?'disabled':''}>向下加载 30 条</button><button data-ws="history" data-direction="latest">回到最新</button></div>`:'';
 function scrollLatest(){state.scrollLock=true;requestAnimationFrame(()=>{const box=document.querySelector('.messages');if(box)box.scrollTop=box.scrollHeight;requestAnimationFrame(()=>{state.scrollLock=false;});});}
 
@@ -90,9 +161,15 @@ loadThread=async function(id,navigate=true) {
     state.draft=null;
     if(thread.projectId)setProject(thread.projectId);
     const data=chatData[id] || {};
-    if(page) {data.messages=page.messages.map(m=>({...m,time:m.time||m.created,...authorOf(m,thread.model?.modelId)}));state.pages.set(id,page);}
+    if(page) {
+      await draftWrites.get(id);
+      Object.assign(thread,page.chat);
+      data.messages=page.messages.map(m=>({...m,time:m.time||m.created,...authorOf(m,thread.model?.modelId)}));state.pages.set(id,page);
+      if(thread.branchedFrom&&!Object.hasOwn(data,'draft'))data.draft=thread.draftText||'';
+    }
     chatData[id]=data;restoreChat(id,data);S.chatName=thread.title;
     if(thread.model)window.ScienceScopeModels?.select(thread.model);
+    if(thread.branchedFrom&&!branchReasoningLoaded.has(id)&&window.ScienceScopeReasoning) {window.ScienceScopeReasoning.setDefault(thread.reasoningEffort);branchReasoningLoaded.add(id);}
     if(navigate)go('work');render();capMemory();scheduleSave();scrollLatest();
   } catch {toast('读取聊天失败，原对话未被覆盖。');}
 };
@@ -132,7 +209,6 @@ home=function() {
   greeting.textContent=`${window.ScienceScopeProfile?.name()||'用户'}，从一个问题开始，和你的研究小组一起推进。`;
   template.content.querySelector('.homehero').append(greeting);
   if(!S.threads.some(t=>!t.archived))template.content.querySelector('.recent').insertAdjacentHTML('beforeend','<div class="inline-empty">还没有最近工作，发送第一条消息开始。</div>');
-  template.content.querySelector('.home').insertAdjacentHTML('beforeend','<small style="text-align:center">选择材料、提出问题，或者从最近工作继续。</small>');
   return template.innerHTML;
 };
 chat=function() {
@@ -148,6 +224,8 @@ chat=function() {
     return template.innerHTML;
   }
   const page=state.pages.get(V.chat);
+  const tools=template.content.querySelector('.chatbottom .worktools');
+  tools?.querySelector('[data-v="branch-message"]')?.replaceWith(...htmlNodes(branchControl(S.messages.at(-1))));
   if(page&&(page.before||page.after)) {
     messages.insertAdjacentHTML('afterbegin',historyNav(page));
   }
@@ -156,9 +234,13 @@ chat=function() {
 };
 mainhead=function() {
   const html=baseMainhead();
-  if(focusedProject())return html;
   const template=document.createElement('template');template.innerHTML=html;
-  template.content.querySelector('#overview-trigger')?.remove();
+  if(!focusedProject())template.content.querySelector('#overview-trigger')?.remove();
+  const source=activeThread()?.branchedFrom;
+  if(source&&CHAT_ROUTES.has(route)) {
+    const name=S.threads.find(t=>t.id===source.chatId)?.title||source.title||source.chatId;
+    template.content.querySelector('.mainhead .grow')?.insertAdjacentHTML('beforeend',`<div class="branch-source"><span>分支自</span><span> · </span><button type="button" data-ws="branch-source" data-chat-id="${esc(source.chatId)}" data-message-id="${esc(source.messageId)}"><span data-i18n-skip>${esc(name)}</span></button></div>`);
+  }
   return template.innerHTML;
 };
 go=function(destination) {
@@ -216,6 +298,10 @@ async function removeObject(kind,id) {
 }
 
 function snapshot() {return {projects:S.projects.map(({id,name,desc,archived})=>({id,name,desc,archived})),pins:S.pins,projectExpanded:S.projectExpanded,lastChatId:S.threads.some(t=>t.id===V.chat)?V.chat:null};}
+async function saveNow() {
+  clearTimeout(state.saving);
+  const payload=snapshot();await hostRequest('workspace',payload);state.lastSaved=JSON.stringify(payload);state.saveError=false;
+}
 function scheduleSave() {
   if(!state.ready||V.surface)return;
   clearTimeout(state.saving);
@@ -225,8 +311,22 @@ function scheduleSave() {
     catch {if(!state.saveError)toast('工作区保存失败，请不要关闭应用。');state.saveError=true;}
   },200);
 }
+let lastProjectFocus, focusQueue=Promise.resolve();
+function notifyProjectFocus() {
+  if(!state.ready||V.surface)return;
+  const projectId=focusedProject();
+  if(projectId===lastProjectFocus)return;
+  lastProjectFocus=projectId;
+  focusQueue=focusQueue.catch(()=>{}).then(()=>hostRequest('projects/focus',{projectId})).catch(()=>{
+    if(lastProjectFocus===projectId)lastProjectFocus=undefined;
+    toast('项目切换通知失败，请重新进入项目。');
+  });
+}
 function afterRender() {
-  scheduleSave();const box=document.querySelector('.messages');if(!box||box.dataset.paged)return;box.dataset.paged='true';
+  const thread=activeThread();
+  if(thread?.branchedFrom&&!branchReasoningLoaded.has(thread.id)&&window.ScienceScopeReasoning){window.ScienceScopeReasoning.setDefault(thread.reasoningEffort);branchReasoningLoaded.add(thread.id);}
+  syncBranchControls();
+  notifyProjectFocus();scheduleSave();const box=document.querySelector('.messages');if(!box||box.dataset.paged)return;box.dataset.paged='true';
   let lastTop=box.scrollTop;
   const tryLoad=delta=>{if(state.scrollLock||state.paging||!delta)return;if(delta<0&&box.scrollTop<140)void pageHistory('before');else if(delta>0&&box.scrollHeight-box.scrollTop-box.clientHeight<140)void pageHistory('after');};
   box.addEventListener('scroll',()=>{const delta=box.scrollTop-lastTop;lastTop=box.scrollTop;tryLoad(delta);},{passive:true});
@@ -253,7 +353,7 @@ detachedContent=function() {
     V.orb=false;baseDetached();
     document.documentElement.classList.add('assistant-panel');
     document.querySelector('.detached-shell > .panelhead')?.remove();
-    const foot=document.querySelector('.detach-foot');if(foot)foot.textContent='全局助手对话尚未连接模型';
+    document.querySelector('.detach-foot')?.remove();
     return;
   }
   if(!temporary)return baseDetached();
@@ -271,20 +371,30 @@ window.addEventListener('click',async event=>{
   try {
     if(action==='create-project'||action==='create-project-v2') {
       const name=document.getElementById('new-project-name')?.value.trim();if(!name)return toast('请输入项目名称。');
+      // Working folder and Python environment come from the creation page
+      // (creation-details.mjs); a folder the host rejects keeps the page open.
+      const choice=window.ScienceScopeCreation?await window.ScienceScopeCreation.projectChoice():{folder:null,envId:null};
+      if(!choice)return;
       const project={id:'project-'+crypto.randomUUID(),name,desc:document.getElementById('new-project-goal')?.value || ''};
-      S.projects.push(project);S.projectExpanded[project.id]=true;selectProject(project.id);scheduleSave();
+      S.projects.push(project);S.projectExpanded[project.id]=true;
+      await saveNow();
+      try{await window.ScienceScopeCreation?.applyProjectChoice(project,choice);}
+      catch(error){toast('项目已创建，但工作文件夹或 Python 环境未能应用：'+error.message+'（可在工作站中重新绑定目录）');}
+      // Load the workbench only after binding. Loading first caches the default
+      // directory even though the user's selected directory is saved correctly.
+      selectProject(project.id);
     } else if(action==='release-notes') {
-      modal('桌面版更新 · 聊天工作区',`<ul><li>发送首条消息后创建对话，支持独立对话加入项目。</li><li>聊天分页保存，重启后从 DSH 持久会话接续。</li><li>原生辅助窗口、摘要与侧栏联动、窄栏输入优化。</li><li>移除操作需要确认，保留本地聊天历史。</li></ul><p>材料导入与默认程序打开、工具调用展示、助手完整功能仍待接线。</p>`);
+      modal('本轮更新',`<ul><li>新建独立对话时选择工作文件夹与 Python 环境；新建项目可以绑定已有文件夹。</li><li>有序讨论：专家读取同一份前文并行作答，可指定审核专家；审核结论由你决定是否加入后续上下文。</li><li>工作模式中用 @ 邀请专家；工具调用前的说明归入工具记录。</li><li>聊天和文件预览中的文字可以添加为标记，随下一条消息一起发送。</li><li>界面中的说明统一收进"i"提示。</li></ul>`);
     } else if(isNew) {
       closeMenu();
       if(action==='ws-new-window')await openDetached('quick');
-      else newThread(action==='ws-new-independent'?null:target.dataset.project || focusedProject());
+      else (window.ScienceScopeCreation?.newChat||newThread)(action==='ws-new-independent'?null:target.dataset.project || focusedProject());
     } else if(action==='history')await pageHistory(target.dataset.direction);
     else if(action==='choose-project')menu(S.projects.filter(p=>!p.archived).map(p=>({text:p.name,act:'ws-move',attrs:`data-id="${esc(id)}" data-project="${esc(p.id)}"`,icon:'folder'})),target,'加入项目');
     else if(action==='delete-object') {closeMenu();await removeObject(target.dataset.kind,id);}
     else if(action==='delete-record') {
       if(await confirmAction('删除记录','确定删除这条计划或日志？','删除'))deleteRecord(target.dataset.kind,id);
-    } else if(action==='reset-demo')toast('桌面工作区不执行原型重置；请逐项移除需要删除的内容。');
+    } else if(action==='reset-demo'){/* prototype-only: the desktop never resets user data */}
     else if(action==='save-rename') {
       const title=document.getElementById('v-rename')?.value.trim();if(!title)return;
       if(target.dataset.kind==='chat') {const updated=await hostRequest('chats/update',{chatId:id,title});Object.assign(S.threads.find(t=>t.id===id),updated);}
@@ -331,13 +441,17 @@ window.addEventListener('pagehide',()=>{
 });
 
 window.ScienceScopeWorkspace={
-  focusedProject,afterRender,confirmAction,
+  focusedProject,afterRender,confirmAction,syncBranchControls,
+  saveBranchDraft,
   async openMessage(chatId,messageId){
+    const source=S.threads.find(thread=>thread.id===chatId);
+    if(!source){toast('来源对话或消息已不可用。');return;}
     await loadThread(chatId);
     if(V.chat!==chatId)return;
     if(V.pending.has(chatId)){toast('此对话正在运行，已打开最新进度。');return;}
     const page=await hostRequest(`chats/${encodeURIComponent(chatId)}/messages?around=${encodeURIComponent(messageId)}`);
-    if(V.chat!==chatId||!page)return;
+    if(V.chat!==chatId)return;
+    if(!page?.messages.some(message=>message.id===messageId)){toast('来源对话或消息已不可用。');return;}
     S.messages=page.messages.map(m=>({...m,time:m.created,...authorOf(m)}));
     state.pages.set(chatId,page);saveThread();render();
     requestAnimationFrame(()=>{
@@ -369,9 +483,12 @@ window.ScienceScopeWorkspace={
     state.pages.set(id,page);saveThread();render();if(follow)scrollLatest();else if(document.querySelector('.messages'))document.querySelector('.messages').scrollTop=top;
   },
   resolveThread:id=>state.draft?.id===id?state.draft:S.threads.find(t=>t.id===id),
+  focusedProject:()=>focusedProject(),
+  draftFor:key=>state.drafts.get(key)||null,
   async beforeSend(id) {
     await window.ScienceScopeWorkspace.ready;
     if(!state.ready)throw new Error('工作区尚未就绪，暂不能发送。');
+    await draftWrites.get(id);
     if(!V.surface) {const payload=snapshot();await hostRequest('workspace',payload);state.lastSaved=JSON.stringify(payload);}
     const page=state.pages.get(id);if(id===V.chat&&page?.after)await pageHistory('latest');
   },
@@ -380,6 +497,7 @@ window.ScienceScopeWorkspace={
     if(!thread.temporary&&!S.threads.some(t=>t.id===thread.id))S.threads.unshift(thread);
     if(!thread.temporary) {state.drafts.delete(thread.projectId||'independent');if(state.draft?.id===thread.id)state.draft=null;}
     if(V.chat===thread.id)S.chatName=thread.title;
+    if(thread.branchedFrom&&thread.draftText===text)thread.draftText='';
     scheduleSave();
   },
   async settled(id) {
@@ -394,11 +512,15 @@ window.ScienceScopeWorkspace={
       const thread=S.threads.find(t=>t.id===id);if(thread)Object.assign(thread,page.chat);
       // Preserve the live DOM/selection; evict old memory after each turn.
       if(V.chat===id) {
+        const saved=new Map(page.messages.map(message=>[message.id,message]));
+        for(const message of S.messages){const receipt=saved.get(message.id);if(receipt){message.branchMode=receipt.branchMode;message.runtimeSeq=receipt.runtimeSeq;message.completionStatus=receipt.completionStatus;if(receipt.expert)message.expert=receipt.expert;}}
         S.messages=S.messages.slice(-PAGE_LIMIT);state.pages.set(id,page);saveThread();
         const box=document.querySelector('.messages');
         const nodes=[...(box?.querySelectorAll(':scope > .message') || [])];
         for(const node of nodes.slice(0,Math.max(0,nodes.length-PAGE_LIMIT)))node.remove();
         box?.querySelector('.history-navigation')?.remove();box?.insertAdjacentHTML('afterbegin',historyNav(page));
+        syncBranchControls();
+        window.ScienceScopeDiscussion?.syncControls?.();
       }
       else if(chatData[id])chatData[id].messages=[];
     }catch {toast('聊天记录状态未能刷新，请暂时保留窗口。');}
