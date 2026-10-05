@@ -1,40 +1,50 @@
-// Line icons (24×24, stroke), drawn in the prototype's style.
+// Line icons from the approved prototype (ScienceScope.html `iconPaths`).
 import { html } from './html.js';
 
 const PATHS = {
-  chat: 'M5 5h14v10H9l-4 4z',
-  book: 'M4 5c3-1 6-1 8 1 2-2 5-2 8-1v13c-3-1-6-1-8 1-2-2-5-2-8-1zM12 6v13',
-  box: 'M12 3l8 4.5v9L12 21l-8-4.5v-9zM4 7.5l8 4.5 8-4.5M12 12v9',
-  search: 'M11 4a7 7 0 1 1 0 14 7 7 0 0 1 0-14zM20 20l-4-4',
-  plus: 'M12 5v14M5 12h14',
-  more: 'M6 12h.01M12 12h.01M18 12h.01',
-  chevronRight: 'M9 6l6 6-6 6',
-  chevronDown: 'M6 9l6 6 6-6',
-  folder: 'M3 7h6l2 2h10v10H3z',
+  chat: 'M4 4h16v12H9l-5 4z',
+  book: 'M3 4c4-1 7 0 9 2 2-2 5-3 9-2v15c-4-1-7 0-9 2-2-2-5-3-9-2z M12 6v15',
+  cube: 'm12 2 9 5v10l-9 5-9-5V7z M3 7l9 5 9-5 M12 12v10',
+  folder: 'M3 5h7l2 3h9v12H3z',
+  file: 'M6 2h9l4 4v16H6z M14 2v6h5 M9 12h7 M9 16h7',
+  search: 'M10 3a7 7 0 1 0 0 14 7 7 0 0 0 0-14 M15 15l6 6',
+  gear: 'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M9 3h6l1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1z',
   users:
-    'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21c0-4 3-6 7-6s7 2 7 6M16 3a4 4 0 0 1 0 8M22 21c0-3-2-5-4-6',
-  settings:
-    'M12 9a3 3 0 1 1 0 6 3 3 0 0 1 0-6zM12 2l2 3 3.5-.5.5 3.5 3 2-2 3 2 3-3 2-.5 3.5-3.5-.5-2 3-2-3-3.5.5-.5-3.5-3-2 2-3-2-3 3-2 .5-3.5L10 5z',
-  send: 'M12 19V5M6 11l6-6 6 6',
-  stop: 'M7 7h10v10H7z',
-  copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
-  branch:
-    'M6 3v12M18 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM18 9c0 6-12 3-12 9',
-  check: 'M5 12l5 5L20 7',
-  x: 'M6 6l12 12M18 6L6 18',
-  file: 'M6 3h8l4 4v14H6zM14 3v4h4',
-  clock: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zM12 7v5l3 2',
-  undo: 'M9 14L4 9l5-5M4 9h11a5 5 0 0 1 0 10h-3',
-  pin: 'M9 4h6l-1 6 3 3H7l3-3zM12 13v8',
-  alert: 'M12 3l10 18H2zM12 10v4M12 17h.01',
-  tool: 'M14 6a4 4 0 0 0 5 5l-9 9a2 2 0 0 1-3-3l9-9a4 4 0 0 0-2-2z',
-  map: 'M4 6l5-2 6 2 5-2v14l-5 2-6-2-5 2zM9 4v14M15 6v14',
-  list: 'M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01',
+    'M8 10a3 3 0 1 0 0-6 3 3 0 0 0 0 6 M3 20v-3c0-4 10-4 10 0v3z M16 4a3 3 0 0 1 0 6 M16 14c4 0 5 2 5 6',
+  browser: 'M3 4h18v17H3z M3 9h18 M6 6h1 M10 6h1',
+  summary: 'M3 4h18v14H3z M8 21h8 M12 18v3 M7 9v5 M12 7v7 M17 10v4',
+  plus: 'M12 5v14 M5 12h14',
+  arrow: 'M12 19V5 M6 11l6-6 6 6',
+  down: 'm6 9 6 6 6-6',
+  right: 'm9 5 7 7-7 7',
+  close: 'm6 6 12 12 M6 18 18 6',
+  expand: 'M3 9V3h6 M15 3h6v6 M21 15v6h-6 M9 21H3v-6',
+  check: 'm4 12 5 5L20 6',
+  more: 'M5 12h1 M11 12h1 M17 12h1',
+  link: 'm9 15 6-6 M7 13l-2 2a4 4 0 0 0 6 6l3-3 M17 11l2-2a4 4 0 0 0-6-6l-3 3',
+  clock: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20 M12 6v6l4 2',
+  branch: 'M6 3v12a5 5 0 0 0 5 5h7 M6 8h8a4 4 0 0 0 4-4V3',
+  download: 'M12 3v12 m-5-5 5 5 5-5 M4 17v4h16v-4',
+  image: 'M3 3h18v18H3z m0 14 5-6 5 5 3-3 5 6 M15 7h1',
+  edit: 'm4 16 12-12 4 4L8 20H4z M13 7l4 4',
+  undo: 'M8 4 3 9l5 5 M3 9h10a7 7 0 0 1 7 8',
+  redo: 'm16 4 5 5-5 5 M21 9H11a7 7 0 0 0-7 8',
+  trash: 'M4 6h16 M9 6V3h6v3 M6 6l1 15h10l1-15 M10 10v7 M14 10v7',
+  pin: 'm9 3 8 0-1 7 3 3H5l3-3z M12 13v8',
+  layout: 'M3 3h18v18H3z M3 8h18 M8 8v13',
+  play: 'm7 3 14 9-14 9z',
+  stop: 'M6 6h12v12H6z',
+  key: 'M9 4a5 5 0 1 0 0 10 5 5 0 0 0 0-10 M13 12l8 8 M17 16l3-3',
+  eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12 M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6',
+  back: 'M20 12H4 m6-6-6 6 6 6',
+  refresh: 'M20 6v6h-6 M4 18v-6h6 M19 10a8 8 0 0 0-14-5 M5 14a8 8 0 0 0 14 5',
+  help: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20 M9 8a3 3 0 1 1 5 3c-2 1-2 1-2 3 M12 17h.01',
+  copy: 'M9 9h11v11H9z M5 15H4V4h11v1',
 };
 
-/** @param {{ name: keyof typeof PATHS, size?: number }} props */
-export function Icon({ name, size = 16 }) {
-  return html`<span class="ico" aria-hidden="true">
-    <svg viewBox="0 0 24 24" width=${size} height=${size}><path d=${PATHS[name]} /></svg>
-  </span>`;
+/** @param {{ name: string }} props */
+export function Icon({ name }) {
+  return html`<span class="ico"
+    ><svg viewBox="0 0 24 24" aria-hidden="true"><path d=${PATHS[name] ?? PATHS.file} /></svg
+  ></span>`;
 }

@@ -37,6 +37,9 @@ workflow, helping the user understand and advance their own research project
    security tests. Keep the cheap measures that already exist: keys live in a
    separate credentials file, never in environment variables or tracked files.
 6. **Visual baseline.** The approved `ScienceScope.html`, logo, colours and layout.
+   The new UI reproduces the old main interface one to one (same markup and the
+   old style sheets in `app/ui/styles/legacy/`); the rebuild changes the backend,
+   not the design.
    The GUI is bilingual (中文 / English; every new string needs an English entry,
    `app/ui/i18n/en.js` for new code). Explanations go behind the "i" info tip; status,
    errors and data stay visible. Unfinished features stay hidden behind

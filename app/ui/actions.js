@@ -6,6 +6,15 @@ import { navigate } from './route.js';
 import { applyEvent } from './state.js';
 
 export const LOCAL_USER_ID = 'person_user';
+
+/** Language and the scrollbar preference, which the legacy styles read from <html>. */
+function applyAppearance(settings) {
+  setLanguage(settings.appearance?.language);
+  document.documentElement.toggleAttribute(
+    'data-show-scrollbars',
+    Boolean(settings.appearance?.scrollbars),
+  );
+}
 export const MAIN_EXPERT_ID = 'agent_main';
 
 /**
@@ -25,7 +34,7 @@ export function createActions(api, store) {
       api.get('/api/meetings'),
       api.get('/api/participants'),
     ]);
-    setLanguage(settings.appearance?.language);
+    applyAppearance(settings);
     set({ settings, projects, meetings, participants });
     stopFollowing = api.follow(
       seq,
@@ -88,16 +97,26 @@ export function createActions(api, store) {
     return message;
   }
 
-  /** Start a meeting from the home page with its first message. */
-  async function startMeeting(text) {
-    const meeting = await createMeeting({ title: text.slice(0, 40) });
+  /**
+   * Start a meeting from the welcome page with its first message; until then
+   * the draft is not a meeting.
+   * @param {string} text @param {string | null} [projectId]
+   */
+  async function startMeeting(text, projectId = null) {
+    const meeting = await createMeeting({ projectId, title: text.slice(0, 40) });
     await openMeeting(meeting.id);
-    await postMessage(meeting.id, text);
+    return postMessage(meeting.id, text);
   }
 
   /** @param {string} meetingId */
   async function interrupt(meetingId) {
     await api.post(`/api/meetings/${meetingId}/interrupt`);
+  }
+
+  /** Add archived meetings to the store (they are not loaded at start). */
+  async function loadArchived() {
+    const all = await api.get('/api/meetings?archived=1');
+    for (const meeting of all) apply('meeting.updated', meeting);
   }
 
   /** @param {string} meetingId @param {Record<string, any>} changes */
@@ -127,7 +146,7 @@ export function createActions(api, store) {
   /** @param {Record<string, any>} changes */
   async function updateSettings(changes) {
     const settings = await api.patch('/api/settings', changes);
-    setLanguage(settings.appearance?.language);
+    applyAppearance(settings);
     set({ settings });
   }
 
@@ -152,6 +171,58 @@ export function createActions(api, store) {
   /** @param {string} revisionId */
   const undo = (revisionId) => api.post(`/api/revisions/${revisionId}/undo`);
 
+  /** Meetings and messages whose text contains `query`. @param {string} query */
+  const search = (query) => api.get(`/api/search?q=${encodeURIComponent(query)}`);
+
+  /** Entries of a folder inside the project's own folder. @param {string} projectId @param {string} [folder] */
+  const projectFiles = (projectId, folder = '') =>
+    api.get(`/api/projects/${projectId}/files?path=${encodeURIComponent(folder)}`);
+
+  const setOverlay = (patch) =>
+    store.update((state) => ({ ...state, overlay: { ...state.overlay, ...patch } }));
+  let toastTimer;
+
+  /**
+   * Open a menu under its trigger (or at the pointer for context menus).
+   * Items: `{ text, icon?, key?, check?, danger?, run }` or `{ sep: true }`.
+   * @param {Event} event @param {any[]} items @param {string} [label]
+   */
+  function openMenu(event, items, label = '') {
+    event.preventDefault();
+    event.stopPropagation();
+    const trigger = /** @type {HTMLElement} */ (event.currentTarget);
+    const rect = trigger.getBoundingClientRect();
+    const pointer = event.type === 'contextmenu' ? /** @type {MouseEvent} */ (event) : null;
+    setOverlay({
+      menu: {
+        items,
+        label,
+        x: pointer ? pointer.clientX : rect.left,
+        y: pointer ? pointer.clientY : rect.bottom + 5,
+      },
+    });
+  }
+
+  /** @param {string} title @param {any} body A component rendered inside the dialog. */
+  const openModal = (title, body) => setOverlay({ modal: { title, body }, menu: null });
+
+  /** @param {string} text */
+  function toast(text) {
+    setOverlay({ toast: text });
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => setOverlay({ toast: null }), 4600);
+  }
+
+  /** Run an action and show its error, if any, as a toast. @param {() => Promise<any>} work */
+  async function attempt(work) {
+    try {
+      return await work();
+    } catch (error) {
+      toast(error.message);
+      return undefined;
+    }
+  }
+
   return {
     start,
     stop: () => stopFollowing(),
@@ -162,6 +233,7 @@ export function createActions(api, store) {
     postMessage,
     interrupt,
     updateMeeting,
+    loadArchived,
     forkMeeting,
     createProject,
     updateProject,
@@ -170,6 +242,16 @@ export function createActions(api, store) {
     editResource,
     history,
     undo,
+    search,
+    projectFiles,
+    openMenu,
+    closeMenu: () => setOverlay({ menu: null }),
+    openModal,
+    closeModal: () => setOverlay({ modal: null }),
+    openPalette: () => setOverlay({ palette: true, menu: null }),
+    closePalette: () => setOverlay({ palette: false }),
+    toast,
+    attempt,
   };
 }
 

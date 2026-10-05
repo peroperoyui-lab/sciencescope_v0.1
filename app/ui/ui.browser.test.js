@@ -75,35 +75,41 @@ test(
       await page.getByText('今天想研究什么？').waitFor();
       await shot(page, 'home');
 
-      await page.getByRole('button', { name: '新建项目' }).click();
-      await page.getByPlaceholder('项目名称').fill('城市就业韧性');
-      await page.getByPlaceholder('项目名称').press('Enter');
-      await page.getByText('项目计划').waitFor();
+      await page.locator('.navsection').getByRole('button', { name: '新建项目' }).click();
+      await page.locator('#modal input').fill('城市就业韧性');
+      await page.locator('#modal').getByRole('button', { name: '创建' }).click();
+      await page.getByText('本项目日志').waitFor();
 
-      await page.locator('.navproject').getByRole('button', { name: '项目操作' }).click();
-      await page.getByRole('menuitem', { name: '新会议' }).click();
+      await page.locator('.mainhead').getByRole('button', { name: '新建项目内聊天' }).click();
       await page.getByPlaceholder('输入问题或下一步工作…').fill('请把下一步记到计划里');
       await page.getByRole('button', { name: '发送' }).click();
 
-      const answer = page.locator('.message.ai').last();
+      const answer = page.locator('.message:not(.user)').last();
       await answer.getByText('已记下：').waitFor();
-      assert.equal(await answer.locator('.tool .tag').textContent(), 'workspace_edit');
+      assert.equal(await answer.locator('.tool small').textContent(), 'workspace_edit');
       assert.match(
         await answer.locator('.tool summary').textContent(),
         /我先把这项工作记到计划里。/,
       );
-      assert.equal(await answer.locator('strong').textContent(), '清洗面板数据');
+      assert.equal(await answer.locator('.message-text strong').textContent(), '清洗面板数据');
+      assert.equal(await page.locator('.tree-row.child.active').count(), 1);
       await shot(page, 'meeting');
 
-      await page.locator('.mainhead').getByRole('link', { name: '工作站' }).click();
+      await page.keyboard.press('Control+K');
+      await page.getByPlaceholder('搜索项目、对话或消息…').fill('面板');
+      await page.locator('.command-results button', { hasText: '清洗面板数据' }).first().waitFor();
+      await page.keyboard.press('Escape');
+
+      await page.locator('.sidebar').getByRole('button', { name: '工作站' }).click();
       await page.locator('.plancard', { hasText: '清洗面板数据' }).waitFor();
       await shot(page, 'workbench');
-      await page.locator('.changes').getByRole('button', { name: '撤销' }).first().click();
-      await page.locator('.changes').getByText('已撤销').waitFor();
+      await page.locator('.wb-left').getByRole('button', { name: '撤销' }).first().click();
+      await page.locator('.wb-left').getByText('已撤销').waitFor();
       assert.equal(await page.locator('.plancard', { hasText: '清洗面板数据' }).count(), 0);
 
-      await page.getByRole('button', { name: 'English' }).click();
-      await page.getByText('Project plans').waitFor();
+      await page.getByRole('button', { name: '视图' }).click();
+      await page.getByRole('menuitemcheckbox', { name: 'English' }).click();
+      await page.getByText('No project log entries yet').waitFor();
       await shot(page, 'workbench-en');
       assert.deepEqual(errors, []);
     } finally {

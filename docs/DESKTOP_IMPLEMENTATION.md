@@ -1,6 +1,24 @@
 # Desktop implementation — first increment
 
-## 2026-10-05 R3 interface skeleton (Claude, cloud Linux)
+## 2026-10-05 R3 redo: the old main interface on the new core (Claude, cloud Linux)
+
+- User direction: keep the old main interface design; the rebuild is about the
+  backend. The first R3 skeleton (764c62c) used a simplified new design and was
+  replaced the same day.
+- `app/ui` now renders the old DOM structure and class names and loads the old
+  style sheets unchanged (`app/ui/styles/legacy/`, same order as the old
+  interface); icons come from the prototype's `iconPaths`. Captures of the old
+  interface used for comparison: `.sciencescope-local/temp/r3ref/`.
+- Connected: top-bar menus, sidebar tree and object menus, search palette
+  (projects, titles, message text via `GET /api/search`), welcome page (first
+  message creates the meeting), streaming answers with tool activity cards,
+  stop, branch, model choice, browse all with unarchive, workbench (plan and
+  log cards, change history with undo, research-map canvas with the
+  prototype's layout, project folder via `GET /api/projects/:id/files`).
+  Entries without a backend yet are hidden (list in CORE_MODEL §10).
+- Browser test rewritten for the old markup; `npm run check` 35 pass, 2 skipped.
+
+## 2026-10-05 R3 interface skeleton (Claude, cloud Linux) — superseded
 
 - `app/ui/`: Preact + htm without a build step, served by the host
   (`app/server/static.js`; vendor builds from node_modules via an import map).

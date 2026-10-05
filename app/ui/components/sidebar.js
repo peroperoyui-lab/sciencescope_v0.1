@@ -1,212 +1,301 @@
-// Left sidebar: new meeting, workbench, pinned meetings, projects with their
-// meetings, meetings outside any project, and the user bar.
+// Left sidebar in the old interface's markup: navigation, search, pinned
+// items, the project tree with its meetings, standalone meetings, "browse
+// all" and the user bar.
 import { useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
-import { navigate, routeHref } from '../route.js';
-import { Avatar, InlineInput, RowMenu } from './common.js';
+import { navigate } from '../route.js';
+import { FieldForm } from './overlays.js';
+import { ProfileForm } from './shell.js';
 
 const byRecent = (a, b) => b.updatedAt.localeCompare(a.updatedAt);
-/** Meetings shown in the lists: not archived, not attached to another meeting. */
+/** Meetings shown in the tree: not archived, not attached to another meeting. */
 const listed = (meeting) => !meeting.archived && !meeting.attachedToMeetingId;
 
-/** @param {{ meeting: any, active: boolean, nested?: boolean }} props */
-function MeetingRow({ meeting, active, nested = false }) {
+function useRename() {
   const actions = useActions();
-  const [renaming, setRenaming] = useState(false);
+  return (title, value, save) =>
+    actions.openModal(
+      title,
+      html`<${FieldForm}
+        label=${t('名称')}
+        value=${value}
+        submitText=${t('保存')}
+        onSubmit=${save}
+      />`,
+    );
+}
+
+/** @param {{ meeting: any, active: boolean, child?: boolean, pinnedRow?: boolean }} props */
+function ChatRow({ meeting, active, child = false, pinnedRow = false }) {
+  const actions = useActions();
+  const rename = useRename();
   const running = useAppState((state) =>
     Object.values(state.running).some((turn) => turn.meetingId === meeting.id),
   );
-  if (renaming) {
-    return html`<div class=${`chatnav ${nested ? 'nested' : ''}`}>
-      <${InlineInput}
-        value=${meeting.title}
-        placeholder=${t('会议名称')}
-        onCommit=${(title) => {
-          setRenaming(false);
-          actions.updateMeeting(meeting.id, { title });
-        }}
-        onCancel=${() => setRenaming(false)}
-      />
-    </div>`;
-  }
-  return html`<a
-    class=${`chatnav ${nested ? 'nested' : ''} ${active ? 'active' : ''}`}
-    href=${routeHref({ view: 'meeting', id: meeting.id })}
+  const items = [
+    {
+      text: t('打开对话'),
+      icon: 'chat',
+      run: () => navigate({ view: 'meeting', id: meeting.id }),
+    },
+    { sep: true },
+    {
+      text: meeting.pinned ? t('取消置顶') : t('置顶'),
+      check: meeting.pinned,
+      run: () =>
+        actions.attempt(() => actions.updateMeeting(meeting.id, { pinned: !meeting.pinned })),
+    },
+    {
+      text: t('重命名'),
+      icon: 'edit',
+      key: 'F2',
+      run: () =>
+        rename(t('重命名对话'), meeting.title, (title) =>
+          actions.updateMeeting(meeting.id, { title }),
+        ),
+    },
+    {
+      text: t('归档'),
+      icon: 'folder',
+      run: () => actions.attempt(() => actions.updateMeeting(meeting.id, { archived: true })),
+    },
+  ];
+  const openMenu = (event) => actions.openMenu(event, items, meeting.title);
+  return html`<div
+    class=${`tree-row ${child ? 'child' : ''} ${pinnedRow ? 'pinned-item' : ''} ${active ? 'active' : ''}`}
+    data-object="chat"
+    onContextMenu=${openMenu}
   >
-    <${Icon} name="chat" />
-    <span class="grow ellipsis">${meeting.title}</span>
-    ${running && html`<span class="badge-dot" title=${t('正在回答')}></span>`}
-    <${RowMenu}
-      label=${t('会议操作')}
-      items=${[
-        {
-          label: meeting.pinned ? t('取消置顶') : t('置顶此会议'),
-          run: () => actions.updateMeeting(meeting.id, { pinned: !meeting.pinned }),
-        },
-        { label: t('重命名'), run: () => setRenaming(true) },
-        { label: t('归档'), run: () => actions.updateMeeting(meeting.id, { archived: true }) },
-      ]}
-    />
-  </a>`;
-}
-
-/** @param {{ project: any, meetings: any[], route: any }} props */
-function ProjectGroup({ project, meetings, route }) {
-  const actions = useActions();
-  const [open, setOpen] = useState(true);
-  const [renaming, setRenaming] = useState(false);
-  return html`<div class="navgroup">
-    <div class="navproject">
-      <button
-        class="iconbtn small"
-        aria-label=${open ? t('收起') : t('展开')}
-        onClick=${() => setOpen(!open)}
-      >
-        <${Icon} name=${open ? 'chevronDown' : 'chevronRight'} />
-      </button>
-      <${Icon} name="folder" />
-      ${
-        renaming
-          ? html`<${InlineInput}
-              value=${project.name}
-              placeholder=${t('项目名称')}
-              onCommit=${(name) => {
-                setRenaming(false);
-                actions.updateProject(project.id, { name });
-              }}
-              onCancel=${() => setRenaming(false)}
-            />`
-          : html`<span class="grow ellipsis">${project.name}</span>`
-      }
-      <${RowMenu}
-        label=${t('项目操作')}
-        items=${[
-          { label: t('新会议'), run: () => actions.createMeeting({ projectId: project.id }) },
-          { label: t('工作站'), run: () => navigate({ view: 'workbench', id: project.id }) },
-          { label: t('重命名'), run: () => setRenaming(true) },
-        ]}
-      />
-    </div>
-    ${
-      open &&
-      meetings.map(
-        (meeting) =>
-          html`<${MeetingRow}
-            key=${meeting.id}
-            meeting=${meeting}
-            nested
-            active=${route.view === 'meeting' && route.id === meeting.id}
-          />`,
-      )
-    }
+    <button
+      class="tree-name"
+      title=${meeting.title}
+      onClick=${() => navigate({ view: 'meeting', id: meeting.id })}
+    >
+      <${Icon} name="chat" />
+      <span class="ellipsis">${meeting.title}</span>
+      ${running && html`<i class="unread-dot" title=${t('正在回答')}></i>`}
+    </button>
+    <button class="iconbtn" title=${t('对话菜单')} aria-label=${t('对话菜单')} onClick=${openMenu}>
+      <${Icon} name="more" />
+    </button>
   </div>`;
 }
 
-/** @param {{ route: import('../route.js').Route }} props */
-export function Sidebar({ route }) {
+/**
+ * @param {{ project: any, active: boolean, pinnedRow?: boolean, expanded?: boolean,
+ *   onToggle?: () => void }} props
+ */
+function ProjectRow({ project, active, pinnedRow = false, expanded, onToggle }) {
+  const actions = useActions();
+  const rename = useRename();
+  const items = [
+    {
+      text: t('打开项目'),
+      icon: 'folder',
+      run: () => navigate({ view: 'workbench', id: project.id }),
+    },
+    {
+      text: t('新建项目内聊天'),
+      icon: 'plus',
+      run: () => navigate({ view: 'new', id: project.id }),
+    },
+    { sep: true },
+    {
+      text: project.pinned ? t('取消置顶') : t('置顶'),
+      check: project.pinned,
+      run: () =>
+        actions.attempt(() => actions.updateProject(project.id, { pinned: !project.pinned })),
+    },
+    {
+      text: t('重命名'),
+      icon: 'edit',
+      key: 'F2',
+      run: () =>
+        rename(t('重命名项目'), project.name, (name) =>
+          actions.updateProject(project.id, { name }),
+        ),
+    },
+    {
+      text: t('归档'),
+      icon: 'folder',
+      run: () => actions.attempt(() => actions.updateProject(project.id, { archived: true })),
+    },
+  ];
+  const openMenu = (event) => actions.openMenu(event, items, project.name);
+  return html`<div
+    class=${`tree-row ${pinnedRow ? 'pinned-item' : ''} ${active ? 'active' : ''}`}
+    data-object="project"
+    onContextMenu=${openMenu}
+  >
+    ${
+      pinnedRow
+        ? html`<span class="tree-arrow-spacer" aria-hidden="true"></span>`
+        : html`<button
+            class="tree-arrow"
+            aria-expanded=${expanded}
+            aria-label=${(expanded ? t('收起') : t('展开')) + ' ' + project.name}
+            onClick=${onToggle}
+          >
+            <${Icon} name=${expanded ? 'down' : 'right'} />
+          </button>`
+    }
+    <button class="tree-name" onClick=${() => navigate({ view: 'workbench', id: project.id })}>
+      <${Icon} name="folder" />
+      <span class="ellipsis">${project.name}</span>
+    </button>
+    <button class="iconbtn" title=${t('项目菜单')} aria-label=${t('项目菜单')} onClick=${openMenu}>
+      <${Icon} name="more" />
+    </button>
+  </div>`;
+}
+
+/** @param {{ route: import('../route.js').Route, currentProjectId: string | null }} props */
+export function Sidebar({ route, currentProjectId }) {
   const actions = useActions();
   const projects = useAppState((state) => state.projects);
   const meetings = useAppState((state) => state.meetings);
   const settings = useAppState((state) => state.settings);
-  const [creatingProject, setCreatingProject] = useState(false);
+  const [collapsed, setCollapsed] = useState(/** @type {Record<string, boolean>} */ ({}));
 
   const visible = meetings.filter(listed).sort(byRecent);
-  const pinned = visible.filter((meeting) => meeting.pinned);
-  const standalone = visible.filter((meeting) => !meeting.projectId);
   const activeProjects = projects.filter((project) => !project.archived);
-  const workbenchProject =
-    route.view === 'workbench'
-      ? route.id
-      : (meetings.find((m) => route.view === 'meeting' && m.id === route.id)?.projectId ??
-        activeProjects[0]?.id);
-  const isActive = (meeting) => route.view === 'meeting' && route.id === meeting.id;
+  const pinnedProjects = activeProjects.filter((project) => project.pinned);
+  const pinnedMeetings = visible.filter((meeting) => meeting.pinned);
+  const standalone = visible.filter((meeting) => !meeting.projectId);
+  const isActiveMeeting = (meeting) => route.view === 'meeting' && route.id === meeting.id;
+  const isActiveProject = (project) => route.view === 'workbench' && route.id === project.id;
+  const userName = settings?.profile?.name || t('用户');
+
+  function openWorkbench() {
+    const projectId = currentProjectId ?? activeProjects[0]?.id;
+    if (projectId) navigate({ view: 'workbench', id: projectId });
+    else actions.toast(t('先新建一个项目，工作站按项目整理计划、日志与导图。'));
+  }
+
+  function newProject() {
+    actions.openModal(
+      t('新建项目'),
+      html`<${FieldForm}
+        label=${t('项目名称')}
+        submitText=${t('创建')}
+        onSubmit=${async (name) => {
+          const project = await actions.createProject(name);
+          navigate({ view: 'workbench', id: project.id });
+        }}
+      />`,
+    );
+  }
 
   return html`<aside class="sidebar">
-    <button class="nav" onClick=${() => actions.createMeeting()}>
-      <${Icon} name="chat" />${t('新会议')}
-    </button>
-    ${
-      workbenchProject &&
-      html`<a
-        class=${`nav ${route.view === 'workbench' ? 'active' : ''}`}
-        href=${routeHref({ view: 'workbench', id: workbenchProject })}
+    <div>
+      <button
+        class=${`nav ${route.view === 'home' || route.view === 'new' ? 'active' : ''}`}
+        onClick=${() => navigate({ view: 'home' })}
       >
-        <${Icon} name="box" />${t('工作站')}
-      </a>`
-    }
+        <${Icon} name="chat" /><span>${t('新对话')}</span>
+      </button>
+      <div class="row" style="gap:0">
+        <button
+          class=${`nav ${route.view === 'workbench' ? 'active' : ''}`}
+          onClick=${openWorkbench}
+        >
+          <${Icon} name="cube" /><span>${t('工作站')}</span>
+        </button>
+      </div>
+      <button class="side-search" onClick=${actions.openPalette}>
+        <${Icon} name="search" /><span>${t('搜索')}</span><kbd>Ctrl+K</kbd>
+      </button>
+    </div>
 
     <div class="navscroll">
+      <div class="navsection">${t('置顶')}</div>
       ${
-        pinned.length > 0 &&
-        html`<div class="navsection">${t('置顶')}</div>
-          ${pinned.map(
-            (meeting) =>
-              html`<${MeetingRow}
-                key=${meeting.id}
-                meeting=${meeting}
-                active=${isActive(meeting)}
-              />`,
-          )}`
+        pinnedMeetings.length + pinnedProjects.length === 0 &&
+        html`<div class="inline-empty">${t('暂无置顶')}</div>`
       }
+      ${pinnedMeetings.map(
+        (meeting) =>
+          html`<${ChatRow}
+            key=${meeting.id}
+            meeting=${meeting}
+            pinnedRow
+            active=${isActiveMeeting(meeting)}
+          />`,
+      )}
+      ${pinnedProjects.map(
+        (project) =>
+          html`<${ProjectRow}
+            key=${project.id}
+            project=${project}
+            pinnedRow
+            active=${isActiveProject(project)}
+          />`,
+      )}
 
       <div class="navsection">
-        <span>${t('项目')}</span>
+        <span>${t('全部项目与聊天')}</span>
         <button
-          class="iconbtn small"
+          class="iconbtn"
+          title=${t('新建项目')}
           aria-label=${t('新建项目')}
-          onClick=${() => setCreatingProject(true)}
+          onClick=${newProject}
         >
           <${Icon} name="plus" />
         </button>
       </div>
-      ${
-        creatingProject &&
-        html`<div class="navproject">
-          <${InlineInput}
-            placeholder=${t('项目名称')}
-            onCommit=${async (name) => {
-              setCreatingProject(false);
-              const project = await actions.createProject(name);
-              navigate({ view: 'workbench', id: project.id });
-            }}
-            onCancel=${() => setCreatingProject(false)}
-          />
-        </div>`
-      }
-      ${activeProjects.map(
-        (project) =>
-          html`<${ProjectGroup}
+      ${activeProjects.map((project) => {
+        const expanded = !collapsed[project.id];
+        return html`<${ProjectRow}
             key=${project.id}
             project=${project}
-            route=${route}
-            meetings=${visible.filter((meeting) => meeting.projectId === project.id)}
+            expanded=${expanded}
+            active=${isActiveProject(project)}
+            onToggle=${() => setCollapsed({ ...collapsed, [project.id]: expanded })}
+          />
+          ${
+            expanded &&
+            visible
+              .filter((meeting) => meeting.projectId === project.id)
+              .map(
+                (meeting) =>
+                  html`<${ChatRow}
+                    key=${meeting.id}
+                    meeting=${meeting}
+                    child
+                    active=${isActiveMeeting(meeting)}
+                  />`,
+              )
+          }`;
+      })}
+
+      <div class="navsection">${t('独立对话')}</div>
+      ${standalone.map(
+        (meeting) =>
+          html`<${ChatRow}
+            key=${meeting.id}
+            meeting=${meeting}
+            active=${isActiveMeeting(meeting)}
           />`,
       )}
-      ${
-        activeProjects.length === 0 &&
-        !creatingProject &&
-        html`<div class="navempty">${t('还没有项目')}</div>`
-      }
-      ${
-        standalone.length > 0 &&
-        html`<div class="navsection">${t('独立会议')}</div>
-          ${standalone.map(
-            (meeting) =>
-              html`<${MeetingRow}
-                key=${meeting.id}
-                meeting=${meeting}
-                active=${isActive(meeting)}
-              />`,
-          )}`
-      }
     </div>
 
-    <div class="userbar">
-      <${Avatar} name=${settings?.profile?.name || t('我')} />
-      <span class="grow ellipsis">${settings?.profile?.name || t('我')}</span>
+    <div class="sidebar-fixed">
+      <button class="browse-all" onClick=${() => navigate({ view: 'all' })}>
+        <${Icon} name="search" /><span>${t('浏览全部')}</span><kbd>Ctrl+Shift+K</kbd>
+      </button>
+    </div>
+    <div class="userbar row">
+      <span class="avatar">${userName.slice(0, 1).toUpperCase()}</span>
+      <button
+        class="grow profile-entry"
+        title=${t('编辑个人资料')}
+        onClick=${() => actions.openModal(t('个人资料'), html`<${ProfileForm} />`)}
+      >
+        ${userName}
+      </button>
     </div>
   </aside>`;
 }

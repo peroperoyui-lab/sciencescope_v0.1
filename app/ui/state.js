@@ -4,7 +4,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 export const initialState = {
-  connected: false,
+  /** null until the event stream first opens or fails. */
+  /** @type {boolean | null} */ connected: null,
   settings: null,
   /** @type {any[]} */ projects: [],
   /** @type {any[]} */ meetings: [],
@@ -20,6 +21,13 @@ export const initialState = {
   /** @type {Record<string, any>} */ running: {},
   /** Bumped on every workspace change so open views can reload. */
   workspaceVersion: 0,
+  /** Popups over the window: one menu, one dialog, one toast, the search palette. */
+  overlay: {
+    /** @type {null | { items: any[], label: string, x: number, y: number }} */ menu: null,
+    /** @type {null | { title: string, body: any }} */ modal: null,
+    /** @type {null | string} */ toast: null,
+    palette: false,
+  },
 };
 
 /** @typedef {typeof initialState} State */

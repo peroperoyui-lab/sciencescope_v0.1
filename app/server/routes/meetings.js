@@ -52,6 +52,9 @@ export function registerMeetingRoutes(router, core, conductor) {
     await conductor?.interrupt(params.id);
     return { interrupted: true };
   });
+  router.get('/api/search', ({ query }) => ({
+    messages: core.messages.search(query.get('q') ?? ''),
+  }));
   router.get('/api/turns/:id', ({ params }) => ({
     turn: core.turns.get(params.id),
     toolCalls: core.turns.toolCalls(params.id),

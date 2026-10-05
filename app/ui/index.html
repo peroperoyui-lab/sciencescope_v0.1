@@ -6,10 +6,14 @@
     <title>ScienceScope</title>
     <link rel="icon" href="/assets/logo.png" />
     <link rel="stylesheet" href="/vendor/fonts/noto-sans-sc/index.css" />
-    <link rel="stylesheet" href="/styles/base.css" />
-    <link rel="stylesheet" href="/styles/shell.css" />
-    <link rel="stylesheet" href="/styles/meeting.css" />
-    <link rel="stylesheet" href="/styles/workbench.css" />
+    <!-- The approved visual baseline, in the old interface's load order. -->
+    <link rel="stylesheet" href="/styles/legacy/prototype.css" />
+    <link rel="stylesheet" href="/styles/legacy/chat.css" />
+    <link rel="stylesheet" href="/styles/legacy/workspace.css" />
+    <link rel="stylesheet" href="/styles/legacy/workbench.css" />
+    <link rel="stylesheet" href="/styles/legacy/desktop-behavior.css" />
+    <link rel="stylesheet" href="/styles/legacy/refresh.css" />
+    <link rel="stylesheet" href="/styles/app.css" />
     <script type="importmap">
       {
         "imports": {
@@ -23,7 +27,7 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="app"></div>
     <script type="module" src="/main.js"></script>
   </body>
 </html>

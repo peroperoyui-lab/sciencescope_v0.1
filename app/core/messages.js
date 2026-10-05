@@ -191,5 +191,36 @@ export function createMessages({ db, events, meetings, now, newId }) {
       .map(toMessage);
   }
 
-  return { get, post, update, streamDelta, streamReplace, list, since };
+  /**
+   * Messages containing `query` (case-insensitive for Latin letters), newest
+   * first, with a short snippet around the first match.
+   * @param {string} query
+   * @param {{ limit?: number }} [options]
+   */
+  function search(query, { limit = 30 } = {}) {
+    const needle = String(query ?? '').trim();
+    if (!needle) return [];
+    const escaped = needle.replace(/[\\%_]/g, (c) => `\\${c}`);
+    return db
+      .prepare(
+        `SELECT m.* FROM messages m JOIN meetings g ON g.id = m.meeting_id
+         WHERE m.text LIKE ? ESCAPE '\\' AND g.archived = 0
+         ORDER BY m.created_at DESC LIMIT ?`,
+      )
+      .all(`%${escaped}%`, limit)
+      .map(toMessage)
+      .map((message) => {
+        const at = message.text.toLowerCase().indexOf(needle.toLowerCase());
+        const start = Math.max(0, at - 30);
+        const snippet = message.text.slice(start, at + needle.length + 60).replace(/\s+/g, ' ');
+        return {
+          id: message.id,
+          meetingId: message.meetingId,
+          seq: message.seq,
+          snippet: `${start > 0 ? '…' : ''}${snippet}`,
+        };
+      });
+  }
+
+  return { get, post, update, streamDelta, streamReplace, list, since, search };
 }

@@ -154,10 +154,12 @@ tools: { prefer: [research_search], avoid: [] }
 
 ## 10. 界面（`app/ui`，R3）
 
+- **原则：界面沿用旧主界面的设计，一比一复刻**（2026-10-05 用户确认）。组件输出与旧界面相同的 DOM 结构和类名，样式直接使用旧界面的样式表：`styles/legacy/` 依次为已批准原型（`prototype.css`，取自 `ScienceScope.html`）和旧桌面的 `chat`、`workspace`、`workbench`、`desktop-behavior`、`refresh`，加载顺序与旧界面相同；`styles/app.css` 只放新界面需要的少量补充。图标路径取自原型的 `iconPaths`。重构的重点在后端，界面不另行设计。
 - 入口：`node app/main.js` 输出的 `ui` 地址（`<url>/?token=<口令>`）；口令随后存入会话存储并从地址栏去掉。原生外壳打开同一地址。
 - 依赖：`preact`、`htm`、`marked`、`dompurify` 与思源黑体字体，由 `app/server/static.js` 从 `node_modules` 提供，页面用 import map 引用；不打包、不复制到仓库。
-- 结构：`api.js`（请求与事件流）→ `state.js`（一个状态对象；`applyEvent` 按 id 合并事件，重放无害）→ `actions.js`（用户操作）→ `components/`（`app`、`shell`、`sidebar`、`home`、`meeting`、`workbench`、`common`）。组件只读状态、调用 actions，不互相包裹或覆盖。
-- 路由在地址的 hash：`#/`、`#/meeting/<id>`、`#/workbench/<projectId>`。
-- 文字：组件里写中文，`i18n/en.js` 给出英文；测试检查每个中文字符串都有英文条目。语言存于 `settings.appearance.language`，状态栏可切换。
-- 样式：`styles/*.css`，色值与尺寸沿用已批准原型及其刷新层（`desktop/refresh.css`）。
-- 已有视图：侧栏（新会议、工作站、置顶、项目及其会议、独立会议；置顶 / 重命名 / 归档）；首页（第一句话即开会）；会议（流式回答、工具卡片含前言与参数结果、状态提示、复制、从此分支、@ 提及、打断、加载更早消息）；工作站（全局与项目计划、项目日志、导图树、更改记录与撤销）。
+- 结构：`api.js`（请求与事件流）→ `state.js`（一个状态对象；`applyEvent` 按 id 合并事件，重放无害；`overlay` 放菜单、对话框、提示与搜索面板）→ `actions.js`（用户操作）→ `components/`。组件只读状态、调用 actions，不互相包裹或覆盖。
+- 路由在地址的 hash：`#/`（新对话欢迎页，发出第一条消息才建会议）、`#/new/<projectId>`（项目内新对话）、`#/meeting/<id>`、`#/workbench/<projectId>`、`#/all`（浏览全部）。
+- 文字：组件里写中文，`i18n/en.js` 给出英文；测试检查每个中文字符串都有英文条目。语言存于 `settings.appearance.language`，在"视图"菜单切换。
+- 已接通（与旧界面同位置）：顶栏菜单（文件 / 编辑 / 视图 / 帮助：新聊天、新建项目、搜索、浏览全部、工作站、显示滚动条、语言、快捷键、关于）；侧栏（新对话、工作站、搜索 Ctrl+K、置顶、全部项目与聊天的树与对象菜单、独立对话、浏览全部、个人资料）；欢迎页（问候、最近工作、常用学术站点可增删、输入框）；会议（日期分隔、消息、工具活动卡片含前言与参数结果、流式光标、停止、复制、从此分支、工作区菜单）；输入框的模型选择（来自 `settings.providers`）；浏览全部（筛选、取消归档）；工作站（全部计划卡片、本项目日志卡片、更改记录与撤销、研究导图画布：原型的纵向主干与花括号布局、缩放拖动、右键增改删、项目文件夹）。
+- 暂时隐藏、等后端（R4）：数据库与资料库、工作站简略信息、查找当前对话、内置浏览器、会议秘书、全局助手、设置、附件与引用、执行策略（询问）、上下文环、推理强度、发言模式（工作 / 有序）、秘书总结、文献版本管理、绑定外部目录、导出、页面目录与本页说明。
+- 后端补充：`GET /api/search?q=`（消息全文，片段）、`GET /api/projects/:id/files?path=`（项目文件夹内容）、设置新增 `sites` 与 `appearance.scrollbars`。

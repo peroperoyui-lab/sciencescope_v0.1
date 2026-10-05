@@ -8,7 +8,7 @@ import { html } from './html.js';
 import { t } from './i18n/index.js';
 import { createStore } from './state.js';
 
-const root = document.getElementById('root');
+const root = document.getElementById('app');
 const store = createStore();
 const actions = createActions(createApi(), store);
 

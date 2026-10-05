@@ -7,8 +7,22 @@ export const SETTINGS_VERSION = 1;
 export const DEFAULT_SETTINGS = {
   version: SETTINGS_VERSION,
   profile: { name: '', bio: '' },
-  appearance: { language: 'zh', theme: 'system', density: 'comfortable', font: '' },
+  appearance: {
+    language: 'zh',
+    theme: 'system',
+    density: 'comfortable',
+    font: '',
+    scrollbars: false,
+  },
   composer: { sendKey: 'enter' },
+  // Academic sites on the welcome page.
+  sites: [
+    { name: 'Elsevier', url: 'https://www.sciencedirect.com' },
+    { name: 'WOS', url: 'https://www.webofscience.com' },
+    { name: 'CNKI', url: 'https://www.cnki.net' },
+    { name: '万方数据', url: 'https://www.wanfangdata.com.cn' },
+    { name: 'Springer', url: 'https://link.springer.com' },
+  ],
   // Model providers (keys are stored separately, see services/providers.js).
   providers: [],
   // The model AIs use unless their own definition names one.

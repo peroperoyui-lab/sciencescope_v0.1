@@ -1,0 +1,23 @@
+/* Additions to the legacy styles for the new interface. Keep this small:
+   the look comes from styles/legacy/. */
+#app {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+#app > .app {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+.menu-popup {
+  position: fixed;
+}
+.wb-left .versionlist .listrow {
+  font-size: 12px;
+  align-items: flex-start;
+}
+.startup-error {
+  padding: 48px;
+  color: var(--danger);
+}

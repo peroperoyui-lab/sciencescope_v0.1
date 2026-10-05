@@ -1,12 +1,14 @@
 # R3 交接：L1 Windows 本地化（给 Sol）
 
-R3 做好了新界面骨架 `app/ui/`。L1 的目标：**在 Windows 原生窗口里使用新核心**——原生外壳启动 `app/main.js`，加载新界面，可以开会、看工作站。按 AGENTS.md 交付，报告不超过 15 行。
+R3 做好了新界面 `app/ui/`：一比一沿用旧主界面（相同结构和类名，直接使用旧样式表），接的是新核心。L1 的目标：**在 Windows 原生窗口里使用新核心**——原生外壳启动 `app/main.js`，加载新界面，可以开会、看工作站。按 AGENTS.md 交付，报告不超过 15 行。
 
 ## 背景
 
 - 启动：`node app/main.js [--data <目录>]`，标准输出一行 JSON `{ url, token, ui, dataRoot }`；`ui` 就是 `<url>/?token=<口令>`，直接打开即可。界面文件由同一个服务提供，不需要构建。
 - 界面在浏览器里已能完整使用（Linux 无头 Chromium 测试 `app/ui/ui.browser.test.js`）。窗口按钮只在 `window.__TAURI__` 存在时显示（`app/ui/components/shell.js` 的 `nativeWindow()`），用的是 Tauri v2 `getCurrentWindow()` 的 `minimize` / `toggleMaximize` / `close`。
 - 旧外壳 `src-tauri/` 目前启动旧宿主（`host_url`）。
+- 欢迎页的学术站点用 `window.open` 打开；在原生窗口里请改用系统浏览器打开（Tauri opener），旧外壳的做法可以照搬。
+- 新界面与旧界面应当看起来一样；如果在 WebView2 里有差别，截图对比后写进报告。
 
 ## 要做的
 
@@ -15,7 +17,7 @@ R3 做好了新界面骨架 `app/ui/`。L1 的目标：**在 Windows 原生窗�
    - 数据根：开发版 `.sciencescope-local/data`；不要和旧版数据目录混用。
    - 退出时结束 `app/main.js` 进程（它会结束自己的 DSH 子进程）；沿用旧外壳的进程树清理方式。
    - 窗口能力：确认 `main-window-controls` 允许新页面调用最小化、最大化、关闭；`data-tauri-drag-region` 的顶栏可以拖动窗口。
-3. 原生里走一遍（真实便宜模型，OpenCode Go key 写入凭据文件）：新建项目 → 新会议 → 提问 → 回答流式出现 → 让主专家改计划 → 工作站看到计划和更改记录 → 撤销 → 切换英文。各截一张图。
+3. 原生里走一遍（真实便宜模型，OpenCode Go key 写入凭据文件）：新建项目 → 项目内新聊天 → 提问 → 回答流式出现 → 让主专家改计划 → 工作站看到计划卡片和更改记录 → 撤销 → Ctrl+K 搜索 → 视图菜单切换英文。各截一张图，并和旧界面同一页面对比。
 4. 检查中文输入法（输入框里组字时按 Enter 不应发送）、中文项目名和中文数据路径。
 
 ## 重点看的 Windows 问题
