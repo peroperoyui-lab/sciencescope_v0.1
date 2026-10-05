@@ -1,0 +1,184 @@
+// Messages: the meeting record, the single source of shared context.
+import { AppError } from './errors.js';
+
+/**
+ * @typedef {'streaming' | 'done' | 'max_tokens' | 'failed' | 'cancelled'} MessageStatus
+ * @typedef {{ id: string, meetingId: string, seq: number, authorId: string, text: string,
+ *   status: MessageStatus, turnId: string | null, replyTo: string | null, refs: any,
+ *   adopted: boolean | null, createdAt: string, updatedAt: string }} Message
+ */
+
+/** SQLite stores the review adoption flag as 1, 0 or NULL (not a review). */
+function adoptedValue(adopted) {
+  if (adopted == null) return null;
+  return Number(adopted);
+}
+
+/** @returns {Message} */
+function toMessage(row) {
+  return {
+    id: String(row.id),
+    meetingId: String(row.meeting_id),
+    seq: Number(row.seq),
+    authorId: String(row.author_id),
+    text: String(row.text),
+    status: /** @type {MessageStatus} */ (String(row.status)),
+    turnId: row.turn_id == null ? null : String(row.turn_id),
+    replyTo: row.reply_to == null ? null : String(row.reply_to),
+    refs: JSON.parse(String(row.refs_json)),
+    adopted: row.adopted == null ? null : Boolean(row.adopted),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at),
+  };
+}
+
+/**
+ * @param {{ db: import('./db/database.js').Db, events: any, meetings: any,
+ *   now: () => string, newId: (prefix: string) => string }} deps
+ */
+export function createMessages({ db, events, meetings, now, newId }) {
+  /** @param {string} id @returns {Message} */
+  function get(id) {
+    const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(id);
+    if (!row) throw new AppError('MESSAGE_NOT_FOUND', '找不到这条消息。', 404);
+    return toMessage(row);
+  }
+
+  function scopeOf(message, actorId) {
+    const meeting = meetings.get(message.meetingId);
+    return { projectId: meeting.projectId, meetingId: message.meetingId, actorId };
+  }
+
+  /**
+   * Add a message at the end of a meeting.
+   * @param {{ meetingId: string, authorId: string, text: string, status?: MessageStatus,
+   *   turnId?: string | null, replyTo?: string | null, refs?: any }} input
+   * @returns {Message}
+   */
+  function post({
+    meetingId,
+    authorId,
+    text,
+    status = 'done',
+    turnId = null,
+    replyTo = null,
+    refs = {},
+  }) {
+    meetings.get(meetingId);
+    return db.transaction(() => {
+      const last = db
+        .prepare('SELECT MAX(seq) AS seq FROM messages WHERE meeting_id = ?')
+        .get(meetingId);
+      const id = newId('msg');
+      const time = now();
+      db.prepare(
+        `INSERT INTO messages (id, meeting_id, seq, author_id, text, status, turn_id, reply_to,
+           refs_json, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).run(
+        id,
+        meetingId,
+        Number(last?.seq ?? 0) + 1,
+        authorId,
+        String(text ?? ''),
+        status,
+        turnId,
+        replyTo,
+        JSON.stringify(refs),
+        time,
+        time,
+      );
+      meetings.touch(meetingId);
+      const message = get(id);
+      events.record('message.created', message, scopeOf(message, authorId));
+      return message;
+    });
+  }
+
+  /**
+   * Change text, status, refs or the adoption of a review.
+   * @param {string} id
+   * @param {{ text?: string, status?: MessageStatus, refs?: any, adopted?: boolean | null }} changes
+   * @returns {Message}
+   */
+  function update(id, changes) {
+    const message = get(id);
+    return db.transaction(() => {
+      db.prepare(
+        'UPDATE messages SET text = ?, status = ?, refs_json = ?, adopted = ?, updated_at = ? WHERE id = ?',
+      ).run(
+        changes.text ?? message.text,
+        changes.status ?? message.status,
+        JSON.stringify(changes.refs ?? message.refs),
+        adoptedValue(changes.adopted === undefined ? message.adopted : changes.adopted),
+        now(),
+        id,
+      );
+      const updated = get(id);
+      events.record('message.updated', updated, scopeOf(updated, null));
+      return updated;
+    });
+  }
+
+  /**
+   * Stream text to subscribers while a message is being written (not stored).
+   * @param {string} id
+   * @param {string} delta
+   */
+  function streamDelta(id, delta) {
+    const message = get(id);
+    events.transient('message.delta', { id, delta }, scopeOf(message, message.authorId));
+  }
+
+  /**
+   * A page of messages by sequence number.
+   * @param {string} meetingId
+   * @param {{ before?: number, after?: number, limit?: number }} [page]
+   * @returns {{ messages: Message[], hasBefore: boolean, hasAfter: boolean }}
+   */
+  function list(meetingId, { before, after, limit = 60 } = {}) {
+    meetings.get(meetingId);
+    let rows;
+    if (after != null) {
+      rows = db
+        .prepare('SELECT * FROM messages WHERE meeting_id = ? AND seq > ? ORDER BY seq LIMIT ?')
+        .all(meetingId, after, limit);
+    } else {
+      const upper = before ?? Number.MAX_SAFE_INTEGER;
+      rows = db
+        .prepare(
+          'SELECT * FROM messages WHERE meeting_id = ? AND seq < ? ORDER BY seq DESC LIMIT ?',
+        )
+        .all(meetingId, upper, limit)
+        .reverse();
+    }
+    const messages = rows.map(toMessage);
+    const first = messages[0]?.seq;
+    const last = messages.at(-1)?.seq;
+    const exists = (sql, seq) => Boolean(db.prepare(sql).get(meetingId, seq));
+    return {
+      messages,
+      hasBefore:
+        first != null &&
+        exists('SELECT 1 FROM messages WHERE meeting_id = ? AND seq < ? LIMIT 1', first),
+      hasAfter:
+        last != null &&
+        exists('SELECT 1 FROM messages WHERE meeting_id = ? AND seq > ? LIMIT 1', last),
+    };
+  }
+
+  /**
+   * Every message after a sequence number, oldest first (context assembly).
+   * @param {string} meetingId
+   * @param {number} afterSeq
+   * @returns {Message[]}
+   */
+  function since(meetingId, afterSeq) {
+    return db
+      .prepare('SELECT * FROM messages WHERE meeting_id = ? AND seq > ? ORDER BY seq')
+      .all(meetingId, afterSeq)
+      .map(toMessage);
+  }
+
+  return { get, post, update, streamDelta, list, since };
+}
