@@ -1,5 +1,20 @@
 # Desktop implementation — first increment
 
+## 2026-10-05 UI restore: every old entry back, connected to the new core (Claude)
+
+- User direction: the front-end design stays; every feature design not
+  rejected is kept. Inventory of all 48 prototype pages and old modules:
+  `docs/design/UI_RESTORE.md`.
+- Batch 1 `b466bb3` settings; batch 2 `152200d` meeting chrome; batch 3
+  `649340a` workbench and navigation pages. Full old style sheet stack.
+- Fixes found on the way: settings reload when changed elsewhere; a loaded
+  turn no longer overwrites a newer ended one; SSE headers flushed at once;
+  the map canvas no longer swallows button clicks.
+- Remaining entries need services and are queued as R4-1…R4-10.
+- Browser tests: meeting, settings, workbench. `npm run check` 38 pass,
+  2 skipped (Windows-only). Chromium headless names downloads with CJK
+  names "download"; the header is correct (checked in the test).
+
 ## 2026-10-05 R3 redo: the old main interface on the new core (Claude, cloud Linux)
 
 - User direction: keep the old main interface design; the rebuild is about the

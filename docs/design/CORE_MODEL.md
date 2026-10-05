@@ -160,6 +160,5 @@ tools: { prefer: [research_search], avoid: [] }
 - 结构：`api.js`（请求与事件流）→ `state.js`（一个状态对象；`applyEvent` 按 id 合并事件，重放无害；`overlay` 放菜单、对话框、提示与搜索面板）→ `actions.js`（用户操作）→ `components/`。组件只读状态、调用 actions，不互相包裹或覆盖。
 - 路由在地址的 hash：`#/`（新对话欢迎页，发出第一条消息才建会议）、`#/new/<projectId>`（项目内新对话）、`#/meeting/<id>`、`#/workbench/<projectId>`、`#/all`（浏览全部）。
 - 文字：组件里写中文，`i18n/en.js` 给出英文；测试检查每个中文字符串都有英文条目。语言存于 `settings.appearance.language`，在"视图"菜单切换。
-- 已接通（与旧界面同位置）：顶栏菜单（文件 / 编辑 / 视图 / 帮助：新聊天、新建项目、搜索、浏览全部、工作站、显示滚动条、语言、快捷键、关于）；侧栏（新对话、工作站、搜索 Ctrl+K、置顶、全部项目与聊天的树与对象菜单、独立对话、浏览全部、个人资料）；欢迎页（问候、最近工作、常用学术站点可增删、输入框）；会议（日期分隔、消息、工具活动卡片含前言与参数结果、流式光标、停止、复制、从此分支、工作区菜单）；输入框的模型选择（来自 `settings.providers`）；浏览全部（筛选、取消归档）；工作站（全部计划卡片、本项目日志卡片、更改记录与撤销、研究导图画布：原型的纵向主干与花括号布局、缩放拖动、右键增改删、项目文件夹）。
-- 暂时隐藏、等后端（R4）：数据库与资料库、工作站简略信息、查找当前对话、内置浏览器、会议秘书、全局助手、设置、附件与引用、执行策略（询问）、上下文环、推理强度、发言模式（工作 / 有序）、秘书总结、文献版本管理、绑定外部目录、导出、页面目录与本页说明。
-- 后端补充：`GET /api/search?q=`（消息全文，片段）、`GET /api/projects/:id/files?path=`（项目文件夹内容）、设置新增 `sites` 与 `appearance.scrollbars`。
+- 已复原的入口与待复原的 R4 队列：`design/UI_RESTORE.md`。
+- 后端补充：`GET /api/search?q=`（消息全文）；`GET/POST /api/projects/:id/files`（列表；mkdir、rename、add、open）与 `GET /api/projects/:id/export`（zip）；`GET /api/meetings/:id/export`（Markdown）；`POST /api/messages/:id/retry`；`GET /api/system`、`POST /api/system/open`；`GET /api/providers/keys`（只有名称）、`POST /api/providers/discover`；`GET /api/events/head`。设置新增 `sites`、`shortcuts`、`appearance`（theme、density、font、codeFontSize、chatFontSize、reduceMotion、scrollbars、transcript）；服务商模型可写 `contextWindow`、`maxTokens`、`efforts`。AI 定义文件新增 `role`、`panel`（expert / reviewer）、`enabled`、`position`，默认专家名册随首次启动创建。DSH 回合结束时报告上下文占用（`usage.context`），供输入框的上下文环。

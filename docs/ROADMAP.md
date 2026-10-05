@@ -2,7 +2,7 @@
 
 > 本文件只记录**要去哪里、按什么顺序、现在走到哪一步**。
 > 功能现在怎样工作看 `SYSTEM_SPEC.md`；过程和验收细节看 `DESKTOP_IMPLEMENTATION.md`（按日期记录）；具体任务看 `docs/tasks/`。
-> 最近更新：2026-10-05。重建进行中（总纲 `design/ARCHITECTURE.md`）。R0、R1 完成（R1 Windows 验证 `1a1f402` 已合并，标签 `v0-prototype` 已补打）。**R2 完成**：运行时接口与精简 DSH 适配（一个插件 + 桥接）、上下文组装、发言记录、内置工具（workspace_read / edit / undo）、`direct` 发言规则、服务商配置；真实 DSH + 本地模拟模型的单会话与全链路测试通过；`npm run check` 33 项通过（2 项仅 Windows）。R2 Windows 验收 `1a9d98d` 已合并。**R3 完成**：`app/ui/` 界面骨架（外壳、侧栏、首页、会议视图、工作站、中英双语），浏览器测试通过；`npm run check` 35 项通过（2 项仅 Windows）。下一步 L1（Sol，`handoff/R3_WINDOWS.md`）：原生外壳启动新服务并加载新界面。
+> 最近更新：2026-10-05。重建进行中（总纲 `design/ARCHITECTURE.md`）。R0、R1 完成（R1 Windows 验证 `1a1f402` 已合并，标签 `v0-prototype` 已补打）。**R2 完成**：运行时接口与精简 DSH 适配（一个插件 + 桥接）、上下文组装、发言记录、内置工具（workspace_read / edit / undo）、`direct` 发言规则、服务商配置；真实 DSH + 本地模拟模型的单会话与全链路测试通过；`npm run check` 33 项通过（2 项仅 Windows）。R2 Windows 验收 `1a9d98d` 已合并。**R3 完成**：`app/ui/` 界面骨架（外壳、侧栏、首页、会议视图、工作站、中英双语），浏览器测试通过；`npm run check` 35 项通过（2 项仅 Windows）。界面已按旧主界面复原（`design/UI_RESTORE.md`），需要后端服务的入口排为 R4-1…R4-10。下一步 L1（Sol，`handoff/R3_WINDOWS.md`）：原生外壳启动新服务并加载新界面；之后按 R4 队列移植服务。
 
 ## 目标：1.0.0-alpha（内测版）
 R2 Windows 验收（2026-10-05）：`codex/r2-windows-20261005`，最终 `npm run check` 35/35；真实 OpenCode Go 主专家修改中文项目计划并记 `agent_main` 修订；盘符插件加载、2 秒缩短闲置释放（默认10分钟）、真实 Ctrl+C 下进程及 WAL/SHM 清理通过。补服务商自定义请求头透传，修中断测试启动竞态；6次真实请求（4成功/2失败），65,374已知token，2次用量未知。待 Claude 审阅，下一步 R3。
