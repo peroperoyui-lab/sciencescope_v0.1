@@ -1,6 +1,8 @@
 # ScienceScope
 
 Rewritten 2026-10-05 after the overall review (`docs/REVIEW_2026-10-05.md`).
+Architecture (first principles: participants, tools, meetings, workspace,
+events): `docs/design/ARCHITECTURE.md`.
 The previous rule set is archived in `docs/archive/AGENTS_2026-10-05.md`;
 product decisions recorded there remain in `docs/SYSTEM_SPEC.md`,
 `docs/02_INTERACTION_CONTRACTS.md` and `docs/design/`.
