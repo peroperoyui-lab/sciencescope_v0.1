@@ -1,6 +1,7 @@
 # 核心模型（R1 / R2 的依据）
 
 - 起草：Claude，2026-10-05。总纲见 `ARCHITECTURE.md`。本文随实现修订；实现与本文不一致时，以代码和测试为准，并同步本文。
+- **R1 已实现（2026-10-05）**：§1–§5、§9 的数据层、事件、工作区、参与者、会议、消息、本地接口与命令行，代码在 `app/core`、`app/server`、`app/main.js`、`app/cli.js`。§6–§8（发言规则的执行、上下文组装、内置工具）在 R2 实现。
 
 ## 1. 数据根
 
@@ -25,8 +26,8 @@
 
 | 表 | 主要列 | 说明 |
 |---|---|---|
-| `projects` | id, name, description, folder（外部文件夹，可空）, pinned, archived, created_at, updated_at | 项目；文件资源目录由 id 推出 |
-| `participants` | id, kind(`human`/`ai`), name, definition_path（AI）, created_at | 人与 AI 的登记；AI 的详细定义在 `agents/*.md` |
+| `projects` | id, name, description, dir_name, folder（外部文件夹，可空）, pinned, archived, created_at, updated_at | 项目；文件目录 `projects/<dir_name>/`，`dir_name` = 名称-id，改名时目录一起改名 |
+| `participants` | id, kind(`human`/`ai`), name, created_at | 人与 AI 的登记；AI 的定义在 `agents/<id>.md`，名称以文件为准。预置：`person_user`（本地用户）、`agent_main`、`agent_secretary`、`agent_assistant` |
 | `meetings` | id, project_id（可空 = 全局）, title, policy_json, parent_meeting_id, fork_message_id, attached_to_meeting_id, work_folder, pinned, archived, temporary, created_at, updated_at | 会议；`policy_json` 是发言规则（§6） |
 | `meeting_members` | meeting_id, participant_id, role_note | 谁在场；`role_note` 是在本会议中的说明（如"审核"） |
 | `messages` | id, meeting_id, seq, author_id, text, status(`streaming`/`done`/`max_tokens`/`failed`/`cancelled`), turn_id, reply_to, refs_json（标记、附件、引用）, adopted（审核结论是否采纳）, created_at | 会议记录正本；`seq` 在会议内递增 |

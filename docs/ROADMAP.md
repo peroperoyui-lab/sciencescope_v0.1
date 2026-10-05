@@ -2,7 +2,7 @@
 
 > 本文件只记录**要去哪里、按什么顺序、现在走到哪一步**。
 > 功能现在怎样工作看 `SYSTEM_SPEC.md`；过程和验收细节看 `DESKTOP_IMPLEMENTATION.md`（按日期记录）；具体任务看 `docs/tasks/`。
-> 最近更新：2026-10-05。重建已开始，总纲见 `design/ARCHITECTURE.md`（已确认）。R0 完成：旧线经 PR #11 合入 main（合并提交 `6d2b10c`；标签 `v0-prototype` 云端代理无法推送，由 Windows 端补打）；`app/` 骨架与 `npm run check`（Prettier、ESLint、tsc、node:test）就位。下一步 R1（Claude）。
+> 最近更新：2026-10-05。重建进行中（总纲 `design/ARCHITECTURE.md`）。R0 完成（PR #11 合入 main，合并提交 `6d2b10c`）。**R1 完成**：`app/core` 数据层（迁移、备份、版本保护）、事件流、工作区（文件资源、修订、撤销、程序外修改检测）、项目 / 参与者 / 会议 / 消息、本地接口与 SSE、命令行；`npm run check` 21 项通过。Windows 交接见 `handoff/R1_WINDOWS.md`。下一步 R2（运行时、上下文组装、内置工具）。
 
 ## 目标：1.0.0-alpha（内测版）
 标准（摘自原计划）：每个核心功能都有**候选安装包**上的实测证据；程序退出后没有残留进程；升级后数据完整；卸载默认保留研究数据；签名可核查。

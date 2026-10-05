@@ -24,6 +24,7 @@
 | `docs/REVIEW_2026-10-05.md` | 整体复盘：流程、前端架构、代码风格、数据升级连续性、统一编辑、alpha 路线（S0–S5）与待用户决定的事项 |
 | `docs/design/ARCHITECTURE.md` | **总纲（已确认）**：五个原语、关键决定、代码结构、重建阶段 R0–R6、协作方式、功能清单 |
 | `docs/design/CORE_MODEL.md` | 核心模型：数据根、表、事件、工作区资源、参与者定义、发言规则、上下文组装、内置工具、接口 |
+| `docs/handoff/` | 每个重建阶段给 Windows 端（Sol）的交接说明 |
 | `docs/CODE_STYLE.md` | 代码风格与检查工具（`npm run check`） |
 | `docs/design/DATA_AND_ROLES.md` | 数据布局（安装目录 `data/`：文件 + 一个 SQLite）与角色模型（一套工具、修改即生效可撤销）；S2、S3 按此实现 |
 | `docs/archive/` | 已被取代的旧规则与文档（如 2026-10-05 前的 AGENTS.md） |

@@ -1,5 +1,24 @@
 # Desktop implementation — first increment
 
+## 2026-10-05 Rebuild R0 and R1 (Claude, cloud)
+
+- R0: old line merged into main (PR #11, `6d2b10c`); style tooling and `npm run check`.
+- R1, new code in `app/`:
+  - `core/db`: node:sqlite, numbered migrations in `user_version`, backup before
+    migrating, refusal of newer data;
+  - `core/events.js`: change feed, recorded in the same transaction and
+    delivered after commit; transient stream deltas;
+  - `core/workspace`: file resources (map, plans, log, minutes, notes, agent,
+    settings), full-text revisions, undo with conflict check, external edits
+    recorded on the next read;
+  - projects with readable folders that follow renames; participants with
+    agent definition files; meetings with members, policy and fork; messages
+    with paging;
+  - `server/`: routes per domain, local token, SSE with replay; `main.js`;
+    `cli.js`.
+- Verification: `npm run check` (Prettier, ESLint, tsc, 21 tests) on Linux.
+  Windows handoff: `docs/handoff/R1_WINDOWS.md`.
+
 ## 2026-10-05 Review of T24 (Claude, cloud)
 
 - Fast-forward of `codex/t24-limits-20261004@b3e012a` (66 files).
