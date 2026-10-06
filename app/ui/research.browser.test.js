@@ -150,8 +150,9 @@ test(
         opened = true;
         await route.fulfill({ json: { opened: true } });
       });
+      const opening = page.waitForResponse((response) => response.url().endsWith('/open'));
       await row.getByRole('button', { name: '打开原件' }).click();
-      await page.waitForResponse((response) => response.url().endsWith('/open'));
+      await opening;
       assert.equal(opened, true);
       await page.getByLabel('统一检索资料与条目').fill('韧性文献');
       await page.locator('.rb-search').getByRole('button', { name: '搜索', exact: true }).click();
