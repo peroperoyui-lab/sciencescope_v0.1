@@ -1,12 +1,26 @@
-// A meeting queues user requests; one ordered request fans out independent
-// participant turns and runs its reviewer only after every expert has ended.
+// The conductor decides who speaks after a person posts in a meeting, by the
+// meeting's speaking policy (docs/design/CORE_MODEL.md §6), and runs those turns.
+// Each meeting has one queue of requests, so requests never interleave.
+// - `direct` ("工作"): @-mentioned AIs answer in order of mention, otherwise the
+//   default respondent. Enabled panel experts can be @-mentioned without being
+//   members; they join the meeting when they first speak.
+// - `round` ("有序讨论"): the experts in `policy.order` answer in parallel, all
+//   cut off at the same person's message; their answers are created up front in
+//   that order. The reviewer runs after every expert has ended, and its answer
+//   stays out of later context until the person adopts it.
 import { mentionedParticipants } from '../core/context.js';
 import { AppError } from '../core/errors.js';
 
-/** @param {{core:import('../core/index.js').Core,runner:ReturnType<typeof import('./turn-runner.js').createTurnRunner>}} dependencies */
+/**
+ * @param {{ core: import('../core/index.js').Core,
+ *   runner: ReturnType<typeof import('./turn-runner.js').createTurnRunner> }} deps
+ */
 export function createConductor({ core, runner }) {
+  /** @type {Map<string, Promise<unknown>>} meeting id → tail of its request queue */
   const queues = new Map();
+  /** @type {Set<Promise<unknown>>} */
   const pending = new Set();
+  /** @type {Map<string, Set<AbortController>>} meeting id → requests "停止" cancels */
   const requests = new Map();
 
   function enqueue(meetingId, work) {
@@ -30,6 +44,7 @@ export function createConductor({ core, runner }) {
     return next;
   }
 
+  /** AIs a person may address in `direct`: members plus enabled panel experts (not reviewers). */
   async function candidates(meeting) {
     const members = new Set(meeting.members.map((member) => member.participantId));
     const result = [];
@@ -153,6 +168,7 @@ export function createConductor({ core, runner }) {
     );
   }
 
+  /** Close turns left running when the program stopped mid-answer. */
   function recoverInterrupted() {
     for (const turn of core.turns.running()) {
       for (const message of core.messages.since(turn.meetingId, 0)) {
@@ -163,6 +179,11 @@ export function createConductor({ core, runner }) {
     }
   }
 
+  /**
+   * Retry or continue one AI answer: only that participant answers again, with
+   * the same cut-off; a review sees the same round's expert answers again.
+   * @param {string} messageId @param {boolean} continuation
+   */
   function targeted(messageId, continuation) {
     const message = core.messages.get(messageId);
     if (!message.turnId) throw new AppError('NOT_AN_ANSWER', '只能继续或重试 AI 的回答。');
@@ -229,6 +250,7 @@ export function createConductor({ core, runner }) {
       for (const controller of requests.get(meetingId) ?? []) controller.abort();
       await runner.interrupt(meetingId);
     },
+    /** Resolves when every queued turn has finished (tests, shutdown). */
     async idle() {
       while (pending.size) await Promise.all([...pending]);
     },

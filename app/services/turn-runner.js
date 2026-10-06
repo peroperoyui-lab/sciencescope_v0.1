@@ -1,5 +1,9 @@
-// Runs a participant turn through the public runtime port. Ordered rounds can
-// reserve messages before starting so completion order never changes display order.
+// Runs one turn: one AI participant speaking once in a meeting.
+// It assembles the context, resumes or rebuilds the participant's runtime
+// session, streams the answer into a message, records tool calls and ends
+// the turn with a status. See docs/design/CORE_MODEL.md §6–§7.
+// Ordered rounds reserve their answers before starting, so the order in which
+// experts finish never changes the order in which they are shown.
 import {
   buildFollowupInput,
   buildInstructions,
@@ -9,7 +13,7 @@ import {
 } from '../core/context.js';
 import { AppError } from '../core/errors.js';
 
-/** @type {Record<string, 'done'|'max_tokens'|'cancelled'|'failed'>} */
+/** @type {Record<string, 'done' | 'max_tokens' | 'cancelled' | 'failed'>} */
 const STATUS_BY_STOP = {
   completed: 'done',
   max_tokens: 'max_tokens',
@@ -17,7 +21,15 @@ const STATUS_BY_STOP = {
   failed: 'failed',
 };
 
-/** @param {{core:import('../core/index.js').Core,runtime:import('../runtime/port.js').Runtime,runtimeName:string,tools:ReturnType<typeof import('./tools.js').createTools>,defaultModel:()=>Promise<import('../runtime/port.js').ModelChoice|null>,idleReleaseMs?:number}} dependencies */
+/**
+ * @param {{ core: import('../core/index.js').Core,
+ *   runtime: import('../runtime/port.js').Runtime, runtimeName: string,
+ *   tools: ReturnType<typeof import('./tools.js').createTools>,
+ *   defaultModel: () => Promise<import('../runtime/port.js').ModelChoice | null>,
+ *   idleReleaseMs?: number }} deps
+ *   A session idle for `idleReleaseMs` is released (its process ends); the next
+ *   turn resumes it. Historical meetings keep no process alive.
+ */
 export function createTurnRunner({
   core,
   runtime,
@@ -26,7 +38,9 @@ export function createTurnRunner({
   defaultModel,
   idleReleaseMs = 10 * 60 * 1000,
 }) {
+  /** @type {Map<string, { sessionId: string | null, cancelled: boolean }>} turn id → execution */
   const active = new Map();
+  /** @type {Map<string, NodeJS.Timeout>} session id → pending release */
   const releases = new Map();
 
   function holdSession(sessionId) {
@@ -64,7 +78,12 @@ export function createTurnRunner({
     );
   }
 
-  /** @param {{meetingId:string,participantId:string,triggerMessageId?:string|null,discussion?:any}} input */
+  /**
+   * Start a turn and create its (empty) answer now; `run` fills it later.
+   * A review answer starts unadopted.
+   * @param {{ meetingId: string, participantId: string, triggerMessageId?: string | null,
+   *   discussion?: any }} input
+   */
   function reserve({ meetingId, participantId, triggerMessageId = null, discussion }) {
     return core.db.transaction(() => {
       const turn = core.turns.start({ meetingId, participantId, triggerMessageId });
@@ -82,6 +101,16 @@ export function createTurnRunner({
     });
   }
 
+  /**
+   * The messages a participant is given, in reading order.
+   * - An answer counts at the position of the message it replies to (its
+   *   "boundary"), so answers that finished late still sit after their question.
+   * - Nothing after `cutoffSeq` is included, except answers to earlier messages:
+   *   experts in one round all stop at the same person's message.
+   * - Only what arrived after `afterSeq` (the participant's last read point),
+   *   plus adopted reviews this participant has not read yet.
+   * - A resumed session already has its own words, so they are left out.
+   */
   function selectedMessages(meetingId, afterSeq, cutoffSeq, participantId, resumed) {
     const all = core.messages.since(meetingId, 0);
     const byId = new Map(all.map((message) => [message.id, message]));
@@ -111,6 +140,8 @@ export function createTurnRunner({
       })
       .sort((left, right) => boundaryOf(left) - boundaryOf(right) || left.seq - right.seq);
   }
+
+  /** Start or resume the session; returns the session id, the input to send and what it contains. */
   async function prepareSession({
     meeting,
     participant,
@@ -206,7 +237,13 @@ export function createTurnRunner({
     };
   }
 
-  /** @param {{meetingId:string,participantId:string,triggerMessageId?:string|null,reserved?:ReturnType<typeof reserve>,cutoffSeq?:number,reviewMessageIds?:string[],continuation?:boolean,continuationMessageId?:string,retry?:boolean,signal?:AbortSignal}} input */
+  /**
+   * @param {{ meetingId: string, participantId: string, triggerMessageId?: string | null,
+   *   reserved?: ReturnType<typeof reserve>, cutoffSeq?: number, reviewMessageIds?: string[],
+   *   continuation?: boolean, continuationMessageId?: string, retry?: boolean,
+   *   signal?: AbortSignal }} input
+   *   `reviewMessageIds`: the round's expert answers a reviewer checks.
+   */
   async function run({
     meetingId,
     participantId,
@@ -248,6 +285,8 @@ export function createTurnRunner({
         core.messages.streamReplace(answer.id, text);
       } else if (event.type === 'step-end') {
         if (event.hasToolCalls && stepText) {
+          // Text written right before a tool call explains the call; it
+          // belongs to the tool card, not to the answer.
           preamble = stepText.trim();
           text = text.slice(0, text.length - stepText.length);
           core.messages.streamReplace(answer.id, text);
