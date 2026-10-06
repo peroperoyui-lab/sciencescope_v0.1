@@ -1,5 +1,13 @@
 # Desktop implementation — first increment
 
+## 2026-10-06 Review of R0–R4-1 and plan (Claude)
+
+- R4-1b merged (`ee83c3d`); fixed 10 tests that needed a pre-existing temp
+  folder (`3e058fe`). Linux check 68: 66 pass, 2 Windows-only.
+- Review `REVIEW_2026-10-06.md`: mainline on track; biggest gap is multi-expert
+  discussion (only `direct`). ROADMAP rewritten for R4–R6 with discussion and
+  secretary first, milestones M1/M2; old roadmap archived.
+
 ## 2026-10-06 R4-1b research UI and local hybrid retrieval (Codex)
 
 - Baseline `aa1a3fe`; branch `codex/r4-1b-research-ui-20261006`. Restored
