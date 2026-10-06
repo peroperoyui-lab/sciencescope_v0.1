@@ -2,7 +2,7 @@
 
 > 本文件只记录**要去哪里、按什么顺序、现在走到哪一步**。
 > 功能现在怎样工作看 `SYSTEM_SPEC.md`；过程和验收细节看 `DESKTOP_IMPLEMENTATION.md`（按日期记录）；具体任务看 `docs/tasks/`。
-> 最近更新：2026-10-05。重建进行中（总纲 `design/ARCHITECTURE.md`）。R0、R1 完成（R1 Windows 验证 `1a1f402` 已合并，标签 `v0-prototype` 已补打）。**R2 完成**：运行时接口与精简 DSH 适配（一个插件 + 桥接）、上下文组装、发言记录、内置工具（workspace_read / edit / undo）、`direct` 发言规则、服务商配置；真实 DSH + 本地模拟模型的单会话与全链路测试通过；`npm run check` 33 项通过（2 项仅 Windows）。R2 Windows 验收 `1a9d98d` 已合并。**R3 完成**：`app/ui/` 界面骨架（外壳、侧栏、首页、会议视图、工作站、中英双语），浏览器测试通过；`npm run check` 35 项通过（2 项仅 Windows）。界面已按旧主界面复原（`design/UI_RESTORE.md`），需要后端服务的入口排为 R4-1…R4-10。下一步 L1（Sol，`handoff/R3_WINDOWS.md`）：原生外壳启动新服务并加载新界面；之后按 R4 队列移植服务。
+> 最近更新：2026-10-05。重建进行中（总纲 `design/ARCHITECTURE.md`）。R0、R1 完成（R1 Windows 验证 `1a1f402` 已合并，标签 `v0-prototype` 已补打）。**R2 完成**：运行时接口与精简 DSH 适配（一个插件 + 桥接）、上下文组装、发言记录、内置工具（workspace_read / edit / undo）、`direct` 发言规则、服务商配置；真实 DSH + 本地模拟模型的单会话与全链路测试通过；`npm run check` 33 项通过（2 项仅 Windows）。R2 Windows 验收 `1a9d98d` 已合并。**R3 完成**：`app/ui/` 界面骨架（外壳、侧栏、首页、会议视图、工作站、中英双语），浏览器测试通过；`npm run check` 35 项通过（2 项仅 Windows）。界面已按旧主界面复原（`design/UI_RESTORE.md`），需要后端服务的入口排为 R4-1…R4-10。L1 Windows 本地化 `7aaddfc` 已合并（`SCIENCESCOPE_APP=new` 启动新核心，默认仍为旧宿主）。下一步 R4-1a 资料库后端（`tasks/R4-1a_research_base_core.md`）。
 
 ## 目标：1.0.0-alpha（内测版）
 L1 Windows（2026-10-06）：`codex/l1-windows-20261006` 从 `f526cd4` 完成新界面原生接线；默认保留旧宿主。最终check42/42、Edge三项、Rust2/2+构建、原生主流程及活跃DSH退出树/WAL清理通过。5次真实请求/84,822 tokens。修复Windows PATH下Explorer启动与测试并发冷启动竞争；中文输入组字Enter不发送，完整中文候选提交仍有验收限制，截图少量复刻差异交Claude；待审阅，未执行R4。
