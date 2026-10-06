@@ -29,10 +29,20 @@ export function createActions(api, store) {
     ]);
     applyAppearance(settings);
     set({ settings, projects, meetings, participants });
+    await loadParticipantDefinitions();
     stopFollowing = api.follow(
       seq,
       (event) => {
         store.update((state) => applyEvent(state, event));
+        if (
+          event.type === 'participant.created' ||
+          event.type === 'participant.updated' ||
+          (event.type === 'resource.changed' && event.payload.resource === 'agent')
+        ) {
+          void loadParticipantDefinitions().catch(() => {});
+        }
+        if (event.type === 'turn.ended')
+          void loadMeetingContexts(event.payload.meetingId).catch(() => {});
         // Settings can be changed by an AI or another window; reload them.
         if (event.type === 'resource.changed' && event.payload.resource === 'settings') {
           api
@@ -57,6 +67,7 @@ export function createActions(api, store) {
       hasBefore: { ...state.hasBefore, [meetingId]: page.hasBefore },
     }));
     await Promise.all(page.messages.filter((m) => m.turnId).map((m) => loadTurn(m.turnId)));
+    await loadMeetingContexts(meetingId);
   }
 
   async function loadEarlier(meetingId) {
@@ -69,6 +80,7 @@ export function createActions(api, store) {
       hasBefore: { ...state.hasBefore, [meetingId]: page.hasBefore },
     }));
     await Promise.all(page.messages.filter((m) => m.turnId).map((m) => loadTurn(m.turnId)));
+    await loadMeetingContexts(meetingId);
   }
 
   async function loadTurn(turnId) {
@@ -128,6 +140,45 @@ export function createActions(api, store) {
   /** Answer again after a failed or stopped answer. @param {string} messageId */
   const retry = (messageId) => api.post(`/api/messages/${messageId}/retry`);
 
+  /** Continue only the author of this answer. @param {string} messageId */
+  const continueAnswer = (messageId) => api.post(`/api/messages/${messageId}/continue`);
+
+  /** @param {string} messageId @param {boolean} adopted */
+  async function adoptReview(messageId, adopted) {
+    const message = await api.patch(`/api/messages/${messageId}`, { adopted });
+    apply('message.updated', message);
+    return message;
+  }
+
+  /** Latest actual context measurement for each participant. @param {string} meetingId */
+  async function loadMeetingContexts(meetingId) {
+    const contexts = await api.get(`/api/meetings/${meetingId}/contexts`);
+    store.update((state) => ({
+      ...state,
+      meetingContexts: { ...state.meetingContexts, [meetingId]: contexts },
+    }));
+    return contexts;
+  }
+
+  /** Reload full definitions after roster/file edits; list rows contain only identity. */
+  let definitionTicket = 0;
+  async function loadParticipantDefinitions() {
+    const ticket = ++definitionTicket;
+    const participants = await api.get('/api/participants');
+    const full = await Promise.all(
+      participants
+        .filter((participant) => participant.kind === 'ai')
+        .map((participant) => api.get(`/api/participants/${participant.id}`)),
+    );
+    if (ticket !== definitionTicket) return full;
+    set({
+      participants,
+      participantDefinitions: Object.fromEntries(
+        full.map((participant) => [participant.id, participant]),
+      ),
+    });
+    return full;
+  }
   /** Put a message into the meeting's input box as a quote. @param {any} message */
   function quote(message) {
     const text = `${message.text
@@ -297,6 +348,10 @@ export function createActions(api, store) {
     updateMeeting,
     loadArchived,
     retry,
+    continueAnswer,
+    adoptReview,
+    loadMeetingContexts,
+    loadParticipantDefinitions,
     quote,
     forkMeeting,
     createProject,

@@ -10,6 +10,10 @@ export const initialState = {
   /** @type {any[]} */ projects: [],
   /** @type {any[]} */ meetings: [],
   /** @type {any[]} */ participants: [],
+  /** @type {Record<string, any>} */
+  participantDefinitions: {},
+  /** @type {Record<string, any[]>} */
+  meetingContexts: {},
   /** Loaded meeting records: meetingId → messages in `seq` order. */
   /** @type {Record<string, any[]>} */ messages: {},
   /** @type {Record<string, boolean>} */ hasBefore: {},

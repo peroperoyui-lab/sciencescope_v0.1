@@ -7,6 +7,10 @@ import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
 import { navigate } from '../route.js';
+import { DiscussionMode } from './discussion-strip.js';
+import { DiscussionUsageRing } from './discussion-usage.js';
+import { useDiscussion } from './discussion-state.js';
+import { useDiscussionMention } from './discussion-mention.js';
 
 function useModelMenu() {
   const actions = useActions();
@@ -84,82 +88,6 @@ function useEffortMenu() {
 }
 
 /**
- * Context pressure of the meeting's latest finished answer: what its next
- * request would carry against the model's window.
- * @param {string | undefined} meetingId
- */
-function useContextUsage(meetingId) {
-  const settings = useAppState((state) => state.settings);
-  const turn = useAppState((state) =>
-    Object.values(state.turns)
-      .filter((candidate) => candidate.meetingId === meetingId && candidate.usage?.context)
-      .sort((a, b) => (a.endedAt ?? '').localeCompare(b.endedAt ?? ''))
-      .at(-1),
-  );
-  const context = turn?.usage?.context;
-  if (!context?.usedTokens) return null;
-  const current = settings?.models?.default;
-  const configured = (settings?.providers ?? [])
-    .find((provider) => provider.id === current?.provider)
-    ?.models.find((model) => model.id === current?.model)?.contextWindow;
-  const window = context.contextWindow ?? configured;
-  if (!window) return null;
-  return {
-    used: context.usedTokens,
-    window,
-    estimated: Boolean(context.estimated),
-    percent: Math.max(0, Math.min(100, (100 * context.usedTokens) / window)),
-  };
-}
-
-/** @param {{ meetingId?: string }} props */
-function UsageRing({ meetingId }) {
-  const usage = useContextUsage(meetingId);
-  const [open, setOpen] = useState(false);
-  const button = useRef(null);
-  const [position, setPosition] = useState({ left: 0, top: 0 });
-  useEffect(() => {
-    if (!open || !button.current) return undefined;
-    const rect = button.current.getBoundingClientRect();
-    setPosition({ left: Math.max(8, Math.min(innerWidth - 310, rect.left)), top: rect.top - 10 });
-    const close = (event) => !button.current?.contains(event.target) && setOpen(false);
-    document.addEventListener('pointerdown', close, true);
-    return () => document.removeEventListener('pointerdown', close, true);
-  }, [open]);
-  const amount = usage
-    ? `${Math.round(usage.used).toLocaleString()} / ${Math.round(usage.window).toLocaleString()} tokens`
-    : t('暂无数据');
-  return html`<button
-      ref=${button}
-      class="usage-ring"
-      data-usage="main"
-      data-context-known=${String(Boolean(usage))}
-      style=${{ '--context-pct': `${usage?.percent ?? 0}%` }}
-      title=${t('模型上下文与缓存')}
-      aria-label=${
-        usage ? t('上下文占用 {n}%', { n: usage.percent.toFixed(1) }) : t('上下文占用暂无数据')
-      }
-      onClick=${() => setOpen(!open)}
-    ></button>
-    ${
-      open &&
-      html`<div
-        class="usage-pop"
-        role="tooltip"
-        style=${{ position: 'fixed', left: `${position.left}px`, top: `${position.top}px`, transform: 'translateY(-100%)' }}
-      >
-        <strong>${t('模型上下文')}</strong>
-        <div class="usage-stat">
-          <span>${t('当前')}${usage?.estimated ? t('（估计）') : ''}</span>
-          <span>${usage ? `${usage.percent.toFixed(1)}%` : '—'}</span>
-        </div>
-        <div class="meter"><i style=${{ width: `${usage?.percent ?? 0}%` }}></i></div>
-        <div class="usage-stat"><span>${t('占用')}</span><span>${amount}</span></div>
-      </div>`
-    }`;
-}
-
-/**
  * @param {{ onSend: (text: string) => Promise<any>, running?: boolean,
  *   onStop?: () => void, inputRef?: any, meetingId?: string }} props
  */
@@ -173,6 +101,14 @@ export function Composer({ onSend, running = false, onStop, inputRef, meetingId 
   const model = useModelMenu();
   const effort = useEffortMenu();
   const quote = useAppState((state) => state.quote);
+  const discussion = useDiscussion(meetingId);
+  const mention = useDiscussionMention({
+    candidates: discussion.candidates,
+    enabled: Boolean(meetingId) && !discussion.ordered,
+    box,
+    text,
+    onChange: setText,
+  });
 
   // "引用到输入框" from a message of this meeting.
   useEffect(() => {
@@ -186,6 +122,18 @@ export function Composer({ onSend, running = false, onStop, inputRef, meetingId 
   async function send() {
     const value = text.trim();
     if (!value || sending) return;
+    if (
+      discussion.ordered &&
+      !discussion.experts.some(
+        (expert) =>
+          (discussion.policy.order ?? []).includes(expert.id) &&
+          expert.id !== discussion.policy.reviewer,
+      )
+    ) {
+      actions.toast(t('请在讨论条上至少选择一位作答专家。'));
+      return;
+    }
+    mention.close();
     setSending(true);
     // Keep the draft until the host accepts the message.
     const sent = await actions.attempt(() => onSend(value));
@@ -199,9 +147,16 @@ export function Composer({ onSend, running = false, onStop, inputRef, meetingId 
       value=${text}
       placeholder=${t('输入问题或下一步工作…')}
       aria-label=${t('主输入框')}
-      onInput=${(event) => setText(event.currentTarget.value)}
+      onInput=${(event) => {
+        setText(event.currentTarget.value);
+        if (!event.isComposing) mention.update(event.currentTarget);
+      }}
+      onCompositionEnd=${(event) => mention.update(event.currentTarget)}
+      onClick=${(event) => mention.update(event.currentTarget)}
       onKeyDown=${(event) => {
-        if (event.key !== 'Enter' || event.isComposing || event.shiftKey) return;
+        if (event.isComposing || event.keyCode === 229) return;
+        if (mention.onKey(event)) return;
+        if (event.key !== 'Enter' || event.shiftKey) return;
         const wantsModifier = sendKey === 'ctrl-enter';
         if (wantsModifier === (event.ctrlKey || event.metaKey)) {
           event.preventDefault();
@@ -209,9 +164,11 @@ export function Composer({ onSend, running = false, onStop, inputRef, meetingId 
         }
       }}
     ></textarea>
+    ${mention.content}
     <div class="composerbar">
+      <${DiscussionMode} meetingId=${meetingId} running=${running} />
       <span class="spacer"></span>
-      <${UsageRing} meetingId=${meetingId} />
+      <${DiscussionUsageRing} meetingId=${meetingId} />
       <button data-v="model-menu" onClick=${model.open}>
         ${model.label} <${Icon} name="down" />
       </button>

@@ -154,7 +154,6 @@ const NEW_PROMPTS = {
   reviewer:
     'You are an independent research reviewer. Check facts, evidence, methods and conclusions for consistency. Identify unsupported claims and concrete corrections. Answer in the language the user writes in.',
 };
-const MAX_PER_GROUP = 8;
 
 /** @param {{ expert: any, index: number, first: boolean, last: boolean, onChange: any, onMove: any, onRemove: any }} props */
 function ExpertCard({ expert, index, first, last, onChange, onMove, onRemove }) {
@@ -217,14 +216,12 @@ function ExpertCard({ expert, index, first, last, onChange, onMove, onRemove }) 
 /** The roster for discussions and @ invitations. */
 export function ExpertsPage() {
   const actions = useActions();
-  const participants = useAppState((state) => state.participants);
   const [roster, setRoster] = useState(/** @type {any[] | null} */ (null));
   const [removed, setRemoved] = useState(/** @type {string[]} */ ([]));
   const [feedback, setFeedback] = useState('');
 
   async function load() {
-    const ais = participants.filter((p) => p.kind === 'ai');
-    const full = await Promise.all(ais.map((p) => actions.getParticipant(p.id)));
+    const full = await actions.loadParticipantDefinitions();
     setRoster(
       full
         .filter((p) => p.definition.panel)
@@ -298,7 +295,6 @@ export function ExpertsPage() {
           <button
             type="button"
             class="btn tiny"
-            disabled=${group.length >= MAX_PER_GROUP}
             onClick=${() =>
               change([
                 ...roster,

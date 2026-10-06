@@ -595,4 +595,46 @@ export const en = {
   重新检查索引: 'Recheck index',
   可见性: 'Visibility',
   '结构化内容（JSON）': 'Structured content (JSON)',
+  '请在讨论条上至少选择一位作答专家。':
+    'Select at least one answering expert in the discussion strip.',
+  邀请专家: 'Invite expert',
+  邀请专家回答: 'Invite an expert to answer',
+  没有匹配的专家: 'No matching experts',
+  等待中: 'Waiting',
+  作答中: 'Answering',
+  使用工具: 'Using tools',
+  未完成: 'Incomplete',
+  '已有后续发言读取这份审核结论，不能撤回采纳。':
+    'A later turn has read this review; its adoption cannot be withdrawn.',
+  '审核结论默认不进入后续上下文。采纳后，后续发言会读取它。':
+    'Reviews stay out of later context until adopted. Subsequent turns can then read them.',
+  '审核尚未完成，完成后才能加入后续上下文。':
+    'The review is incomplete. It can join later context only after completion.',
+  '已加入后续上下文 · 已被读取': 'Added to later context · already read',
+  已加入后续上下文: 'Added to later context',
+  加入后续上下文: 'Add to later context',
+  审核结论: 'Review conclusion',
+  审核结论说明: 'Review conclusion information',
+  不设审核: 'No reviewer',
+  '专家各自作答后本轮结束。': 'The round ends after the experts finish their individual answers.',
+  '其他专家全部完成后，核查各回复的事实、依据、方法和结论并总结；该专家本轮不单独作答。':
+    'Checks facts, evidence, methods and conclusions after all other experts finish. This expert does not give a separate answer in this round.',
+  发言顺序: 'Speaking order',
+  '所选专家读取同一份前文后并行独立作答，按顺序展示。审核结论须经采纳才进入后续上下文。':
+    'Selected experts answer independently in parallel from the same history and appear in order. Reviews enter later context only after adoption.',
+  名册为空: 'Roster is empty',
+  审核专家: 'Reviewing expert',
+  '审核：': 'Review:',
+  无: 'None',
+  工作: 'Work',
+  '主专家持续处理当前任务；输入 @专家名 可邀请专家回答。':
+    'The Main expert works on the task. Type @expert name to invite another expert.',
+  有序讨论: 'Ordered discussion',
+  '所选专家读取同一份前文后并行独立作答，按顺序展示；可设审核专家在最后核查。':
+    'Selected experts answer independently in parallel from the same history and appear in order. An optional reviewer checks their answers last.',
+  工作方式: 'Work mode',
+  未知: 'Unknown',
+  '主专家 · 当前': 'Main expert · current',
+  '专家 · 上一次作答结束时': 'Experts · after their latest answer',
+  审核: 'Review',
 };

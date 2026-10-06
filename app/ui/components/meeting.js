@@ -11,6 +11,8 @@ import { Icon } from '../icons.js';
 import { renderMarkdown } from '../markdown.js';
 import { navigate, routeHref } from '../route.js';
 import { Composer } from './composer.js';
+import { ExpertState, ReviewAdoption, expertState } from './discussion-message.js';
+import { DiscussionStrip } from './discussion-strip.js';
 import { MainHead } from './mainhead.js';
 import { FieldForm } from './overlays.js';
 import { ProjectSummary } from './project-summary.js';
@@ -116,13 +118,7 @@ function OutputStatus({ message }) {
       message.status === 'max_tokens'
         ? html`<button
             class="btn tiny"
-            onClick=${() =>
-              actions.attempt(() =>
-                actions.postMessage(
-                  message.meetingId,
-                  t('请从上次因输出上限停下的地方继续，保留已写的结论和依据，不要重复已写内容。'),
-                ),
-              )}
+            onClick=${() => actions.attempt(() => actions.continueAnswer(message.id))}
           >
             ${t('继续')}
           </button>`
@@ -145,6 +141,11 @@ function Message({ message, author, roleNote, target }) {
   const streaming = message.status === 'streaming';
   const text = streaming ? (draft ?? message.text) : message.text;
   const profileName = useAppState((state) => state.settings?.profile?.name);
+  const fullAuthor = useAppState((state) => state.participantDefinitions?.[message.authorId]);
+  const expert = Boolean(message.refs?.discussion || fullAuthor?.definition?.panel);
+  const review = message.refs?.discussion?.kind === 'review';
+  const state = expertState(message, calls);
+  const duty = roleNote || fullAuthor?.definition?.role;
   const human = author?.kind === 'human';
   // The local user is shown with the profile name, as in the user bar.
   const name =
@@ -164,13 +165,16 @@ function Message({ message, author, roleNote, target }) {
     </article>`;
   }
   return html`<article
-    class=${`message ${target ? 'msg-target' : ''}`}
+    class=${`message ${expert ? 'expert-message' : ''} ${review ? 'review-message' : ''} ${target ? 'msg-target' : ''}`}
     data-message-id=${message.id}
     data-streaming=${streaming || undefined}
+    data-expert-state=${expert ? state : undefined}
   >
     <div class="messagehead">
       <span class="avatar">${name.slice(0, 1).toUpperCase()}</span>${name}
-      ${roleNote && html`<small>${roleNote}</small>`} ${time}
+      ${duty && html`<small>${duty}</small>`}
+      ${review && html`<span class="expert-badge">${t('审核')}</span>`}
+      ${expert && html`<${ExpertState} message=${message} calls=${calls} />`} ${time}
     </div>
     <div class="messagebody">
       ${calls.map((call) => html`<${ToolCard} key=${call.id} call=${call} />`)}
@@ -179,6 +183,7 @@ function Message({ message, author, roleNote, target }) {
         dangerouslySetInnerHTML=${{ __html: text ? renderMarkdown(text) : '' }}
       ></div>
       <${OutputStatus} message=${message} />
+      ${review && html`<${ReviewAdoption} message=${message} />`}
     </div>
     ${!streaming && html`<${MessageActions} message=${message} />`}
   </article>`;
@@ -388,6 +393,7 @@ export function MeetingView({ meetingId, focusMessageId }) {
     <div class="mainbody">
       <div class=${`chatlayout ${compact ? 'hide-tools' : ''}`}>
         <div class="chatcol">
+          ${meeting.policy.mode === 'round' && html`<${DiscussionStrip} meetingId=${meeting.id} running=${running} />`}
           ${
             finding &&
             html`<${FindBar}
