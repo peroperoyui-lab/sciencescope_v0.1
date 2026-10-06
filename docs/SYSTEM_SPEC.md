@@ -14,6 +14,8 @@
 
 **状态标记**
 
+L1 Windows（2026-10-06，待审阅）：`SCIENCESCOPE_APP=new` 使原生外壳启动新 `app/main.js` 并加载首行JSON的 `ui`；默认旧宿主，开发数据默认 `.sciencescope-local/data`，可设 `SCIENCESCOPE_DATA`。新宿主协作关闭后沿用 Job 清理进程树。原生窗口/dialog权限复用，学术站点走系统opener；Explorer使用SystemRoot绝对路径且启动失败回传。中文目录/项目、字体/importmap、窗口控制/真实拖动、目录选择绑定、默认程序打开、中文zip下载、真实模型计划编辑/agent_main修订/撤销/搜索/英文流程通过；真实IME组字Enter不发送，中文候选完整提交仍未完全核实。最终 `npm run check`42/42、Rust2/2及构建通过；全套测试并发2避免外置盘冷启动竞争，产品超时未改。5次真实请求（均HTTP200）、84,822 tokens；另1次本地模型用于活跃DSH原生关闭，全树消失、退出0、WAL/SHM清理。旧新截图发现细小复刻偏差，记录在忽略的 `.sciencescope-local/temp/l1-windows/visual-comparison.md`；不代表安装包/R4验收。
+
 R3 云端（2026-10-05，Claude）：新 `app/ui/` 一比一复刻旧主界面（相同结构与类名，旧版完整样式表 `app/ui/styles/legacy/`），接新核心。已复原的入口与页面见 `design/UI_RESTORE.md`：外壳与菜单、侧栏、欢迎页与学术站点、主工作聊天（工具活动、停止、继续、重试、分支、消息菜单、查找、置顶摘要、上下文环、模型与推理强度）、工作站与计划 / 日志 / 文件夹页、导图编辑窗口、创建项目页、浏览全部、导出，以及设置（常规、快捷键、模型与 API、主专家 / 任务秘书 / 全局助手、专家角色、目录）。需要后端服务的入口（资料库、研究输入、有序讨论、秘书、全局助手、执行策略、文献版本、Python、技能）列为 R4-1…R4-10，做完即按旧版位置显示。Linux 无头 Chromium 下四个浏览器测试（对话、设置、工作站）与 `npm run check` 38 通过、2 项仅 Windows。原生外壳尚未接入（L1）。
 
 R2 Windows 核对（2026-10-05）：新 `app/` 服务商配置支持可选 `headers` 并透传到 DSH；OpenCode Go 可配置 `x-opencode-session`，key 仍经凭据接口写入独立文件。真实便宜模型通过 HTTP 会议流程修改中文项目的 `plans.md`，修订执行者为 `agent_main`；6次真实请求（4 HTTP200、2 HTTP400），65,374已知token，失败请求用量未报告。Windows盘符 `file://` 插件加载、中文工作/临时目录、实际 Ctrl+C 退出0及已捕获 app/DSH 进程清理通过，WAL/SHM消失。闲置释放以交接允许的2秒设置通过真实DSH/本地模型验证，生产默认10分钟未改；未实等10分钟。最终 `npm run check`35/35；证据在 `.sciencescope-local/temp/r2-windows-validation/`，不代表界面或安装包验收。

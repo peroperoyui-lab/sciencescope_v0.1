@@ -3,6 +3,8 @@
 // Host diagnostics go to data/logs/desktop-host.log instead.
 #![windows_subsystem = "windows"]
 
+mod new_app;
+
 use std::{
     fs,
     io::{BufRead, BufReader, Read, Write},
@@ -428,26 +430,27 @@ impl Drop for HostProcess {
     }
 }
 
-fn host_url(log_dir: &std::path::Path) -> Result<Option<(String, String, ChildHandle)>, Box<dyn std::error::Error>> {
+fn host_url(log_dir: &std::path::Path, new_app: Option<&new_app::NewAppLaunch>) -> Result<Option<(String, String, ChildHandle)>, Box<dyn std::error::Error>> {
     let node = match std::env::var_os("SCIENCESCOPE_NODE") {
         Some(value) if !value.is_empty() => value,
+        _ if new_app.is_some() => "node".into(),
         _ => return Ok(None),
     };
-    let script = match std::env::var_os("SCIENCESCOPE_HOST_SCRIPT") {
-        Some(value) if !value.is_empty() => value,
-        _ => return Ok(None),
-    };
-
     std::fs::create_dir_all(log_dir)?;
     // One log per launch; stdout carries only the capability line read below.
     let host_log = fs::File::create(log_dir.join("desktop-host.log"))?;
     let mut command = Command::new(node);
-    command
-        .arg(script)
-        .arg("--desktop")
-        .env("SCIENCESCOPE_NATIVE_FEATURES", "pickFolder")
-        .stdout(Stdio::piped())
-        .stderr(Stdio::from(host_log));
+    if let Some(launch) = new_app {
+        launch.configure(&mut command);
+    } else {
+        let script = match std::env::var_os("SCIENCESCOPE_HOST_SCRIPT") {
+            Some(value) if !value.is_empty() => value,
+            _ => return Ok(None),
+        };
+        command.arg(script).arg("--desktop")
+            .env("SCIENCESCOPE_NATIVE_FEATURES", "pickFolder");
+    }
+    command.stdout(Stdio::piped()).stderr(Stdio::from(host_log));
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
@@ -485,14 +488,17 @@ fn host_url(log_dir: &std::path::Path) -> Result<Option<(String, String, ChildHa
         .recv_timeout(Duration::from_secs(45))
         .map_err(|_| "timed out waiting for desktop host")??;
     let parsed: serde_json::Value = serde_json::from_str(line.trim())?;
-    let api_token = parsed.get("apiToken").and_then(serde_json::Value::as_str)
-        .filter(|value| !value.trim().is_empty() && value.len() <= 256)
-        .ok_or("desktop host API capability was invalid")?;
-    let url = parsed
-        .get("url")
-        .and_then(serde_json::Value::as_str)
-        .ok_or("desktop host readiness JSON did not contain a url")?;
-    let parsed_url = url::Url::parse(url)?;
+    let (url, api_token) = if new_app.is_some() {
+        new_app::readiness(&parsed)?
+    } else {
+        let api_token = parsed.get("apiToken").and_then(serde_json::Value::as_str)
+            .filter(|value| !value.trim().is_empty() && value.len() <= 256)
+            .ok_or("desktop host API capability was invalid")?;
+        let url = parsed.get("url").and_then(serde_json::Value::as_str)
+            .ok_or("desktop host readiness JSON did not contain a url")?;
+        (url.to_owned(), api_token.to_owned())
+    };
+    let parsed_url = url::Url::parse(&url)?;
     if parsed_url.scheme() != "http"
         || !matches!(parsed_url.host_str(), Some("127.0.0.1" | "localhost"))
         || parsed_url.port().is_none()
@@ -514,7 +520,7 @@ fn host_url(log_dir: &std::path::Path) -> Result<Option<(String, String, ChildHa
             token: shutdown_token.to_owned(),
         });
     }
-    Ok(Some((url.to_owned(), api_token.to_owned(), owned)))
+    Ok(Some((url, api_token, owned)))
 }
 
 #[cfg(windows)]
@@ -582,6 +588,7 @@ mod windows_job {
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![open_secondary_window, set_assistant_mode, get_assistant_mode, show_assistant_menu, hide_assistant, pick_folder])
         .on_menu_event(|app, event| {
             let id = event.id().as_ref();
@@ -657,21 +664,32 @@ fn main() {
             let root = executable
                 .parent()
                 .ok_or("Application directory is unavailable")?;
-            let webview_data = root.join("data").join("webview");
+            let new_app = if new_app::is_new_app(std::env::var_os("SCIENCESCOPE_APP").as_deref()) {
+                Some(new_app::NewAppLaunch::resolve(root, std::env::var_os("SCIENCESCOPE_DATA").as_deref())?)
+            } else {
+                None
+            };
+            let native_data = new_app.as_ref().map(|launch| launch.data_root.clone()).unwrap_or_else(|| root.join("data"));
+            let webview_data = native_data.join("webview");
             std::fs::create_dir_all(&webview_data)?;
             app.manage(WebviewDataDirectory(webview_data.clone()));
-            let dimensions_path = root.join("data").join("assistant-window.json");
+            let dimensions_path = native_data.join("assistant-window.json");
             app.manage(AssistantState {
                 mode: Mutex::new(AssistantMode::Expanded),
                 dimensions_path,
             });
 
-            let hosted = host_url(&root.join("data").join("logs"))?;
+            let hosted = host_url(&native_data.join("logs"), new_app.as_ref())?;
             let mut config = app.config().app.windows[0].clone();
             if let Some((url, api_token, child)) = hosted {
                 let parsed_url = url::Url::parse(&url)?;
                 let mut capability: serde_json::Value = serde_json::from_str(include_str!("../capabilities/main.json"))?;
                 capability["identifier"] = serde_json::json!("host-window-controls");
+                if new_app.is_some() {
+                    capability["windows"] = serde_json::json!(["main"]);
+                    capability["permissions"].as_array_mut().ok_or("window permissions must be an array")?
+                        .push(serde_json::json!({"identifier": "opener:allow-open-url", "allow": [{"url": "http://*"}, {"url": "https://*"}]}));
+                }
                 capability["local"] = serde_json::json!(false);
                 capability["remote"] = serde_json::json!({"urls": [format!("{}/*", parsed_url.origin().ascii_serialization())]});
                 app.add_capability(serde_json::to_string(&capability)?)?;

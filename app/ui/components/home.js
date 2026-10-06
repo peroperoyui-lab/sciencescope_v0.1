@@ -60,11 +60,15 @@ function Sites() {
     store(next);
   };
   const addSite = () => actions.openModal(t('新增站点'), html`<${SiteForm} />`);
+  const openSite = (url) =>
+    globalThis.__TAURI__?.core?.invoke
+      ? actions.attempt(() => globalThis.__TAURI__.core.invoke('plugin:opener|open_url', { url }))
+      : open(url, '_blank', 'noopener');
   const siteMenu = (event, site, index) =>
     actions.openMenu(
       event,
       [
-        { text: t('打开站点'), icon: 'browser', run: () => open(site.url, '_blank', 'noopener') },
+        { text: t('打开站点'), icon: 'browser', run: () => openSite(site.url) },
         {
           text: t('编辑站点'),
           icon: 'edit',
@@ -116,7 +120,7 @@ function Sites() {
             key=${site.name}
             class="site"
             title=${site.url}
-            onClick=${() => open(site.url, '_blank', 'noopener')}
+            onClick=${() => openSite(site.url)}
             onContextMenu=${(event) => siteMenu(event, site, index)}
           >
             ${site.name}

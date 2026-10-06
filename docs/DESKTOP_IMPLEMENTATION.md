@@ -1,5 +1,51 @@
 # Desktop implementation — first increment
 
+## 2026-10-06 L1 Windows native shell (Codex)
+
+- Baseline `f526cd4`; branch `codex/l1-windows-20261006`. Opt-in
+  `SCIENCESCOPE_APP=new` starts `app/main.js --data` and loads its first JSON
+  line's `ui`. Legacy startup remains the default. Development data defaults
+  to `.sciencescope-local/data`; logs/WebView cache follow the new data root.
+- `src-tauri/src/new_app.rs` holds launch resolution/readiness; the existing
+  Job cleanup/window/dialog capabilities are reused. Added opener plugin and
+  scoped HTTP(S) opening; home site buttons invoke it in native windows.
+  Node publishes a cooperative `/api/shutdown` capability so SQLite closes
+  before the Job fallback. Regression covers Chinese paths/CRLF readiness,
+  legacy default and native shutdown/WAL cleanup.
+- Discovered → cause → repair → verification: Explorer calls silently failed
+  with `ENOENT` because the launcher PATH omitted Windows. `system.js` uses
+  `SystemRoot/explorer.exe`, awaits spawn and reports failure; the project
+  route awaits it. A regression and real native reopen prove Chinese folder
+  opening and default-program HTML opening. No UI structure/style changes.
+- Default test concurrency ran 16 files together; two cold DSH profiles each
+  materialize about 419 dependency junctions on the external H drive. Startup
+  timed out at 30 seconds (initial 38/40, then 40/41), while isolated runtime
+  tests and full concurrency-2 comparison passed. `check`/`test:app` now use
+  concurrency 2; production timeout unchanged. Final `npm run check` 42/42
+  (0 skips), including three Edge tests/screenshots; Rust tests 2/2 and build
+  passed. All failed logs remain local.
+- Native real-model flow: provider/key/default configured in Settings,
+  Chinese project/chat → streamed answer → main edits plans (agent_main
+  revision) → workbench/change log → undo → Ctrl+K → English. Five HTTP200
+  requests to `deepseek-v4.1-flash`, input 83,558 / output 1,264 / total 84,822
+  tokens, no retry/failure; a secret-free counting gateway forwards DSH auth
+  and session headers via the local network proxy. Key exists only in ignored
+  credential files, never in environment, screenshots or request ledgers.
+- WebView2 imports/fonts, minimize/maximize/close, real OS topbar drag,
+  native Chinese folder selection/binding and Chinese ZIP download passed.
+  Real IME trusted composing key/input events and Enter produced no message;
+  candidate-to-Chinese commit completion was not fully verified (untrusted
+  compositionend remains distinguished). Synthetic composing-Enter also passed.
+- Normal native close/reopen exit 0 and clean WAL/SHM; a separate real-DSH/local
+  model run captures host + active DSH before close and proves all owned PIDs
+  gone afterward. That fixture adds one local model request, zero paid requests.
+- Native/old-reference screenshots reviewed: no platform font/module failure;
+  minor sidebar boundary/width and empty project chat wording/badge differences
+  remain for Claude. English history retains participant names in Chinese.
+  Stable search screenshot centers correctly; initial offset was animation.
+  Evidence and long audit only in `.sciencescope-local/temp/l1-windows/`.
+  Frozen `desktop/`, `scripts/`, `adapters/` unchanged; no R4/UI redesign.
+
 ## 2026-10-05 UI restore: every old entry back, connected to the new core (Claude)
 
 - User direction: the front-end design stays; every feature design not

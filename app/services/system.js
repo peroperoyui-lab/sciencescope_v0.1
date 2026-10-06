@@ -23,17 +23,26 @@ export function systemInfo(paths) {
  * Open a file with its default program, or a folder in Explorer / Finder /
  * the desktop file manager.
  * @param {string} target
+ * @param {typeof spawn} [launch] Native process launcher (injectable in tests).
  */
-export function openPath(target) {
+export async function openPath(target, launch = spawn) {
+  // Native launchers need not include the Windows directory in PATH.
   const command =
-    process.platform === 'win32' ? 'explorer' : process.platform === 'darwin' ? 'open' : 'xdg-open';
-  const child = spawn(command, [target], { detached: true, stdio: 'ignore' });
-  child.on('error', () => {});
+    process.platform === 'win32'
+      ? path.join(process.env.SystemRoot ?? 'C:/Windows', 'explorer.exe')
+      : process.platform === 'darwin'
+        ? 'open'
+        : 'xdg-open';
+  const child = launch(command, [target], { detached: true, stdio: 'ignore' });
+  await new Promise((resolve, reject) => {
+    child.once('error', reject);
+    child.once('spawn', () => resolve(undefined));
+  });
   child.unref();
 }
 
 /** @param {string} folder Created first if missing. */
 export async function openFolder(folder) {
   await mkdir(folder, { recursive: true });
-  openPath(folder);
+  await openPath(folder);
 }

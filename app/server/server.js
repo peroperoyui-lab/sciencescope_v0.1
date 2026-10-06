@@ -45,11 +45,12 @@ function tokenMatches(given, expected) {
 
 /**
  * @param {{ core: import('../core/index.js').Core, token: string,
+ *   onShutdown?: () => void,
  *   conductor?: { interrupt: (meetingId: string) => Promise<void>,
  *     retry: (messageId: string) => Promise<unknown> } }} options
  *   Without a conductor (core-only tests) posting a message triggers no answers.
  */
-export function createAppServer({ core, token, conductor }) {
+export function createAppServer({ core, token, conductor, onShutdown }) {
   const router = createRouter();
   registerProjectRoutes(router, core);
   registerParticipantRoutes(router, core);
@@ -58,6 +59,12 @@ export function createAppServer({ core, token, conductor }) {
   registerWorkspaceRoutes(router, core);
   registerEventRoutes(router, core);
   registerSystemRoutes(router, core);
+  if (onShutdown) {
+    router.post('/api/shutdown', ({ response }) => {
+      response.once('finish', onShutdown);
+      return { closing: true };
+    });
+  }
 
   const server = createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', 'http://localhost');

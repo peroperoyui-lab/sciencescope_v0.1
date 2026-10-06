@@ -11,10 +11,17 @@ import { createTurnRunner } from './services/turn-runner.js';
 /**
  * @param {{ dataRoot: string, token: string,
  *   runtime?: import('./runtime/port.js').Runtime, runtimeName?: string,
- *   extraEnv?: Record<string, string> }} options
+ *   extraEnv?: Record<string, string>, onShutdown?: () => void }} options
  *   `runtime` replaces DSH (tests); `extraEnv` passes fixture-only variables to DSH.
  */
-export async function createApp({ dataRoot, token, runtime, runtimeName = 'dsh', extraEnv }) {
+export async function createApp({
+  dataRoot,
+  token,
+  runtime,
+  runtimeName = 'dsh',
+  extraEnv,
+  onShutdown,
+}) {
   const core = await createCore({ dataRoot });
   const settings = async () =>
     (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
@@ -36,7 +43,7 @@ export async function createApp({ dataRoot, token, runtime, runtimeName = 'dsh',
   });
   const conductor = createConductor({ core, runner });
   conductor.start();
-  const server = createAppServer({ core, token, conductor });
+  const server = createAppServer({ core, token, conductor, onShutdown });
 
   return {
     core,

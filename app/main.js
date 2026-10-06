@@ -29,14 +29,18 @@ const dataRoot =
 const { createApp } = await import('./app.js');
 
 const token = randomBytes(32).toString('hex');
-const app = await createApp({ dataRoot, token });
+let closing;
+const app = await createApp({ dataRoot, token, onShutdown: () => void shutdown() });
 const url = await app.listen({ port: Number(values.port ?? 0) });
 // `ui` opens the interface in the native window or, during development, a browser.
 const ui = `${url}/?token=${token}`;
-process.stdout.write(`${JSON.stringify({ url, token, ui, dataRoot: app.core.paths.root })}\n`);
+process.stdout.write(
+  `${JSON.stringify({ url, token, ui, dataRoot: app.core.paths.root, shutdownPath: '/api/shutdown', shutdownToken: token })}\n`,
+);
 
 async function shutdown() {
-  await app.close();
+  closing ??= app.close();
+  await closing;
   process.exit(0);
 }
 process.on('SIGINT', shutdown);

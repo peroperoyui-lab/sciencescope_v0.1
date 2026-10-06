@@ -9,11 +9,11 @@
     "desktop:preview": "node scripts/preview-desktop.mjs",
     "test": "node --test --test-concurrency=2 tests/*.test.mjs",
     "start:app": "node app/main.js",
-    "test:app": "node --test \"app/**/*.test.js\"",
+    "test:app": "node --test --test-concurrency=2 \"app/**/*.test.js\"",
     "format": "prettier --write app",
     "lint": "eslint app",
     "typecheck": "tsc -p app",
-    "check": "prettier --check app && eslint app && tsc -p app && node --test \"app/**/*.test.js\""
+    "check": "prettier --check app && eslint app && tsc -p app && node --test --test-concurrency=2 \"app/**/*.test.js\""
   },
   "dependencies": {
     "@codemirror/language": "6.12.4",
