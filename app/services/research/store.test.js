@@ -60,7 +60,7 @@ test('a v2 research upgrade backs up and preserves project and meeting messages'
 
     const upgraded = await openDatabase(file, { migrations, backupDir });
     try {
-      assert.equal(upgraded.prepare('PRAGMA user_version').get().user_version, 3);
+      assert.equal(upgraded.prepare('PRAGMA user_version').get().user_version, migrations.length);
       assert.equal(upgraded.prepare('SELECT name FROM projects').get().name, 'Kept project');
       assert.equal(
         upgraded.prepare('SELECT text FROM messages').get().text,

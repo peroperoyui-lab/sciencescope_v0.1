@@ -76,7 +76,7 @@ function wrap(raw) {
  */
 export async function openDatabase(file, { migrations, backupDir }) {
   await mkdir(path.dirname(file), { recursive: true });
-  const raw = new DatabaseSync(file);
+  const raw = new DatabaseSync(file, { allowExtension: true });
   raw.exec('PRAGMA journal_mode = WAL');
   raw.exec('PRAGMA foreign_keys = ON');
   raw.exec('PRAGMA busy_timeout = 5000');

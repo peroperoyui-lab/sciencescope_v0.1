@@ -7,6 +7,8 @@ import { createConductor } from './services/conductor.js';
 import { credentialsFile, runtimeProviderConfig } from './services/providers.js';
 import { createTools } from './services/tools.js';
 import { createTurnRunner } from './services/turn-runner.js';
+import { createResearch } from './services/research/index.js';
+import { createSemantic } from './services/research/semantic/index.js';
 
 /**
  * @param {{ dataRoot: string, token: string,
@@ -23,6 +25,9 @@ export async function createApp({
   onShutdown,
 }) {
   const core = await createCore({ dataRoot });
+  const semantic = createSemantic(core);
+  const research = createResearch(core, { semantic });
+  await semantic.start();
   const settings = async () =>
     (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
 
@@ -38,15 +43,17 @@ export async function createApp({
     core,
     runtime: activeRuntime,
     runtimeName,
-    tools: createTools(core),
+    tools: createTools(core, research),
     defaultModel: async () => (await settings()).models.default,
   });
   const conductor = createConductor({ core, runner });
   conductor.start();
-  const server = createAppServer({ core, token, conductor, onShutdown });
+  const server = createAppServer({ core, token, conductor, onShutdown, research, semantic });
 
   return {
     core,
+    research,
+    semantic,
     conductor,
     runtime: activeRuntime,
     listen: server.listen,
@@ -54,6 +61,7 @@ export async function createApp({
       conductor.stop();
       await server.close();
       await activeRuntime.close();
+      await semantic.close();
       core.close();
     },
   };

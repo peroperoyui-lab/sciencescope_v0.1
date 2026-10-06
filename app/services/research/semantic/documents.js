@@ -1,0 +1,104 @@
+import { createHash } from 'node:crypto';
+import { citationFor } from '../citations.js';
+import { payloadText } from '../records.js';
+import { createResearchStore } from '../store.js';
+
+const versionOf = (text) => createHash('sha256').update(text).digest('hex');
+
+/** Canonical rows determine text, versions and eligible references; vectors never do.
+ * @param {import('../../../core/index.js').Core} core
+ */
+export function createSemanticDocuments(core) {
+  const store = createResearchStore({ db: core.db, events: core.events });
+
+  function documents() {
+    const result = [];
+    for (const row of core.db.prepare('SELECT * FROM rb_sources ORDER BY id').all()) {
+      const metadata = JSON.parse(String(row.metadata_json));
+      const text = [row.title, payloadText(metadata)].filter(Boolean).join('\n');
+      result.push({
+        ref: { type: 'source', id: String(row.id) },
+        projectId: row.project_id == null ? null : String(row.project_id),
+        version: versionOf(text),
+        text,
+      });
+    }
+    for (const row of core.db
+      .prepare(
+        'SELECT c.*, s.project_id FROM rb_chunks c JOIN rb_sources s ON s.id=c.source_id ORDER BY c.id',
+      )
+      .all()) {
+      const text = String(row.text);
+      result.push({
+        ref: { type: 'chunk', id: String(row.id) },
+        projectId: row.project_id == null ? null : String(row.project_id),
+        version: versionOf(text),
+        text,
+      });
+    }
+    for (const row of core.db
+      .prepare("SELECT * FROM rb_items WHERE status NOT IN ('proposed','rejected') ORDER BY id")
+      .all()) {
+      const text = [row.title, row.body, payloadText(JSON.parse(String(row.payload_json)))]
+        .filter(Boolean)
+        .join('\n');
+      result.push({
+        ref: { type: 'item', id: String(row.id) },
+        projectId: row.project_id == null ? null : String(row.project_id),
+        visibility: String(row.visibility),
+        status: String(row.status),
+        version: versionOf(text),
+        text,
+      });
+    }
+    return result;
+  }
+
+  /** @param {any} options */
+  function candidates(options) {
+    const projectId = options.projectId ?? null;
+    return documents().filter((document) => {
+      if (
+        document.projectId !== projectId &&
+        !(projectId && options.includePersonal !== false && document.projectId === null)
+      )
+        return false;
+      if (document.ref.type !== 'item') return true;
+      if (options.audience === 'agent' && document.visibility === 'private') return false;
+      return options.includeSuperseded || document.status === 'active';
+    });
+  }
+
+  /** @param {{type:string,id:string}} ref @param {number} score */
+  function hit(ref, score) {
+    if (ref.type === 'item') {
+      const item = store.getItem(ref.id);
+      return {
+        type: ref.type,
+        id: ref.id,
+        projectId: item.projectId,
+        title: item.title,
+        text: item.body,
+        citation: `[@${item.id.replace(/^itm_/u, '').slice(0, 8)}]`,
+        score,
+      };
+    }
+    const chunk = ref.type === 'chunk' ? store.getChunk(ref.id) : null;
+    const source = store.getSource(chunk?.sourceId ?? ref.id);
+    return {
+      type: ref.type,
+      id: ref.id,
+      sourceId: source.id,
+      projectId: source.projectId,
+      title: source.title,
+      text: chunk?.text ?? source.metadata?.abstract ?? source.title,
+      ordinal: chunk?.ordinal ?? null,
+      page: chunk?.page ?? null,
+      section: chunk?.section ?? null,
+      citation: citationFor(source, chunk),
+      score,
+    };
+  }
+
+  return { documents, candidates, hit };
+}

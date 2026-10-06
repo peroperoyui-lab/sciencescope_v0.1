@@ -1,6 +1,7 @@
 // All settings in one readable JSON file. Reading merges stored values over the
 // defaults, so new settings appear without a migration.
 import { AppError } from '../../errors.js';
+import { DEFAULT_SEMANTIC_SETTINGS } from '../../defaults.js';
 
 export const SETTINGS_VERSION = 1;
 
@@ -39,6 +40,7 @@ export const DEFAULT_SETTINGS = {
   providers: [],
   // The model AIs use unless their own definition names one.
   models: { default: null },
+  semantic: DEFAULT_SEMANTIC_SETTINGS,
 };
 
 function isPlainObject(value) {

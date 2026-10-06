@@ -14,6 +14,8 @@
 
 **状态标记**
 
+R4-1b（2026-10-06，待审阅）：新界面复原数据库、我的资料与外部资源入口；资料导入、关键词/混合检索、文献元数据筛选排序分页、重新解析、原件打开、段落引用复制，以及知识/模型/主张条目编辑、取代、历史、置顶、归档。采用旧资料库 CSS 与表格/卡片结构，新增文字有英文。设置的目录与运行时页提供本地混合检索控件，进度通过 `research.semantic.changed` 推送，无轮询。`semantic.enabled` 的真实消费者为共享本地检索服务，API 与 AI 工具共用；迁移 004 把 384 维 sqlite-vec 向量存进同一 SQLite，模型在新数据根 models/。模型为清单固定的 multilingual-e5-small int8，首次下载须点击并校验每个 SHA-256；硬件检测、工作线程、后台预热、对话期间暂停索引，索引缺失/版本变化/向量阶段超过 300ms 整次退回关键词，结果报告 mode。Windows 真下载五文件校验通过，9/9 索引、重启与真实混合搜索读取通过；所有测试注入假嵌入不下载模型。记忆/收件箱/简报及预览/附件未做。付费模型请求与 token 均为 0。
+
 R4-1a（2026-10-06，待审阅）：新核心 `app/services/research/` 已提供 PDF/DOCX/Markdown/LaTeX/文本导入、原件保存、分段、中英文关键词检索、来源/条目 API，以及全角色共享 `research_search` / `research_read`。迁移 003 保存 `rb_sources/chunks/items/revisions/fts`，已有 v2 数据先备份再升级。原件在新数据根的 `library/originals/`，与旧线数据不混用。读取分页报告 total/remaining，不截断全文；PDF 保留页码，DOCX 仅有明确分页时提供页码，否则为 null。引用兼容 `[S3 p.4]`、复合、中文和全角格式，未知写法保留记录。修改保留旧快照；取代保留旧行与链接，默认候选仅 active，私有条目不进入 AI 候选。导入及条目修改提交后发 `research.changed`。功能与接口细节见 `design/CORE_MODEL.md` §11；界面、向量检索、记忆整理属后续任务。验收使用脚本化运行时，零付费请求。
 
 L1 Windows（2026-10-06，待审阅）：`SCIENCESCOPE_APP=new` 使原生外壳启动新 `app/main.js` 并加载首行JSON的 `ui`；默认旧宿主，开发数据默认 `.sciencescope-local/data`，可设 `SCIENCESCOPE_DATA`。新宿主协作关闭后沿用 Job 清理进程树。原生窗口/dialog权限复用，学术站点走系统opener；Explorer使用SystemRoot绝对路径且启动失败回传。中文目录/项目、字体/importmap、窗口控制/真实拖动、目录选择绑定、默认程序打开、中文zip下载、真实模型计划编辑/agent_main修订/撤销/搜索/英文流程通过；真实IME组字Enter不发送，中文候选完整提交仍未完全核实。最终 `npm run check`42/42、Rust2/2及构建通过；全套测试并发2避免外置盘冷启动竞争，产品超时未改。5次真实请求（均HTTP200）、84,822 tokens；另1次本地模型用于活跃DSH原生关闭，全树消失、退出0、WAL/SHM清理。旧新截图发现细小复刻偏差，记录在忽略的 `.sciencescope-local/temp/l1-windows/visual-comparison.md`；不代表安装包/R4验收。

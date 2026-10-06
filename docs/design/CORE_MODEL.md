@@ -176,3 +176,14 @@ tools: { prefer: [research_search], avoid: [] }
 - HTTP：`GET /api/research/sources?projectId=`；`POST /api/research/sources`（name、base64、projectId 等）；`GET /api/research/sources/:id`（limit/offset）；`GET /api/research/search?q=&projectId=`；`GET/POST/PATCH /api/research/items`；`GET/PATCH /api/research/items/:id`（详情含旧版本）。修改可带 expectedRevision；POST 带 supersedes 实施取代。
 - 导入完成（包括解析失败状态）及条目增改/取代与 `research.changed` 在同一数据库事务提交后送达。资料库界面、向量检索、记忆整理均属后续任务。
 - Windows `npm run check` 50/50、零跳过；包含真实 PDF/DOCX 功能测试、脚本化会议引用、修订/取代保留、v2 数据备份升级与既有三项 Edge 测试。付费请求为 0。
+
+### R4-1b 界面与混合检索（2026-10-06）
+
+- 新界面路由 `#/database/<projectId>`、`#/library`、`#/sources` 对应项目材料、个人资料、外部站点；旧资料库样式表与列/卡片沿用。文献分页每页50条，段落详情每页20段且可定位搜索命中；知识、模型、主张支持编辑/取代/历史/置顶/归档，memory/inbox/brief与文件预览/附件留在后续任务。
+- 来源接口新增 PATCH（title/kind/metadata 合并且索引同步）、POST reparse/open。GET sources支持kind/readStatus/tag/sort/direction；默认返回数组，带page/pageSize返回 `{sources,total,page,pageSize,remaining}`。GET chunks/:id返回段落与来源；条目筛选支持type/subtype/status/pinned，置顶存payload.pinned。
+- 导入上传不设单文件长度限制；仅资料导入路径豁免现有通用JSON请求边界。重新解析复用原件及来源id，用户元数据保留。
+- 迁移004创建 `rb_vec_docs` 与sqlite-vec `rb_vec`（384维）；同一个core数据库连接，数据库构造允许扩展加载，迁移和向量服务仅在加载sqlite-vec时启用。来源/条目/原件为正本，向量删除后可重建。
+- `createApp` 装配一个 `createSemantic` 实例，传入 research、HTTP 和工具。`research_search` 与HTTP均异步共用混合检索：本地向量与关键词加权RRF融合，返回mode。关闭、模型缺失、索引不完整/版本不同或向量阶段300ms超时整次退回关键词；分页排序稳定。
+- `settings.semantic.enabled` 默认false；本地模型位于 `<数据根>/models/multilingual-e5-small/`。清单沿用 `models/default-embedding.json` 的固定revision、SHA256与int8模型；用户点击下载，公开模型文件可从官方源/镜像获取，推理只访问本机文件。硬件要求AVX2、8GB内存、5GB可用空间。单工作线程处理query:/passage:前缀、模型512-token窗口、均值池化/L2归一化，不截断资料原文。
+- GET `/api/research/semantic/status`，POST download/rebuild。`research.semantic.changed` 为瞬态完整状态，UI直接消费，不每秒请求进度。宿主就绪不等待预热；turn.started/ended暂停恢复批次索引，close终止工作线程再关闭数据库。
+- Windows手动设置下载五文件校验、9/9索引、中文路径、重启与真实混合搜索/段落读取通过。自动测试只用假嵌入；付费模型0请求/0token。

@@ -91,8 +91,7 @@ export const TOOL_SPECS = [
 /**
  * @param {import('../core/index.js').Core} core
  */
-export function createTools(core) {
-  const research = createResearch(core);
+export function createTools(core, research = createResearch(core)) {
   async function nameOf(id) {
     try {
       return (await core.participants.get(id)).name;

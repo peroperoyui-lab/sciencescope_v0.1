@@ -25,3 +25,27 @@
   flex: 1;
   min-height: 0;
 }
+.rb-source-info {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 18px;
+}
+.rb-source-info dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.rb-passage-text {
+  white-space: pre-wrap;
+  user-select: text;
+}
+.rb-passage[data-focused='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.rb-latex {
+  overflow: auto;
+  user-select: text;
+}
+.research-base [data-rb-import-progress] [role='alert'] {
+  color: var(--danger);
+}

@@ -10,6 +10,7 @@ import { Icon } from '../icons.js';
 import { navigate } from '../route.js';
 import { InfoTip } from './info-tip.js';
 import { MainHead } from './mainhead.js';
+import { SemanticSettings } from './settings-semantic.js';
 import { ModelsPage, ProviderPage } from './settings-models.js';
 import { ExpertsPage, RolePage } from './settings-roles.js';
 
@@ -437,7 +438,8 @@ export function SettingsView({ page, projectName }) {
   else if (page === 'experts') content = html`<${ExpertsPage} />`;
   else if (page === 'library-settings')
     content = html`<${FoldersPage} title=${t('数据库与文件')} />`;
-  else if (page === 'environment') content = html`<${FoldersPage} title=${t('运行环境')} />`;
+  else if (page === 'environment')
+    content = html`<${FoldersPage} title=${t('运行环境')} /><${SemanticSettings} />`;
   else content = html`<div class="empty">${t('没有这个设置页。')}</div>`;
   const active = page.startsWith('provider') ? 'models' : page;
 

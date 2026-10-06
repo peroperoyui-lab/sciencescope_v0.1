@@ -18,12 +18,12 @@ import { serveStatic } from './static.js';
 const MAX_BODY_BYTES = 64 * 1024 * 1024;
 
 /** @param {import('node:http').IncomingMessage} request */
-async function readJson(request) {
+async function readJson(request, unlimited = false) {
   const chunks = [];
   let size = 0;
   for await (const chunk of request) {
     size += chunk.length;
-    if (size > MAX_BODY_BYTES) {
+    if (!unlimited && size > MAX_BODY_BYTES) {
       throw new AppError('BODY_TOO_LARGE', '请求内容超过 64 MB，请分批发送。', 413);
     }
     chunks.push(chunk);
@@ -47,11 +47,12 @@ function tokenMatches(given, expected) {
 /**
  * @param {{ core: import('../core/index.js').Core, token: string,
  *   onShutdown?: () => void,
+ *   research?: ReturnType<typeof import('../services/research/index.js').createResearch>, semantic?:any,
  *   conductor?: { interrupt: (meetingId: string) => Promise<void>,
  *     retry: (messageId: string) => Promise<unknown> } }} options
  *   Without a conductor (core-only tests) posting a message triggers no answers.
  */
-export function createAppServer({ core, token, conductor, onShutdown }) {
+export function createAppServer({ core, token, conductor, onShutdown, research, semantic }) {
   const router = createRouter();
   registerProjectRoutes(router, core);
   registerParticipantRoutes(router, core);
@@ -60,7 +61,7 @@ export function createAppServer({ core, token, conductor, onShutdown }) {
   registerWorkspaceRoutes(router, core);
   registerEventRoutes(router, core);
   registerSystemRoutes(router, core);
-  registerResearchRoutes(router, core);
+  registerResearchRoutes(router, core, research, semantic);
   if (onShutdown) {
     router.post('/api/shutdown', ({ response }) => {
       response.once('finish', onShutdown);
@@ -86,7 +87,10 @@ export function createAppServer({ core, token, conductor, onShutdown }) {
       }
       const route = router.match(request.method ?? 'GET', url.pathname);
       if (!route) throw new AppError('NOT_FOUND', '没有这个接口。', 404);
-      const body = request.method === 'GET' ? {} : await readJson(request);
+      const body =
+        request.method === 'GET'
+          ? {}
+          : await readJson(request, url.pathname === '/api/research/sources');
       const result = await route.handler({
         params: route.params,
         query: url.searchParams,

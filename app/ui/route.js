@@ -10,15 +10,26 @@
 //                            a workbench area on its own page
 import { useEffect, useState } from 'preact/hooks';
 
-/** @typedef {{ view: 'home' | 'all' | 'project-new', id?: string } | { view: 'new' | 'meeting' | 'workbench' | 'settings' | 'plans' | 'journal' | 'files' | 'map', id: string }} Route */
+/** @typedef {{ view: 'home' | 'all' | 'project-new' | 'library' | 'sources', id?: string } | { view: 'new' | 'meeting' | 'workbench' | 'settings' | 'plans' | 'journal' | 'files' | 'map' | 'database', id: string }} Route */
 
-const WITH_ID = ['meeting', 'workbench', 'new', 'settings', 'plans', 'journal', 'files', 'map'];
+const WITH_ID = [
+  'meeting',
+  'workbench',
+  'new',
+  'settings',
+  'plans',
+  'journal',
+  'files',
+  'map',
+  'database',
+];
 
 /** @returns {Route} */
 export function parseRoute(hash = location.hash) {
   const [, view, ...rest] = hash.replace(/^#/, '').split('/');
   const id = rest.map(decodeURIComponent).join('/');
   if (WITH_ID.includes(view) && id) return { view: /** @type {any} */ (view), id };
+  if (view === 'library' || view === 'sources') return { view };
   if (view === 'all') return { view: 'all' };
   if (view === 'project-new') return { view: 'project-new' };
   return { view: 'home' };
@@ -27,6 +38,7 @@ export function parseRoute(hash = location.hash) {
 /** @param {Route} route */
 export function routeHref(route) {
   if (route.view === 'home') return '#/';
+  if (route.view === 'library' || route.view === 'sources') return '#/' + route.view;
   if (route.view === 'all') return '#/all';
   if (route.view === 'project-new') return '#/project-new';
   return `#/${route.view}/${route.id.split('/').map(encodeURIComponent).join('/')}`;

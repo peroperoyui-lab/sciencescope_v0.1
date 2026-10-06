@@ -50,7 +50,7 @@ function SiteForm({ site }) {
   </form>`;
 }
 
-function Sites() {
+export function Sites() {
   const actions = useActions();
   const sites = useAppState((state) => state.settings?.sites ?? []);
   const store = (next) => actions.attempt(() => actions.updateSettings({ sites: next }));

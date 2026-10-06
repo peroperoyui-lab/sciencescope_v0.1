@@ -6,6 +6,7 @@ import { comboOf } from '../appearance.js';
 import { html } from '../html.js';
 import { navigate, useRoute } from '../route.js';
 import { AllChats } from './all-chats.js';
+import { ResearchBase } from './research-base.js';
 import { Welcome } from './home.js';
 import { MapEditor } from './map-editor.js';
 import { MeetingView } from './meeting.js';
@@ -50,7 +51,7 @@ export function App() {
   // Re-render everything when the language changes.
   useAppState((state) => state.settings?.appearance?.language);
   const projectId = useAppState((state) => {
-    if (['workbench', 'new', 'plans', 'journal', 'files', 'map'].includes(route.view)) {
+    if (['workbench', 'new', 'plans', 'journal', 'files', 'map', 'database'].includes(route.view)) {
       return route.id;
     }
     if (route.view === 'meeting') {
@@ -74,6 +75,12 @@ export function App() {
       focusMessageId=${messageId}
     />`;
   } else if (route.view === 'workbench') page = html`<${Workbench} projectId=${route.id} />`;
+  else if (['database', 'library', 'sources'].includes(route.view))
+    page = html`<${ResearchBase}
+      key=${route.view + (route.id ?? '')}
+      view=${route.view}
+      projectId=${route.view === 'database' ? route.id : null}
+    />`;
   else if (route.view === 'all') page = html`<${AllChats} />`;
   else if (route.view === 'project-new') page = html`<${ProjectNew} />`;
   else if (route.view === 'plans' || route.view === 'journal' || route.view === 'files') {

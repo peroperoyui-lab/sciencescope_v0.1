@@ -4,4 +4,6 @@ import * as core from './001-core.js';
 import * as toolPreamble from './002-tool-preamble.js';
 import * as researchBase from './003-research-base.js';
 
-export const migrations = [core, toolPreamble, researchBase];
+import * as researchVectors from './004-research-vectors.js';
+
+export const migrations = [core, toolPreamble, researchBase, researchVectors];

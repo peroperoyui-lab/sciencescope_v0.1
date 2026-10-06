@@ -25,6 +25,10 @@ export const initialState = {
   /** @type {Record<string, any>} */ running: {},
   /** Bumped on every workspace change so open views can reload. */
   workspaceVersion: 0,
+  researchVersion: 0,
+  semanticVersion: 0,
+  /** @type {any} */
+  semanticStatus: null,
   /** Bumped after the person changes files in a project folder. */
   filesVersion: 0,
   /** Popups over the window: one menu, one dialog, one toast, the search palette. */
@@ -109,6 +113,10 @@ export function applyEvent(state, { type, payload }) {
       );
       return { ...state, toolCalls: { ...state.toolCalls, [payload.turnId]: calls } };
     }
+    case 'research.changed':
+      return { ...state, researchVersion: state.researchVersion + 1 };
+    case 'research.semantic.changed':
+      return { ...state, semanticVersion: state.semanticVersion + 1, semanticStatus: payload };
     case 'resource.changed':
     case 'revision.undone':
       return { ...state, workspaceVersion: state.workspaceVersion + 1 };

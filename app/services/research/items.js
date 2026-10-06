@@ -24,7 +24,7 @@ const statuses = ['active', 'superseded', 'archived'];
  * @typedef {import('../../core/workspace/workspace.js').Actor} Actor
  * @typedef {{ projectId?: string | null, includePersonal?: boolean, type?: string,
  *   subtype?: string, status?: string, scope?: string, visibility?: string,
- *   includeSuperseded?: boolean, limit?: number, offset?: number }} ItemQuery
+ *   includeSuperseded?: boolean, pinned?:boolean, limit?: number, offset?: number }} ItemQuery
  * @typedef {{ createItem: (input: any, actor?: Actor) => ResearchItem,
  *   getItem: (id: string) => ResearchItem,
  *   listItems: (options?: ItemQuery) => ResearchItem[],
@@ -46,6 +46,7 @@ function itemRow(row) {
     title: String(row.title),
     body: String(row.body),
     payload: JSON.parse(String(row.payload_json)),
+    pinned: Boolean(JSON.parse(String(row.payload_json)).pinned),
     status: String(row.status),
     visibility: String(row.visibility),
     revision: Number(row.revision),
@@ -255,10 +256,14 @@ export function createResearchItems({ db, now, newId, putIndex, changed }) {
         params.push(options[field]);
       }
     }
+    if (options.pinned !== undefined) {
+      where.push("coalesce(json_extract(payload_json,'$.pinned'),0)=?");
+      params.push(options.pinned ? 1 : 0);
+    }
     return db
       .prepare(
         `SELECT * FROM rb_items ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-      ORDER BY updated_at DESC, id LIMIT ? OFFSET ?`,
+      ORDER BY coalesce(json_extract(payload_json,'$.pinned'),0) DESC, updated_at DESC, id LIMIT ? OFFSET ?`,
       )
       .all(...params, options.limit ?? -1, options.offset ?? 0)
       .map(itemRow);

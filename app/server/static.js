@@ -15,6 +15,7 @@ const VENDOR = {
   'htm.js': path.join(modules, 'htm', 'dist', 'htm.mjs'),
   'marked.js': path.join(modules, 'marked', 'lib', 'marked.esm.js'),
   'purify.js': path.join(modules, 'dompurify', 'dist', 'purify.es.mjs'),
+  'katex.js': path.join(modules, 'katex', 'dist', 'katex.mjs'),
 };
 const FONT_ROOT = path.join(modules, '@fontsource-variable', 'noto-sans-sc');
 const LOGO = path.join(repoRoot, 'reference', 'ScienceScope_Logo.png');
@@ -43,6 +44,9 @@ function locate(pathname) {
   if (relative === 'assets/logo.png') return LOGO;
   if (relative.startsWith('vendor/fonts/noto-sans-sc/')) {
     return inside(FONT_ROOT, relative.slice('vendor/fonts/noto-sans-sc/'.length));
+  }
+  if (relative.startsWith('vendor/katex/')) {
+    return inside(path.join(modules, 'katex', 'dist'), relative.slice('vendor/katex/'.length));
   }
   if (relative.startsWith('vendor/')) return VENDOR[relative.slice('vendor/'.length)] ?? null;
   return inside(uiRoot, relative);

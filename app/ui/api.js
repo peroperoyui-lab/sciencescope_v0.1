@@ -19,6 +19,8 @@ const EVENT_TYPES = [
   'tool.ended',
   'resource.changed',
   'revision.undone',
+  'research.changed',
+  'research.semantic.changed',
 ];
 
 export class ApiError extends Error {

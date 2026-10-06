@@ -1,5 +1,44 @@
 # Desktop implementation — first increment
 
+## 2026-10-06 R4-1b research UI and local hybrid retrieval (Codex)
+
+- Baseline `aa1a3fe`; branch `codex/r4-1b-research-ui-20261006`. Restored
+  database/project/personal/external routes, source table/details, item cards
+  and metadata/revision workflows using legacy CSS and Preact. Four research
+  tabs only; memory/inbox/brief and previews/attachments stay in later tasks.
+  New strings have English entries. Kept the legacy structured JSON form.
+- Source PATCH/reparse/open and filtering/sorting/pagination now operate on
+  R4-1a records. Imports have no single-file cap. Migration 004 stores vectors
+  in the same SQLite. A shared semantic service serves HTTP and AI tools;
+  explicit setting/download actions, hashes, hardware check, worker inference,
+  background warmup, dialogue index pauses, version checks and whole-request
+  300ms keyword fallback retained. Progress is pushed, never polled each second.
+- Minimal extra wiring: app.js owns service start/close; tools.js receives it;
+  server.js exempts source imports from its generic body bound; static.js
+  supplies installed KaTeX/fonts; database.js permits sqlite-vec loading;
+  settings resource consumes the new default. Functional integration tests
+  cover API/tool sharing and source management; no old-line/native code edits.
+- Discovered → cause → repair → verification: async settings initialization
+  overwrote download state with model-missing; initialize now respects the
+  active download flag, tested with concurrent settings and pushed states.
+  Warmup initially blocked startup; it now runs in background, tested with
+  a held warmup. Editing populated textareas failed: implicit label included
+  default body text; explicit aria-label fixes it, the same create/edit/replace
+  browser path passes. Initial full check 67/68 retained in the local failure log.
+- Windows real acceptance: clicked download in Settings, all 5 pinned files
+  (135,392,183 bytes) pass SHA256; hardware AVX2/32GB, index 9/9, restart ready,
+  Chinese semantic query returns hybrid and reads the matching full passage.
+  Reference/new screenshots compared; restored database before workbench.
+  Task-required top scope tabs/excluded future controls differ from old final
+  view. Semantic controls are on the task-specified runtime page, old P33 on
+  database settings. Original/new shell differences remain from R3/L1.
+- Local evidence/screenshots: `.sciencescope-local/temp/r4-1b/`. Automated
+  vector tests use injected fake embeddings, no model downloads. Paid model
+  requests/tokens: 0/0; real local inference is reported separately.
+- Final Windows `npm run check`: formatting/lint/types and 68/68 tests pass,
+  zero skips (82.482s), including all 9 new research Edge paths, existing 3
+  Edge paths and real DSH/local-model tests. No native code changed.
+
 ## 2026-10-06 R4-1a research base core (Codex)
 
 - Baseline `ac23f0d`; branch `codex/r4-1a-research-core-20261006`. Rewrote

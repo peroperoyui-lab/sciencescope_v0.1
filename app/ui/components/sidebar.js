@@ -193,6 +193,13 @@ export function Sidebar({ route, currentProjectId }) {
       >
         <${Icon} name="chat" /><span>${t('新对话')}</span>
       </button>
+      <button
+        class=${`nav ${['database', 'library', 'sources'].includes(route.view) ? 'active' : ''}`}
+        data-route="database"
+        onClick=${() => navigate(currentProjectId || activeProjects[0]?.id ? { view: 'database', id: currentProjectId ?? activeProjects[0].id } : { view: 'library' })}
+      >
+        <${Icon} name="book" /><span>${t('数据库')}</span>
+      </button>
       <div class="row" style="gap:0">
         <button
           class=${`nav ${route.view === 'workbench' ? 'active' : ''}`}
@@ -218,6 +225,7 @@ export function Sidebar({ route, currentProjectId }) {
         peekProject &&
         html`<${ProjectSummary} project=${peekProject} onClose=${() => setPeek(false)} />`
       }
+
       <button class="side-search" onClick=${actions.openPalette}>
         <${Icon} name="search" /><span>${t('搜索')}</span><kbd>Ctrl+K</kbd>
       </button>

@@ -75,6 +75,7 @@ export function createResearchSearch(store) {
         title: source.title,
         text: chunk?.text ?? source.metadata?.abstract ?? source.title,
         page: chunk?.page ?? null,
+        ordinal: chunk?.ordinal ?? null,
         section: chunk?.section ?? null,
         citation: citationFor(source, chunk),
         score: Number(row.score),

@@ -2,7 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { AppError } from '../../core/errors.js';
 import { indexText } from './text-index.js';
 import { createResearchItems } from './items.js';
-import { filterProject, oneOf, payloadText, recordObject, requiredText } from './records.js';
+import { createSourceListing } from './source-listing.js';
+import { oneOf, payloadText, recordObject, requiredText } from './records.js';
 
 const sourceKinds = [
   'paper',
@@ -35,7 +36,8 @@ const chunkKinds = [
  * @typedef {ReturnType<typeof chunkRow>} ResearchChunk
  * @typedef {import('../../core/workspace/workspace.js').Actor} Actor
  * @typedef {{ projectId?: string | null, includePersonal?: boolean, kind?: string,
- *   contentStatus?: string, limit?: number, offset?: number }} SourceQuery
+ *   contentStatus?: string, readStatus?:string, tag?:string, sort?:string, direction?:string,
+ *   limit?: number, offset?: number }} SourceQuery
  * @typedef {{ parser?: string, pages?: number | null, contentStatus?: string,
  *   parseError?: string | null, metadata?: any }} ParseResult
  * @typedef {ReturnType<typeof createResearchItems> & {
@@ -43,6 +45,8 @@ const chunkKinds = [
  *   createSource: (input: any, actor?: Actor) => ResearchSource,
  *   getSource: (id: string) => ResearchSource,
  *   listSources: (options?: SourceQuery) => ResearchSource[],
+ *   countSources: (options?: SourceQuery) => number,
+ *   updateSource: (id:string,patch:any,actor?:Actor) => ResearchSource,
  *   findSource: (label: string, projectId?: string | null) => ResearchSource | null,
  *   addChunks: (sourceId: string, passages: any[], parseResult?: ParseResult, actor?: Actor) => ResearchSource,
  *   getChunk: (id: string) => ResearchChunk,
@@ -177,25 +181,29 @@ export function createResearchStore({
 
   /** @param {SourceQuery} [options] */
   function listSources(options = {}) {
-    const where = [];
-    const params = [];
-    filterProject('project_id', options, where, params);
-    for (const [field, column] of [
-      ['kind', 'kind'],
-      ['contentStatus', 'content_status'],
-    ]) {
-      if (options[field] !== undefined) {
-        where.push(`${column} = ?`);
-        params.push(options[field]);
-      }
-    }
-    return db
-      .prepare(
-        `SELECT * FROM rb_sources ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
-      ORDER BY created_at DESC, number DESC LIMIT ? OFFSET ?`,
-      )
-      .all(...params, options.limit ?? -1, options.offset ?? 0)
-      .map(sourceRow);
+    return createSourceListing(db).list(options).map(sourceRow);
+  }
+
+  /** @param {SourceQuery} [options] */
+  function countSources(options = {}) {
+    return createSourceListing(db).count(options);
+  }
+
+  /** @param {string} id @param {any} patch @param {Actor} [actor] */
+  function updateSource(id, patch, actor = {}) {
+    return db.transaction(() => {
+      const current = getSource(id);
+      const title = requiredText(patch.title ?? current.title, 'title');
+      const kind = oneOf(patch.kind ?? current.kind, sourceKinds, 'source kind');
+      const metadata = recordObject({ ...current.metadata, ...patch.metadata });
+      db.prepare(
+        'UPDATE rb_sources SET title=?, kind=?, metadata_json=?, updated_at=? WHERE id=?',
+      ).run(title, kind, JSON.stringify(metadata), now(), id);
+      putIndex('source', id, current.projectId, title, payloadText(metadata));
+      const result = getSource(id);
+      changed('source.updated', result, actor);
+      return result;
+    });
   }
 
   /** @param {string} label @param {string | null} [projectId] */
@@ -288,6 +296,8 @@ export function createResearchStore({
     createSource,
     getSource,
     listSources,
+    countSources,
+    updateSource,
     findSource,
     addChunks,
     getChunk,

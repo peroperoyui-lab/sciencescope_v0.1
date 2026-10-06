@@ -1,15 +1,16 @@
 // Original bytes are durable; parsed passages and keyword indexes are derived.
 // This service owns imports. Storage/retrieval are usable without the parser.
-import { mkdir, writeFile, unlink } from 'node:fs/promises';
+import { mkdir, writeFile, unlink, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createResearchStore } from './store.js';
 import { createResearchSearch } from './search.js';
 import { parseDocument } from './parsers/index.js';
 import { chunkBlocks } from './chunks.js';
+import { openPath } from '../system.js';
 
-/** @param {import('../../core/index.js').Core} core */
-export function createResearch(core) {
+/** @param {import('../../core/index.js').Core} core @param {{semantic?:any,open?:typeof openPath}} [options] */
+export function createResearch(core, options = {}) {
   const store = createResearchStore({ db: core.db, events: core.events });
   const search = createResearchSearch(store);
 
@@ -34,9 +35,13 @@ export function createResearch(core) {
       await unlink(originalFile);
       throw error;
     }
+    return parseSource(source, input.bytes, actor, input.metadata);
+  }
+
+  async function parseSource(source, bytes, actor, metadata = source.metadata) {
     let parsed;
     try {
-      parsed = await parseDocument(input.bytes, { name });
+      parsed = await parseDocument(bytes, { name: source.name });
     } catch (error) {
       return store.addChunks(
         source.id,
@@ -55,7 +60,7 @@ export function createResearch(core) {
       {
         parser: parsed.parser,
         pages: parsed.pages ?? null,
-        metadata: { ...parsed.metadata, ...input.metadata },
+        metadata: { ...parsed.metadata, ...metadata },
         contentStatus: !chunks.length ? 'failed' : parsed.warnings?.length ? 'partial' : 'parsed',
         parseError: chunks.length
           ? parsed.warnings?.join('; ') || null
@@ -65,5 +70,29 @@ export function createResearch(core) {
     );
   }
 
-  return { store, importSource, ...search };
+  /** @param {string} id @param {{actorId?:string,meetingId?:string}} [actor] */
+  async function reparseSource(id, actor = {}) {
+    const source = store.getSource(id);
+    const bytes = await readFile(path.join(core.paths.library, source.originalPath));
+    return parseSource(source, bytes, actor);
+  }
+
+  /** @param {string} id */
+  async function openSource(id) {
+    const source = store.getSource(id);
+    await (options.open ?? openPath)(path.join(core.paths.library, source.originalPath));
+    return { opened: true };
+  }
+
+  return {
+    store,
+    importSource,
+    reparseSource,
+    openSource,
+    read: search.read,
+    search: (query, input = {}) =>
+      options.semantic
+        ? options.semantic.search(query, input, search.search)
+        : { ...search.search(query, input), mode: 'keyword' },
+  };
 }
