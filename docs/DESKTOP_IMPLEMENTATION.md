@@ -2,9 +2,9 @@
 
 ## 2026-10-07 R4-3b ordered discussion UI (Codex)
 - Restored the legacy discussion strip/menu, real author/status/tool cards, review adoption/read-lock, @ keyboard/IME handling and every participant's latest context; strings have English; roster cap removed.
-- Based on R4-3a fe95561; related browser paths pass; first clean check 86/87 exposed an existing test response-listener race, fixed by registering before click; final check pending. Native two experts → review → adopt → Main followup: 5 HTTP200 requests, 90,402 reported tokens, no unknown usage.
+- Based on R4-3a fe95561; related browser paths pass; first clean check 86/87 exposed an existing test response-listener race, fixed by registering before click; final Windows clean-checkout check 87/87, no skips. Native two experts → review → adopt → Main followup: 5 HTTP200 requests, 90,402 reported tokens, no unknown usage.
 - Native restart restores records/context; title-bar close exits 0, all captured process identities disappear and WAL/SHM clear. The first instant check saw WebView2 teardown, so followup waited for real process exit (1.417s), without changing product shutdown.
-- Legacy comparison/native screenshots and detailed evidence in ignored temp/r4-3b; model exceeded the requested two-sentence length, noted as model behaviour. No autonomous/secretary/free discussion restored.
+- Legacy comparison/native screenshots and detailed evidence in ignored temp/r4-3b; model exceeded two sentences and reviewer used two reads despite a no-tools request, recorded as model behaviour. No autonomous/secretary/free discussion restored.
 
 ## 2026-10-07 R4-3a ordered discussion core (Codex)
 - Participants join on invitation; persisted round policy runs independent experts in parallel, with fixed input cutoffs and ordered messages; reviewer follows all terminal answers.
