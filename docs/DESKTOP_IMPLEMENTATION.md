@@ -3,7 +3,7 @@
 ## 2026-10-07 R4-3a ordered discussion core (Codex)
 - Participants join on invitation; persisted round policy runs independent experts in parallel, with fixed input cutoffs and ordered messages; reviewer follows all terminal answers.
 - Adoption/consumption persist, incomplete or consumed reviews return 409; targeted retry/continue and whole-round cancellation use the shared runner; context API returns each participant's latest usage.
-- Windows clean-checkout check pending; scripted service/API and real DSH/local-model concurrent tests added. Paid requests/tokens: 0; UI and native acceptance follow in 3b.
+- Windows fresh checkout npm install + npm run check: 84/84, no skips (Edge included); scripted service/API and real DSH/local-model concurrent paths pass. Paid requests/tokens: 0; UI/native acceptance follow in 3b.
 - Windows cold DSH boots contended on the shared module lock; adapter queues only startup and awaits pending launches on close, keeping answers parallel. Extra server type/app close changes drain cancelled work before SQLite closes; details in ignored temp/r4-3a.
 
 ## 2026-10-06 Review of R0–R4-1 and plan (Claude)
