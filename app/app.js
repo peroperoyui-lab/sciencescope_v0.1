@@ -60,6 +60,7 @@ export async function createApp({
     async close() {
       conductor.stop();
       await server.close();
+      await conductor.idle();
       await activeRuntime.close();
       await semantic.close();
       core.close();

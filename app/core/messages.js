@@ -5,7 +5,7 @@ import { AppError } from './errors.js';
  * @typedef {'streaming' | 'done' | 'max_tokens' | 'failed' | 'cancelled'} MessageStatus
  * @typedef {{ id: string, meetingId: string, seq: number, authorId: string, text: string,
  *   status: MessageStatus, turnId: string | null, replyTo: string | null, refs: any,
- *   adopted: boolean | null, createdAt: string, updatedAt: string }} Message
+ *   adopted: boolean | null, adoptionLocked: boolean, createdAt: string, updatedAt: string }} Message
  */
 
 /** SQLite stores the review adoption flag as 1, 0 or NULL (not a review). */
@@ -16,6 +16,7 @@ function adoptedValue(adopted) {
 
 /** @returns {Message} */
 function toMessage(row) {
+  const refs = JSON.parse(String(row.refs_json));
   return {
     id: String(row.id),
     meetingId: String(row.meeting_id),
@@ -25,8 +26,9 @@ function toMessage(row) {
     status: /** @type {MessageStatus} */ (String(row.status)),
     turnId: row.turn_id == null ? null : String(row.turn_id),
     replyTo: row.reply_to == null ? null : String(row.reply_to),
-    refs: JSON.parse(String(row.refs_json)),
+    refs,
     adopted: row.adopted == null ? null : Boolean(row.adopted),
+    adoptionLocked: Boolean(refs.contextReadBy?.length),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
   };
@@ -52,7 +54,7 @@ export function createMessages({ db, events, meetings, now, newId }) {
   /**
    * Add a message at the end of a meeting.
    * @param {{ meetingId: string, authorId: string, text: string, status?: MessageStatus,
-   *   turnId?: string | null, replyTo?: string | null, refs?: any }} input
+   *   turnId?: string | null, replyTo?: string | null, refs?: any, adopted?: boolean | null }} input
    * @returns {Message}
    */
   function post({
@@ -63,6 +65,7 @@ export function createMessages({ db, events, meetings, now, newId }) {
     turnId = null,
     replyTo = null,
     refs = {},
+    adopted = null,
   }) {
     meetings.get(meetingId);
     return db.transaction(() => {
@@ -73,8 +76,8 @@ export function createMessages({ db, events, meetings, now, newId }) {
       const time = now();
       db.prepare(
         `INSERT INTO messages (id, meeting_id, seq, author_id, text, status, turn_id, reply_to,
-           refs_json, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           refs_json, adopted, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         id,
         meetingId,
@@ -85,6 +88,7 @@ export function createMessages({ db, events, meetings, now, newId }) {
         turnId,
         replyTo,
         JSON.stringify(refs),
+        adoptedValue(adopted),
         time,
         time,
       );
@@ -103,6 +107,12 @@ export function createMessages({ db, events, meetings, now, newId }) {
    */
   function update(id, changes) {
     const message = get(id);
+    if (changes.adopted === true && (changes.status ?? message.status) !== 'done') {
+      throw new AppError('REVIEW_INCOMPLETE', '审核尚未完成，不能加入后续上下文。', 409);
+    }
+    if (changes.adopted === false && message.adopted && message.adoptionLocked) {
+      throw new AppError('REVIEW_ALREADY_READ', '后续发言已经读到这份审核，不能取消采纳。', 409);
+    }
     return db.transaction(() => {
       db.prepare(
         'UPDATE messages SET text = ?, status = ?, refs_json = ?, adopted = ?, updated_at = ? WHERE id = ?',
@@ -222,5 +232,27 @@ export function createMessages({ db, events, meetings, now, newId }) {
       });
   }
 
-  return { get, post, update, streamDelta, streamReplace, list, since, search };
+  /** Record the reviews actually supplied to an invocation, independently of session cursors.
+   * @param {string[]} messageIds
+   * @param {string} turnId
+   */
+  function recordConsumption(messageIds, turnId) {
+    const turn = db.prepare('SELECT participant_id FROM turns WHERE id = ?').get(turnId);
+    db.transaction(() => {
+      for (const id of messageIds) {
+        const message = get(id);
+        if (!message.adopted) continue;
+        const readers = message.refs.contextReadBy ?? [];
+        if (readers.some((reader) => reader.turnId === turnId)) continue;
+        update(id, {
+          refs: {
+            ...message.refs,
+            contextReadBy: [...readers, { turnId, participantId: String(turn.participant_id) }],
+          },
+        });
+      }
+    });
+  }
+
+  return { get, post, update, recordConsumption, streamDelta, streamReplace, list, since, search };
 }

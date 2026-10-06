@@ -61,7 +61,7 @@ test('the default respondent answers; later turns receive only new messages', ()
       assert.match(session.inputs[0], /全部发言[\s\S]*【我】\n先看数据/);
       assert.equal(session.inputs[1], '【我】\n再看方法');
       assert.match(session.instructions, /你是：主专家/);
-      assert.equal(core.turns.session(meeting.id, 'agent_main').lastSeq, 4);
+      assert.equal(core.turns.session(meeting.id, 'agent_main').lastSeq, 3);
     },
   ));
 

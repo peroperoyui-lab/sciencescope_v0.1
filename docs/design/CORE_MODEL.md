@@ -103,6 +103,8 @@ tools: { prefer: [research_search], avoid: [] }
 | `round` | 选定的参与者并行回应同一上下文，按固定顺序展示；可选审核者在全部结束后回应；审核结论在用户采纳（`messages.adopted`）后才进入其他参与者的上下文 |
 | `autonomous` | 一位参与者朝目标连续发言，直到完成、失败或被叫停 |
 
+R4-3a 已实现：规则与选择保存在会议中。工作模式 @ 候选为会议 AI 成员及启用的参加专家，独立审核不能被 @；首次发言将职责写入会议成员。每轮按 order 预建回答，再并行运行各自会话，输入固定截止触发用户消息；不同轮排队。审核在所有专家结束后读取署名回答及完成状态，初始 adopted=false，只有 done 可采纳。refs.contextReadBy 记录实际送入后续发言的已采纳审核；已被读取的采纳不能撤回（409）。重试和继续仅运行原作者，停止同时取消当前轮及排队请求，未开始的审核不再启动。
+
 后台参与者（纪要、记忆整理）不由发言规则驱动，而是订阅事件并按规则触发（R4）。
 
 ## 7. 上下文组装（`app/core/context.js`）
@@ -111,7 +113,7 @@ tools: { prefer: [research_search], avoid: [] }
 
 1. **系统部分**：P 的定义正文 + 会议说明（在场者与各自身份、P 自己是谁）+ 工作区简介（项目、可用工具的使用说明）。
 2. **历史部分**：
-   - 如果 P 在 M 中有可用的运行时会话：只发送 `last_seq` 之后其他参与者的新消息（标明发言人），加上触发消息；
+   - 如果 P 在 M 中有可用的运行时会话：只发送 `last_seq` 之后其他参与者的新消息（标明发言人），加上触发消息；本轮固定截止触发消息，游标记录实际读到的位置。同轮同行回答下轮补读，之后才采纳的旧审核按每位参与者的读取记录补入；
    - 否则重建：M 的最新纪要 + 纪要之后的全部消息原文（标明发言人），作为新会话的种子。
 3. **可见性**：
    - 其他参与者看到的是回答的最终文字，以及该回答展示的文件；
@@ -149,6 +151,7 @@ tools: { prefer: [research_search], avoid: [] }
 - 命令行：`node app/cli.js <命令>`（projects、project-create、meetings、meeting-create、post、messages、read、edit、history、undo）。
 - 事件：`GET /api/events?since=<seq>`（SSE；浏览器的 EventSource 用 `?token=` 传口令）。
 - R2 新增：`POST /api/meetings/:id/interrupt`、`GET /api/turns/:id`（含工具调用）、`POST /api/providers/keys/:keyRef`（只写入凭据文件，不返回）。服务商与默认模型在 `/api/settings` 的 `providers`、`models.default` 中。
+- R4-3a 新增：`POST /api/messages/:id/continue`（定向原作者，不发用户消息）、`GET /api/meetings/:id/contexts`（每位参与者最新 turn 的 context，用于上下文环）；审核消息额外返回 `adoptionLocked`，基于已存的读取记录。
 - 本地口令：每次启动生成，所有接口校验（沿用旧版做法）。
 - 路由文件只做参数解析与调用 core / services，每个领域一个文件。
 - R3 新增：`GET /api/events/head`（`{ seq }`，界面加载完现状后从这里开始订阅）。`/api/` 以外的 GET 返回界面静态文件，不需要口令。

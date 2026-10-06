@@ -65,6 +65,12 @@ export function createDshRuntime({ home, credentialsPath, providerConfig, extraE
   const sessions = new Map();
 
   const bridge = () => (bridgePromise ??= createBridge());
+  // SDK boot can materialize a shared profile's module links. Under disk load,
+  // parallel cold boots exceed DSH's writer-lock timeout. Serialize boot only;
+  // established sessions still send prompts and execute tools concurrently.
+  let startup = Promise.resolve();
+  const starting = new Set();
+  let closing = null;
 
   async function writeLaunchFiles(sessionId, config) {
     const folder = path.join(home, 'sciencescope-sessions');
@@ -83,85 +89,104 @@ export function createDshRuntime({ home, credentialsPath, providerConfig, extraE
     return { configFile, patchFile };
   }
 
-  return {
-    async startSession({ sessionId, model, workFolder, instructions, tools, onToolCall }) {
-      const id = sessionId ?? `session-${randomUUID().replaceAll('-', '')}`;
-      const running = sessions.get(id);
-      const link = await bridge();
-      if (running) {
-        link.update(id, { onToolCall });
-        await control(running.controlUrl, '/instructions', {
-          token: running.token,
-          text: instructions,
-        });
-        return id;
-      }
-
-      /** @type {(controlUrl: string) => void} */
-      let onReady = () => {};
-      /** @type {(error: string) => void} */
-      let onFailed = () => {};
-      /** @type {Promise<string>} */
-      const ready = new Promise((resolve, reject) => {
-        onReady = resolve;
-        onFailed = (error) => reject(new Error(error));
+  /** @param {Parameters<import('../port.js').Runtime['startSession']>[0]} options */
+  async function startSession({ sessionId, model, workFolder, instructions, tools, onToolCall }) {
+    const id = sessionId ?? `session-${randomUUID().replaceAll('-', '')}`;
+    const running = sessions.get(id);
+    const link = await bridge();
+    if (running) {
+      link.update(id, { onToolCall });
+      await control(running.controlUrl, '/instructions', {
+        token: running.token,
+        text: instructions,
       });
-      /** @type {{ harness: any, controlUrl: string, token: string, onEvent: (event: any) => void }} */
-      const entry = { harness: null, controlUrl: '', token: '', onEvent: () => {} };
-      entry.token = link.link(id, {
-        onReady,
-        onFailed,
-        onEvent: (event) => entry.onEvent(event),
-        onToolCall,
-      });
-      const { configFile, patchFile } = await writeLaunchFiles(id, { instructions, tools, model });
-      const temp = path.join(home, 'temp');
-      await mkdir(temp, { recursive: true });
-      entry.harness = new DeepSeekHarness({
-        profile: 'sdk',
-        initializeTimeoutMs: READY_TIMEOUT_MS,
-        patches: [patchFile],
-        dshHome: home,
-        processCwd: workFolder,
-        cwd: workFolder,
-        env: {
-          ...withoutSecrets(process.env),
-          ...extraEnv,
-          TEMP: temp,
-          TMP: temp,
-          TMPDIR: temp,
-          DSH_TELEMETRY_DISABLED: '1',
-          SCIENCESCOPE_BRIDGE_URL: link.url,
-          SCIENCESCOPE_BRIDGE_TOKEN: entry.token,
-          SCIENCESCOPE_SESSION_ID: id,
-          SCIENCESCOPE_SESSION_CONFIG: configFile,
-        },
-        provider: model.provider,
-        model: model.model,
-        ...(model.effort ? { reasoningEffort: ReasoningEffortId(model.effort) } : {}),
-        ...(model.maxTokens ? { maxTokens: model.maxTokens } : {}),
-      });
-      let timer;
-      try {
-        await entry.harness.start();
-        entry.controlUrl = await Promise.race([
-          ready,
-          new Promise((_, reject) => {
-            timer = setTimeout(
-              () => reject(new Error('DSH session did not start')),
-              READY_TIMEOUT_MS,
-            );
-          }),
-        ]);
-      } catch (error) {
-        link.unlink(id);
-        await entry.harness.close().catch(() => {});
-        throw error;
-      } finally {
-        clearTimeout(timer);
-      }
-      sessions.set(id, entry);
       return id;
+    }
+
+    /** @type {(controlUrl: string) => void} */
+    let onReady = () => {};
+    /** @type {(error: string) => void} */
+    let onFailed = () => {};
+    /** @type {Promise<string>} */
+    const ready = new Promise((resolve, reject) => {
+      onReady = resolve;
+      onFailed = (error) => reject(new Error(error));
+    });
+    // Readiness may fail before the SDK initialize handshake settles.
+    // Attach a handler immediately; the later awaited promise retains failure.
+    ready.catch(() => {});
+    /** @type {{ harness: any, controlUrl: string, token: string, onEvent: (event: any) => void }} */
+    const entry = { harness: null, controlUrl: '', token: '', onEvent: () => {} };
+    entry.token = link.link(id, {
+      onReady,
+      onFailed,
+      onEvent: (event) => entry.onEvent(event),
+      onToolCall,
+    });
+    const { configFile, patchFile } = await writeLaunchFiles(id, { instructions, tools, model });
+    const temp = path.join(home, 'temp');
+    await mkdir(temp, { recursive: true });
+    entry.harness = new DeepSeekHarness({
+      profile: 'sdk',
+      initializeTimeoutMs: READY_TIMEOUT_MS,
+      patches: [patchFile],
+      dshHome: home,
+      processCwd: workFolder,
+      cwd: workFolder,
+      env: {
+        ...withoutSecrets(process.env),
+        ...extraEnv,
+        TEMP: temp,
+        TMP: temp,
+        TMPDIR: temp,
+        DSH_TELEMETRY_DISABLED: '1',
+        SCIENCESCOPE_BRIDGE_URL: link.url,
+        SCIENCESCOPE_BRIDGE_TOKEN: entry.token,
+        SCIENCESCOPE_SESSION_ID: id,
+        SCIENCESCOPE_SESSION_CONFIG: configFile,
+      },
+      provider: model.provider,
+      model: model.model,
+      ...(model.effort ? { reasoningEffort: ReasoningEffortId(model.effort) } : {}),
+      ...(model.maxTokens ? { maxTokens: model.maxTokens } : {}),
+    });
+    let timer;
+    try {
+      await entry.harness.start();
+      entry.controlUrl = await Promise.race([
+        ready,
+        new Promise((_, reject) => {
+          timer = setTimeout(
+            () => reject(new Error('DSH session did not start')),
+            READY_TIMEOUT_MS,
+          );
+        }),
+      ]);
+    } catch (error) {
+      link.unlink(id);
+      await entry.harness.close().catch(() => {});
+      throw error;
+    } finally {
+      clearTimeout(timer);
+    }
+    sessions.set(id, entry);
+    return id;
+  }
+
+  return {
+    startSession(options) {
+      if (closing) return Promise.reject(new Error('DSH runtime is closed'));
+      const pending = startup.then(() => startSession(options));
+      startup = pending.then(
+        () => undefined,
+        () => undefined,
+      );
+      starting.add(pending);
+      pending.then(
+        () => starting.delete(pending),
+        () => starting.delete(pending),
+      );
+      return pending;
     },
 
     async send(sessionId, input, onEvent) {
@@ -200,9 +225,15 @@ export function createDshRuntime({ home, credentialsPath, providerConfig, extraE
       await entry.harness.close();
     },
 
-    async close() {
-      await Promise.all([...sessions.keys()].map((id) => this.release(id)));
-      if (bridgePromise) await (await bridgePromise).close();
+    close() {
+      closing ??= (async () => {
+        // A failed launch does not cancel its peers. Wait for all owned startup
+        // attempts before taking the final session list and closing the bridge.
+        await Promise.allSettled([...starting]);
+        await Promise.all([...sessions.keys()].map((id) => this.release(id)));
+        if (bridgePromise) await (await bridgePromise).close();
+      })();
+      return closing;
     },
   };
 }

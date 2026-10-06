@@ -49,7 +49,7 @@ function tokenMatches(given, expected) {
  *   onShutdown?: () => void,
  *   research?: ReturnType<typeof import('../services/research/index.js').createResearch>, semantic?:any,
  *   conductor?: { interrupt: (meetingId: string) => Promise<void>,
- *     retry: (messageId: string) => Promise<unknown> } }} options
+ *     retry: (messageId: string) => Promise<unknown>, continue?: (messageId: string) => Promise<unknown> } }} options
  *   Without a conductor (core-only tests) posting a message triggers no answers.
  */
 export function createAppServer({ core, token, conductor, onShutdown, research, semantic }) {

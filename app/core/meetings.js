@@ -171,6 +171,38 @@ export function createMeetings({ db, events, now, newId }) {
     });
   }
 
+  /** Join an invited participant without replacing members added by concurrent invitations.
+   * @param {string} id
+   * @param {{participantId:string,roleNote?:string}} member
+   * @param {import('./workspace/workspace.js').Actor} [actor]
+   */
+  function addMember(id, member, actor = {}) {
+    const meeting = get(id);
+    if (meeting.members.some((existing) => existing.participantId === member.participantId))
+      return meeting;
+    return update(id, { members: [...meeting.members, member] }, actor);
+  }
+
+  /** Latest recorded context usage per participant, including unavailable/failed turns.
+   * @param {string} id
+   */
+  function contexts(id) {
+    get(id);
+    return db
+      .prepare('SELECT * FROM turns WHERE meeting_id = ? ORDER BY rowid DESC')
+      .all(id)
+      .reduce((latest, row) => {
+        if (latest.some((entry) => entry.participantId === row.participant_id)) return latest;
+        latest.push({
+          participantId: String(row.participant_id),
+          turnId: String(row.id),
+          context:
+            row.usage_json == null ? null : (JSON.parse(String(row.usage_json)).context ?? null),
+        });
+        return latest;
+      }, []);
+  }
+
   /** Mark activity so recently used meetings sort first. */
   function touch(id) {
     db.prepare('UPDATE meetings SET updated_at = ? WHERE id = ?').run(now(), id);
@@ -218,7 +250,7 @@ export function createMeetings({ db, events, now, newId }) {
           row.author_id,
           row.text,
           row.status,
-          row.refs_json,
+          JSON.stringify({ ...JSON.parse(String(row.refs_json)), contextReadBy: [] }),
           row.adopted,
           row.created_at,
           row.updated_at,
@@ -228,5 +260,5 @@ export function createMeetings({ db, events, now, newId }) {
     });
   }
 
-  return { get, list, create, update, touch, fork };
+  return { get, list, create, update, addMember, contexts, touch, fork };
 }
