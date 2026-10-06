@@ -39,7 +39,7 @@
 | `revisions` | id, resource, resource_key（`资源:键`）, op, before_text, after_text, after_hash, actor_id, meeting_id, turn_id, undone_by, created_at | 每次修改保存前后全文；撤销 = 写一条反向修订；程序外的修改记为 `external` |
 | `events` | seq, type, project_id, meeting_id, actor_id, payload_json, created_at | 变更流，给界面与后台参与者订阅 |
 
-资料库沿用 `rb_*` 表（R4 移植时纳入迁移注册表）；设置不进数据库。
+资料库 `rb_*` 表已在 R4-1a 纳入迁移 `003-research-base.js`（见 §11）；设置不进数据库。
 
 ## 3. 事件
 
@@ -58,6 +58,7 @@
 | `tool.started/ended` | toolCall |
 | `resource.changed` | resource, resourceId, revisionId |
 | `revision.undone` | revisionId |
+| `research.changed` | action（source.imported、item.created/updated/superseded）, sourceId 或 itemId；事件上下文带 projectId、actorId |
 
 ## 4. 工作区资源
 
@@ -129,7 +130,7 @@ tools: { prefer: [research_search], avoid: [] }
 | `workspace_undo` | `revisionId` | 撤销一条修订 |
 
 `workspace_read` 的 `target` 另有 `overview`（全部项目与会议）、`project`、`meeting`（分页读记录）、`changes`（更改记录）。
-| `research_search` / `research_read` / `research_write` | 见资料库 | R4 移植 |
+| `research_search` / `research_read` | 见 §11 | R4-1a 已实现；所有角色共用，资料库写入工具属后续任务 |
 
 运行时自带的文件、命令、present、技能、MCP 工具原样提供。
 
@@ -162,3 +163,16 @@ tools: { prefer: [research_search], avoid: [] }
 - 文字：组件里写中文，`i18n/en.js` 给出英文；测试检查每个中文字符串都有英文条目。语言存于 `settings.appearance.language`，在"视图"菜单切换。
 - 已复原的入口与待复原的 R4 队列：`design/UI_RESTORE.md`。
 - 后端补充：`GET /api/search?q=`（消息全文）；`GET/POST /api/projects/:id/files`（列表；mkdir、rename、add、open）与 `GET /api/projects/:id/export`（zip）；`GET /api/meetings/:id/export`（Markdown）；`POST /api/messages/:id/retry`；`GET /api/system`、`POST /api/system/open`；`GET /api/providers/keys`（只有名称）、`POST /api/providers/discover`；`GET /api/events/head`。设置新增 `sites`、`shortcuts`、`appearance`（theme、density、font、codeFontSize、chatFontSize、reduceMotion、scrollbars、transcript）；服务商模型可写 `contextWindow`、`maxTokens`、`efforts`。AI 定义文件新增 `role`、`panel`（expert / reviewer）、`enabled`、`position`，默认专家名册随首次启动创建。DSH 回合结束时报告上下文占用（`usage.context`），供输入框的上下文环。
+
+## 11. 研究资料库（R4-1a，2026-10-06）
+
+`app/services/research/` 通过 core 注入的共享 `db`、`events`、`paths` 工作。迁移 003 建立 `rb_sources`、`rb_chunks`、`rb_items`、`rb_revisions`、`rb_fts`；旧数据库先备份再升级。原件独立保存在 `<数据根>/library/originals/<uuid>.<扩展名>`，数据库只记相对路径，解析段落与 FTS 是派生数据。
+
+- 导入 PDF、DOCX、Markdown、LaTeX、纯文本；保留全文，不设文件长度截断。分段沿用 1200 字目标与长段 2400 字分片，不跨页/章节合并。PDF 保留栏顺序、公式、参考文献与页码坐标；DOCX 有显式分页时提供页码，无可靠分页时返回 `null`。扫描件不做 OCR，原件仍保留并返回解析状态。
+- 来源按项目或个人范围编号 `S1…`；段落返回 `[S3 p.4]`，未知页码只有 `[S3]`。兼容复合、中文及全角引用，未知格式连同原文记录。不同范围可能有相同编号，工具结果同时给出 `sourceId` 和 `projectId`，后续读取应使用来源 id 或明确范围。
+- 条目保存类型、正文、结构化 payload、origin、visibility 与版本。更新把旧快照写入 `rb_revisions`；取代保留旧行、结束有效期并链接新条目。默认只检索 active，显式 `includeSuperseded` 可查看历史；私有条目不进入 AI 检索或读取候选。
+- `research_search({query,projectId?,includePersonal?,includeSuperseded?,limit?,offset?})` 使用 SQLite FTS5 关键词排序，中文使用重叠双字；默认当前会议项目加个人范围。返回全文命中、引用、total/remaining，不做语义检索。
+- `research_read({type?,id?,label?,projectId?,offset?,limit?,includeSuperseded?})` 读取 source/chunk/item；source 支持页码引用与段落分页，返回 total/remaining。所有 AI 角色共用两个工具。
+- HTTP：`GET /api/research/sources?projectId=`；`POST /api/research/sources`（name、base64、projectId 等）；`GET /api/research/sources/:id`（limit/offset）；`GET /api/research/search?q=&projectId=`；`GET/POST/PATCH /api/research/items`；`GET/PATCH /api/research/items/:id`（详情含旧版本）。修改可带 expectedRevision；POST 带 supersedes 实施取代。
+- 导入完成（包括解析失败状态）及条目增改/取代与 `research.changed` 在同一数据库事务提交后送达。资料库界面、向量检索、记忆整理均属后续任务。
+- Windows `npm run check` 50/50、零跳过；包含真实 PDF/DOCX 功能测试、脚本化会议引用、修订/取代保留、v2 数据备份升级与既有三项 Edge 测试。付费请求为 0。

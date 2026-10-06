@@ -9,6 +9,7 @@ import { registerMeetingRoutes } from './routes/meetings.js';
 import { registerParticipantRoutes } from './routes/participants.js';
 import { registerProjectRoutes } from './routes/projects.js';
 import { registerProviderRoutes } from './routes/providers.js';
+import { registerResearchRoutes } from './routes/research.js';
 import { registerSystemRoutes } from './routes/system.js';
 import { registerWorkspaceRoutes } from './routes/workspace.js';
 import { serveStatic } from './static.js';
@@ -59,6 +60,7 @@ export function createAppServer({ core, token, conductor, onShutdown }) {
   registerWorkspaceRoutes(router, core);
   registerEventRoutes(router, core);
   registerSystemRoutes(router, core);
+  registerResearchRoutes(router, core);
   if (onShutdown) {
     router.post('/api/shutdown', ({ response }) => {
       response.once('finish', onShutdown);

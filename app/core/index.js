@@ -40,6 +40,7 @@ export async function createCore({ dataRoot, now = nowIso, newId = defaultNewId 
   await ensureDefaultParticipants({ db, participants });
 
   return {
+    db,
     paths,
     events,
     workspace,

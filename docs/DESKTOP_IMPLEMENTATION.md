@@ -1,5 +1,35 @@
 # Desktop implementation — first increment
 
+## 2026-10-06 R4-1a research base core (Codex)
+
+- Baseline `ac23f0d`; branch `codex/r4-1a-research-core-20261006`. Rewrote
+  research parsing/storage/retrieval under `app/services/research/`: PDF,
+  DOCX, Markdown, LaTeX and text, unchanged 1200/2400 retrieval units with
+  no document truncation. Originals live in `library/originals/` under the
+  new data root. No old-line, UI, semantic retrieval or consolidation edits.
+- Migration 003 adds sources, chunks, items, immutable revisions and FTS.
+  v2 upgrade test proves backup and preservation of projects/messages.
+  Superseded items retain their row, validity/provenance and search index;
+  default queries select active records. Private items are excluded from AI
+  search/read candidates. Each import/item mutation records a transactional
+  `research.changed` event for the next UI stage.
+- Added research HTTP routes and shared `research_search`/`research_read`
+  tools, paged with total/remaining and full passage text. Citation locators
+  preserve old composite, Chinese and fullwidth formats; unknown labels keep
+  their text and reason. Source ids disambiguate project/personal numbering.
+- Discovered → cause → repair → verification: Mammoth discarded empty HTML
+  spans for DOCX page breaks, so explicit pages were missing. Its public
+  document transform now retains nonempty styled page markers; genuine DOCX
+  import/search/read proves pages 1/2 and equations. Without reliable breaks
+  page remains null. Scans retain originals and report failed extraction; no OCR.
+- Minimal extra integration file: `app/core/index.js` exposes the already
+  owned shared DB connection so the service receives DB/events together;
+  migration/API/scripted-meeting tests exercise that dependency end to end.
+- Final Windows `npm run check`: 50/50, zero skipped; formatting, lint and
+  types pass, including 8 new research tests, 3 Edge tests and existing real
+  DSH/local-model paths. Paid model requests/tokens: 0/0. No UI change or new
+  screenshot required. Final log: `.sciencescope-local/temp/r4-1a/check-final.log`.
+
 ## 2026-10-06 L1 Windows native shell (Codex)
 
 - Baseline `f526cd4`; branch `codex/l1-windows-20261006`. Opt-in

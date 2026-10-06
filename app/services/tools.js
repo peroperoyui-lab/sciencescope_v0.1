@@ -1,5 +1,6 @@
 // Built-in ScienceScope tools. Every AI participant gets the same set; how it
 // uses them is guided by its instructions, not by permissions.
+import { createResearch } from './research/index.js';
 
 /** @typedef {{ participantId: string, meetingId: string, turnId: string }} ToolContext */
 
@@ -7,6 +8,42 @@ const RESOURCES = ['map', 'plans', 'log', 'minutes', 'notes', 'agent', 'settings
 
 /** @type {import('../runtime/port.js').ToolSpec[]} */
 export const TOOL_SPECS = [
+  {
+    name: 'research_search',
+    description:
+      'Search imported research passages and active shared research items by keywords. ' +
+      'Use the current project unless projectId is given; personal sources are included. ' +
+      'Results include citation labels such as [S3 p.4]. Read the passage before citing. ' +
+      'Private items never participate. Returned remaining counts can be paged with offset.',
+    parameters: {
+      query: { type: 'string', required: true },
+      projectId: { type: 'string', description: 'Project id; omit for current meeting project.' },
+      includePersonal: { type: 'boolean' },
+      includeSuperseded: {
+        type: 'boolean',
+        description: 'Explicitly include retained historical items.',
+      },
+      limit: { type: 'integer' },
+      offset: { type: 'integer' },
+    },
+  },
+  {
+    name: 'research_read',
+    description:
+      'Read a research source, chunk or shared item, preserving full text and page/section anchors. ' +
+      'For sources use id or a citation label such as [S3 p.4] with projectId. ' +
+      'Pass offset/limit to page passages; remaining states how many passages are left. ' +
+      'An unknown page is null and must not be invented. Private items are unavailable.',
+    parameters: {
+      type: { type: 'string', enum: ['source', 'chunk', 'item'] },
+      id: { type: 'string' },
+      label: { type: 'string' },
+      projectId: { type: 'string' },
+      includeSuperseded: { type: 'boolean' },
+      offset: { type: 'integer' },
+      limit: { type: 'integer' },
+    },
+  },
   {
     name: 'workspace_read',
     description:
@@ -55,6 +92,7 @@ export const TOOL_SPECS = [
  * @param {import('../core/index.js').Core} core
  */
 export function createTools(core) {
+  const research = createResearch(core);
   async function nameOf(id) {
     try {
       return (await core.participants.get(id)).name;
@@ -117,6 +155,13 @@ export function createTools(core) {
       meetingId: context.meetingId,
       turnId: context.turnId,
     };
+    if (name === 'research_search' || name === 'research_read') {
+      const projectId = args?.projectId ?? core.meetings.get(context.meetingId).projectId;
+      const options = { ...args, projectId, audience: 'agent' };
+      return name === 'research_search'
+        ? research.search(args?.query ?? '', options)
+        : research.read(options);
+    }
     if (name === 'workspace_read') {
       const { target, key, scope, before, limit } = args ?? {};
       if (target === 'overview') return readOverview();

@@ -5,6 +5,8 @@
 > 最近更新：2026-10-05。重建进行中（总纲 `design/ARCHITECTURE.md`）。R0、R1 完成（R1 Windows 验证 `1a1f402` 已合并，标签 `v0-prototype` 已补打）。**R2 完成**：运行时接口与精简 DSH 适配（一个插件 + 桥接）、上下文组装、发言记录、内置工具（workspace_read / edit / undo）、`direct` 发言规则、服务商配置；真实 DSH + 本地模拟模型的单会话与全链路测试通过；`npm run check` 33 项通过（2 项仅 Windows）。R2 Windows 验收 `1a9d98d` 已合并。**R3 完成**：`app/ui/` 界面骨架（外壳、侧栏、首页、会议视图、工作站、中英双语），浏览器测试通过；`npm run check` 35 项通过（2 项仅 Windows）。界面已按旧主界面复原（`design/UI_RESTORE.md`），需要后端服务的入口排为 R4-1…R4-10。L1 Windows 本地化 `7aaddfc` 已合并（`SCIENCESCOPE_APP=new` 启动新核心，默认仍为旧宿主）。下一步 R4-1a 资料库后端（`tasks/R4-1a_research_base_core.md`）。
 
 ## 目标：1.0.0-alpha（内测版）
+
+R4-1a（2026-10-06，待审阅）：从 `ac23f0d` 完成新核心资料库后端，分支 `codex/r4-1a-research-core-20261006`；五类资料解析、全文分段、关键词检索、来源/条目接口、全角色读取工具、历史修订与事件完成。界面和向量检索继续交 R4-1b，记忆整理仍在 R4-4；不改旧线。本轮脚本化运行时验收，无付费评测。下一步等待 Claude 审阅后接 R4-1b。
 L1 Windows（2026-10-06）：`codex/l1-windows-20261006` 从 `f526cd4` 完成新界面原生接线；默认保留旧宿主。最终check42/42、Edge三项、Rust2/2+构建、原生主流程及活跃DSH退出树/WAL清理通过。5次真实请求/84,822 tokens。修复Windows PATH下Explorer启动与测试并发冷启动竞争；中文输入组字Enter不发送，完整中文候选提交仍有验收限制，截图少量复刻差异交Claude；待审阅，未执行R4。
 
 R2 Windows 验收（2026-10-05）：`codex/r2-windows-20261005`，最终 `npm run check` 35/35；真实 OpenCode Go 主专家修改中文项目计划并记 `agent_main` 修订；盘符插件加载、2 秒缩短闲置释放（默认10分钟）、真实 Ctrl+C 下进程及 WAL/SHM 清理通过。补服务商自定义请求头透传，修中断测试启动竞态；6次真实请求（4成功/2失败），65,374已知token，2次用量未知。待 Claude 审阅，下一步 R3。
