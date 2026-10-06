@@ -389,10 +389,16 @@ test(
         assert.equal(methodology.length, 3);
         assert.doesNotMatch(methodology[0].input, /Second queued question|Third queued question/u);
         assert.match(methodology[1].input, /Second queued question/u);
-        assert.match(methodology[1].input, /Statistician result for round 1/u);
+        assert.match(
+          methodology[1].input,
+          /Statistician result for round 1[\s\S]*Second queued question$/u,
+        );
         assert.doesNotMatch(methodology[1].input, /Third queued question/u);
         assert.match(methodology[2].input, /Third queued question/u);
-        assert.match(methodology[2].input, /Statistician result for round 2/u);
+        assert.match(
+          methodology[2].input,
+          /Statistician result for round 2[\s\S]*Third queued question$/u,
+        );
         assert.doesNotMatch(methodology[2].input, /Statistician result for round 1/u);
         assert.equal(core.turns.session(meeting.id, 'agent_methodologist').lastSeq, third.seq);
       },

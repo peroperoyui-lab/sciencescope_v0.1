@@ -95,19 +95,21 @@ export function createTurnRunner({
         message.seq <= cutoffSeq ||
         (message.turnId && boundaryOf(message) < cutoffSeq),
     );
-    return visibleMessages(bounded).filter((message) => {
-      const unreadReview =
-        message.adopted === true &&
-        message.refs?.discussion?.kind === 'review' &&
-        !(message.refs?.contextReadBy ?? []).some(
-          (reader) => reader.participantId === participantId,
+    return visibleMessages(bounded)
+      .filter((message) => {
+        const unreadReview =
+          message.adopted === true &&
+          message.refs?.discussion?.kind === 'review' &&
+          !(message.refs?.contextReadBy ?? []).some(
+            (reader) => reader.participantId === participantId,
+          );
+        const arrivedAnswer = message.turnId && boundaryOf(message) >= afterSeq;
+        return (
+          ((message.turnId ? arrivedAnswer : message.seq > afterSeq) || unreadReview) &&
+          (!resumed || message.authorId !== participantId)
         );
-      const arrivedAnswer = message.turnId && boundaryOf(message) >= afterSeq;
-      return (
-        ((message.turnId ? arrivedAnswer : message.seq > afterSeq) || unreadReview) &&
-        (!resumed || message.authorId !== participantId)
-      );
-    });
+      })
+      .sort((left, right) => boundaryOf(left) - boundaryOf(right) || left.seq - right.seq);
   }
   async function prepareSession({
     meeting,
