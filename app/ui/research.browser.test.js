@@ -40,7 +40,7 @@ async function importPdf(page, name = 'employment.pdf') {
     .setInputFiles({ name, mimeType: 'application/pdf', buffer: await pdfBytes() });
   await page.locator('[data-rb-source]', { hasText: name }).filter({ hasText: '已解析' }).waitFor();
 }
-const run = (name, work) => withBrowserApp('r4-1b/' + name, silent, work);
+const run = (name, work) => withBrowserApp('r4-1b-' + name, silent, work);
 
 test(
   'library sidebar imports PDF, searches text and locates a cited passage',

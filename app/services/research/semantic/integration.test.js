@@ -9,7 +9,7 @@ import { createScriptedRuntime } from '../../../runtime/scripted.js';
 import { createTurnRunner } from '../../turn-runner.js';
 
 test('the API and meeting tool use one configured hybrid projection', () =>
-  withCore('r4-1b/shared-search', async (core) => {
+  withCore('r4-1b-shared-search', async (core) => {
     const vector = () => {
       const result = new Float32Array(384);
       result[0] = 1;
