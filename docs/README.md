@@ -7,7 +7,8 @@
 |---|---|
 | `AGENTS.md`（仓库根目录） | 产品原则、工程规则、分工与交付方式 |
 | `docs/ROADMAP.md` | 主线（R4–R6）、任务顺序、当前进度 |
-| `docs/REVIEW_2026-10-06.md` | 最近的复盘：主线核对、偏差与改进做法（§5、§6 是最新补充） |
+| `docs/REVIEW_2026-10-07.md` | 最近的阶段评审：界面入口、alpha 差距、代码结构、主线 |
+| `docs/REVIEW_2026-10-06.md` | 重建期复盘：偏差与改进做法（§5、§6 是 R4-3、R4-4 的补充） |
 | `docs/design/ARCHITECTURE.md` | 总纲：五个原语、代码结构、重建阶段 |
 | `docs/design/CORE_MODEL.md` | 新核心的数据、事件、发言规则、上下文组装、工具、接口 |
 | `docs/design/UI_RESTORE.md` | 旧界面复原清单与缺口（界面工作的验收依据） |
