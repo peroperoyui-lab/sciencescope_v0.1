@@ -20,6 +20,7 @@ export const TOOL_SPECS = [
         required: true,
         items: {
           type: 'object',
+          additionalProperties: false,
           properties: { path: { type: 'string', required: true }, description: { type: 'string' } },
         },
       },
