@@ -325,6 +325,12 @@ test(
         assert.equal(await page.locator('[data-panel-toggle][aria-pressed="true"]').count(), 9);
         for (const participant of ['agent_main', 'agent_extra_5']) {
           const turn = app.core.turns.start({ meetingId: meeting.id, participantId: participant });
+          app.core.messages.post({
+            meetingId: meeting.id,
+            authorId: participant,
+            turnId: turn.id,
+            text: 'Context measurement fixture',
+          });
           app.core.turns.end(turn.id, {
             status: 'done',
             usage: { context: { usedTokens: 4321, contextWindow: null, estimated: true } },

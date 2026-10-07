@@ -9,7 +9,11 @@ import { useDiscussion } from './discussion-state.js';
 export function DiscussionStrip({ meetingId, running }) {
   const { experts, reviewers, policy, save, inOrder } = useDiscussion(meetingId);
   const turns = useAppState((state) =>
-    Object.values(state.running).filter((turn) => turn.meetingId === meetingId),
+    Object.values(state.running).filter(
+      (turn) =>
+        turn.meetingId === meetingId &&
+        state.messages[meetingId]?.some((message) => message.turnId === turn.id),
+    ),
   );
   const calls = useAppState((state) => state.toolCalls);
   const messages = useAppState((state) => state.messages[meetingId] ?? []);

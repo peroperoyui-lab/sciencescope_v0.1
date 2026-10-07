@@ -34,7 +34,11 @@ function ChatRow({ meeting, active, child = false, pinnedRow = false }) {
   const actions = useActions();
   const rename = useRename();
   const running = useAppState((state) =>
-    Object.values(state.running).some((turn) => turn.meetingId === meeting.id),
+    Object.values(state.running).some(
+      (turn) =>
+        turn.meetingId === meeting.id &&
+        state.messages[meeting.id]?.some((message) => message.turnId === turn.id),
+    ),
   );
   const items = [
     {

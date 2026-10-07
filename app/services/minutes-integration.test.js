@@ -53,6 +53,12 @@ test('ordered completion and project focus reach the secretary through the host'
     let status = await app.minutes.status(meeting.id);
     assert.equal(status.throughSeq, 2);
     assert.match(status.text, /增量纪要/);
+    assert.ok(
+      app.core.meetings
+        .contexts(meeting.id)
+        .every((entry) => entry.participantId !== 'agent_secretary'),
+      'disposable background usage does not replace foreground context measurements',
+    );
     const messages = app.core.messages.since(meeting.id, 0);
     assert.equal(messages.length, 2, 'background summary never creates a meeting message');
     const turns = app.core.db.prepare('SELECT participant_id, usage_json FROM turns').all();

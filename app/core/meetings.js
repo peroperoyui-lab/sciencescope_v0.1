@@ -189,7 +189,12 @@ export function createMeetings({ db, events, now, newId }) {
   function contexts(id) {
     get(id);
     return db
-      .prepare('SELECT * FROM turns WHERE meeting_id = ? ORDER BY rowid DESC')
+      .prepare(
+        // Background turns are accounted for, but their disposable sessions are
+        // not participants' foreground working memories in the context ring.
+        'SELECT turns.* FROM turns WHERE meeting_id = ? AND EXISTS ' +
+          '(SELECT 1 FROM messages WHERE messages.turn_id = turns.id) ORDER BY turns.rowid DESC',
+      )
       .all(id)
       .reduce((latest, row) => {
         if (latest.some((entry) => entry.participantId === row.participant_id)) return latest;

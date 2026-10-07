@@ -155,3 +155,105 @@ test(
     );
   },
 );
+
+test(
+  'background minutes keep the Main composer available and foreground stop leaves the secretary running',
+  { skip: browserSkip, timeout: 120000 },
+  async () => {
+    let releaseSummary = () => {};
+    const summaryGate = new Promise((resolve) => {
+      releaseSummary = () => resolve(undefined);
+    });
+    let summaryStarted = () => {};
+    const started = new Promise((resolve) => {
+      summaryStarted = () => resolve(undefined);
+    });
+    try {
+      await withBrowserApp(
+        'r4-4a-concurrent-summary',
+        async function* ({ signal, instructions }) {
+          if (instructions.includes('You maintain the complete research meeting minutes')) {
+            summaryStarted();
+            await summaryGate;
+            yield '# Concurrent summary\n\nResearch evidence preserved.';
+            return;
+          }
+          yield 'Main is working concurrently.';
+          await new Promise((resolve) => signal.addEventListener('abort', resolve, { once: true }));
+        },
+        async ({ page, app }) => {
+          await app.core.workspace.edit({
+            resource: 'settings',
+            key: 'app',
+            op: 'patch',
+            args: {
+              changes: {
+                providers: [{ id: 'scripted', name: 'Scripted', models: [{ id: 'scripted' }] }],
+                models: { default: { provider: 'scripted', model: 'scripted' } },
+                summary: {
+                  afterDiscussion: false,
+                  everyMessages: { enabled: false, n: 20 },
+                  everyTokens: { enabled: false, n: 30000 },
+                  onEnterProject: false,
+                  onLeaveProject: false,
+                  saveMarkdown: false,
+                  workbench: { map: 'off', plans: 'off', log: 'off' },
+                },
+              },
+            },
+          });
+          const meeting = app.core.meetings.create({
+            title: 'Concurrent secretary',
+            members: [{ participantId: 'person_user' }, { participantId: 'agent_main' }],
+          });
+          app.core.messages.post({
+            meetingId: meeting.id,
+            authorId: 'agent_main',
+            text: 'Research evidence for summary.',
+          });
+          await page.goto(new URL('/?token=ui-token#/meeting/' + meeting.id, page.url()).href);
+          const composer = page.locator('.composer');
+          await composer.locator('textarea').waitFor();
+          const response = page.evaluate(async (meetingId) => {
+            const token = sessionStorage.getItem('sciencescope.token');
+            const result = await fetch('/api/meetings/' + meetingId + '/minutes/refresh', {
+              method: 'POST',
+              headers: { authorization: 'Bearer ' + token },
+            });
+            return result.json();
+          }, meeting.id);
+          try {
+            await started;
+            await page.waitForFunction(() => {
+              const button = document.querySelector('.composer [data-main-stop]');
+              return !button;
+            });
+            assert.equal(await composer.locator('[data-main-stop]').count(), 0);
+            await composer
+              .locator('textarea')
+              .fill('Keep Main working while the secretary summarizes.');
+            await composer.getByRole('button', { name: '发送', exact: true }).click();
+            await page.getByText('Main is working concurrently.', { exact: true }).waitFor();
+            await composer.getByRole('button', { name: '停止当前回复', exact: true }).click();
+            await app.conductor.idle();
+            await composer.getByRole('button', { name: '发送', exact: true }).waitFor();
+            const active = app.core.turns.running();
+            assert.equal(
+              active.some((turn) => turn.participantId === 'agent_main'),
+              false,
+            );
+            assert.equal(
+              active.some((turn) => turn.participantId === 'agent_secretary'),
+              true,
+            );
+          } finally {
+            releaseSummary();
+            await response;
+          }
+        },
+      );
+    } finally {
+      releaseSummary();
+    }
+  },
+);

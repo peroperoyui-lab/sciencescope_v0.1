@@ -263,7 +263,12 @@ export function MeetingView({ meetingId, focusMessageId }) {
   const hasBefore = useAppState((state) => state.hasBefore[meetingId]);
   const drafts = useAppState((state) => state.drafts);
   const running = useAppState((state) =>
-    Object.values(state.running).some((turn) => turn.meetingId === meetingId),
+    // Background work records usage turns but has no message in this transcript.
+    Object.values(state.running).some(
+      (turn) =>
+        turn.meetingId === meetingId &&
+        state.messages[meetingId]?.some((message) => message.turnId === turn.id),
+    ),
   );
   const compact = useAppState((state) => state.settings?.appearance?.transcript === 'compact');
   const [loadError, setLoadError] = useState('');
