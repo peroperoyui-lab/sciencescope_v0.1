@@ -184,7 +184,8 @@ test('migration 004 upgrades an existing research database and preserves canonic
       "INSERT INTO rb_sources(id,number,kind,title,created_at,updated_at) VALUES('kept',1,'paper','Canonical source','time','time')",
     ).run();
     db.close();
-    db = await openDatabase(database, { migrations, backupDir });
+    // This test targets migration 004; later secretary migrations have their own upgrade test.
+    db = await openDatabase(database, { migrations: migrations.slice(0, 4), backupDir });
     assert.equal(db.prepare('PRAGMA user_version').get().user_version, 4);
     assert.equal(
       db.prepare("SELECT title FROM rb_sources WHERE id='kept'").get().title,
