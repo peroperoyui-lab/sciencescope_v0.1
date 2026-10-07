@@ -3,7 +3,7 @@
 ## 2026-10-07 R4-4a minutes and summary rules (Codex)
 - Secretary background turns maintain incremental minutes with revision-bound coverage, usage and undo; settings consume discussion/message/token/project triggers, one-way Markdown export and direct map/plans/log updates.
 - Main/expert session rebuilding uses minutes plus uncovered raw messages; concurrent user edits win and earlier queued questions cannot receive future summaries. Migration 005 preserves existing records.
-- Windows scripted service/context/API/browser checks and real DSH with a local model verify the new paths; clean-checkout full check and screenshots are recorded before delivery. Paid requests/tokens: 0.
+- Windows independent clean checkout: fresh npm install, final npm run check 106/106, no skips (Edge + real DSH/local fixtures). First 105/106 exposed an old migration-004 fixture applying all newer migrations; scoped it to v4 and preserved both logs. Paid requests/tokens: 0.
 - Legacy UI structure/CSS and bilingual strings restored; no secretary sidebar or memory yet. Detailed evidence: ignored temp/r4-4a and temp/r4-4a-screenshots.
 
 ## 2026-10-07 R4-3b ordered discussion UI (Codex)
