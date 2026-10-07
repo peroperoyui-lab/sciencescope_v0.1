@@ -29,7 +29,9 @@ workflow, helping the user understand and advance their own research project
    hard-coded functions or permission tables.
 3. **Agents can edit the workspace.** Everything in the GUI that affects research
    and writing can be read and edited by the secretary and the global assistant.
-   Edits apply directly, appear in a change log and can be undone.
+   Edits apply directly and leave a history version that can be restored
+   (2026-10-07: history versions replace the change-log column; undo / redo
+   belong to one open editing session).
 4. **Soft boundaries over hard ones.** Guide behaviour with prompts. No hard caps
    on output length, tool arguments or what a role may read. Keep only the
    provider's own limits and resource bounds that page or name what they omit.
@@ -42,7 +44,8 @@ workflow, helping the user understand and advance their own research project
    not the design.
    The GUI is bilingual (中文 / English; every new string needs an English entry,
    `app/ui/i18n/en.js` for new code). Explanations go behind the "i" info tip; status,
-   errors and data stay visible. Unfinished features stay hidden behind
+   errors and data stay visible. Status means the outcome and what the user can do
+   next: no token counters, batch progress or raw model output unless asked. Unfinished features stay hidden behind
    feature flags, never shown as "coming soon".
    No fake data presented as real.
 7. **Runtime.** DSH through the runtime port only (`docs/design/RUNTIME_PORT.md`):

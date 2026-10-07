@@ -1,13 +1,28 @@
 # 文档索引与维护规则
 
-> 最近整理：2026-09-25（Claude）。新增或废弃文档时，同步更新本索引。
+> 最近整理：2026-10-07（Claude）。新增或废弃文档时，同步更新本索引。
 
-## 每次开始工作前读
-| 文件 | 作用 | 何时更新 |
-|---|---|---|
-| `AGENTS.md`（仓库根目录） | 开发准则：分工、边界、安全、交付方式、用户已确认的交互修订 | 用户提出新的长期规则时 |
-| `docs/SYSTEM_SPEC.md` | **现状**：每个功能现在做什么、状态、实现、验证证据 | 功能的行为、接口、存储或验证状态变化时，在同一次提交里更新 |
-| `docs/ROADMAP.md` | **方向**：alpha 目标、重建主线（R4–R6）、任务顺序、当前进度；旧线时期版本在 `archive/ROADMAP_2026-10-06.md` | 任务开始或完成、分支合并、优先级变化时 |
+## 必看（每次开始工作前，按顺序）
+| 文件 | 作用 |
+|---|---|
+| `AGENTS.md`（仓库根目录） | 产品原则、工程规则、分工与交付方式 |
+| `docs/ROADMAP.md` | 主线（R4–R6）、任务顺序、当前进度 |
+| `docs/REVIEW_2026-10-06.md` | 最近的复盘：主线核对、偏差与改进做法（§5、§6 是最新补充） |
+| `docs/design/ARCHITECTURE.md` | 总纲：五个原语、代码结构、重建阶段 |
+| `docs/design/CORE_MODEL.md` | 新核心的数据、事件、发言规则、上下文组装、工具、接口 |
+| `docs/design/UI_RESTORE.md` | 旧界面复原清单与缺口（界面工作的验收依据） |
+| `docs/02_INTERACTION_CONTRACTS.md` 最前面的日期修订节 | 用户确认的交互决定，优先于正文和旧原型 |
+| `docs/CODE_STYLE.md` | 代码风格，`npm run check` |
+| 当前任务的 `docs/tasks/R4-*.md` | 任务书 |
+
+按需查阅：`docs/SYSTEM_SPEC.md`（现状；§2 的技术实现大多仍是旧线，R5 时改写）、`docs/DESKTOP_IMPLEMENTATION.md`（按日期的过程记录）、`docs/idea.md`（暂缓的想法）、`docs/design/` 其他文件。
+
+## 维护对象
+| 文件 | 何时更新 |
+|---|---|
+| `docs/SYSTEM_SPEC.md` | 合并后由 Claude 更新现状 |
+| `docs/ROADMAP.md` | 任务开始、完成、合并或顺序变化时 |
+| `docs/DESKTOP_IMPLEMENTATION.md` | 每次交付一条，不超过 5 行 |
 
 ## 产品意图（规定"应该怎样"）
 | 文件 | 内容 |
@@ -35,8 +50,7 @@
 | `docs/NATIVE_SETUP.md` | Windows 原生构建环境 |
 
 ## 任务（交给执行者的任务书）
-`docs/tasks/`：T01–T03（早期原生验收）、`RB_COMMON.md`（研究资料库系列共同规则）、T04–T10（研究资料库）、T11（Python 环境）、
-`LOCAL_VALIDATION_2026-09-25.md`（合并前本地验收）。任务状态统一写在 `ROADMAP.md` 的任务队列里。
+`docs/tasks/`：重建期的任务书是 `R4-*.md`（当前）；`T01`–`T24`、`RB_COMMON.md`、`LOCAL_VALIDATION_2026-09-25.md` 是旧线时期的任务书，只作行为参考。任务状态统一写在 `ROADMAP.md`。
 
 ## 记录（按日期，只追加）
 | 文件 | 内容 |

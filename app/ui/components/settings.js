@@ -156,9 +156,8 @@ function PreferencesForm() {
       setFontStatus(error.message);
     }
   }
-  useEffect(() => {
-    readFonts();
-  }, []);
+  // Fonts are read only when the person asks: reading them makes WebView2 ask
+  // for the "local fonts" permission, which should not pop up on opening settings.
 
   async function submit(event) {
     event.preventDefault();
@@ -195,13 +194,8 @@ function PreferencesForm() {
                 </option>`,
             )}
           </select>
-          <button
-            type="button"
-            class="btn tiny"
-            title=${t('重新读取本机字体')}
-            onClick=${readFonts}
-          >
-            ${t('重新读取')}
+          <button type="button" class="btn tiny" title=${t('读取本机字体')} onClick=${readFonts}>
+            ${fonts.length ? t('重新读取') : t('读取本机字体')}
           </button>
         </div>
         <span

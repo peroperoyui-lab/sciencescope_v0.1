@@ -14,6 +14,8 @@ const STATES = {
   waiting: '等待当前发言结束后整理。',
 };
 
+// Only the outcome and the next step are shown; usage, batch progress and raw
+// model output stay in the data (the person asked for a short report).
 /**
  * @param {{ meetingId:string, projectId:string|null }} props
  * @returns {import('preact').VNode}
@@ -68,8 +70,8 @@ export function MemoryStatusDialog({ meetingId, projectId }) {
         error ||
         status?.error?.message ||
         status?.error ||
-        (status?.skipReason === 'budget'
-          ? t('本次 token 预算不足；未处理批次保留，下次接着整理。')
+        (status?.skipReason === 'budget' || status?.pending
+          ? t('这次没整理完，下次接着整理。')
           : busy
             ? t(STATES.running)
             : status
@@ -77,27 +79,6 @@ export function MemoryStatusDialog({ meetingId, projectId }) {
               : t('正在读取…'))
       }
     </p>
-    ${
-      status?.usage?.requests > 0 &&
-      html`<p data-consolidate-usage>
-        ${t('累计 token：{tokens} · 请求 {requests} 次', { tokens: status.usage.tokens ?? 0, requests: status.usage.requests })}
-        · ${status.usage.estimatedRequests ? t('含估算用量') : t('服务商报告用量')}
-      </p>`
-    }
-    ${
-      status?.pending &&
-      html`<p>${t('未处理批次保留，下次接着整理。')}</p>
-        <p data-consolidate-pending>
-          ${t('处理进度：第 {page} / {pages} 批', { page: (status.pending.pageIndex ?? 0) + 1, pages: status.pending.pages ?? 1 })}
-        </p>`
-    }
-    ${(status?.retainedOutputs ?? []).map(
-      (output) =>
-        html`<details>
-          <summary>${t('已保留的模型输出')}</summary>
-          <pre>${output.text ?? output}</pre>
-        </details>`,
-    )}
     <div class="saverow">
       <button
         class="btn"

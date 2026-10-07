@@ -255,7 +255,7 @@ export const en = {
   '全局界面字体。默认使用随客户端安装的思源黑体；也可以选择这台电脑已安装的任何字体。字体不含中文时，中文会显示为替代字形。':
     'The interface font. By default the built-in Source Han Sans; you can choose any font installed on this computer. Fonts without Chinese glyphs show Chinese in a fallback font.',
   '思源黑体（内置）': 'Source Han Sans (built-in)',
-  重新读取本机字体: 'Reload installed fonts',
+  读取本机字体: 'Read installed fonts',
   重新读取: 'Reload',
   主题: 'Theme',
   '浅色保留原设计；跟随系统会响应系统主题变化。':
@@ -745,11 +745,7 @@ export const en = {
   候选记忆: 'Memory candidates',
   '空闲时只整理纪要的变化和对应原文；候选须在记忆收件箱接受后才进入主专家的项目简报。':
     'Consolidation uses only changes to minutes and corresponding original sources. Candidates enter the Main expert brief only after acceptance in the memory inbox.',
-  '累计 token：{tokens} · 请求 {requests} 次': 'Total tokens: {tokens} · {requests} requests',
-  含估算用量: 'Includes estimated usage',
-  服务商报告用量: 'Provider reported usage',
-  '未处理批次保留，下次接着整理。': 'Unprocessed batches are preserved and will resume next time.',
-  已保留的模型输出: 'Retained model output',
+  '这次没整理完，下次接着整理。': 'Not finished this time; it will continue next time.',
   打开记忆收件箱: 'Open memory inbox',
   开始整理: 'Start consolidation',
   整理这段对话: 'Consolidate this conversation',
@@ -767,9 +763,6 @@ export const en = {
   已拒绝: 'Rejected',
   内容: 'Content',
   '等待当前发言结束后整理。': 'Waiting for the current turn to finish before consolidation.',
-  '本次 token 预算不足；未处理批次保留，下次接着整理。':
-    'This token budget is insufficient; unprocessed batches are preserved for the next consolidation.',
-  '处理进度：第 {page} / {pages} 批': 'Progress: batch {page} / {pages}',
   添加了记忆: 'Added memory',
   修改记忆: 'Updated memory',
 };
