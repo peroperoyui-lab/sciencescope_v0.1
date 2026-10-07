@@ -4,7 +4,7 @@
 - Secretary idle work extracts and verifies minutes deltas plus their corresponding raw evidence into proposed memory; migration 007 persists cursors, checkpoints, statuses and reversible memory history.
 - Restored grouped memory, inbox/edit/batch decisions, source jump, exact project brief, pending badge and bilingual settings; confirmed shared memory reaches Main on first/resumed/rebuilt turns without a content cap.
 - User token budgets stop before later stages and resume saved extraction; provider usage now sums DSH settled attempts rather than absent turn/end accounting. Local DSH tool/retry and scripted memory regressions pass.
-- Windows clean-checkout full check, native M1, paid usage and legacy screenshots recorded before delivery; details in ignored temp/r4-4c.
+- Windows fresh clean checkout npm run check 132/132, no skips; native research flow and exit cleanup pass, 14 real requests / 216,694 tokens. Complete Chinese IME candidate commit remains unverified; M1 incomplete. Evidence/legacy screenshots in ignored temp/r4-4c.
 
 ## 2026-10-07 R4-4b secretary chat (Codex)
 - Secretary uses an attached meeting with separate history, frozen Main follow-up packets and successful-only cursors; migration 006 persists binding, proposals and reversible proposal history.
