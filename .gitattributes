@@ -1,0 +1,2 @@
+# App source is formatted as LF by Prettier, including Windows clean checkouts.
+app/** text eol=lf

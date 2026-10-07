@@ -2,7 +2,7 @@
 
 ## 2026-10-07 R4-11a window, snapshots and project folders (Codex; pending review)
 - Migration008 preserves editing-boundary resource snapshots; history preview/restore/delete replaces workbench changes, with shared workspace_versions and session-local map undo/redo.
-- Project entries go to the system recycle bin; location changes preserve existing meeting folders. A late HTTP status sample can no longer overwrite newer semantic progress.
+- Project entries go to the system recycle bin; location changes preserve existing meeting folders. A late HTTP status sample cannot overwrite newer semantic progress; app LF attributes make fresh Windows formatting reproducible.
 - Native build and actual100%/125% six-state screenshots plus all eight edge/corner drags pass; CDP viewport emulation explained prior frozen dimensions. Fresh-check result recorded before delivery; paid requests/tokens:0.
 
 ## 2026-10-07 R4-4c memory consolidation (Codex)
