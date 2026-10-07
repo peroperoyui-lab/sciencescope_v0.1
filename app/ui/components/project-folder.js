@@ -1,7 +1,7 @@
 // 项目文件夹 in the old interface's markup: the workbench's right column and
 // the full page (展开文件视图). Lists the bound external folder, or else the
 // project's own folder; new folders, renaming, adding files and opening
-// files with their default program.
+// files with their default program. Deletion uses the system recycle bin.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
@@ -66,6 +66,31 @@ function Entries({ projectId, folder, depth, version }) {
             ),
         },
         {
+          text: t('移到回收站'),
+          icon: 'trash',
+          danger: true,
+          run: () =>
+            actions.openModal(
+              t('移到回收站'),
+              html`<div>
+                <p>${entry.name}</p>
+                <p>${t('删除后可以从系统回收站恢复。')}</p>
+                <div class="row">
+                  <button class="btn" onClick=${actions.closeModal}>${t('取消')}</button>
+                  <button
+                    class="btn danger"
+                    onClick=${async () => {
+                      actions.closeModal();
+                      await fileOp({ op: 'recycle', path: entry.path });
+                    }}
+                  >
+                    ${t('确认删除')}
+                  </button>
+                </div>
+              </div>`,
+            ),
+        },
+        {
           text: t('复制文件名'),
           icon: 'copy',
           run: () => navigator.clipboard?.writeText(entry.name),
@@ -117,28 +142,43 @@ function newFolder(actions, projectId, parent = '') {
   );
 }
 
-/** Bind an external research folder, or go back to the project's own folder. */
-function BindForm({ project }) {
+/** Change future meetings' folder without moving files or existing meetings. */
+function BindForm({ project, root }) {
   const actions = useActions();
+  const pick = globalThis.__TAURI__?.dialog?.open;
+  const save = async (folder) => {
+    await actions.updateProject(project.id, { folder });
+    actions.closeModal();
+  };
   return html`<div>
+    <p class="wb-path">${root}</p>
+    <${InfoTip}
+      text=${t('更换位置不会移动已有文件；已有会议继续使用原工作目录，新会议使用新位置。')}
+    />
     <${FieldForm}
       label=${t('文件夹路径')}
       value=${project.folder ?? ''}
       submitText=${t('绑定')}
-      onSubmit=${(folder) => actions.updateProject(project.id, { folder })}
+      onSubmit=${save}
     />
-    ${
-      project.folder &&
-      html`<button
-        class="btn tiny"
-        onClick=${() => {
-          actions.closeModal();
-          actions.attempt(() => actions.updateProject(project.id, { folder: null }));
-        }}
-      >
-        ${t('解除绑定，使用项目自带文件夹')}
-      </button>`
-    }
+    <div class="row">
+      ${
+        pick &&
+        html`<button
+          class="btn"
+          onClick=${() =>
+            actions.attempt(async () => {
+              const chosen = await pick({ directory: true, multiple: false });
+              if (typeof chosen === 'string') await save(chosen);
+            })}
+        >
+          ${t('选择已有文件夹')}
+        </button>`
+      }
+      <button class="btn" onClick=${() => actions.attempt(() => save(null))}>
+        ${t('使用项目自带文件夹')}
+      </button>
+    </div>
   </div>`;
 }
 
@@ -176,9 +216,9 @@ export function ProjectFolder({ project, full = false }) {
   const tools = html`<div class="row">
     <button
       class="btn tiny"
-      onClick=${() => actions.openModal(t('绑定目录'), html`<${BindForm} project=${project} />`)}
+      onClick=${() => actions.openModal(t('项目文件夹位置'), html`<${BindForm} project=${project} root=${root} />`)}
     >
-      ${t('绑定目录')}
+      ${t('项目文件夹位置')}
     </button>
     <button class="btn tiny" onClick=${() => setRefresh(refresh + 1)}>${t('刷新')}</button>
     ${
@@ -190,8 +230,8 @@ export function ProjectFolder({ project, full = false }) {
         <input ref=${picker} type="file" multiple hidden onChange=${addFiles} />`
     }
   </div>`;
-  const tree = html`<div class="wb-path" title=${root}>${root}</div>
-    ${tools}
+  const tree = html`${full && html`<div class="wb-path" title=${root}>${root}</div>`}
+    ${full && tools}
     <${Entries} key=${root} projectId=${project.id} folder="" depth=${0} version=${version} />`;
   const openRoot = () =>
     actions.attempt(() => actions.fileOp(project.id, { op: 'open', path: '' }));

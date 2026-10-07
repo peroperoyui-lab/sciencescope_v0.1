@@ -18,6 +18,8 @@ const EVENT_TYPES = [
   'tool.started',
   'tool.ended',
   'resource.changed',
+  'resource.snapshot.created',
+  'resource.snapshot.deleted',
   'minutes.updated',
   'minutes.status',
   'secretary.proposal.updated',

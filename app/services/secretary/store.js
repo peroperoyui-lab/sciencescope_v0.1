@@ -42,7 +42,13 @@ export function createMinutesStore(core) {
           throughSeq: Number(metadata.through_seq),
           coveredMessageIds: JSON.parse(String(metadata.covered_message_ids_json)),
         };
-      if (row.op === 'undo') {
+      if (row.op === 'restore') {
+        row = row.restored_from_revision_id
+          ? db
+              .prepare('SELECT rowid, * FROM revisions WHERE id = ?')
+              .get(row.restored_from_revision_id)
+          : null;
+      } else if (row.op === 'undo') {
         const original = db
           .prepare('SELECT rowid, * FROM revisions WHERE undone_by = ?')
           .get(row.id);

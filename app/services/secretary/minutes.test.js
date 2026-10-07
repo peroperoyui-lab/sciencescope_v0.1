@@ -232,6 +232,23 @@ test('workbench direct updates append or mark user data, retain provenance and c
         (await core.workspace.read({ resource: 'log', key: project.id })).text,
         /^用户的原有日志\n/,
       );
+      const snapshots = core.workspace.snapshots({ projectId: project.id });
+      assert.deepEqual(snapshots.map((snapshot) => snapshot.resource).sort(), [
+        'log',
+        'map',
+        'minutes',
+        'plans',
+      ]);
+      assert.ok(
+        snapshots.every(
+          (snapshot) => snapshot.source === 'ai-turn-end' && snapshot.actorId === 'agent_secretary',
+        ),
+      );
+      assert.equal(
+        core.workspace.getSnapshot(snapshots.find((snapshot) => snapshot.resource === 'plans').id)
+          .text,
+        '用户说明\n- [ ] 原有任务附加\n- [x] 原有任务\n- [ ] 新任务',
+      );
       const writes = core.workspace
         .history({ meetingId: meeting.id })
         .filter((revision) => revision.resource !== 'minutes');

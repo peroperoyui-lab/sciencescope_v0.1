@@ -111,7 +111,10 @@ test('v6 upgrade and reopen preserve proposal history plus an extracted checkpoi
     service = createMemoryService({ core, research: createResearch(core), minutes, runner });
     assert.equal(service.history(item.id).length, 2);
     assert.equal(service.undo(accepted.historyId).status, 'proposed');
-    assert.equal(core.db.prepare('PRAGMA user_version').get().user_version, 7);
+    assert.equal(
+      core.db.prepare('PRAGMA user_version').get().user_version,
+      migrations.at(-1).version,
+    );
     assert.equal(
       (await readdir(backupDir)).filter((name) => name.startsWith('sciencescope-v6-')).length,
       1,

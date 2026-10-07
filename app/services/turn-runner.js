@@ -355,10 +355,15 @@ export function createTurnRunner({
         });
     }
 
+    const endTurn = (result) => {
+      core.workspace.captureTurnSnapshots(turn.id);
+      return core.turns.end(turn.id, result);
+    };
+
     try {
       if (execution.cancelled) {
         core.messages.update(answer.id, { status: 'cancelled' });
-        return core.turns.end(turn.id, { status: 'cancelled', stopReason: 'cancelled' });
+        return endTurn({ status: 'cancelled', stopReason: 'cancelled' });
       }
       const meeting = core.meetings.get(meetingId);
       const project = meeting.projectId ? core.projects.get(meeting.projectId) : null;
@@ -381,7 +386,7 @@ export function createTurnRunner({
       if (execution.cancelled) {
         await runtime.interrupt(prepared.sessionId);
         core.messages.update(answer.id, { status: 'cancelled' });
-        return core.turns.end(turn.id, { status: 'cancelled', stopReason: 'cancelled' });
+        return endTurn({ status: 'cancelled', stopReason: 'cancelled' });
       }
       const current = core.messages.get(answer.id);
       if (current.refs.discussion)
@@ -413,7 +418,7 @@ export function createTurnRunner({
         sessionId: prepared.sessionId,
         lastSeq,
       });
-      return core.turns.end(turn.id, {
+      return endTurn({
         status,
         stopReason: execution.cancelled ? 'cancelled' : result.stopReason,
         usage: result.usage,
@@ -424,7 +429,7 @@ export function createTurnRunner({
         text: text || (status === 'failed' ? `这次发言失败了：${error.message}` : ''),
         status,
       });
-      return core.turns.end(turn.id, {
+      return endTurn({
         status,
         stopReason: execution.cancelled ? 'cancelled' : 'error',
       });

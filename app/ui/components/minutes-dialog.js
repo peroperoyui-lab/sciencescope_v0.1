@@ -6,6 +6,8 @@ import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { renderMarkdown } from '../markdown.js';
+import { useSnapshotCapture } from '../resource-snapshots.js';
+import { ResourceHistory } from './resource-history.js';
 import { InfoTip } from './info-tip.js';
 
 const HELP =
@@ -24,6 +26,8 @@ export function MinutesDialog({ meetingId }) {
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [text, setText] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
+  useSnapshotCapture([['minutes', meetingId]]);
   const revision = useRef(null);
   const input = useRef(null);
 
@@ -89,8 +93,17 @@ export function MinutesDialog({ meetingId }) {
   const next = [];
   if (Number.isFinite(data?.messagesRemaining))
     next.push(t('再 {count} 条消息', { count: data.messagesRemaining }));
+  const thresholds = [...next];
   if (Number.isFinite(data?.tokensRemaining))
-    next.push(t('约 {count} token', { count: data.tokensRemaining }));
+    thresholds.push(t('约 {count} token', { count: data.tokensRemaining }));
+  const help = [
+    t(HELP),
+    thresholds.length
+      ? t('下次自动总结：{remaining}', { remaining: thresholds.join(t(' 或 ')) })
+      : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
   const metadata = [];
   if (data?.revision) {
     if (data.author)
@@ -109,10 +122,16 @@ export function MinutesDialog({ meetingId }) {
   if (!data) metadata.push(t('正在读取…'));
   if (busy || data?.updating) metadata.push(t('任务秘书正在整理…'));
 
+  if (showHistory)
+    return html`<div>
+      <button class="btn tiny" onClick=${() => setShowHistory(false)}>${t('返回纪要')}</button
+      ><${ResourceHistory} query=${{ resource: 'minutes', key: meetingId }} />
+    </div>`;
+
   return html`<div class="minutes-dialog" data-meeting-id=${meetingId}>
     <p class="minutes-meta">
       <span data-minutes-meta>${metadata.join(' · ')}</span>
-      <${InfoTip} text=${t(HELP)} label=${t('对话纪要说明')} />
+      <${InfoTip} text=${help} label=${t('对话纪要说明')} />
     </p>
     <p class="minutes-meta" data-minutes-next>
       ${next.length ? t('下次自动总结：{remaining}', { remaining: next.join(t(' 或 ')) }) : ''}
@@ -166,7 +185,9 @@ export function MinutesDialog({ meetingId }) {
               >
                 ${t('保存纪要')}
               </button>`
-          : html`<button
+          : html`<button type="button" class="btn" onClick=${() => setShowHistory(true)}>
+                ${t('历史版本')}</button
+              ><button
                 type="button"
                 class="btn"
                 data-minutes-refresh

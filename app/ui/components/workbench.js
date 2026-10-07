@@ -1,14 +1,15 @@
 // A project's workbench in the old interface's markup: plan cards across all
-// projects, this project's log, and the bottom row with the change history,
+// projects, this project's log, and the bottom row with history versions,
 // the research map and the project folder. Every edit is a workspace edit,
-// recorded as a revision that anyone (people or AIs) can undo.
+// retained in resource snapshots when an editing page is left.
 import { useEffect, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
-import { formatTime, t } from '../i18n/index.js';
+import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
 import { renderMarkdown } from '../markdown.js';
-import { OP_LABELS, RESOURCE_LABELS, useProjectRevisions } from '../project-changes.js';
+import { useSnapshotCapture } from '../resource-snapshots.js';
+import { openResourceHistory, ResourceHistory } from './resource-history.js';
 import { navigate } from '../route.js';
 import {
   appendPlan,
@@ -85,6 +86,8 @@ export function PlanStrip({ project, projects, full = false }) {
   const actions = useActions();
   const keys = ['global', ...projects.map((p) => p.id)];
   const files = useResources(keys.map((key) => ['plans', key]));
+  useSnapshotCapture(keys.map((key) => ['plans', key]));
+  const history = () => openResourceHistory(actions, { projectId: project.id, resource: 'plans' });
   const scopeName = (key) =>
     key === 'global' ? t('全局计划') : (projects.find((p) => p.id === key)?.name ?? key);
 
@@ -161,6 +164,7 @@ export function PlanStrip({ project, projects, full = false }) {
       <div class="pageintro between">
         <h1 style="margin:0">${t('全局计划')}</h1>
         <div class="row">
+          <button class="btn" onClick=${history}>${t('历史版本')}</button>
           <button class="btn primary" onClick=${add}>+ ${t('添加计划')}</button>
         </div>
       </div>
@@ -172,6 +176,7 @@ export function PlanStrip({ project, projects, full = false }) {
   return html`<section class="wb-top">
     <div class="sectionline">
       ${t('全局计划')} <span class="spacer"></span>
+      <button class="btn tiny" onClick=${history}>${t('历史版本')}</button>
       <button class="btn tiny" onClick=${add}>+ ${t('添加计划')}</button>
       <button class="btn tiny" onClick=${() => navigate({ view: 'plans', id: project.id })}>
         ${t('查看全部')}
@@ -220,6 +225,8 @@ function LogForm({ projectId }) {
 export function JournalStrip({ project, full = false }) {
   const actions = useActions();
   const [file] = useResources([['log', project.id]]);
+  useSnapshotCapture([['log', project.id]]);
+  const history = () => openResourceHistory(actions, { projectId: project.id, resource: 'log' });
   const entries = parseLog(file?.text ?? '');
   const details = (entry) =>
     actions.openModal(
@@ -264,7 +271,10 @@ export function JournalStrip({ project, full = false }) {
     return html`<div class="content">
       <div class="pageintro between">
         <h1 style="margin:0">${t('项目日志')}</h1>
-        <div class="row"><button class="btn primary" onClick=${add}>${t('添加日志')}</button></div>
+        <div class="row">
+          <button class="btn" onClick=${history}>${t('历史版本')}</button
+          ><button class="btn primary" onClick=${add}>${t('添加日志')}</button>
+        </div>
       </div>
       <div class="stack">
         ${entries.map(
@@ -302,6 +312,7 @@ export function JournalStrip({ project, full = false }) {
     <div class="sectionline">
       ${t('本项目日志')} <small>${project.name}</small>
       <span class="spacer"></span>
+      <button class="btn tiny" onClick=${history}>${t('历史版本')}</button>
       <button class="btn tiny" onClick=${add}>+ ${t('添加日志')}</button>
       <button class="btn tiny" onClick=${() => navigate({ view: 'journal', id: project.id })}>
         ${t('查看全部')}
@@ -334,44 +345,11 @@ export function JournalStrip({ project, full = false }) {
   </section>`;
 }
 
-/** Recent changes to this project's workbench, each undoable. @param {{ project: any }} props */
+/** History versions of this project's resources. @param {{ project: any }} props */
 function Changes({ project }) {
-  const actions = useActions();
-  const participants = useAppState((state) => state.participants);
-  const revisions = useProjectRevisions(project.id, 30);
-  const author = (revision) =>
-    revision.op === 'external'
-      ? t('文件')
-      : (participants.find((p) => p.id === revision.actorId)?.name ?? revision.actorId ?? '');
-
   return html`<div class="wb-left">
-    <div class="wb-title"><span class="grow">${t('更改记录')}</span></div>
-    <div class="versionlist">
-      ${revisions.map(
-        (revision) =>
-          html`<div class="listrow" key=${revision.id}>
-            <span class="grow">
-              <strong>${author(revision)}</strong>
-              ${' '}${t(RESOURCE_LABELS[revision.resource] ?? revision.resource)}${
-                revision.key === 'global' ? `（${t('全局')}）` : ''
-              }
-              · ${OP_LABELS[revision.op] ? t(OP_LABELS[revision.op]) : revision.op}
-              <small style="display:block">${formatTime(revision.createdAt)}</small>
-            </span>
-            ${
-              revision.undoneBy
-                ? html`<small>${t('已撤销')}</small>`
-                : html`<button
-                    class="btn tiny"
-                    onClick=${() => actions.attempt(() => actions.undo(revision.id))}
-                  >
-                    ${t('撤销')}
-                  </button>`
-            }
-          </div>`,
-      )}
-      ${!revisions.length && html`<div class="inline-empty">${t('还没有更改。')}</div>`}
-    </div>
+    <div class="wb-title"><span class="grow">${t('历史版本')}</span></div>
+    <${ResourceHistory} query=${{ projectId: project.id }} compact />
   </div>`;
 }
 
@@ -379,6 +357,7 @@ function Changes({ project }) {
 function ResearchMap({ project }) {
   const actions = useActions();
   const [file] = useResources([['map', project.id]]);
+  useSnapshotCapture([['map', project.id]]);
   const [selected, setSelected] = useState(/** @type {string | null} */ (null));
   const nodes = file?.value?.nodes ?? [];
   const edit = (op, args) =>

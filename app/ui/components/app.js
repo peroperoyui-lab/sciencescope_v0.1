@@ -96,7 +96,7 @@ export function App() {
   // The map editor takes the whole window, as in the prototype.
   if (route.view === 'map') {
     return html`<${Topbar} projectName=${projectName} projectId=${projectId} />
-      <${MapEditor} projectId=${route.id} />
+      <${MapEditor} key=${route.id} projectId=${route.id} />
       <${Footbar} projectId=${projectId} />
       <${Overlays} />`;
   }

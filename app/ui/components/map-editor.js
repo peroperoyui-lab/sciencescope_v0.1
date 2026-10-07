@@ -1,12 +1,14 @@
 // 研究导图编辑窗口 in the prototype's markup (`.editor`): the canvas, an
 // inspector for the selected node (text, branches, progress, order), undo /
-// redo through the workspace revisions, and Markdown / JSON export.
-import { useEffect, useState } from 'preact/hooks';
+// redo scoped to this open editing session, and Markdown / JSON export.
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
 import { renderMarkdown } from '../markdown.js';
+import { useSnapshotCapture } from '../resource-snapshots.js';
+import { openResourceHistory } from './resource-history.js';
 import { navigate } from '../route.js';
 import { MapCanvas } from './map-canvas.js';
 
@@ -47,7 +49,11 @@ export function MapEditor({ projectId }) {
   const [selected, setSelected] = useState(/** @type {string | null} */ (null));
   const [draft, setDraft] = useState('');
   const [dirty, setDirty] = useState(false);
-  const [redo, setRedo] = useState(/** @type {string[]} */ ([]));
+  const undoIds = useRef(/** @type {string[]} */ ([]));
+  const redoIds = useRef(/** @type {string[]} */ ([]));
+  const [, refreshHistory] = useState(0);
+  const draftRef = useRef({ dirty: false, text: '', id: null });
+  useSnapshotCapture([['map', projectId]], () => commit());
   const nodes = map?.nodes ?? [];
   const node = nodes.find((candidate) => candidate.id === selected) ?? nodes[0];
 
@@ -62,15 +68,22 @@ export function MapEditor({ projectId }) {
     setDirty(false);
   }, [node?.id, node?.text]);
 
+  const updateHistory = () => refreshHistory((count) => count + 1);
   const edit = async (op, args) => {
     const result = await actions.attempt(() => actions.editResource('map', projectId, op, args));
-    if (result) setRedo([]);
+    if (result?.revisionId) {
+      undoIds.current.push(result.revisionId);
+      redoIds.current = [];
+      updateHistory();
+    }
     return result;
   };
   const commit = () => {
-    if (!node || !dirty) return undefined;
+    if (!draftRef.current.dirty || !draftRef.current.id) return undefined;
+    const current = draftRef.current;
+    draftRef.current = { ...current, dirty: false };
     setDirty(false);
-    return edit('updateNode', { id: node.id, changes: { text: draft } });
+    return edit('updateNode', { id: current.id, changes: { text: current.text } });
   };
   const add = async (parent, after) => {
     await commit();
@@ -98,18 +111,24 @@ export function MapEditor({ projectId }) {
   };
   const undo = async () => {
     await commit();
-    const history = await actions.history({ resource: 'map', key: projectId, limit: 50 });
-    const target = history.find((revision) => !revision.undoneBy && revision.op !== 'undo');
-    if (!target) return actions.toast(t('没有可以撤销的修改。'));
-    const result = await actions.attempt(() => actions.undo(target.id));
-    if (result) setRedo([...redo, result.revisionId]);
-    return undefined;
-  };
-  const redoLast = async () => {
-    const last = redo.at(-1);
+    const last = undoIds.current.at(-1);
     if (!last) return;
     const result = await actions.attempt(() => actions.undo(last));
-    if (result) setRedo(redo.slice(0, -1));
+    if (result) {
+      undoIds.current.pop();
+      redoIds.current.push(result.revisionId);
+      updateHistory();
+    }
+  };
+  const redoLast = async () => {
+    const last = redoIds.current.at(-1);
+    if (!last) return;
+    const result = await actions.attempt(() => actions.undo(last));
+    if (result) {
+      redoIds.current.pop();
+      undoIds.current.push(result.revisionId);
+      updateHistory();
+    }
   };
   const insertMenu = (event) =>
     actions.openMenu(
@@ -162,19 +181,31 @@ export function MapEditor({ projectId }) {
       </div>
       <span class="spacer"></span>
       <div class="toolbar-scroll">
-        <button class="iconbtn" title=${t('撤销')} aria-label=${t('撤销')} onClick=${undo}>
+        <button
+          class="iconbtn"
+          title=${t('撤销')}
+          aria-label=${t('撤销')}
+          disabled=${!undoIds.current.length && !dirty}
+          onClick=${undo}
+        >
           <${Icon} name="undo" />
         </button>
         <button
           class="iconbtn"
           title=${t('重做')}
           aria-label=${t('重做')}
-          disabled=${!redo.length}
+          disabled=${!redoIds.current.length}
           onClick=${redoLast}
         >
           <${Icon} name="redo" />
         </button>
         <button class="btn tiny" onClick=${insertMenu}><${Icon} name="plus" /> ${t('插入')}</button>
+        <button
+          class="btn tiny"
+          onClick=${() => openResourceHistory(actions, { resource: 'map', key: projectId })}
+        >
+          ${t('历史版本')}
+        </button>
         <button class="btn tiny" onClick=${exportMenu}>${t('导出')}</button>
         <button class="btn primary tiny" disabled=${!dirty} onClick=${commit}>
           ${t('保存并更新预览')}
@@ -207,6 +238,11 @@ export function MapEditor({ projectId }) {
                     style="min-height:170px"
                     value=${draft}
                     onInput=${(event) => {
+                      draftRef.current = {
+                        dirty: true,
+                        text: event.currentTarget.value,
+                        id: node.id,
+                      };
                       setDraft(event.currentTarget.value);
                       setDirty(true);
                     }}
@@ -262,7 +298,7 @@ export function MapEditor({ projectId }) {
     </div>
     <div class="editorfooter">
       <span class="badge-dot"></span>
-      <span>${dirty ? t('有未保存的修改') : t('已保存 · 每次修改都可撤销')}</span>
+      <span>${dirty ? t('有未保存的修改') : t('已保存')}</span>
       <span class="spacer"></span>
       <span>${t('加号新增 / 展开 · 减号收起')}</span>
     </div>

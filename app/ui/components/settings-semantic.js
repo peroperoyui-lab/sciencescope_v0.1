@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
@@ -22,12 +22,17 @@ export function SemanticSettings() {
   const [status, setStatus] = useState(null);
   const [error, setError] = useState('');
   const [pending, setPending] = useState(false);
+  // A request samples state at its start. A later pushed state wins over that
+  // sample, even when the HTTP response arrives after the event.
+  const latestPush = useRef(pushedStatus);
+  latestPush.current = pushedStatus;
   useEffect(() => {
     let current = true;
+    const startedWith = latestPush.current;
     actions
       .semanticStatus()
       .then((value) => {
-        if (current) {
+        if (current && latestPush.current === startedWith) {
           setStatus(value);
           setError('');
         }
@@ -38,21 +43,24 @@ export function SemanticSettings() {
     return () => {
       current = false;
     };
-  }, [settings]);
+  }, [settings?.enabled]);
   useEffect(() => {
     if (pushedStatus) setStatus(pushedStatus);
   }, [pushedStatus]);
   async function run(action) {
     setPending(true);
     setError('');
+    const startedWith = latestPush.current;
     try {
+      let value;
       if (action === 'toggle') {
         await actions.updateSettings({ semantic: { enabled: !status.enabled } });
-        setStatus(await actions.semanticStatus());
+        value = await actions.semanticStatus();
       } else
-        setStatus(
-          await (action === 'download' ? actions.semanticDownload() : actions.semanticRebuild()),
-        );
+        value = await (action === 'download'
+          ? actions.semanticDownload()
+          : actions.semanticRebuild());
+      if (latestPush.current === startedWith) setStatus(value);
     } catch (caught) {
       setError(caught.message);
     } finally {

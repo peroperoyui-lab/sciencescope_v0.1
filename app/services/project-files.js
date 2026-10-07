@@ -1,13 +1,17 @@
 // The project folder view (项目文件夹): the external folder the user bound to
 // the project, or else the project's own folder under the data root. These
-// are the user's files; ScienceScope only lists, creates, renames and adds
+// are the user's files; ScienceScope lists, creates, renames, recycles and adds
 // them when the user asks.
 import { mkdir, readdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { AppError } from '../core/errors.js';
+import { recyclePath } from './system.js';
 
-/** @param {import('../core/index.js').Core} core */
-export function createProjectFiles(core) {
+/**
+ * @param {import('../core/index.js').Core} core
+ * @param {{recycle?: typeof recyclePath}} [options]
+ */
+export function createProjectFiles(core, { recycle = recyclePath } = {}) {
   /** The folder shown for a project. @param {string} projectId */
   function rootOf(projectId) {
     const project = core.projects.get(projectId);
@@ -67,6 +71,18 @@ export function createProjectFiles(core) {
         if (error.code === 'ENOENT') throw new AppError('FILE_NOT_FOUND', '找不到这个文件。', 404);
         throw error;
       }
+    },
+
+    /**
+     * Recycle the selected file or folder without deleting the project root.
+     * @param {string} projectId
+     * @param {string} relative
+     * @returns {Promise<void>}
+     */
+    async recycle(projectId, relative) {
+      const { root, target } = inside(projectId, relative);
+      if (target === root) throw new AppError('ENTRY_REQUIRED', '请选择要删除的文件或文件夹。');
+      await recycle(target);
     },
 
     /**

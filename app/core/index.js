@@ -33,7 +33,7 @@ export async function createCore({ dataRoot, now = nowIso, newId = defaultNewId 
   });
   const projects = createProjects({ db, events, paths, now, newId });
   const participants = createParticipants({ db, events, workspace, now, newId });
-  const meetings = createMeetings({ db, events, now, newId });
+  const meetings = createMeetings({ db, events, now, newId, paths });
   const messages = createMessages({ db, events, meetings, now, newId });
   const turns = createTurns({ db, events, meetings, now, newId });
 

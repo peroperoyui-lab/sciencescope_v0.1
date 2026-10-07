@@ -1,0 +1,67 @@
+/* The OS still owns resizing; transparent client-edge hit targets start it. */
+.native-resize-frame {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  pointer-events: none;
+}
+.native-resize-frame[hidden] {
+  display: none;
+}
+.native-resize-frame > div {
+  position: absolute;
+  pointer-events: auto;
+}
+[data-resize-direction='North'],
+[data-resize-direction='South'] {
+  left: 8px;
+  right: 8px;
+  height: 4px;
+  cursor: ns-resize;
+}
+[data-resize-direction='North'] {
+  top: 0;
+}
+[data-resize-direction='South'] {
+  bottom: 0;
+}
+[data-resize-direction='East'],
+[data-resize-direction='West'] {
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
+  cursor: ew-resize;
+}
+[data-resize-direction='East'] {
+  right: 0;
+}
+[data-resize-direction='West'] {
+  left: 0;
+}
+[data-resize-direction='NorthEast'],
+[data-resize-direction='SouthEast'],
+[data-resize-direction='SouthWest'],
+[data-resize-direction='NorthWest'] {
+  width: 8px;
+  height: 8px;
+}
+[data-resize-direction='NorthEast'] {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+[data-resize-direction='SouthEast'] {
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
+}
+[data-resize-direction='SouthWest'] {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+[data-resize-direction='NorthWest'] {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}

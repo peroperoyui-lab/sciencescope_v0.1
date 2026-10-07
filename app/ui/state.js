@@ -29,6 +29,7 @@ export const initialState = {
   /** @type {Record<string, any>} */ running: {},
   /** Bumped on every workspace change so open views can reload. */
   workspaceVersion: 0,
+  snapshotsVersion: 0,
   /** Bumped when the open minutes dialog needs a new status snapshot. */
   minutesVersion: 0,
   /** Attached secretary snapshots indexed by their Main meeting. */
@@ -140,6 +141,9 @@ export function applyEvent(state, { type, payload }) {
     case 'minutes.updated':
     case 'minutes.status':
       return { ...state, minutesVersion: state.minutesVersion + 1 };
+    case 'resource.snapshot.created':
+    case 'resource.snapshot.deleted':
+      return { ...state, snapshotsVersion: state.snapshotsVersion + 1 };
     case 'resource.changed':
     case 'revision.undone':
       return {

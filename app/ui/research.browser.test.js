@@ -342,9 +342,24 @@ test(
       let reads = 0,
         downloads = 0,
         rebuilds = 0;
+      let releaseReads = () => {};
+      let staleReadStarted = () => {};
+      const staleRead = new Promise((resolve) => {
+        staleReadStarted = () => resolve(undefined);
+      });
+      const release = new Promise((resolve) => {
+        releaseReads = () => resolve(undefined);
+      });
       await page.route('**/api/research/semantic/status', async (route) => {
         reads++;
-        await route.fulfill({ json: status });
+        const sampled = structuredClone(status);
+        // Force the ordering seen under full-suite load: an old HTTP sample
+        // returns after a newer event, without relying on a timing delay.
+        if (reads > 1 && sampled.state === 'disabled') {
+          staleReadStarted();
+          await release;
+        }
+        await route.fulfill({ json: sampled });
       });
       await page.route('**/api/research/semantic/download', async (route) => {
         downloads++;
@@ -366,6 +381,11 @@ test(
       await page.getByRole('heading', { name: '本地混合检索' }).waitFor();
       assert.equal(downloads, 0);
       await page.getByRole('button', { name: '开启语义检索' }).click();
+      await staleRead;
+      status = { ...status, enabled: true, state: 'model-missing' };
+      app.core.events.transient('research.semantic.changed', status);
+      await page.getByText('模型未下载', { exact: true }).waitFor();
+      releaseReads();
       await page.waitForFunction(
         () =>
           /** @type {HTMLButtonElement} */ (
@@ -373,8 +393,6 @@ test(
           )?.disabled === false,
       );
       assert.equal((await request(page, '/api/settings')).semantic.enabled, true);
-      status = { ...status, enabled: true, state: 'model-missing' };
-      app.core.events.transient('research.semantic.changed', status);
       await page.getByText('模型未下载', { exact: true }).waitFor();
       await page.getByRole('button', { name: '下载或修复本地模型' }).click();
       await page.getByText('正在下载模型', { exact: true }).waitFor();

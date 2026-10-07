@@ -96,3 +96,25 @@ test('the event stream replays stored events and then sends live ones', () =>
     assert.match(text, /event: project.created/);
     controller.abort();
   }));
+
+test('history API captures, previews, restores and deletes saved versions', () =>
+  withServer(async ({ call }) => {
+    const project = (await call('POST', '/api/projects', { name: '历史项目' })).body;
+    const key = project.id;
+    await call('POST', '/api/resources/plans', { key, op: 'write', args: { text: '第一版' } });
+    const snapshot = (await call('POST', '/api/snapshots', { resource: 'plans', key })).body;
+    const unchanged = await call('POST', '/api/snapshots', { resource: 'plans', key });
+    assert.equal(unchanged.body, null);
+    const listed = (await call('GET', '/api/snapshots?projectId=' + key + '&resource=plans')).body;
+    assert.equal(listed[0].id, snapshot.id);
+    assert.equal((await call('GET', '/api/snapshots/' + snapshot.id)).body.text, '第一版');
+    await call('POST', '/api/resources/plans', { key, op: 'write', args: { text: '第二版' } });
+    const restored = (await call('POST', '/api/snapshots/' + snapshot.id + '/restore')).body;
+    assert.equal(restored.value, '第一版');
+    assert.equal(
+      (await call('GET', '/api/snapshots/' + restored.preservedSnapshotId)).body.text,
+      '第二版',
+    );
+    assert.equal((await call('DELETE', '/api/snapshots/' + snapshot.id)).body.deleted, true);
+    assert.equal((await call('GET', '/api/snapshots/' + snapshot.id)).status, 404);
+  }));

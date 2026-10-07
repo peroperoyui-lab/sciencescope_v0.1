@@ -1,5 +1,10 @@
 # Desktop implementation — first increment
 
+## 2026-10-07 R4-11a window, snapshots and project folders (Codex; pending review)
+- Migration008 preserves editing-boundary resource snapshots; history preview/restore/delete replaces workbench changes, with shared workspace_versions and session-local map undo/redo.
+- Project entries go to the system recycle bin; location changes preserve existing meeting folders. A late HTTP status sample can no longer overwrite newer semantic progress.
+- Native build and actual100%/125% six-state screenshots plus all eight edge/corner drags pass; CDP viewport emulation explained prior frozen dimensions. Fresh-check result recorded before delivery; paid requests/tokens:0.
+
 ## 2026-10-07 R4-4c memory consolidation (Codex)
 - Secretary idle work extracts and verifies minutes deltas plus their corresponding raw evidence into proposed memory; migration 007 persists cursors, checkpoints, statuses and reversible memory history.
 - Restored grouped memory, inbox/edit/batch decisions, source jump, exact project brief, pending badge and bilingual settings; confirmed shared memory reaches Main on first/resumed/rebuilt turns without a content cap.

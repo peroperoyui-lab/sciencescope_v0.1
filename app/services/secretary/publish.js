@@ -69,96 +69,104 @@ Preserve user text: only add nodes/tasks/log entries or mark node status/tasks c
   if (!Array.isArray(parsed.operations))
     throw new AppError('INVALID_WORKBENCH_RESPONSE', '秘书没有返回工作台操作列表。', 502);
   const actor = { actorId: 'agent_secretary', meetingId, turnId: response.turnId };
-  for (const operation of parsed.operations) {
-    if (!enabled.includes(operation.target)) continue;
-    const target = operation.target;
-    const current = await core.workspace.read({ resource: target, key: projectId });
-    let change;
-    if (target === 'map') {
-      if (
-        operation.op === 'add_child' &&
-        typeof operation.text === 'string' &&
-        operation.text.trim()
-      ) {
-        const parent = operation.parentId ?? null;
-        if (parent && !current.value.nodes.some((node) => node.id === parent)) continue;
+  try {
+    for (const operation of parsed.operations) {
+      if (!enabled.includes(operation.target)) continue;
+      const target = operation.target;
+      const current = await core.workspace.read({ resource: target, key: projectId });
+      let change;
+      if (target === 'map') {
         if (
-          current.value.nodes.some((node) => node.text === operation.text && node.parent === parent)
-        )
-          continue;
-        change = {
-          resource: target,
-          key: projectId,
-          op: 'addNode',
-          args: {
-            node: {
-              parent,
-              text: operation.text,
-              addedBy: 'agent_secretary',
-              origin: 'secretary',
-              minutesRevisionId,
+          operation.op === 'add_child' &&
+          typeof operation.text === 'string' &&
+          operation.text.trim()
+        ) {
+          const parent = operation.parentId ?? null;
+          if (parent && !current.value.nodes.some((node) => node.id === parent)) continue;
+          if (
+            current.value.nodes.some(
+              (node) => node.text === operation.text && node.parent === parent,
+            )
+          )
+            continue;
+          change = {
+            resource: target,
+            key: projectId,
+            op: 'addNode',
+            args: {
+              node: {
+                parent,
+                text: operation.text,
+                addedBy: 'agent_secretary',
+                origin: 'secretary',
+                minutesRevisionId,
+              },
             },
-          },
-        };
+          };
+        } else if (
+          operation.op === 'status' &&
+          typeof operation.status === 'string' &&
+          current.value.nodes.some((node) => node.id === operation.nodeId)
+        ) {
+          change = {
+            resource: target,
+            key: projectId,
+            op: 'updateNode',
+            args: { id: operation.nodeId, changes: { status: operation.status } },
+          };
+        }
+      } else if (target === 'plans') {
+        const text = current.text ?? '';
+        if (operation.op === 'add' && typeof operation.text === 'string' && operation.text.trim()) {
+          const task = operation.text.replace(/^- \[[ xX]\]\s*/, '').trim();
+          if (
+            text.split(/\r?\n/).some((line) => line.replace(/^- \[[ xX]\]\s*/, '').trim() === task)
+          )
+            continue;
+          change = {
+            resource: target,
+            key: projectId,
+            op: 'append',
+            args: { text: `- [ ] ${task}` },
+          };
+        } else if (
+          operation.op === 'complete' &&
+          typeof operation.text === 'string' &&
+          operation.text.startsWith('- [ ] ') &&
+          text.split(/\r?\n/).includes(operation.text)
+        ) {
+          change = {
+            resource: target,
+            key: projectId,
+            op: 'write',
+            args: {
+              text: text.replace(/^.*$/gm, (line) =>
+                line === operation.text ? line.replace('- [ ] ', '- [x] ') : line,
+              ),
+            },
+            expectedRevisionId: current.revisionId,
+          };
+        }
       } else if (
-        operation.op === 'status' &&
-        typeof operation.status === 'string' &&
-        current.value.nodes.some((node) => node.id === operation.nodeId)
+        operation.op === 'append' &&
+        typeof operation.title === 'string' &&
+        typeof operation.note === 'string'
       ) {
-        change = {
-          resource: target,
-          key: projectId,
-          op: 'updateNode',
-          args: { id: operation.nodeId, changes: { status: operation.status } },
-        };
+        const entry = `## ${operation.title}\n${operation.note}`;
+        if ((current.text ?? '').includes(entry)) continue;
+        change = { resource: target, key: projectId, op: 'append', args: { text: `\n${entry}\n` } };
       }
-    } else if (target === 'plans') {
-      const text = current.text ?? '';
-      if (operation.op === 'add' && typeof operation.text === 'string' && operation.text.trim()) {
-        const task = operation.text.replace(/^- \[[ xX]\]\s*/, '').trim();
-        if (text.split(/\r?\n/).some((line) => line.replace(/^- \[[ xX]\]\s*/, '').trim() === task))
-          continue;
-        change = {
-          resource: target,
-          key: projectId,
-          op: 'append',
-          args: { text: `- [ ] ${task}` },
-        };
-      } else if (
-        operation.op === 'complete' &&
-        typeof operation.text === 'string' &&
-        operation.text.startsWith('- [ ] ') &&
-        text.split(/\r?\n/).includes(operation.text)
-      ) {
-        change = {
-          resource: target,
-          key: projectId,
-          op: 'write',
-          args: {
-            text: text.replace(/^.*$/gm, (line) =>
-              line === operation.text ? line.replace('- [ ] ', '- [x] ') : line,
-            ),
-          },
-          expectedRevisionId: current.revisionId,
-        };
-      }
-    } else if (
-      operation.op === 'append' &&
-      typeof operation.title === 'string' &&
-      typeof operation.note === 'string'
-    ) {
-      const entry = `## ${operation.title}\n${operation.note}`;
-      if ((current.text ?? '').includes(entry)) continue;
-      change = { resource: target, key: projectId, op: 'append', args: { text: `\n${entry}\n` } };
+      if (!change) continue;
+      const revision = await core.workspace.edit(change, actor);
+      if (revision.revisionId)
+        core.db
+          .prepare(
+            'INSERT INTO minutes_workbench_updates (revision_id, minutes_revision_id) VALUES (?, ?)',
+          )
+          .run(revision.revisionId, minutesRevisionId);
     }
-    if (!change) continue;
-    const revision = await core.workspace.edit(change, actor);
-    if (revision.revisionId)
-      core.db
-        .prepare(
-          'INSERT INTO minutes_workbench_updates (revision_id, minutes_revision_id) VALUES (?, ?)',
-        )
-        .run(revision.revisionId, minutesRevisionId);
+  } finally {
+    core.workspace.captureTurnSnapshots(response.turnId);
   }
   store.patchStatus(meetingId, { workbenchError: null });
 }

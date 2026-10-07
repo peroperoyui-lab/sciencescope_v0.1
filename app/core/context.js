@@ -62,7 +62,7 @@ export function buildInstructions({
   lines.push(
     '',
     '## 工作方式',
-    '- 会议记录、纪要、工作台（导图、计划、日志、版本说明）、笔记和专家定义都可以用 workspace_read 查阅，用 workspace_edit 修改；修改会进入更改记录，可以用 workspace_undo 撤销。',
+    '- 会议记录、纪要、工作台（导图、计划、日志、版本说明）、笔记和专家定义都可以用 workspace_read 查阅，用 workspace_edit 修改；修改在本轮发言结束时保留为历史版本，用 workspace_versions 列出、查看或恢复；用 workspace_undo 改正本轮刚做的修改。',
     '- 需要了解更早的讨论时，用 workspace_read 查阅会议记录，不要凭印象。',
     // Answers are rendered as Markdown; without this hint models mostly write plain paragraphs.
     '- 回答会按 Markdown 显示：并列要点用列表，比较多个对象或数值时用表格，关键结论加粗；简单的回答不必套格式。',

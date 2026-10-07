@@ -3,6 +3,7 @@
 import { spawn } from 'node:child_process';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import trash from 'trash';
 
 /** @param {ReturnType<typeof import('../core/paths.js').dataPaths>} paths */
 export function systemInfo(paths) {
@@ -45,4 +46,15 @@ export async function openPath(target, launch = spawn) {
 export async function openFolder(folder) {
   await mkdir(folder, { recursive: true });
   await openPath(folder);
+}
+
+/**
+ * Move user-selected entries to the operating system's recycle bin.
+ * No permanent-delete fallback: failures leave the original entry in place.
+ * @param {string} target
+ * @param {typeof trash} [recycle]
+ * @returns {Promise<void>}
+ */
+export async function recyclePath(target, recycle = trash) {
+  await recycle([target], { glob: false });
 }

@@ -197,6 +197,7 @@ export function createMinutesService({
         ];
         const throughSeq = Math.max(previous.throughSeq, ...batch.map((message) => message.seq));
         store.save(meetingId, saved.revisionId, throughSeq, ids);
+        core.workspace.captureTurnSnapshots(response.turnId);
         core.messages.recordConsumption(
           batch.filter((message) => message.adopted).map((message) => message.id),
           response.turnId,
