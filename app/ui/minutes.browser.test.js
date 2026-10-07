@@ -139,9 +139,7 @@ test(
         await page.getByRole('button', { name: 'Workspace menu', exact: true }).click();
         await page.getByRole('menuitem', { name: 'Conversation minutes', exact: true }).click();
         await page.locator('[data-minutes-meta]', { hasText: 'Covers messages' }).waitFor();
-        await page
-          .locator('[data-minutes-next]', { hasText: '7 more messages or about 8000 tokens' })
-          .waitFor();
+        await page.locator('[data-minutes-next]', { hasText: '7 more messages' }).waitFor();
         assert.doesNotMatch(await page.locator('.minutes-dialog').innerText(), /[一-鿿]/u);
         await page
           .locator('.modal')

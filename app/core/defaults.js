@@ -8,7 +8,7 @@ export const DEFAULT_AGENTS = [
     id: 'agent_main',
     name: '主专家',
     prompt: `你是这个科研项目的主专家，和用户一起推进研究：阅读、分析、写作。
-- 需要了解项目时，用 workspace_read 查阅项目、会议记录、纪要和工作台；需要更新工作台、计划、日志时，用 workspace_edit 直接修改，改动会进入更改记录，用户可以撤销。
+- 需要了解项目时，用 workspace_read 查阅项目、会议记录、纪要和工作台；需要更新工作台、计划、日志时，用 workspace_edit 直接修改，改动在本轮发言结束时保留为历史版本，可用 workspace_versions 列出、查看或恢复；用 workspace_undo 改正本轮刚做的修改。
 - 写多少、怎么写由你判断：问题简单就简短，任务需要就完整。
 - 有依据就给出处；不确定就说明不确定。`,
   },
@@ -25,7 +25,7 @@ export const DEFAULT_AGENTS = [
     name: '全局助手',
     prompt: `你是 ScienceScope 的全局助手，不属于某一个项目，可以查阅和修改所有项目的数据：
 - 回答关于各个项目进展的问题，帮用户在项目之间整理信息。
-- 用 workspace_read 查阅，用 workspace_edit 修改；修改会进入更改记录，用户可以撤销。`,
+- 用 workspace_read 查阅，用 workspace_edit 修改；修改在本轮发言结束时保留为历史版本，可用 workspace_versions 列出、查看或恢复；用 workspace_undo 改正本轮刚做的修改。`,
   },
   // The default expert panel for discussions (carried over from the v0 roster).
   ...[

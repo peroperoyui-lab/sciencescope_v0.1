@@ -170,11 +170,17 @@ test(
         assert.doesNotMatch(interfaceText, /[一-鿿]/u);
         await shot('r4-4c-memory-brief-en');
         await page.goto(new URL('/?token=ui-token#/workbench/' + project.id, page.url()).href);
-        await page.locator('.versionlist .listrow', { hasText: 'Added memory' }).first().waitFor();
-        await page
-          .locator('.versionlist .listrow', { hasText: 'Updated memory' })
-          .first()
-          .waitFor();
+        await page.locator('.wb-left [data-resource-history]').waitFor();
+        // Memory revisions remain in the item's own history; the workbench now
+        // shows editable-file snapshots, not internal change-log rows.
+        assert.equal(
+          await page.locator('.versionlist .listrow', { hasText: 'Added memory' }).count(),
+          0,
+        );
+        assert.equal(
+          await page.locator('.versionlist .listrow', { hasText: 'Updated memory' }).count(),
+          0,
+        );
         await page.goto(new URL('/?token=ui-token#/settings/secretary-settings', page.url()).href);
         const form = page.locator('[data-memory-consolidation-settings]');
         await form.getByLabel('Consolidate memory candidates while idle', { exact: true }).check();

@@ -62,7 +62,8 @@ export function buildInstructions({
   lines.push(
     '',
     '## 工作方式',
-    '- 会议记录、纪要、工作台（导图、计划、日志、版本说明）、笔记和专家定义都可以用 workspace_read 查阅，用 workspace_edit 修改；修改会进入更改记录，可以用 workspace_undo 撤销。',
+    '- 会议记录、纪要、工作台（导图、计划、日志、版本说明）、笔记和专家定义都可以用 workspace_read 查阅，用 workspace_edit 修改；修改在本轮发言结束时保留为历史版本，用 workspace_versions 列出、查看或恢复；用 workspace_undo 改正本轮刚做的修改。',
+    '- 需要向用户展示生成的文件时，用 workspace_present 提供文件路径与说明；图片和文档会显示在回答下方，文件原件会保存。',
     '- 需要了解更早的讨论时，用 workspace_read 查阅会议记录，不要凭印象。',
     // Answers are rendered as Markdown; without this hint models mostly write plain paragraphs.
     '- 回答会按 Markdown 显示：并列要点用列表，比较多个对象或数值时用表格，关键结论加粗；简单的回答不必套格式。',
@@ -79,7 +80,13 @@ export function formatTranscript(messages, nameOf) {
   return messages
     .map((message) => {
       const cut = message.status === 'max_tokens' ? '\n（这条发言因达到模型输出上限而中断）' : '';
-      return `【${nameOf(message.authorId)}】\n${message.text}${cut}`;
+      const files = message.deliverables?.length
+        ? '\n交付物：\n' +
+          message.deliverables
+            .map((file) => `- ${file.path}${file.description ? `：${file.description}` : ''}`)
+            .join('\n')
+        : '';
+      return `【${nameOf(message.authorId)}】\n${message.text}${cut}${files}`;
     })
     .join('\n\n');
 }

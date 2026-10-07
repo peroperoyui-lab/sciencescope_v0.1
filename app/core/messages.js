@@ -5,7 +5,7 @@ import { AppError } from './errors.js';
  * @typedef {'streaming' | 'done' | 'max_tokens' | 'failed' | 'cancelled'} MessageStatus
  * @typedef {{ id: string, meetingId: string, seq: number, authorId: string, text: string,
  *   status: MessageStatus, turnId: string | null, replyTo: string | null, refs: any,
- *   adopted: boolean | null, adoptionLocked: boolean, createdAt: string, updatedAt: string }} Message
+ *   deliverables?: any[], adopted: boolean | null, adoptionLocked: boolean, createdAt: string, updatedAt: string }} Message
  */
 
 /** SQLite stores the review adoption flag as 1, 0 or NULL (not a review). */
@@ -36,14 +36,15 @@ function toMessage(row) {
 
 /**
  * @param {{ db: import('./db/database.js').Db, events: any, meetings: any,
- *   now: () => string, newId: (prefix: string) => string }} deps
+ *   now: () => string, newId: (prefix: string) => string, deliverables: any }} deps
  */
-export function createMessages({ db, events, meetings, now, newId }) {
+export function createMessages({ db, events, meetings, now, newId, deliverables }) {
+  const hydrate = (row) => ({ ...toMessage(row), deliverables: deliverables.list(String(row.id)) });
   /** @param {string} id @returns {Message} */
   function get(id) {
     const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(id);
     if (!row) throw new AppError('MESSAGE_NOT_FOUND', '找不到这条消息。', 404);
-    return toMessage(row);
+    return hydrate(row);
   }
 
   function scopeOf(message, actorId) {
@@ -173,7 +174,7 @@ export function createMessages({ db, events, meetings, now, newId }) {
         .all(meetingId, upper, limit)
         .reverse();
     }
-    const messages = rows.map(toMessage);
+    const messages = rows.map(hydrate);
     const first = messages[0]?.seq;
     const last = messages.at(-1)?.seq;
     const exists = (sql, seq) => Boolean(db.prepare(sql).get(meetingId, seq));
@@ -198,7 +199,7 @@ export function createMessages({ db, events, meetings, now, newId }) {
     return db
       .prepare('SELECT * FROM messages WHERE meeting_id = ? AND seq > ? ORDER BY seq')
       .all(meetingId, afterSeq)
-      .map(toMessage);
+      .map(hydrate);
   }
 
   /**
@@ -218,7 +219,7 @@ export function createMessages({ db, events, meetings, now, newId }) {
          ORDER BY m.created_at DESC LIMIT ?`,
       )
       .all(`%${escaped}%`, limit)
-      .map(toMessage)
+      .map(hydrate)
       .map((message) => {
         const at = message.text.toLowerCase().indexOf(needle.toLowerCase());
         const start = Math.max(0, at - 30);

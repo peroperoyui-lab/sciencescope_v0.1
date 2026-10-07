@@ -232,6 +232,23 @@ test('workbench direct updates append or mark user data, retain provenance and c
         (await core.workspace.read({ resource: 'log', key: project.id })).text,
         /^用户的原有日志\n/,
       );
+      const snapshots = core.workspace.snapshots({ projectId: project.id });
+      assert.deepEqual(snapshots.map((snapshot) => snapshot.resource).sort(), [
+        'log',
+        'map',
+        'minutes',
+        'plans',
+      ]);
+      assert.ok(
+        snapshots.every(
+          (snapshot) => snapshot.source === 'ai-turn-end' && snapshot.actorId === 'agent_secretary',
+        ),
+      );
+      assert.equal(
+        core.workspace.getSnapshot(snapshots.find((snapshot) => snapshot.resource === 'plans').id)
+          .text,
+        '用户说明\n- [ ] 原有任务附加\n- [x] 原有任务\n- [ ] 新任务',
+      );
       const writes = core.workspace
         .history({ meetingId: meeting.id })
         .filter((revision) => revision.resource !== 'minutes');
@@ -450,4 +467,42 @@ test('closing immediately after a project switch preserves the previous pending 
     assert.ok(rows.some((row) => row.project_id === project.id));
     assert.equal(runtime.sessions.size, 0);
     assert.equal(service.coverage(meeting.id), 0);
+  }));
+
+test('a meeting bound to its internal project folder keeps canonical minutes free of export headers and false revisions', () =>
+  withCore('minutes-internal-export', async (core) => {
+    const project = await core.projects.create({ name: '内置项目文件夹' });
+    const meeting = core.meetings.create({ projectId: project.id });
+    assert.equal(meeting.workFolder, core.workspace.locate.projectDir(project.id));
+    const runtime = createScriptedRuntime({
+      script: async function* () {
+        yield '# 内置纪要\n原始决定';
+      },
+    });
+    const service = createMinutesService({
+      core,
+      runtime,
+      defaultModel: async () => ({ provider: 'test', model: 'test' }),
+    });
+    try {
+      core.messages.post({ meetingId: meeting.id, authorId: 'person_user', text: '原始决定' });
+      const state = await service.refresh(meeting.id);
+      assert.equal(state.text, '# 内置纪要\n原始决定');
+      assert.equal(state.revisionNumber, 1);
+      assert.equal(state.throughSeq, 1);
+      assert.equal(state.exportPath, null);
+      const history = core.workspace.history({ resource: 'minutes', key: meeting.id });
+      assert.deepEqual(
+        history.map((revision) => revision.op),
+        ['write'],
+      );
+      assert.equal(
+        await readFile(path.join(meeting.workFolder, 'minutes', meeting.id + '.md'), 'utf8'),
+        state.text,
+      );
+      const [snapshot] = core.workspace.snapshots({ resource: 'minutes', key: meeting.id });
+      assert.equal(core.workspace.getSnapshot(snapshot.id).text, state.text);
+    } finally {
+      await service.close();
+    }
   }));

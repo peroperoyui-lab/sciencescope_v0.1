@@ -1,6 +1,7 @@
 import { LOCAL_USER_ID } from '../../core/defaults.js';
 import { attachment } from '../attachment.js';
 import { meetingMarkdown } from '../../services/export.js';
+import { registerOutboxRoutes } from './outbox.js';
 
 const user = { actorId: LOCAL_USER_ID };
 
@@ -15,9 +16,11 @@ function optionalNumber(value) {
  * @param {import('../router.js').Router} router
  * @param {import('../../core/index.js').Core} core
  * @param {{ interrupt: (meetingId: string) => Promise<void>,
- *   retry: (messageId: string) => Promise<unknown>, continue?: (messageId: string) => Promise<unknown> }} [conductor]
+ *   retry: (messageId: string) => Promise<unknown>, continue?: (messageId: string) => Promise<unknown>,
+ *   submit?: (input:any)=>any }} [conductor]
  */
 export function registerMeetingRoutes(router, core, conductor) {
+  registerOutboxRoutes(router, core);
   router.get('/api/meetings', ({ query }) => {
     const projectId = query.get('projectId');
     return core.meetings.list({
@@ -44,7 +47,7 @@ export function registerMeetingRoutes(router, core, conductor) {
     }),
   );
   router.post('/api/meetings/:id/messages', ({ params, body }) =>
-    core.messages.post({
+    (conductor?.submit ?? core.messages.post)({
       meetingId: params.id,
       authorId: body.authorId ?? LOCAL_USER_ID,
       text: body.text,

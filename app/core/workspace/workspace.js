@@ -3,6 +3,7 @@
 // A file changed outside ScienceScope is noticed on the next read or edit and
 // recorded as an `external` revision, so undo history stays truthful.
 import path from 'node:path';
+import { createSnapshots } from './snapshots.js';
 import { AppError } from '../errors.js';
 import { hashText, readText, removeFile, writeTextAtomic } from './files.js';
 
@@ -276,7 +277,22 @@ export function createWorkspace({ db, events, paths, now, newId, resources }) {
     return handler.list ? handler.list(locate, scope) : [];
   }
 
+  const snapshots = createSnapshots({
+    db,
+    events,
+    now,
+    newId,
+    locate,
+    resourceOf,
+    projectIdOf,
+    queued,
+    currentText,
+    lastRevision,
+    insertRevision,
+  });
+
   return {
+    ...snapshots,
     read,
     edit,
     undo,

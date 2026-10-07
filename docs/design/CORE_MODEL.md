@@ -37,6 +37,7 @@
 | `tool_calls` | id, turn_id, seq, name, args_json, result_json, status, presented（是否展示给用户）, started_at, ended_at | 工具调用，完整保存，不截断 |
 | `runtime_sessions` | meeting_id, participant_id, runtime, session_id, last_seq | AI 在某会议中的工作记忆指针；`last_seq` = 它已看到的最后一条消息 |
 | `revisions` | id, resource, resource_key（`资源:键`）, op, before_text, after_text, after_hash, actor_id, meeting_id, turn_id, undone_by, created_at | 每次修改保存前后全文；撤销 = 写一条反向修订；程序外的修改记为 `external` |
+| `resource_snapshots` | id, resource, resource_key, content_text/hash, actor_id, source, revision_id, created_at | 编辑边界的可恢复内容快照；revisions 继续存内部细粒度历史 |
 | `events` | seq, type, project_id, meeting_id, actor_id, payload_json, created_at | 变更流，给界面与后台参与者订阅 |
 
 资料库 `rb_*` 表已在 R4-1a 纳入迁移 `003-research-base.js`（见 §11）；设置不进数据库。
@@ -70,7 +71,7 @@
 | `plans` | `projects/<p>/workbench/plans.md`；全局计划在 `plans.md` | Markdown 任务列表 |
 | `log` | `projects/<p>/workbench/log.md` | Markdown，每条一个二级标题（日期 + 标题） |
 | `versions` | `projects/<p>/workbench/versions/<组>/` | 原件 + `.notes.md` |
-| `minutes` | `projects/<p>/minutes/<会议 id>.md`；不属于项目的会议在 `minutes/<会议 id>.md` | Markdown；历史版本在 `revisions` |
+| `minutes` | `projects/<p>/minutes/<会议 id>.md`；不属于项目的会议在 `minutes/<会议 id>.md` | Markdown；历史版本在 `resource_snapshots`，细粒度修订在 `revisions` |
 | `notes` | `projects/<p>/notes/*.md` | Markdown |
 | `agent` | `agents/<id>.md` | YAML 头（name、model、effort、tools、skills）+ 正文（人设） |
 | `skill` | `skills/<name>/SKILL.md` | 运行时的技能格式 |
@@ -212,3 +213,15 @@ projectBrief由有效、已确认、shared、项目scope的memory派生，置顶
 - `settings.semantic.enabled` 默认false；本地模型位于 `<数据根>/models/multilingual-e5-small/`。清单沿用 `models/default-embedding.json` 的固定revision、SHA256与int8模型；用户点击下载，公开模型文件可从官方源/镜像获取，推理只访问本机文件。硬件要求AVX2、8GB内存、5GB可用空间。单工作线程处理query:/passage:前缀、模型512-token窗口、均值池化/L2归一化，不截断资料原文。
 - GET `/api/research/semantic/status`，POST download/rebuild。`research.semantic.changed` 为瞬态完整状态，UI直接消费，不每秒请求进度。宿主就绪不等待预热；turn.started/ended暂停恢复批次索引，close终止工作线程再关闭数据库。
 - Windows手动设置下载五文件校验、9/9索引、中文路径、重启与真实混合搜索/段落读取通过。自动测试只用假嵌入；付费模型0请求/0token。
+
+### R4-11a 历史版本与项目目录（2026-10-07，待审阅）
+
+- 迁移008新增 resource_snapshots；用户离开导图/计划/日志/纪要编辑时按内容去重，AI轮次结束按资源保存最终修订。历史从第一次编辑结束开始；初始细粒度内容仍在 revisions。恢复前先保存当前内容，删除快照不影响当前文件；纪要恢复沿修订祖先保留覆盖关联。
+- GET/POST /api/snapshots、GET/DELETE /api/snapshots/:id、POST /api/snapshots/:id/restore；resource.snapshot.created/deleted 推送列表变化。共享工具 workspace_versions 提供 list/read/restore；workspace_undo 仍用于一轮中纠错，导图界面撤销/重做只限本次编辑。
+- 项目文件删除使用系统回收站（trash服务适配，无永久删除回退）。项目切换位置不移动文件，旧会议绑定原目录，新会议绑定新目录；内部目录改名时更新相应会议路径。
+
+### R4-11b 队列、交付物与导图（2026-10-07，待审阅）
+
+- 迁移009 meeting_outbox/state 保存未发草稿，实际发出时才追加正式消息并移除草稿（同事务）。忙碌时POSTmessages返回queued/item/state；GET/POSToutbox、PATCH/DELETEoutbox/:id、DELETEoutbox、POSToutbox/pause|resume。状态事件meeting.outbox.changed含单调version；重启保留队列且等待明确继续。普通停止只中断当前回答，保留待发送队列；关闭应用仍取消所有运行。队列在发出时使用当时会议模型设置。
+- 迁移010 message_deliverables 保存展示原件身份、所属消息/发言/调用以及data/deliverables副本；workspace_present为所有角色共用。消息携带deliverables元数据，其他参与者上下文仅路径和说明，不注入文件字节；分支保留同一原件关联。GET/api/deliverables/:id/content提供副本，POST/:id/open默认程序打开。
+- 导图既有edges与floating/x/y通过界面接通；编辑撤销/重做仍为会话内，历史快照包含节点与边。Marked公式扩展不解析代码块/代码跨度/货币；源HTML先净化，只有本机KaTeX生成内容保留数学样式。

@@ -1,13 +1,31 @@
 // Built-in ScienceScope tools. Every AI participant gets the same set; how it
 // uses them is guided by its instructions, not by permissions.
 import { createResearch } from './research/index.js';
+import { AppError } from '../core/errors.js';
+import { createDeliverables } from './deliverables.js';
 
-/** @typedef {{ participantId: string, meetingId: string, turnId: string }} ToolContext */
+/** @typedef {{ participantId: string, meetingId: string, turnId: string, callId?: string }} ToolContext */
 
 const RESOURCES = ['map', 'plans', 'log', 'minutes', 'notes', 'agent', 'settings'];
 
 /** @type {import('../runtime/port.js').ToolSpec[]} */
 export const TOOL_SPECS = [
+  {
+    name: 'workspace_present',
+    description:
+      'Present generated files under your answer as image thumbnails or document cards. Files are copied into durable ScienceScope data. Relative paths resolve against the current meeting work folder. Provide a description for each file. Other participants receive the saved paths and descriptions, never file bytes.',
+    parameters: {
+      files: {
+        type: 'array',
+        required: true,
+        items: {
+          type: 'object',
+          additionalProperties: false,
+          properties: { path: { type: 'string', required: true }, description: { type: 'string' } },
+        },
+      },
+    },
+  },
   {
     name: 'research_search',
     description:
@@ -68,7 +86,7 @@ export const TOOL_SPECS = [
   {
     name: 'workspace_edit',
     description:
-      'Change ScienceScope data. The change applies immediately, appears in the change log and can be ' +
+      'Change ScienceScope data. The change applies immediately and a history version is saved when the turn ends. It can be ' +
       'undone. Text resources (plans, log, minutes, notes, agent) support op "write" {text}, "append" ' +
       '{text}, "replace" {find, with}, "delete". map supports "addNode" {node: {id?, parent, text}}, ' +
       '"updateNode" {id, changes}, "removeNode" {id}, "addEdge" {edge: {from, to, label?}}, "removeEdge" ' +
@@ -85,6 +103,23 @@ export const TOOL_SPECS = [
     description:
       'Undo one change by its revision id (from workspace_edit or workspace_read "changes").',
     parameters: { revisionId: { type: 'string', required: true } },
+  },
+  {
+    name: 'workspace_versions',
+    description:
+      'List, read or restore saved workspace history versions. List defaults to the current project; ' +
+      'use projectId, resource or key to select other data. Read and restore use a snapshot id from list. ' +
+      'Restore preserves the current content as a history version before applying the selected version. ' +
+      'For corrections within the current turn, use workspace_undo.',
+    parameters: {
+      action: { type: 'string', required: true, enum: ['list', 'read', 'restore'] },
+      id: { type: 'string', description: 'History snapshot id for read or restore.' },
+      resource: { type: 'string', enum: RESOURCES },
+      key: { type: 'string' },
+      projectId: { type: 'string' },
+      meetingId: { type: 'string' },
+      limit: { type: 'integer' },
+    },
   },
   {
     name: 'propose_main_draft',
@@ -106,6 +141,7 @@ export const TOOL_SPECS = [
  * @param {{secretary?: ReturnType<typeof import('./secretary/chat.js').createSecretaryChat>}} [services]
  */
 export function createTools(core, research = createResearch(core), { secretary } = {}) {
+  const deliverables = createDeliverables(core);
   async function nameOf(id) {
     try {
       return (await core.participants.get(id)).name;
@@ -150,6 +186,10 @@ export function createTools(core, research = createResearch(core), { secretary }
         seq: message.seq,
         author: await nameOf(message.authorId),
         text: message.text,
+        deliverables: message.deliverables?.map(({ path: filePath, description }) => ({
+          path: filePath,
+          description,
+        })),
         status: message.status,
         createdAt: message.createdAt,
       });
@@ -168,6 +208,7 @@ export function createTools(core, research = createResearch(core), { secretary }
       meetingId: context.meetingId,
       turnId: context.turnId,
     };
+    if (name === 'workspace_present') return deliverables.present(args?.files, context);
     if (name === 'propose_main_draft') {
       if (!secretary) throw new Error('Secretary draft service is unavailable.');
       return secretary.propose(context, args);
@@ -196,6 +237,23 @@ export function createTools(core, research = createResearch(core), { secretary }
         actor,
       );
       return { revisionId: result.revisionId, value: result.value };
+    }
+    if (name === 'workspace_versions') {
+      if (args?.action === 'read') return core.workspace.getSnapshot(args.id);
+      if (args?.action === 'restore') return core.workspace.restoreSnapshot(args.id, actor);
+      if (args?.action !== 'list') throw new AppError('UNKNOWN_OP', '历史版本操作无效。');
+      const projectId =
+        args.projectId ??
+        (args.key || args.meetingId
+          ? undefined
+          : (core.meetings.get(context.meetingId).projectId ?? undefined));
+      return core.workspace.snapshots({
+        resource: args.resource,
+        key: args.key,
+        projectId,
+        meetingId: args.meetingId,
+        limit: args.limit,
+      });
     }
     if (name === 'workspace_undo') return core.workspace.undo(args?.revisionId, actor);
     throw new Error(`Unknown tool: ${name}`);

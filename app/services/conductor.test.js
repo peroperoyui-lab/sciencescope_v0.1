@@ -194,3 +194,82 @@ test('a failed answer can be retried and the same AI answers again', () => {
     },
   );
 });
+
+test('every modified workspace resource receives one history version at AI turn end and tools can restore it', () =>
+  withMeeting(
+    async function* ({ call }) {
+      const project = (await call('workspace_read', { target: 'overview' })).projects[0];
+      await call('workspace_edit', {
+        resource: 'plans',
+        key: project.id,
+        op: 'write',
+        args: { text: 'AI 第一稿' },
+      });
+      await call('workspace_edit', {
+        resource: 'plans',
+        key: project.id,
+        op: 'write',
+        args: { text: 'AI 最终稿' },
+      });
+      await call('workspace_edit', {
+        resource: 'log',
+        key: project.id,
+        op: 'write',
+        args: { text: 'AI 日志' },
+      });
+      yield '已保存';
+    },
+    async ({ core, project, meeting, say }) => {
+      const answer = (await say('更新计划和日志')).at(-1);
+      const tools = createTools(core);
+      const context = {
+        participantId: 'agent_secretary',
+        meetingId: meeting.id,
+        turnId: answer.turnId,
+      };
+      const saved = await tools.run('workspace_versions', { action: 'list' }, context);
+      assert.equal(saved.length, 2);
+      assert.ok(
+        saved.every((item) => item.source === 'ai-turn-end' && item.turnId === answer.turnId),
+      );
+      const plans = saved.find((item) => item.resource === 'plans');
+      assert.equal(
+        (await tools.run('workspace_versions', { action: 'read', id: plans.id }, context)).text,
+        'AI 最终稿',
+      );
+      await core.workspace.edit({
+        resource: 'plans',
+        key: project.id,
+        op: 'write',
+        args: { text: '新计划' },
+      });
+      const restored = await tools.run(
+        'workspace_versions',
+        { action: 'restore', id: plans.id },
+        context,
+      );
+      assert.equal(restored.value, 'AI 最终稿');
+      assert.equal(core.workspace.getSnapshot(restored.preservedSnapshotId).text, '新计划');
+    },
+  ));
+
+test('a failed AI answer still retains the history version of edits it already applied', () =>
+  withMeeting(
+    async function* ({ call }) {
+      const project = (await call('workspace_read', { target: 'overview' })).projects[0];
+      await call('workspace_edit', {
+        resource: 'plans',
+        key: project.id,
+        op: 'write',
+        args: { text: '失败前已保存的计划' },
+      });
+      yield { stop: 'failed', error: 'HTTP 502' };
+    },
+    async ({ core, project, say }) => {
+      const answer = (await say('保存计划')).at(-1);
+      assert.equal(answer.status, 'failed');
+      const [snapshot] = core.workspace.snapshots({ resource: 'plans', key: project.id });
+      assert.equal(snapshot.turnId, answer.turnId);
+      assert.equal(core.workspace.getSnapshot(snapshot.id).text, '失败前已保存的计划');
+    },
+  ));

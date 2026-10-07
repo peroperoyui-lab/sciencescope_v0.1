@@ -89,6 +89,36 @@ export function createProjects({ db, events, paths, now, newId }) {
       );
     }
     db.transaction(() => {
+      // Renaming the readable internal directory moves its files. Keep any
+      // bound meeting paths pointing at those same files after the rename.
+      if (dirName !== project.dirName) {
+        const previousRoot = path.join(paths.projects, project.dirName);
+        for (const row of db
+          .prepare(
+            'SELECT id, work_folder FROM meetings WHERE project_id = ? AND work_folder IS NOT NULL',
+          )
+          .all(id)) {
+          const relative = path.relative(previousRoot, String(row.work_folder));
+          if (
+            relative === '' ||
+            (!relative.startsWith('..' + path.sep) &&
+              relative !== '..' &&
+              !path.isAbsolute(relative))
+          )
+            db.prepare('UPDATE meetings SET work_folder = ? WHERE id = ?').run(
+              path.join(paths.projects, dirName, relative),
+              row.id,
+            );
+        }
+      }
+      // Older databases may have meetings whose working folder was derived
+      // dynamically. Bind them before a location change so only new meetings
+      // use the newly selected project folder.
+      if (changes.folder !== undefined && changes.folder !== project.folder) {
+        db.prepare(
+          'UPDATE meetings SET work_folder = ? WHERE project_id = ? AND work_folder IS NULL',
+        ).run(project.folder ?? path.join(paths.projects, dirName), id);
+      }
       db.prepare(
         `UPDATE projects SET name = ?, description = ?, dir_name = ?, folder = ?, pinned = ?,
            archived = ?, updated_at = ? WHERE id = ?`,

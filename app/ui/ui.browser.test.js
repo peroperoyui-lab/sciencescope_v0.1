@@ -24,7 +24,7 @@ async function* script({ instructions, call }) {
 }
 
 test(
-  'a person meets the main expert in the interface and undoes its plan edit',
+  'a person meets the main expert in the interface and previews its plan version',
   { skip: browserSkip },
   () =>
     withBrowserApp('ui-meeting', script, async ({ page, app, shot }) => {
@@ -101,9 +101,20 @@ test(
       await page.locator('.sidebar').getByRole('button', { name: '工作站', exact: true }).click();
       await page.locator('.plancard', { hasText: '清洗面板数据' }).waitFor();
       await shot('workbench');
-      await page.locator('.wb-left').getByRole('button', { name: '撤销' }).first().click();
-      await page.locator('.wb-left').getByText('已撤销').waitFor();
-      assert.equal(await page.locator('.plancard', { hasText: '清洗面板数据' }).count(), 0);
+      await page
+        .locator('.wb-left')
+        .getByRole('button', { name: '查看', exact: true })
+        .first()
+        .click();
+      await page
+        .locator('[data-snapshot-preview]')
+        .getByText('清洗面板数据', { exact: true })
+        .waitFor();
+      assert.equal(await page.locator('[data-snapshot-preview] textarea').count(), 0);
+      await page
+        .getByRole('dialog', { name: '历史版本', exact: true })
+        .getByRole('button', { name: '关闭', exact: true })
+        .click();
 
       await page.getByRole('button', { name: '视图', exact: true }).click();
       await page.getByRole('menuitemcheckbox', { name: 'English' }).click();

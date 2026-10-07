@@ -5,29 +5,43 @@ import { useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
-import { fitView, layoutMap, mapConnections } from '../map-layout.js';
+import { fitView, layoutMap, mapConnections, mapEdges } from '../map-layout.js';
 import { renderMarkdown } from '../markdown.js';
 
 /**
- * @param {{ nodes: any[], editing?: boolean, selected?: string | null,
- *   onSelect?: (id: string) => void, onAddChild: (parentId: string | null) => void,
+ * @param {{ nodes: any[], edges?:any[], editing?: boolean, readonly?:boolean, selected?: string | null,
+ *   onSelect?: (id: string) => void, onAddChild?: (parentId: string | null) => void,
+ *   onMoveNode?: (id:string,position:{x:number,y:number}) => void, onDropText?: (id:string,transfer:DataTransfer) => void, onPasteText?: (id:string,transfer:DataTransfer) => void,
  *   onEditNode?: (node: any) => void, onNodeMenu?: (event: Event, node: any) => void }} props
  */
 export function MapCanvas({
   nodes,
+  edges = [],
   editing = false,
+  readonly = false,
   selected,
   onSelect,
   onAddChild,
   onEditNode,
   onNodeMenu,
+  onMoveNode,
+  onDropText,
+  onPasteText,
 }) {
   const [collapsed, setCollapsed] = useState(/** @type {Record<string, boolean>} */ ({}));
   const [view, setView] = useState({ x: 18, y: 18, scale: 1 });
   const viewport = useRef(null);
   const drag = useRef(null);
   const fitted = useRef(false);
-  const positions = layoutMap(nodes, collapsed);
+  const nodeDrag = useRef(null);
+  const [moving, setMoving] = useState(null);
+  const [dropTarget, setDropTarget] = useState(null);
+  const markerId = useRef(`map-arrow-${Math.random().toString(36).slice(2)}`);
+  const positions = layoutMap(
+    nodes.map((node) => (moving?.id === node.id ? { ...node, x: moving.x, y: moving.y } : node)),
+    collapsed,
+  );
+  const links = mapEdges(positions, edges);
 
   const fit = () => {
     const { clientWidth, clientHeight } = viewport.current;
@@ -52,10 +66,29 @@ export function MapCanvas({
         event.currentTarget.setPointerCapture(event.pointerId);
       }}
       onPointerMove=${(event) => {
+        if (nodeDrag.current) {
+          const current = nodeDrag.current;
+          const x = current.x + (event.clientX - current.startX) / view.scale;
+          const y = current.y + (event.clientY - current.startY) / view.scale;
+          current.moved =
+            Math.abs(event.clientX - current.startX) + Math.abs(event.clientY - current.startY) > 4;
+          current.position = { x, y };
+          setMoving({ id: current.id, x, y });
+          return;
+        }
         if (!drag.current) return;
         setView({ ...view, x: event.clientX - drag.current.x, y: event.clientY - drag.current.y });
       }}
       onPointerUp=${() => {
+        const current = nodeDrag.current;
+        nodeDrag.current = null;
+        setMoving(null);
+        if (current?.moved) onMoveNode?.(current.id, current.position);
+        drag.current = null;
+      }}
+      onPointerCancel=${() => {
+        nodeDrag.current = null;
+        setMoving(null);
         drag.current = null;
       }}
       onWheel=${(event) => {
@@ -64,14 +97,27 @@ export function MapCanvas({
         zoom(event.deltaY < 0 ? 1.1 : 1 / 1.1);
       }}
     >
-      ${!editing && html`<span class="readbadge">${t('缩放 / 拖动 / 展开 · 右键编辑')}</span>`}
+      ${!editing && html`<span class="readbadge">${readonly ? t('只读预览') : t('缩放 / 拖动 / 展开 · 右键编辑')}</span>`}
       <div
         class="mapscene"
         style=${{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.scale})` }}
       >
         <svg class="connections">
+          <defs>
+            <marker
+              id=${markerId.current}
+              markerWidth="8"
+              markerHeight="8"
+              refX="7"
+              refY="4"
+              orient="auto"
+            >
+              <path d="M0 0 L8 4 L0 8" fill="#9bac8f" />
+            </marker>
+          </defs>
           <g fill="none" stroke="#9bac8f" stroke-width="1.5">
             ${mapConnections(positions).map((d, index) => html`<path key=${index} d=${d} />`)}
+            ${links.map((edge) => html`<path key=${edge.id} data-edge=${edge.id} d=${edge.path} marker-end=${edge.directed ? `url(#${markerId.current})` : undefined} />`)}
           </g>
         </svg>
         ${positions.map((p) => {
@@ -79,10 +125,57 @@ export function MapCanvas({
           const open = hasChildren && !collapsed[p.node.id];
           return html`<div
             key=${p.node.id}
-            class=${`mapnode ${p.root ? 'root' : 'secondary'} ${selected === p.node.id ? 'selected' : ''}`}
+            class=${`mapnode ${p.root ? 'root' : 'secondary'} ${selected === p.node.id ? 'selected' : ''} ${dropTarget === p.node.id ? 'dragover' : ''}`}
             style=${{ left: `${p.x}px`, top: `${p.y}px`, width: `${p.w}px`, minHeight: `${p.h}px` }}
             tabindex="0"
             data-node=${p.node.id}
+            data-floating=${String(Boolean(p.node.floating))}
+            data-drop=${editing ? 'map' : undefined}
+            onPointerDown=${(event) => {
+              if (
+                !editing ||
+                !p.node.floating ||
+                event.button !== 0 ||
+                event.target.closest('button')
+              )
+                return;
+              event.stopPropagation();
+              event.preventDefault();
+              onSelect?.(p.node.id);
+              nodeDrag.current = {
+                id: p.node.id,
+                x: p.x,
+                y: p.y,
+                startX: event.clientX,
+                startY: event.clientY,
+                moved: false,
+                position: { x: p.x, y: p.y },
+              };
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onDragOver=${(event) => {
+              if (editing && onDropText) {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'copy';
+                setDropTarget(p.node.id);
+              }
+            }}
+            onDragLeave=${() => setDropTarget(null)}
+            onDrop=${(event) => {
+              if (editing && onDropText) {
+                event.preventDefault();
+                event.stopPropagation();
+                setDropTarget(null);
+                onDropText(p.node.id, event.dataTransfer);
+              }
+            }}
+            onPaste=${(event) => {
+              if (editing && onPasteText) {
+                event.preventDefault();
+                event.stopPropagation();
+                onPasteText(p.node.id, event.clipboardData);
+              }
+            }}
             onClick=${() => onSelect?.(p.node.id)}
             onDblClick=${() => onEditNode?.(p.node)}
             onContextMenu=${(event) => onNodeMenu?.(event, p.node)}
@@ -93,27 +186,31 @@ export function MapCanvas({
             ></div>
             ${p.root && p.node.status && html`<span class="nodestatus">${p.node.status}</span>`}
             ${p.node.addedBy === 'agent_secretary' && html`<small class="wb-secretary-origin">${t('秘书添加')}</small>`}
-            <button
-              class="nodeplus"
-              aria-label=${open ? t('收起分支') : hasChildren ? t('展开分支') : t('新增分支')}
-              onClick=${(event) => {
-                event.stopPropagation();
-                if (hasChildren) setCollapsed({ ...collapsed, [p.node.id]: open });
-                else onAddChild(p.node.id);
-              }}
-            >
-              ${open ? '−' : '+'}
-            </button>
+            ${
+              (!readonly || hasChildren) &&
+              html`<button
+                class="nodeplus"
+                aria-label=${open ? t('收起分支') : hasChildren ? t('展开分支') : t('新增分支')}
+                onClick=${(event) => {
+                  event.stopPropagation();
+                  if (hasChildren) setCollapsed({ ...collapsed, [p.node.id]: open });
+                  else onAddChild?.(p.node.id);
+                }}
+              >
+                ${open ? '−' : '+'}
+              </button>`
+            }
           </div>`;
         })}
       </div>
       ${
         !nodes.length &&
+        !readonly &&
         html`<div
           class="inline-empty"
           style="position:absolute;inset:auto 0 45% 0;text-align:center"
         >
-          <button class="btn tiny" onClick=${() => onAddChild(null)}>
+          <button class="btn tiny" onClick=${() => onAddChild?.(null)}>
             + ${t('添加第一个节点')}
           </button>
         </div>`

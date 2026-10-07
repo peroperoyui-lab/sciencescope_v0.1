@@ -1,6 +1,9 @@
 // What the user can do: each action calls the host and records the result in
 // the store. Later changes arrive through the event stream anyway; recording
 // the direct result keeps the interface responsive.
+import { createOutboxActions } from './outbox-actions.js';
+import { createDeliverableActions } from './deliverable-actions.js';
+import { createSnapshotActions } from './snapshot-actions.js';
 import { createResearchActions } from './research-actions.js';
 import { createMemoryActions } from './memory-actions.js';
 import { createSecretaryActions } from './secretary-actions.js';
@@ -70,6 +73,7 @@ export function createActions(api, store) {
     }));
     await Promise.all(page.messages.filter((m) => m.turnId).map((m) => loadTurn(m.turnId)));
     await loadMeetingContexts(meetingId);
+    await outbox.loadOutbox(meetingId);
   }
 
   async function loadEarlier(meetingId) {
@@ -119,7 +123,8 @@ export function createActions(api, store) {
   /** @param {string} meetingId @param {string} text */
   async function postMessage(meetingId, text) {
     const message = await api.post(`/api/meetings/${meetingId}/messages`, { text });
-    apply('message.created', message);
+    if (message.queued) apply('meeting.outbox.changed', message.state);
+    else apply('message.created', message);
     return message;
   }
 
@@ -234,8 +239,11 @@ export function createActions(api, store) {
    * @param {string | null} expectedRevision
    * @returns {Promise<any>}
    */
-  const editMinutes = (meetingId, text, expectedRevision) =>
-    api.post(`/api/meetings/${meetingId}/minutes`, { text, expectedRevision });
+  const editMinutes = (meetingId, text, expectedRevision) => {
+    const pending = api.post(`/api/meetings/${meetingId}/minutes`, { text, expectedRevision });
+    trackResourceEdit(pending);
+    return pending;
+  };
 
   /**
    * @param {string} meetingId
@@ -276,8 +284,17 @@ export function createActions(api, store) {
     api.get(`/api/resources/${resource}?key=${encodeURIComponent(key)}`);
 
   /** @param {string} resource @param {string} key @param {string} op @param {any} args */
-  const editResource = (resource, key, op, args) =>
-    api.post(`/api/resources/${resource}`, { key, op, args });
+  let resourceEdits = Promise.resolve();
+  function trackResourceEdit(pending) {
+    resourceEdits = Promise.all([resourceEdits.catch(() => {}), pending.catch(() => {})]).then(
+      () => {},
+    );
+  }
+  const editResource = (resource, key, op, args) => {
+    const pending = api.post(`/api/resources/${resource}`, { key, op, args });
+    trackResourceEdit(pending);
+    return pending;
+  };
 
   /** @param {{ resource?: string, key?: string, limit?: number }} query */
   function history(query) {
@@ -391,7 +408,11 @@ export function createActions(api, store) {
     }
   }
 
+  const outbox = createOutboxActions(api, store);
   return {
+    ...outbox,
+    ...createDeliverableActions(api),
+    ...createSnapshotActions(api, store, () => resourceEdits.catch(() => {})),
     ...createResearchActions(api),
     ...createMemoryActions(api),
     ...createSecretaryActions(api, store),

@@ -1,6 +1,7 @@
 // Meetings: a shared thread, who is present, and the speaking policy.
 // Main chats, ordered discussions, secretary chats and the global assistant are
 // all meetings; they differ only in members, policy and attachment.
+import path from 'node:path';
 import { AppError } from './errors.js';
 
 /**
@@ -21,9 +22,10 @@ const nullable = (value) => (value == null ? null : String(value));
 
 /**
  * @param {{ db: import('./db/database.js').Db, events: any,
- *   now: () => string, newId: (prefix: string) => string }} deps
+ *   now: () => string, newId: (prefix: string) => string,
+ *   paths?: ReturnType<typeof import('./paths.js').dataPaths> }} deps
  */
-export function createMeetings({ db, events, now, newId }) {
+export function createMeetings({ db, events, now, newId, paths }) {
   /** @returns {Member[]} */
   function membersOf(meetingId) {
     return db
@@ -101,6 +103,16 @@ export function createMeetings({ db, events, now, newId }) {
   function insert(input, actor) {
     const id = newId('mtg');
     const time = now();
+    const project = input.projectId
+      ? db.prepare('SELECT folder, dir_name FROM projects WHERE id = ?').get(input.projectId)
+      : null;
+    const workFolder =
+      input.workFolder ??
+      (project?.folder == null
+        ? project && paths
+          ? path.join(paths.projects, String(project.dir_name))
+          : null
+        : String(project.folder));
     db.prepare(
       `INSERT INTO meetings (id, project_id, title, policy_json, parent_meeting_id, fork_message_id,
          attached_to_meeting_id, work_folder, temporary, created_at, updated_at)
@@ -113,7 +125,7 @@ export function createMeetings({ db, events, now, newId }) {
       input.parentMeetingId ?? null,
       input.forkMessageId ?? null,
       input.attachedTo ?? null,
-      input.workFolder ?? null,
+      workFolder,
       Number(Boolean(input.temporary)),
       time,
       time,
@@ -245,12 +257,13 @@ export function createMeetings({ db, events, now, newId }) {
         .prepare('SELECT * FROM messages WHERE meeting_id = ? AND seq <= ? ORDER BY seq')
         .all(id, cut.seq);
       for (const row of rows) {
+        const messageId = newId('msg');
         db.prepare(
           `INSERT INTO messages (id, meeting_id, seq, author_id, text, status, turn_id, reply_to,
              refs_json, adopted, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?)`,
         ).run(
-          newId('msg'),
+          messageId,
           copy.id,
           row.seq,
           row.author_id,
@@ -261,6 +274,26 @@ export function createMeetings({ db, events, now, newId }) {
           row.created_at,
           row.updated_at,
         );
+        for (const file of db
+          .prepare('SELECT * FROM message_deliverables WHERE message_id = ?')
+          .all(row.id)) {
+          db.prepare(
+            `INSERT INTO message_deliverables (id, message_id, turn_id, tool_call_id, source_path, stored_path, name, description, media_type, byte_size, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ).run(
+            newId('file'),
+            messageId,
+            file.turn_id,
+            file.tool_call_id,
+            file.source_path,
+            file.stored_path,
+            file.name,
+            file.description,
+            file.media_type,
+            file.byte_size,
+            file.created_at,
+          );
+        }
       }
       return copy;
     });

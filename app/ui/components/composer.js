@@ -7,6 +7,7 @@ import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
 import { navigate } from '../route.js';
+import { Outbox } from './outbox.js';
 import { DiscussionMode } from './discussion-strip.js';
 import { DiscussionUsageRing } from './discussion-usage.js';
 import { useDiscussion } from './discussion-state.js';
@@ -152,6 +153,7 @@ export function Composer({ onSend, running = false, onStop, inputRef, meetingId 
   }
 
   return html`<div class="composer" data-composer="main">
+    ${meetingId && html`<${Outbox} meetingId=${meetingId} />`}
     <textarea
       ref=${box}
       value=${text}
@@ -186,25 +188,25 @@ export function Composer({ onSend, running = false, onStop, inputRef, meetingId 
         ${effort.label}
       </button>
       ${
-        running
-          ? html`<button
-              class="sendbtn"
-              data-main-stop
-              aria-label=${t('停止当前回复')}
-              title=${t('停止当前回复')}
-              onClick=${onStop}
-            >
-              ■
-            </button>`
-          : html`<button
-              class="sendbtn"
-              aria-label=${t('发送')}
-              disabled=${!text.trim() || sending}
-              onClick=${send}
-            >
-              <${Icon} name="arrow" />
-            </button>`
+        running &&
+        html`<button
+          class="sendbtn"
+          data-main-stop
+          aria-label=${t('停止当前回复')}
+          title=${t('停止当前回复')}
+          onClick=${onStop}
+        >
+          ■
+        </button>`
       }
+      <button
+        class="sendbtn"
+        aria-label=${t('发送')}
+        disabled=${!text.trim() || sending}
+        onClick=${send}
+      >
+        <${Icon} name="arrow" />
+      </button>
     </div>
   </div>`;
 }

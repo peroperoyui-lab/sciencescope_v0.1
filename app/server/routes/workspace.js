@@ -18,6 +18,24 @@ export function registerWorkspaceRoutes(router, core) {
     ),
   );
 
+  router.get('/api/snapshots', ({ query }) =>
+    core.workspace.snapshots({
+      projectId: query.get('projectId') ?? undefined,
+      resource: query.get('resource') ?? undefined,
+      key: query.get('key') ?? undefined,
+      meetingId: query.get('meetingId') ?? undefined,
+      limit: query.get('limit') ? Number(query.get('limit')) : undefined,
+    }),
+  );
+  router.post('/api/snapshots', ({ body }) => core.workspace.captureSnapshot(body, user));
+  router.get('/api/snapshots/:id', ({ params }) => core.workspace.getSnapshot(params.id));
+  router.post('/api/snapshots/:id/restore', ({ params }) =>
+    core.workspace.restoreSnapshot(params.id, user),
+  );
+  router.delete('/api/snapshots/:id', ({ params }) =>
+    core.workspace.deleteSnapshot(params.id, user),
+  );
+
   router.get('/api/revisions', ({ query }) =>
     core.workspace.history({
       resource: query.get('resource') ?? undefined,

@@ -24,6 +24,7 @@ export function registerProjectRoutes(router, core) {
     if (body.op === 'mkdir') await files.makeFolder(params.id, relative);
     else if (body.op === 'rename') await files.rename(params.id, relative, String(body.to ?? ''));
     else if (body.op === 'add') await files.add(params.id, relative, String(body.base64 ?? ''));
+    else if (body.op === 'recycle') await files.recycle(params.id, relative);
     else if (body.op === 'open') await openPath(files.locate(params.id, relative));
     else throw new AppError('UNKNOWN_OP', `不支持的操作：${body.op}`);
     return { done: true };

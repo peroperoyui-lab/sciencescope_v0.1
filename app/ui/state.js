@@ -14,6 +14,8 @@ export const initialState = {
   participantDefinitions: {},
   /** @type {Record<string, any[]>} */
   meetingContexts: {},
+  /** Durable queued input by meeting. */
+  /** @type {Record<string, any>} */ outboxes: {},
   /** Loaded meeting records: meetingId → messages in `seq` order. */
   /** @type {Record<string, any[]>} */ messages: {},
   /** @type {Record<string, boolean>} */ hasBefore: {},
@@ -29,6 +31,7 @@ export const initialState = {
   /** @type {Record<string, any>} */ running: {},
   /** Bumped on every workspace change so open views can reload. */
   workspaceVersion: 0,
+  snapshotsVersion: 0,
   /** Bumped when the open minutes dialog needs a new status snapshot. */
   minutesVersion: 0,
   /** Attached secretary snapshots indexed by their Main meeting. */
@@ -91,6 +94,9 @@ export function applyEvent(state, { type, payload }) {
     case 'participant.created':
     case 'participant.updated':
       return { ...state, participants: upsert(state.participants, payload) };
+    case 'meeting.outbox.changed':
+      if ((state.outboxes[payload.meetingId]?.version ?? -1) > (payload.version ?? 0)) return state;
+      return { ...state, outboxes: { ...state.outboxes, [payload.meetingId]: payload } };
     case 'meeting.created':
     case 'meeting.updated':
       return { ...state, meetings: upsert(state.meetings, payload) };
@@ -140,6 +146,9 @@ export function applyEvent(state, { type, payload }) {
     case 'minutes.updated':
     case 'minutes.status':
       return { ...state, minutesVersion: state.minutesVersion + 1 };
+    case 'resource.snapshot.created':
+    case 'resource.snapshot.deleted':
+      return { ...state, snapshotsVersion: state.snapshotsVersion + 1 };
     case 'resource.changed':
     case 'revision.undone':
       return {

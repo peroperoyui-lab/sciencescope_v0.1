@@ -7,6 +7,8 @@ import { createEvents } from './events.js';
 import { newId as defaultNewId, nowIso } from './ids.js';
 import { createMeetings } from './meetings.js';
 import { createMessages } from './messages.js';
+import { createDeliverableRecords } from './deliverables.js';
+import { createOutbox } from './outbox.js';
 import { createParticipants } from './participants.js';
 import { dataPaths } from './paths.js';
 import { createProjects } from './projects.js';
@@ -33,8 +35,11 @@ export async function createCore({ dataRoot, now = nowIso, newId = defaultNewId 
   });
   const projects = createProjects({ db, events, paths, now, newId });
   const participants = createParticipants({ db, events, workspace, now, newId });
-  const meetings = createMeetings({ db, events, now, newId });
-  const messages = createMessages({ db, events, meetings, now, newId });
+  const meetings = createMeetings({ db, events, now, newId, paths });
+  const deliverables = createDeliverableRecords({ db, now, newId });
+  const messages = createMessages({ db, events, meetings, now, newId, deliverables });
+  const outbox = createOutbox({ db, events, meetings, messages, now, newId });
+  outbox.recover();
   const turns = createTurns({ db, events, meetings, now, newId });
 
   await ensureDefaultParticipants({ db, participants });
@@ -48,6 +53,8 @@ export async function createCore({ dataRoot, now = nowIso, newId = defaultNewId 
     participants,
     meetings,
     messages,
+    deliverables,
+    outbox,
     turns,
     close: () => db.close(),
   };
