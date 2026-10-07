@@ -17,6 +17,14 @@ export async function exportMinutes(core, store, meetingId, minutes, settings) {
   const folder = meeting.workFolder ?? project?.folder;
   if (!folder) return;
   const file = path.join(folder, 'minutes', `${meetingId}.md`);
+  const canonicalFile = path.join(
+    core.workspace.locate.meetingBase(meetingId),
+    'minutes',
+    `${meetingId}.md`,
+  );
+  // An internal work folder already contains the canonical minutes. Exporting
+  // there would overwrite them with the export header and create a false edit.
+  if (path.relative(canonicalFile, file) === '') return;
   try {
     const header = `<!-- ScienceScope minutes; revision ${minutes.revision}; covers through #${minutes.throughSeq}. -->\n\n`;
     await writeTextAtomic(file, `${header}${minutes.text}\n`);
