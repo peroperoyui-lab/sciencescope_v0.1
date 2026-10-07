@@ -9,6 +9,7 @@ const EVENT_TYPES = [
   'participant.updated',
   'meeting.created',
   'meeting.updated',
+  'meeting.outbox.changed',
   'message.created',
   'message.delta',
   'message.replace',

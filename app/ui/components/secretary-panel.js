@@ -8,6 +8,7 @@ import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
 import { renderMarkdown } from '../markdown.js';
 import { InfoTip } from './info-tip.js';
+import { Deliverables } from './deliverables.js';
 import { ToolCard } from './meeting-tool.js';
 import { SecretaryModel } from './secretary-model.js';
 import { SecretaryProposal } from './secretary-proposal.js';
@@ -43,6 +44,7 @@ function SecretaryMessage({ message }) {
       class="message-text rendered-markdown"
       dangerouslySetInnerHTML=${{ __html: renderMarkdown(text) }}
     ></div>
+    <${Deliverables} files=${message.deliverables} />
     ${
       note &&
       html`<div class="model-output-status" role="status">

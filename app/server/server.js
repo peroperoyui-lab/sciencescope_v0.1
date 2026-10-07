@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { AppError } from '../core/errors.js';
 import { createRouter } from './router.js';
+import { registerDeliverableRoutes } from './routes/deliverables.js';
 import { registerEventRoutes } from './routes/events.js';
 import { registerMeetingRoutes } from './routes/meetings.js';
 import { registerMinutesRoutes } from './routes/minutes.js';
@@ -49,13 +50,12 @@ function tokenMatches(given, expected) {
 
 /**
  * @param {{ core: import('../core/index.js').Core, token: string,
- *   onShutdown?: () => void,
+ *   onShutdown?: () => void, deliverables?: {open?: typeof import('../services/system.js').openPath},
  *   minutes?: ReturnType<typeof import('../services/secretary/minutes.js').createMinutesService>,
  *   secretary?: ReturnType<typeof import('../services/secretary/chat.js').createSecretaryChat>,
  *   memory?: any,
  *   research?: ReturnType<typeof import('../services/research/index.js').createResearch>, semantic?:any,
- *   conductor?: { interrupt: (meetingId: string) => Promise<void>,
- *     retry: (messageId: string) => Promise<unknown>, continue?: (messageId: string) => Promise<unknown> } }} options
+ *   conductor?: ReturnType<typeof import('../services/conductor.js').createConductor> }} options
  *   Without a conductor (core-only tests) posting a message triggers no answers.
  */
 export function createAppServer({
@@ -63,6 +63,7 @@ export function createAppServer({
   token,
   conductor,
   onShutdown,
+  deliverables,
   research,
   semantic,
   minutes,
@@ -70,6 +71,7 @@ export function createAppServer({
   memory,
 }) {
   const router = createRouter();
+  registerDeliverableRoutes(router, core, deliverables);
   registerProjectRoutes(router, core);
   registerParticipantRoutes(router, core);
   registerMeetingRoutes(router, core, conductor);

@@ -89,7 +89,7 @@ export function ResourceHistory({ query, snapshotId, compact = false }) {
                       <strong>${t(RESOURCE_LABELS[preview.resource] ?? preview.resource)}</strong> ·
                       ${formatTime(preview.createdAt)} · ${author(preview)}
                     </p>
-                    ${preview.resource === 'map' ? html`<div style="height:280px;position:relative;overflow:auto"><${MapCanvas} nodes=${preview.value?.nodes ?? []} readonly /></div>` : html`<div class="rendered-markdown" style="max-height:380px;overflow:auto" dangerouslySetInnerHTML=${{ __html: renderMarkdown(preview.text ?? '') }}></div>`}
+                    ${preview.resource === 'map' ? html`<div style="height:280px;position:relative;overflow:auto"><${MapCanvas} nodes=${preview.value?.nodes ?? []} edges=${preview.value?.edges ?? []} readonly /></div>` : html`<div class="rendered-markdown" style="max-height:380px;overflow:auto" dangerouslySetInnerHTML=${{ __html: renderMarkdown(preview.text ?? '') }}></div>`}
                     <div class="saverow">
                       <button class="btn" disabled=${busy} onClick=${() => setDeleting(preview)}>
                         ${t('删除')}</button

@@ -5,8 +5,8 @@ import { AppError } from '../../errors.js';
 import { newId } from '../../ids.js';
 
 /** @typedef {{ id: string, parent: string | null, type?: string, text: string,
- *   x?: number, y?: number, attachments?: any[] }} MapNode */
-/** @typedef {{ id: string, from: string, to: string, label?: string }} MapEdge */
+ *   x?: number, y?: number, floating?:boolean, attachments?: any[] }} MapNode */
+/** @typedef {{ id: string, from: string, to: string, label?: string, directed?:boolean }} MapEdge */
 
 /** @param {string | null} text */
 function parse(text) {

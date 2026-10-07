@@ -257,12 +257,13 @@ export function createMeetings({ db, events, now, newId, paths }) {
         .prepare('SELECT * FROM messages WHERE meeting_id = ? AND seq <= ? ORDER BY seq')
         .all(id, cut.seq);
       for (const row of rows) {
+        const messageId = newId('msg');
         db.prepare(
           `INSERT INTO messages (id, meeting_id, seq, author_id, text, status, turn_id, reply_to,
              refs_json, adopted, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?)`,
         ).run(
-          newId('msg'),
+          messageId,
           copy.id,
           row.seq,
           row.author_id,
@@ -273,6 +274,26 @@ export function createMeetings({ db, events, now, newId, paths }) {
           row.created_at,
           row.updated_at,
         );
+        for (const file of db
+          .prepare('SELECT * FROM message_deliverables WHERE message_id = ?')
+          .all(row.id)) {
+          db.prepare(
+            `INSERT INTO message_deliverables (id, message_id, turn_id, tool_call_id, source_path, stored_path, name, description, media_type, byte_size, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ).run(
+            newId('file'),
+            messageId,
+            file.turn_id,
+            file.tool_call_id,
+            file.source_path,
+            file.stored_path,
+            file.name,
+            file.description,
+            file.media_type,
+            file.byte_size,
+            file.created_at,
+          );
+        }
       }
       return copy;
     });

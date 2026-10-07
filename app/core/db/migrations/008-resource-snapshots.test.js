@@ -18,7 +18,7 @@ test('v7 upgrade preserves internal revisions and adds durable history snapshots
     ).run('rev-old', 'plans', 'plans:global', 'write', '原计划', '2026-10-07');
     db.close();
     db = await openDatabase(file, { migrations, backupDir });
-    assert.equal(db.prepare('PRAGMA user_version').get().user_version, 8);
+    assert.equal(db.prepare('PRAGMA user_version').get().user_version, migrations.at(-1).version);
     assert.equal(
       db.prepare('SELECT after_text FROM revisions WHERE id = ?').get('rev-old').after_text,
       '原计划',

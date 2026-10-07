@@ -22,6 +22,18 @@ export function createConductor({ core, runner }) {
   const pending = new Set();
   /** @type {Map<string, Set<AbortController>>} meeting id → requests "停止" cancels */
   const requests = new Map();
+  /** @type {Map<string, AbortController>} */
+  const activeRequests = new Map();
+  let isStarted = false;
+
+  function isBusy(meetingId) {
+    return queues.has(meetingId);
+  }
+
+  function drainOutbox(meetingId) {
+    if (!isStarted || isBusy(meetingId)) return;
+    core.outbox.dispatch(meetingId);
+  }
 
   function enqueue(meetingId, work) {
     const controller = new AbortController();
@@ -29,9 +41,15 @@ export function createConductor({ core, runner }) {
     controllers.add(controller);
     requests.set(meetingId, controllers);
     const previous = queues.get(meetingId) ?? Promise.resolve();
-    const next = previous.then(() =>
-      controller.signal.aborted ? undefined : work(controller.signal),
-    );
+    const next = previous.then(async () => {
+      if (controller.signal.aborted) return;
+      activeRequests.set(meetingId, controller);
+      try {
+        return await work(controller.signal);
+      } finally {
+        if (activeRequests.get(meetingId) === controller) activeRequests.delete(meetingId);
+      }
+    });
     const settled = next.catch((error) => console.error('Turn failed', error));
     queues.set(meetingId, settled);
     pending.add(settled);
@@ -40,6 +58,7 @@ export function createConductor({ core, runner }) {
       controllers.delete(controller);
       if (!controllers.size) requests.delete(meetingId);
       if (queues.get(meetingId) === settled) queues.delete(meetingId);
+      drainOutbox(meetingId);
     });
     return next;
   }
@@ -250,11 +269,14 @@ export function createConductor({ core, runner }) {
     start() {
       if (unsubscribe) return;
       recoverInterrupted();
+      isStarted = true;
       unsubscribe = core.events.subscribe((event) => {
         if (event.type === 'message.created') onMessage(event.payload);
+        if (event.type === 'meeting.outbox.changed') drainOutbox(event.meetingId);
       });
     },
     stop() {
+      isStarted = false;
       unsubscribe?.();
       unsubscribe = null;
       for (const controllers of requests.values())
@@ -266,8 +288,21 @@ export function createConductor({ core, runner }) {
     continue: (messageId) => targeted(messageId, true),
     /** @param {string} meetingId */
     async interrupt(meetingId) {
-      for (const controller of requests.get(meetingId) ?? []) controller.abort();
+      if (core.meetings.get(meetingId).policy.mode === 'round') {
+        for (const controller of requests.get(meetingId) ?? []) controller.abort();
+      } else activeRequests.get(meetingId)?.abort();
       await runner.interrupt(meetingId);
+    },
+    /**
+     * @param {{meetingId:string,authorId:string,text:string,refs?:any,replyTo?:string|null}} input
+     */
+    submit(input) {
+      const state = core.outbox.list(input.meetingId);
+      if (isBusy(input.meetingId) || state.items.length || state.paused) {
+        const queued = core.outbox.enqueue(input);
+        return { queued: true, ...queued };
+      }
+      return core.messages.post(input);
     },
     /** Resolves when every queued turn has finished (tests, shutdown). */
     async idle() {

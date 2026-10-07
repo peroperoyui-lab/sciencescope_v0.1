@@ -7,7 +7,7 @@ const CHILD = { dx: 280, w: 228, h: 49 };
 const ROW = 68;
 
 /**
- * @param {Array<{ id: string, parent: string | null }>} nodes
+ * @param {Array<{ id: string, parent: string | null, floating?:boolean, x?:number, y?:number }>} nodes
  * @param {Record<string, boolean>} collapsed
  * @returns {Array<{ node: any, x: number, y: number, w: number, h: number,
  *   root: boolean, parent?: string }>}
@@ -44,9 +44,17 @@ export function layoutMap(nodes, collapsed) {
   let y = 45;
   for (const root of nodes.filter((node) => !node.parent || !known.has(node.parent))) {
     const h = height(root.id);
-    result.push({ node: root, x: ROOT.x, y: y + Math.max(0, (h - ROW) / 2), ...ROOT, root: true });
-    placeChildren(root, ROOT.x, y);
-    y += Math.max(136, h + 58);
+    const x = root.floating ? (root.x ?? 420) : ROOT.x;
+    const top = root.floating ? (root.y ?? 120) : y;
+    result.push({
+      node: root,
+      ...ROOT,
+      x,
+      y: root.floating ? top : top + Math.max(0, (h - ROW) / 2),
+      root: true,
+    });
+    placeChildren(root, x, top);
+    if (!root.floating) y += Math.max(136, h + 58);
   }
   return result;
 }
@@ -58,7 +66,7 @@ export function layoutMap(nodes, collapsed) {
  */
 export function mapConnections(positions) {
   const paths = [];
-  const roots = positions.filter((p) => p.root);
+  const roots = positions.filter((p) => p.root && !p.node.floating);
   roots.forEach((root, index) => {
     const next = roots[index + 1];
     if (!next) return;
@@ -85,11 +93,25 @@ export function mapConnections(positions) {
 /** Scale and offset that fit the whole map into a viewport. */
 export function fitView(positions, width, height) {
   if (!positions.length) return { x: 18, y: 18, scale: 1 };
-  const maxX = Math.max(...positions.map((p) => p.x + p.w)) + 35;
-  const maxY = Math.max(...positions.map((p) => p.y + p.h)) + 35;
-  return {
-    x: 18,
-    y: 18,
-    scale: Math.max(0.2, Math.min(1, (width - 36) / maxX, (height - 36) / maxY)),
-  };
+  const minX = Math.min(...positions.map((p) => p.x));
+  const minY = Math.min(...positions.map((p) => p.y));
+  const left = Math.min(0, minX);
+  const top = Math.min(0, minY);
+  const mapWidth = Math.max(...positions.map((p) => p.x + p.w)) - left + 35;
+  const mapHeight = Math.max(...positions.map((p) => p.y + p.h)) - top + 35;
+  const scale = Math.max(0.2, Math.min(1, (width - 36) / mapWidth, (height - 36) / mapHeight));
+  return { x: 18 - left * scale, y: 18 - top * scale, scale };
+}
+
+/** Extra links only join visible nodes. @param {ReturnType<typeof layoutMap>} positions @param {any[]} edges */
+export function mapEdges(positions, edges) {
+  const byId = new Map(positions.map((position) => [position.node.id, position]));
+  return edges.flatMap((edge) => {
+    const from = byId.get(edge.from);
+    const to = byId.get(edge.to);
+    if (!from || !to) return [];
+    return [
+      { ...edge, path: `M${from.x + from.w} ${from.y + from.h / 2} L${to.x} ${to.y + to.h / 2}` },
+    ];
+  });
 }

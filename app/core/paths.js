@@ -16,6 +16,7 @@ export function dataPaths(root) {
     globalMinutes: path.join(base, 'minutes'),
     globalPlans: path.join(base, 'plans.md'),
     library: path.join(base, 'library'),
+    deliverables: path.join(base, 'deliverables'),
     runtime: path.join(base, 'runtime'),
     models: path.join(base, 'models'),
     python: path.join(base, 'python'),

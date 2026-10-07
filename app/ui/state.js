@@ -14,6 +14,8 @@ export const initialState = {
   participantDefinitions: {},
   /** @type {Record<string, any[]>} */
   meetingContexts: {},
+  /** Durable queued input by meeting. */
+  /** @type {Record<string, any>} */ outboxes: {},
   /** Loaded meeting records: meetingId → messages in `seq` order. */
   /** @type {Record<string, any[]>} */ messages: {},
   /** @type {Record<string, boolean>} */ hasBefore: {},
@@ -92,6 +94,9 @@ export function applyEvent(state, { type, payload }) {
     case 'participant.created':
     case 'participant.updated':
       return { ...state, participants: upsert(state.participants, payload) };
+    case 'meeting.outbox.changed':
+      if ((state.outboxes[payload.meetingId]?.version ?? -1) > (payload.version ?? 0)) return state;
+      return { ...state, outboxes: { ...state.outboxes, [payload.meetingId]: payload } };
     case 'meeting.created':
     case 'meeting.updated':
       return { ...state, meetings: upsert(state.meetings, payload) };

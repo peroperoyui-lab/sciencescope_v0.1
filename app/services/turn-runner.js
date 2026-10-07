@@ -208,8 +208,13 @@ export function createTurnRunner({
         ? `${instructions}\n\n你是本轮审核专家。等待所有专家结束后逐一审核下列回答，注明作者与未完成状态。`
         : instructions,
       tools: tools.specs,
-      onToolCall: ({ name, args }) =>
-        tools.run(name, args, { participantId: participant.id, meetingId: meeting.id, turnId }),
+      onToolCall: ({ name, args, callId }) =>
+        tools.run(name, args, {
+          participantId: participant.id,
+          meetingId: meeting.id,
+          turnId,
+          callId,
+        }),
     };
     const saved = core.turns.session(meeting.id, participant.id);
     const ownContinuation = continuationMessageId ? core.messages.get(continuationMessageId) : null;

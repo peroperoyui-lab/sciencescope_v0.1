@@ -410,6 +410,7 @@ function ResearchMap({ project }) {
     </div>
     <${MapCanvas}
       nodes=${nodes}
+      edges=${file?.value?.edges ?? []}
       selected=${selected}
       onSelect=${setSelected}
       onAddChild=${addChild}

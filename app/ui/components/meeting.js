@@ -15,6 +15,7 @@ import { ExpertState, ReviewAdoption, expertState } from './discussion-message.j
 import { DiscussionStrip } from './discussion-strip.js';
 import { MainHead } from './mainhead.js';
 import { MinutesDialog } from './minutes-dialog.js';
+import { Deliverables } from './deliverables.js';
 import { ToolCard } from './meeting-tool.js';
 import { MemoryStatusDialog } from './memory-status.js';
 import { SecretaryPanel } from './secretary-panel.js';
@@ -163,6 +164,7 @@ function Message({ message, author, roleNote, target }) {
         class="message-text rendered-markdown"
         dangerouslySetInnerHTML=${{ __html: text ? renderMarkdown(text) : '' }}
       ></div>
+      <${Deliverables} files=${message.deliverables} />
       <${OutputStatus} message=${message} />
       ${review && html`<${ReviewAdoption} message=${message} />`}
     </div>

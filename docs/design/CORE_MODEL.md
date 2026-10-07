@@ -219,3 +219,9 @@ projectBrief由有效、已确认、shared、项目scope的memory派生，置顶
 - 迁移008新增 resource_snapshots；用户离开导图/计划/日志/纪要编辑时按内容去重，AI轮次结束按资源保存最终修订。历史从第一次编辑结束开始；初始细粒度内容仍在 revisions。恢复前先保存当前内容，删除快照不影响当前文件；纪要恢复沿修订祖先保留覆盖关联。
 - GET/POST /api/snapshots、GET/DELETE /api/snapshots/:id、POST /api/snapshots/:id/restore；resource.snapshot.created/deleted 推送列表变化。共享工具 workspace_versions 提供 list/read/restore；workspace_undo 仍用于一轮中纠错，导图界面撤销/重做只限本次编辑。
 - 项目文件删除使用系统回收站（trash服务适配，无永久删除回退）。项目切换位置不移动文件，旧会议绑定原目录，新会议绑定新目录；内部目录改名时更新相应会议路径。
+
+### R4-11b 队列、交付物与导图（2026-10-07，待审阅）
+
+- 迁移009 meeting_outbox/state 保存未发草稿，实际发出时才追加正式消息并移除草稿（同事务）。忙碌时POSTmessages返回queued/item/state；GET/POSToutbox、PATCH/DELETEoutbox/:id、DELETEoutbox、POSToutbox/pause|resume。状态事件meeting.outbox.changed含单调version；重启保留队列且等待明确继续。普通停止只中断当前回答，保留待发送队列；关闭应用仍取消所有运行。队列在发出时使用当时会议模型设置。
+- 迁移010 message_deliverables 保存展示原件身份、所属消息/发言/调用以及data/deliverables副本；workspace_present为所有角色共用。消息携带deliverables元数据，其他参与者上下文仅路径和说明，不注入文件字节；分支保留同一原件关联。GET/api/deliverables/:id/content提供副本，POST/:id/open默认程序打开。
+- 导图既有edges与floating/x/y通过界面接通；编辑撤销/重做仍为会话内，历史快照包含节点与边。Marked公式扩展不解析代码块/代码跨度/货币；源HTML先净化，只有本机KaTeX生成内容保留数学样式。

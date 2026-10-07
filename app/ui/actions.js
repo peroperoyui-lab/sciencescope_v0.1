@@ -1,6 +1,8 @@
 // What the user can do: each action calls the host and records the result in
 // the store. Later changes arrive through the event stream anyway; recording
 // the direct result keeps the interface responsive.
+import { createOutboxActions } from './outbox-actions.js';
+import { createDeliverableActions } from './deliverable-actions.js';
 import { createSnapshotActions } from './snapshot-actions.js';
 import { createResearchActions } from './research-actions.js';
 import { createMemoryActions } from './memory-actions.js';
@@ -71,6 +73,7 @@ export function createActions(api, store) {
     }));
     await Promise.all(page.messages.filter((m) => m.turnId).map((m) => loadTurn(m.turnId)));
     await loadMeetingContexts(meetingId);
+    await outbox.loadOutbox(meetingId);
   }
 
   async function loadEarlier(meetingId) {
@@ -120,7 +123,8 @@ export function createActions(api, store) {
   /** @param {string} meetingId @param {string} text */
   async function postMessage(meetingId, text) {
     const message = await api.post(`/api/meetings/${meetingId}/messages`, { text });
-    apply('message.created', message);
+    if (message.queued) apply('meeting.outbox.changed', message.state);
+    else apply('message.created', message);
     return message;
   }
 
@@ -404,7 +408,10 @@ export function createActions(api, store) {
     }
   }
 
+  const outbox = createOutboxActions(api, store);
   return {
+    ...outbox,
+    ...createDeliverableActions(api),
     ...createSnapshotActions(api, store, () => resourceEdits.catch(() => {})),
     ...createResearchActions(api),
     ...createMemoryActions(api),

@@ -14,6 +14,10 @@ import * as memoryConsolidation from './007-memory-consolidation.js';
 
 import * as resourceSnapshots from './008-resource-snapshots.js';
 
+import * as meetingOutbox from './009-meeting-outbox.js';
+
+import * as messageDeliverables from './010-message-deliverables.js';
+
 export const migrations = [
   core,
   toolPreamble,
@@ -23,4 +27,6 @@ export const migrations = [
   secretaryChats,
   memoryConsolidation,
   resourceSnapshots,
+  meetingOutbox,
+  messageDeliverables,
 ];
