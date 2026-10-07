@@ -28,7 +28,8 @@ const STATUS_BY_STOP = {
  *   defaultModel: () => Promise<import('../runtime/port.js').ModelChoice | null>,
  *   idleReleaseMs?: number,
  *   minutesCoverage?: (meetingId: string, revisionId: string | null) => Promise<number>,
- *   minutesCoveredMessageIds?: (meetingId: string, revisionId: string | null) => string[] }} deps
+ *   minutesCoveredMessageIds?: (meetingId: string, revisionId: string | null) => string[],
+ *   followup?: (meetingId: string, options: any) => Promise<any> }} deps
  *   A session idle for `idleReleaseMs` is released (its process ends); the next
  *   turn resumes it. Historical meetings keep no process alive.
  */
@@ -41,6 +42,7 @@ export function createTurnRunner({
   idleReleaseMs = 10 * 60 * 1000,
   minutesCoverage = async () => 0,
   minutesCoveredMessageIds = () => [],
+  followup = async () => null,
 }) {
   /** @type {Map<string, { sessionId: string | null, cancelled: boolean }>} turn id → execution */
   const active = new Map();
@@ -157,10 +159,21 @@ export function createTurnRunner({
     continuationMessageId,
     retry,
     execution,
+    signal,
   }) {
-    const model = participant.definition?.model?.model
-      ? participant.definition.model
-      : await defaultModel();
+    const attachedTo = meeting.attachedToMeetingId
+      ? core.meetings.get(meeting.attachedToMeetingId)
+      : null;
+    const parentRespondent = attachedTo
+      ? await core.participants.get(attachedTo.policy.respondent ?? 'agent_main')
+      : null;
+    const preferredModels = [
+      meeting.policy.model,
+      participant.definition?.model,
+      attachedTo?.policy.model,
+      parentRespondent?.definition?.model,
+    ];
+    const model = preferredModels.find((choice) => choice?.model) ?? (await defaultModel());
     if (!model) throw new Error('还没有设置模型。请在设置中添加服务商与模型。');
     if (execution.cancelled) throw new AppError('TURN_CANCELLED', 'Turn was cancelled.');
     const names = new Map(core.participants.list().map((entry) => [entry.id, entry.name]));
@@ -200,6 +213,8 @@ export function createTurnRunner({
       retry && cutoffSeq != null
         ? core.messages.since(meeting.id, 0).find((message) => message.seq === cutoffSeq)?.text
         : null;
+    const followupFor = async (rebuilding) =>
+      followup(meeting.id, { rebuilding, model, instructions, signal });
     const suffix =
       reviewText +
       (question ? '\n\n请重新回答以下用户问题：\n' + question : '') +
@@ -211,8 +226,13 @@ export function createTurnRunner({
       saved.runtime === runtimeName &&
       (cutoffSeq == null || saved.lastSeq <= cutoffSeq)
     ) {
+      let sessionId;
       try {
-        const sessionId = await runtime.startSession({ ...options, sessionId: saved.sessionId });
+        sessionId = await runtime.startSession({ ...options, sessionId: saved.sessionId });
+      } catch {
+        core.turns.dropSession(meeting.id, participant.id);
+      }
+      if (sessionId) {
         const messages = selectedMessages(
           meeting.id,
           saved.lastSeq,
@@ -220,15 +240,21 @@ export function createTurnRunner({
           participant.id,
           true,
         ).filter((message) => !reviewMessageIds?.includes(message.id));
+        // Register the resumed process before waiting for a catch-up refresh,
+        // so stop/close can interrupt it even while preparation is pending.
+        execution.sessionId = sessionId;
+        const packet = await followupFor(false);
+        if (execution.cancelled) throw new AppError('TURN_CANCELLED', 'Turn was cancelled.');
         return {
           sessionId,
-          input: buildFollowupInput({ messages, nameOf }) + suffix,
+          input: (packet?.text ?? '') + buildFollowupInput({ messages, nameOf }) + suffix,
+          packet,
           messages: [...messages, ...review],
         };
-      } catch {
-        core.turns.dropSession(meeting.id, participant.id);
       }
     }
+    const packet = await followupFor(true);
+    if (execution.cancelled) throw new AppError('TURN_CANCELLED', 'Turn was cancelled.');
     const sessionId = await runtime.startSession(options);
     const minutes = await core.workspace.read({ resource: 'minutes', key: meeting.id });
     const revisionId = minutes.revisionId;
@@ -246,7 +272,10 @@ export function createTurnRunner({
     return {
       sessionId,
       input:
-        buildSeedInput({ minutes: usableMinutes ? minutes.text : null, messages, nameOf }) + suffix,
+        (packet?.text ?? '') +
+        buildSeedInput({ minutes: usableMinutes ? minutes.text : null, messages, nameOf }) +
+        suffix,
+      packet,
       messages: [...messages, ...review],
     };
   }
@@ -341,6 +370,7 @@ export function createTurnRunner({
         continuationMessageId,
         retry,
         execution,
+        signal,
       });
       execution.sessionId = prepared.sessionId;
       holdSession(prepared.sessionId);
@@ -371,6 +401,8 @@ export function createTurnRunner({
         text: finalText || (status === 'failed' ? (result.error ?? '这次发言失败了。') : ''),
         status,
       });
+      // Only a completed answer acknowledges its main-meeting follow-up.
+      if (status === 'done') await prepared.packet?.commit({ status, turnId: turn.id });
       const lastSeq = cutoffSeq ?? answer.seq;
       core.turns.saveSession(meetingId, participantId, {
         runtime: runtimeName,

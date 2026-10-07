@@ -33,7 +33,7 @@ test('v4 upgrade adds minutes coverage without losing messages or revision histo
       )
       .run('revision', 'minutes', 'minutes:meeting', 'write', null, '用户的旧纪要', time);
     database.close();
-    database = await openDatabase(file, { migrations, backupDir });
+    database = await openDatabase(file, { migrations: migrations.slice(0, 5), backupDir });
     assert.equal(database.prepare('PRAGMA user_version').get().user_version, 5);
     assert.equal(database.prepare('SELECT text FROM messages').get().text, '不可丢失的完整原文');
     assert.equal(

@@ -61,7 +61,7 @@ export function createDshRuntime({ home, credentialsPath, providerConfig, extraE
   /** @type {Promise<Awaited<ReturnType<typeof createBridge>>> | null} */
   let bridgePromise = null;
   /** @type {Map<string, { harness: DeepSeekHarness, controlUrl: string, token: string,
-   *   onEvent: (event: any) => void }>} */
+   *   onEvent: (event: any) => void, modelKey: string }>} */
   const sessions = new Map();
 
   const bridge = () => (bridgePromise ??= createBridge());
@@ -102,7 +102,15 @@ export function createDshRuntime({ home, credentialsPath, providerConfig, extraE
     const id = sessionId ?? `session-${randomUUID().replaceAll('-', '')}`;
     const running = sessions.get(id);
     const link = await bridge();
-    if (running) {
+    const modelKey = JSON.stringify(model);
+    // Selection changes take effect on the next turn. Release the old process
+    // and resume its durable session with the explicit new model/effort.
+    if (running && running.modelKey !== modelKey) {
+      sessions.delete(id);
+      link.unlink(id);
+      await running.harness.close();
+    }
+    if (running && running.modelKey === modelKey) {
       link.update(id, { onToolCall });
       await control(running.controlUrl, '/instructions', {
         token: running.token,
@@ -123,8 +131,8 @@ export function createDshRuntime({ home, credentialsPath, providerConfig, extraE
     // Readiness may fail before the SDK initialize handshake settles.
     // Attach a handler immediately; the later awaited promise retains failure.
     ready.catch(() => {});
-    /** @type {{ harness: any, controlUrl: string, token: string, onEvent: (event: any) => void }} */
-    const entry = { harness: null, controlUrl: '', token: '', onEvent: () => {} };
+    /** @type {{ harness: any, controlUrl: string, token: string, onEvent: (event: any) => void, modelKey: string }} */
+    const entry = { harness: null, controlUrl: '', token: '', onEvent: () => {}, modelKey };
     entry.token = link.link(id, {
       onReady,
       onFailed,

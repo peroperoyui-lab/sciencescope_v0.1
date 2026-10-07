@@ -15,6 +15,8 @@ import { ExpertState, ReviewAdoption, expertState } from './discussion-message.j
 import { DiscussionStrip } from './discussion-strip.js';
 import { MainHead } from './mainhead.js';
 import { MinutesDialog } from './minutes-dialog.js';
+import { ToolCard } from './meeting-tool.js';
+import { SecretaryPanel } from './secretary-panel.js';
 import { FieldForm } from './overlays.js';
 import { ProjectSummary } from './project-summary.js';
 
@@ -32,29 +34,6 @@ const dayLabel = (date) =>
   `${date.getFullYear()} / ${pad(date.getMonth() + 1)} / ${pad(date.getDate())}`;
 /** "10:28" @param {Date} date */
 const clock = (date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-
-/** @param {any} value */
-function pretty(value) {
-  return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
-}
-
-/** One tool call as an activity card (`details.tool`). @param {{ call: any }} props */
-function ToolCard({ call }) {
-  return html`<details class=${`tool ${call.status}`}>
-    <summary>
-      ${
-        call.status === 'running'
-          ? html`<span class="ss-thinking"><i></i></span>`
-          : html`<${Icon} name=${call.status === 'failed' ? 'close' : 'check'} />`
-      }
-      <span class="grow">${call.preamble || call.name}</span>
-      <small>${call.name}</small>
-      <${Icon} name="down" />
-    </summary>
-    <pre>${pretty(call.args)}</pre>
-    ${call.result != null && html`<pre>${pretty(call.result)}</pre>`}
-  </details>`;
-}
 
 /** @param {{ message: any }} props */
 function MessageActions({ message }) {
@@ -274,6 +253,7 @@ export function MeetingView({ meetingId, focusMessageId }) {
   const [loadError, setLoadError] = useState('');
   const [finding, setFinding] = useState(false);
   const [summary, setSummary] = useState(false);
+  const [secretary, setSecretary] = useState(false);
   const [target, setTarget] = useState(focusMessageId ?? null);
   const { scroller, onScroll } = useStickToBottom([messages, drafts]);
 
@@ -399,6 +379,15 @@ export function MeetingView({ meetingId, focusMessageId }) {
       }
       <button
         class="iconbtn"
+        title=${t('会议秘书')}
+        aria-label=${t('会议秘书')}
+        aria-expanded=${secretary}
+        onClick=${() => setSecretary(!secretary)}
+      >
+        <${Icon} name="book" />
+      </button>
+      <button
+        class="iconbtn"
         title=${t('工作区菜单')}
         aria-label=${t('工作区菜单')}
         onClick=${(event) => actions.openMenu(event, menuItems, meeting.title)}
@@ -470,6 +459,9 @@ export function MeetingView({ meetingId, focusMessageId }) {
               onSend=${(text) => actions.postMessage(meeting.id, text)}
             />
           </div>
+        </div>
+        <div class=${`workspace-panel-slot ${secretary ? 'is-open' : ''}`}>
+          ${secretary && html`<${SecretaryPanel} mainMeetingId=${meeting.id} onClose=${() => setSecretary(false)} />`}
         </div>
       </div>
     </div>

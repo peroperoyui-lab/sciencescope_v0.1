@@ -74,7 +74,10 @@ test('a DSH session follows instructions, streams, calls our tools and resumes',
           baseUrl: `http://127.0.0.1:${fixture.port}/v1`,
           api: 'openai-completions',
           keyRef: 'SCIENCESCOPE_FIXTURE_KEY',
-          models: [{ id: 'fixture', contextWindow: 32768, maxTokens: 512 }],
+          models: [
+            { id: 'fixture', contextWindow: 32768, maxTokens: 512 },
+            { id: 'fixture-other', contextWindow: 32768, maxTokens: 512 },
+          ],
         },
       ]),
     extraEnv: { SCIENCESCOPE_FIXTURE_KEY: 'fixture' },
@@ -147,6 +150,18 @@ test('a DSH session follows instructions, streams, calls our tools and resumes',
         .join(''),
       /remembers/,
       'a resumed session keeps its working memory',
+    );
+    const changed = await runtime.startSession({
+      ...options,
+      sessionId,
+      model: { provider: 'fixture', model: 'fixture-other' },
+    });
+    await runtime.send(changed, 'AGAIN after model selection', () => {});
+    assert.equal(changed, sessionId);
+    assert.equal(fixture.requests.at(-1).model, 'fixture-other');
+    assert.ok(
+      fixture.requests.at(-1).messages.some((message) => textOf(message.content).includes('HELLO')),
+      'changing the model preserves durable history',
     );
   } finally {
     await runtime.close();

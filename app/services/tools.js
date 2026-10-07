@@ -86,12 +86,26 @@ export const TOOL_SPECS = [
       'Undo one change by its revision id (from workspace_edit or workspace_read "changes").',
     parameters: { revisionId: { type: 'string', required: true } },
   },
+  {
+    name: 'propose_main_draft',
+    description:
+      'Prepare a draft instruction for the main meeting. The editable proposal is saved in its secretary conversation; the user fills the main input and sends it explicitly. This does not post a main meeting message.',
+    parameters: {
+      text: { type: 'string', required: true },
+      mainMeetingId: {
+        type: 'string',
+        description: 'Omit when speaking in an attached secretary meeting.',
+      },
+    },
+  },
 ];
 
 /**
  * @param {import('../core/index.js').Core} core
+ * @param {ReturnType<typeof createResearch>} [research]
+ * @param {{secretary?: ReturnType<typeof import('./secretary/chat.js').createSecretaryChat>}} [services]
  */
-export function createTools(core, research = createResearch(core)) {
+export function createTools(core, research = createResearch(core), { secretary } = {}) {
   async function nameOf(id) {
     try {
       return (await core.participants.get(id)).name;
@@ -154,6 +168,10 @@ export function createTools(core, research = createResearch(core)) {
       meetingId: context.meetingId,
       turnId: context.turnId,
     };
+    if (name === 'propose_main_draft') {
+      if (!secretary) throw new Error('Secretary draft service is unavailable.');
+      return secretary.propose(context, args);
+    }
     if (name === 'research_search' || name === 'research_read') {
       const projectId = args?.projectId ?? core.meetings.get(context.meetingId).projectId;
       const options = { ...args, projectId, audience: 'agent' };

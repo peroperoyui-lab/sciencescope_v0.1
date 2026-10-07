@@ -8,4 +8,13 @@ import * as researchVectors from './004-research-vectors.js';
 
 import * as meetingMinutes from './005-meeting-minutes.js';
 
-export const migrations = [core, toolPreamble, researchBase, researchVectors, meetingMinutes];
+import * as secretaryChats from './006-secretary-chats.js';
+
+export const migrations = [
+  core,
+  toolPreamble,
+  researchBase,
+  researchVectors,
+  meetingMinutes,
+  secretaryChats,
+];

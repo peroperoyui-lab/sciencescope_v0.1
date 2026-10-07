@@ -101,6 +101,7 @@ export function Composer({ onSend, running = false, onStop, inputRef, meetingId 
   const model = useModelMenu();
   const effort = useEffortMenu();
   const quote = useAppState((state) => state.quote);
+  const fillDraft = useAppState((state) => state.fillDraft);
   const discussion = useDiscussion(meetingId);
   const mention = useDiscussionMention({
     candidates: discussion.candidates,
@@ -118,6 +119,15 @@ export function Composer({ onSend, running = false, onStop, inputRef, meetingId 
     );
     box.current?.focus();
   }, [quote]);
+
+  // A filled secretary proposal is still an unsent draft. Consume its request
+  // once so remounting the composer does not overwrite later user edits.
+  useEffect(() => {
+    if (!fillDraft || fillDraft.meetingId !== meetingId) return;
+    setText(fillDraft.text);
+    box.current?.focus();
+    actions.consumeMainDraft(fillDraft.at);
+  }, [fillDraft]);
 
   async function send() {
     const value = text.trim();

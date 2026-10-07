@@ -111,6 +111,12 @@ R4-3a 已实现：规则与选择保存在会议中。工作模式 @ 候选为�
 
 总结订阅消息、前台 turn 结束和 `discussion.finished`，按设置防抖，同会议不重叠，等待前台完成。默认讨论后、20 条消息、30000 估算 token、进入/离开项目、Markdown 导出开启；工作台导图/计划/日志只有 off/apply，默认关闭，修改只追加或标记并写修订及纪要来源。项目切换由 focus 接口通知，关闭时 `secretary_pending_projects` 持久保留未整理项目，下次启动再补。外部 Markdown 是只写副本，错误在状态中可见。已知模型窗口时按 token 估算选择完整消息批次（含旧纪要、提示与模型输出预留），逐批提交；无窗口元数据时发送完整原文，服务商拒绝则明确保留待处理状态。已有纪要或单条完整消息无法装入窗口时不截断、不推进覆盖。
 
+### R4-4b 秘书会话
+
+秘书是普通参与者，第一次打开时建立 user + agent_secretary 的附属会议；迁移 006 的 secretary_chats 唯一绑定主会议与附属会议。消息与运行时游标分别保存。共同 runner 在每轮前通过注入的 followup 装配最新主会议纪要与上次成功跟进后原文，丢失会话则重新提供纪要及全部尾部；消息高水位在等待总结前冻结，之后的新消息留给下一轮。大积压按模型窗口估算触发纪要更新，最多等待 60 秒，超时仍保留全部可用原文，停止会立即取消等待。仅 done 才提交 secretary_cursors，失败、停止、输出未完成不推进。
+
+propose_main_draft 属于共享工具，只保存 main_draft_proposals 卡片，不发主会议消息。用户编辑并填入主输入框后仍需亲自发送；修改与决策写 main_draft_proposal_history，可撤销，重启保留。会议 policy.model 保存局部模型/推理选择，优先于角色定义，未选择则使用秘书定义、所属主会议模型与应用默认值；明确换模型不更换对话历史。
+
 ## 7. 上下文组装（`app/core/context.js`）
 
 参与者 P 在会议 M 中发言时：
@@ -155,6 +161,7 @@ R4-3a 已实现：规则与选择保存在会议中。工作模式 @ 候选为�
 - 命令行：`node app/cli.js <命令>`（projects、project-create、meetings、meeting-create、post、messages、read、edit、history、undo）。
 - 事件：`GET /api/events?since=<seq>`（SSE；浏览器的 EventSource 用 `?token=` 传口令）。
 - R2 新增：`POST /api/meetings/:id/interrupt`、`GET /api/turns/:id`（含工具调用）、`POST /api/providers/keys/:keyRef`（只写入凭据文件，不返回）。服务商与默认模型在 `/api/settings` 的 `providers`、`models.default` 中。
+- R4-4b 新增：GET/POST `/api/meetings/:id/secretary`、GET `/api/meetings/:id/secretary/proposals`、PATCH `/api/secretary/proposals/:id`；提案 history 与 proposal-revisions/:id/undo 提供更改记录/撤销。附属会议发送、停止、重试/继续共用会议接口。
 - R4-4a 新增：GET/POST `/api/meetings/:id/minutes`（编辑携带 expectedRevision）、POST `/api/meetings/:id/minutes/refresh`、POST `/api/projects/:id/focus`（focused）；状态含覆盖、距阈值剩余量、导出/工作台错误和未完成输出。
 - R4-3a 新增：`POST /api/messages/:id/continue`（定向原作者，不发用户消息）、`GET /api/meetings/:id/contexts`（每位参与者最新 turn 的 context，用于上下文环）；审核消息额外返回 `adoptionLocked`，基于已存的读取记录。
 - 本地口令：每次启动生成，所有接口校验（沿用旧版做法）。

@@ -5,7 +5,8 @@ import { AppError } from './errors.js';
 
 /**
  * @typedef {{ mode: 'direct' | 'round' | 'autonomous', respondent?: string | null,
- *   order?: string[], reviewer?: string | null, goal?: string | null }} Policy
+ *   order?: string[], reviewer?: string | null, goal?: string | null,
+ *   model?: import('../runtime/port.js').ModelChoice | null }} Policy
  * @typedef {{ participantId: string, roleNote: string, position: number }} Member
  * @typedef {{ id: string, projectId: string | null, title: string, policy: Policy,
  *   parentMeetingId: string | null, forkMessageId: string | null,

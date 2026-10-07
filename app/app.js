@@ -5,6 +5,7 @@ import { createDshRuntime } from './runtime/dsh/runtime.js';
 import { createAppServer } from './server/server.js';
 import { createConductor } from './services/conductor.js';
 import { createMinutesService } from './services/secretary/minutes.js';
+import { createSecretaryChat } from './services/secretary/chat.js';
 import { credentialsFile, runtimeProviderConfig } from './services/providers.js';
 import { createTools } from './services/tools.js';
 import { createTurnRunner } from './services/turn-runner.js';
@@ -45,6 +46,7 @@ export async function createApp({
     runtime: activeRuntime,
     defaultModel: async () => (await settings()).models.default,
   });
+  const secretary = createSecretaryChat({ core, minutes });
   const runner = createTurnRunner({
     core,
     runtime: activeRuntime,
@@ -52,7 +54,8 @@ export async function createApp({
     minutesCoverage: async (meetingId, revisionId) => minutes.coverage(meetingId, revisionId),
     minutesCoveredMessageIds: (meetingId, revisionId) =>
       minutes.coveredMessageIds(meetingId, revisionId),
-    tools: createTools(core, research),
+    followup: (meetingId, options) => secretary.catchUp(meetingId, options),
+    tools: createTools(core, research, { secretary }),
     defaultModel: async () => (await settings()).models.default,
   });
   const conductor = createConductor({ core, runner });
@@ -66,6 +69,7 @@ export async function createApp({
     research,
     semantic,
     minutes,
+    secretary,
   });
 
   return {
@@ -73,6 +77,7 @@ export async function createApp({
     research,
     semantic,
     minutes,
+    secretary,
     conductor,
     runtime: activeRuntime,
     listen: server.listen,

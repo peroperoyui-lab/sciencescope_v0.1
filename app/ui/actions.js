@@ -2,6 +2,7 @@
 // the store. Later changes arrive through the event stream anyway; recording
 // the direct result keeps the interface responsive.
 import { createResearchActions } from './research-actions.js';
+import { createSecretaryActions } from './secretary-actions.js';
 import { applyAppearance } from './appearance.js';
 import { navigate } from './route.js';
 import { applyEvent } from './state.js';
@@ -386,6 +387,7 @@ export function createActions(api, store) {
 
   return {
     ...createResearchActions(api),
+    ...createSecretaryActions(api, store),
     start,
     stop: () => stopFollowing(),
     openMeeting,

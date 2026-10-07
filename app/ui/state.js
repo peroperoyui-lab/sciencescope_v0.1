@@ -31,6 +31,12 @@ export const initialState = {
   workspaceVersion: 0,
   /** Bumped when the open minutes dialog needs a new status snapshot. */
   minutesVersion: 0,
+  /** Attached secretary snapshots indexed by their Main meeting. */
+  /** @type {Record<string, any>} */ secretary: {},
+  /** Local unsent secretary input, preserved when the right panel closes. */
+  /** @type {Record<string, string>} */ secretaryDrafts: {},
+  /** @type {null | { meetingId: string, text: string, at: number }} */ fillDraft: null,
+  secretaryVersion: 0,
   researchVersion: 0,
   semanticVersion: 0,
   /** @type {any} */
@@ -123,6 +129,9 @@ export function applyEvent(state, { type, payload }) {
       return { ...state, researchVersion: state.researchVersion + 1 };
     case 'research.semantic.changed':
       return { ...state, semanticVersion: state.semanticVersion + 1, semanticStatus: payload };
+    case 'secretary.proposal.updated':
+    case 'secretary.followup.updated':
+      return { ...state, secretaryVersion: state.secretaryVersion + 1 };
     case 'minutes.updated':
     case 'minutes.status':
       return { ...state, minutesVersion: state.minutesVersion + 1 };

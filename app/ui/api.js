@@ -20,6 +20,8 @@ const EVENT_TYPES = [
   'resource.changed',
   'minutes.updated',
   'minutes.status',
+  'secretary.proposal.updated',
+  'secretary.followup.updated',
   'revision.undone',
   'research.changed',
   'research.semantic.changed',
