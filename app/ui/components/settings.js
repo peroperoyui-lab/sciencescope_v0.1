@@ -11,6 +11,7 @@ import { navigate } from '../route.js';
 import { InfoTip } from './info-tip.js';
 import { MainHead } from './mainhead.js';
 import { SemanticSettings } from './settings-semantic.js';
+import { MemorySettings } from './settings-memory.js';
 import { SecretarySettings } from './settings-secretary.js';
 import { ModelsPage, ProviderPage } from './settings-models.js';
 import { ExpertsPage, RolePage } from './settings-roles.js';
@@ -429,7 +430,7 @@ export function SettingsView({ page, projectName }) {
         participantId="agent_secretary"
         title=${t('任务秘书设置')}
         tip=${t('提示词描述职责，不代替工具权限设置。')}
-      /><${SecretarySettings} />`;
+      /><${SecretarySettings} /><${MemorySettings} />`;
   else if (page === 'assistant-settings')
     content = html`<${RolePage}
       participantId="agent_assistant"

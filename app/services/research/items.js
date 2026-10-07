@@ -17,7 +17,7 @@ const subtypes = {
   claim: ['hypothesis', 'claim', 'conclusion'],
   note: ['note', 'mark', 'summary'],
 };
-const statuses = ['active', 'superseded', 'archived'];
+const statuses = ['active', 'superseded', 'archived', 'proposed', 'rejected'];
 
 /**
  * @typedef {ReturnType<typeof itemRow>} ResearchItem

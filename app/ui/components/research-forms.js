@@ -30,7 +30,10 @@ export function ResearchItemForm({ item, replace = false, onSaved }) {
         payload: values.payload ? JSON.parse(String(values.payload)) : (item.payload ?? {}),
       };
       if (item.id && !replace)
-        await actions.updateResearchItem(item.id, { ...patch, expectedRevision: item.revision });
+        await (item.type === 'memory' ? actions.updateMemory : actions.updateResearchItem)(
+          item.id,
+          { ...patch, expectedRevision: item.revision },
+        );
       else
         await actions.createResearchItem({
           ...patch,

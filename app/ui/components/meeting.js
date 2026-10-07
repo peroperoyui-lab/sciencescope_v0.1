@@ -16,6 +16,7 @@ import { DiscussionStrip } from './discussion-strip.js';
 import { MainHead } from './mainhead.js';
 import { MinutesDialog } from './minutes-dialog.js';
 import { ToolCard } from './meeting-tool.js';
+import { MemoryStatusDialog } from './memory-status.js';
 import { SecretaryPanel } from './secretary-panel.js';
 import { FieldForm } from './overlays.js';
 import { ProjectSummary } from './project-summary.js';
@@ -342,6 +343,22 @@ export function MeetingView({ meetingId, focusMessageId }) {
           'minutes-modal',
         ),
     },
+    ...(meeting.projectId
+      ? [
+          {
+            text: t('整理这段对话'),
+            icon: 'book',
+            run: () =>
+              actions.openModal(
+                t('整理这段对话'),
+                html`<${MemoryStatusDialog}
+                  meetingId=${meeting.id}
+                  projectId=${meeting.projectId}
+                />`,
+              ),
+          },
+        ]
+      : []),
     { sep: true },
     {
       text: t('归档'),

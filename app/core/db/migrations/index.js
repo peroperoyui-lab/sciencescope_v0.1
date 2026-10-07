@@ -10,6 +10,8 @@ import * as meetingMinutes from './005-meeting-minutes.js';
 
 import * as secretaryChats from './006-secretary-chats.js';
 
+import * as memoryConsolidation from './007-memory-consolidation.js';
+
 export const migrations = [
   core,
   toolPreamble,
@@ -17,4 +19,5 @@ export const migrations = [
   researchVectors,
   meetingMinutes,
   secretaryChats,
+  memoryConsolidation,
 ];

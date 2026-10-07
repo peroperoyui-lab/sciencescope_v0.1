@@ -41,6 +41,8 @@ export const DEFAULT_SETTINGS = {
   // The model AIs use unless their own definition names one.
   models: { default: null },
   semantic: DEFAULT_SEMANTIC_SETTINGS,
+  // A cumulative input/output cost budget; null turns the budget off.
+  memory: { enabled: true, idleMinutes: 10, model: null, tokenLimit: 100000 },
   // Summary thresholds trigger work; they never truncate the meeting record.
   summary: {
     afterDiscussion: true,

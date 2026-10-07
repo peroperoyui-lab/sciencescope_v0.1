@@ -37,6 +37,8 @@ export const initialState = {
   /** @type {Record<string, string>} */ secretaryDrafts: {},
   /** @type {null | { meetingId: string, text: string, at: number }} */ fillDraft: null,
   secretaryVersion: 0,
+  memoryVersion: 0,
+  /** @type {null|{projectId:string|null,at:number}} */ memoryInboxRequest: null,
   researchVersion: 0,
   semanticVersion: 0,
   /** @type {any} */
@@ -125,6 +127,9 @@ export function applyEvent(state, { type, payload }) {
       );
       return { ...state, toolCalls: { ...state.toolCalls, [payload.turnId]: calls } };
     }
+    case 'memory.status':
+      return { ...state, memoryVersion: state.memoryVersion + 1 };
+    case 'memory.changed':
     case 'research.changed':
       return { ...state, researchVersion: state.researchVersion + 1 };
     case 'research.semantic.changed':

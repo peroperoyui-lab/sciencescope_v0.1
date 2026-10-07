@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useActions, useAppState } from './context.js';
 
-export const RESOURCE_LABELS = { plans: '计划', log: '日志', map: '导图' };
+export const RESOURCE_LABELS = { plans: '计划', log: '日志', map: '导图', memory: '记忆' };
 export const OP_LABELS = {
+  create: '添加了记忆',
+  update: '修改记忆',
   write: '改写',
   append: '追加',
   replace: '替换',
@@ -25,6 +27,7 @@ export const OP_LABELS = {
 export function useProjectRevisions(projectId, limit) {
   const actions = useActions();
   const version = useAppState((state) => state.workspaceVersion);
+  const memoryVersion = useAppState((state) => state.researchVersion);
   const [revisions, setRevisions] = useState([]);
   useEffect(() => {
     const queries = [
@@ -33,7 +36,10 @@ export function useProjectRevisions(projectId, limit) {
       { resource: 'map', key: projectId },
       { resource: 'plans', key: 'global' },
     ];
-    Promise.all(queries.map((query) => actions.history({ ...query, limit })))
+    Promise.all([
+      ...queries.map((query) => actions.history({ ...query, limit })),
+      actions.projectMemoryHistory(projectId),
+    ])
       .then((lists) =>
         setRevisions(
           lists
@@ -43,6 +49,6 @@ export function useProjectRevisions(projectId, limit) {
         ),
       )
       .catch((error) => actions.toast(error.message));
-  }, [projectId, version]);
+  }, [projectId, version, memoryVersion]);
   return revisions;
 }

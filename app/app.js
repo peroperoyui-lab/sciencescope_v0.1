@@ -6,6 +6,9 @@ import { createAppServer } from './server/server.js';
 import { createConductor } from './services/conductor.js';
 import { createMinutesService } from './services/secretary/minutes.js';
 import { createSecretaryChat } from './services/secretary/chat.js';
+import { createBackgroundRunner } from './services/secretary/background.js';
+import { projectBrief } from './services/secretary/project-brief.js';
+import { createMemoryService } from './services/memory/index.js';
 import { credentialsFile, runtimeProviderConfig } from './services/providers.js';
 import { createTools } from './services/tools.js';
 import { createTurnRunner } from './services/turn-runner.js';
@@ -47,6 +50,12 @@ export async function createApp({
     defaultModel: async () => (await settings()).models.default,
   });
   const secretary = createSecretaryChat({ core, minutes });
+  const memoryRunner = createBackgroundRunner({
+    core,
+    runtime: activeRuntime,
+    defaultModel: async () => (await settings()).models.default,
+  });
+  const memory = createMemoryService({ core, minutes, research, runner: memoryRunner });
   const runner = createTurnRunner({
     core,
     runtime: activeRuntime,
@@ -55,12 +64,14 @@ export async function createApp({
     minutesCoveredMessageIds: (meetingId, revisionId) =>
       minutes.coveredMessageIds(meetingId, revisionId),
     followup: (meetingId, options) => secretary.catchUp(meetingId, options),
+    projectBrief: async (projectId) => projectBrief(core, projectId, research.store).text,
     tools: createTools(core, research, { secretary }),
     defaultModel: async () => (await settings()).models.default,
   });
   const conductor = createConductor({ core, runner });
   conductor.start();
   minutes.start();
+  memory.start();
   const server = createAppServer({
     core,
     token,
@@ -70,6 +81,7 @@ export async function createApp({
     semantic,
     minutes,
     secretary,
+    memory,
   });
 
   return {
@@ -78,11 +90,14 @@ export async function createApp({
     semantic,
     minutes,
     secretary,
+    memory,
     conductor,
     runtime: activeRuntime,
     listen: server.listen,
     async close() {
       conductor.stop();
+      await memory.close();
+      await memoryRunner.close();
       await minutes.close();
       await server.close();
       await conductor.idle();

@@ -1,6 +1,7 @@
 import { html } from '../html.js';
 import { renderMarkdown, renderFormula } from '../markdown.js';
 import { t } from '../i18n/index.js';
+import { MemoryEvidence } from './memory-evidence.js';
 import { researchLabel } from './research-fields.js';
 
 /** @param {{item:any,onAction:(action:string,item:any)=>void}} props */
@@ -59,6 +60,7 @@ export function ResearchCard({ item, onAction }) {
       }`
     }
     ${item.supersededBy && html`<div><button class="btn tiny" onClick=${() => onAction('detail', { id: item.supersededBy })}>${t('查看取代记录')}</button></div>`}
+    ${item.type === 'memory' && html`<${MemoryEvidence} item=${item} />`}
     <div class="rb-row-actions">
       ${button('编辑', 'edit')}${button(item.pinned ? '取消置顶' : '置顶', 'pin')}${item.status === 'active' && html`${button('归档', 'archive')}${button('取代', 'supersede')}`}${button('修订历史', 'history')}
     </div>

@@ -24,6 +24,8 @@ const EVENT_TYPES = [
   'secretary.followup.updated',
   'revision.undone',
   'research.changed',
+  'memory.status',
+  'memory.changed',
   'research.semantic.changed',
 ];
 

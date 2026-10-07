@@ -29,7 +29,8 @@ const STATUS_BY_STOP = {
  *   idleReleaseMs?: number,
  *   minutesCoverage?: (meetingId: string, revisionId: string | null) => Promise<number>,
  *   minutesCoveredMessageIds?: (meetingId: string, revisionId: string | null) => string[],
- *   followup?: (meetingId: string, options: any) => Promise<any> }} deps
+ *   followup?: (meetingId: string, options: any) => Promise<any>,
+ *   projectBrief?: (projectId: string) => Promise<string> }} deps
  *   A session idle for `idleReleaseMs` is released (its process ends); the next
  *   turn resumes it. Historical meetings keep no process alive.
  */
@@ -43,6 +44,7 @@ export function createTurnRunner({
   minutesCoverage = async () => 0,
   minutesCoveredMessageIds = () => [],
   followup = async () => null,
+  projectBrief = async () => '',
 }) {
   /** @type {Map<string, { sessionId: string | null, cancelled: boolean }>} turn id → execution */
   const active = new Map();
@@ -185,6 +187,8 @@ export function createTurnRunner({
       members: await membersOf(meeting),
       project,
       workFolder,
+      projectBrief:
+        participant.id === 'agent_main' && project ? await projectBrief(project.id) : '',
     });
     if (execution.cancelled) throw new AppError('TURN_CANCELLED', 'Turn was cancelled.');
     const review = reviewMessageIds?.map((id) => core.messages.get(id)) ?? [];

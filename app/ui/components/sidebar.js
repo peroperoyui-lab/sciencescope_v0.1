@@ -1,7 +1,7 @@
 // Left sidebar in the old interface's markup: navigation, search, pinned
 // items, the project tree with its meetings, standalone meetings, "browse
 // all" and the user bar.
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
@@ -165,6 +165,20 @@ export function Sidebar({ route, currentProjectId }) {
   const settings = useAppState((state) => state.settings);
   const [collapsed, setCollapsed] = useState(/** @type {Record<string, boolean>} */ ({}));
   const [peek, setPeek] = useState(false);
+  const memoryVersion = useAppState((state) => state.researchVersion);
+  const [inboxCount, setInboxCount] = useState(0);
+  const inboxProject =
+    currentProjectId ?? projects.find((project) => !project.archived)?.id ?? null;
+  useEffect(() => {
+    let current = true;
+    actions
+      .memoryInbox(inboxProject)
+      .then((result) => current && setInboxCount(result.count))
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [inboxProject, memoryVersion]);
 
   const visible = meetings.filter(listed).sort(byRecent);
   const activeProjects = projects.filter((project) => !project.archived);
@@ -203,6 +217,7 @@ export function Sidebar({ route, currentProjectId }) {
         onClick=${() => navigate(currentProjectId || activeProjects[0]?.id ? { view: 'database', id: currentProjectId ?? activeProjects[0].id } : { view: 'library' })}
       >
         <${Icon} name="book" /><span>${t('数据库')}</span>
+        ${inboxCount > 0 && html`<span class="badge" data-rb-inbox-count>${inboxCount}</span>`}
       </button>
       <div class="row" style="gap:0">
         <button

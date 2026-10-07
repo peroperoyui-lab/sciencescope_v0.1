@@ -18,6 +18,7 @@ const textOf = (content) =>
 /** A fixture model: says hello, calls a tool when asked, and reports what it saw. */
 function startFixtureModel() {
   const requests = [];
+  let retries = 0;
   const server = createServer(async (req, res) => {
     let body = '';
     for await (const chunk of req) body += chunk;
@@ -27,6 +28,11 @@ function startFixtureModel() {
     const lastUser = input.messages.filter((m) => m.role === 'user').map((m) => textOf(m.content));
     const asked = lastUser.findLast((text) => /TOOL|HELLO|AGAIN/.test(text)) ?? '';
     const sawToolResult = input.messages.at(-1)?.role === 'tool';
+    if (all.includes('RETRY_USAGE') && retries++ < 2) {
+      res.writeHead(503, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: { message: 'temporary fixture failure' } }));
+      return;
+    }
     res.writeHead(200, { 'content-type': 'text/event-stream' });
     const chunk = (delta, finish = null) =>
       res.write(`data: ${JSON.stringify({ choices: [{ delta, finish_reason: finish }] })}\n\n`);
@@ -52,6 +58,9 @@ function startFixtureModel() {
       chunk({ content: `ANSWER ${marker} ${memory}` });
       chunk({}, 'stop');
     }
+    res.write(
+      `data: ${JSON.stringify({ choices: [], usage: { prompt_tokens: 120, completion_tokens: 10, total_tokens: 130, prompt_tokens_details: { cached_tokens: 20 } } })}\n\n`,
+    );
     res.end('data: [DONE]\n\n');
   });
   return new Promise((resolve) => {
@@ -106,6 +115,9 @@ test('a DSH session follows instructions, streams, calls our tools and resumes',
     assert.equal(first.stopReason, 'completed');
     // The context ring's measurement: what the next request would carry.
     assert.ok(first.usage.context.usedTokens > 0);
+    assert.equal(first.usage.totalTokens, 130);
+    assert.equal(first.usage.requests, 1);
+    assert.equal(first.usage.unknownRequests, 0);
     const streamed = events
       .filter((event) => event.type === 'text-delta')
       .map((event) => event.delta)
@@ -115,6 +127,8 @@ test('a DSH session follows instructions, streams, calls our tools and resumes',
     const toolEvents = [];
     const second = await runtime.send(sessionId, 'please use a TOOL', (e) => toolEvents.push(e));
     assert.equal(second.stopReason, 'completed');
+    assert.equal(second.usage.totalTokens, 260, 'both model steps are billed');
+    assert.equal(second.usage.requests, 2);
     assert.deepEqual(toolCalls, [{ name: 'workspace_read', args: { target: 'overview' } }]);
     const types = toolEvents.map((event) => event.type);
     assert.ok(types.includes('tool-call') && types.includes('tool-result'));
@@ -138,6 +152,27 @@ test('a DSH session follows instructions, streams, calls our tools and resumes',
       'background text-only work does not inherit SDK tools',
     );
     await runtime.release(background);
+    const retried = await runtime.startSession({ ...options, tools: [], noTools: true });
+    const beforeRetry = fixture.requests.length;
+    const retryUsage = await runtime.send(retried, 'RETRY_USAGE HELLO', () => {});
+    assert.equal(retryUsage.stopReason, 'completed');
+    assert.equal(
+      fixture.requests.length - beforeRetry,
+      3,
+      'provider adapter retries two pre-stream HTTP failures',
+    );
+    assert.equal(retryUsage.usage.requests, 3, 'all settled attempts are counted');
+    assert.equal(
+      retryUsage.usage.unknownRequests,
+      0,
+      'adapter reports explicit zero usage for pre-stream HTTP errors',
+    );
+    assert.equal(
+      retryUsage.usage.totalTokens,
+      130,
+      'successful provider usage survives transport retry',
+    );
+    await runtime.release(retried);
 
     await runtime.release(sessionId);
     const resumed = await runtime.startSession({ ...options, sessionId });

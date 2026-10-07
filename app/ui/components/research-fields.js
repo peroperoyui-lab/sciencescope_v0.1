@@ -6,11 +6,24 @@ export const researchTabs = {
   knowledge: '知识',
   model: '模型与公式',
   claim: '主张与证据',
+  memory: '记忆',
+  inbox: '记忆收件箱',
+  brief: '项目简报',
 };
 export const researchSubtypes = {
   knowledge: ['finding', 'definition', 'method', 'fact', 'dataset-note', 'other'],
   model: ['theory', 'formula', 'algorithm', 'statistical-model', 'protocol'],
   claim: ['hypothesis', 'claim', 'conclusion'],
+  memory: [
+    'goal',
+    'decision',
+    'convention',
+    'preference',
+    'open-question',
+    'lesson',
+    'episode',
+    'profile',
+  ],
 };
 export const sourceKinds = [
   'paper',
@@ -26,6 +39,16 @@ export const sourceKinds = [
   'note',
 ];
 const names = {
+  goal: '目标',
+  decision: '决定',
+  convention: '约定',
+  preference: '偏好',
+  'open-question': '未决问题',
+  lesson: '经验',
+  episode: '阶段摘要',
+  profile: '背景',
+  proposed: '待确认',
+  rejected: '已拒绝',
   finding: '研究发现',
   definition: '定义',
   method: '方法',

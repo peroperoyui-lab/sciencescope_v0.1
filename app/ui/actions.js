@@ -2,6 +2,7 @@
 // the store. Later changes arrive through the event stream anyway; recording
 // the direct result keeps the interface responsive.
 import { createResearchActions } from './research-actions.js';
+import { createMemoryActions } from './memory-actions.js';
 import { createSecretaryActions } from './secretary-actions.js';
 import { applyAppearance } from './appearance.js';
 import { navigate } from './route.js';
@@ -289,7 +290,12 @@ export function createActions(api, store) {
   }
 
   /** @param {string} revisionId */
-  const undo = (revisionId) => api.post(`/api/revisions/${revisionId}/undo`);
+  const undo = (revisionId) =>
+    api.post(
+      revisionId.startsWith('memrev_')
+        ? `/api/memory/revisions/${revisionId}/undo`
+        : `/api/revisions/${revisionId}/undo`,
+    );
 
   /** Meetings and messages whose text contains `query`. @param {string} query */
   const search = (query) => api.get(`/api/search?q=${encodeURIComponent(query)}`);
@@ -387,6 +393,7 @@ export function createActions(api, store) {
 
   return {
     ...createResearchActions(api),
+    ...createMemoryActions(api),
     ...createSecretaryActions(api, store),
     start,
     stop: () => stopFollowing(),
@@ -412,6 +419,8 @@ export function createActions(api, store) {
     editMinutes,
     refreshMinutes,
     focusProject,
+    openMemoryInbox: (projectId) => set({ memoryInboxRequest: { projectId, at: Date.now() } }),
+    consumeMemoryInbox: () => set({ memoryInboxRequest: null }),
     readResource,
     editResource,
     history,

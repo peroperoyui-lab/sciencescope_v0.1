@@ -12,6 +12,7 @@ import { readFileSync } from 'node:fs';
 import { createUserMessage, isTokenDelta } from '@deepseek-ai/dsh-llm';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { PERSONA_PREFIX_SECTION } from '@deepseek-ai/dsh-system-prompt';
+import { createTurnUsage } from './usage.js';
 
 export const name = 'sciencescope-bridge';
 export const inject = ['agents', 'approval'];
@@ -76,6 +77,7 @@ export function apply(ctx) {
 
   let turnEnd = null;
   let lastFailure = null;
+  let turnUsage = createTurnUsage();
   const mine = (session) => String(session?.id) === sessionId;
 
   ctx.on('agent/assistant-stream', ({ agent, frame }) => {
@@ -110,6 +112,7 @@ export function apply(ctx) {
         });
       }
     } else if (event.type === 'assistant/message') {
+      turnUsage.add(data.usage);
       const content = data.message?.content ?? [];
       emit({
         type: 'step-end',
@@ -118,6 +121,9 @@ export function apply(ctx) {
         usage: data.usage,
       });
     } else if (event.type === 'assistant/attempt') {
+      turnUsage.add(
+        data.stream?.findLast?.((record) => record?.chunk?.type === 'usage')?.chunk?.usage,
+      );
       const finish = data.stream?.findLast?.((record) => record?.chunk?.type === 'finish')?.chunk;
       if (finish?.reason?.kind === 'error') lastFailure = finish.reason.failure ?? null;
     } else if (event.type === 'turn/end') {
@@ -198,6 +204,7 @@ export function apply(ctx) {
         if (req.url === '/prompt') {
           turnEnd = null;
           lastFailure = null;
+          turnUsage = createTurnUsage();
           const content = [{ type: 'text', text: body.text }];
           handle.agent.followup(createUserMessage({ content, source: { kind: 'user' } }));
           await handle.agent.whenIdle();
@@ -211,7 +218,7 @@ export function apply(ctx) {
           }
           reply(200, {
             stopReason: STOP_REASONS[kind] ?? 'failed',
-            usage: context ? { ...turnEnd?.usage, context } : turnEnd?.usage,
+            usage: context ? { ...turnUsage.value(), context } : turnUsage.value(),
             ...(STOP_REASONS[kind] ? {} : { error: lastFailure?.message ?? kind ?? 'no turn end' }),
           });
         } else if (req.url === '/interrupt') {

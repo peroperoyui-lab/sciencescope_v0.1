@@ -24,10 +24,17 @@ export function visibleMessages(messages) {
  *   meeting: { id?: string, title: string, policy: any },
  *   members: Array<{ id: string, name: string, kind: string, roleNote?: string }>,
  *   project: { id?: string, name: string, description: string, folder: string | null } | null,
- *   workFolder: string }} input
+ *   workFolder: string, projectBrief?:string }} input
  * @returns {string}
  */
-export function buildInstructions({ participant, meeting, members, project, workFolder }) {
+export function buildInstructions({
+  participant,
+  meeting,
+  members,
+  project,
+  workFolder,
+  projectBrief,
+}) {
   const others = members
     .filter((member) => member.id !== participant.id)
     .map((member) => {
@@ -58,6 +65,7 @@ export function buildInstructions({ participant, meeting, members, project, work
     '- 会议记录、纪要、工作台（导图、计划、日志、版本说明）、笔记和专家定义都可以用 workspace_read 查阅，用 workspace_edit 修改；修改会进入更改记录，可以用 workspace_undo 撤销。',
     '- 需要了解更早的讨论时，用 workspace_read 查阅会议记录，不要凭印象。',
   );
+  if (projectBrief?.trim()) lines.push('', projectBrief);
   return lines.join('\n').trim();
 }
 

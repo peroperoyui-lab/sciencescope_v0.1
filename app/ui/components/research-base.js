@@ -10,6 +10,9 @@ import { ResearchCard, ResearchHistory } from './research-card.js';
 import { researchTabs, researchSubtypes } from './research-fields.js';
 import { ResearchItemForm, ResearchSourceForm } from './research-forms.js';
 import { ResearchFilters, ResearchSources, ResearchSearchResults } from './research-list.js';
+import { MemoryViews } from './memory-views.js';
+import { MemoryHistory } from './memory-history.js';
+import { researchLabel } from './research-fields.js';
 import { ResearchSourceDetail } from './research-source-detail.js';
 
 const defaultFilters = {
@@ -29,7 +32,14 @@ export function ResearchBase({ view, projectId = null }) {
   const version = useAppState((state) => state.researchVersion);
   const project = projects.find((candidate) => candidate.id === projectId);
   const targetProject = projectId ?? projects.find((candidate) => !candidate.archived)?.id;
+  const inboxRequest = useAppState((state) => state.memoryInboxRequest);
   const [tab, setTab] = useState('sources');
+  useEffect(() => {
+    if (inboxRequest && inboxRequest.projectId === projectId) {
+      setTab('inbox');
+      actions.consumeMemoryInbox();
+    }
+  }, [inboxRequest, projectId]);
   const [filters, setFilters] = useState(defaultFilters);
   const [query, setQuery] = useState('');
   const [draft, setDraft] = useState('');
@@ -48,7 +58,7 @@ export function ResearchBase({ view, projectId = null }) {
   const fileInput = useRef(null);
   const reload = () => setRefresh((value) => value + 1);
   useEffect(() => {
-    if (view === 'sources') return;
+    if (view === 'sources' || ['inbox', 'brief'].includes(tab)) return;
     let current = true;
     setLoading(true);
     setError('');
@@ -112,7 +122,12 @@ export function ResearchBase({ view, projectId = null }) {
           />`,
         );
       else if (action === 'history')
-        actions.openModal(t('修订历史'), html`<${ResearchHistory} detail=${detail} />`);
+        actions.openModal(
+          t('修订历史'),
+          current.type === 'memory'
+            ? html`<${MemoryHistory} itemId=${item.id} />`
+            : html`<${ResearchHistory} detail=${detail} />`,
+        );
       else if (action === 'detail')
         actions.openModal(
           t('条目详情'),
@@ -121,12 +136,15 @@ export function ResearchBase({ view, projectId = null }) {
           </div>`,
         );
       else {
-        await actions.updateResearchItem(item.id, {
-          expectedRevision: current.revision,
-          ...(action === 'pin'
-            ? { payload: { ...current.payload, pinned: !current.pinned } }
-            : { status: 'archived' }),
-        });
+        await (current.type === 'memory' ? actions.updateMemory : actions.updateResearchItem)(
+          item.id,
+          {
+            expectedRevision: current.revision,
+            ...(action === 'pin'
+              ? { payload: { ...current.payload, pinned: !current.pinned } }
+              : { status: 'archived' }),
+          },
+        );
         reload();
       }
     });
@@ -207,9 +225,23 @@ export function ResearchBase({ view, projectId = null }) {
     reload();
   }
   const empty = page.hits ? page.hits.length === 0 : page.rows.length === 0;
-  const cards = html`<div class="rb-cards">
-    ${page.rows.map((item) => html`<${ResearchCard} key=${item.id} item=${item} onAction=${itemAction} />`)}
-  </div>`;
+  const cards =
+    tab === 'memory'
+      ? html`${researchSubtypes.memory.map((subtype) => {
+          const rows = page.rows.filter((item) => item.subtype === subtype);
+          return (
+            rows.length &&
+            html`<section>
+              <h3>${researchLabel(subtype)}</h3>
+              <div class="rb-cards">
+                ${rows.map((item) => html`<${ResearchCard} key=${item.id} item=${item} onAction=${itemAction} />`)}
+              </div>
+            </section>`
+          );
+        })}`
+      : html`<div class="rb-cards">
+          ${page.rows.map((item) => html`<${ResearchCard} key=${item.id} item=${item} onAction=${itemAction} />`)}
+        </div>`;
   return html`<main class="main">
     <${MainHead}
       crumb=${project?.name ?? t('我的资料')}
@@ -250,57 +282,73 @@ export function ResearchBase({ view, projectId = null }) {
                 <div class="tabs rb-tabs">
                   ${Object.entries(researchTabs).map(([key, title]) => html`<button class=${`tab ${tab === key ? 'active' : ''}`} data-rb-tab=${key} onClick=${() => changeTab(key)}>${t(title)}</button>`)}
                 </div>
-                <form
-                  class="rb-search"
-                  onSubmit=${(event) => {
-                    event.preventDefault();
-                    setQuery(draft);
-                    setOffset(0);
-                    reload();
-                  }}
-                >
-                  <input
-                    value=${draft}
-                    aria-label=${t('统一检索资料与条目')}
-                    placeholder=${t('统一检索资料与条目')}
-                    onInput=${(event) => setDraft(event.currentTarget.value)}
-                  /><button class="btn tiny" type="submit">${t('搜索')}</button>${
-                    query &&
-                    html`<button
-                      type="button"
-                      class="btn tiny"
-                      onClick=${() => {
-                        setQuery('');
-                        setDraft('');
-                        setOffset(0);
-                      }}
-                    >
-                      ${t('清除搜索')}
-                    </button>`
-                  }<button type="button" class="btn tiny" onClick=${reload}>${t('刷新')}</button>
-                </form>
-                ${!query && html`<${ResearchFilters} tab=${tab} filters=${filters} onFilter=${changeFilter} />`}
-                ${imports.length > 0 && html`<div data-rb-import-progress role="status">${imports.map((entry) => html`<p>${entry.name} · ${entry.status === 'importing' ? t('正在导入…') : entry.status === 'queued' ? t('等待导入') : entry.status === 'parsed' ? t('已解析') : entry.status === 'partial' ? t('部分解析') : t('解析失败')}${entry.error && html`<span role="alert"> · ${entry.error}</span>`}</p>`)}</div>`}
-                ${error && html`<p role="alert">${error}</p>`}${loading && html`<p role="status">${t('正在读取…')}</p>`}
                 ${
-                  page.hits
-                    ? html`<${ResearchSearchResults}
-                        hits=${page.hits}
-                        query=${query}
-                        mode=${page.mode}
-                        onHit=${openHit}
+                  ['inbox', 'brief'].includes(tab)
+                    ? html`<${MemoryViews}
+                        key=${tab}
+                        projectId=${projectId}
+                        tab=${tab}
+                        onEdit=${(item) => itemAction('edit', item)}
                       />`
-                    : tab === 'sources'
-                      ? html`<${ResearchSources} sources=${page.rows} onAction=${sourceAction} />`
-                      : filters.status === 'superseded'
-                        ? html`<details>
-                            <summary>${t('已取代的记录')}</summary>
-                            ${cards}
-                          </details>`
-                        : cards
+                    : html`
+                        <form
+                          class="rb-search"
+                          onSubmit=${(event) => {
+                            event.preventDefault();
+                            setQuery(draft);
+                            setOffset(0);
+                            reload();
+                          }}
+                        >
+                          <input
+                            value=${draft}
+                            aria-label=${t('统一检索资料与条目')}
+                            placeholder=${t('统一检索资料与条目')}
+                            onInput=${(event) => setDraft(event.currentTarget.value)}
+                          /><button class="btn tiny" type="submit">${t('搜索')}</button>${
+                            query &&
+                            html`<button
+                              type="button"
+                              class="btn tiny"
+                              onClick=${() => {
+                                setQuery('');
+                                setDraft('');
+                                setOffset(0);
+                              }}
+                            >
+                              ${t('清除搜索')}
+                            </button>`
+                          }<button type="button" class="btn tiny" onClick=${reload}>
+                            ${t('刷新')}
+                          </button>
+                        </form>
+                        ${!query && html`<${ResearchFilters} tab=${tab} filters=${filters} onFilter=${changeFilter} />`}
+                        ${imports.length > 0 && html`<div data-rb-import-progress role="status">${imports.map((entry) => html`<p>${entry.name} · ${entry.status === 'importing' ? t('正在导入…') : entry.status === 'queued' ? t('等待导入') : entry.status === 'parsed' ? t('已解析') : entry.status === 'partial' ? t('部分解析') : t('解析失败')}${entry.error && html`<span role="alert"> · ${entry.error}</span>`}</p>`)}</div>`}
+                        ${error && html`<p role="alert">${error}</p>`}${loading && html`<p role="status">${t('正在读取…')}</p>`}
+                        ${
+                          page.hits
+                            ? html`<${ResearchSearchResults}
+                                hits=${page.hits}
+                                query=${query}
+                                mode=${page.mode}
+                                onHit=${openHit}
+                              />`
+                            : tab === 'sources'
+                              ? html`<${ResearchSources}
+                                  sources=${page.rows}
+                                  onAction=${sourceAction}
+                                />`
+                              : filters.status === 'superseded'
+                                ? html`<details>
+                                    <summary>${t('已取代的记录')}</summary>
+                                    ${cards}
+                                  </details>`
+                                : cards
+                        }
+                        ${(!empty || offset > 0) && html`<div class="rb-pagination"><button class="btn tiny" disabled=${offset === 0} onClick=${() => setOffset(Math.max(0, offset - 50))}>${t('上一页')}</button><span>${offset + 1}–${offset + (page.hits?.length ?? page.rows.length)}${tab === 'sources' || page.hits ? ` / ${page.total}` : ''}</span><button class="btn tiny" disabled=${!page.remaining} onClick=${() => setOffset(offset + 50)}>${t('下一页')}</button></div>`}
+                        ${empty && !loading && html`<div class="empty">${t('暂无记录')}</div>`}
+                      `
                 }
-                ${(!empty || offset > 0) && html`<div class="rb-pagination"><button class="btn tiny" disabled=${offset === 0} onClick=${() => setOffset(Math.max(0, offset - 50))}>${t('上一页')}</button><span>${offset + 1}–${offset + (page.hits?.length ?? page.rows.length)}${tab === 'sources' || page.hits ? ` / ${page.total}` : ''}</span><button class="btn tiny" disabled=${!page.remaining} onClick=${() => setOffset(offset + 50)}>${t('下一页')}</button></div>`}
-                ${empty && !loading && html`<div class="empty">${t('暂无记录')}</div>`}
               `
         }
       </div>

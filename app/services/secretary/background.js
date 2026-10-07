@@ -5,7 +5,7 @@ import { AppError } from '../../core/errors.js';
 /**
  * @param {{core:import('../../core/index.js').Core,runtime:import('../../runtime/port.js').Runtime,
  * defaultModel:(meeting?:any)=>Promise<import('../../runtime/port.js').ModelChoice|null>}} dependencies
- * @returns {{run:(meetingId:string,instructions:string,input:string,prepared?:any)=>Promise<{text:string,turnId:string}>,close:()=>Promise<void>,prepare:(meetingId:string)=>Promise<any>}}
+ * @returns {{run:(meetingId:string,instructions:string,input:string,prepared?:any)=>Promise<{text:string,turnId:string,usage:any}>,close:()=>Promise<void>,prepare:(meetingId:string,options?:{model?:any})=>Promise<any>}}
  */
 export function createBackgroundRunner({ core, runtime, defaultModel }) {
   const sessions = new Set();
@@ -13,17 +13,20 @@ export function createBackgroundRunner({ core, runtime, defaultModel }) {
 
   /**
    * @param {string} meetingId
+   * @param {{model?:any}} [options]
    * @returns {Promise<any>}
    */
-  async function prepare(meetingId) {
+  async function prepare(meetingId, { model: override } = {}) {
     const meeting = core.meetings.get(meetingId);
     const secretary = await core.participants.get('agent_secretary');
     const main = await core.participants.get(meeting.policy.respondent ?? 'agent_main');
-    const model = secretary.definition?.model?.model
-      ? secretary.definition.model
-      : main.definition?.model?.model
-        ? main.definition.model
-        : await defaultModel(meeting);
+    const choices = [
+      override,
+      secretary.definition?.model,
+      meeting.policy.model,
+      main.definition?.model,
+    ];
+    const model = choices.find((choice) => choice?.model) ?? (await defaultModel(meeting));
     if (!model?.provider || !model?.model)
       throw new AppError('MODEL_REQUIRED', '请先选择秘书或会议使用的模型。');
     const settings = (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
@@ -42,7 +45,7 @@ export function createBackgroundRunner({ core, runtime, defaultModel }) {
    * @param {string} instructions
    * @param {string} input
    * @param {any} [selection]
-   * @returns {Promise<{text:string,turnId:string}>}
+   * @returns {Promise<{text:string,turnId:string,usage:any}>}
    */
   async function run(meetingId, instructions, input, selection) {
     const prepared = selection ?? (await prepare(meetingId));
@@ -92,7 +95,7 @@ export function createBackgroundRunner({ core, runtime, defaultModel }) {
         stopReason: result.stopReason,
         usage: result.usage,
       });
-      return { text: text.trim(), turnId: turn.id };
+      return { text: text.trim(), turnId: turn.id, usage: result.usage ?? null };
     } catch (error) {
       const status =
         closed || result?.stopReason === 'cancelled'
@@ -106,6 +109,8 @@ export function createBackgroundRunner({ core, runtime, defaultModel }) {
         usage: result?.usage ?? null,
       });
       error.incompleteOutput = text;
+      error.usage = result?.usage ?? null;
+      error.turnId = turn.id;
       throw error;
     } finally {
       if (sessionId) {

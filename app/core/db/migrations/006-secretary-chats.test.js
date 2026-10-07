@@ -46,7 +46,10 @@ test('v5 upgrade preserves old research, and attached secretary/proposals/cursor
     core = await createCore({ dataRoot: dir });
     const reopened = createSecretaryChat({ core, minutes });
     const snapshot = reopened.snapshot('main');
-    assert.equal(core.db.prepare('PRAGMA user_version').get().user_version, 6);
+    assert.equal(
+      core.db.prepare('PRAGMA user_version').get().user_version,
+      migrations.at(-1).version,
+    );
     assert.equal(snapshot.meeting.id, attached.id);
     assert.equal(snapshot.cursor.throughSeq, 1);
     assert.equal(snapshot.proposals[0].id, proposal.id);
