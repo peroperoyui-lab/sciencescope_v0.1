@@ -4,7 +4,7 @@
 - Secretary uses an attached meeting with separate history, frozen Main follow-up packets and successful-only cursors; migration 006 persists binding, proposals and reversible proposal history.
 - Restored legacy sidebar, streaming/tool cards, local model/effort menu, stop, editable drafts and explicit fill into Main; Main remains mounted and all new strings have English.
 - Explicit model changes now restart the runtime process while resuming the same durable history; real DSH/local fixture plus scripted cursor/failure/stop/restart paths pass. Paid requests/tokens: 0.
-- Clean-checkout Windows full check and screenshots recorded before delivery; no attachments/policy/global assistant. Details in ignored temp/r4-4b.
+- Windows independent clean checkout: fresh npm install, npm run check 116/116, no skips; Edge screenshots compared with frozen legacy UI. No attachments/policy/global assistant; details in ignored temp/r4-4b.
 
 ## 2026-10-07 R4-4a minutes and summary rules (Codex)
 - Secretary background turns maintain incremental minutes with revision-bound coverage, usage and undo; settings consume discussion/message/token/project triggers, one-way Markdown export and direct map/plans/log updates.
