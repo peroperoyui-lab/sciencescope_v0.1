@@ -422,3 +422,32 @@ test('declared model context capacity splits complete raw messages into successi
     assert.equal((await minutes.status(meeting.id)).newMessages, 1);
     assert.equal(runtime.sessions.size, 3);
   }));
+
+test('closing immediately after a project switch preserves the previous pending project', () =>
+  withMinutes(async ({ core, meeting, project, runtime, options, say }) => {
+    const next = await core.projects.create({ name: '切换到另一个项目' });
+    await core.workspace.edit({
+      resource: 'settings',
+      key: 'app',
+      op: 'patch',
+      args: {
+        changes: {
+          summary: {
+            onEnterProject: false,
+            everyMessages: { enabled: false },
+            everyTokens: { enabled: false },
+          },
+        },
+      },
+    });
+    const service = createMinutesService({ ...options, debounceMs: 60000, pendingDelayMs: 60000 });
+    service.start();
+    service.focus(project.id);
+    say('切换前未整理的事实');
+    service.focus(next.id);
+    await service.close();
+    const rows = core.db.prepare('SELECT project_id FROM secretary_pending_projects').all();
+    assert.ok(rows.some((row) => row.project_id === project.id));
+    assert.equal(runtime.sessions.size, 0);
+    assert.equal(service.coverage(meeting.id), 0);
+  }));

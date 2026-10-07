@@ -398,19 +398,26 @@ export function createMinutesService({
 
   async function close() {
     if (closed) return;
-    if (
-      focusedProject &&
-      (await settings()).onLeaveProject &&
-      core.meetings
-        .list({ projectId: focusedProject })
-        .some((meeting) => eligibleMeeting(meeting.id) && uncoveredMessages(meeting.id).length)
-    ) {
-      core.db
-        .prepare(
-          `INSERT INTO secretary_pending_projects (project_id, created_at) VALUES (?, ?)
-        ON CONFLICT(project_id) DO UPDATE SET created_at = excluded.created_at`,
-        )
-        .run(focusedProject, new Date().toISOString());
+    const pendingProjects = new Set(focusedProject ? [focusedProject] : []);
+    // A rapid project switch can leave the previous project's debounced work
+    // queued when the window closes; persist those projects as well.
+    for (const meetingId of new Set([...timers.keys(), ...deferred.keys(), ...running.keys()])) {
+      const projectId = core.meetings.get(meetingId).projectId;
+      if (projectId) pendingProjects.add(projectId);
+    }
+    if ((await settings()).onLeaveProject) {
+      for (const projectId of pendingProjects) {
+        const dirty = core.meetings
+          .list({ projectId })
+          .some((meeting) => eligibleMeeting(meeting.id) && uncoveredMessages(meeting.id).length);
+        if (!dirty) continue;
+        core.db
+          .prepare(
+            `INSERT INTO secretary_pending_projects (project_id, created_at) VALUES (?, ?)
+           ON CONFLICT(project_id) DO UPDATE SET created_at = excluded.created_at`,
+          )
+          .run(projectId, new Date().toISOString());
+      }
     }
     closed = true;
     unsubscribe?.();
