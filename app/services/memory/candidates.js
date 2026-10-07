@@ -41,12 +41,12 @@ export function extractCandidates(raw, checkpoint, page, sources) {
         (part) =>
           part.id === (proof.messageId ?? proof.minutesRevision) && part.text.includes(proof.quote),
       );
-      if (!source || (proof.minutesRevision && checkpoint.input.delta.authorId !== 'person_user'))
-        throw new AppError('MEMORY_INVALID_EVIDENCE', '记忆引用与对应原文不匹配。', 502);
+      if (!source) throw new AppError('MEMORY_INVALID_EVIDENCE', '记忆引用与对应原文不匹配。', 502);
       return {
         meetingId: checkpoint.input.meetingId,
         ...(source.kind === 'message' ? { messageId: source.id, seq: source.seq } : {}),
         minutesRevision: checkpoint.input.minutesRevision,
+        ...(source.kind === 'minutes' ? { minutesAuthorId: checkpoint.input.delta.authorId } : {}),
         quote: proof.quote,
         ...(source.offset !== undefined ? { offset: source.offset, end: source.end } : {}),
       };
@@ -88,22 +88,28 @@ export function extractCandidates(raw, checkpoint, page, sources) {
 /**
  * @param {any} raw
  * @param {any[]} active
- * @returns {any}
+ * @param {number} [count]
+ * @returns {any[]}
  */
-export function verification(raw, active) {
-  const value = raw.decisions?.[0];
-  if (
-    !Array.isArray(raw.decisions) ||
-    raw.decisions.length !== 1 ||
-    value.candidateIndex !== 0 ||
-    typeof value.supported !== 'boolean' ||
-    typeof value.rationale !== 'string' ||
-    (value.duplicateOf != null && !active.some((item) => item.id === value.duplicateOf))
-  )
+export function verification(raw, active, count = 1) {
+  if (!Array.isArray(raw.decisions) || raw.decisions.length !== count)
     throw new AppError('MEMORY_INVALID_VERIFICATION', '记忆核对结果无效。', 502);
-  return value;
+  const seen = new Set();
+  for (const value of raw.decisions) {
+    if (
+      !Number.isInteger(value.candidateIndex) ||
+      value.candidateIndex < 0 ||
+      value.candidateIndex >= count ||
+      seen.has(value.candidateIndex) ||
+      typeof value.supported !== 'boolean' ||
+      typeof value.rationale !== 'string' ||
+      (value.duplicateOf != null && !active.some((item) => item.id === value.duplicateOf))
+    )
+      throw new AppError('MEMORY_INVALID_VERIFICATION', '记忆核对结果无效。', 502);
+    seen.add(value.candidateIndex);
+  }
+  return raw.decisions.sort((left, right) => left.candidateIndex - right.candidateIndex);
 }
-
 /**
  * @param {any} context
  * @param {any} candidate
@@ -137,6 +143,7 @@ export function saveCandidate({ core, items, checkpoint }, candidate, turnId) {
         role: 'consolidator',
         meetingId,
         minutesRevision: checkpoint.input.minutesRevision,
+
         throughSeq: checkpoint.input.throughSeq,
       },
     },

@@ -1,6 +1,7 @@
 // Consolidation is a resumable background workflow. Only verified proposals are
 // saved; confirmation remains a user action. Source checkpoints and cursor commits
 // are durable, and request budgets stop between complete stages without truncation.
+import { estimateTokens } from '../secretary/policy.js';
 import { AppError } from '../../core/errors.js';
 import { createMemoryItems } from './items.js';
 import { createMemoryStore, hash } from './store.js';
@@ -160,7 +161,22 @@ export function createMemoryService({
           });
           const response = await requestMemory(context, EXTRACTION_INSTRUCTIONS, input, 'extract');
           if (response.skipped) return skip('budget', response.requiredTokens);
-          const candidates = extractCandidates(response.parsed, checkpoint, page, sources);
+          let candidates;
+          try {
+            candidates = extractCandidates(response.parsed, checkpoint, page, sources);
+          } catch (error) {
+            const retained = checkpoint.outputs.findLast(
+              (output) =>
+                output.stage === 'extract' &&
+                output.completed &&
+                (output.pageIndex ?? 0) === checkpoint.pageIndex,
+            );
+            if (retained) {
+              retained.validationFailed = true;
+              store.saveCheckpoint(meetingId, checkpoint);
+            }
+            throw error;
+          }
           const known = new Set(checkpoint.candidates.map((candidate) => candidate.candidateHash));
           checkpoint.candidates.push(
             ...candidates.filter((candidate) => !known.has(candidate.candidateHash)),
@@ -175,44 +191,60 @@ export function createMemoryService({
             store.saveStatus(meetingId, { ...result, state: 'waiting' });
             return status(meetingId);
           }
-          const candidate = checkpoint.candidates[checkpoint.verificationIndex];
           const active = research.store.listItems({
             projectId: core.meetings.get(meetingId).projectId,
             includePersonal: false,
             type: 'memory',
-            subtype: candidate.subtype,
             status: 'active',
             visibility: 'shared',
           });
-          const response = await requestMemory(
-            context,
-            VERIFICATION_INSTRUCTIONS,
+          const remaining = checkpoint.candidates.slice(checkpoint.verificationIndex);
+          const batch = [];
+          let verificationInput;
+          const buildInput = (values) =>
             JSON.stringify({
-              candidateIndex: 0,
-              candidate,
-              delta: {
-                authorId: checkpoint.input.delta.authorId,
-                previousRevision: checkpoint.input.delta.previousRevision,
-                minutesRevision: checkpoint.input.delta.minutesRevision,
-              },
+              candidates: values.map((candidate, candidateIndex) => ({
+                candidateIndex,
+                candidate,
+              })),
+              delta: checkpoint.input.delta,
+              sources: checkpoint.input.messages,
               currentMemories: active.map(({ id, title, body, revision }) => ({
                 id,
                 title,
                 body,
                 revision,
               })),
-            }),
+            });
+          for (const candidate of remaining) {
+            const input = buildInput([...batch, candidate]);
+            const required =
+              estimateTokens(`${prepared.prompt}\n${VERIFICATION_INSTRUCTIONS}\n${input}`) +
+              (prepared.outputTokens || 32768);
+            if (batch.length && prepared.contextWindow && required > prepared.contextWindow) break;
+            batch.push(candidate);
+            verificationInput = input;
+          }
+          const response = await requestMemory(
+            context,
+            VERIFICATION_INSTRUCTIONS,
+            verificationInput,
             'verify',
           );
           if (response.skipped) return skip('budget', response.requiredTokens);
-          const decision = verification(response.parsed, active);
+          const decisions = verification(response.parsed, active, batch.length);
           sources.validate(checkpoint);
           core.db.transaction(() => {
-            if (decision.supported && !decision.duplicateOf) {
-              const item = saveCandidate({ core, items, checkpoint }, candidate, response.turnId);
+            for (const decision of decisions) {
+              if (!decision.supported || decision.duplicateOf) continue;
+              const item = saveCandidate(
+                { core, items, checkpoint },
+                batch[decision.candidateIndex],
+                response.turnId,
+              );
               if (item) result.proposalIds.push(item.id);
             }
-            checkpoint.verificationIndex += 1;
+            checkpoint.verificationIndex += batch.length;
             store.saveCheckpoint(meetingId, checkpoint);
           });
         }

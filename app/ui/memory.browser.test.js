@@ -10,7 +10,7 @@ test(
     let evidence = [];
     await withBrowserApp(
       'r4-4c-memory',
-      async function* ({ instructions }) {
+      async function* ({ instructions, input }) {
         if (instructions.includes('[ScienceScope memory extraction]')) {
           yield JSON.stringify({
             candidates: evidence.map((source, index) => ({
@@ -24,14 +24,12 @@ test(
         }
         if (instructions.includes('[ScienceScope memory verification]')) {
           yield JSON.stringify({
-            decisions: [
-              {
-                candidateIndex: 0,
-                supported: true,
-                duplicateOf: null,
-                rationale: 'The source supports this candidate.',
-              },
-            ],
+            decisions: JSON.parse(input).candidates.map(({ candidateIndex }) => ({
+              candidateIndex,
+              supported: true,
+              duplicateOf: null,
+              rationale: 'The source supports this candidate.',
+            })),
           });
           return;
         }

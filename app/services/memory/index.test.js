@@ -422,3 +422,85 @@ test('foreground execution and disabled idle rules defer consolidation until an 
     await memory.consolidate(meeting.id);
     assert.equal(memory.inbox(project.id).count, 1);
   }));
+
+test('saved extraction with secretary minutes evidence recovers without another extraction and verifies candidates in one sourced batch', () =>
+  withMemory(async ({ core, project, meeting, memory, minutes, calls, runner, say, settings }) => {
+    const message = say('对应原文确认的研究决定');
+    const summary = await minutes.refresh(meeting.id);
+    const candidates = ['决定一', '决定二', '决定三'].map((title) => ({
+      subtype: 'decision',
+      title,
+      body: '对应原文确认的研究决定',
+      evidence: [
+        { minutesRevision: summary.revision, quote: '# 研究决定' },
+        { messageId: message.id, quote: message.text },
+      ],
+    }));
+    const store = await import('./store.js');
+    core.db.prepare('INSERT INTO memory_checkpoints VALUES (?, ?)').run(
+      meeting.id,
+      JSON.stringify({
+        input: {
+          meetingId: meeting.id,
+          minutesRevision: summary.revision,
+          throughSeq: 1,
+          minutesHash: store.hash(summary.text),
+          delta: {
+            authorId: 'agent_secretary',
+            added: ['# 研究决定'],
+            removed: [],
+            minutesRevision: summary.revision,
+          },
+          messages: [
+            { id: message.id, text: message.text, sha256: store.hash(message.text), seq: 1 },
+          ],
+        },
+        model: { provider: 'test', model: 'test' },
+        stage: 'extract',
+        pageIndex: 0,
+        verificationIndex: 0,
+        candidates: [],
+        pages: [
+          [
+            { kind: 'minutes', id: summary.revision, text: '# 研究决定' },
+            { kind: 'message', id: message.id, text: message.text, seq: 1 },
+          ],
+        ],
+        outputs: [
+          { stage: 'extract', completed: true, text: JSON.stringify({ candidates }), turnId: null },
+        ],
+      }),
+    );
+    await settings({ tokenLimit: 1 });
+    const held = await memory.consolidate(meeting.id);
+    assert.equal(held.pending.stage, 'verify');
+    assert.equal(held.usage.requests, 0);
+    assert.equal(held.pending.candidates, 3);
+    await settings({ tokenLimit: null });
+    const original = runner.run;
+    runner.run = async (...args) => {
+      assert.match(args[1], /memory verification/);
+      const input = JSON.parse(args[2]);
+      assert.equal(input.candidates.length, 3);
+      assert.equal(input.sources[0].text, message.text);
+      const response = await original(...args);
+      response.text = JSON.stringify({
+        decisions: input.candidates.map(({ candidateIndex }) => ({
+          candidateIndex,
+          supported: true,
+          duplicateOf: null,
+          rationale: '原文和纪要共同支持',
+        })),
+      });
+      return response;
+    };
+    const result = await memory.consolidate(meeting.id);
+    assert.equal(result.state, 'completed');
+    assert.equal(result.usage.requests, 1);
+    assert.equal(calls.length, 1);
+    assert.equal(memory.inbox(project.id).count, 3);
+    assert.equal(
+      memory.inbox(project.id).items[0].payload.evidence[0].minutesAuthorId,
+      'agent_secretary',
+    );
+  }));
