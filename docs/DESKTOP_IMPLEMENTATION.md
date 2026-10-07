@@ -2,8 +2,8 @@
 
 ## 2026-10-07 R4-11a window, snapshots and project folders (Codex; pending review)
 - Migration008 preserves editing-boundary resource snapshots; history preview/restore/delete replaces workbench changes, with shared workspace_versions and session-local map undo/redo.
-- Project entries go to the system recycle bin; location changes preserve existing meeting folders. A late HTTP status sample cannot overwrite newer semantic progress; app LF attributes make fresh Windows formatting reproducible.
-- Native build and actual100%/125% six-state screenshots plus all eight edge/corner drags pass; CDP viewport emulation explained prior frozen dimensions. Fresh-check result recorded before delivery; paid requests/tokens:0.
+- Project entries go to the system recycle bin; location changes preserve existing meeting folders. Fixed stale semantic progress, internal-folder minutes export overwriting canonical content, and Windows clean-checkout LF conversion.
+- Native build and actual100%/125% six-state screenshots plus all eight edge/corner drags pass; CDP viewport emulation explained prior frozen dimensions. Windows independent fresh install npm run check147/147, no skips; Rust2/2. Paid requests/tokens:0; complete IME candidate commit not rerun.
 
 ## 2026-10-07 R4-4c memory consolidation (Codex)
 - Secretary idle work extracts and verifies minutes deltas plus their corresponding raw evidence into proposed memory; migration 007 persists cursors, checkpoints, statuses and reversible memory history.
