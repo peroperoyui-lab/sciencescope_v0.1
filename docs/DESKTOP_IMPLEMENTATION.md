@@ -3,7 +3,7 @@
 ## 2026-10-07 R4-11b chat queue, deliverables, formulas and map (Codex; pending review)
 - Migration009 retains meeting drafts through restart, explicit resume, editable/cancelable queue and current-answer stop; versioned events prevent stale responses.
 - Migration010 and shared workspace_present preserve originals, show legacy file cards/thumbnails and share only paths/descriptions. Fixed DSH nested tool-schema declaration; local KaTeX renders message formulas after source sanitisation; maps support floating nodes, directed links and Markdown paste/drop.
-- Based on 11a28c88c1; scoped Windows tests pass. Independent clean-check results recorded before delivery; paid requests/tokens:0. Screenshots/evidence ignored temp/r4-11b.
+- Based on 11a28c88c1; Windows independent fresh install npm run check165/165, no skips, including real DSH/local fixtures. Paid requests/tokens:0; screenshots/evidence ignored temp/r4-11b.
 
 ## 2026-10-07 R4-11a window, snapshots and project folders (Codex; pending review)
 - Migration008 preserves editing-boundary resource snapshots; history preview/restore/delete replaces workbench changes, with shared workspace_versions and session-local map undo/redo.
