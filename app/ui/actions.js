@@ -218,6 +218,50 @@ export function createActions(api, store) {
     apply('project.updated', await api.patch(`/api/projects/${projectId}`, changes));
   }
 
+  /**
+   * The latest minutes and automatic-summary status.
+   * @param {string} meetingId
+   * @returns {Promise<any>}
+   */
+  const readMinutes = (meetingId) => api.get(`/api/meetings/${meetingId}/minutes`);
+
+  /**
+   * A user edit becomes the next revision used by the secretary.
+   * @param {string} meetingId
+   * @param {string} text
+   * @param {string | null} expectedRevision
+   * @returns {Promise<any>}
+   */
+  const editMinutes = (meetingId, text, expectedRevision) =>
+    api.post(`/api/meetings/${meetingId}/minutes`, { text, expectedRevision });
+
+  /**
+   * @param {string} meetingId
+   * @returns {Promise<any>}
+   */
+  const refreshMinutes = (meetingId) => api.post(`/api/meetings/${meetingId}/minutes/refresh`);
+
+  let focusedProject = null;
+  let focusChanges = Promise.resolve();
+
+  /**
+   * Serialize leave before enter even when the user switches projects quickly.
+   * @param {string | null} projectId
+   * @returns {Promise<void>}
+   */
+  function focusProject(projectId) {
+    if (projectId === focusedProject) return focusChanges;
+    const previous = focusedProject;
+    focusedProject = projectId;
+    focusChanges = focusChanges
+      .catch(() => {})
+      .then(async () => {
+        if (previous) await api.post(`/api/projects/${previous}/focus`, { focused: false });
+        if (projectId) await api.post(`/api/projects/${projectId}/focus`, { focused: true });
+      });
+    return focusChanges;
+  }
+
   /** @param {Record<string, any>} changes */
   async function updateSettings(changes) {
     const settings = await api.patch('/api/settings', changes);
@@ -315,8 +359,13 @@ export function createActions(api, store) {
     });
   }
 
-  /** @param {string} title @param {any} body A component rendered inside the dialog. */
-  const openModal = (title, body) => setOverlay({ modal: { title, body }, menu: null });
+  /**
+   * @param {string} title
+   * @param {any} body A component rendered inside the dialog.
+   * @param {string} [className] A legacy dialog variant.
+   */
+  const openModal = (title, body, className = '') =>
+    setOverlay({ modal: { title, body, className }, menu: null });
 
   /** @param {string} text */
   function toast(text) {
@@ -357,6 +406,10 @@ export function createActions(api, store) {
     createProject,
     updateProject,
     updateSettings,
+    readMinutes,
+    editMinutes,
+    refreshMinutes,
+    focusProject,
     readResource,
     editResource,
     history,

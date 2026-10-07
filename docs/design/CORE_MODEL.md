@@ -105,7 +105,11 @@ tools: { prefer: [research_search], avoid: [] }
 
 R4-3a 已实现：规则与选择保存在会议中。工作模式 @ 候选为会议 AI 成员及启用的参加专家，独立审核不能被 @；首次发言将职责写入会议成员。每轮按 order 预建回答，再并行运行各自会话，输入固定截止触发用户消息；不同轮排队。审核在所有专家结束后读取署名回答及完成状态，初始 adopted=false，只有 done 可采纳。refs.contextReadBy 记录实际送入后续发言的已采纳审核；已被读取的采纳不能撤回（409）。重试和继续仅运行原作者，停止同时取消当前轮及排队请求，未开始的审核不再启动。
 
-后台参与者（纪要、记忆整理）不由发言规则驱动，而是订阅事件并按规则触发（R4）。
+后台参与者不由发言规则驱动，而是订阅事件并按规则触发。R4-4a 的纪要由 `services/secretary/` 小服务执行：一次性运行时会话记录 `agent_secretary` 的 turn、结束原因与用量，不创建主会议消息，也不复用前台秘书会话。文本整理轮次显式选择无工具执行，秘书前台发言仍使用共用工具。
+
+迁移 005 的 `minutes_coverage` 把覆盖序号与已消费消息绑定到文件修订；用户编辑继承覆盖范围，撤销沿修订 ancestry 恢复。覆盖只在完整输出、纪要原子写入成功后推进。过时模型输出用文件队列内的 expectedRevisionId 检查让位于用户或外部编辑；即使文本相同也保存可撤销的新覆盖修订。未完成输出保存在 `minutes_status`，不推进覆盖。
+
+总结订阅消息、前台 turn 结束和 `discussion.finished`，按设置防抖，同会议不重叠，等待前台完成。默认讨论后、20 条消息、30000 估算 token、进入/离开项目、Markdown 导出开启；工作台导图/计划/日志只有 off/apply，默认关闭，修改只追加或标记并写修订及纪要来源。项目切换由 focus 接口通知，关闭时 `secretary_pending_projects` 持久保留未整理项目，下次启动再补。外部 Markdown 是只写副本，错误在状态中可见。已知模型窗口时按 token 估算选择完整消息批次（含旧纪要、提示与模型输出预留），逐批提交；无窗口元数据时发送完整原文，服务商拒绝则明确保留待处理状态。已有纪要或单条完整消息无法装入窗口时不截断、不推进覆盖。
 
 ## 7. 上下文组装（`app/core/context.js`）
 
@@ -114,7 +118,7 @@ R4-3a 已实现：规则与选择保存在会议中。工作模式 @ 候选为�
 1. **系统部分**：P 的定义正文 + 会议说明（在场者与各自身份、P 自己是谁）+ 工作区简介（项目、可用工具的使用说明）。
 2. **历史部分**：
    - 如果 P 在 M 中有可用的运行时会话：只发送 `last_seq` 之后其他参与者的新消息（标明发言人），加上触发消息；本轮固定截止触发消息，游标记录实际读到的位置。同轮同行回答下轮补读，之后才采纳的旧审核按每位参与者的读取记录补入；
-   - 否则重建：M 的最新纪要 + 纪要之后的全部消息原文（标明发言人），作为新会话的种子。
+   - 否则重建：M 的最新纪要 + 纪要覆盖序号之后的全部消息原文（标明发言人），以及尚未被该纪要消费、后来才采纳的旧审核。纪要文本和修订来自同一文件队列读；若最新纪要已经涵盖排队请求之后的消息，改用该请求截止前的完整原文，不泄露未来问题。
 3. **可见性**：
    - 其他参与者看到的是回答的最终文字，以及该回答展示的文件；
    - 看不到工具调用、工具结果和前言；
@@ -151,6 +155,7 @@ R4-3a 已实现：规则与选择保存在会议中。工作模式 @ 候选为�
 - 命令行：`node app/cli.js <命令>`（projects、project-create、meetings、meeting-create、post、messages、read、edit、history、undo）。
 - 事件：`GET /api/events?since=<seq>`（SSE；浏览器的 EventSource 用 `?token=` 传口令）。
 - R2 新增：`POST /api/meetings/:id/interrupt`、`GET /api/turns/:id`（含工具调用）、`POST /api/providers/keys/:keyRef`（只写入凭据文件，不返回）。服务商与默认模型在 `/api/settings` 的 `providers`、`models.default` 中。
+- R4-4a 新增：GET/POST `/api/meetings/:id/minutes`（编辑携带 expectedRevision）、POST `/api/meetings/:id/minutes/refresh`、POST `/api/projects/:id/focus`（focused）；状态含覆盖、距阈值剩余量、导出/工作台错误和未完成输出。
 - R4-3a 新增：`POST /api/messages/:id/continue`（定向原作者，不发用户消息）、`GET /api/meetings/:id/contexts`（每位参与者最新 turn 的 context，用于上下文环）；审核消息额外返回 `adoptionLocked`，基于已存的读取记录。
 - 本地口令：每次启动生成，所有接口校验（沿用旧版做法）。
 - 路由文件只做参数解析与调用 core / services，每个领域一个文件。

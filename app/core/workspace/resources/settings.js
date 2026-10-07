@@ -41,6 +41,16 @@ export const DEFAULT_SETTINGS = {
   // The model AIs use unless their own definition names one.
   models: { default: null },
   semantic: DEFAULT_SEMANTIC_SETTINGS,
+  // Summary thresholds trigger work; they never truncate the meeting record.
+  summary: {
+    afterDiscussion: true,
+    everyMessages: { enabled: true, n: 20 },
+    everyTokens: { enabled: true, n: 30000 },
+    onEnterProject: true,
+    onLeaveProject: true,
+    saveMarkdown: true,
+    workbench: { map: 'off', plans: 'off', log: 'off' },
+  },
 };
 
 function isPlainObject(value) {

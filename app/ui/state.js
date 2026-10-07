@@ -29,6 +29,8 @@ export const initialState = {
   /** @type {Record<string, any>} */ running: {},
   /** Bumped on every workspace change so open views can reload. */
   workspaceVersion: 0,
+  /** Bumped when the open minutes dialog needs a new status snapshot. */
+  minutesVersion: 0,
   researchVersion: 0,
   semanticVersion: 0,
   /** @type {any} */
@@ -38,7 +40,7 @@ export const initialState = {
   /** Popups over the window: one menu, one dialog, one toast, the search palette. */
   overlay: {
     /** @type {null | { items: any[], label: string, x: number, y: number }} */ menu: null,
-    /** @type {null | { title: string, body: any }} */ modal: null,
+    /** @type {null | { title: string, body: any, className?: string }} */ modal: null,
     /** @type {null | string} */ toast: null,
     palette: false,
   },
@@ -121,9 +123,17 @@ export function applyEvent(state, { type, payload }) {
       return { ...state, researchVersion: state.researchVersion + 1 };
     case 'research.semantic.changed':
       return { ...state, semanticVersion: state.semanticVersion + 1, semanticStatus: payload };
+    case 'minutes.updated':
+    case 'minutes.status':
+      return { ...state, minutesVersion: state.minutesVersion + 1 };
     case 'resource.changed':
     case 'revision.undone':
-      return { ...state, workspaceVersion: state.workspaceVersion + 1 };
+      return {
+        ...state,
+        workspaceVersion: state.workspaceVersion + 1,
+        minutesVersion:
+          payload.resource === 'minutes' ? state.minutesVersion + 1 : state.minutesVersion,
+      };
     default:
       return state;
   }

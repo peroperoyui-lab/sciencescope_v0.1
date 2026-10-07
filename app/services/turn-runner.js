@@ -26,7 +26,9 @@ const STATUS_BY_STOP = {
  *   runtime: import('../runtime/port.js').Runtime, runtimeName: string,
  *   tools: ReturnType<typeof import('./tools.js').createTools>,
  *   defaultModel: () => Promise<import('../runtime/port.js').ModelChoice | null>,
- *   idleReleaseMs?: number }} deps
+ *   idleReleaseMs?: number,
+ *   minutesCoverage?: (meetingId: string, revisionId: string | null) => Promise<number>,
+ *   minutesCoveredMessageIds?: (meetingId: string, revisionId: string | null) => string[] }} deps
  *   A session idle for `idleReleaseMs` is released (its process ends); the next
  *   turn resumes it. Historical meetings keep no process alive.
  */
@@ -37,6 +39,8 @@ export function createTurnRunner({
   tools,
   defaultModel,
   idleReleaseMs = 10 * 60 * 1000,
+  minutesCoverage = async () => 0,
+  minutesCoveredMessageIds = () => [],
 }) {
   /** @type {Map<string, { sessionId: string | null, cancelled: boolean }>} turn id → execution */
   const active = new Map();
@@ -227,12 +231,22 @@ export function createTurnRunner({
     }
     const sessionId = await runtime.startSession(options);
     const minutes = await core.workspace.read({ resource: 'minutes', key: meeting.id });
+    const revisionId = minutes.revisionId;
+    const throughSeq = await minutesCoverage(meeting.id, revisionId);
+    // A queued earlier question must not see a summary of future questions.
+    const usableMinutes = cutoffSeq == null || throughSeq <= cutoffSeq;
+    const coveredIds = new Set(minutesCoveredMessageIds(meeting.id, revisionId));
     const messages = selectedMessages(meeting.id, 0, cutoffSeq, participant.id, false).filter(
-      (message) => !reviewMessageIds?.includes(message.id),
+      (message) =>
+        (!usableMinutes ||
+          message.seq > throughSeq ||
+          (message.adopted === true && !coveredIds.has(message.id))) &&
+        !reviewMessageIds?.includes(message.id),
     );
     return {
       sessionId,
-      input: buildSeedInput({ minutes: minutes.text, messages, nameOf }) + suffix,
+      input:
+        buildSeedInput({ minutes: usableMinutes ? minutes.text : null, messages, nameOf }) + suffix,
       messages: [...messages, ...review],
     };
   }

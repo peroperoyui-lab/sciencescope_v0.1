@@ -60,6 +60,10 @@ export function App() {
     }
     return null;
   });
+  const actions = useActions();
+  useEffect(() => {
+    void actions.attempt(() => actions.focusProject(projectId));
+  }, [projectId]);
   useShortcuts(projectId);
   const projectName = useAppState(
     (state) => state.projects.find((project) => project.id === projectId)?.name,

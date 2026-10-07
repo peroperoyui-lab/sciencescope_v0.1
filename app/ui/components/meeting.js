@@ -14,6 +14,7 @@ import { Composer } from './composer.js';
 import { ExpertState, ReviewAdoption, expertState } from './discussion-message.js';
 import { DiscussionStrip } from './discussion-strip.js';
 import { MainHead } from './mainhead.js';
+import { MinutesDialog } from './minutes-dialog.js';
 import { FieldForm } from './overlays.js';
 import { ProjectSummary } from './project-summary.js';
 
@@ -346,6 +347,16 @@ export function MeetingView({ meetingId, focusMessageId }) {
           },
         ]
       : []),
+    {
+      text: t('对话纪要'),
+      icon: 'file',
+      run: () =>
+        actions.openModal(
+          t('对话纪要'),
+          html`<${MinutesDialog} meetingId=${meeting.id} />`,
+          'minutes-modal',
+        ),
+    },
     { sep: true },
     {
       text: t('归档'),

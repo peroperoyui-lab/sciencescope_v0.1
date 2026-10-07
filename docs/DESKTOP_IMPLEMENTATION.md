@@ -1,5 +1,11 @@
 # Desktop implementation — first increment
 
+## 2026-10-07 R4-4a minutes and summary rules (Codex)
+- Secretary background turns maintain incremental minutes with revision-bound coverage, usage and undo; settings consume discussion/message/token/project triggers, one-way Markdown export and direct map/plans/log updates.
+- Main/expert session rebuilding uses minutes plus uncovered raw messages; concurrent user edits win and earlier queued questions cannot receive future summaries. Migration 005 preserves existing records.
+- Windows scripted service/context/API/browser checks and real DSH with a local model verify the new paths; clean-checkout full check and screenshots are recorded before delivery. Paid requests/tokens: 0.
+- Legacy UI structure/CSS and bilingual strings restored; no secretary sidebar or memory yet. Detailed evidence: ignored temp/r4-4a and temp/r4-4a-screenshots.
+
 ## 2026-10-07 R4-3b ordered discussion UI (Codex)
 - Restored the legacy discussion strip/menu, real author/status/tool cards, review adoption/read-lock, @ keyboard/IME handling and every participant's latest context; strings have English; roster cap removed.
 - Based on R4-3a fe95561; related browser paths pass; first clean check 86/87 exposed an existing test response-listener race, fixed by registering before click; final Windows clean-checkout check 87/87, no skips. Native two experts → review → adopt → Main followup: 5 HTTP200 requests, 90,402 reported tokens, no unknown usage.

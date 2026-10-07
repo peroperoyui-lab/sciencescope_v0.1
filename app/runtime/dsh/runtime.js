@@ -90,7 +90,15 @@ export function createDshRuntime({ home, credentialsPath, providerConfig, extraE
   }
 
   /** @param {Parameters<import('../port.js').Runtime['startSession']>[0]} options */
-  async function startSession({ sessionId, model, workFolder, instructions, tools, onToolCall }) {
+  async function startSession({
+    sessionId,
+    model,
+    workFolder,
+    instructions,
+    tools,
+    onToolCall,
+    noTools = false,
+  }) {
     const id = sessionId ?? `session-${randomUUID().replaceAll('-', '')}`;
     const running = sessions.get(id);
     const link = await bridge();
@@ -123,7 +131,12 @@ export function createDshRuntime({ home, credentialsPath, providerConfig, extraE
       onEvent: (event) => entry.onEvent(event),
       onToolCall,
     });
-    const { configFile, patchFile } = await writeLaunchFiles(id, { instructions, tools, model });
+    const { configFile, patchFile } = await writeLaunchFiles(id, {
+      instructions,
+      tools,
+      model,
+      noTools,
+    });
     const temp = path.join(home, 'temp');
     await mkdir(temp, { recursive: true });
     entry.harness = new DeepSeekHarness({

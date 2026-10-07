@@ -131,6 +131,9 @@ export function apply(ctx) {
   };
 
   const setup = async (agentCtx) => {
+    // A background summary consumes the supplied text only. An empty host tool
+    // list otherwise still inherits SDK filesystem, web and subagent tools.
+    if (config.noTools) agentCtx.tools.restrict({ allow: [] });
     agentCtx.systemPrompt.section({
       name: PERSONA_PREFIX_SECTION,
       order: agentCtx.systemPrompt.getSectionOrder('DEPLOYMENT_PERSONA_PREFIX'),

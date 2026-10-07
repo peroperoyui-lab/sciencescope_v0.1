@@ -18,6 +18,8 @@ const EVENT_TYPES = [
   'tool.started',
   'tool.ended',
   'resource.changed',
+  'minutes.updated',
+  'minutes.status',
   'revision.undone',
   'research.changed',
   'research.semantic.changed',

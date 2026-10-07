@@ -6,4 +6,6 @@ import * as researchBase from './003-research-base.js';
 
 import * as researchVectors from './004-research-vectors.js';
 
-export const migrations = [core, toolPreamble, researchBase, researchVectors];
+import * as meetingMinutes from './005-meeting-minutes.js';
+
+export const migrations = [core, toolPreamble, researchBase, researchVectors, meetingMinutes];

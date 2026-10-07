@@ -4,6 +4,7 @@ import { createCore } from './core/index.js';
 import { createDshRuntime } from './runtime/dsh/runtime.js';
 import { createAppServer } from './server/server.js';
 import { createConductor } from './services/conductor.js';
+import { createMinutesService } from './services/secretary/minutes.js';
 import { credentialsFile, runtimeProviderConfig } from './services/providers.js';
 import { createTools } from './services/tools.js';
 import { createTurnRunner } from './services/turn-runner.js';
@@ -39,26 +40,45 @@ export async function createApp({
       providerConfig: async () => runtimeProviderConfig((await settings()).providers),
       extraEnv,
     });
+  const minutes = createMinutesService({
+    core,
+    runtime: activeRuntime,
+    defaultModel: async () => (await settings()).models.default,
+  });
   const runner = createTurnRunner({
     core,
     runtime: activeRuntime,
     runtimeName,
+    minutesCoverage: async (meetingId, revisionId) => minutes.coverage(meetingId, revisionId),
+    minutesCoveredMessageIds: (meetingId, revisionId) =>
+      minutes.coveredMessageIds(meetingId, revisionId),
     tools: createTools(core, research),
     defaultModel: async () => (await settings()).models.default,
   });
   const conductor = createConductor({ core, runner });
   conductor.start();
-  const server = createAppServer({ core, token, conductor, onShutdown, research, semantic });
+  minutes.start();
+  const server = createAppServer({
+    core,
+    token,
+    conductor,
+    onShutdown,
+    research,
+    semantic,
+    minutes,
+  });
 
   return {
     core,
     research,
     semantic,
+    minutes,
     conductor,
     runtime: activeRuntime,
     listen: server.listen,
     async close() {
       conductor.stop();
+      await minutes.close();
       await server.close();
       await conductor.idle();
       await activeRuntime.close();

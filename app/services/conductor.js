@@ -135,7 +135,11 @@ export function createConductor({ core, runner }) {
         }),
       ),
     );
-    if (!reviewer || signal.aborted) return;
+    if (signal.aborted) return;
+    if (!reviewer) {
+      finishRound(meeting, message);
+      return;
+    }
     await join(meeting.id, reviewer.id);
     if (signal.aborted) return;
     const review = runner.reserve({
@@ -153,6 +157,21 @@ export function createConductor({ core, runner }) {
       reviewMessageIds: reserved.map((entry) => entry.answer.id),
       signal,
     });
+    if (!signal.aborted) finishRound(meeting, message);
+  }
+
+  /** The secretary subscribes to completion rather than guessing from individual answers. */
+  function finishRound(meeting, message) {
+    core.db.transaction(() =>
+      core.events.record(
+        'discussion.finished',
+        { triggerMessageId: message.id },
+        {
+          meetingId: meeting.id,
+          projectId: meeting.projectId,
+        },
+      ),
+    );
   }
 
   function onMessage(message) {

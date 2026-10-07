@@ -127,6 +127,15 @@ test('a DSH session follows instructions, streams, calls our tools and resumes',
       /TOOL_RESULT:.*"projects":2/,
     );
 
+    const background = await runtime.startSession({ ...options, tools: [], noTools: true });
+    await runtime.send(background, 'HELLO summary only', () => {});
+    assert.equal(
+      fixture.requests.at(-1).tools?.length ?? 0,
+      0,
+      'background text-only work does not inherit SDK tools',
+    );
+    await runtime.release(background);
+
     await runtime.release(sessionId);
     const resumed = await runtime.startSession({ ...options, sessionId });
     const later = [];

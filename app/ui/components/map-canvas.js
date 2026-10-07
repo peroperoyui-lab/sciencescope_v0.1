@@ -92,6 +92,7 @@ export function MapCanvas({
               dangerouslySetInnerHTML=${{ __html: renderMarkdown(p.node.text) }}
             ></div>
             ${p.root && p.node.status && html`<span class="nodestatus">${p.node.status}</span>`}
+            ${p.node.addedBy === 'agent_secretary' && html`<small class="wb-secretary-origin">${t('秘书添加')}</small>`}
             <button
               class="nodeplus"
               aria-label=${open ? t('收起分支') : hasChildren ? t('展开分支') : t('新增分支')}

@@ -31,7 +31,7 @@
  *
  * @typedef {{
  *   startSession(options: { sessionId?: string, model: ModelChoice, workFolder: string,
- *     instructions: string, tools: ToolSpec[], onToolCall: ToolHandler }): Promise<string>,
+ *     instructions: string, tools: ToolSpec[], onToolCall: ToolHandler, noTools?: boolean }): Promise<string>,
  *   send(sessionId: string, input: string, onEvent: (event: RuntimeEvent) => void): Promise<TurnResult>,
  *   interrupt(sessionId: string): Promise<void>,
  *   setInstructions(sessionId: string, instructions: string): Promise<void>,

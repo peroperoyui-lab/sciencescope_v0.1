@@ -6,6 +6,7 @@ import { AppError } from '../core/errors.js';
 import { createRouter } from './router.js';
 import { registerEventRoutes } from './routes/events.js';
 import { registerMeetingRoutes } from './routes/meetings.js';
+import { registerMinutesRoutes } from './routes/minutes.js';
 import { registerParticipantRoutes } from './routes/participants.js';
 import { registerProjectRoutes } from './routes/projects.js';
 import { registerProviderRoutes } from './routes/providers.js';
@@ -47,16 +48,26 @@ function tokenMatches(given, expected) {
 /**
  * @param {{ core: import('../core/index.js').Core, token: string,
  *   onShutdown?: () => void,
+ *   minutes?: ReturnType<typeof import('../services/secretary/minutes.js').createMinutesService>,
  *   research?: ReturnType<typeof import('../services/research/index.js').createResearch>, semantic?:any,
  *   conductor?: { interrupt: (meetingId: string) => Promise<void>,
  *     retry: (messageId: string) => Promise<unknown>, continue?: (messageId: string) => Promise<unknown> } }} options
  *   Without a conductor (core-only tests) posting a message triggers no answers.
  */
-export function createAppServer({ core, token, conductor, onShutdown, research, semantic }) {
+export function createAppServer({
+  core,
+  token,
+  conductor,
+  onShutdown,
+  research,
+  semantic,
+  minutes,
+}) {
   const router = createRouter();
   registerProjectRoutes(router, core);
   registerParticipantRoutes(router, core);
   registerMeetingRoutes(router, core, conductor);
+  registerMinutesRoutes(router, minutes);
   registerProviderRoutes(router, core);
   registerWorkspaceRoutes(router, core);
   registerEventRoutes(router, core);

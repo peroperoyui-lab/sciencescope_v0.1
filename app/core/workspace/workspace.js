@@ -145,23 +145,28 @@ export function createWorkspace({ db, events, paths, now, newId, resources }) {
 
   /**
    * @param {{ resource: string, key: string }} target
-   * @returns {Promise<{ resource: string, key: string, exists: boolean, text: string | null, value: any }>}
+   * @returns {Promise<{ resource: string, key: string, exists: boolean, text: string | null, value: any, revisionId: string | null }> }
    */
   async function read({ resource, key }) {
     const handler = resourceOf(resource);
     const file = handler.file(locate, key);
-    const text = await queued(`${resource}:${key}`, () => currentText(resource, key, file));
+    const { text, revisionId } = await queued(`${resource}:${key}`, async () => {
+      const current = await currentText(resource, key, file);
+      return { text: current, revisionId: lastRevision(`${resource}:${key}`)?.id ?? null };
+    });
     const value = handler.parse ? handler.parse(text) : text;
-    return { resource, key, exists: text != null, text, value };
+    return { resource, key, exists: text != null, text, value, revisionId };
   }
 
   /**
    * Apply an operation, write the file and record a revision.
-   * @param {{ resource: string, key: string, op: string, args?: any }} change
+   * @param {{ resource: string, key: string, op: string, args?: any,
+   *   expectedRevisionId?: string | null, forceRevision?: boolean }} change
    * @param {Actor} [actor]
    * @returns {Promise<{ revisionId: string | null, value: any }>}
    */
-  async function edit({ resource, key, op, args = {} }, actor = {}) {
+  async function edit(change, actor = {}) {
+    const { resource, key, op, args = {} } = change;
     const handler = resourceOf(resource);
     if (!handler.ops.includes(op)) {
       throw new AppError('UNKNOWN_OP', `${resource} 不支持操作 ${op}。`);
@@ -169,9 +174,17 @@ export function createWorkspace({ db, events, paths, now, newId, resources }) {
     const file = handler.file(locate, key);
     return queued(`${resource}:${key}`, async () => {
       const before = await currentText(resource, key, file);
+      // Background summaries must not overwrite an edit made while the model ran.
+      // Check inside the file queue, including externally recorded revisions.
+      if (
+        Object.hasOwn(change, 'expectedRevisionId') &&
+        (lastRevision(`${resource}:${key}`)?.id ?? null) !== change.expectedRevisionId
+      ) {
+        throw new AppError('REVISION_CONFLICT', '内容已被更新，请刷新后再编辑。', 409);
+      }
       const after = handler.apply(before, op, args);
       const value = handler.parse ? handler.parse(after) : after;
-      if (after === before) return { revisionId: null, value };
+      if (after === before && !change.forceRevision) return { revisionId: null, value };
       if (after == null) await removeFile(file);
       else await writeTextAtomic(file, after);
       const revisionId = db.transaction(() =>

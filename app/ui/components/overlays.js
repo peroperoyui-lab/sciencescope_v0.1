@@ -87,7 +87,12 @@ function ModalLayer() {
     class="modalback"
     onPointerDown=${(event) => event.target === event.currentTarget && actions.closeModal()}
   >
-    <section class="modal" role="dialog" aria-modal="true" aria-label=${modal.title}>
+    <section
+      class=${`modal ${modal.className ?? ''}`}
+      role="dialog"
+      aria-modal="true"
+      aria-label=${modal.title}
+    >
       <button
         class="iconbtn close"
         title=${t('关闭')}

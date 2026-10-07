@@ -145,3 +145,33 @@ test(
       assert.deepEqual(await readdir(path.dirname(file)), ['plans.md']);
     }),
 );
+
+test('a background edit checks its base revision inside the file queue', () =>
+  withCore('workspace-summary-edit', async (core) => {
+    const meeting = core.meetings.create({ title: '纪要竞态', members: [] });
+    const target = { resource: 'minutes', key: meeting.id, op: 'write' };
+    const first = await core.workspace.edit({ ...target, args: { text: '原纪要' } });
+    const user = core.workspace.edit({ ...target, args: { text: '用户修订' } });
+    const summary = core.workspace.edit(
+      {
+        ...target,
+        args: { text: '过时总结' },
+        expectedRevisionId: first.revisionId,
+      },
+      { actorId: 'agent_secretary' },
+    );
+    await user;
+    await assert.rejects(summary, { code: 'REVISION_CONFLICT' });
+    assert.equal((await core.workspace.read(target)).text, '用户修订');
+    const covered = await core.workspace.edit(
+      {
+        ...target,
+        args: { text: '用户修订' },
+        forceRevision: true,
+      },
+      { actorId: 'agent_secretary' },
+    );
+    assert.ok(covered.revisionId, 'unchanged minutes still have undoable coverage');
+    await core.workspace.undo(covered.revisionId);
+    assert.equal((await core.workspace.read(target)).text, '用户修订');
+  }));
