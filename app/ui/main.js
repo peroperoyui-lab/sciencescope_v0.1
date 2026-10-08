@@ -8,16 +8,34 @@ import { AppContext } from './context.js';
 import { html } from './html.js';
 import { t } from './i18n/index.js';
 import { createStore } from './state.js';
+import { applyAssistantStartup, installAssistantNavigation } from './assistant-window.js';
+import { AssistantWindow } from './components/assistant-panel.js';
+import { AssistantOrb } from './components/assistant-orb.js';
+import { Overlays } from './components/overlays.js';
 
-installWindowResize();
+const surface = new URLSearchParams(location.search).get('surface');
+if (surface === 'assistant-orb') document.documentElement.classList.add('native-orb');
+else {
+  if (surface === 'assistant') document.documentElement.classList.add('assistant-panel');
+  installWindowResize();
+}
+const stopNavigation = installAssistantNavigation(surface);
+addEventListener('pagehide', stopNavigation, { once: true });
 
 const root = document.getElementById('app');
 const store = createStore();
 const actions = createActions(createApi(), store);
 
 try {
-  await actions.start();
-  render(html`<${AppContext.Provider} value=${{ store, actions }}><${App} /><//>`, root);
+  if (surface === 'assistant-orb') {
+    render(html`<${AssistantOrb} />`, root);
+  } else {
+    await actions.start();
+    const page =
+      surface === 'assistant' ? html`<${AssistantWindow} /><${Overlays} />` : html`<${App} />`;
+    render(html`<${AppContext.Provider} value=${{ store, actions }}>${page}<//>`, root);
+    void actions.attempt(() => applyAssistantStartup(store.get().settings, surface));
+  }
 } catch (error) {
   root.innerHTML = '';
   const message = document.createElement('div');

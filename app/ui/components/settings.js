@@ -15,6 +15,7 @@ import { MemorySettings } from './settings-memory.js';
 import { SecretarySettings } from './settings-secretary.js';
 import { ModelsPage, ProviderPage } from './settings-models.js';
 import { ExpertsPage, RolePage } from './settings-roles.js';
+import { AssistantWindowSettings } from './assistant-window-settings.js';
 
 /**
  * Settings pages, grouped as in the old navigation: [group, [[id, nav label, page title]]].
@@ -427,10 +428,10 @@ export function SettingsView({ page, projectName }) {
       /><${SecretarySettings} /><${MemorySettings} />`;
   else if (page === 'assistant-settings')
     content = html`<${RolePage}
-      participantId="agent_assistant"
-      title=${t('全局助手设置')}
-      tip=${t('提示词描述职责，不代替工具权限设置。')}
-    />`;
+        participantId="agent_assistant"
+        title=${t('全局助手设置')}
+        tip=${t('提示词描述职责，不代替工具权限设置。')}
+      /><${AssistantWindowSettings} />`;
   else if (page === 'experts') content = html`<${ExpertsPage} />`;
   else if (page === 'library-settings')
     content = html`<${FoldersPage} title=${t('数据库与文件')} />`;

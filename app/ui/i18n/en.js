@@ -822,4 +822,22 @@ export const en = {
   助手模型: 'Assistant model',
   助手思考强度: 'Assistant reasoning effort',
   使用全局助手默认模型: 'Use the global assistant default model',
+  桌面浮球与启动: 'Desktop orb and startup',
+  启动客户端时: 'When the client starts',
+  '下次启动生效；关闭客户端仍会完全退出。':
+    'Applies on the next launch; closing the client still exits completely.',
+  不打开助手: 'Keep assistant closed',
+  只显示浮球: 'Show orb only',
+  显示浮球与助手对话: 'Show orb and assistant chat',
+  保存启动设置: 'Save startup setting',
+  '已保存，下次启动客户端生效。': 'Saved. Applies on the next client launch.',
+  显示浮球: 'Show orb',
+  打开助手对话: 'Open assistant chat',
+  隐藏浮球与对话: 'Hide orb and chat',
+  '隐藏只影响窗口，不清除历史，也不停止正在运行的任务；停止请使用助手输入框的中断按钮。':
+    'Hiding affects only the windows. History and running tasks are retained; use the stop button in the assistant composer to interrupt a task.',
+  '助手窗口操作失败，请重试。': 'Assistant window action failed. Please try again.',
+  展开或收起全局助手: 'Expand or collapse global assistant',
+  收起为悬浮球: 'Collapse to orb',
+  最近项目: 'Recent projects',
 };

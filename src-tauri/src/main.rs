@@ -234,7 +234,7 @@ async fn get_assistant_mode(window: Window) -> Result<AssistantMode, String> {
 
 #[tauri::command]
 async fn hide_assistant(window: Window) -> Result<(), String> {
-    if window.label() != "main" { return Err("only the main window can hide the assistant".to_owned()); }
+    if !matches!(window.label(), "main" | ASSISTANT_LABEL | ASSISTANT_ORB_LABEL) { return Err("only assistant windows can hide the assistant".to_owned()); }
     for label in [ASSISTANT_LABEL, ASSISTANT_ORB_LABEL] {
         if let Some(view) = window.app_handle().get_webview_window(label) {
             view.hide().map_err(|e|e.to_string())?;
@@ -686,7 +686,7 @@ fn main() {
                 let mut capability: serde_json::Value = serde_json::from_str(include_str!("../capabilities/main.json"))?;
                 capability["identifier"] = serde_json::json!("host-window-controls");
                 if new_app.is_some() {
-                    capability["windows"] = serde_json::json!(["main"]);
+                    capability["windows"] = serde_json::json!(["main", ASSISTANT_LABEL, ASSISTANT_ORB_LABEL]);
                     capability["permissions"].as_array_mut().ok_or("window permissions must be an array")?
                         .push(serde_json::json!({"identifier": "opener:allow-open-url", "allow": [{"url": "http://*"}, {"url": "https://*"}]}));
                 }

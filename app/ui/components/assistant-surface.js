@@ -13,7 +13,7 @@ const EMPTY = [];
 /**
  * @param {{ meeting: any, scope: 'secretary' | 'global', ownerId: string,
  * label: string, transcriptLabel: string, inputLabel: string, placeholder: string,
- * sendLabel: string, stopLabel: string, modelControls: any, children?: any,
+ * sendLabel: string, stopLabel: string, modelControls: (running: boolean) => any, children?: any,
  * error?: string, onClose: () => void }} props
  * @returns {import('preact').VNode}
  */

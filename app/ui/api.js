@@ -42,6 +42,9 @@ export class ApiError extends Error {
 }
 
 function readToken() {
+  // Native secondary windows receive the per-launch token outside the URL.
+  // The orb deliberately has no query token or shared session storage.
+  if (globalThis.__SCIENCESCOPE_API_TOKEN__) return globalThis.__SCIENCESCOPE_API_TOKEN__;
   const url = new URL(location.href);
   const given = url.searchParams.get('token');
   if (given) {

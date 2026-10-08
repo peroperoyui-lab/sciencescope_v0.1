@@ -8,6 +8,7 @@ import { createResearchActions } from './research-actions.js';
 import { createMemoryActions } from './memory-actions.js';
 import { createSecretaryActions } from './secretary-actions.js';
 import { applyAppearance } from './appearance.js';
+import { hideAssistantWindow, isNative, openAssistantWindow } from './assistant-window.js';
 import { navigate } from './route.js';
 import { applyEvent } from './state.js';
 
@@ -90,9 +91,13 @@ export function createActions(api, store) {
 
   /**
    * @param {boolean} open
-   * @returns {void}
+   * @returns {Promise<void>}
    */
-  function showAssistant(open) {
+  async function showAssistant(open) {
+    if (isNative()) {
+      await attempt(() => (open ? openAssistantWindow() : hideAssistantWindow()));
+      return;
+    }
     set({ assistantOpen: open });
   }
 

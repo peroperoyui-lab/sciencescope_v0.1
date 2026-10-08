@@ -5,20 +5,23 @@ import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
+import { routeHref } from '../route.js';
+import { hideAssistantWindow, isNative, toggleAssistantWindow } from '../assistant-window.js';
 import { AssistantModel } from './assistant-model.js';
 import { AssistantSurface } from './assistant-surface.js';
 
 /**
- * @param {{ onClose: () => void }} props
+ * @param {{ onClose: () => void, detached?: boolean }} props
  * @returns {import('preact').VNode}
  */
-export function AssistantPanel({ onClose }) {
+export function AssistantPanel({ onClose, detached = false }) {
   const actions = useActions();
   const saved = useAppState((state) => state.assistantMeeting);
   const meeting =
     useAppState((state) => state.meetings.find((entry) => entry.id === saved?.id)) ?? saved;
   const settings = useAppState((state) => state.settings);
   const definition = useAppState((state) => state.participantDefinitions.agent_assistant);
+  const projects = useAppState((state) => state.projects);
   const [error, setError] = useState('');
   useEffect(() => {
     let current = true;
@@ -36,15 +39,65 @@ export function AssistantPanel({ onClose }) {
   const own = meeting?.policy.model;
   const current = own ?? definition?.definition.model ?? settings?.models?.default;
   return html`<aside
-    class="rightpanel assistant-rightpanel global-assistant-panel"
+    class=${detached ? 'detached-shell assistant-rightpanel' : 'rightpanel assistant-rightpanel global-assistant-panel'}
     aria-label=${t('全局助手')}
   >
-    <div class="panelhead between">
+    <div
+      class="panelhead between"
+      data-tauri-drag-region
+      onMouseDown=${(event) => {
+        if (!detached || !isNative() || event.button !== 0 || event.target.closest('button'))
+          return;
+        event.preventDefault();
+        void globalThis.__TAURI__.window
+          .getCurrentWindow()
+          .startDragging()
+          .catch(() => {});
+      }}
+    >
       <strong>${t('全局助手')}</strong>
+      <span class="spacer"></span>
+      ${
+        detached &&
+        isNative() &&
+        html`<button
+          class="iconbtn"
+          aria-label=${t('收起为悬浮球')}
+          title=${t('收起为悬浮球')}
+          onClick=${() => actions.attempt(toggleAssistantWindow)}
+        >
+          <${Icon} name="users" />
+        </button>`
+      }
       <button class="iconbtn" aria-label=${t('关闭助手')} title=${t('关闭助手')} onClick=${onClose}>
         <${Icon} name="close" />
       </button>
     </div>
+    ${
+      detached &&
+      html`<div class="assistant-home-links">
+        <small>${t('最近项目')}</small>
+        ${projects
+          .filter((project) => !project.archived)
+          .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+          .slice(0, 5)
+          .map(
+            (project) =>
+              html`<a
+                class="assistant-entry"
+                href=${routeHref({ view: 'workbench', id: project.id })}
+              >
+                <${Icon} name="folder" /><span class="grow">${project.name}</span
+                ><${Icon} name="right"
+              /></a>`,
+          )}
+        <div class="detached-nav">
+          ${projects.some((project) => !project.archived) && html`<a class="btn tiny" href=${routeHref({ view: 'workbench', id: projects.find((project) => !project.archived).id })}>${t('工作站')}</a>`}
+          <a class="btn tiny" href=${routeHref({ view: 'library' })}>${t('数据库')}</a>
+          <a class="btn tiny" href=${routeHref({ view: 'project-new' })}>${t('新建项目')}</a>
+        </div>
+      </div>`
+    }
     <${AssistantSurface}
       meeting=${meeting}
       scope="global"
@@ -71,4 +124,10 @@ export function AssistantPanel({ onClose }) {
         />`}
     />
   </aside>`;
+}
+
+/** @returns {import('preact').VNode} */
+export function AssistantWindow() {
+  const actions = useActions();
+  return html`<${AssistantPanel} detached onClose=${() => actions.attempt(hideAssistantWindow)} />`;
 }

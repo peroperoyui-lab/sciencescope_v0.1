@@ -45,6 +45,16 @@
   min-height: 0;
   height: 100%;
 }
+.assistant-panel #app {
+  height: calc(100vh - 16px);
+}
+.assistant-panel .detached-shell {
+  width: 100%;
+  min-height: 0;
+}
+.native-orb #app {
+  height: 64px;
+}
 .rb-source-info {
   display: grid;
   grid-template-columns: auto 1fr;

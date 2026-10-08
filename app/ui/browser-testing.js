@@ -36,7 +36,10 @@ export async function withBrowserApp(name, script, work) {
   const browser = await chromium.launch({ executablePath: CHROMIUM });
   const folder = process.env.SCIENCESCOPE_SCREENSHOTS;
   try {
-    const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+    // An explicit context also permits secondary assistant pages to share
+    // storage and BroadcastChannel with Main during browser acceptance.
+    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    const page = await context.newPage();
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));
     const shot = async (shotName) => {

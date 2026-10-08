@@ -28,6 +28,8 @@ export const DEFAULT_SETTINGS = {
     independentChat: 'Ctrl+Alt+N',
   },
   composer: { sendKey: 'enter' },
+  // Native launch visibility; ordinary browsers continue to use the panel.
+  assistant: { startup: 'closed' },
   // Academic sites on the welcome page.
   sites: [
     { name: 'Elsevier', url: 'https://www.sciencedirect.com' },

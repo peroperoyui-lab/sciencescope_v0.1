@@ -1,5 +1,10 @@
 # Desktop implementation — first increment
 
+## 2026-10-08 R4-5c native assistant window and orb (Codex; pending review)
+- New surfaces reuse the assistant transcript; native userbar/startup preferences open the existing panel/orb, browser retains its inline panel. Added exact secondary-window authorization, hide/focus and native targeted navigation.
+- Real125%/100% six startup states, toggle/hide/draft/dimensions and clean WAL/SHM pass; extended real drag/clamp/native navigation/DSH-process close validation pending. Browser4/4 and Rust2/2; clean-install full check pending.
+- Based on5b373011c; paid requests/tokens:0, local runtime fixture counted separately; screenshots/failed fixtures/evidence temp/r4-5c. Full OS IME candidate commit not verified.
+
 ## 2026-10-08 R4-5b global assistant meeting and shared panel (Codex; pending review)
 - Migration011 keeps one global meeting and overview hash; context assembly supplies project/minutes/plans/map data, excluding temporary and private chats, with completion-only dedup and rebuild refresh.
 - Shared tools retain assistant-attributed history; userbar panel reuses secretary messages/model/composer/outbox, with main-page links and hide preserving drafts/execution.

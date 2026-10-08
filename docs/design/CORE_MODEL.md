@@ -150,6 +150,10 @@ projectBrief由有效、已确认、shared、项目scope的memory派生，置顶
 
 迁移011的assistant_state保存唯一全局会议及已确认概览哈希；成员是person_user和agent_assistant，无项目归属，历史与草稿独立。会议不出现在侧栏/浏览全部，也不触发自动纪要。GET/POST /api/assistant取得同一会议。上下文组装每轮生成项目目标、计划、导图要点和研究会议纪要目标/待办；仅变化或运行时重建时发送，完成后确认哈希。私有资料条目、临时会议和附属秘书私聊不参与；共享工具仍可按项目id查阅和修改，轮末历史归agent_assistant。主窗口助手与秘书复用AssistantSurface/message/model和会议队列；隐藏仅收起视图，保留草稿与运行，链接导航主页面。
 
+### 原生助手窗口（R4-5c）
+
+原生主窗口启动消费settings.assistant.startup：closed（默认）/orb/expanded。独立助手通过?surface=assistant复用共享面板，浮球通过assistant-orb仅加载窗口操作，不请求研究状态。原生窗口获得每次启动注入的API口令；主窗与两助手窗在同一宿主origin获得窗口能力，隐藏不取消发言。跨窗导航使用Tauri定向事件回主窗，浏览器仍使用面板；浮球沿旧窗口级拖动监听、置顶并夹紧到工作区，尺寸保存data/assistant-window.json，关闭主窗结束宿主/DSH进程树。
+
 ## 8. 内置工具（R2）
 
 | 工具 | 参数 | 作用 |
