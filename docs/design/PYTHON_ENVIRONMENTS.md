@@ -1,5 +1,7 @@
 # Python 运行环境设计
 
+> 2026-10-08 新核心（R4-8）与本文不同的两处：`python_env_install` 不审批，直接执行并显示工具卡片（原则 5）；环境和缓存放新数据根 `dataPaths().python`。见 `docs/tasks/R4-8_python.md`。
+
 - 起草：Claude，2026-09-25。实现任务书：`docs/tasks/T11_python_environments.md`（交给 GPT）。
 - 用户需求（原话要点）：
   - 给 harness 封装一个 **Python 3.14 稳定版**并作为默认设置，预装常用分析包（深度学习的包太大，暂时不装）；
