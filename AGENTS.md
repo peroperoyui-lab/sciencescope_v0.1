@@ -70,7 +70,12 @@ workflow, helping the user understand and advance their own research project
 - Tests: one functional test per user-visible path. Test what users do, not
   every defensive branch. No security tests and no speculative matrices.
   Fixtures use `.sciencescope-local/temp`.
-- Real-model evaluation only in tasks that ask for it.
+- Real-model checks are encouraged (user 2026-10-08): when a change touches a
+  user-visible AI path (answers, discussion, secretary, assistant, tools), run
+  it once with the cheap paid model (OpenCode Go, `deepseek-v4.1-flash`) in
+  addition to the scripted runtime, and report requests and tokens. Larger
+  evaluations (many questions, several rounds, model comparisons) only in tasks
+  that ask for them.
 - Builds, caches, temporary files and test databases stay under `.sciencescope-local`.
 
 ## Workflow
