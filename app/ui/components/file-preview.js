@@ -21,8 +21,8 @@ export function FilePreview() {
         .then(async (value) => {
           if (!active) return;
           setDoc(value);
-          const result = await actions.researchSources({ projectId: value.projectId ?? '' });
-          if (active) setSources(result.sources);
+          const result = await actions.previewSources(value.projectId);
+          if (active) setSources(result);
         })
         .catch((failure) => {
           if (active) setError(failure.message);

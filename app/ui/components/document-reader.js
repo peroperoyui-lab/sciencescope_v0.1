@@ -81,9 +81,12 @@ export function DocumentReader({ doc, target }) {
       ${['markdown', 'latex', 'docx'].includes(doc.format) && html`<button class="btn tiny" onClick=${() => setMode(doc.format === 'latex' ? 'formulas' : 'readable')}>${t(doc.format === 'latex' ? '公式' : '正文')}</button><button class="btn tiny" onClick=${() => setMode(doc.format === 'docx' ? 'layout' : 'source')}>${t(doc.format === 'docx' ? '原始版式' : '源码')}</button>`}
     </div>
     ${rows && html`<p>${t('共 {total} 行，显示前 {shown} 行', { total: rows.rows, shown: rows.shown })}</p>`}
-    <div class="reader-host" ref=${surface} data-preview-doc data-resource-id=${doc.source?.id}>
-      ${doc.format === 'image' && html`<img src=${actions.previewContent(target)} alt=${doc.name} style="max-width:100%" />`}
-    </div>
+    <div
+      class="reader-host"
+      ref=${surface}
+      data-preview-doc
+      data-resource-id=${doc.source?.id}
+    ></div>
     ${error && html`<p role="alert">${error}</p>`}
   </div>`;
 }

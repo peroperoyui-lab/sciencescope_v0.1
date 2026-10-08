@@ -16,6 +16,8 @@ export function createPreviewActions(api, store) {
       store.update((state) => ({ ...state, previewTarget: target, materialsTarget: null }));
     },
     previewDocument: (target) => api.get(`/api/preview/document?${query(target)}`),
+    previewSources: (projectId) =>
+      api.get(`/api/research/sources?projectId=${encodeURIComponent(projectId ?? '')}`),
     previewContent: (target) =>
       `/api/preview/content?${query(target)}&token=${encodeURIComponent(api.token)}`,
     previewBytes: (target) => api.bytes(`/api/preview/content?${query(target)}`),
