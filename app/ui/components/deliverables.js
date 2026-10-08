@@ -17,6 +17,7 @@ export function Deliverables({ files = [] }) {
         data-deliverable=${file.id}
         title=${`${t('打开交付物')} · ${file.description || file.name}`}
         onClick=${() => actions.attempt(() => actions.openDeliverable(file.id))}
+        onContextMenu=${(event) => actions.openMenu(event, [{ text: t('预览'), run: () => actions.openPreview({ kind: 'deliverable', id: file.id }) }])}
       >
         ${image ? html`<span class="deliverable-thumb"><img src=${actions.deliverableContent(file.id)} alt=${file.description || file.name} /></span>` : html`<span class="deliverable-icon"><${Icon} name="file" /></span>`}
         <span class="deliverable-text"

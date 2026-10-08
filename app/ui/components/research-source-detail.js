@@ -40,6 +40,15 @@ export function ResearchSourceDetail({ sourceId, focusChunkId, ordinal = 0 }) {
     ${
       source &&
       html`<h3>${source.title}</h3>
+        <button
+          class="btn tiny"
+          onClick=${() => {
+            actions.closeModal();
+            actions.openPreview({ kind: 'source', id: source.id });
+          }}
+        >
+          ${t('预览')}
+        </button>
         <section class="card">
           <h4>${t('来源信息')}</h4>
           <dl class="rb-source-info">

@@ -1,5 +1,10 @@
 # Desktop implementation — first increment
 
+## 2026-10-08 R4-2b file preview and readers (Codex; pending review)
+- Original-byte preview routes share local authentication; PDF.js text layer/pages/highlights, DOCX readable/layout, readonly CodeMirror, Markdown/KaTeX and CSV counted projection use local dependencies. Citation locators reuse research parser; unknown labels retain text.
+- Attachment/library/details/P46 open preview; deliverable and project-file context menus add preview while retaining default open. Based on2a a1dbcd1; related Windows reader/service/i18n and deliverable tests pass; clean-check/native acceptance pending.
+- Paid requests/tokens:0 for reader-only change (2a PDF live evidence2/35196); screenshots/evidence temp/r4-2b. Mark interactions and combined real model acceptance remain2c.
+
 ## 2026-10-08 R4-2a attachments and sending (Codex; pending review)
 - Migration012 persists material drafts/message snapshots/outbox input; originals reuse the library, all participants share context compilation, forks retain references; runner unchanged. Main/secretary/assistant share upload/paste/drop, reference picker, receipt and P46.
 - Fixed assistant overview identity using assistant_state; delayed welcome navigation until accepted send and versioned cross-window draft updates preserve newer selections. Core message/outbox/fork plumbing extended minimally with functional coverage.

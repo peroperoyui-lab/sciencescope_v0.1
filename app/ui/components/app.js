@@ -12,6 +12,7 @@ import { Welcome } from './home.js';
 import { MapEditor } from './map-editor.js';
 import { MeetingView } from './meeting.js';
 import { MaterialsPanel } from './materials-panel.js';
+import { FilePreview } from './file-preview.js';
 import { Overlays } from './overlays.js';
 import { ProjectNew } from './project-new.js';
 import { SettingsView } from './settings.js';
@@ -106,6 +107,7 @@ export function App() {
     <div class="app">
       ${route.view !== 'map' && html`<${Sidebar} route=${route} currentProjectId=${projectId} />`}
       ${page} ${materialsTarget && html`<${MaterialsPanel} target=${materialsTarget} />`}
+      <${FilePreview} />
       ${assistantOpen && html`<${AssistantPanel} onClose=${() => actions.showAssistant(false)} />`}
     </div>
     <${Footbar}

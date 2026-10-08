@@ -1,5 +1,25 @@
 /* Additions to the legacy styles for the new interface. Keep this small:
    the look comes from styles/legacy/. */
+::highlight(research-focus) {
+  background: #dbc56a88;
+}
+.research-citation {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.file-preview-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.reader-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.reader-host > .reader-surface {
+  width: 100%;
+}
 #app {
   height: 100vh;
   display: flex;

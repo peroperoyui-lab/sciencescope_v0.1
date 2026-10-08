@@ -1,6 +1,7 @@
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { InfoTip } from './info-tip.js';
+import { useActions } from '../context.js';
 import {
   authorText,
   researchLabel,
@@ -54,6 +55,7 @@ export function ResearchFilters({ tab, filters, onFilter }) {
 }
 /** @param {{sources:any[],onAction:(action:string,source:any)=>void}} props */
 export function ResearchSources({ sources, onAction }) {
+  const actions = useActions();
   const button = (text, action, source) =>
     html`<button type="button" class="btn tiny" onClick=${() => onAction(action, source)}>
       ${t(text)}
@@ -82,6 +84,12 @@ export function ResearchSources({ sources, onAction }) {
             <td>${(metadata.tags ?? []).join(', ')}</td>
             <td>
               <div class="rb-row-actions">
+                <button
+                  class="btn tiny"
+                  onClick=${() => actions.openPreview({ kind: 'source', id: source.id })}
+                >
+                  ${t('预览')}
+                </button>
                 ${source.originalPath && button('打开原件', 'open', source)}${button('详情', 'detail', source)}${button('编辑元数据', 'edit-source', source)}${source.originalPath && button('重新解析', 'reparse', source)}
               </div>
             </td>

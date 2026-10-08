@@ -2,7 +2,7 @@
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
-import { renderMarkdown } from '../markdown.js';
+import { CitedMarkdown } from './cited-markdown.js';
 import { Deliverables } from './deliverables.js';
 import { ToolCard } from './meeting-tool.js';
 import { InputReceipt } from './research-input.js';
@@ -33,10 +33,7 @@ export function AssistantMessage({ message, label }) {
     <div class="turn-activity-host">
       ${calls.map((call) => html`<${ToolCard} key=${call.id} call=${call} />`)}
     </div>
-    <div
-      class="message-text rendered-markdown"
-      dangerouslySetInnerHTML=${{ __html: renderMarkdown(text) }}
-    ></div>
+    <${CitedMarkdown} message=${message} text=${text} />
     <${Deliverables} files=${message.deliverables} />
     <${InputReceipt} message=${message} />
     ${

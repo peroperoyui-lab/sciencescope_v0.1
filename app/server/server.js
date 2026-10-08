@@ -16,6 +16,7 @@ import { registerProjectRoutes } from './routes/projects.js';
 import { registerProviderRoutes } from './routes/providers.js';
 import { registerResearchRoutes } from './routes/research.js';
 import { registerResearchInputRoutes } from './routes/research-input.js';
+import { registerPreviewRoutes } from './routes/preview.js';
 import { registerSystemRoutes } from './routes/system.js';
 import { registerWorkspaceRoutes } from './routes/workspace.js';
 import { serveStatic } from './static.js';
@@ -81,6 +82,7 @@ export function createAppServer({
   registerParticipantRoutes(router, core);
   registerMeetingRoutes(router, core, conductor, researchInput);
   registerResearchInputRoutes(router, researchInput);
+  registerPreviewRoutes(router, core, research);
   registerMinutesRoutes(router, minutes);
   registerSecretaryRoutes(router, secretary);
   registerAssistantRoutes(router, assistant);

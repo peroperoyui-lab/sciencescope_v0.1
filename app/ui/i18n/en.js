@@ -1,6 +1,13 @@
 // English for every Chinese interface string. A test checks that each
 // Chinese string literal in app/ui has an entry here.
 export const en = {
+  页码: 'Page number',
+  正文: 'Readable text',
+  原始版式: 'Original layout',
+  源码: 'Source',
+  '共 {total} 行，显示前 {shown} 行': '{total} rows total; showing the first {shown}',
+  文件预览与标记: 'File preview and marks',
+  选择要预览的资料: 'Choose a source to preview',
   '选择来源或共享条目加入当前输入；不会自动发送。':
     'Select sources or shared items for the current input; nothing is sent automatically.',
   项目材料与引用: 'Project materials and references',

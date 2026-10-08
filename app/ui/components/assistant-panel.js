@@ -10,6 +10,7 @@ import { hideAssistantWindow, isNative, toggleAssistantWindow } from '../assista
 import { AssistantModel } from './assistant-model.js';
 import { AssistantSurface } from './assistant-surface.js';
 import { MaterialsPanel } from './materials-panel.js';
+import { FilePreview } from './file-preview.js';
 
 /**
  * @param {{ onClose: () => void, detached?: boolean }} props
@@ -131,7 +132,7 @@ export function AssistantPanel({ onClose, detached = false }) {
 export function AssistantWindow() {
   const actions = useActions();
   const target = useAppState((state) => state.materialsTarget);
-  return html`<${AssistantPanel}
+  return html`<${FilePreview} /><${AssistantPanel}
       detached
       onClose=${() => actions.attempt(hideAssistantWindow)}
     />${target && html`<${MaterialsPanel} target=${target} />`}`;

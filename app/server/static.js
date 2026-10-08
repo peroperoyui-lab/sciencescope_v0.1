@@ -3,6 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { build } from 'esbuild';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const uiRoot = path.join(repoRoot, 'app', 'ui');
@@ -21,6 +22,7 @@ const FONT_ROOT = path.join(modules, '@fontsource-variable', 'noto-sans-sc');
 const LOGO = path.join(repoRoot, 'reference', 'ScienceScope_Logo.png');
 
 const TYPES = {
+  '.wasm': 'application/wasm',
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8',
@@ -48,6 +50,8 @@ function locate(pathname) {
   if (relative.startsWith('vendor/katex/')) {
     return inside(path.join(modules, 'katex', 'dist'), relative.slice('vendor/katex/'.length));
   }
+  if (relative.startsWith('vendor/pdf/'))
+    return inside(path.join(modules, 'pdfjs-dist'), relative.slice('vendor/pdf/'.length));
   if (relative.startsWith('vendor/')) return VENDOR[relative.slice('vendor/'.length)] ?? null;
   return inside(uiRoot, relative);
 }
@@ -58,6 +62,19 @@ function locate(pathname) {
  * @param {import('node:http').ServerResponse} response
  */
 export async function serveStatic(pathname, response) {
+  if (pathname === '/vendor/reader.js') {
+    readerBundle ??= build({
+      entryPoints: [path.join(uiRoot, 'readers/vendor.js')],
+      bundle: true,
+      format: 'esm',
+      platform: 'browser',
+      target: 'es2022',
+      write: false,
+    });
+    response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' });
+    response.end((await readerBundle).outputFiles[0].contents);
+    return true;
+  }
   const file = locate(pathname);
   if (!file) return false;
   let body;
@@ -74,3 +91,5 @@ export async function serveStatic(pathname, response) {
   response.end(body);
   return true;
 }
+
+let readerBundle;

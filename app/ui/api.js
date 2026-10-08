@@ -108,6 +108,11 @@ export function createApi() {
     get: (route) => request('GET', route),
     post: (route, body = {}) => request('POST', route, body),
     patch: (route, body = {}) => request('PATCH', route, body),
+    async bytes(route) {
+      const response = await fetch(route, { headers: { authorization: `Bearer ${token}` } });
+      if (!response.ok) throw new ApiError('HTTP', response.statusText, response.status);
+      return response.arrayBuffer();
+    },
   };
 }
 

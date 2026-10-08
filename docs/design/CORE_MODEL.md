@@ -160,6 +160,8 @@ projectBrief由有效、已确认、shared、项目scope的memory派生，置顶
 
 ## 8. 内置工具（R2）
 
+R4-2b（待审阅）：GET /api/preview/document与/content按来源、交付物或项目文件定位原件；独立阅读投影不受模型输入大小影响。GET /api/messages/:id/citations复用资料库解析器，把已识别标签解析为来源/page/highlight，优先本轮所附来源；未知写法原样返回。PDF.js/CodeMirror/docx-preview等从本机依赖提供，浏览器阅读器不调用模型。
+
 | 工具 | 参数 | 作用 |
 |---|---|---|
 | `workspace_read` | `resource`, `id?`, `query?` | 读或列出任意资源；包括会议与消息（可跨会议、跨项目） |

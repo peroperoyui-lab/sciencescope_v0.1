@@ -8,9 +8,9 @@ import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
-import { renderMarkdown } from '../markdown.js';
 import { navigate, routeHref } from '../route.js';
 import { Composer } from './composer.js';
+import { CitedMarkdown } from './cited-markdown.js';
 import { InputReceipt, showInputContext } from './research-input.js';
 import { ExpertState, ReviewAdoption, expertState } from './discussion-message.js';
 import { DiscussionStrip } from './discussion-strip.js';
@@ -167,10 +167,7 @@ function Message({ message, author, roleNote, target }) {
     </div>
     <div class="messagebody">
       ${calls.map((call) => html`<${ToolCard} key=${call.id} call=${call} />`)}
-      <div
-        class="message-text rendered-markdown"
-        dangerouslySetInnerHTML=${{ __html: text ? renderMarkdown(text) : '' }}
-      ></div>
+      <${CitedMarkdown} message=${message} text=${text} />
       <${Deliverables} files=${message.deliverables} />
       <${OutputStatus} message=${message} />
       ${review && html`<${ReviewAdoption} message=${message} />`}

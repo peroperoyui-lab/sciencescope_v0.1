@@ -6,6 +6,7 @@ import { createDeliverableActions } from './deliverable-actions.js';
 import { createSnapshotActions } from './snapshot-actions.js';
 import { createResearchActions } from './research-actions.js';
 import { createResearchInputActions } from './research-input-actions.js';
+import { createPreviewActions } from './preview-actions.js';
 import { createMemoryActions } from './memory-actions.js';
 import { createSecretaryActions } from './secretary-actions.js';
 import { applyAppearance } from './appearance.js';
@@ -447,6 +448,7 @@ export function createActions(api, store) {
     ...createSnapshotActions(api, store, () => resourceEdits.catch(() => {})),
     ...createResearchActions(api),
     ...createResearchInputActions(api, store),
+    ...createPreviewActions(api, store),
     ...createMemoryActions(api),
     ...createSecretaryActions(api, store),
     start,

@@ -33,7 +33,17 @@ function Entries({ projectId, folder, depth, version }) {
       event,
       [
         ...(entry.kind === 'file'
-          ? [{ text: t('打开'), icon: 'file', run: () => fileOp({ op: 'open', path: entry.path }) }]
+          ? [
+              {
+                text: t('预览'),
+                run: () => actions.openPreview({ kind: 'project', projectId, path: entry.path }),
+              },
+              {
+                text: t('打开'),
+                icon: 'file',
+                run: () => fileOp({ op: 'open', path: entry.path }),
+              },
+            ]
           : [
               {
                 text: t('在资源管理器打开'),

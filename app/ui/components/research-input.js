@@ -94,6 +94,14 @@ export function InputAttachments({ owner, value }) {
           key=${entry.selectionId}
           onClick=${(event) =>
             actions.openMenu(event, [
+              ...(entry.type === 'source'
+                ? [
+                    {
+                      text: t('预览'),
+                      run: () => actions.openPreview({ kind: 'source', id: entry.id, owner }),
+                    },
+                  ]
+                : []),
               {
                 text: t('打开'),
                 run: () =>
@@ -124,7 +132,22 @@ export function showInputContext(actions, input) {
   actions.openModal(
     t('本次上下文'),
     html`<div class="context-receipt">
-      ${input.materials.map((entry) => html`<div class="receipt-materials"><button class="ref-chip" onClick=${() => entry.type === 'source' && actions.attempt(() => actions.openResearchSource(entry.id))}>${entry.title}</button>${entry.type === 'item' && html`<p>${entry.text}</p>`}</div>`)}
+      ${input.materials.map(
+        (entry) =>
+          html`<div class="receipt-materials">
+            <button
+              class="ref-chip"
+              onClick=${() => {
+                if (entry.type === 'source') {
+                  actions.closeModal();
+                  actions.openPreview({ kind: 'source', id: entry.id });
+                }
+              }}
+            >
+              ${entry.title}</button
+            >${entry.type === 'item' && html`<p>${entry.text}</p>`}
+          </div>`,
+      )}
       ${input.marks.map(
         (mark) =>
           html`<blockquote>

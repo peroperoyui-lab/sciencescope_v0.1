@@ -48,6 +48,7 @@ export const initialState = {
   researchVersion: 0,
   /** @type {Record<string, any>} */ researchDrafts: {},
   /** @type {any} */ materialsTarget: null,
+  /** @type {any} */ previewTarget: null,
   semanticVersion: 0,
   /** @type {any} */
   semanticStatus: null,
