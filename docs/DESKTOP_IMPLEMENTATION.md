@@ -2,7 +2,7 @@
 
 ## 2026-10-08 R4-8a Python service (Codex; pending review)
 - Migration013 stores environments/manifests/locks/bindings/operations under dataPaths().python; uv owns managed interpreters, isolated config, shared cache and package resolution. Direct install tool records actor/reason/results; deletion resets bindings.
-- Context assembly resolves environment; runner adds only env and frozen tool-target forwarding. DSH restarts on next-turn env change with the same session id/history; scripted tests and real DSH/local-model shell test pass. Independent clean check pending.
+- Context assembly resolves environment; runner adds only env and frozen tool-target forwarding. DSH restarts on next-turn env change with the same session id/history; scripted tests and real DSH/local-model shell test pass. Independent clean-install Windows check181/181, zero skips.
 - Real uv3.14.7 builtin ready:740,988,364 logical bytes/3,893,674 exclusive; cache755,694,822; interpreters61,719,682; second environment shares numpy inode(3links). Real flash CSV/pandas/chart delivery + humanize install/use passes:17 requests/337,718 tokens; evidence temp/r4-8a. UI remains8b.
 
 ## 2026-10-08 R4-2c marks (Codex; pending review)
