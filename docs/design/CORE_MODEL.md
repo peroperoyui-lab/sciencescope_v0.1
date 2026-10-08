@@ -154,11 +154,11 @@ projectBrief由有效、已确认、shared、项目scope的memory派生，置顶
 
 原生主窗口启动消费settings.assistant.startup：closed（默认）/orb/expanded。独立助手通过?surface=assistant复用共享面板，浮球通过assistant-orb仅加载窗口操作，不请求研究状态。原生窗口获得每次启动注入的API口令；主窗与两助手窗在同一宿主origin获得窗口能力，隐藏不取消发言。跨窗导航使用Tauri定向事件回主窗，浏览器仍使用面板；浮球沿旧窗口级拖动监听、置顶并夹紧到工作区，尺寸保存data/assistant-window.json，关闭主窗结束宿主/DSH进程树。
 
-## 8. 内置工具（R2）
-
 ### R4-2a 研究输入（2026-10-08，待审阅）
 
 迁移012保存按会议（未建会议时按新对话草稿）区分的research_input_drafts、message_research_input和队列input_json。原件复用资料库；发送时冻结材料身份与条目正文，消息分支复制快照；队列只在发出时转成正式消息。草稿按操作修改、单调版本同步，发送确认只移除提交时的selectionId。POSTmessages接收researchInput；GET/PATCH /api/research-input/:owner读取或操作材料草稿。上下文组装统一编译material/quote/annotation；文件只给来源id、名称、页数和research_read读取指引，不注入全文；runner不变。助手概览按assistant_state.meeting_id排除助手会议。
+
+## 8. 内置工具（R2）
 
 | 工具 | 参数 | 作用 |
 |---|---|---|

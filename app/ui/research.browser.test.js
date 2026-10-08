@@ -329,6 +329,10 @@ test(
   { skip: browserSkip },
   () =>
     run('semantic-settings', async ({ page, app, shot }) => {
+      // This scenario supplies both HTTP samples and pushed progress itself.
+      // The real service's delayed hardware probe would otherwise publish a
+      // second state stream after enabling settings and overwrite fake ready.
+      await app.semantic.close();
       let status = {
         state: 'disabled',
         enabled: false,
