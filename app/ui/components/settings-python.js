@@ -214,7 +214,7 @@ export function PythonSettings() {
       /><button class="btn" disabled=${busy}>${t('保存环境设置')}</button>
     </form>
     <p>
-      ${system?.available ? `${t('系统 Python')} · ${system.version} · ${system.path}` : t('未检测到系统 Python')}
+      ${system == null ? t('正在检测系统 Python…') : system.available ? `${t('系统 Python')} · ${system.version} · ${system.path}` : t('未检测到系统 Python')}
     </p>
     <form
       onSubmit=${(event) => {
@@ -287,7 +287,7 @@ export function PythonSettings() {
         </div>`,
     )}
     ${environment && html`<${EnvironmentEditor} key=${environment.id} environment=${environment} run=${run} busy=${busy} />`}
-    <p>${t('共享缓存')} · ${size(snapshot?.cache.totalBytes)}</p>
+    <p>${t('共享缓存')} · ${snapshot ? size(snapshot.cache.totalBytes) : t('正在读取…')}</p>
     <button class="btn" disabled=${busy} onClick=${() => run(actions.pythonPrune)}>
       ${t('清理未引用的缓存')}
     </button>
