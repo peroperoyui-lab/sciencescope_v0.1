@@ -2,7 +2,7 @@
 
 ## 2026-10-08 R4-8b Python settings and selection (Codex; pending review)
 - Restored P40 environment CRUD/manifests/import-export/default/mirror/cache controls and project/standalone creation choices; meeting workspace uses anchored selection menu. Status follows python.changed; English entries included. Based on8a547884e.
-- Fixed stale option lists, late default responses overwriting user selection, and disk scan reading SQLite after shutdown; functional/browser coverage passes. Existing Delete English corrected. Independent clean check pending; no native code changes.
+- Fixed stale option lists, late default responses overwriting user selection, and disk scan reading SQLite after shutdown; functional/browser coverage passes. Existing Delete English corrected; unknown detection/space stays loading. Independent clean-install Windows check182/182, zero skips; no native code changes.
 - Real Edge selection→DSH/pandas/humanize sum66 passes:3 requests/54,387 tokens;8a full chart/install acceptance17/337,718. Screenshots/logs temp/r4-8b; full native IME candidate commit remains unverified.
 
 ## 2026-10-08 R4-8a Python service (Codex; pending review)
