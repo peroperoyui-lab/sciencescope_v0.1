@@ -1,5 +1,10 @@
 # Desktop implementation — first increment
 
+## 2026-10-08 R4-8a Python service (Codex; pending review)
+- Migration013 stores environments/manifests/locks/bindings/operations under dataPaths().python; uv owns managed interpreters, isolated config, shared cache and package resolution. Direct install tool records actor/reason/results; deletion resets bindings.
+- Context assembly resolves environment; runner adds only env and frozen tool-target forwarding. DSH restarts on next-turn env change with the same session id/history; scripted tests and real DSH/local-model shell test pass. Independent clean check pending.
+- Real uv3.14.7 builtin ready:740,988,364 logical bytes/3,893,674 exclusive; cache755,694,822; interpreters61,719,682; second environment shares numpy inode(3links). Real flash CSV/pandas/chart delivery + humanize install/use passes:17 requests/337,718 tokens; evidence temp/r4-8a. UI remains8b.
+
 ## 2026-10-08 R4-2c marks (Codex; pending review)
 - Shared nonmodal selection/popover supports Main/secretary/assistant ownership, cross-target quotes, edit/locate/remove/clear and persistent preview highlights; source/page/offset/text/note snapshots use migration012 input records, no new refs state or limits.
 - Sent versions clear atomically; later edits survive acknowledgement and failed turns restore without replacing newer marks. Independent clean-install Windows check177/177, zero skips. Based on2b6fc96c4.

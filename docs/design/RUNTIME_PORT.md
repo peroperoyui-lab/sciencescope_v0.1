@@ -1,5 +1,7 @@
 # 运行时接口（Runtime Port）· 初稿
 
+> R4-8a（2026-10-08）：新端口startSession新增可选env:{PATH?,VIRTUAL_ENV?}，只接收宿主解析的这两个变量，不改变宿主process.env。DSH比较model+env，变化时在下一轮释放旧进程并恢复同一sessionId；当前轮工具使用固定环境。真实DSH+本地模型已验证shell变量与历史恢复。
+
 > **2026-10-05 重建后**：新代码的运行时接口是 `app/runtime/port.js`（`startSession`、`send`、`interrupt`、`setInstructions`、`release`、`close`，以及运行时事件）。DSH 实现在 `app/runtime/dsh/`：
 > - 每个会话一个 DSH 进程，进程内只有一个插件 `plugin.js`，负责事件流、把工具调用转回宿主、处理 prompt / interrupt / instructions；
 > - 宿主侧是一个桥接服务 `bridge.js`；

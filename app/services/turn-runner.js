@@ -89,6 +89,7 @@ export function createTurnRunner({
     const options = {
       model: context.model,
       workFolder: context.workFolder,
+      env: context.env,
       instructions: context.instructions,
       tools: tools.specs,
       onToolCall: ({ name, args, callId }) =>
@@ -97,6 +98,7 @@ export function createTurnRunner({
           meetingId,
           turnId,
           callId,
+          environmentId: context.environmentId,
         }),
     };
     const saved = core.turns.session(meetingId, participantId);

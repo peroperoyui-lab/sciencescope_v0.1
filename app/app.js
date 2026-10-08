@@ -17,11 +17,12 @@ import { createTurnRunner } from './services/turn-runner.js';
 import { createResearch } from './services/research/index.js';
 import { createResearchInput } from './services/research-input/index.js';
 import { createSemantic } from './services/research/semantic/index.js';
+import { createPython } from './services/python/index.js';
 
 /**
  * @param {{ dataRoot: string, token: string,
  *   runtime?: import('./runtime/port.js').Runtime, runtimeName?: string,
- *   extraEnv?: Record<string, string>, onShutdown?: () => void }} options
+ *   extraEnv?: Record<string, string>, pythonOptions?:Parameters<typeof createPython>[1], onShutdown?: () => void }} options
  *   `runtime` replaces DSH (tests); `extraEnv` passes fixture-only variables to DSH.
  */
 export async function createApp({
@@ -30,12 +31,14 @@ export async function createApp({
   runtime,
   runtimeName = 'dsh',
   extraEnv,
+  pythonOptions,
   onShutdown,
 }) {
   const core = await createCore({ dataRoot });
   const semantic = createSemantic(core);
   const research = createResearch(core, { semantic });
   const researchInput = createResearchInput({ core, research });
+  const python = createPython(core, pythonOptions);
   await semantic.start();
   const settings = async () =>
     (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
@@ -63,6 +66,7 @@ export async function createApp({
   const assistant = createAssistant({ core });
   const contextAssembly = createContextAssembly({
     core,
+    python,
     defaultModel: async () => (await settings()).models.default,
     minutesCoverage: async (meetingId, revisionId) => minutes.coverage(meetingId, revisionId),
     minutesCoveredMessageIds: (meetingId, revisionId) =>
@@ -76,7 +80,7 @@ export async function createApp({
     runtime: activeRuntime,
     runtimeName,
     contextAssembly,
-    tools: createTools(core, research, { secretary }),
+    tools: createTools(core, research, { secretary, python }),
   });
   const conductor = createConductor({ core, runner });
   conductor.start();
@@ -84,6 +88,7 @@ export async function createApp({
   memory.start();
   const server = createAppServer({
     core,
+    python,
     token,
     conductor,
     onShutdown,
@@ -98,6 +103,7 @@ export async function createApp({
 
   return {
     core,
+    python,
     research,
     researchInput,
     semantic,
@@ -110,6 +116,7 @@ export async function createApp({
     listen: server.listen,
     async close() {
       conductor.stop();
+      await python.close();
       await memory.close();
       await memoryRunner.close();
       await minutes.close();

@@ -30,6 +30,7 @@ export const DEFAULT_SETTINGS = {
   composer: { sendKey: 'enter' },
   // Native launch visibility; ordinary browsers continue to use the panel.
   assistant: { startup: 'closed' },
+  python: { defaultEnvironment: null, indexUrl: null },
   // Academic sites on the welcome page.
   sites: [
     { name: 'Elsevier', url: 'https://www.sciencedirect.com' },

@@ -19,7 +19,7 @@ export function createScriptedRuntime({ script }) {
 
   return {
     sessions,
-    async startSession({ sessionId, instructions, tools, onToolCall, model, workFolder }) {
+    async startSession({ sessionId, instructions, tools, onToolCall, model, workFolder, env }) {
       const id = sessionId ?? `scripted-${++counter}`;
       const existing = sessions.get(id);
       sessions.set(id, {
@@ -29,6 +29,7 @@ export function createScriptedRuntime({ script }) {
         onToolCall,
         model,
         workFolder,
+        env,
         inputs: existing?.inputs ?? [],
         controller: null,
       });

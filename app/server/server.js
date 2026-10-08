@@ -17,6 +17,7 @@ import { registerProviderRoutes } from './routes/providers.js';
 import { registerResearchRoutes } from './routes/research.js';
 import { registerResearchInputRoutes } from './routes/research-input.js';
 import { registerPreviewRoutes } from './routes/preview.js';
+import { registerPythonRoutes } from './routes/python.js';
 import { registerSystemRoutes } from './routes/system.js';
 import { registerWorkspaceRoutes } from './routes/workspace.js';
 import { serveStatic } from './static.js';
@@ -58,12 +59,14 @@ function tokenMatches(given, expected) {
  *   secretary?: ReturnType<typeof import('../services/secretary/chat.js').createSecretaryChat>,
  *   assistant?: ReturnType<typeof import('../services/assistant/index.js').createAssistant>,
  *   memory?: any, researchInput?:ReturnType<typeof import('../services/research-input/index.js').createResearchInput>,
+ *   python?:ReturnType<typeof import('../services/python/index.js').createPython>,
  *   research?: ReturnType<typeof import('../services/research/index.js').createResearch>, semantic?:any,
  *   conductor?: ReturnType<typeof import('../services/conductor.js').createConductor> }} options
  *   Without a conductor (core-only tests) posting a message triggers no answers.
  */
 export function createAppServer({
   core,
+  python,
   token,
   conductor,
   onShutdown,
@@ -77,6 +80,7 @@ export function createAppServer({
   memory,
 }) {
   const router = createRouter();
+  registerPythonRoutes(router, python);
   registerDeliverableRoutes(router, core, deliverables);
   registerProjectRoutes(router, core);
   registerParticipantRoutes(router, core);

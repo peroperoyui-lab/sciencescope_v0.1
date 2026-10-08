@@ -4,12 +4,22 @@ import { createResearch } from './research/index.js';
 import { AppError } from '../core/errors.js';
 import { createDeliverables } from './deliverables.js';
 
-/** @typedef {{ participantId: string, meetingId: string, turnId: string, callId?: string }} ToolContext */
+/** @typedef {{ participantId: string, meetingId: string, turnId: string, callId?: string, environmentId?:string }} ToolContext */
 
 const RESOURCES = ['map', 'plans', 'log', 'minutes', 'notes', 'agent', 'settings'];
 
 /** @type {import('../runtime/port.js').ToolSpec[]} */
 export const TOOL_SPECS = [
+  {
+    name: 'python_env_install',
+    description:
+      'Install named Python packages into the current meeting managed environment. Supply the reason. Use this instead of terminal pip install; system Python is never modified. Optional environment is a managed environment id.',
+    parameters: {
+      packages: { type: 'array', required: true, items: { type: 'string' } },
+      reason: { type: 'string', required: true },
+      environment: { type: 'string' },
+    },
+  },
   {
     name: 'workspace_present',
     description:
@@ -138,9 +148,9 @@ export const TOOL_SPECS = [
 /**
  * @param {import('../core/index.js').Core} core
  * @param {ReturnType<typeof createResearch>} [research]
- * @param {{secretary?: ReturnType<typeof import('./secretary/chat.js').createSecretaryChat>}} [services]
+ * @param {{secretary?: ReturnType<typeof import('./secretary/chat.js').createSecretaryChat>,python?:ReturnType<typeof import('./python/index.js').createPython>}} [services]
  */
-export function createTools(core, research = createResearch(core), { secretary } = {}) {
+export function createTools(core, research = createResearch(core), { secretary, python } = {}) {
   const deliverables = createDeliverables(core);
   async function nameOf(id) {
     try {
@@ -203,6 +213,10 @@ export function createTools(core, research = createResearch(core), { secretary }
    * @param {ToolContext} context
    */
   async function run(name, args, context) {
+    if (name === 'python_env_install') {
+      if (!python) throw new Error('Python service unavailable');
+      return python.install(context, args);
+    }
     const actor = {
       actorId: context.participantId,
       meetingId: context.meetingId,

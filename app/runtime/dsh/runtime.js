@@ -98,11 +98,15 @@ export function createDshRuntime({ home, credentialsPath, providerConfig, extraE
     tools,
     onToolCall,
     noTools = false,
+    env = {},
   }) {
     const id = sessionId ?? `session-${randomUUID().replaceAll('-', '')}`;
     const running = sessions.get(id);
     const link = await bridge();
-    const modelKey = JSON.stringify(model);
+    const sessionEnv = Object.fromEntries(
+      ['PATH', 'VIRTUAL_ENV'].filter((key) => env[key] != null).map((key) => [key, env[key]]),
+    );
+    const modelKey = JSON.stringify({ model, env: sessionEnv });
     // Selection changes take effect on the next turn. Release the old process
     // and resume its durable session with the explicit new model/effort.
     if (running && running.modelKey !== modelKey) {
@@ -157,6 +161,7 @@ export function createDshRuntime({ home, credentialsPath, providerConfig, extraE
       env: {
         ...withoutSecrets(process.env),
         ...extraEnv,
+        ...sessionEnv,
         TEMP: temp,
         TMP: temp,
         TMPDIR: temp,

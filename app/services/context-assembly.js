@@ -23,7 +23,7 @@ const withResearchInput = (messages) =>
  * @typedef {{ text: string, commit: (result: {status: string, turnId: string}) => unknown }} FollowupPacket
  * @typedef {{rebuilding: boolean, model: ModelChoice, instructions: string, signal?: AbortSignal}} FollowupOptions
  * @typedef {{input: string, messages: import('../core/messages.js').Message[]}} AssembledInput
- * @typedef {{model: ModelChoice, workFolder: string, instructions: string,
+ * @typedef {{model: ModelChoice, workFolder: string, instructions: string, environmentId?:string, env?:{PATH?:string,VIRTUAL_ENV?:string},
  *   followup: (rebuilding: boolean) => Promise<FollowupPacket | null>,
  *   resumedInput: (afterSeq: number) => (packet: FollowupPacket | null) => AssembledInput,
  *   seedInput: (packet: FollowupPacket | null) => Promise<AssembledInput>}} PreparedContext
@@ -36,6 +36,7 @@ const withResearchInput = (messages) =>
 /**
  * @param {{
  *   core: Core,
+ *   python?: ReturnType<typeof import('./python/index.js').createPython>,
  *   defaultModel: () => Promise<ModelChoice | null>,
  *   minutesCoverage?: (meetingId: string, revisionId: string | null) => Promise<number>,
  *   minutesCoveredMessageIds?: (meetingId: string, revisionId: string | null) => string[],
@@ -47,6 +48,7 @@ const withResearchInput = (messages) =>
  */
 export function createContextAssembly({
   core,
+  python,
   defaultModel,
   minutesCoverage = async () => 0,
   minutesCoveredMessageIds = () => [],
@@ -154,15 +156,20 @@ export function createContextAssembly({
     const names = new Map(core.participants.list().map((entry) => [entry.id, entry.name]));
     const nameOf = (id) => names.get(id) ?? id;
     const workFolder = workFolderOf(meeting, project);
-    const instructions = buildInstructions({
-      participant,
-      meeting,
-      members: await membersOf(meeting),
-      project,
-      workFolder,
-      projectBrief:
-        participant.id === 'agent_main' && project ? await projectBrief(project.id) : '',
-    });
+    const environment = await python?.resolve(meetingId);
+    const instructions =
+      buildInstructions({
+        participant,
+        meeting,
+        members: await membersOf(meeting),
+        project,
+        workFolder,
+        projectBrief:
+          participant.id === 'agent_main' && project ? await projectBrief(project.id) : '',
+      }) +
+      (environment
+        ? `\n\nPython 环境：${environment.name}（${environment.id}）。需要新包时调用 python_env_install，说明包名和原因，不要在终端直接 pip install。`
+        : '');
     if (execution.cancelled) throw new AppError('TURN_CANCELLED', 'Turn was cancelled.');
     const review = reviewMessageIds?.map((id) => core.messages.get(id)) ?? [];
     const reviewText = review.length
@@ -237,6 +244,8 @@ export function createContextAssembly({
     return {
       model,
       workFolder,
+      env: environment?.env,
+      environmentId: environment?.id,
       instructions: review.length
         ? `${instructions}\n\n你是本轮审核专家。等待所有专家结束后逐一审核下列回答，注明作者与未完成状态。`
         : instructions,
