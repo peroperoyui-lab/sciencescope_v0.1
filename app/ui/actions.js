@@ -5,6 +5,7 @@ import { createOutboxActions } from './outbox-actions.js';
 import { createDeliverableActions } from './deliverable-actions.js';
 import { createSnapshotActions } from './snapshot-actions.js';
 import { createResearchActions } from './research-actions.js';
+import { createResearchInputActions } from './research-input-actions.js';
 import { createMemoryActions } from './memory-actions.js';
 import { createSecretaryActions } from './secretary-actions.js';
 import { applyAppearance } from './appearance.js';
@@ -132,22 +133,22 @@ export function createActions(api, store) {
 
   /**
    * A new meeting with the local user and the main expert.
-   * @param {{ projectId?: string | null, title?: string }} [options]
+   * @param {{ projectId?: string | null, title?: string, navigateAfter?:boolean }} [options]
    */
-  async function createMeeting({ projectId = null, title } = {}) {
+  async function createMeeting({ projectId = null, title, navigateAfter = true } = {}) {
     const meeting = await api.post('/api/meetings', {
       projectId,
       title,
       members: [{ participantId: LOCAL_USER_ID }, { participantId: MAIN_EXPERT_ID }],
     });
     apply('meeting.created', meeting);
-    navigate({ view: 'meeting', id: meeting.id });
+    if (navigateAfter) navigate({ view: 'meeting', id: meeting.id });
     return meeting;
   }
 
-  /** @param {string} meetingId @param {string} text */
-  async function postMessage(meetingId, text) {
-    const message = await api.post(`/api/meetings/${meetingId}/messages`, { text });
+  /** @param {string} meetingId @param {string} text @param {any} [researchInput] */
+  async function postMessage(meetingId, text, researchInput) {
+    const message = await api.post(`/api/meetings/${meetingId}/messages`, { text, researchInput });
     if (message.queued) apply('meeting.outbox.changed', message.state);
     else apply('message.created', message);
     return message;
@@ -156,12 +157,18 @@ export function createActions(api, store) {
   /**
    * Start a meeting from the welcome page with its first message; until then
    * the draft is not a meeting.
-   * @param {string} text @param {string | null} [projectId]
+   * @param {string} text @param {string | null} [projectId] @param {any} [researchInput]
    */
-  async function startMeeting(text, projectId = null) {
-    const meeting = await createMeeting({ projectId, title: text.slice(0, 40) });
+  async function startMeeting(text, projectId = null, researchInput) {
+    const meeting = await createMeeting({
+      projectId,
+      title: text.slice(0, 40),
+      navigateAfter: false,
+    });
     await openMeeting(meeting.id);
-    return postMessage(meeting.id, text);
+    const result = await postMessage(meeting.id, text, researchInput);
+    navigate({ view: 'meeting', id: meeting.id });
+    return result;
   }
 
   /** @param {string} meetingId */
@@ -439,6 +446,7 @@ export function createActions(api, store) {
     ...createDeliverableActions(api),
     ...createSnapshotActions(api, store, () => resourceEdits.catch(() => {})),
     ...createResearchActions(api),
+    ...createResearchInputActions(api, store),
     ...createMemoryActions(api),
     ...createSecretaryActions(api, store),
     start,

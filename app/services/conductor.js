@@ -294,7 +294,7 @@ export function createConductor({ core, runner }) {
       await runner.interrupt(meetingId);
     },
     /**
-     * @param {{meetingId:string,authorId:string,text:string,refs?:any,replyTo?:string|null}} input
+     * @param {{meetingId:string,authorId:string,text:string,refs?:any,researchInput?:any,replyTo?:string|null}} input
      */
     submit(input) {
       const state = core.outbox.list(input.meetingId);

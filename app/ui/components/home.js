@@ -194,7 +194,8 @@ export function Welcome({ projectId = null }) {
             <div class="spacer"></div>
             <${Composer}
               key=${projectId ?? 'standalone'}
-              onSend=${(text) => actions.startMeeting(text, projectId)}
+              projectId=${projectId}
+              onSend=${(text, input) => actions.startMeeting(text, projectId, input)}
             />
           </div>
         </div>

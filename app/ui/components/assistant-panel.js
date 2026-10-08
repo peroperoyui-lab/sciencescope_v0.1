@@ -9,6 +9,7 @@ import { routeHref } from '../route.js';
 import { hideAssistantWindow, isNative, toggleAssistantWindow } from '../assistant-window.js';
 import { AssistantModel } from './assistant-model.js';
 import { AssistantSurface } from './assistant-surface.js';
+import { MaterialsPanel } from './materials-panel.js';
 
 /**
  * @param {{ onClose: () => void, detached?: boolean }} props
@@ -129,5 +130,9 @@ export function AssistantPanel({ onClose, detached = false }) {
 /** @returns {import('preact').VNode} */
 export function AssistantWindow() {
   const actions = useActions();
-  return html`<${AssistantPanel} detached onClose=${() => actions.attempt(hideAssistantWindow)} />`;
+  const target = useAppState((state) => state.materialsTarget);
+  return html`<${AssistantPanel}
+      detached
+      onClose=${() => actions.attempt(hideAssistantWindow)}
+    />${target && html`<${MaterialsPanel} target=${target} />`}`;
 }

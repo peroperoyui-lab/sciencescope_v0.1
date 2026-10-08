@@ -1,5 +1,10 @@
 # Desktop implementation — first increment
 
+## 2026-10-08 R4-2a attachments and sending (Codex; pending review)
+- Migration012 persists material drafts/message snapshots/outbox input; originals reuse the library, all participants share context compilation, forks retain references; runner unchanged. Main/secretary/assistant share upload/paste/drop, reference picker, receipt and P46.
+- Fixed assistant overview identity using assistant_state; delayed welcome navigation until accepted send and versioned cross-window draft updates preserve newer selections. Core message/outbox/fork plumbing extended minimally with functional coverage.
+- Related Windows tests4/4 plus bilingual/static checks pass; real OpenCode Go flash PDF read/page-citation passes:2 requests,35,196 tokens. Screenshots/evidence temp/r4-2a; clean-checkout full check pending. Preview/marks remain2b/2c.
+
 ## 2026-10-08 R4-5c native assistant window and orb (Codex; pending review)
 - New surfaces reuse the assistant transcript; native userbar/startup preferences open the existing panel/orb, browser retains its inline panel. Added exact secondary-window authorization, hide/focus and native targeted navigation.
 - Real125%/100% six startup states, toggle/hide/draft/dimensions, OS drag/clamp and native navigation pass; two real DSH/local requests, captured process trees empty, clean WAL/SHM. Browser4/4 and Rust2/2; independent clean-install Windows check169/169, zero skips.

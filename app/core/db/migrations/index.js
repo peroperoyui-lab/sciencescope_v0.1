@@ -19,6 +19,7 @@ import * as meetingOutbox from './009-meeting-outbox.js';
 import * as messageDeliverables from './010-message-deliverables.js';
 
 import * as globalAssistant from './011-global-assistant.js';
+import * as researchInput from './012-research-input.js';
 
 export const migrations = [
   core,
@@ -32,4 +33,5 @@ export const migrations = [
   meetingOutbox,
   messageDeliverables,
   globalAssistant,
+  researchInput,
 ];

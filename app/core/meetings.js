@@ -274,6 +274,9 @@ export function createMeetings({ db, events, now, newId, paths }) {
           row.created_at,
           row.updated_at,
         );
+        db.prepare(
+          'INSERT INTO message_research_input(message_id,input_json) SELECT ?,input_json FROM message_research_input WHERE message_id=?',
+        ).run(messageId, row.id);
         for (const file of db
           .prepare('SELECT * FROM message_deliverables WHERE message_id = ?')
           .all(row.id)) {

@@ -11,6 +11,7 @@ import { Icon } from '../icons.js';
 import { renderMarkdown } from '../markdown.js';
 import { navigate, routeHref } from '../route.js';
 import { Composer } from './composer.js';
+import { InputReceipt, showInputContext } from './research-input.js';
 import { ExpertState, ReviewAdoption, expertState } from './discussion-message.js';
 import { DiscussionStrip } from './discussion-strip.js';
 import { MainHead } from './mainhead.js';
@@ -72,6 +73,11 @@ function MessageActions({ message }) {
               run: () => navigator.clipboard?.writeText(message.text),
             },
             { text: t('引用到输入框'), icon: 'chat', run: () => actions.quote(message) },
+            {
+              text: t('本次上下文'),
+              run: () =>
+                showInputContext(actions, message.researchInput ?? { materials: [], marks: [] }),
+            },
             {
               text: t('复制消息位置'),
               icon: 'link',
@@ -143,6 +149,7 @@ function Message({ message, author, roleNote, target }) {
     >
       <div class="messagehead">${name} ${time}</div>
       <div class="messagebody"><div class="message-text">${message.text}</div></div>
+      <${InputReceipt} message=${message} />
       <${MessageActions} message=${message} />
     </article>`;
   }
@@ -475,7 +482,8 @@ export function MeetingView({ meetingId, focusMessageId }) {
               meetingId=${meeting.id}
               running=${running}
               onStop=${() => actions.attempt(() => actions.interrupt(meeting.id))}
-              onSend=${(text) => actions.postMessage(meeting.id, text)}
+              projectId=${meeting.projectId}
+              onSend=${(text, input) => actions.postMessage(meeting.id, text, input)}
             />
           </div>
         </div>

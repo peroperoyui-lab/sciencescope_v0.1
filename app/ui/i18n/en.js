@@ -1,6 +1,17 @@
 // English for every Chinese interface string. A test checks that each
 // Chinese string literal in app/ui has an entry here.
 export const en = {
+  项目材料与引用: 'Project materials and references',
+  关闭侧栏: 'Close sidebar',
+  搜索资料与条目: 'Search sources and items',
+  本次上下文: 'Context for this message',
+  添加材料: 'Add material',
+  截图: 'Screenshot',
+  '使用系统截图后，在输入框中粘贴。': 'Take a system screenshot, then paste it into the input.',
+  引用: 'Reference',
+  移除附件: 'Remove attachment',
+  '标记 {count} 条': '{count} marks',
+  '材料 {count} 份': '{count} materials',
   '正在连接本机服务…': 'Connecting to the local service…',
   '今天想研究什么？': 'What would you like to research today?',
   发送: 'Send',

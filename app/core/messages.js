@@ -5,7 +5,7 @@ import { AppError } from './errors.js';
  * @typedef {'streaming' | 'done' | 'max_tokens' | 'failed' | 'cancelled'} MessageStatus
  * @typedef {{ id: string, meetingId: string, seq: number, authorId: string, text: string,
  *   status: MessageStatus, turnId: string | null, replyTo: string | null, refs: any,
- *   deliverables?: any[], adopted: boolean | null, adoptionLocked: boolean, createdAt: string, updatedAt: string }} Message
+ *   researchInput?: any, deliverables?: any[], adopted: boolean | null, adoptionLocked: boolean, createdAt: string, updatedAt: string }} Message
  */
 
 /** SQLite stores the review adoption flag as 1, 0 or NULL (not a review). */
@@ -36,10 +36,14 @@ function toMessage(row) {
 
 /**
  * @param {{ db: import('./db/database.js').Db, events: any, meetings: any,
- *   now: () => string, newId: (prefix: string) => string, deliverables: any }} deps
+ *   now: () => string, newId: (prefix: string) => string, deliverables: any, inputRecords:any }} deps
  */
-export function createMessages({ db, events, meetings, now, newId, deliverables }) {
-  const hydrate = (row) => ({ ...toMessage(row), deliverables: deliverables.list(String(row.id)) });
+export function createMessages({ db, events, meetings, now, newId, deliverables, inputRecords }) {
+  const hydrate = (row) => ({
+    ...toMessage(row),
+    deliverables: deliverables.list(String(row.id)),
+    researchInput: inputRecords.read(String(row.id)),
+  });
   /** @param {string} id @returns {Message} */
   function get(id) {
     const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(id);
@@ -55,7 +59,7 @@ export function createMessages({ db, events, meetings, now, newId, deliverables 
   /**
    * Add a message at the end of a meeting.
    * @param {{ meetingId: string, authorId: string, text: string, status?: MessageStatus,
-   *   turnId?: string | null, replyTo?: string | null, refs?: any, adopted?: boolean | null }} input
+   *   turnId?: string | null, replyTo?: string | null, refs?: any, researchInput?:any, adopted?: boolean | null }} input
    * @returns {Message}
    */
   function post({
@@ -67,6 +71,7 @@ export function createMessages({ db, events, meetings, now, newId, deliverables 
     replyTo = null,
     refs = {},
     adopted = null,
+    researchInput,
   }) {
     meetings.get(meetingId);
     return db.transaction(() => {
@@ -93,6 +98,7 @@ export function createMessages({ db, events, meetings, now, newId, deliverables 
         time,
         time,
       );
+      inputRecords.save(id, researchInput);
       meetings.touch(meetingId);
       const message = get(id);
       events.record('message.created', message, scopeOf(message, authorId));

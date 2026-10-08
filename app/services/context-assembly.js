@@ -9,6 +9,13 @@ import {
   formatTranscript,
 } from '../core/context.js';
 import { AppError } from '../core/errors.js';
+import { compileResearchInput } from './research-input/compile.js';
+
+const withResearchInput = (messages) =>
+  messages.map((message) => ({
+    ...message,
+    text: message.text + compileResearchInput(message.researchInput),
+  }));
 
 /**
  * @typedef {import('../core/index.js').Core} Core
@@ -170,7 +177,9 @@ export function createContextAssembly({
     const ownContinuation = continuationMessageId ? core.messages.get(continuationMessageId) : null;
     const question =
       retry && cutoffSeq != null
-        ? core.messages.since(meeting.id, 0).find((message) => message.seq === cutoffSeq)?.text
+        ? withResearchInput(core.messages.since(meeting.id, 0)).find(
+            (message) => message.seq === cutoffSeq,
+          )?.text
         : null;
     const followupFor = async (rebuilding) =>
       participant.id === 'agent_assistant'
@@ -192,7 +201,10 @@ export function createContextAssembly({
         true,
       ).filter((message) => !reviewMessageIds?.includes(message.id));
       return (packet) => ({
-        input: (packet?.text ?? '') + buildFollowupInput({ messages, nameOf }) + suffix,
+        input:
+          (packet?.text ?? '') +
+          buildFollowupInput({ messages: withResearchInput(messages), nameOf }) +
+          suffix,
         messages: [...messages, ...review],
       });
     }
@@ -213,7 +225,11 @@ export function createContextAssembly({
       return {
         input:
           (packet?.text ?? '') +
-          buildSeedInput({ minutes: usableMinutes ? minutes.text : null, messages, nameOf }) +
+          buildSeedInput({
+            minutes: usableMinutes ? minutes.text : null,
+            messages: withResearchInput(messages),
+            nameOf,
+          }) +
           suffix,
         messages: [...messages, ...review],
       };

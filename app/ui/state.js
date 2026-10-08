@@ -46,6 +46,8 @@ export const initialState = {
   memoryVersion: 0,
   /** @type {null|{projectId:string|null,at:number}} */ memoryInboxRequest: null,
   researchVersion: 0,
+  /** @type {Record<string, any>} */ researchDrafts: {},
+  /** @type {any} */ materialsTarget: null,
   semanticVersion: 0,
   /** @type {any} */
   semanticStatus: null,
@@ -91,6 +93,13 @@ function without(record, key) {
  */
 export function applyEvent(state, { type, payload }) {
   switch (type) {
+    case 'research.input.changed':
+      if ((state.researchDrafts[payload.ownerId]?.version ?? -1) > payload.value.version)
+        return state;
+      return {
+        ...state,
+        researchDrafts: { ...state.researchDrafts, [payload.ownerId]: payload.value },
+      };
     case 'project.created':
     case 'project.updated':
       return { ...state, projects: upsert(state.projects, payload) };

@@ -9,6 +9,7 @@ function toItem(row) {
     authorId: String(row.author_id),
     text: String(row.text),
     refs: JSON.parse(String(row.refs_json)),
+    researchInput: row.input_json ? JSON.parse(String(row.input_json)) : undefined,
     replyTo: row.reply_to == null ? null : String(row.reply_to),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
@@ -72,10 +73,10 @@ export function createOutbox({ db, events, meetings, messages, now, newId }) {
   }
 
   /**
-   * @param {{meetingId:string,authorId:string,text:string,refs?:any,replyTo?:string|null}} input
+   * @param {{meetingId:string,authorId:string,text:string,refs?:any,researchInput?:any,replyTo?:string|null}} input
    * @returns {{item:any,state:ReturnType<typeof list>}}
    */
-  function enqueue({ meetingId, authorId, text, refs = {}, replyTo = null }) {
+  function enqueue({ meetingId, authorId, text, refs = {}, replyTo = null, researchInput }) {
     text = textOf(text);
     return db.transaction(() => {
       ensure(meetingId);
@@ -84,6 +85,11 @@ export function createOutbox({ db, events, meetings, messages, now, newId }) {
       db.prepare(
         'INSERT INTO meeting_outbox (id,meeting_id,author_id,text,refs_json,reply_to,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)',
       ).run(id, meetingId, authorId, text, JSON.stringify(refs), replyTo, time, time);
+      if (researchInput)
+        db.prepare('UPDATE meeting_outbox SET input_json=? WHERE id=?').run(
+          JSON.stringify(researchInput),
+          id,
+        );
       return { item: toItem(rowOf(meetingId, id)), state: changed(meetingId, authorId) };
     });
   }
@@ -141,6 +147,7 @@ export function createOutbox({ db, events, meetings, messages, now, newId }) {
         authorId: first.authorId,
         text: first.text,
         refs: first.refs,
+        researchInput: first.researchInput,
         replyTo: first.replyTo,
       });
       db.prepare('DELETE FROM meeting_outbox WHERE id = ?').run(first.id);

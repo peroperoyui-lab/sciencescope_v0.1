@@ -12,6 +12,7 @@ import { DiscussionMode } from './discussion-strip.js';
 import { DiscussionUsageRing } from './discussion-usage.js';
 import { useDiscussion } from './discussion-state.js';
 import { useDiscussionMention } from './discussion-mention.js';
+import { InputAttachments, useResearchInput } from './research-input.js';
 
 function useModelMenu() {
   const actions = useActions();
@@ -89,14 +90,23 @@ function useEffortMenu() {
 }
 
 /**
- * @param {{ onSend: (text: string) => Promise<any>, running?: boolean,
- *   onStop?: () => void, inputRef?: any, meetingId?: string }} props
+ * @param {{ onSend: (text: string, input?:any) => Promise<any>, running?: boolean,
+ *   onStop?: () => void, inputRef?: any, meetingId?: string, projectId?:string|null }} props
  */
-export function Composer({ onSend, running = false, onStop, inputRef, meetingId }) {
+export function Composer({
+  onSend,
+  running = false,
+  onStop,
+  inputRef,
+  meetingId,
+  projectId = null,
+}) {
   const actions = useActions();
   const sendKey = useAppState((state) => state.settings?.composer?.sendKey ?? 'enter');
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const owner = meetingId ?? `new:${projectId ?? 'global'}`;
+  const researchInput = useResearchInput(owner, projectId);
   const ownRef = useRef(null);
   const box = inputRef ?? ownRef;
   const model = useModelMenu();
@@ -147,12 +157,23 @@ export function Composer({ onSend, running = false, onStop, inputRef, meetingId 
     mention.close();
     setSending(true);
     // Keep the draft until the host accepts the message.
-    const sent = await actions.attempt(() => onSend(value));
+    const snapshot = researchInput.value;
+    const sent = await actions.attempt(() => onSend(value, snapshot));
     setSending(false);
-    if (sent !== undefined) setText('');
+    if (sent !== undefined) {
+      setText((current) => (current === text ? '' : current));
+      await actions.attempt(() => researchInput.consume(snapshot));
+    }
   }
 
-  return html`<div class="composer" data-composer="main">
+  return html`<div
+    class="composer"
+    data-composer="main"
+    onDrop=${researchInput.onDrop}
+    onDragOver=${researchInput.onDragOver}
+    onPaste=${researchInput.onPaste}
+  >
+    <${InputAttachments} owner=${owner} projectId=${projectId} value=${researchInput.value} />
     ${meetingId && html`<${Outbox} meetingId=${meetingId} />`}
     <textarea
       ref=${box}

@@ -30,16 +30,16 @@ function minutesGoals(text) {
  * @returns {Promise<string>}
  */
 export async function workspaceOverview(core) {
+  const assistantId = core.db
+    .prepare('SELECT meeting_id FROM assistant_state WHERE singleton=1')
+    .get()?.meeting_id;
   const projects = core.projects
     .list()
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
   const meetings = core.meetings
     .list()
     .filter(
-      (meeting) =>
-        !meeting.temporary &&
-        !meeting.attachedToMeetingId &&
-        meeting.policy.respondent !== 'agent_assistant',
+      (meeting) => !meeting.temporary && !meeting.attachedToMeetingId && meeting.id !== assistantId,
     );
   const blocks = [
     '## 工作区概览',

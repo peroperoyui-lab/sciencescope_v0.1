@@ -18,8 +18,9 @@ function optionalNumber(value) {
  * @param {{ interrupt: (meetingId: string) => Promise<void>,
  *   retry: (messageId: string) => Promise<unknown>, continue?: (messageId: string) => Promise<unknown>,
  *   submit?: (input:any)=>any }} [conductor]
+ * @param {ReturnType<typeof import('../../services/research-input/index.js').createResearchInput>} [researchInput]
  */
-export function registerMeetingRoutes(router, core, conductor) {
+export function registerMeetingRoutes(router, core, conductor, researchInput) {
   registerOutboxRoutes(router, core);
   router.get('/api/meetings', ({ query }) => {
     const projectId = query.get('projectId');
@@ -52,6 +53,7 @@ export function registerMeetingRoutes(router, core, conductor) {
       authorId: body.authorId ?? LOCAL_USER_ID,
       text: body.text,
       refs: body.refs,
+      researchInput: body.researchInput && researchInput?.capture(body.researchInput),
       replyTo: body.replyTo,
     }),
   );

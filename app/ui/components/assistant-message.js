@@ -5,6 +5,7 @@ import { t } from '../i18n/index.js';
 import { renderMarkdown } from '../markdown.js';
 import { Deliverables } from './deliverables.js';
 import { ToolCard } from './meeting-tool.js';
+import { InputReceipt } from './research-input.js';
 
 const EMPTY = [];
 
@@ -37,6 +38,7 @@ export function AssistantMessage({ message, label }) {
       dangerouslySetInnerHTML=${{ __html: renderMarkdown(text) }}
     ></div>
     <${Deliverables} files=${message.deliverables} />
+    <${InputReceipt} message=${message} />
     ${
       note &&
       html`<div class="model-output-status" role="status">

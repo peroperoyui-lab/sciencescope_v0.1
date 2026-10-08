@@ -7,6 +7,7 @@ import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
 import { AssistantMessage } from './assistant-message.js';
 import { Outbox } from './outbox.js';
+import { InputAttachments, useResearchInput } from './research-input.js';
 
 const EMPTY = [];
 
@@ -34,6 +35,7 @@ export function AssistantSurface({
 }) {
   const actions = useActions();
   const meetingId = meeting?.id;
+  const researchInput = useResearchInput(meetingId, meeting?.projectId ?? null);
   const messages = useAppState((state) => state.messages[meetingId] ?? EMPTY);
   const streamed = useAppState((state) => state.drafts);
   const hasBefore = useAppState((state) => state.hasBefore[meetingId]);
@@ -75,7 +77,9 @@ export function AssistantSurface({
     setSending(true);
     setSendError('');
     try {
-      await actions.postMessage(meetingId, text.trim());
+      const snapshot = researchInput.value;
+      await actions.postMessage(meetingId, text.trim(), snapshot);
+      await researchInput.consume(snapshot);
       actions.secretaryDraft(meetingId, '', text);
       follow.current = true;
     } catch (failure) {
@@ -126,7 +130,13 @@ export function AssistantSurface({
       <span class="grow"></span>
     </div>
     ${children}
-    <div class="composer assistant-composer">
+    <div
+      class="composer assistant-composer"
+      onDrop=${researchInput.onDrop}
+      onDragOver=${researchInput.onDragOver}
+      onPaste=${researchInput.onPaste}
+    >
+      ${meetingId && html`<${InputAttachments} owner=${meetingId} projectId=${meeting.projectId} value=${researchInput.value} />`}
       ${meetingId && html`<${Outbox} meetingId=${meetingId} />`}
       <textarea
         data-assistant-input

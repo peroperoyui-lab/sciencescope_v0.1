@@ -11,6 +11,7 @@ import { ResearchBase } from './research-base.js';
 import { Welcome } from './home.js';
 import { MapEditor } from './map-editor.js';
 import { MeetingView } from './meeting.js';
+import { MaterialsPanel } from './materials-panel.js';
 import { Overlays } from './overlays.js';
 import { ProjectNew } from './project-new.js';
 import { SettingsView } from './settings.js';
@@ -50,6 +51,7 @@ function useShortcuts(projectId) {
 export function App() {
   const route = useRoute();
   const assistantOpen = useAppState((state) => state.assistantOpen);
+  const materialsTarget = useAppState((state) => state.materialsTarget);
   // Re-render everything when the language changes.
   useAppState((state) => state.settings?.appearance?.language);
   const projectId = useAppState((state) => {
@@ -103,7 +105,7 @@ export function App() {
   return html`<${Topbar} projectName=${projectName} projectId=${projectId} />
     <div class="app">
       ${route.view !== 'map' && html`<${Sidebar} route=${route} currentProjectId=${projectId} />`}
-      ${page}
+      ${page} ${materialsTarget && html`<${MaterialsPanel} target=${materialsTarget} />`}
       ${assistantOpen && html`<${AssistantPanel} onClose=${() => actions.showAssistant(false)} />`}
     </div>
     <${Footbar}

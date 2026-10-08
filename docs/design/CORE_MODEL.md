@@ -156,6 +156,10 @@ projectBrief由有效、已确认、shared、项目scope的memory派生，置顶
 
 ## 8. 内置工具（R2）
 
+### R4-2a 研究输入（2026-10-08，待审阅）
+
+迁移012保存按会议（未建会议时按新对话草稿）区分的research_input_drafts、message_research_input和队列input_json。原件复用资料库；发送时冻结材料身份与条目正文，消息分支复制快照；队列只在发出时转成正式消息。草稿按操作修改、单调版本同步，发送确认只移除提交时的selectionId。POSTmessages接收researchInput；GET/PATCH /api/research-input/:owner读取或操作材料草稿。上下文组装统一编译material/quote/annotation；文件只给来源id、名称、页数和research_read读取指引，不注入全文；runner不变。助手概览按assistant_state.meeting_id排除助手会议。
+
 | 工具 | 参数 | 作用 |
 |---|---|---|
 | `workspace_read` | `resource`, `id?`, `query?` | 读或列出任意资源；包括会议与消息（可跨会议、跨项目） |

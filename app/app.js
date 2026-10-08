@@ -15,6 +15,7 @@ import { createAssistant } from './services/assistant/index.js';
 import { createContextAssembly } from './services/context-assembly.js';
 import { createTurnRunner } from './services/turn-runner.js';
 import { createResearch } from './services/research/index.js';
+import { createResearchInput } from './services/research-input/index.js';
 import { createSemantic } from './services/research/semantic/index.js';
 
 /**
@@ -34,6 +35,7 @@ export async function createApp({
   const core = await createCore({ dataRoot });
   const semantic = createSemantic(core);
   const research = createResearch(core, { semantic });
+  const researchInput = createResearchInput({ core, research });
   await semantic.start();
   const settings = async () =>
     (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
@@ -86,6 +88,7 @@ export async function createApp({
     conductor,
     onShutdown,
     research,
+    researchInput,
     semantic,
     minutes,
     secretary,
@@ -96,6 +99,7 @@ export async function createApp({
   return {
     core,
     research,
+    researchInput,
     semantic,
     minutes,
     secretary,
