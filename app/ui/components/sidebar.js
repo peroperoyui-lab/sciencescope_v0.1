@@ -211,7 +211,7 @@ export function Sidebar({ route, currentProjectId }) {
     <div>
       <button
         class=${`nav ${route.view === 'home' || route.view === 'new' ? 'active' : ''}`}
-        onClick=${() => navigate({ view: 'home' })}
+        onClick=${actions.newIndependent}
       >
         <${Icon} name="chat" /><span>${t('新对话')}</span>
       </button>

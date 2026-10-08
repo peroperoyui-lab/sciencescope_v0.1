@@ -33,7 +33,8 @@ function useShortcuts(projectId) {
     const commands = {
       search: () => actions.openPalette(),
       browse: () => navigate({ view: 'all' }),
-      newChat: () => navigate(projectId ? { view: 'new', id: projectId } : { view: 'home' }),
+      newChat: () =>
+        projectId ? navigate({ view: 'new', id: projectId }) : actions.newIndependent(),
       independentChat: actions.newIndependent,
     };
     const onKey = (event) => {

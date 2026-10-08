@@ -327,7 +327,7 @@ export function MeetingView({ meetingId, focusMessageId }) {
     {
       text: t('创建新对话'),
       icon: 'chat',
-      run: () => navigate(project ? { view: 'new', id: project.id } : { view: 'home' }),
+      run: () => (project ? navigate({ view: 'new', id: project.id }) : actions.newIndependent()),
     },
     { text: t('创建独立新对话'), icon: 'plus', run: actions.newIndependent },
     {

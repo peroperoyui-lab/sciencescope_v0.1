@@ -8,6 +8,7 @@ import path from 'node:path';
 import { createApp } from '../app.js';
 import { createScriptedRuntime } from '../runtime/scripted.js';
 import { tempDir } from '../testing.js';
+import { fakeUv } from '../services/python/testing.js';
 
 export const CHROMIUM = [
   process.env.SCIENCESCOPE_CHROMIUM,
@@ -32,6 +33,7 @@ export async function withBrowserApp(name, script, work, options = {}) {
     token: 'ui-token',
     runtime: createScriptedRuntime({ script }),
     runtimeName: 'scripted',
+    pythonOptions: { runner: fakeUv().runner },
     ...options,
   });
   const url = await app.listen();
