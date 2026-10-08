@@ -1,3 +1,4 @@
+import './polyfills.js';
 import * as pdfjs from 'pdfjs-dist/build/pdf.mjs';
 import {
   PDFViewer,
@@ -6,7 +7,7 @@ import {
   PDFLinkService,
 } from 'pdfjs-dist/web/pdf_viewer.mjs';
 
-pdfjs.GlobalWorkerOptions.workerSrc = '/vendor/pdf/build/pdf.worker.mjs';
+pdfjs.GlobalWorkerOptions.workerSrc = new URL('./pdf-worker.js', import.meta.url).href;
 
 /**
  * @param {HTMLElement} surface
