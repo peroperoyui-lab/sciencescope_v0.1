@@ -25,10 +25,15 @@ export function useDiscussionMention({ candidates, enabled, box, text, onChange 
   function choose(candidate) {
     if (!candidate || !mention) return;
     const insert = '@' + candidate.name + ' ';
-    const value = text.slice(0, mention.start) + insert + text.slice(mention.end);
+    // Input events can precede Preact's render; use the current textarea rather
+    // than a previous render's draft when the user immediately picks a name.
+    const current = box.current?.value ?? text;
+    const value = current.slice(0, mention.start) + insert + current.slice(mention.end);
     onChange(value);
     setMention(null);
     requestAnimationFrame(() => {
+      // A newer edit owns the cursor; a pending selection must not move it.
+      if (box.current?.value !== value) return;
       box.current?.focus();
       box.current?.setSelectionRange(mention.start + insert.length, mention.start + insert.length);
     });
