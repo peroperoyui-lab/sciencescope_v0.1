@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { useActions } from '../context.js';
+import { useActions, useAppState } from '../context.js';
+import { findMarkRange, markHighlight } from '../mark-ranges.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 
@@ -15,6 +16,29 @@ export function DocumentReader({ doc, target }) {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
   const [mode, setMode] = useState('readable');
+  const drafts = useAppState((state) => state.researchDrafts);
+  useEffect(() => {
+    const root = surface.current;
+    const refresh = () => {
+      const selected = target.owner
+        ? [drafts[target.owner] ?? { marks: [] }]
+        : Object.values(drafts);
+      const marks = selected
+        .flatMap((draft) => draft.marks ?? [])
+        .filter((mark) => mark.sourceId && mark.sourceId === doc.source?.id);
+      markHighlight(
+        'research-marks',
+        marks.map((mark) => findMarkRange(root, mark.text)).filter(Boolean),
+      );
+    };
+    const observer = new MutationObserver(refresh);
+    observer.observe(root, { childList: true, subtree: true });
+    refresh();
+    return () => {
+      observer.disconnect();
+      markHighlight('research-marks', []);
+    };
+  }, [drafts, doc]);
   useEffect(() => {
     let active = true;
     const host = surface.current;

@@ -12,6 +12,7 @@ import { applyAssistantStartup, installAssistantNavigation } from './assistant-w
 import { AssistantWindow } from './components/assistant-panel.js';
 import { AssistantOrb } from './components/assistant-orb.js';
 import { Overlays } from './components/overlays.js';
+import { MarkSelection } from './components/mark-selection.js';
 
 const surface = new URLSearchParams(location.search).get('surface');
 if (surface === 'assistant-orb') document.documentElement.classList.add('native-orb');
@@ -33,7 +34,10 @@ try {
     await actions.start();
     const page =
       surface === 'assistant' ? html`<${AssistantWindow} /><${Overlays} />` : html`<${App} />`;
-    render(html`<${AppContext.Provider} value=${{ store, actions }}>${page}<//>`, root);
+    render(
+      html`<${AppContext.Provider} value=${{ store, actions }}>${page}<${MarkSelection} /><//>`,
+      root,
+    );
     void actions.attempt(() => applyAssistantStartup(store.get().settings, surface));
   }
 } catch (error) {

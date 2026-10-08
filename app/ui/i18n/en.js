@@ -1,6 +1,22 @@
 // English for every Chinese interface string. A test checks that each
 // Chinese string literal in app/ui has an entry here.
 export const en = {
+  '第 {number} 段': 'Paragraph {number}',
+  '第 {number} 行': 'Line {number}',
+  定位: 'Locate',
+  '请先打开一个对话，再添加标记。': 'Open a chat before adding a mark.',
+  选中位置: 'Selected location',
+  添加标记: 'Add mark',
+  标记备注: 'Mark note',
+  '备注（可选）· Enter 添加，Shift+Enter 换行':
+    'Optional note · Enter to add, Shift+Enter for a new line',
+  引用至任务秘书: 'Quote to secretary',
+  引用至全局助手: 'Quote to global assistant',
+  '标记 {count}': 'Marks {count}',
+  标记: 'Marks',
+  全部清除: 'Clear all',
+  修改标记备注: 'Edit mark note',
+  修改备注: 'Edit note',
   页码: 'Page number',
   正文: 'Readable text',
   原始版式: 'Original layout',

@@ -5,6 +5,7 @@ import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
 import { InfoTip } from './info-tip.js';
+import { MarksPopover } from './marks-popover.js';
 
 const EMPTY = { materials: [], marks: [] };
 
@@ -85,8 +86,9 @@ export function InputAdd({ owner, projectId = null }) {
  */
 export function InputAttachments({ owner, value }) {
   const actions = useActions();
-  if (!value.materials.length) return null;
+  if (!value.materials.length && !value.marks.length) return null;
   return html`<div class="research-input-chips attachmentbar">
+    <${MarksPopover} owner=${owner} marks=${value.marks} />
     ${value.materials.map(
       (entry) =>
         html`<button

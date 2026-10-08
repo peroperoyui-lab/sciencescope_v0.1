@@ -160,6 +160,8 @@ projectBrief由有效、已确认、shared、项目scope的memory派生，置顶
 
 ## 8. 内置工具（R2）
 
+R4-2c（待审阅）：research_input_drafts/message_research_input的marks数组记录稳定id、选中版本selectionId、消息或原件target、原文、备注及page/段落/行/offset。mark-add/edit/remove/marks-clear操作写入既有迁移012表；编辑只更新草稿版本，消息快照不变。共享编译器输出quote/annotation，发送消费与消息写入同事务；失败恢复按id合并且保留更新后的草稿。无需新增表或在refs中保存状态。
+
 R4-2b（待审阅）：GET /api/preview/document与/content按来源、交付物或项目文件定位原件；独立阅读投影不受模型输入大小影响。GET /api/messages/:id/citations复用资料库解析器，把已识别标签解析为来源/page/highlight，优先本轮所附来源；未知写法原样返回。PDF.js/CodeMirror/docx-preview等从本机依赖提供，浏览器阅读器不调用模型。
 
 | 工具 | 参数 | 作用 |

@@ -1,5 +1,11 @@
 /* Additions to the legacy styles for the new interface. Keep this small:
    the look comes from styles/legacy/. */
+::highlight(research-marks) {
+  background: #9ab48255;
+}
+::highlight(research-pending) {
+  background: #dbc56a88;
+}
 ::highlight(research-focus) {
   background: #dbc56a88;
 }

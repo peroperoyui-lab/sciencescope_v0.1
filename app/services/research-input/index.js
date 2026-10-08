@@ -46,6 +46,18 @@ export function createResearchInput({ core, research }) {
         const entry = material(operation.material);
         if (!value.materials.some((old) => old.id === entry.id))
           value.materials.push({ ...entry, selectionId: randomUUID() });
+      } else if (operation.op === 'mark-add') {
+        value.marks.push({ ...operation.mark, id: randomUUID(), selectionId: randomUUID() });
+      } else if (operation.op === 'mark-edit') {
+        value.marks = value.marks.map((mark) =>
+          mark.id === operation.id
+            ? { ...mark, comment: operation.comment, selectionId: randomUUID() }
+            : mark,
+        );
+      } else if (operation.op === 'mark-remove') {
+        value.marks = value.marks.filter((mark) => mark.id !== operation.id);
+      } else if (operation.op === 'marks-clear') {
+        value.marks = [];
       } else if (operation.op === 'remove') {
         value.materials = value.materials.filter(
           (entry) => entry.selectionId !== operation.selectionId,
@@ -59,7 +71,11 @@ export function createResearchInput({ core, research }) {
       } else if (operation.op === 'restore') {
         for (const field of ['materials', 'marks'])
           for (const entry of operation.input[field] ?? [])
-            if (!value[field].some((old) => old.selectionId === entry.selectionId))
+            if (
+              !value[field].some((old) =>
+                field === 'marks' ? old.id === entry.id : old.selectionId === entry.selectionId,
+              )
+            )
               value[field].push(entry);
       } else throw new AppError('INVALID_INPUT_OPERATION', '无法更新本次材料。');
       value.version += 1;
