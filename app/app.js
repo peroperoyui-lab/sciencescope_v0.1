@@ -116,6 +116,7 @@ export async function createApp({
       await server.close();
       await conductor.idle();
       await activeRuntime.close();
+      researchInput.close();
       await semantic.close();
       core.close();
     },

@@ -162,7 +162,7 @@ export function Composer({
     setSending(false);
     if (sent !== undefined) {
       setText((current) => (current === text ? '' : current));
-      await actions.attempt(() => researchInput.consume(snapshot));
+      if (!meetingId) await actions.attempt(() => researchInput.consume(snapshot));
     }
   }
 

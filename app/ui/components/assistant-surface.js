@@ -79,7 +79,6 @@ export function AssistantSurface({
     try {
       const snapshot = researchInput.value;
       await actions.postMessage(meetingId, text.trim(), snapshot);
-      await researchInput.consume(snapshot);
       actions.secretaryDraft(meetingId, '', text);
       follow.current = true;
     } catch (failure) {

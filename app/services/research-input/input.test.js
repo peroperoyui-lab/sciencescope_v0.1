@@ -14,6 +14,7 @@ test('materials survive drafts, queue, restart and fork; every participant recei
   const runtime = () =>
     createScriptedRuntime({
       script: async function* ({ input, call }) {
+        if (input.includes('FAIL_PROVIDER')) throw new Error('local provider failure');
         calls.push(input);
         const id = input.match(/<material id="([^"]+)"/u)?.[1];
         assert.ok(id);
@@ -86,6 +87,15 @@ test('materials survive drafts, queue, restart and fork; every participant recei
       await app.conductor.idle();
     }
     assert.equal(calls.length, 3);
+    const url = await app.listen();
+    const failed = await fetch(`${url}/api/meetings/${assistant.id}/messages`, {
+      method: 'POST',
+      headers: { authorization: 'Bearer test', 'content-type': 'application/json' },
+      body: JSON.stringify({ text: 'FAIL_PROVIDER', researchInput: snapshot }),
+    });
+    assert.equal(failed.ok, true);
+    await app.conductor.idle();
+    assert.equal(app.researchInput.draft(assistant.id).materials[0].id, source.id);
     app.core.meetings.update(assistant.id, { policy: { respondent: 'agent_main' } });
     const ordinary = app.core.meetings.create({
       title: 'Ordinary research',

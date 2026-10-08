@@ -48,13 +48,18 @@ export function registerMeetingRoutes(router, core, conductor, researchInput) {
     }),
   );
   router.post('/api/meetings/:id/messages', ({ params, body }) =>
-    (conductor?.submit ?? core.messages.post)({
-      meetingId: params.id,
-      authorId: body.authorId ?? LOCAL_USER_ID,
-      text: body.text,
-      refs: body.refs,
-      researchInput: body.researchInput && researchInput?.capture(body.researchInput),
-      replyTo: body.replyTo,
+    core.db.transaction(() => {
+      const result = (conductor?.submit ?? core.messages.post)({
+        meetingId: params.id,
+        authorId: body.authorId ?? LOCAL_USER_ID,
+        text: body.text,
+        refs: body.refs,
+        researchInput: body.researchInput && researchInput?.capture(body.researchInput),
+        replyTo: body.replyTo,
+      });
+      if (body.researchInput)
+        researchInput?.change(params.id, { op: 'consume', input: body.researchInput });
+      return result;
     }),
   );
   router.post('/api/meetings/:id/interrupt', async ({ params }) => {

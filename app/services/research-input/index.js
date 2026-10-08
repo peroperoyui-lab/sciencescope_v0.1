@@ -56,6 +56,11 @@ export function createResearchInput({ core, research }) {
             (entry) =>
               !operation.input[field].some((sent) => sent.selectionId === entry.selectionId),
           );
+      } else if (operation.op === 'restore') {
+        for (const field of ['materials', 'marks'])
+          for (const entry of operation.input[field] ?? [])
+            if (!value[field].some((old) => old.selectionId === entry.selectionId))
+              value[field].push(entry);
       } else throw new AppError('INVALID_INPUT_OPERATION', '无法更新本次材料。');
       value.version += 1;
       core.db
@@ -76,5 +81,18 @@ export function createResearchInput({ core, research }) {
       marks: structuredClone(input.marks ?? []),
     };
   }
-  return { draft, change, capture };
+  // HTTP acceptance and model completion are separate events. A provider
+  // failure restores the submitted selections without replacing newer drafts.
+  const unsubscribe = core.events.subscribe((event) => {
+    if (
+      event.type !== 'turn.ended' ||
+      event.payload.status !== 'failed' ||
+      !event.payload.triggerMessageId
+    )
+      return;
+    const message = core.messages.get(event.payload.triggerMessageId);
+    if (message.researchInput?.materials.length || message.researchInput?.marks.length)
+      change(message.meetingId, { op: 'restore', input: message.researchInput });
+  });
+  return { draft, change, capture, close: unsubscribe };
 }
