@@ -2,7 +2,7 @@
 
 ## 2026-10-08 R4-2b file preview and readers (Codex; pending review)
 - Original-byte preview routes share local authentication; PDF.js text layer/pages/highlights, DOCX readable/layout, readonly CodeMirror, Markdown/KaTeX and CSV counted projection use local dependencies. Citation locators reuse research parser; unknown labels retain text.
-- Attachment/library/details/P46 open preview; deliverable and project-file context menus add preview while retaining default open. Based on2a a1dbcd1; related Windows reader/service/i18n and deliverable tests pass; clean-check/native acceptance pending.
+- Attachment/library/details/P46 open preview; deliverable and project-file context menus retain default open. Based on2a a1dbcd1; independent clean-install Windows check175/175, zero skips; real OS100%/125% preview/page/highlight and exit cleanup pass (extended dual-screen fixture corrected to display1).
 - Paid requests/tokens:0 for reader-only change (2a PDF live evidence2/35196); screenshots/evidence temp/r4-2b. Mark interactions and combined real model acceptance remain2c.
 
 ## 2026-10-08 R4-2a attachments and sending (Codex; pending review)
