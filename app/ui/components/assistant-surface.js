@@ -7,7 +7,7 @@ import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
 import { AssistantMessage } from './assistant-message.js';
 import { Outbox } from './outbox.js';
-import { InputAttachments, useResearchInput } from './research-input.js';
+import { InputAdd, InputAttachments, useResearchInput } from './research-input.js';
 
 const EMPTY = [];
 
@@ -154,6 +154,7 @@ export function AssistantSurface({
         }}
       ></textarea>
       <div class="composerbar">
+        ${meetingId && html`<${InputAdd} owner=${meetingId} projectId=${meeting.projectId} value=${researchInput.value} />`}
         <span class="spacer"></span>
         ${modelControls(running || sending)}
         ${running && html`<button class="sendbtn" data-assistant-action="stop" aria-label=${t(stopLabel)} onClick=${() => actions.attempt(() => actions.interrupt(meetingId))}>■</button>`}

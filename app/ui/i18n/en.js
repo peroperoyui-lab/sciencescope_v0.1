@@ -1,6 +1,8 @@
 // English for every Chinese interface string. A test checks that each
 // Chinese string literal in app/ui has an entry here.
 export const en = {
+  '选择来源或共享条目加入当前输入；不会自动发送。':
+    'Select sources or shared items for the current input; nothing is sent automatically.',
   项目材料与引用: 'Project materials and references',
   关闭侧栏: 'Close sidebar',
   搜索资料与条目: 'Search sources and items',

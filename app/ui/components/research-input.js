@@ -4,6 +4,7 @@ import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
+import { InfoTip } from './info-tip.js';
 
 const EMPTY = { materials: [], marks: [] };
 
@@ -41,10 +42,10 @@ export function useResearchInput(owner, projectId) {
 /**
  * @param {{owner:string,projectId?:string|null,value:any}} props
  */
-export function InputAttachments({ owner, projectId = null, value }) {
+export function InputAdd({ owner, projectId = null }) {
   const actions = useActions();
   const picker = useRef(null);
-  return html`<div class="research-input-chips attachmentbar">
+  return html`<span class="input-add">
     <input
       ref=${picker}
       type="file"
@@ -63,12 +64,29 @@ export function InputAttachments({ owner, projectId = null, value }) {
       onClick=${(event) =>
         actions.openMenu(event, [
           { text: t('文件'), run: () => picker.current.click() },
-          { text: t('截图'), run: () => actions.toast(t('使用系统截图后，在输入框中粘贴。')) },
+          {
+            text: t('截图'),
+            run: () =>
+              actions.openModal(
+                t('截图'),
+                html`<${InfoTip} text=${t('使用系统截图后，在输入框中粘贴。')} />`,
+              ),
+          },
           { text: t('引用'), run: () => actions.showMaterials({ owner, projectId }) },
         ])}
     >
       <${Icon} name="plus" />
     </button>
+  </span>`;
+}
+
+/**
+ * @param {{owner:string,projectId?:string|null,value:any}} props
+ */
+export function InputAttachments({ owner, value }) {
+  const actions = useActions();
+  if (!value.materials.length) return null;
+  return html`<div class="research-input-chips attachmentbar">
     ${value.materials.map(
       (entry) =>
         html`<button

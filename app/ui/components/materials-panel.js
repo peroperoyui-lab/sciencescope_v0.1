@@ -3,6 +3,7 @@ import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
+import { InfoTip } from './info-tip.js';
 
 /**
  * @param {{target:{owner:string,projectId:string|null}}} props
@@ -58,7 +59,10 @@ export function MaterialsPanel({ target }) {
   }, [target.owner, query, offset, version]);
   return html`<aside class="rightpanel" data-materials-panel>
     <div class="panelhead between">
-      <h2>${t('项目材料与引用')}</h2>
+      <h2>
+        ${t('项目材料与引用')}
+        <${InfoTip} text=${t('选择来源或共享条目加入当前输入；不会自动发送。')} />
+      </h2>
       <button aria-label=${t('关闭侧栏')} onClick=${() => actions.showMaterials(null)}>
         <${Icon} name="close" />
       </button>

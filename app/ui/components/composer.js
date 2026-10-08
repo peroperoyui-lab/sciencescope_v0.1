@@ -12,7 +12,7 @@ import { DiscussionMode } from './discussion-strip.js';
 import { DiscussionUsageRing } from './discussion-usage.js';
 import { useDiscussion } from './discussion-state.js';
 import { useDiscussionMention } from './discussion-mention.js';
-import { InputAttachments, useResearchInput } from './research-input.js';
+import { InputAdd, InputAttachments, useResearchInput } from './research-input.js';
 
 function useModelMenu() {
   const actions = useActions();
@@ -199,6 +199,7 @@ export function Composer({
     ></textarea>
     ${mention.content}
     <div class="composerbar">
+      <${InputAdd} owner=${owner} projectId=${projectId} value=${researchInput.value} />
       <${DiscussionMode} meetingId=${meetingId} running=${running} />
       <span class="spacer"></span>
       <${DiscussionUsageRing} meetingId=${meetingId} />
