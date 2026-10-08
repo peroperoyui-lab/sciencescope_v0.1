@@ -12,9 +12,6 @@ import { AppError } from '../core/errors.js';
 
 /**
  * @typedef {import('../core/index.js').Core} Core
- * @typedef {import('../core/meetings.js').Meeting} Meeting
- * @typedef {import('../core/participants.js').Participant} Participant
- * @typedef {import('../core/projects.js').Project} Project
  * @typedef {import('../runtime/port.js').ModelChoice} ModelChoice
  * @typedef {{ text: string, commit: (result: {status: string, turnId: string}) => unknown }} FollowupPacket
  * @typedef {{rebuilding: boolean, model: ModelChoice, instructions: string, signal?: AbortSignal}} FollowupOptions
@@ -23,7 +20,7 @@ import { AppError } from '../core/errors.js';
  *   followup: (rebuilding: boolean) => Promise<FollowupPacket | null>,
  *   resumedInput: (afterSeq: number) => (packet: FollowupPacket | null) => AssembledInput,
  *   seedInput: (packet: FollowupPacket | null) => Promise<AssembledInput>}} PreparedContext
- * @typedef {{meeting: Meeting, participant: Participant, project: Project | null,
+ * @typedef {{meetingId: string, participantId: string,
  *   cutoffSeq?: number, reviewMessageIds?: string[], continuation?: boolean,
  *   continuationMessageId?: string, retry?: boolean, signal?: AbortSignal,
  *   execution: {cancelled: boolean}}} ContextRequest
@@ -114,9 +111,8 @@ export function createContextAssembly({
    * @param {ContextRequest} request
    */
   async function describe({
-    meeting,
-    participant,
-    project,
+    meetingId,
+    participantId,
     cutoffSeq,
     reviewMessageIds,
     continuation,
@@ -125,6 +121,9 @@ export function createContextAssembly({
     execution,
     signal,
   }) {
+    const meeting = core.meetings.get(meetingId);
+    const project = meeting.projectId ? core.projects.get(meeting.projectId) : null;
+    const participant = await core.participants.get(participantId);
     const attachedTo = meeting.attachedToMeetingId
       ? core.meetings.get(meeting.attachedToMeetingId)
       : null;

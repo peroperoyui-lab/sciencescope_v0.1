@@ -56,8 +56,12 @@ export function createTurnRunner({
   /**
    * Start a turn and create its (empty) answer now; `run` fills it later.
    * A review answer starts unadopted.
-   * @param {{ meetingId: string, participantId: string, triggerMessageId?: string | null,
-   *   discussion?: any }} input
+   * @param {{
+   *   meetingId: string,
+   *   participantId: string,
+   *   triggerMessageId?: string | null,
+   *   discussion?: {kind: string, [key: string]: unknown}
+   * }} input
    */
   function reserve({ meetingId, participantId, triggerMessageId = null, discussion }) {
     return core.db.transaction(() => {
@@ -80,7 +84,7 @@ export function createTurnRunner({
    * Start or resume the session; returns the session id, the input to send and what it contains.
    */
   async function prepareSession(request) {
-    const { meeting, participant, turnId, cutoffSeq, execution } = request;
+    const { meetingId, participantId, turnId, cutoffSeq, execution } = request;
     const context = await contextAssembly.describe(request);
     const options = {
       model: context.model,
@@ -89,13 +93,13 @@ export function createTurnRunner({
       tools: tools.specs,
       onToolCall: ({ name, args, callId }) =>
         tools.run(name, args, {
-          participantId: participant.id,
-          meetingId: meeting.id,
+          participantId,
+          meetingId,
           turnId,
           callId,
         }),
     };
-    const saved = core.turns.session(meeting.id, participant.id);
+    const saved = core.turns.session(meetingId, participantId);
     if (
       saved &&
       saved.runtime === runtimeName &&
@@ -105,7 +109,7 @@ export function createTurnRunner({
       try {
         sessionId = await runtime.startSession({ ...options, sessionId: saved.sessionId });
       } catch {
-        core.turns.dropSession(meeting.id, participant.id);
+        core.turns.dropSession(meetingId, participantId);
       }
       if (sessionId) {
         const input = context.resumedInput(saved.lastSeq);
@@ -214,17 +218,7 @@ export function createTurnRunner({
         core.messages.update(answer.id, { status: 'cancelled' });
         return endTurn({ status: 'cancelled', stopReason: 'cancelled' });
       }
-      const meeting = core.meetings.get(meetingId);
-      const project = meeting.projectId ? core.projects.get(meeting.projectId) : null;
-      const participant = await core.participants.get(participantId);
-      const prepared = await prepareSession({
-        ...input,
-        meeting,
-        participant,
-        project,
-        turnId: turn.id,
-        execution,
-      });
+      const prepared = await prepareSession({ ...input, turnId: turn.id, execution });
       execution.sessionId = prepared.sessionId;
       holdSession(prepared.sessionId);
       if (execution.cancelled) {
