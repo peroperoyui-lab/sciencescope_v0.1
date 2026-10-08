@@ -143,6 +143,7 @@ export function Welcome({ projectId = null }) {
   const projectName = (id) => projects.find((candidate) => candidate.id === id)?.name;
   const recent = meetings
     .filter((meeting) => !meeting.archived && !meeting.attachedToMeetingId)
+    .filter((meeting) => meeting.policy?.respondent !== 'agent_assistant')
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, 5);
 

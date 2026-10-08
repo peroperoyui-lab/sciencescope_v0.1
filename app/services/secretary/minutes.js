@@ -43,7 +43,12 @@ export function createMinutesService({
 
   function eligibleMeeting(meetingId) {
     const meeting = core.meetings.get(meetingId);
-    return !meeting.archived && !meeting.temporary && !meeting.attachedToMeetingId;
+    return (
+      !meeting.archived &&
+      !meeting.temporary &&
+      !meeting.attachedToMeetingId &&
+      meeting.policy.respondent !== 'agent_assistant'
+    );
   }
 
   async function settings() {

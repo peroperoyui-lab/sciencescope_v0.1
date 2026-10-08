@@ -6,6 +6,7 @@ import { comboOf } from '../appearance.js';
 import { html } from '../html.js';
 import { navigate, useRoute } from '../route.js';
 import { AllChats } from './all-chats.js';
+import { AssistantPanel } from './assistant-panel.js';
 import { ResearchBase } from './research-base.js';
 import { Welcome } from './home.js';
 import { MapEditor } from './map-editor.js';
@@ -48,6 +49,7 @@ function useShortcuts(projectId) {
 
 export function App() {
   const route = useRoute();
+  const assistantOpen = useAppState((state) => state.assistantOpen);
   // Re-render everything when the language changes.
   useAppState((state) => state.settings?.appearance?.language);
   const projectId = useAppState((state) => {
@@ -78,7 +80,9 @@ export function App() {
       meetingId=${meetingId}
       focusMessageId=${messageId}
     />`;
-  } else if (route.view === 'workbench') page = html`<${Workbench} projectId=${route.id} />`;
+  } else if (route.view === 'map')
+    page = html`<${MapEditor} key=${route.id} projectId=${route.id} />`;
+  else if (route.view === 'workbench') page = html`<${Workbench} projectId=${route.id} />`;
   else if (['database', 'library', 'sources'].includes(route.view))
     page = html`<${ResearchBase}
       key=${route.view + (route.id ?? '')}
@@ -93,18 +97,14 @@ export function App() {
     page = html`<${SettingsView} page=${route.id} projectName=${projectName} />`;
   } else page = html`<${Welcome} projectId=${route.view === 'new' ? route.id : null} />`;
 
-  // The map editor takes the whole window, as in the prototype.
-  if (route.view === 'map') {
-    return html`<${Topbar} projectName=${projectName} projectId=${projectId} />
-      <${MapEditor} key=${route.id} projectId=${route.id} />
-      <${Footbar} projectId=${projectId} />
-      <${Overlays} />`;
-  }
+  // The map editor takes the whole window, as in the prototype, while the
+  // explicitly opened assistant can remain beside it without remounting it.
 
   return html`<${Topbar} projectName=${projectName} projectId=${projectId} />
     <div class="app">
-      <${Sidebar} route=${route} currentProjectId=${projectId} />
+      ${route.view !== 'map' && html`<${Sidebar} route=${route} currentProjectId=${projectId} />`}
       ${page}
+      ${assistantOpen && html`<${AssistantPanel} onClose=${() => actions.showAssistant(false)} />`}
     </div>
     <${Footbar}
       meetingId=${route.view === 'meeting' ? route.id.split('/')[0] : null}

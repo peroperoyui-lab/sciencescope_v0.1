@@ -1,5 +1,10 @@
 # Desktop implementation — first increment
 
+## 2026-10-08 R4-5b global assistant meeting and shared panel (Codex; pending review)
+- Migration011 keeps one global meeting and overview hash; context assembly supplies project/minutes/plans/map data, excluding temporary and private chats, with completion-only dedup and rebuild refresh.
+- Shared tools retain assistant-attributed history; userbar panel reuses secretary messages/model/composer/outbox, with main-page links and hide preserving drafts/execution.
+- Based on5a e77d580; related Windows/Edge tests4/4, static checks pass; independent clean-install full check pending. Paid requests/tokens:0; screenshots/evidence temp/r4-5b.
+
 ## 2026-10-08 R4-5a context assembly (Codex; pending review)
 - Extracted membersOf, workFolderOf, selectedMessages and the context portions of prepareSession into context-assembly; app.js injects minutes, secretary follow-up and project brief.
 - Runner460→293 lines retains session lifetime, streaming/tools, completion and interruption; eight constructor-only test updates preserve165 assertions.

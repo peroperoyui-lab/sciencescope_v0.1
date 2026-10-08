@@ -33,6 +33,7 @@ import { AppError } from '../core/errors.js';
  *   minutesCoverage?: (meetingId: string, revisionId: string | null) => Promise<number>,
  *   minutesCoveredMessageIds?: (meetingId: string, revisionId: string | null) => string[],
  *   followup?: (meetingId: string, options: FollowupOptions) => Promise<FollowupPacket | null>,
+ *   assistantOverview?: (meetingId: string, rebuilding: boolean) => Promise<FollowupPacket | null>,
  *   projectBrief?: (projectId: string) => Promise<string>
  * }} dependencies
  * @returns {{describe: (request: ContextRequest) => Promise<PreparedContext>}}
@@ -44,6 +45,7 @@ export function createContextAssembly({
   minutesCoveredMessageIds = () => [],
   followup = async () => null,
   projectBrief = async () => '',
+  assistantOverview = async () => null,
 }) {
   async function membersOf(meeting) {
     const members = [];
@@ -171,7 +173,9 @@ export function createContextAssembly({
         ? core.messages.since(meeting.id, 0).find((message) => message.seq === cutoffSeq)?.text
         : null;
     const followupFor = async (rebuilding) =>
-      followup(meeting.id, { rebuilding, model, instructions, signal });
+      participant.id === 'agent_assistant'
+        ? assistantOverview(meeting.id, rebuilding)
+        : followup(meeting.id, { rebuilding, model, instructions, signal });
     const suffix =
       reviewText +
       (question ? '\n\n请重新回答以下用户问题：\n' + question : '') +

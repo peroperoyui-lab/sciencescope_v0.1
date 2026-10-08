@@ -18,6 +18,8 @@ import * as meetingOutbox from './009-meeting-outbox.js';
 
 import * as messageDeliverables from './010-message-deliverables.js';
 
+import * as globalAssistant from './011-global-assistant.js';
+
 export const migrations = [
   core,
   toolPreamble,
@@ -29,4 +31,5 @@ export const migrations = [
   resourceSnapshots,
   meetingOutbox,
   messageDeliverables,
+  globalAssistant,
 ];

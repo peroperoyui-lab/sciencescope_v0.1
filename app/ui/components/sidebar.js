@@ -13,7 +13,10 @@ import { ProfileForm } from './shell.js';
 
 const byRecent = (a, b) => b.updatedAt.localeCompare(a.updatedAt);
 /** Meetings shown in the tree: not archived, not attached to another meeting. */
-const listed = (meeting) => !meeting.archived && !meeting.attachedToMeetingId;
+const listed = (meeting) =>
+  !meeting.archived &&
+  !meeting.attachedToMeetingId &&
+  meeting.policy?.respondent !== 'agent_assistant';
 
 function useRename() {
   const actions = useActions();
@@ -163,6 +166,7 @@ export function Sidebar({ route, currentProjectId }) {
   const projects = useAppState((state) => state.projects);
   const meetings = useAppState((state) => state.meetings);
   const settings = useAppState((state) => state.settings);
+  const assistantOpen = useAppState((state) => state.assistantOpen);
   const [collapsed, setCollapsed] = useState(/** @type {Record<string, boolean>} */ ({}));
   const [peek, setPeek] = useState(false);
   const memoryVersion = useAppState((state) => state.researchVersion);
@@ -335,6 +339,15 @@ export function Sidebar({ route, currentProjectId }) {
         onClick=${() => actions.openModal(t('个人资料'), html`<${ProfileForm} />`)}
       >
         ${userName}
+      </button>
+      <button
+        class="iconbtn"
+        title=${t('全局助手')}
+        aria-label=${t('全局助手')}
+        aria-expanded=${assistantOpen}
+        onClick=${() => actions.showAssistant(!assistantOpen)}
+      >
+        <${Icon} name="users" />
       </button>
       <button
         class="iconbtn"

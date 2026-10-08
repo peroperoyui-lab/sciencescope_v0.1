@@ -812,4 +812,14 @@ export const en = {
   待发送: 'Queued',
   取消待发消息: 'Cancel queued message',
   已暂停: 'Paused',
+  关闭助手: 'Close assistant',
+  全局助手对话记录: 'Global assistant transcript',
+  全局助手输入: 'Global assistant input',
+  '哪些项目还有待办？也可以指定项目查阅。':
+    'Which projects have pending tasks? You can also ask about a specific project.',
+  发送给全局助手: 'Send to global assistant',
+  停止助手回复: 'Stop assistant reply',
+  助手模型: 'Assistant model',
+  助手思考强度: 'Assistant reasoning effort',
+  使用全局助手默认模型: 'Use the global assistant default model',
 };

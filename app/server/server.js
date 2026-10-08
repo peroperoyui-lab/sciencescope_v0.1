@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { AppError } from '../core/errors.js';
 import { createRouter } from './router.js';
+import { registerAssistantRoutes } from './routes/assistant.js';
 import { registerDeliverableRoutes } from './routes/deliverables.js';
 import { registerEventRoutes } from './routes/events.js';
 import { registerMeetingRoutes } from './routes/meetings.js';
@@ -53,6 +54,7 @@ function tokenMatches(given, expected) {
  *   onShutdown?: () => void, deliverables?: {open?: typeof import('../services/system.js').openPath},
  *   minutes?: ReturnType<typeof import('../services/secretary/minutes.js').createMinutesService>,
  *   secretary?: ReturnType<typeof import('../services/secretary/chat.js').createSecretaryChat>,
+ *   assistant?: ReturnType<typeof import('../services/assistant/index.js').createAssistant>,
  *   memory?: any,
  *   research?: ReturnType<typeof import('../services/research/index.js').createResearch>, semantic?:any,
  *   conductor?: ReturnType<typeof import('../services/conductor.js').createConductor> }} options
@@ -68,6 +70,7 @@ export function createAppServer({
   semantic,
   minutes,
   secretary,
+  assistant,
   memory,
 }) {
   const router = createRouter();
@@ -77,6 +80,7 @@ export function createAppServer({
   registerMeetingRoutes(router, core, conductor);
   registerMinutesRoutes(router, minutes);
   registerSecretaryRoutes(router, secretary);
+  registerAssistantRoutes(router, assistant);
   registerMemoryRoutes(router, core, memory, research);
   registerProviderRoutes(router, core);
   registerWorkspaceRoutes(router, core);

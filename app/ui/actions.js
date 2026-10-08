@@ -76,6 +76,26 @@ export function createActions(api, store) {
     await outbox.loadOutbox(meetingId);
   }
 
+  /**
+   * Ensure the single assistant meeting without changing the Main route.
+   * @param {boolean} [ensure]
+   * @returns {Promise<any>}
+   */
+  async function assistantSnapshot(ensure = false) {
+    const meeting = ensure ? await api.post('/api/assistant') : await api.get('/api/assistant');
+    set({ assistantMeeting: meeting });
+    if (meeting) apply('meeting.updated', meeting);
+    return meeting;
+  }
+
+  /**
+   * @param {boolean} open
+   * @returns {void}
+   */
+  function showAssistant(open) {
+    set({ assistantOpen: open });
+  }
+
   async function loadEarlier(meetingId) {
     const loaded = store.get().messages[meetingId] ?? [];
     if (!loaded.length) return;
@@ -419,6 +439,8 @@ export function createActions(api, store) {
     start,
     stop: () => stopFollowing(),
     openMeeting,
+    assistantSnapshot,
+    showAssistant,
     loadEarlier,
     createMeeting,
     startMeeting,

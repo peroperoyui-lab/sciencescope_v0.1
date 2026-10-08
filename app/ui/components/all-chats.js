@@ -30,6 +30,7 @@ export function AllChats() {
   const lower = query.trim().toLowerCase();
   const rows = meetings
     .filter((meeting) => !meeting.attachedToMeetingId)
+    .filter((meeting) => meeting.policy?.respondent !== 'agent_assistant')
     .filter((meeting) => (filter === 'archived') === meeting.archived)
     .filter((meeting) => filter !== 'pinned' || meeting.pinned)
     .filter(

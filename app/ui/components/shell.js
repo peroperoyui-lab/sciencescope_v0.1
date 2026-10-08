@@ -86,6 +86,11 @@ export function Topbar({ projectName, projectId }) {
         : []),
       { sep: true },
       {
+        text: t('全局助手'),
+        icon: 'users',
+        run: () => actions.showAssistant(true),
+      },
+      {
         text: t('显示滚动条'),
         check: Boolean(settings?.appearance?.scrollbars),
         run: () =>

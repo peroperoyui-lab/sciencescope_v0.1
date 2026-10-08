@@ -38,6 +38,9 @@ export const initialState = {
   /** @type {Record<string, any>} */ secretary: {},
   /** Local unsent secretary input, preserved when the right panel closes. */
   /** @type {Record<string, string>} */ secretaryDrafts: {},
+  /** The global assistant's meeting stays separate from the current page. */
+  /** @type {any} */ assistantMeeting: null,
+  assistantOpen: false,
   /** @type {null | { meetingId: string, text: string, at: number }} */ fillDraft: null,
   secretaryVersion: 0,
   memoryVersion: 0,
