@@ -5,6 +5,7 @@ import { LOCAL_USER_ID } from '../core/defaults.js';
 import { createScriptedRuntime } from '../runtime/scripted.js';
 import { createConductor } from './conductor.js';
 import { createTurnRunner } from './turn-runner.js';
+import { createContextAssembly } from './context-assembly.js';
 import { createTools } from './tools.js';
 
 function deferred() {
@@ -23,7 +24,10 @@ async function withDiscussion(script, work) {
       runtime,
       runtimeName: 'scripted',
       tools: createTools(core),
-      defaultModel: async () => ({ provider: 'test', model: 'test' }),
+      contextAssembly: createContextAssembly({
+        core,
+        defaultModel: async () => ({ provider: 'test', model: 'test' }),
+      }),
     });
     const conductor = createConductor({ core, runner });
     const meeting = core.meetings.create({

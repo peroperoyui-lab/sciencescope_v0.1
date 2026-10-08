@@ -7,6 +7,7 @@ import { createCore } from '../core/index.js';
 import { createDeliverables } from './deliverables.js';
 import { createTools } from './tools.js';
 import { createTurnRunner } from './turn-runner.js';
+import { createContextAssembly } from './context-assembly.js';
 import { createScriptedRuntime } from '../runtime/scripted.js';
 import { createAppServer } from '../server/server.js';
 
@@ -60,7 +61,10 @@ test('workspace_present preserves bytes, tool/message provenance, other AI conte
       runtime,
       runtimeName: 'scripted',
       tools,
-      defaultModel: async () => ({ provider: 'test', model: 'test' }),
+      contextAssembly: createContextAssembly({
+        core,
+        defaultModel: async () => ({ provider: 'test', model: 'test' }),
+      }),
     });
     const question = core.messages.post({
       meetingId: meeting.id,
@@ -157,7 +161,10 @@ test('missing presented files fail without cards or durable records', async () =
       runtime,
       runtimeName: 'scripted',
       tools,
-      defaultModel: async () => ({ provider: 'test', model: 'test' }),
+      contextAssembly: createContextAssembly({
+        core,
+        defaultModel: async () => ({ provider: 'test', model: 'test' }),
+      }),
     });
     await runner.run({ meetingId: meeting.id, participantId: 'agent_main' });
     const answer = core.messages.list(meeting.id).messages.at(-1);

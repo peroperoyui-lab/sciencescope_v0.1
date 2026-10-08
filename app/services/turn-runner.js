@@ -1,16 +1,9 @@
 // Runs one turn: one AI participant speaking once in a meeting.
-// It assembles the context, resumes or rebuilds the participant's runtime
+// It resumes or rebuilds the participant's runtime
 // session, streams the answer into a message, records tool calls and ends
 // the turn with a status. See docs/design/CORE_MODEL.md §6–§7.
 // Ordered rounds reserve their answers before starting, so the order in which
 // experts finish never changes the order in which they are shown.
-import {
-  buildFollowupInput,
-  buildInstructions,
-  buildSeedInput,
-  visibleMessages,
-  formatTranscript,
-} from '../core/context.js';
 import { AppError } from '../core/errors.js';
 
 /** @type {Record<string, 'done' | 'max_tokens' | 'cancelled' | 'failed'>} */
@@ -22,29 +15,25 @@ const STATUS_BY_STOP = {
 };
 
 /**
- * @param {{ core: import('../core/index.js').Core,
- *   runtime: import('../runtime/port.js').Runtime, runtimeName: string,
+ * @param {{
+ *   core: import('../core/index.js').Core,
+ *   runtime: import('../runtime/port.js').Runtime,
+ *   runtimeName: string,
  *   tools: ReturnType<typeof import('./tools.js').createTools>,
- *   defaultModel: () => Promise<import('../runtime/port.js').ModelChoice | null>,
  *   idleReleaseMs?: number,
- *   minutesCoverage?: (meetingId: string, revisionId: string | null) => Promise<number>,
- *   minutesCoveredMessageIds?: (meetingId: string, revisionId: string | null) => string[],
- *   followup?: (meetingId: string, options: any) => Promise<any>,
- *   projectBrief?: (projectId: string) => Promise<string> }} deps
+ *   contextAssembly: ReturnType<typeof import('./context-assembly.js').createContextAssembly>
+ * }} deps
  *   A session idle for `idleReleaseMs` is released (its process ends); the next
  *   turn resumes it. Historical meetings keep no process alive.
+ * @returns {{reserve: typeof reserve, run: typeof run, interrupt: typeof interrupt}}
  */
 export function createTurnRunner({
   core,
   runtime,
   runtimeName,
   tools,
-  defaultModel,
+  contextAssembly,
   idleReleaseMs = 10 * 60 * 1000,
-  minutesCoverage = async () => 0,
-  minutesCoveredMessageIds = () => [],
-  followup = async () => null,
-  projectBrief = async () => '',
 }) {
   /** @type {Map<string, { sessionId: string | null, cancelled: boolean }>} turn id → execution */
   const active = new Map();
@@ -62,28 +51,6 @@ export function createTurnRunner({
     }, idleReleaseMs);
     timer.unref();
     releases.set(sessionId, timer);
-  }
-
-  async function membersOf(meeting) {
-    const members = [];
-    for (const member of meeting.members) {
-      const participant = await core.participants.get(member.participantId);
-      members.push({
-        id: participant.id,
-        name: participant.name,
-        kind: participant.kind,
-        roleNote: member.roleNote,
-      });
-    }
-    return members;
-  }
-
-  function workFolderOf(meeting, project) {
-    return (
-      meeting.workFolder ??
-      project?.folder ??
-      (project ? core.workspace.locate.projectDir(project.id) : core.paths.root)
-    );
   }
 
   /**
@@ -110,103 +77,15 @@ export function createTurnRunner({
   }
 
   /**
-   * The messages a participant is given, in reading order.
-   * - An answer counts at the position of the message it replies to (its
-   *   "boundary"), so answers that finished late still sit after their question.
-   * - Nothing after `cutoffSeq` is included, except answers to earlier messages:
-   *   experts in one round all stop at the same person's message.
-   * - Only what arrived after `afterSeq` (the participant's last read point),
-   *   plus adopted reviews this participant has not read yet.
-   * - A resumed session already has its own words, so they are left out.
+   * Start or resume the session; returns the session id, the input to send and what it contains.
    */
-  function selectedMessages(meetingId, afterSeq, cutoffSeq, participantId, resumed) {
-    const all = core.messages.since(meetingId, 0);
-    const byId = new Map(all.map((message) => [message.id, message]));
-    const boundaryOf = (message) =>
-      message.turnId && message.replyTo
-        ? (byId.get(message.replyTo)?.seq ?? message.seq)
-        : message.seq;
-    const bounded = all.filter(
-      (message) =>
-        cutoffSeq == null ||
-        message.seq <= cutoffSeq ||
-        (message.turnId && boundaryOf(message) < cutoffSeq),
-    );
-    return visibleMessages(bounded)
-      .filter((message) => {
-        const unreadReview =
-          message.adopted === true &&
-          message.refs?.discussion?.kind === 'review' &&
-          !(message.refs?.contextReadBy ?? []).some(
-            (reader) => reader.participantId === participantId,
-          );
-        const arrivedAnswer = message.turnId && boundaryOf(message) >= afterSeq;
-        return (
-          ((message.turnId ? arrivedAnswer : message.seq > afterSeq) || unreadReview) &&
-          (!resumed || message.authorId !== participantId)
-        );
-      })
-      .sort((left, right) => boundaryOf(left) - boundaryOf(right) || left.seq - right.seq);
-  }
-
-  /** Start or resume the session; returns the session id, the input to send and what it contains. */
-  async function prepareSession({
-    meeting,
-    participant,
-    project,
-    turnId,
-    cutoffSeq,
-    reviewMessageIds,
-    continuation,
-    continuationMessageId,
-    retry,
-    execution,
-    signal,
-  }) {
-    const attachedTo = meeting.attachedToMeetingId
-      ? core.meetings.get(meeting.attachedToMeetingId)
-      : null;
-    const parentRespondent = attachedTo
-      ? await core.participants.get(attachedTo.policy.respondent ?? 'agent_main')
-      : null;
-    const preferredModels = [
-      meeting.policy.model,
-      participant.definition?.model,
-      attachedTo?.policy.model,
-      parentRespondent?.definition?.model,
-    ];
-    const model = preferredModels.find((choice) => choice?.model) ?? (await defaultModel());
-    if (!model) throw new Error('还没有设置模型。请在设置中添加服务商与模型。');
-    if (execution.cancelled) throw new AppError('TURN_CANCELLED', 'Turn was cancelled.');
-    const names = new Map(core.participants.list().map((entry) => [entry.id, entry.name]));
-    const nameOf = (id) => names.get(id) ?? id;
-    const workFolder = workFolderOf(meeting, project);
-    const instructions = buildInstructions({
-      participant,
-      meeting,
-      members: await membersOf(meeting),
-      project,
-      workFolder,
-      projectBrief:
-        participant.id === 'agent_main' && project ? await projectBrief(project.id) : '',
-    });
-    if (execution.cancelled) throw new AppError('TURN_CANCELLED', 'Turn was cancelled.');
-    const review = reviewMessageIds?.map((id) => core.messages.get(id)) ?? [];
-    const reviewText = review.length
-      ? '\n\n本轮专家回答（含未完成状态），请分别检查其事实、依据、方法与结论：\n\n' +
-        review
-          .map(
-            (message) =>
-              `【${nameOf(message.authorId)}；${message.status === 'done' ? '已完成' : '未完成：' + message.status}】\n${formatTranscript([message], nameOf)}`,
-          )
-          .join('\n\n')
-      : '';
+  async function prepareSession(request) {
+    const { meeting, participant, turnId, cutoffSeq, execution } = request;
+    const context = await contextAssembly.describe(request);
     const options = {
-      model,
-      workFolder,
-      instructions: review.length
-        ? `${instructions}\n\n你是本轮审核专家。等待所有专家结束后逐一审核下列回答，注明作者与未完成状态。`
-        : instructions,
+      model: context.model,
+      workFolder: context.workFolder,
+      instructions: context.instructions,
       tools: tools.specs,
       onToolCall: ({ name, args, callId }) =>
         tools.run(name, args, {
@@ -217,19 +96,6 @@ export function createTurnRunner({
         }),
     };
     const saved = core.turns.session(meeting.id, participant.id);
-    const ownContinuation = continuationMessageId ? core.messages.get(continuationMessageId) : null;
-    const question =
-      retry && cutoffSeq != null
-        ? core.messages.since(meeting.id, 0).find((message) => message.seq === cutoffSeq)?.text
-        : null;
-    const followupFor = async (rebuilding) =>
-      followup(meeting.id, { rebuilding, model, instructions, signal });
-    const suffix =
-      reviewText +
-      (question ? '\n\n请重新回答以下用户问题：\n' + question : '') +
-      (continuation
-        ? '\n\n请继续完成你上一条未完成的回答：\n' + (ownContinuation?.text ?? '')
-        : '');
     if (
       saved &&
       saved.runtime === runtimeName &&
@@ -242,72 +108,50 @@ export function createTurnRunner({
         core.turns.dropSession(meeting.id, participant.id);
       }
       if (sessionId) {
-        const messages = selectedMessages(
-          meeting.id,
-          saved.lastSeq,
-          cutoffSeq,
-          participant.id,
-          true,
-        ).filter((message) => !reviewMessageIds?.includes(message.id));
+        const input = context.resumedInput(saved.lastSeq);
         // Register the resumed process before waiting for a catch-up refresh,
         // so stop/close can interrupt it even while preparation is pending.
         execution.sessionId = sessionId;
-        const packet = await followupFor(false);
+        const packet = await context.followup(false);
         if (execution.cancelled) throw new AppError('TURN_CANCELLED', 'Turn was cancelled.');
         return {
           sessionId,
-          input: (packet?.text ?? '') + buildFollowupInput({ messages, nameOf }) + suffix,
           packet,
-          messages: [...messages, ...review],
+          ...input(packet),
         };
       }
     }
-    const packet = await followupFor(true);
+    const packet = await context.followup(true);
     if (execution.cancelled) throw new AppError('TURN_CANCELLED', 'Turn was cancelled.');
     const sessionId = await runtime.startSession(options);
-    const minutes = await core.workspace.read({ resource: 'minutes', key: meeting.id });
-    const revisionId = minutes.revisionId;
-    const throughSeq = await minutesCoverage(meeting.id, revisionId);
-    // A queued earlier question must not see a summary of future questions.
-    const usableMinutes = cutoffSeq == null || throughSeq <= cutoffSeq;
-    const coveredIds = new Set(minutesCoveredMessageIds(meeting.id, revisionId));
-    const messages = selectedMessages(meeting.id, 0, cutoffSeq, participant.id, false).filter(
-      (message) =>
-        (!usableMinutes ||
-          message.seq > throughSeq ||
-          (message.adopted === true && !coveredIds.has(message.id))) &&
-        !reviewMessageIds?.includes(message.id),
-    );
-    return {
-      sessionId,
-      input:
-        (packet?.text ?? '') +
-        buildSeedInput({ minutes: usableMinutes ? minutes.text : null, messages, nameOf }) +
-        suffix,
-      packet,
-      messages: [...messages, ...review],
-    };
+    return { sessionId, packet, ...(await context.seedInput(packet)) };
   }
 
   /**
-   * @param {{ meetingId: string, participantId: string, triggerMessageId?: string | null,
-   *   reserved?: ReturnType<typeof reserve>, cutoffSeq?: number, reviewMessageIds?: string[],
-   *   continuation?: boolean, continuationMessageId?: string, retry?: boolean,
-   *   signal?: AbortSignal }} input
+   * @param {{
+   *   meetingId: string,
+   *   participantId: string,
+   *   triggerMessageId?: string | null,
+   *   reserved?: ReturnType<typeof reserve>,
+   *   cutoffSeq?: number,
+   *   reviewMessageIds?: string[],
+   *   continuation?: boolean,
+   *   continuationMessageId?: string,
+   *   retry?: boolean,
+   *   signal?: AbortSignal
+   * }} input
    *   `reviewMessageIds`: the round's expert answers a reviewer checks.
    */
-  async function run({
-    meetingId,
-    participantId,
-    triggerMessageId = null,
-    reserved,
-    cutoffSeq,
-    reviewMessageIds,
-    continuation = false,
-    retry = false,
-    continuationMessageId,
-    signal,
-  }) {
+  async function run(input) {
+    const {
+      meetingId,
+      participantId,
+      triggerMessageId = null,
+      reserved,
+      cutoffSeq,
+      continuationMessageId,
+      signal,
+    } = input;
     const { turn, answer } = reserved ?? reserve({ meetingId, participantId, triggerMessageId });
     const execution = { sessionId: null, cancelled: Boolean(signal?.aborted) };
     active.set(turn.id, execution);
@@ -374,17 +218,12 @@ export function createTurnRunner({
       const project = meeting.projectId ? core.projects.get(meeting.projectId) : null;
       const participant = await core.participants.get(participantId);
       const prepared = await prepareSession({
+        ...input,
         meeting,
         participant,
         project,
         turnId: turn.id,
-        cutoffSeq,
-        reviewMessageIds,
-        continuation,
-        continuationMessageId,
-        retry,
         execution,
-        signal,
       });
       execution.sessionId = prepared.sessionId;
       holdSession(prepared.sessionId);

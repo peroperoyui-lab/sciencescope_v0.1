@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { withCore } from '../testing.js';
 import { createScriptedRuntime } from '../runtime/scripted.js';
 import { createTurnRunner } from './turn-runner.js';
+import { createContextAssembly } from './context-assembly.js';
 import { createTools } from './tools.js';
 
 // Runtime sessions are rebuildable; summaries replace only their covered record.
@@ -34,9 +35,12 @@ for (const participantId of ['agent_main', 'agent_methodologist']) {
         runtime,
         runtimeName: 'scripted',
         tools: createTools(core),
-        defaultModel: async () => ({ provider: 'test', model: 'test' }),
-        minutesCoverage: async (_meetingId, revisionId) =>
-          revisionId === saved.revisionId ? old.seq : 0,
+        contextAssembly: createContextAssembly({
+          core,
+          defaultModel: async () => ({ provider: 'test', model: 'test' }),
+          minutesCoverage: async (_meetingId, revisionId) =>
+            revisionId === saved.revisionId ? old.seq : 0,
+        }),
       });
       const say = async (text) => {
         const message = core.messages.post({
@@ -94,8 +98,11 @@ test('an earlier queued question does not receive a summary of a future question
       runtime,
       runtimeName: 'scripted',
       tools: createTools(core),
-      defaultModel: async () => ({ provider: 'test', model: 'test' }),
-      minutesCoverage: async () => future.seq,
+      contextAssembly: createContextAssembly({
+        core,
+        defaultModel: async () => ({ provider: 'test', model: 'test' }),
+        minutesCoverage: async () => future.seq,
+      }),
     });
     await runner.run({
       meetingId: meeting.id,

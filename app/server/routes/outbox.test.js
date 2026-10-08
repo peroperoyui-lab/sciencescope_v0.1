@@ -5,6 +5,7 @@ import { createAppServer } from '../server.js';
 import { createScriptedRuntime } from '../../runtime/scripted.js';
 import { createConductor } from '../../services/conductor.js';
 import { createTurnRunner } from '../../services/turn-runner.js';
+import { createContextAssembly } from '../../services/context-assembly.js';
 import { createTools } from '../../services/tools.js';
 
 test('meeting outbox API supports enqueue, edit, cancel, pause, resume and cancel all', () =>
@@ -64,7 +65,10 @@ test('ordinary message HTTP submission returns queue acknowledgments while anoth
       runtime,
       runtimeName: 'scripted',
       tools: createTools(core),
-      defaultModel: async () => ({ provider: 'test', model: 'test' }),
+      contextAssembly: createContextAssembly({
+        core,
+        defaultModel: async () => ({ provider: 'test', model: 'test' }),
+      }),
     });
     const conductor = createConductor({ core, runner });
     conductor.start();

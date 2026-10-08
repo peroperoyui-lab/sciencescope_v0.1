@@ -11,6 +11,7 @@ import { projectBrief } from './services/secretary/project-brief.js';
 import { createMemoryService } from './services/memory/index.js';
 import { credentialsFile, runtimeProviderConfig } from './services/providers.js';
 import { createTools } from './services/tools.js';
+import { createContextAssembly } from './services/context-assembly.js';
 import { createTurnRunner } from './services/turn-runner.js';
 import { createResearch } from './services/research/index.js';
 import { createSemantic } from './services/research/semantic/index.js';
@@ -56,17 +57,21 @@ export async function createApp({
     defaultModel: async () => (await settings()).models.default,
   });
   const memory = createMemoryService({ core, minutes, research, runner: memoryRunner });
-  const runner = createTurnRunner({
+  const contextAssembly = createContextAssembly({
     core,
-    runtime: activeRuntime,
-    runtimeName,
+    defaultModel: async () => (await settings()).models.default,
     minutesCoverage: async (meetingId, revisionId) => minutes.coverage(meetingId, revisionId),
     minutesCoveredMessageIds: (meetingId, revisionId) =>
       minutes.coveredMessageIds(meetingId, revisionId),
     followup: (meetingId, options) => secretary.catchUp(meetingId, options),
     projectBrief: async (projectId) => projectBrief(core, projectId, research.store).text,
+  });
+  const runner = createTurnRunner({
+    core,
+    runtime: activeRuntime,
+    runtimeName,
+    contextAssembly,
     tools: createTools(core, research, { secretary }),
-    defaultModel: async () => (await settings()).models.default,
   });
   const conductor = createConductor({ core, runner });
   conductor.start();

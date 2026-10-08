@@ -4,6 +4,7 @@ import { withCore } from '../../testing.js';
 import { createResearch } from './index.js';
 import { createScriptedRuntime } from '../../runtime/scripted.js';
 import { createTurnRunner } from '../turn-runner.js';
+import { createContextAssembly } from '../context-assembly.js';
 import { createTools } from '../tools.js';
 import { createResearchFixtures } from './testing.js';
 
@@ -50,7 +51,10 @@ test('meeting participants share research tools, cite a passage and exclude priv
       runtime,
       runtimeName: 'scripted',
       tools,
-      defaultModel: async () => ({ provider: 'test', model: 'test' }),
+      contextAssembly: createContextAssembly({
+        core,
+        defaultModel: async () => ({ provider: 'test', model: 'test' }),
+      }),
     });
     for (const participantId of ['agent_main', 'agent_secretary', 'agent_assistant']) {
       const turn = await runner.run({ meetingId: meeting.id, participantId });

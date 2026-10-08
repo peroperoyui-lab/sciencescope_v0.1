@@ -128,7 +128,9 @@ services/memory 订阅会议事件，空闲默认10分钟后触发 meeting.idle�
 
 projectBrief由有效、已确认、shared、项目scope的memory派生，置顶优先，无字符上限；界面/API与Main每次发言的系统指令使用同一原文，恢复会话也刷新。external条目显示为资料而非用户命令。个人资料库不加入项目简报。秘书附属会议不触发整理。
 
-## 7. 上下文组装（`app/core/context.js`）
+## 7. 上下文组装（`app/services/context-assembly.js` 与 `app/core/context.js`）
+
+`createApp` 注入上下文组装服务，负责成员/工作目录、模型继承、系统指令、纪要覆盖、未读采纳审核、秘书跟进及本轮审核原文。`core/context.js` 保留纯格式化函数；`turn-runner.js` 负责会话开始/恢复、发送、流式输出、工具记录、收尾与中断。恢复会话先固定新消息再等待秘书跟进；重建在会话开始后读取同一纪要修订的文本与覆盖范围，保持既有时序。
 
 参与者 P 在会议 M 中发言时：
 

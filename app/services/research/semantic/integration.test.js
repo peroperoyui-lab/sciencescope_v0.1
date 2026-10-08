@@ -7,6 +7,7 @@ import { createTools } from '../../tools.js';
 import { createAppServer } from '../../../server/server.js';
 import { createScriptedRuntime } from '../../../runtime/scripted.js';
 import { createTurnRunner } from '../../turn-runner.js';
+import { createContextAssembly } from '../../context-assembly.js';
 
 test('the API and meeting tool use one configured hybrid projection', () =>
   withCore('r4-1b-shared-search', async (core) => {
@@ -62,7 +63,10 @@ test('the API and meeting tool use one configured hybrid projection', () =>
         runtime,
         tools: createTools(core, research),
         runtimeName: 'scripted',
-        defaultModel: async () => ({ provider: 'test', model: 'test' }),
+        contextAssembly: createContextAssembly({
+          core,
+          defaultModel: async () => ({ provider: 'test', model: 'test' }),
+        }),
       });
       const turn = await runner.run({ meetingId: meeting.id, participantId: 'agent_main' });
       assert.equal(turn.status, 'done');

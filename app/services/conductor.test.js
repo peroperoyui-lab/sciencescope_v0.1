@@ -6,6 +6,7 @@ import { createScriptedRuntime } from '../runtime/scripted.js';
 import { createConductor } from './conductor.js';
 import { createTools } from './tools.js';
 import { createTurnRunner } from './turn-runner.js';
+import { createContextAssembly } from './context-assembly.js';
 
 /**
  * Core + scripted runtime + conductor; `say` posts as the user and waits for answers.
@@ -21,7 +22,10 @@ function withMeeting(script, work, { members } = {}) {
       runtime,
       runtimeName: 'scripted',
       tools: createTools(core),
-      defaultModel: async () => ({ provider: 'test', model: 'test' }),
+      contextAssembly: createContextAssembly({
+        core,
+        defaultModel: async () => ({ provider: 'test', model: 'test' }),
+      }),
     });
     const conductor = createConductor({ core, runner });
     conductor.start();

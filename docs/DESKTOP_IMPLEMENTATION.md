@@ -1,5 +1,10 @@
 # Desktop implementation — first increment
 
+## 2026-10-08 R4-5a context assembly (Codex; pending review)
+- Extracted membersOf, workFolderOf, selectedMessages and the context portions of prepareSession into context-assembly; app.js injects minutes, secretary follow-up and project brief.
+- Runner retains session lifetime, streaming/tools, completion and interruption; existing test assertions unchanged, constructor wiring updated.
+- Windows related tests33/33 and static checks pass; independent clean-install full check pending. Paid requests/tokens:0; evidence ignored temp/r4-5a.
+
 ## 2026-10-07 R4-11b chat queue, deliverables, formulas and map (Codex; pending review)
 - Migration009 retains meeting drafts through restart, explicit resume, editable/cancelable queue and current-answer stop; versioned events prevent stale responses.
 - Migration010 and shared workspace_present preserve originals, show legacy file cards/thumbnails and share only paths/descriptions. Fixed DSH nested tool-schema declaration; local KaTeX renders message formulas after source sanitisation; maps support floating nodes, directed links and Markdown paste/drop.
