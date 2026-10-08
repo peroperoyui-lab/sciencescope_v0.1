@@ -7,13 +7,21 @@ import { openPath } from '../../services/system.js';
 
 const user = { actorId: LOCAL_USER_ID };
 
-/** @param {import('../router.js').Router} router @param {import('../../core/index.js').Core} core */
-export function registerProjectRoutes(router, core) {
+/**
+ * @param {import('../router.js').Router} router
+ * @param {import('../../core/index.js').Core} core
+ * @param {ReturnType<typeof import('../../services/python/index.js').createPython>} [python]
+ */
+export function registerProjectRoutes(router, core, python) {
   const files = createProjectFiles(core);
   router.get('/api/projects', ({ query }) =>
     core.projects.list({ includeArchived: query.get('archived') === '1' }),
   );
-  router.post('/api/projects', ({ body }) => core.projects.create(body, user));
+  router.post('/api/projects', async ({ body }) => {
+    const project = await core.projects.create(body, user);
+    if (body.environment) python?.bind('project', project.id, body.environment);
+    return project;
+  });
   router.get('/api/projects/:id', ({ params }) => core.projects.get(params.id));
   router.get('/api/projects/:id/files', ({ params, query }) =>
     files.list(params.id, query.get('path') ?? ''),

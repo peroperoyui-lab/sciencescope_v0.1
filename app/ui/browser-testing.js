@@ -22,8 +22,9 @@ export const browserSkip = CHROMIUM ? false : 'no Chromium found';
  * @param {string} name
  * @param {import('../runtime/scripted.js').Script} script
  * @param {(context: { page: any, app: any, shot: (name: string) => Promise<void> }) => Promise<void>} work
+ * @param {Partial<Parameters<typeof createApp>[0]>} [options]
  */
-export async function withBrowserApp(name, script, work) {
+export async function withBrowserApp(name, script, work, options = {}) {
   const { chromium } = await import('playwright-core');
   const { dir, cleanup } = await tempDir(name);
   const app = await createApp({
@@ -31,6 +32,7 @@ export async function withBrowserApp(name, script, work) {
     token: 'ui-token',
     runtime: createScriptedRuntime({ script }),
     runtimeName: 'scripted',
+    ...options,
   });
   const url = await app.listen();
   const browser = await chromium.launch({ executablePath: CHROMIUM });

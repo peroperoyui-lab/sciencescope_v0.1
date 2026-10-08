@@ -11,6 +11,7 @@ export function registerPythonRoutes(router, python) {
   router.get('/api/python/operations', () => python.operations());
   router.get('/api/python/binding/:scope/:id', async ({ params }) => ({
     id: params.scope === 'meeting' ? await python.selected(params.id, null) : null,
+    explicit: python.binding(params.scope, params.id),
   }));
   router.post('/api/python/binding/:scope/:id', ({ params, body }) =>
     python.bind(params.scope, params.id, body.environment),

@@ -39,7 +39,7 @@ export function Topbar({ projectName, projectId }) {
         text: t('独立快速聊天'),
         icon: 'chat',
         key: settings?.shortcuts?.independentChat,
-        run: () => navigate({ view: 'home' }),
+        run: actions.newIndependent,
       },
       {
         text: t('新建项目'),

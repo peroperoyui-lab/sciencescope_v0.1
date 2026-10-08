@@ -31,6 +31,7 @@ const EVENT_TYPES = [
   'memory.status',
   'memory.changed',
   'research.semantic.changed',
+  'python.changed',
 ];
 
 export class ApiError extends Error {

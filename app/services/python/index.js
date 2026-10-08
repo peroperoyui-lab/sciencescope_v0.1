@@ -291,16 +291,26 @@ export function createPython(core, options = {}) {
     operate,
     packages: changePackages,
     bindings,
+    binding(scope, targetId) {
+      return (
+        db
+          .prepare('SELECT environment_id AS id FROM python_bindings WHERE scope=? AND target_id=?')
+          .get(scope, targetId)?.id ?? null
+      );
+    },
     async list() {
+      const currentSettings = settings();
       return {
         environments: await Promise.all(
-          rows().map(async (row) => ({
-            ...decode(row),
-            ...(await directorySize(envPath(row.id))),
-            bindings: bindings(row.id),
-          })),
+          rows().map(async (row) => {
+            // Disk scanning can finish after a client disconnects and the
+            // application closes SQLite. Capture catalog state first.
+            const environment = { ...decode(row), bindings: bindings(row.id) };
+            const location = envPath(row.id);
+            return { ...environment, ...(await directorySize(location)) };
+          }),
         ),
-        settings: await settings(),
+        settings: await currentSettings,
         cache: await directorySize(path.join(root, 'cache')),
         interpreters: await directorySize(path.join(root, 'interpreters')),
       };

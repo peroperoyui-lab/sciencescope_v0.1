@@ -8,6 +8,7 @@ import { t } from '../i18n/index.js';
 import { navigate } from '../route.js';
 import { InfoTip } from './info-tip.js';
 import { MainHead } from './mainhead.js';
+import { PythonChoice } from './python-choice.js';
 
 /** The native folder picker, when running inside the desktop shell. */
 const folderPicker = () => globalThis.__TAURI__?.dialog?.open ?? null;
@@ -17,6 +18,7 @@ export function ProjectNew() {
   const [name, setName] = useState('');
   const [goal, setGoal] = useState('');
   const [folder, setFolder] = useState('');
+  const [environment, setEnvironment] = useState('builtin-science');
   const pick = folderPicker();
 
   async function create() {
@@ -24,6 +26,7 @@ export function ProjectNew() {
       actions.createProject(name.trim(), {
         description: goal.trim(),
         folder: folder.trim() || null,
+        environment,
       }),
     );
     if (project) navigate({ view: 'workbench', id: project.id });
@@ -84,6 +87,12 @@ export function ProjectNew() {
             }
             <button class="btn tiny" onClick=${() => setFolder('')}>${t('使用默认目录')}</button>
           </div>
+          <${PythonChoice}
+            id="new-project-python"
+            value=${environment}
+            onChange=${setEnvironment}
+            initialize
+          />
           <div class="saverow">
             <button class="btn" onClick=${() => history.back()}>${t('取消')}</button>
             <button class="btn primary" disabled=${!name.trim()} onClick=${create}>

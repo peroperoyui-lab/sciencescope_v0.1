@@ -82,9 +82,9 @@ export function createAppServer({
   const router = createRouter();
   registerPythonRoutes(router, python);
   registerDeliverableRoutes(router, core, deliverables);
-  registerProjectRoutes(router, core);
+  registerProjectRoutes(router, core, python);
   registerParticipantRoutes(router, core);
-  registerMeetingRoutes(router, core, conductor, researchInput);
+  registerMeetingRoutes(router, core, conductor, researchInput, python);
   registerResearchInputRoutes(router, researchInput);
   registerPreviewRoutes(router, core, research);
   registerMinutesRoutes(router, minutes);

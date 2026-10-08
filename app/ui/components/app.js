@@ -34,7 +34,7 @@ function useShortcuts(projectId) {
       search: () => actions.openPalette(),
       browse: () => navigate({ view: 'all' }),
       newChat: () => navigate(projectId ? { view: 'new', id: projectId } : { view: 'home' }),
-      independentChat: () => navigate({ view: 'home' }),
+      independentChat: actions.newIndependent,
     };
     const onKey = (event) => {
       if (event.target?.closest?.('[data-shortcut-input]')) return;

@@ -1,52 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createApp } from '../../app.js';
 import { createScriptedRuntime } from '../../runtime/scripted.js';
 import { tempDir } from '../../testing.js';
 import { validatePackages } from './files.js';
 
-/** Fake uv implements its file/command boundary without downloads. */
-export function fakeUv() {
-  const calls = [];
-  let fail = false;
-  return {
-    calls,
-    setFail(value) {
-      fail = value;
-    },
-    async runner(command, args, options) {
-      calls.push({ command, args, env: options.env });
-      if (fail) throw new Error('fixture package unavailable');
-      if (args[0] === 'venv') {
-        const folder = path.join(args.at(-1), process.platform === 'win32' ? 'Scripts' : 'bin');
-        await mkdir(folder, { recursive: true });
-        await writeFile(
-          path.join(folder, process.platform === 'win32' ? 'python.exe' : 'python'),
-          'fixture',
-        );
-      }
-      if (args[0] === '--version') return { stdout: 'Python 3.14.7', stderr: '' };
-      if (args[1] === 'compile') {
-        const text = await readFile(args[2], 'utf8');
-        await writeFile(
-          args[args.indexOf('--output-file') + 1],
-          text
-            .split('\n')
-            .filter(Boolean)
-            .map((spec) => (spec.includes('==') ? spec : spec + '==1.0'))
-            .join('\n'),
-        );
-      }
-      return { stdout: '', stderr: '' };
-    },
-  };
-}
+import { fakeUv } from './testing.js';
 
 test('managed environments retain manifests, precedence, failure records and reset deleted bindings', async () => {
   const { dir, cleanup } = await tempDir('python-environments');
   const fake = fakeUv();
+  let closed = false;
   const app = await createApp({
     dataRoot: dir,
     token: 'test',
@@ -101,8 +66,12 @@ test('managed environments retain manifests, precedence, failure records and res
     assert.ok(environment.env.PATH.startsWith(path.join(dir, 'python', 'envs', builtin.id)));
     assert.equal(environment.env.VIRTUAL_ENV, path.join(dir, 'python', 'envs', builtin.id));
     assert.ok(JSON.stringify(process.env) === before, 'host environment remains unchanged');
-  } finally {
+    const listing = app.python.list();
     await app.close();
+    closed = true;
+    assert.ok((await listing).environments.length > 0);
+  } finally {
+    if (!closed) await app.close();
     await cleanup();
   }
 });

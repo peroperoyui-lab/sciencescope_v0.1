@@ -50,6 +50,8 @@ export const initialState = {
   /** @type {any} */ materialsTarget: null,
   /** @type {any} */ previewTarget: null,
   semanticVersion: 0,
+  pythonVersion: 0,
+  /** @type {any} */ creationDetails: null,
   /** @type {any} */
   semanticStatus: null,
   /** Bumped after the person changes files in a project folder. */
@@ -94,6 +96,8 @@ function without(record, key) {
  */
 export function applyEvent(state, { type, payload }) {
   switch (type) {
+    case 'python.changed':
+      return { ...state, pythonVersion: state.pythonVersion + 1 };
     case 'research.input.changed':
       if ((state.researchDrafts[payload.ownerId]?.version ?? -1) > payload.value.version)
         return state;

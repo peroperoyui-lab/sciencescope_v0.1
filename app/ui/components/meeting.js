@@ -329,7 +329,18 @@ export function MeetingView({ meetingId, focusMessageId }) {
       icon: 'chat',
       run: () => navigate(project ? { view: 'new', id: project.id } : { view: 'home' }),
     },
-    { text: t('创建独立新对话'), icon: 'plus', run: () => navigate({ view: 'home' }) },
+    { text: t('创建独立新对话'), icon: 'plus', run: actions.newIndependent },
+    {
+      text: t('Python 环境'),
+      icon: 'gear',
+      run: () =>
+        actions.attempt(() =>
+          actions.pythonMenu(
+            meeting.id,
+            document.querySelector('[data-workspace-menu]').getBoundingClientRect(),
+          ),
+        ),
+    },
     ...(project
       ? [
           {
@@ -413,6 +424,7 @@ export function MeetingView({ meetingId, focusMessageId }) {
         class="iconbtn"
         title=${t('工作区菜单')}
         aria-label=${t('工作区菜单')}
+        data-workspace-menu
         onClick=${(event) => actions.openMenu(event, menuItems, meeting.title)}
       >
         <${Icon} name="more" />

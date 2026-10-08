@@ -2,6 +2,10 @@ import { LOCAL_USER_ID } from '../../core/defaults.js';
 import { attachment } from '../attachment.js';
 import { meetingMarkdown } from '../../services/export.js';
 import { registerOutboxRoutes } from './outbox.js';
+import { mkdir, stat } from 'node:fs/promises';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { AppError } from '../../core/errors.js';
 
 const user = { actorId: LOCAL_USER_ID };
 
@@ -19,8 +23,9 @@ function optionalNumber(value) {
  *   retry: (messageId: string) => Promise<unknown>, continue?: (messageId: string) => Promise<unknown>,
  *   submit?: (input:any)=>any }} [conductor]
  * @param {ReturnType<typeof import('../../services/research-input/index.js').createResearchInput>} [researchInput]
+ * @param {ReturnType<typeof import('../../services/python/index.js').createPython>} [python]
  */
-export function registerMeetingRoutes(router, core, conductor, researchInput) {
+export function registerMeetingRoutes(router, core, conductor, researchInput, python) {
   registerOutboxRoutes(router, core);
   router.get('/api/meetings', ({ query }) => {
     const projectId = query.get('projectId');
@@ -30,7 +35,33 @@ export function registerMeetingRoutes(router, core, conductor, researchInput) {
       includeArchived: query.get('archived') === '1',
     });
   });
-  router.post('/api/meetings', ({ body }) => core.meetings.create(body, user));
+  router.post('/api/meetings', async ({ body }) => {
+    const details = body.creation;
+    let workFolder = body.workFolder;
+    if (details && !body.projectId) {
+      if (details.folderMode === 'existing') {
+        workFolder = details.workFolder;
+        if (
+          !path.isAbsolute(workFolder) ||
+          !(await stat(workFolder).catch(() => null))?.isDirectory()
+        )
+          throw new AppError('INVALID_FOLDER', '请选择现有工作文件夹。');
+      } else {
+        workFolder = path.join(
+          core.paths.root,
+          'workspaces',
+          details.folderMode === 'shared' ? 'shared' : randomUUID(),
+        );
+        await mkdir(workFolder, { recursive: true });
+      }
+    }
+    return core.db.transaction(() => {
+      const meeting = core.meetings.create({ ...body, workFolder }, user);
+      if (details?.environment && !body.projectId)
+        python?.bind('meeting', meeting.id, details.environment);
+      return meeting;
+    });
+  });
   router.get('/api/meetings/:id/contexts', ({ params }) => core.meetings.contexts(params.id));
   router.get('/api/meetings/:id', ({ params }) => core.meetings.get(params.id));
   router.patch('/api/meetings/:id', ({ params, body }) =>

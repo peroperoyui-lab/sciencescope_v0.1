@@ -7,6 +7,7 @@ import { createSnapshotActions } from './snapshot-actions.js';
 import { createResearchActions } from './research-actions.js';
 import { createResearchInputActions } from './research-input-actions.js';
 import { createPreviewActions } from './preview-actions.js';
+import { createPythonActions } from './python-actions.js';
 import { createMemoryActions } from './memory-actions.js';
 import { createSecretaryActions } from './secretary-actions.js';
 import { applyAppearance } from './appearance.js';
@@ -134,12 +135,13 @@ export function createActions(api, store) {
 
   /**
    * A new meeting with the local user and the main expert.
-   * @param {{ projectId?: string | null, title?: string, navigateAfter?:boolean }} [options]
+   * @param {{ projectId?: string | null, title?: string, navigateAfter?:boolean, creation?:any }} [options]
    */
-  async function createMeeting({ projectId = null, title, navigateAfter = true } = {}) {
+  async function createMeeting({ projectId = null, title, navigateAfter = true, creation } = {}) {
     const meeting = await api.post('/api/meetings', {
       projectId,
       title,
+      creation,
       members: [{ participantId: LOCAL_USER_ID }, { participantId: MAIN_EXPERT_ID }],
     });
     apply('meeting.created', meeting);
@@ -165,9 +167,11 @@ export function createActions(api, store) {
       projectId,
       title: text.slice(0, 40),
       navigateAfter: false,
+      creation: projectId ? undefined : store.get().creationDetails,
     });
     await openMeeting(meeting.id);
     const result = await postMessage(meeting.id, text, researchInput);
+    if (!projectId) set({ creationDetails: null });
     navigate({ view: 'meeting', id: meeting.id });
     return result;
   }
@@ -246,7 +250,7 @@ export function createActions(api, store) {
     navigate({ view: 'meeting', id: meeting.id });
   }
 
-  /** @param {string} name @param {{ description?: string, folder?: string | null }} [details] */
+  /** @param {string} name @param {{ description?: string, folder?: string | null, environment?:string }} [details] */
   async function createProject(name, details = {}) {
     const project = await api.post('/api/projects', { name, ...details });
     apply('project.created', project);
@@ -449,6 +453,7 @@ export function createActions(api, store) {
     ...createResearchActions(api),
     ...createResearchInputActions(api, store),
     ...createPreviewActions(api, store),
+    ...createPythonActions(api, store),
     ...createMemoryActions(api),
     ...createSecretaryActions(api, store),
     start,
