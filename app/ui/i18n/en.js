@@ -2,7 +2,6 @@
 // Chinese string literal in app/ui has an entry here.
 export const en = {
   '正在检测系统 Python…': 'Detecting system Python…',
-  '正在读取…': 'Loading…',
   'Python 环境': 'Python environment',
   '内置 · 科学分析': 'Built-in · Scientific analysis',
   '系统 Python': 'System Python',
