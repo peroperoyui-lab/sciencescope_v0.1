@@ -2,7 +2,7 @@
 
 ## 2026-10-08 R4-2c marks (Codex; pending review)
 - Shared nonmodal selection/popover supports Main/secretary/assistant ownership, cross-target quotes, edit/locate/remove/clear and persistent preview highlights; source/page/offset/text/note snapshots use migration012 input records, no new refs state or limits.
-- Sent versions clear atomically; later edits survive acknowledgement and failed turns restore without replacing newer marks. Related scripted/browser tests pass; clean-check pending. Based on2b6fc96c4.
+- Sent versions clear atomically; later edits survive acknowledgement and failed turns restore without replacing newer marks. Independent clean-install Windows check177/177, zero skips. Based on2b6fc96c4.
 - Native PDF/two marks/real flash answer with page1/page2 evidence passes:2 requests,36,217 tokens; OS100%/125% selection/list screenshots and process/WAL/SHM cleanup pass. Evidence temp/r4-2c; IME full candidate commit not rerun.
 
 ## 2026-10-08 R4-2b file preview and readers (Codex; pending review)
