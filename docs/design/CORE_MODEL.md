@@ -104,6 +104,10 @@ tools: { prefer: [research_search], avoid: [] }
 | `round` | 选定的参与者并行回应同一上下文，按固定顺序展示；可选审核者在全部结束后回应；审核结论在用户采纳（`messages.adopted`）后才进入其他参与者的上下文 |
 | `autonomous` | 一位参与者朝目标连续发言，直到完成、失败或被叫停 |
 
+R4-6a：迁移014的meeting_goals保存当前会议目标、状态、轮数/用户最多轮数（默认30）、原因和时间。conductor逐轮调用共同runner，上下文组装附目标及继续指令；新用户消息经outbox在下一轮前入会，不额外派发回答。共享goal_update complete/blocked分别完成或等待用户，用户回复自动继续。暂停等当前轮完成，结束中断；失败/达到轮数暂停，重启running转paused且不自动续跑。附属会话及assistant_state中的助手不提供自动化，round与未结束目标互斥。每轮保留既有turn.ended秘书总结事件。
+
+GET/POST/PATCH /api/meetings/:id/goal读取/设定/控制目标；PATCH接action pause/resume/end及maxRounds。状态与goal.changed在同事务保存；GET/api/activity只用于初次装载目标、运行发言与队列快照，后续订阅事件。
+
 R4-3a 已实现：规则与选择保存在会议中。工作模式 @ 候选为会议 AI 成员及启用的参加专家，独立审核不能被 @；首次发言将职责写入会议成员。每轮按 order 预建回答，再并行运行各自会话，输入固定截止触发用户消息；不同轮排队。审核在所有专家结束后读取署名回答及完成状态，初始 adopted=false，只有 done 可采纳。refs.contextReadBy 记录实际送入后续发言的已采纳审核；已被读取的采纳不能撤回（409）。重试和继续仅运行原作者，停止同时取消当前轮及排队请求，未开始的审核不再启动。
 
 后台参与者不由发言规则驱动，而是订阅事件并按规则触发。R4-4a 的纪要由 `services/secretary/` 小服务执行：一次性运行时会话记录 `agent_secretary` 的 turn、结束原因与用量，不创建主会议消息，也不复用前台秘书会话。文本整理轮次显式选择无工具执行，秘书前台发言仍使用共用工具。

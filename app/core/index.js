@@ -10,6 +10,7 @@ import { createMessages } from './messages.js';
 import { createInputRecords } from './research-input.js';
 import { createDeliverableRecords } from './deliverables.js';
 import { createOutbox } from './outbox.js';
+import { createGoals } from './goals.js';
 import { createParticipants } from './participants.js';
 import { dataPaths } from './paths.js';
 import { createProjects } from './projects.js';
@@ -37,6 +38,8 @@ export async function createCore({ dataRoot, now = nowIso, newId = defaultNewId 
   const projects = createProjects({ db, events, paths, now, newId });
   const participants = createParticipants({ db, events, workspace, now, newId });
   const meetings = createMeetings({ db, events, now, newId, paths });
+  const goals = createGoals({ db, events, meetings, now });
+  goals.recover();
   const deliverables = createDeliverableRecords({ db, now, newId });
   const inputRecords = createInputRecords(db);
   const messages = createMessages({ db, events, meetings, now, newId, deliverables, inputRecords });
@@ -54,6 +57,7 @@ export async function createCore({ dataRoot, now = nowIso, newId = defaultNewId 
     projects,
     participants,
     meetings,
+    goals,
     messages,
     deliverables,
     outbox,

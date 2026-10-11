@@ -160,6 +160,11 @@ export function createMeetings({ db, events, now, newId, paths }) {
    */
   function update(id, changes, actor = {}) {
     const meeting = get(id);
+    if (changes.policy?.mode === 'round') {
+      const goal = db.prepare('SELECT status FROM meeting_goals WHERE meeting_id=?').get(id);
+      if (goal && ['running', 'paused', 'blocked'].includes(String(goal.status)))
+        throw new AppError('GOAL_DISCUSSION_CONFLICT', '请先结束目标，再开始有序讨论。');
+    }
     return db.transaction(() => {
       db.prepare(
         `UPDATE meetings SET title = ?, policy_json = ?, pinned = ?, archived = ?, work_folder = ?,

@@ -21,6 +21,7 @@ import * as messageDeliverables from './010-message-deliverables.js';
 import * as globalAssistant from './011-global-assistant.js';
 import * as researchInput from './012-research-input.js';
 import * as pythonEnvironments from './013-python-environments.js';
+import * as meetingGoals from './014-meeting-goals.js';
 
 export const migrations = [
   core,
@@ -36,4 +37,5 @@ export const migrations = [
   globalAssistant,
   researchInput,
   pythonEnvironments,
+  meetingGoals,
 ];
