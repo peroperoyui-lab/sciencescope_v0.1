@@ -49,11 +49,23 @@ export async function updateWorkbench({
   modes,
 }) {
   const projectId = core.meetings.get(meetingId).projectId;
-  const enabled = ['map', 'plans', 'log'].filter((target) => modes[target] === 'apply');
+  const enabled = ['map', 'plans', 'log', 'versions'].filter((target) => modes[target] === 'apply');
   if (!projectId || !enabled.length) return;
   const snapshot = {};
-  for (const target of enabled)
-    snapshot[target] = (await core.workspace.read({ resource: target, key: projectId })).value;
+  for (const target of enabled) {
+    if (target === 'versions') {
+      snapshot.versions = [];
+      for (const group of core.versionCatalog.list(projectId))
+        for (const version of group.versions)
+          snapshot.versions.push({
+            version,
+            notes: (
+              await core.workspace.read({ resource: 'versions', key: `${projectId}/${version.id}` })
+            ).value,
+          });
+    } else
+      snapshot[target] = (await core.workspace.read({ resource: target, key: projectId })).value;
+  }
   const instructions = `Update the enabled research workbench sections from the minutes.
 Return JSON only: {"operations":[...]}; return an empty array when no changes are needed.
 Enabled sections: ${enabled.join(', ')}.
@@ -61,6 +73,7 @@ Allowed operations:
 map: {"target":"map","op":"add_child","parentId":null or an existing node id,"text":"..."}, or {"target":"map","op":"status","nodeId":"...","status":"..."}.
 plans: {"target":"plans","op":"add","text":"..."}, or {"target":"plans","op":"complete","text":"the exact existing unchecked task line"}.
 log: {"target":"log","op":"append","title":"...","note":"..."}.
+versions: {"target":"versions","op":"append","versionId":"existing version id","note":"context update from minutes; do not claim manuscript bytes changed"}.
 Preserve user text: only add nodes/tasks/log entries or mark node status/tasks complete. Do not rewrite or delete user content. Do not repeat an existing task, node or log.`;
   const response = await runner.run(
     meetingId,
@@ -81,7 +94,13 @@ Preserve user text: only add nodes/tasks/log entries or mark node status/tasks c
     for (const operation of parsed.operations) {
       if (!enabled.includes(operation.target)) continue;
       const target = operation.target;
-      const current = await core.workspace.read({ resource: target, key: projectId });
+      const key = target === 'versions' ? `${projectId}/${operation.versionId}` : projectId;
+      if (
+        target === 'versions' &&
+        !snapshot.versions.some((entry) => entry.version.id === operation.versionId)
+      )
+        continue;
+      const current = await core.workspace.read({ resource: target, key });
       let change;
       if (target === 'map') {
         if (
@@ -155,6 +174,14 @@ Preserve user text: only add nodes/tasks/log entries or mark node status/tasks c
             expectedRevisionId: current.revisionId,
           };
         }
+      } else if (target === 'versions') {
+        if (
+          operation.op === 'append' &&
+          typeof operation.note === 'string' &&
+          operation.note.trim() &&
+          !(current.text ?? '').includes(operation.note)
+        )
+          change = { resource: target, key, op: 'append', args: { text: `\n${operation.note}\n` } };
       } else if (
         operation.op === 'append' &&
         typeof operation.title === 'string' &&

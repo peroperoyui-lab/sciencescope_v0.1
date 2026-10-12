@@ -20,6 +20,7 @@ import { Footbar, Topbar } from './shell.js';
 import { Sidebar } from './sidebar.js';
 import { Workbench } from './workbench.js';
 import { Versions } from './versions.js';
+import { VersionNotes } from './version-notes.js';
 import { WorkbenchPage } from './workbench-pages.js';
 
 /**
@@ -58,6 +59,8 @@ export function App() {
   // Re-render everything when the language changes.
   useAppState((state) => state.settings?.appearance?.language);
   const projectId = useAppState((state) => {
+    if (route.view === 'version-notes') return route.id.split('/')[0];
+    if (route.view === 'map') return route.id.split('/')[0];
     if (
       ['workbench', 'new', 'plans', 'journal', 'files', 'map', 'database', 'versions'].includes(
         route.view,
@@ -95,10 +98,20 @@ export function App() {
       focusMessageId=${messageId}
     />`;
   } else if (route.view === 'map')
-    page = html`<${MapEditor} key=${route.id} projectId=${route.id} />`;
+    page = html`<${MapEditor}
+      key=${route.id}
+      projectId=${projectId}
+      focusNodeId=${route.id.split('/')[1]}
+    />`;
   else if (route.view === 'workbench') page = html`<${Workbench} projectId=${route.id} />`;
   else if (route.view === 'versions')
     page = html`<${Versions} project=${{ id: projectId, name: projectName }} full />`;
+  else if (route.view === 'version-notes')
+    page = html`<${VersionNotes}
+      key=${route.id}
+      projectId=${projectId}
+      id=${route.id.split('/')[1]}
+    />`;
   else if (['database', 'library', 'sources'].includes(route.view))
     page = html`<${ResearchBase}
       key=${route.view + (route.id ?? '')}

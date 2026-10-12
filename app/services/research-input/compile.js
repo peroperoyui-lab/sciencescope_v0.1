@@ -23,7 +23,9 @@ export function compileResearchInput(input = {}) {
     const content =
       entry.type === 'item'
         ? `${entry.text}\n${JSON.stringify(entry.payload ?? {})}`
-        : 'Read this source with research_read using its id and offset/limit; cite the returned page labels.';
+        : entry.type === 'version-notes'
+          ? `${entry.text}\nReference ${JSON.stringify(entry.reference)}. Original paragraphs: workspace_read target=versions key=${entry.key}.`
+          : 'Read this source with research_read using its id and offset/limit; cite the returned page labels.';
     return `<material${attributes({ id: entry.id, title: entry.title, pages: entry.pages, label: entry.label, extracted: entry.type === 'item' })}>\n${body(content, 'material')}\n</material>`;
   });
   for (const mark of input.marks ?? []) {

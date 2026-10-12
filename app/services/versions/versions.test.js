@@ -148,6 +148,9 @@ test('shared workspace tools let a meeting read version paragraphs and edit only
       },
     });
     const project = await app.core.projects.create({ name: '工具测试' });
+    // This path isolates Main's shared tools; automatic secretary organization
+    // has its own functional test and must not write concurrently here.
+    app.versionNotes.configure(project.id, false);
     const imported = await app.versions.importFiles({
       projectId: project.id,
       files: [{ name: '稿件.md', base64: Buffer.from('研究稿。').toString('base64') }],
@@ -187,7 +190,7 @@ test('v14 upgrades with version tables while keeping existing projects and a bac
   db.close();
   db = await openDatabase(dbFile, { migrations, backupDir });
   try {
-    assert.equal(db.prepare('PRAGMA user_version').get().user_version, 15);
+    assert.equal(db.prepare('PRAGMA user_version').get().user_version, migrations.at(-1).version);
     assert.equal(db.prepare('SELECT name FROM projects WHERE id = ?').get('p').name, '已有项目');
     assert.equal(db.prepare('SELECT count(*) AS n FROM version_groups').get().n, 0);
     assert.ok((await readdir(backupDir)).length);

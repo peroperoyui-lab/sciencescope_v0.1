@@ -2,7 +2,13 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from './context.js';
 
-export const RESOURCE_LABELS = { map: '导图', plans: '计划', log: '日志', minutes: '对话纪要' };
+export const RESOURCE_LABELS = {
+  map: '导图',
+  plans: '计划',
+  log: '日志',
+  minutes: '对话纪要',
+  versions: '版本说明',
+};
 export const SOURCE_LABELS = {
   'leave-page': '离开页面时保存',
   'ai-turn-end': 'AI 发言结束时保存',

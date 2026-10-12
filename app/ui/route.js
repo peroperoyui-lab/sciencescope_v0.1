@@ -10,9 +10,10 @@
 //                            a workbench area on its own page
 import { useEffect, useState } from 'preact/hooks';
 
-/** @typedef {{ view: 'home' | 'all' | 'project-new' | 'library' | 'sources', id?: string } | { view: 'new' | 'meeting' | 'workbench' | 'settings' | 'plans' | 'journal' | 'files' | 'map' | 'database' | 'versions', id: string }} Route */
+/** @typedef {{ view: 'home' | 'all' | 'project-new' | 'library' | 'sources', id?: string } | { view: 'new' | 'meeting' | 'workbench' | 'settings' | 'plans' | 'journal' | 'files' | 'map' | 'database' | 'versions' | 'version-notes', id: string }} Route */
 
 const WITH_ID = [
+  'version-notes',
   'versions',
   'meeting',
   'workbench',

@@ -4,10 +4,10 @@ import { AppError } from '../../core/errors.js';
 
 /**
  * @param {{core:import('../../core/index.js').Core,runtime:import('../../runtime/port.js').Runtime,
- * defaultModel:(meeting?:any)=>Promise<import('../../runtime/port.js').ModelChoice|null>}} dependencies
+ * defaultModel:(meeting?:any)=>Promise<import('../../runtime/port.js').ModelChoice|null>,tools?:any}} dependencies
  * @returns {{run:(meetingId:string,instructions:string,input:string,prepared?:any)=>Promise<{text:string,turnId:string,usage:any}>,close:()=>Promise<void>,prepare:(meetingId:string,options?:{model?:any})=>Promise<any>}}
  */
-export function createBackgroundRunner({ core, runtime, defaultModel }) {
+export function createBackgroundRunner({ core, runtime, defaultModel, tools }) {
   const sessions = new Set();
   let closed = false;
 
@@ -62,10 +62,27 @@ export function createBackgroundRunner({ core, runtime, defaultModel }) {
         workFolder:
           meeting.workFolder ?? project?.folder ?? core.workspace.locate.meetingBase(meetingId),
         instructions: `${prepared.prompt}\n\n${instructions}`,
-        tools: [],
-        noTools: true,
-        onToolCall: async () => {
-          throw new AppError('NO_SUMMARY_TOOLS', '此轮只整理已提供的会议原文。');
+        tools: tools?.specs ?? [],
+        noTools: !tools,
+        onToolCall: async (call) => {
+          if (!tools) throw new AppError('NO_SUMMARY_TOOLS', '此轮只整理已提供的会议原文。');
+          core.turns.startToolCall({ turnId: turn.id, ...call });
+          try {
+            const value = await tools.run(call.name, call.args, {
+              participantId: 'agent_secretary',
+              meetingId,
+              turnId: turn.id,
+              callId: call.callId,
+            });
+            core.turns.endToolCall(turn.id, call.callId, { result: value, isError: false });
+            return value;
+          } catch (error) {
+            core.turns.endToolCall(turn.id, call.callId, {
+              result: { error: error.message },
+              isError: true,
+            });
+            throw error;
+          }
         },
       });
       sessions.add(sessionId);

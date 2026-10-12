@@ -109,6 +109,11 @@ R4-7a：迁移015的version_groups／manuscript_versions只存组、编号、相
 GET /api/versions、POST /api/versions/import、GET/DELETE /api/versions/:id、POST /:id/open、PATCH /api/version-groups/:id；
 元数据变化和versions.changed同事务保存，原件支持默认程序／文件夹打开及R4-2预览，解析失败仍可打开原件。
 
+R4-7b：迁移016保存项目自动整理设置、说明关联引用、生成发言，以及每项目秘书后台会议身份。
+导入事件按项目顺序触发R4-4后台入口；主专家消息和游标不变。完整词级提取差异、纪要、计划、导图和可编辑模板交给秘书，长原文通过共用workspace_read分页回查。
+秘书生成说明以agent_secretary写入原有versions资源并保存历史快照；保存前检查说明修订与基线，用户并发修改胜出。中断状态重启后显示失败、手动重试，不静默改写。
+说明使用schema1引用对象；P14支持原件／MD打开、补充及全文编辑、历史恢复、换基线重新整理，以及通过R4-2输入材料引用当前说明全文。总结更新versions默认off，apply只追加研究上下文、不声称原件被改。
+
 ## 5. 参与者定义（`agents/<id>.md`）
 
 ```markdown

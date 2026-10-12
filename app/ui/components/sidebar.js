@@ -16,6 +16,7 @@ const byRecent = (a, b) => b.updatedAt.localeCompare(a.updatedAt);
 /** Meetings shown in the tree: not archived, not attached to another meeting. */
 const listed = (meeting) =>
   !meeting.archived &&
+  !meeting.temporary &&
   !meeting.attachedToMeetingId &&
   meeting.policy?.respondent !== 'agent_assistant';
 

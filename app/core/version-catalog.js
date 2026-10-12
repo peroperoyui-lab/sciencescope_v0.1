@@ -41,6 +41,8 @@ export function createVersionCatalog(core) {
       notesStatus: String(row.notes_status),
       notesError: String(row.notes_error),
       generatedAt: row.generated_at == null ? null : String(row.generated_at),
+      references:
+        row.notes_references_json == null ? [] : JSON.parse(String(row.notes_references_json)),
       importedBy: row.imported_by == null ? null : String(row.imported_by),
       createdAt: String(row.created_at),
     };

@@ -54,7 +54,11 @@ export const DEFAULT_SETTINGS = {
     onEnterProject: true,
     onLeaveProject: true,
     saveMarkdown: true,
-    workbench: { map: 'off', plans: 'off', log: 'off' },
+    workbench: { map: 'off', plans: 'off', log: 'off', versions: 'off' },
+  },
+  versionNotes: {
+    template:
+      '# 版本说明\n## 比较对象\n## 实际文件变化\n## 秘书的解释：与当前研究的关系\n## 待用户决定的建议\n## 相关导图节点与文件',
   },
 };
 

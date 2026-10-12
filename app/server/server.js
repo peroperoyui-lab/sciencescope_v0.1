@@ -57,6 +57,7 @@ function tokenMatches(given, expected) {
  * @param {{ core: import('../core/index.js').Core, token: string,
  *   onShutdown?: () => void, deliverables?: {open?: typeof import('../services/system.js').openPath},
  *   versions?: ReturnType<typeof import('../services/versions/index.js').createVersions>,
+ *   versionNotes?: ReturnType<typeof import('../services/versions/organizer.js').createVersionOrganizer>,
  *   minutes?: ReturnType<typeof import('../services/secretary/minutes.js').createMinutesService>,
  *   secretary?: ReturnType<typeof import('../services/secretary/chat.js').createSecretaryChat>,
  *   assistant?: ReturnType<typeof import('../services/assistant/index.js').createAssistant>,
@@ -69,6 +70,7 @@ function tokenMatches(given, expected) {
 export function createAppServer({
   core,
   versions,
+  versionNotes,
   python,
   token,
   conductor,
@@ -83,7 +85,7 @@ export function createAppServer({
   memory,
 }) {
   const router = createRouter();
-  registerVersionRoutes(router, versions);
+  registerVersionRoutes(router, versions, versionNotes);
   registerPythonRoutes(router, python);
   registerDeliverableRoutes(router, core, deliverables);
   registerProjectRoutes(router, core, python);

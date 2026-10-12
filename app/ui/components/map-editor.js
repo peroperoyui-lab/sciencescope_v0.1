@@ -42,13 +42,13 @@ function save(name, text, type) {
   setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
 }
 
-/** @param {{ projectId: string }} props */
-export function MapEditor({ projectId }) {
+/** @param {{ projectId: string, focusNodeId?:string }} props */
+export function MapEditor({ projectId, focusNodeId }) {
   const actions = useActions();
   const project = useAppState((state) => state.projects.find((p) => p.id === projectId));
   const version = useAppState((state) => state.workspaceVersion);
   const [map, setMap] = useState(/** @type {any} */ (null));
-  const [selected, setSelected] = useState(/** @type {string | null} */ (null));
+  const [selected, setSelected] = useState(/** @type {string | null} */ (focusNodeId ?? null));
   const [draft, setDraft] = useState('');
   const [dirty, setDirty] = useState(false);
   const undoIds = useRef(/** @type {string[]} */ ([]));

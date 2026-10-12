@@ -17,6 +17,17 @@ export function createResearchInput({ core, research }) {
       : { ...empty(), version: 0 };
   }
   function material(ref) {
+    if (ref.type === 'version-notes') {
+      const version = core.versionCatalog.get(ref.id);
+      return {
+        type: 'version-notes',
+        id: version.id,
+        title: `${version.name} · 版本说明`,
+        key: `${version.projectId}/${version.id}`,
+        text: ref.text ?? '',
+        reference: { schema: 1, kind: 'version', id: version.id, projectId: version.projectId },
+      };
+    }
     if (ref.type === 'item') {
       const { item } = research.read({ type: 'item', id: ref.id, audience: 'agent' });
       return {

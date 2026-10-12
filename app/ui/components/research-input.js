@@ -6,6 +6,7 @@ import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
 import { InfoTip } from './info-tip.js';
 import { MarksPopover } from './marks-popover.js';
+import { navigate } from '../route.js';
 
 const EMPTY = { materials: [], marks: [] };
 
@@ -143,11 +144,14 @@ export function showInputContext(actions, input) {
                 if (entry.type === 'source') {
                   actions.closeModal();
                   actions.openPreview({ kind: 'source', id: entry.id });
+                } else if (entry.type === 'version-notes') {
+                  actions.closeModal();
+                  navigate({ view: 'version-notes', id: entry.key });
                 }
               }}
             >
               ${entry.title}</button
-            >${entry.type === 'item' && html`<p>${entry.text}</p>`}
+            >${['item', 'version-notes'].includes(entry.type) && html`<p>${entry.text}</p>`}
           </div>`,
       )}
       ${input.marks.map(

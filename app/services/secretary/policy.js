@@ -11,7 +11,7 @@ export const DEFAULT_SUMMARY = {
   onEnterProject: true,
   onLeaveProject: true,
   saveMarkdown: true,
-  workbench: { map: 'off', plans: 'off', log: 'off' },
+  workbench: { map: 'off', plans: 'off', log: 'off', versions: 'off' },
 };
 
 /**

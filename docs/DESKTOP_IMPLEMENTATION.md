@@ -1,5 +1,9 @@
 # Desktop implementation — first increment
 
+## 2026-10-12 R4-7b version notes (Codex; pending review)
+- Based on7a bb9d80d. Migration016 stores auto notes, secretary background meeting identity and schema1 links; import triggers complete word diff/context/template organization through R4-4 runner and shared tools, with user-edit revision checks and recoverable failure.
+- P14 legacy Markdown/relationship/addition cards, full editing/history, baseline reorganization, original/MD opening and R4-2 quote snapshots; bilingual secretary template and minutes versions off/apply connected. Temporary background meetings excluded from human chat lists; existing Main tools test disables auto notes to isolate its original assertion.
+- Related service and Edge paths pass; real authorized manuscript plus detection-report/fulltext organization, native100%/125% and independent clean check pending. Evidence temp/r4-7b; IME candidate commit unverified.
 ## 2026-10-12 R4-7a version storage and import (Codex; pending review)
 - Migration015 stores version groups/records; ordered imports keep original bytes and paired notes inside owned project versions/, monotonic numbering survives deletion. Shared workspace tools read paged parser text and edit notes with revisions/history; preview, group rename and recycle-bin removal connected.
 - Restored legacy workbench left column and P13 table, bilingual input/order controls. Unified schema1 references documented with a lossless R4-2 mark mapping; no mark storage changes. Model sources official/ModelScope/HF mirror/custom persist and reach downloads; checksum mismatch stops without fallback. ModelScope five-file hashes verified from its public catalog.

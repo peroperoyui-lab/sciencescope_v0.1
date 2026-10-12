@@ -17,12 +17,13 @@ const DEFAULT_SUMMARY = {
   onEnterProject: true,
   onLeaveProject: true,
   saveMarkdown: true,
-  workbench: { map: 'off', plans: 'off', log: 'off' },
+  workbench: { map: 'off', plans: 'off', log: 'off', versions: 'off' },
 };
 const TARGETS = [
   ['map', '导图'],
   ['plans', '计划'],
   ['log', '日志'],
+  ['versions', '稿件版本说明'],
 ];
 
 /**
@@ -156,5 +157,41 @@ export function SecretarySettings() {
       </fieldset>
       <p data-summary-feedback role="status">${error || t(feedback)}</p>
     </form>
+    <${VersionTemplate} settings=${settings} />
   </section>`;
+}
+
+function VersionTemplate({ settings }) {
+  const actions = useActions();
+  const [template, setTemplate] = useState(settings?.versionNotes?.template ?? '');
+  const [feedback, setFeedback] = useState('');
+  useEffect(() => {
+    setTemplate(settings?.versionNotes?.template ?? '');
+  }, [settings?.versionNotes?.template]);
+  return html`<form
+    onSubmit=${async (event) => {
+      event.preventDefault();
+      await actions.attempt(async () => {
+        await actions.updateSettings({ versionNotes: { template } });
+        setFeedback('说明模板已保存。');
+      });
+    }}
+  >
+    <h2>
+      ${t('文献版本整理')}<${InfoTip}
+        text=${t('说明分别记录实际文件变化、秘书解释和待用户决定的建议。')}
+      />
+    </h2>
+    <label class="field"
+      ><span class="label">${t('版本说明模板')}</span
+      ><textarea
+        aria-label=${t('版本说明模板')}
+        value=${template}
+        onInput=${(event) => setTemplate(event.currentTarget.value)}
+        style="min-height:180px"
+      />
+    </label>
+    <button class="btn primary">${t('保存模板')}</button>
+    <p role="status">${t(feedback)}</p>
+  </form>`;
 }

@@ -19,6 +19,7 @@ import { createResearchInput } from './services/research-input/index.js';
 import { createSemantic } from './services/research/semantic/index.js';
 import { createPython } from './services/python/index.js';
 import { createVersions } from './services/versions/index.js';
+import { createVersionOrganizer } from './services/versions/organizer.js';
 
 /**
  * @param {{ dataRoot: string, token: string,
@@ -59,6 +60,14 @@ export async function createApp({
     defaultModel: async () => (await settings()).models.default,
   });
   const secretary = createSecretaryChat({ core, minutes });
+  const tools = createTools(core, research, { secretary, python, versions });
+  const versionNotes = createVersionOrganizer({
+    core,
+    versions,
+    runtime: activeRuntime,
+    tools,
+    defaultModel: async () => (await settings()).models.default,
+  });
   const memoryRunner = createBackgroundRunner({
     core,
     runtime: activeRuntime,
@@ -82,15 +91,17 @@ export async function createApp({
     runtime: activeRuntime,
     runtimeName,
     contextAssembly,
-    tools: createTools(core, research, { secretary, python, versions }),
+    tools,
   });
   const conductor = createConductor({ core, runner });
   conductor.start();
   minutes.start();
   memory.start();
+  versionNotes.start();
   const server = createAppServer({
     core,
     versions,
+    versionNotes,
     python,
     token,
     conductor,
@@ -107,6 +118,7 @@ export async function createApp({
   return {
     core,
     versions,
+    versionNotes,
     python,
     research,
     researchInput,
@@ -120,6 +132,7 @@ export async function createApp({
     listen: server.listen,
     async close() {
       conductor.stop();
+      await versionNotes.close();
       await python.close();
       await memory.close();
       await memoryRunner.close();

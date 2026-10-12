@@ -95,12 +95,17 @@ export function Versions({ project, full = false }) {
   const actions = useActions();
   const changed = useAppState((state) => state.versionsVersion);
   const [groups, setGroups] = useState([]);
+  const [auto, setAuto] = useState(true);
   const input = useRef(null);
   useEffect(() => {
     let current = true;
     actions
       .versionGroups(project.id)
       .then((value) => current && setGroups(value))
+      .catch((error) => actions.toast(error.message));
+    actions
+      .versionPreferences(project.id)
+      .then((value) => current && setAuto(value.autoOrganize))
       .catch((error) => actions.toast(error.message));
     return () => {
       current = false;
@@ -147,6 +152,15 @@ export function Versions({ project, full = false }) {
     actions.openMenu(
       event,
       [
+        {
+          text: t('版本说明'),
+          icon: 'file',
+          run: () => navigate({ view: 'version-notes', id: `${project.id}/${version.id}` }),
+        },
+        {
+          text: t('整理说明'),
+          run: () => actions.attempt(() => actions.organizeVersion(version.id)),
+        },
         {
           text: t('打开原件'),
           icon: 'file',
@@ -228,7 +242,24 @@ export function Versions({ project, full = false }) {
         )}
       </section>`,
   );
-  const body = html`${title}${full && drop}
+  const body = html`${title}${
+      full &&
+      html`<label class="row"
+        ><input
+          type="checkbox"
+          aria-label=${t('自动整理说明')}
+          checked=${auto}
+          onChange=${(event) =>
+            actions.attempt(async () => {
+              const result = await actions.setVersionPreferences(
+                project.id,
+                event.currentTarget.checked,
+              );
+              setAuto(result.autoOrganize);
+            })} />${t('自动整理说明')}<${InfoTip}
+          text=${t('导入后由任务秘书比较原文并生成说明；原件保存后即可打开。')}
+      /></label>`
+    }${full && drop}
     <div class="versionlist">
       ${
         full
@@ -259,7 +290,13 @@ export function Versions({ project, full = false }) {
                         </td>
                         <td><span class="tag">v${version.number}</span></td>
                         <td>${new Date(version.createdAt).toLocaleString()}</td>
-                        <td>${t(STATUS[version.notesStatus])}</td>
+                        <td>
+                          <button
+                            onClick=${() => navigate({ view: 'version-notes', id: `${project.id}/${version.id}` })}
+                          >
+                            ${t(STATUS[version.notesStatus])}
+                          </button>
+                        </td>
                         <td>
                           <button
                             class="btn tiny"

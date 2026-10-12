@@ -29,6 +29,7 @@ export function AllChats() {
   const projectName = (id) => projects.find((project) => project.id === id)?.name ?? t('独立对话');
   const lower = query.trim().toLowerCase();
   const rows = meetings
+    .filter((meeting) => !meeting.temporary)
     .filter((meeting) => !meeting.attachedToMeetingId)
     .filter((meeting) => meeting.policy?.respondent !== 'agent_assistant')
     .filter((meeting) => (filter === 'archived') === meeting.archived)

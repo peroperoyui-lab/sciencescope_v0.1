@@ -167,6 +167,20 @@ export function createVersions(core, { open = openPath, recycle = recyclePath } 
     await open(reveal ? path.dirname(file) : file);
     return { opened: true };
   }
+  async function openNotes(id) {
+    await open(`${catalog.file(id)}.notes.md`);
+    return { opened: true };
+  }
+  async function editNotes(id, text, expectedRevisionId) {
+    const version = catalog.get(id);
+    const key = `${version.projectId}/${id}`;
+    const result = await core.workspace.edit(
+      { resource: 'versions', key, op: 'write', args: { text }, expectedRevisionId },
+      { actorId: 'person_user' },
+    );
+    await core.workspace.captureSnapshot({ resource: 'versions', key }, { actorId: 'person_user' });
+    return result;
+  }
   return {
     list: catalog.list,
     get: catalog.get,
@@ -176,5 +190,7 @@ export function createVersions(core, { open = openPath, recycle = recyclePath } 
     remove,
     read,
     openOriginal,
+    openNotes,
+    editNotes,
   };
 }
