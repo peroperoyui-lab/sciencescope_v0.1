@@ -116,7 +116,12 @@ test(
       await page.locator('.plancard', { hasText: '清洗面板数据' }).waitFor();
       await shot('workbench');
       await page
-        .locator('.wb-left')
+        .locator('.wb-top')
+        .first()
+        .getByRole('button', { name: '历史版本', exact: true })
+        .click();
+      await page
+        .getByRole('dialog', { name: '历史版本', exact: true })
         .getByRole('button', { name: '查看', exact: true })
         .first()
         .click();

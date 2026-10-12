@@ -37,14 +37,25 @@ test(
       const project = await openProject(page, app);
       await addPlan(page, 'Original plan');
       await leavePlans(page, project.id);
-      const history = page.locator('.wb-left [data-resource-history]');
+      const openHistory = () =>
+        page
+          .locator('.wb-top')
+          .first()
+          .getByRole('button', { name: '历史版本', exact: true })
+          .click();
+      await openHistory();
+      const history = page
+        .getByRole('dialog', { name: '历史版本', exact: true })
+        .locator('[data-resource-history]');
       const planGroup = history.locator('[data-snapshot-group="plans"]');
       await planGroup.locator('[data-snapshot-id]').waitFor();
       const original = await planGroup
         .locator('[data-snapshot-id]')
         .first()
         .getAttribute('data-snapshot-id');
+      await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click();
       await addPlan(page, 'Current plan');
+      await openHistory();
       const originalRow = history.locator(`[data-snapshot-id="${original}"]`);
       await originalRow.getByRole('button', { name: '查看', exact: true }).click();
       const dialog = page.getByRole('dialog', { name: '历史版本', exact: true });
@@ -72,6 +83,7 @@ test(
         .find((snapshot) => snapshot.source === 'before-restore');
       assert.match(app.core.workspace.getSnapshot(preserved.id).text, /Current plan/);
       await dialog.getByRole('button', { name: '关闭', exact: true }).click();
+      await openHistory();
       const preservedRow = history.locator(`[data-snapshot-id="${preserved.id}"]`);
       await preservedRow.getByRole('button', { name: '恢复到此版本', exact: true }).click();
       await page.locator('.plancard', { hasText: 'Current plan' }).waitFor();
@@ -106,12 +118,9 @@ test(
         /Current plan/,
       );
       await shot('r4-11a-history-list');
+      await dialog.getByRole('button', { name: '关闭', exact: true }).click();
       await page.getByRole('button', { name: '视图', exact: true }).click();
       await page.getByRole('menuitemcheckbox', { name: 'English', exact: true }).click();
-      await page
-        .locator('.wb-left .wb-title')
-        .getByText('History versions', { exact: true })
-        .waitFor();
       await page
         .locator('.wb-top')
         .first()
@@ -182,10 +191,7 @@ test(
       await page.goBack();
       await finalCapture;
       await page.getByText('本项目日志').waitFor();
-      await page
-        .locator('.wb-left [data-snapshot-group="map"] [data-snapshot-id]')
-        .first()
-        .waitFor();
+      await page.locator('.wb-left [data-drop="version"]').waitFor();
       assert.equal(
         (await app.core.workspace.read({ resource: 'map', key: project.id })).value.nodes[0].text,
         'Final draft',
@@ -213,9 +219,7 @@ test(
       assert.equal(await dialog.getByRole('button', { name: '新增分支', exact: true }).count(), 0);
       await dialog.getByRole('button', { name: '关闭', exact: true }).click();
       await page.getByRole('button', { name: '返回工作站' }).click();
-      await page.waitForFunction(() =>
-        document.querySelector('.wb-left [data-snapshot-group="map"] [data-snapshot-id]'),
-      );
+      await page.locator('.wb-left [data-drop="version"]').waitFor();
       assert.equal(app.core.workspace.snapshots({ resource: 'map', key: project.id }).length, 2);
     }),
 );
@@ -243,7 +247,16 @@ test(
       );
       await page.goBack();
       await journalCapture;
-      await page.locator('.wb-left [data-snapshot-group="log"]').waitFor();
+      await page
+        .locator('.wb-top')
+        .nth(1)
+        .getByRole('button', { name: '历史版本', exact: true })
+        .click();
+      await page
+        .getByRole('dialog', { name: '历史版本', exact: true })
+        .locator('[data-snapshot-group="log"]')
+        .waitFor();
+      await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click();
       await page
         .locator('.wb-top')
         .nth(1)

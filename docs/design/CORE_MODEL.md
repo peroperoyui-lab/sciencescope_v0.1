@@ -81,9 +81,7 @@
 
 用户在程序外编辑文件：读取时比较修改时间和哈希，变化了就记一条 `actor = external` 的修订并发事件。
 
-## 5. 参与者定义（`agents/<id>.md`）
-
-### 引用（R4-7，schema 1）
+## 4a. 引用（R4-7，schema 1）
 
 结构定义在 `app/core/references.js`：`{ schema: 1, kind, id?, projectId?, path?, sourceId?, meetingId?, location?, label? }`。
 `location` 可含 `page`、`paragraph`、`characters: {start,end}`、`lines: {start,end}` 和 `quote: {exact,prefix?,suffix?}`。
@@ -110,6 +108,8 @@ R4-7a：迁移015的version_groups／manuscript_versions只存组、编号、相
 导入按用户顺序分配递增编号，回收站删除不复用编号；版本路径在应用内部项目目录，不随外部工作目录绑定变化。
 GET /api/versions、POST /api/versions/import、GET/DELETE /api/versions/:id、POST /:id/open、PATCH /api/version-groups/:id；
 元数据变化和versions.changed同事务保存，原件支持默认程序／文件夹打开及R4-2预览，解析失败仍可打开原件。
+
+## 5. 参与者定义（`agents/<id>.md`）
 
 ```markdown
 ---

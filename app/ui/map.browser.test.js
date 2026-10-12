@@ -100,8 +100,11 @@ test(
       assert.equal((await read()).edges.length, 1);
       await page.getByRole('button', { name: '返回工作站' }).click();
       await page.locator('.wb-map [data-edge]').waitFor();
+      await page.getByRole('button', { name: '打开研究导图编辑窗口' }).click();
+      await page.getByRole('button', { name: '历史版本', exact: true }).click();
       await page
-        .locator('.wb-left [data-snapshot-group="map"] [data-snapshot-id]')
+        .getByRole('dialog', { name: '历史版本', exact: true })
+        .locator('[data-snapshot-group="map"] [data-snapshot-id]')
         .first()
         .waitFor();
       const saved = app.core.workspace.snapshots({ resource: 'map', key: project.id });
