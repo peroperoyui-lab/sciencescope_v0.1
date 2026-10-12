@@ -2,7 +2,7 @@
 
 ## 2026-10-11 R4-6a automation core (Codex; pending review)
 - Migration014 persists goals; conductor schedules ordinary turns, context assembly adds goal/delta, shared goal_update reports complete/blocked. Pause/resume/end, user round budget, queued input and restart recovery covered; runner unchanged. Existing round scheduling extracted without behaviour changes.
-- Scripted10 paths and real DSH passed; independent clean-install Windows check result recorded in temp/r4-6a. Goal/activity HTTP snapshots and goal.changed support next UI step; no approval or old-line changes.
+- Scripted10 paths and real DSH passed; independent clean-install Windows check192/192, zero skips (2026-10-12). Goal/activity HTTP snapshots and goal.changed support next UI step; no approval or old-line changes.
 - Real flash:3-round CSV/Python/chart/log/history completion18 requests/375,931 tokens; pause→resume2 rounds10/195,332. Reused environment triggered2 background memory requests/12,126:total30/583,389, all200. Evidence temp/r4-6a/live; native UI belongs6b.
 
 ## 2026-10-08 R4-8b Python settings and selection (Codex; pending review)
