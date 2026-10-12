@@ -1019,6 +1019,7 @@ export const en = {
   编辑版本说明: 'Edit version notes',
   保存说明: 'Save notes',
   编辑说明: 'Edit notes',
+  查看对应稿件: 'View linked manuscript',
   自动整理说明: 'Automatically organize notes',
   '导入后由任务秘书比较原文并生成说明；原件保存后即可打开。':
     'The secretary compares originals and writes notes after import; saved originals can be opened immediately.',

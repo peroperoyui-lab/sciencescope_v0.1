@@ -30,8 +30,8 @@ test('secretary automatically organizes imported DOCX notes, changes baseline, k
         references: [
           {
             schema: 1,
-            kind: 'version',
-            id: packet.current.id,
+            kind: 'project-file',
+            path: packet.current.originalPath,
             projectId: packet.current.projectId,
             location: { page: 1 },
             label: '当前稿件',
@@ -84,6 +84,8 @@ test('secretary automatically organizes imported DOCX notes, changes baseline, k
     const version = app.versions.get(imported.versions[1].id);
     assert.equal(version.notesStatus, 'completed');
     assert.equal(version.references[0].schema, 1);
+    assert.equal(version.references[0].kind, 'version');
+    assert.equal(version.references[0].id, version.id);
     assert.equal(app.core.messages.since(main.id, 0).length, 0);
     const key = `${project.id}/${version.id}`;
     const initial = await app.core.workspace.read({ resource: 'versions', key });

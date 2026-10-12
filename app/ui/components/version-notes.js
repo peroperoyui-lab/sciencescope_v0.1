@@ -166,7 +166,7 @@ export function VersionNotes({ projectId, id }) {
                 </button>
               </div>
             </div>
-            <div class="card">
+            <div class="card version-notes-links">
               <h3>
                 ${t('研究框架与进展')}<${InfoTip}
                   text=${t('说明分别记录实际文件变化、秘书解释和待用户决定的建议。')}
@@ -182,11 +182,40 @@ export function VersionNotes({ projectId, id }) {
                           view: 'map',
                           id: `${reference.projectId ?? projectId}/${reference.id}`,
                         });
-                      else if (reference.kind === 'version')
-                        actions.openPreview({ kind: 'version', id: reference.id, projectId });
-                      else if (reference.kind === 'project-file' || reference.kind === 'script')
-                        actions.openPreview({ kind: 'project', path: reference.path, projectId });
-                      else if (reference.kind === 'message')
+                      else if (reference.kind === 'version') {
+                        if (reference.location?.description === 'notes')
+                          navigate({
+                            view: 'version-notes',
+                            id: `${reference.projectId ?? projectId}/${reference.id}`,
+                          });
+                        else
+                          actions.openPreview({
+                            kind: 'version',
+                            id: reference.id,
+                            projectId,
+                            page: reference.location?.page,
+                          });
+                      } else if (reference.kind === 'project-file' || reference.kind === 'script') {
+                        const file = [version, ...choices].find((entry) =>
+                          [entry?.originalPath, `${entry?.originalPath}.notes.md`].includes(
+                            reference.path,
+                          ),
+                        );
+                        if (file) {
+                          if (reference.path.endsWith('.notes.md'))
+                            navigate({ view: 'version-notes', id: `${file.projectId}/${file.id}` });
+                          else
+                            actions.openPreview({
+                              kind: 'version',
+                              id: file.id,
+                              projectId: file.projectId,
+                              page: reference.location?.page,
+                            });
+                        } else if (reference.path === 'workbench/plans.md')
+                          navigate({ view: 'plans', id: reference.projectId ?? projectId });
+                        else
+                          actions.openPreview({ kind: 'project', path: reference.path, projectId });
+                      } else if (reference.kind === 'message')
                         navigate({ view: 'meeting', id: `${reference.meetingId}/${reference.id}` });
                       else if (reference.kind === 'source' || reference.kind === 'chunk')
                         actions.openPreview({

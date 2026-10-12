@@ -13,7 +13,15 @@ test(
         const packet = JSON.parse(input);
         yield JSON.stringify({
           markdown: `# 版本说明\n## 实际文件变化\n整理第${++count}次，基线${packet.baseline?.number ?? '无'}。\n## 秘书的解释\n保持证据。\n## 待用户决定的建议\n建议尚未实施。`,
-          references: [],
+          references: [
+            {
+              schema: 1,
+              kind: 'project-file',
+              path: packet.current.originalPath,
+              projectId: packet.current.projectId,
+              label: '查看对应稿件',
+            },
+          ],
         });
       },
       async ({ page, app, shot }) => {
@@ -68,6 +76,12 @@ test(
           .getByText('整理第3次，基线无。', { exact: false })
           .waitFor();
         await shot('version-notes-chinese');
+        await page.getByRole('button', { name: '查看对应稿件', exact: true }).click();
+        await page
+          .locator('.file-preview-content')
+          .getByText('第二版新增正文。', { exact: false })
+          .waitFor();
+        await page.getByRole('button', { name: '关闭侧栏', exact: true }).click();
         await page.getByLabel('引用到对话').selectOption(main.id);
         await page.getByRole('button', { name: '引用说明到对话', exact: true }).click();
         await page.waitForURL(`**/#/meeting/${main.id}`);

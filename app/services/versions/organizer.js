@@ -156,7 +156,28 @@ export function createVersionOrganizer({ core, versions, runtime, tools, default
           turnId: response.turnId,
         },
       );
-      status(id, 'completed', '', { turnId: response.turnId, references: result.references ?? [] });
+      const references = (result.references ?? []).map((reference) => {
+        if (reference.kind !== 'project-file') return reference;
+        for (const group of versions.list(version.projectId)) {
+          const file = group.versions.find((entry) =>
+            [entry.originalPath, `${entry.originalPath}.notes.md`].includes(reference.path),
+          );
+          if (file)
+            return {
+              schema: 1,
+              kind: 'version',
+              id: file.id,
+              projectId: file.projectId,
+              label: reference.label,
+              location: {
+                ...reference.location,
+                ...(reference.path.endsWith('.notes.md') ? { description: 'notes' } : {}),
+              },
+            };
+        }
+        return reference;
+      });
+      status(id, 'completed', '', { turnId: response.turnId, references });
       return versions.get(id);
     } catch (error) {
       status(id, 'failed', error.message);

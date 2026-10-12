@@ -145,3 +145,13 @@
   display: block;
   overflow-wrap: anywhere;
 }
+.version-notes-links .btn {
+  display: block;
+  width: 100%;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  height: auto;
+  min-height: 28px;
+  margin-bottom: 4px;
+}
