@@ -3,6 +3,7 @@
 // the direct result keeps the interface responsive.
 import { createOutboxActions } from './outbox-actions.js';
 import { createGoalActions } from './goal-actions.js';
+import { createVersionActions } from './version-actions.js';
 import { createDeliverableActions } from './deliverable-actions.js';
 import { createSnapshotActions } from './snapshot-actions.js';
 import { createResearchActions } from './research-actions.js';
@@ -457,6 +458,7 @@ export function createActions(api, store) {
   return {
     ...outbox,
     ...goals,
+    ...createVersionActions(api),
     ...createDeliverableActions(api),
     ...createSnapshotActions(api, store, () => resourceEdits.catch(() => {})),
     ...createResearchActions(api),

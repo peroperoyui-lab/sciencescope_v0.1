@@ -4,7 +4,14 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { tempDir } from '../../../testing.js';
-import { downloadEmbeddingFiles, verifyEmbeddingFiles, writeChunkFully } from './model-assets.js';
+import { withCore } from '../../../testing.js';
+import { createSemantic } from './index.js';
+import {
+  downloadEmbeddingFiles,
+  verifyEmbeddingFiles,
+  writeChunkFully,
+  embeddingDownloadUrls,
+} from './model-assets.js';
 
 test('explicit model download verifies pinned bytes, retries the public mirror and preserves files on checksum failure', async () => {
   const { dir, cleanup } = await tempDir('r4-1b-model-assets');
@@ -60,4 +67,77 @@ test('explicit model download verifies pinned bytes, retries the public mirror a
   } finally {
     await cleanup();
   }
+});
+
+test('chosen model origins are explicit and checksum mismatch never falls back', async () => {
+  const temporary = await tempDir('model-origins');
+  const bytes = Buffer.from('pinned');
+  const manifest = {
+    modelId: 'Xenova/multilingual-e5-small',
+    revision: 'pinned',
+    files: [{ path: 'config.json', sha256: createHash('sha256').update(bytes).digest('hex') }],
+  };
+  try {
+    for (const source of ['modelscope', 'hf-mirror', 'custom']) {
+      const urls = [];
+      const folder = path.join(temporary.dir, source);
+      await downloadEmbeddingFiles(folder, manifest, {
+        downloadSource: source,
+        customDownloadUrl: 'https://local.example',
+        fetchImpl: async (url) => {
+          urls.push(String(url));
+          return new Response(bytes);
+        },
+      });
+      assert.deepEqual(
+        urls,
+        embeddingDownloadUrls(manifest, 'config.json', source, 'https://local.example'),
+      );
+      assert.equal(await verifyEmbeddingFiles(folder, manifest), true);
+    }
+    let calls = 0;
+    await assert.rejects(
+      downloadEmbeddingFiles(path.join(temporary.dir, 'mismatch'), manifest, {
+        fetchImpl: async () => {
+          calls++;
+          return new Response('different');
+        },
+      }),
+      { code: 'MODEL_CHECKSUM_MISMATCH' },
+    );
+    assert.equal(calls, 1);
+  } finally {
+    await temporary.cleanup();
+  }
+});
+
+test('the stored download source reaches the actual semantic download consumer', async () => {
+  await withCore('download-source-setting', async (core) => {
+    await core.workspace.edit({
+      resource: 'settings',
+      key: 'app',
+      op: 'patch',
+      args: {
+        changes: {
+          semantic: { downloadSource: 'custom', customDownloadUrl: 'https://domestic.example' },
+        },
+      },
+    });
+    const calls = [];
+    const semantic = createSemantic(core, {
+      hardware: async () => ({ supported: true }),
+      verifyFiles: async () => false,
+      downloadFiles: async (_root, _manifest, options) => {
+        calls.push({ source: options.downloadSource, url: options.customDownloadUrl });
+      },
+    });
+    try {
+      await semantic.start();
+      await semantic.download();
+      await semantic.idle();
+      assert.deepEqual(calls, [{ source: 'custom', url: 'https://domestic.example' }]);
+    } finally {
+      await semantic.close();
+    }
+  });
 });

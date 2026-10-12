@@ -19,6 +19,7 @@ import { SettingsView } from './settings.js';
 import { Footbar, Topbar } from './shell.js';
 import { Sidebar } from './sidebar.js';
 import { Workbench } from './workbench.js';
+import { Versions } from './versions.js';
 import { WorkbenchPage } from './workbench-pages.js';
 
 /**
@@ -57,7 +58,11 @@ export function App() {
   // Re-render everything when the language changes.
   useAppState((state) => state.settings?.appearance?.language);
   const projectId = useAppState((state) => {
-    if (['workbench', 'new', 'plans', 'journal', 'files', 'map', 'database'].includes(route.view)) {
+    if (
+      ['workbench', 'new', 'plans', 'journal', 'files', 'map', 'database', 'versions'].includes(
+        route.view,
+      )
+    ) {
       return route.id;
     }
     if (route.view === 'meeting') {
@@ -92,6 +97,8 @@ export function App() {
   } else if (route.view === 'map')
     page = html`<${MapEditor} key=${route.id} projectId=${route.id} />`;
   else if (route.view === 'workbench') page = html`<${Workbench} projectId=${route.id} />`;
+  else if (route.view === 'versions')
+    page = html`<${Versions} project=${{ id: projectId, name: projectName }} full />`;
   else if (['database', 'library', 'sources'].includes(route.view))
     page = html`<${ResearchBase}
       key=${route.view + (route.id ?? '')}

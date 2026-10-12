@@ -18,6 +18,7 @@ import { createResearch } from './services/research/index.js';
 import { createResearchInput } from './services/research-input/index.js';
 import { createSemantic } from './services/research/semantic/index.js';
 import { createPython } from './services/python/index.js';
+import { createVersions } from './services/versions/index.js';
 
 /**
  * @param {{ dataRoot: string, token: string,
@@ -35,6 +36,7 @@ export async function createApp({
   onShutdown,
 }) {
   const core = await createCore({ dataRoot });
+  const versions = createVersions(core);
   const semantic = createSemantic(core);
   const research = createResearch(core, { semantic });
   const researchInput = createResearchInput({ core, research });
@@ -80,7 +82,7 @@ export async function createApp({
     runtime: activeRuntime,
     runtimeName,
     contextAssembly,
-    tools: createTools(core, research, { secretary, python }),
+    tools: createTools(core, research, { secretary, python, versions }),
   });
   const conductor = createConductor({ core, runner });
   conductor.start();
@@ -88,6 +90,7 @@ export async function createApp({
   memory.start();
   const server = createAppServer({
     core,
+    versions,
     python,
     token,
     conductor,
@@ -103,6 +106,7 @@ export async function createApp({
 
   return {
     core,
+    versions,
     python,
     research,
     researchInput,

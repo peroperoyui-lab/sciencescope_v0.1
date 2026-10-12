@@ -1,6 +1,41 @@
 // English for every Chinese interface string. A test checks that each
 // Chinese string literal in app/ui has an entry here.
 export const en = {
+  版本: 'Version',
+  '文件 / 文献组': 'File / version group',
+  秘书说明: 'Secretary notes',
+  自定义地址: 'Custom URL',
+  模型下载源: 'Model download source',
+  '官方源连接失败时尝试 HF 镜像；其他选择只使用选定来源。文件校验失败会报错，不会换源。':
+    'Official falls back to the HF mirror on connection failure. Other choices use only the selected source. Checksum failures stop the download without switching sources.',
+  '官方（Hugging Face）': 'Official (Hugging Face)',
+  'HF 镜像': 'HF mirror',
+  模型源地址: 'Model source URL',
+  '填写与 Hugging Face resolve 路径兼容的根地址；下载时附加模型名称、固定修订和文件路径。':
+    'Enter a base URL compatible with Hugging Face resolve paths. Downloads append the model name, pinned revision and file path.',
+  导入: 'Import',
+  拖入文件: 'Drop files here',
+  文献版本管理: 'Manuscript versions',
+  版本组: 'Version group',
+  新建版本组: 'New version group',
+  版本组名称: 'Version group name',
+  导入顺序: 'Import order',
+  '按列表顺序编号；同一组的后续文件接着上一版本编号。':
+    'Number files in list order; later files continue the numbering of their group.',
+  '上移 {name}': 'Move {name} up',
+  '下移 {name}': 'Move {name} down',
+  '正在保存…': 'Saving…',
+  等待整理: 'Awaiting notes',
+  整理中: 'Preparing notes',
+  整理失败: 'Notes failed',
+  导入文献版本: 'Import manuscript versions',
+  重命名版本组: 'Rename version group',
+  '原件和说明一起移到系统回收站。': 'Move the original and its notes to the system recycle bin.',
+  在资源管理器定位: 'Locate in file manager',
+  '原件和说明保存在应用数据目录，独立于绑定的项目文件夹。':
+    'Originals and notes live in the app data directory, independently of the linked project folder.',
+  版本菜单: 'Version menu',
+  暂无文献版本: 'No manuscript versions',
   执行方式: 'Execution mode',
   暂停: 'Pause',
   常规: 'Normal',

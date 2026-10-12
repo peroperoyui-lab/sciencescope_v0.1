@@ -273,7 +273,10 @@ test('v13 upgrade retains messages and a reopened goal pauses without starting w
     assert.equal(core.goals.get(meeting.id).rounds, 2);
     assert.equal(core.messages.since(meeting.id, 0)[0].text, '原文');
     assert.equal(core.turns.running().length, 0);
-    assert.equal(core.db.prepare('PRAGMA user_version').get().user_version, 14);
+    assert.equal(
+      core.db.prepare('PRAGMA user_version').get().user_version,
+      migrations.at(-1).version,
+    );
     assert.equal((await readdir(path.join(dir, 'backups'))).length, 1);
   } finally {
     core?.close();

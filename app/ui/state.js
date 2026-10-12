@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 
 export const initialState = {
+  versionsVersion: 0,
   /** null until the event stream first opens or fails. */
   /** @type {boolean | null} */ connected: null,
   settings: null,
@@ -100,6 +101,8 @@ function without(record, key) {
  */
 export function applyEvent(state, { type, payload }) {
   switch (type) {
+    case 'versions.changed':
+      return { ...state, versionsVersion: state.versionsVersion + 1 };
     case 'goal.changed': {
       const known = state.goals[payload.meetingId];
       if (known?.updatedAt > payload.updatedAt) return state;

@@ -6,7 +6,7 @@ import { createDeliverables } from './deliverables.js';
 
 /** @typedef {{ participantId: string, meetingId: string, turnId: string, callId?: string, environmentId?:string }} ToolContext */
 
-const RESOURCES = ['map', 'plans', 'log', 'minutes', 'notes', 'agent', 'settings'];
+const RESOURCES = ['map', 'plans', 'log', 'minutes', 'notes', 'agent', 'settings', 'versions'];
 
 /** @type {import('../runtime/port.js').ToolSpec[]} */
 export const TOOL_SPECS = [
@@ -89,7 +89,7 @@ export const TOOL_SPECS = [
       'page backwards with before = a message seq). "changes": recent edits (optional key = meeting id). ' +
       'Resources: "map", "log" (key = project id), "plans" (project id or "global"), "minutes" ' +
       '(meeting id), "notes" (project id/name; give scope = project id without key to list), "agent" ' +
-      '(participant id), "settings".',
+      '(participant id), "settings", "versions" (scope = project id lists groups; key = project id/version id reads extracted paragraphs and notes; offset/limit pages original text).',
     parameters: {
       target: {
         type: 'string',
@@ -100,6 +100,10 @@ export const TOOL_SPECS = [
       scope: { type: 'string', description: 'For listing notes: the project id.' },
       before: { type: 'integer', description: 'For meetings: read messages before this seq.' },
       limit: { type: 'integer', description: 'For meetings and changes: how many to return.' },
+      offset: {
+        type: 'integer',
+        description: 'For versions: paragraph offset in the extracted original.',
+      },
     },
   },
   {
@@ -109,7 +113,7 @@ export const TOOL_SPECS = [
       'undone. Text resources (plans, log, minutes, notes, agent) support op "write" {text}, "append" ' +
       '{text}, "replace" {find, with}, "delete". map supports "addNode" {node: {id?, parent, text}}, ' +
       '"updateNode" {id, changes}, "removeNode" {id}, "addEdge" {edge: {from, to, label?}}, "removeEdge" ' +
-      '{id}, "write" {map}. settings supports "patch" {changes}. Keys are as in workspace_read.',
+      '{id}, "write" {map}. settings supports "patch" {changes}. versions edits only the paired notes Markdown (project id/version id), never original bytes. Keys are as in workspace_read.',
     parameters: {
       resource: { type: 'string', required: true, enum: RESOURCES },
       key: { type: 'string', required: true },
@@ -157,9 +161,13 @@ export const TOOL_SPECS = [
 /**
  * @param {import('../core/index.js').Core} core
  * @param {ReturnType<typeof createResearch>} [research]
- * @param {{secretary?: ReturnType<typeof import('./secretary/chat.js').createSecretaryChat>,python?:ReturnType<typeof import('./python/index.js').createPython>}} [services]
+ * @param {{secretary?: ReturnType<typeof import('./secretary/chat.js').createSecretaryChat>,python?:ReturnType<typeof import('./python/index.js').createPython>,versions?:ReturnType<typeof import('./versions/index.js').createVersions>}} [services]
  */
-export function createTools(core, research = createResearch(core), { secretary, python } = {}) {
+export function createTools(
+  core,
+  research = createResearch(core),
+  { secretary, python, versions } = {},
+) {
   const deliverables = createDeliverables(core);
   async function nameOf(id) {
     try {
@@ -251,7 +259,13 @@ export function createTools(core, research = createResearch(core), { secretary, 
         : research.read(options);
     }
     if (name === 'workspace_read') {
-      const { target, key, scope, before, limit } = args ?? {};
+      const { target, key, scope, before, limit, offset } = args ?? {};
+      if (target === 'versions' && versions) {
+        if (!key)
+          return { groups: versions.list(scope ?? core.meetings.get(context.meetingId).projectId) };
+        const id = key.split('/').pop();
+        return versions.read(id, { offset, limit });
+      }
       if (target === 'overview') return readOverview();
       if (target === 'project') return readProject(key);
       if (target === 'meeting') return readMeeting(key, before, limit);

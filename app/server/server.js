@@ -20,6 +20,7 @@ import { registerPreviewRoutes } from './routes/preview.js';
 import { registerPythonRoutes } from './routes/python.js';
 import { registerSystemRoutes } from './routes/system.js';
 import { registerWorkspaceRoutes } from './routes/workspace.js';
+import { registerVersionRoutes } from './routes/versions.js';
 import { serveStatic } from './static.js';
 
 // Generous resource bound for request bodies (attachments travel separately).
@@ -55,6 +56,7 @@ function tokenMatches(given, expected) {
 /**
  * @param {{ core: import('../core/index.js').Core, token: string,
  *   onShutdown?: () => void, deliverables?: {open?: typeof import('../services/system.js').openPath},
+ *   versions?: ReturnType<typeof import('../services/versions/index.js').createVersions>,
  *   minutes?: ReturnType<typeof import('../services/secretary/minutes.js').createMinutesService>,
  *   secretary?: ReturnType<typeof import('../services/secretary/chat.js').createSecretaryChat>,
  *   assistant?: ReturnType<typeof import('../services/assistant/index.js').createAssistant>,
@@ -66,6 +68,7 @@ function tokenMatches(given, expected) {
  */
 export function createAppServer({
   core,
+  versions,
   python,
   token,
   conductor,
@@ -80,6 +83,7 @@ export function createAppServer({
   memory,
 }) {
   const router = createRouter();
+  registerVersionRoutes(router, versions);
   registerPythonRoutes(router, python);
   registerDeliverableRoutes(router, core, deliverables);
   registerProjectRoutes(router, core, python);
@@ -124,7 +128,10 @@ export function createAppServer({
       const body =
         request.method === 'GET'
           ? {}
-          : await readJson(request, url.pathname === '/api/research/sources');
+          : await readJson(
+              request,
+              ['/api/research/sources', '/api/versions/import'].includes(url.pathname),
+            );
       const result = await route.handler({
         params: route.params,
         query: url.searchParams,

@@ -23,11 +23,13 @@ export function createPreviewActions(api, store) {
     previewBytes: (target) => api.bytes(`/api/preview/content?${query(target)}`),
     messageCitations: (id) => api.get(`/api/messages/${id}/citations`),
     openPreviewOriginal: (target) =>
-      target.kind === 'project'
-        ? api.post(`/api/projects/${target.projectId}/files`, { op: 'open', path: target.path })
-        : target.kind === 'deliverable'
-          ? api.post(`/api/deliverables/${target.id}/open`)
-          : api.post(`/api/research/sources/${target.id}/open`),
+      target.kind === 'version'
+        ? api.post(`/api/versions/${target.id}/open`)
+        : target.kind === 'project'
+          ? api.post(`/api/projects/${target.projectId}/files`, { op: 'open', path: target.path })
+          : target.kind === 'deliverable'
+            ? api.post(`/api/deliverables/${target.id}/open`)
+            : api.post(`/api/research/sources/${target.id}/open`),
     highlightPreview(root, text) {
       const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
       const nodes = [];

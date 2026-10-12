@@ -229,10 +229,14 @@ export function createSemantic(core, options = {}) {
     }
     controller = new AbortController();
     const current = controller;
+    const sourceSettings = (await core.workspace.read({ resource: 'settings', key: 'app' })).value
+      .semantic;
     update({ state: 'downloading', error: null, download: null });
     downloading = (async () => {
       await (options.downloadFiles ?? downloadEmbeddingFiles)(modelDir, manifest, {
         signal: current.signal,
+        downloadSource: sourceSettings.downloadSource,
+        customDownloadUrl: sourceSettings.customDownloadUrl,
         onProgress: (value) => {
           progress = { ...progress, download: value };
           const now = Date.now();

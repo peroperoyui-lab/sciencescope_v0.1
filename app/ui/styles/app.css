@@ -140,3 +140,8 @@
 .hide-tools .turn-activity {
   display: none;
 }
+.versionrow .grow > strong,
+.versionrow .grow > small {
+  display: block;
+  overflow-wrap: anywhere;
+}

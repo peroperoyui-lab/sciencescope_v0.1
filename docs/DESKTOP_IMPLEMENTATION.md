@@ -1,5 +1,10 @@
 # Desktop implementation — first increment
 
+## 2026-10-12 R4-7a version storage and import (Codex; pending review)
+- Migration015 stores version groups/records; ordered imports keep original bytes and paired notes inside owned project versions/, monotonic numbering survives deletion. Shared workspace tools read paged parser text and edit notes with revisions/history; preview, group rename and recycle-bin removal connected.
+- Restored legacy workbench left column and P13 table, bilingual input/order controls. Unified schema1 references documented with a lossless R4-2 mark mapping; no mark storage changes. Model sources official/ModelScope/HF mirror/custom persist and reach downloads; checksum mismatch stops without fallback. ModelScope five-file hashes verified from its public catalog.
+- Related service/Edge tests and actual100%/125% native import/preview/exit passed; clean-check pending. No paid requests in7a; automatic secretary notes/real manuscript acceptance belongs7b, comparison/log associations7c. Evidence temp/r4-7a; full IME candidate commit unverified.
+
 ## 2026-10-12 R4-6b automation UI (Codex; pending review)
 - Restored legacy execution menu (Normal/Automation), editable per-goal turn setting, execution-state panel, sidebar badges and background chat navigation; goal/turn/outbox events drive updates without polling, English entries included. Based on 6a 83c8de1.
 - Independent clean-install Windows check passed 196/196, zero skips, including Edge and real DSH/local-model contracts; fixed decorative checkmark polluting menu names. Native shutdown exposed a completed goal being overwritten by a cancelled final reply: preserve reported terminal state, with regression test; runner unchanged.

@@ -88,4 +88,8 @@ export async function ensureDefaultParticipants({ db, participants }) {
 }
 
 // Local semantic retrieval remains opt-in; installing the app never downloads a model.
-export const DEFAULT_SEMANTIC_SETTINGS = { enabled: false };
+export const DEFAULT_SEMANTIC_SETTINGS = {
+  enabled: false,
+  downloadSource: 'official',
+  customDownloadUrl: '',
+};

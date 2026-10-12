@@ -1,5 +1,5 @@
 // A project's workbench in the old interface's markup: plan cards across all
-// projects, this project's log, and the bottom row with history versions,
+// projects, this project's log, and the bottom row with manuscript versions,
 // the research map and the project folder. Every edit is a workspace edit,
 // retained in resource snapshots when an editing page is left.
 import { useEffect, useState } from 'preact/hooks';
@@ -9,7 +9,8 @@ import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
 import { renderMarkdown } from '../markdown.js';
 import { useSnapshotCapture } from '../resource-snapshots.js';
-import { openResourceHistory, ResourceHistory } from './resource-history.js';
+import { openResourceHistory } from './resource-history.js';
+import { Versions } from './versions.js';
 import { navigate } from '../route.js';
 import {
   appendPlan,
@@ -345,14 +346,6 @@ export function JournalStrip({ project, full = false }) {
   </section>`;
 }
 
-/** History versions of this project's resources. @param {{ project: any }} props */
-function Changes({ project }) {
-  return html`<div class="wb-left">
-    <div class="wb-title"><span class="grow">${t('历史版本')}</span></div>
-    <${ResourceHistory} query=${{ projectId: project.id }} compact />
-  </div>`;
-}
-
 /** The workbench's map preview; the editor opens from its corner. @param {{ project: any }} props */
 function ResearchMap({ project }) {
   const actions = useActions();
@@ -444,7 +437,7 @@ export function Workbench({ projectId }) {
         <${PlanStrip} project=${project} projects=${active} />
         <${JournalStrip} project=${project} />
         <div class="wb-bottom">
-          <${Changes} project=${project} />
+          <${Versions} project=${project} />
           <${ResearchMap} project=${project} />
           <${ProjectFolder} project=${project} />
         </div>

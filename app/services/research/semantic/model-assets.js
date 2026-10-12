@@ -112,13 +112,19 @@ export async function verifyEmbeddingFiles(root, manifest) {
 /** Explicit user action only. No model records, API keys or research text leave
  * the machine; fetches are pinned public model artifacts.
  * @param {string} root @param {any} manifest
- * @param {{onProgress?:(progress:any)=>void,fetchImpl?:typeof fetch,signal?:AbortSignal}} [options]
+ * @param {{onProgress?:(progress:any)=>void,fetchImpl?:typeof fetch,signal?:AbortSignal,downloadSource?:string,customDownloadUrl?:string}} [options]
  * @returns {Promise<void>}
  */
 export async function downloadEmbeddingFiles(
   root,
   manifest,
-  { onProgress = () => {}, fetchImpl = fetch, signal } = {},
+  {
+    onProgress = () => {},
+    fetchImpl = fetch,
+    signal,
+    downloadSource = 'official',
+    customDownloadUrl = '',
+  } = {},
 ) {
   await mkdir(root, { recursive: true });
   const files = entries(manifest);
@@ -139,16 +145,16 @@ export async function downloadEmbeddingFiles(
     await mkdir(path.dirname(destination), { recursive: true });
     const temporary = destination + '.download';
     let lastError;
-    for (const origin of ['https://huggingface.co', 'https://hf-mirror.com']) {
+    const urls = embeddingDownloadUrls(manifest, relative, downloadSource, customDownloadUrl);
+    for (const url of urls) {
       if (signal?.aborted)
         throw signal.reason ?? new DOMException('The operation was aborted.', 'AbortError');
       let handle;
       try {
         const timeout = AbortSignal.timeout(10 * 60 * 1000);
-        const response = await fetchImpl(
-          `${origin}/${manifest.modelId}/resolve/${manifest.revision}/${relative}`,
-          { signal: signal ? AbortSignal.any([signal, timeout]) : timeout },
-        );
+        const response = await fetchImpl(url, {
+          signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+        });
         if (signal?.aborted)
           throw signal.reason ?? new DOMException('The operation was aborted.', 'AbortError');
         if (!response.ok || !response.body)
@@ -191,10 +197,39 @@ export async function downloadEmbeddingFiles(
         lastError = error;
         await handle?.close().catch(() => {});
         await rm(temporary, { force: true });
+        // A successful HTTP response with different bytes is not a transport
+        // failure. Never change sources after a checksum mismatch.
+        if (error.code === 'MODEL_CHECKSUM_MISMATCH') throw error;
         if (signal?.aborted) throw error;
       }
     }
     if (lastError) throw lastError;
   }
   onProgress({ completed, files: files.length, done: true });
+}
+
+/**
+ * ModelScope's repository was checked against all five manifest SHA-256 values
+ * on 2026-10-12. Its own revision is pinned; byte verification stays mandatory.
+ * @param {any} manifest
+ * @param {string} relative
+ * @param {string} source
+ * @param {string} custom
+ * @returns {string[]}
+ */
+export function embeddingDownloadUrls(manifest, relative, source, custom) {
+  const suffix = `${manifest.modelId}/resolve/${manifest.revision}/${relative}`;
+  if (source === 'official')
+    return [`https://huggingface.co/${suffix}`, `https://hf-mirror.com/${suffix}`];
+  if (source === 'hf-mirror') return [`https://hf-mirror.com/${suffix}`];
+  if (source === 'modelscope')
+    return [
+      `https://modelscope.cn/models/${manifest.modelId}/resolve/252d0dcb679dda2c7b6fd5bbfed15df3c7feaebf/${relative}`,
+    ];
+  if (source === 'custom' && custom.trim())
+    return [`${custom.trim().replace(/\/$/, '')}/${suffix}`];
+  throw new AppError(
+    'MODEL_DOWNLOAD_SOURCE_INVALID',
+    'Model download source is missing or invalid.',
+  );
 }

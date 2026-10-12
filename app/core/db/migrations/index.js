@@ -22,6 +22,7 @@ import * as globalAssistant from './011-global-assistant.js';
 import * as researchInput from './012-research-input.js';
 import * as pythonEnvironments from './013-python-environments.js';
 import * as meetingGoals from './014-meeting-goals.js';
+import * as manuscriptVersions from './015-manuscript-versions.js';
 
 export const migrations = [
   core,
@@ -38,4 +39,5 @@ export const migrations = [
   researchInput,
   pythonEnvironments,
   meetingGoals,
+  manuscriptVersions,
 ];

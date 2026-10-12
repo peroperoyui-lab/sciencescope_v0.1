@@ -12,6 +12,14 @@ import { extractCitationLabels } from '../research/citations.js';
 export function createPreview(core, research) {
   const files = createProjectFiles(core);
   function locate(target) {
+    if (target.kind === 'version') {
+      const version = core.versionCatalog.get(target.id);
+      return {
+        path: core.versionCatalog.file(target.id),
+        name: version.name,
+        projectId: version.projectId,
+      };
+    }
     if (target.kind === 'project')
       return {
         path: files.locate(target.projectId, target.path),

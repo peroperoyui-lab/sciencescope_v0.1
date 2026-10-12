@@ -75,6 +75,34 @@ export function SemanticSettings() {
         label=${t('混合检索说明')}
       />
     </h2>
+    <div class="field">
+      <label class="label" for="model-download-source"
+        >${t('模型下载源')}<${InfoTip}
+          text=${t('官方源连接失败时尝试 HF 镜像；其他选择只使用选定来源。文件校验失败会报错，不会换源。')}
+      /></label>
+      <select
+        id="model-download-source"
+        value=${settings?.downloadSource ?? 'official'}
+        onChange=${(event) => actions.attempt(() => actions.updateSettings({ semantic: { downloadSource: event.currentTarget.value } }))}
+      >
+        <option value="official">${t('官方（Hugging Face）')}</option>
+        <option value="modelscope">ModelScope</option>
+        <option value="hf-mirror">${t('HF 镜像')}</option>
+        <option value="custom">${t('自定义地址')}</option>
+      </select>
+    </div>
+    ${
+      settings?.downloadSource === 'custom' &&
+      html`<label class="field"
+        ><span class="label"
+          >${t('模型源地址')}<${InfoTip}
+            text=${t('填写与 Hugging Face resolve 路径兼容的根地址；下载时附加模型名称、固定修订和文件路径。')} /></span
+        ><input
+          aria-label=${t('模型源地址')}
+          value=${settings.customDownloadUrl ?? ''}
+          onChange=${(event) => actions.attempt(() => actions.updateSettings({ semantic: { customDownloadUrl: event.currentTarget.value } }))}
+      /></label>`
+    }
     ${!status && !error && html`<p role="status">${t('正在读取检索状态…')}</p>`}
     ${
       status &&

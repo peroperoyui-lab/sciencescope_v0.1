@@ -70,7 +70,7 @@
 | `map` | `projects/<p>/workbench/map.json` | `{ nodes, edges }`（沿用旧格式） |
 | `plans` | `projects/<p>/workbench/plans.md`；全局计划在 `plans.md` | Markdown 任务列表 |
 | `log` | `projects/<p>/workbench/log.md` | Markdown，每条一个二级标题（日期 + 标题） |
-| `versions` | `projects/<p>/workbench/versions/<组>/` | 原件 + `.notes.md` |
+| `versions` | `projects/<p>/versions/<组 id>/v<号>-<版本 id>/` | 原件 + `<原件名>.notes.md`；读取原文由解析器分页，编辑只修改说明 |
 | `minutes` | `projects/<p>/minutes/<会议 id>.md`；不属于项目的会议在 `minutes/<会议 id>.md` | Markdown；历史版本在 `resource_snapshots`，细粒度修订在 `revisions` |
 | `notes` | `projects/<p>/notes/*.md` | Markdown |
 | `agent` | `agents/<id>.md` | YAML 头（name、model、effort、tools、skills）+ 正文（人设） |
@@ -82,6 +82,34 @@
 用户在程序外编辑文件：读取时比较修改时间和哈希，变化了就记一条 `actor = external` 的修订并发事件。
 
 ## 5. 参与者定义（`agents/<id>.md`）
+
+### 引用（R4-7，schema 1）
+
+结构定义在 `app/core/references.js`：`{ schema: 1, kind, id?, projectId?, path?, sourceId?, meetingId?, location?, label? }`。
+`location` 可含 `page`、`paragraph`、`characters: {start,end}`、`lines: {start,end}` 和 `quote: {exact,prefix?,suffix?}`。
+页、段落和行从 1 起算，字符从 0 起算、右端不包含；未知页码不填，不猜测。`label` 仅用于显示，不作身份。
+
+| kind | 稳定目标 |
+|---|---|
+| `version` | 版本 id + projectId；可带页、段落、字符范围 |
+| `project-file` / `script` | projectId + 相对路径；可带行、字符范围；script 是项目代码文件 |
+| `source` / `chunk` | 来源 id，或段落 id + sourceId；可带页、引用原文；原件与来源记录仍是正本 |
+| `item` | 资料库条目 id |
+| `message` | 消息 id + meetingId |
+| `map-node` | 节点 id + projectId；用于版本说明关联导图节点 |
+
+版本说明的关联链接和日志关联文件使用此对象。后续写作工作台直接复用，不增加存储框架。
+R4-2 标记不改存储：`target.kind/id/projectId/path` 对应上述目标；消息标记的 `messageId/meetingId` 对应 message；
+其 location.page/paragraph 对应同名字段，line 对应 lines.start；offset 对应 characters.start，characters.end 为 offset 加标记原文长度；
+R4-2 的 offset 来自渲染文字，故填 textBasis=rendered（解析段落默认 parsed），description 保留，原文进 quote.exact，不在另一投影里猜字符位置；
+标记备注和 selectionId 是批注与草稿身份，不属于引用对象，仍与转换后的引用并列保存，所以转换无信息损失。
+
+R4-7a：迁移015的version_groups／manuscript_versions只存组、编号、相对原件路径、导入者、基线与说明状态。
+`workspace_read target=versions,scope=<项目>`列组；`key=<项目>/<版本>,offset/limit`按解析段落读完整原文与说明。
+`workspace_edit resource=versions`只编辑同目录notes Markdown，经既有revisions和resource_snapshots留历史。
+导入按用户顺序分配递增编号，回收站删除不复用编号；版本路径在应用内部项目目录，不随外部工作目录绑定变化。
+GET /api/versions、POST /api/versions/import、GET/DELETE /api/versions/:id、POST /:id/open、PATCH /api/version-groups/:id；
+元数据变化和versions.changed同事务保存，原件支持默认程序／文件夹打开及R4-2预览，解析失败仍可打开原件。
 
 ```markdown
 ---
