@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
-import { t } from '../i18n/index.js';
+import { t, formatTime } from '../i18n/index.js';
 import { Icon } from '../icons.js';
 import { navigate } from '../route.js';
 import { MainHead } from './mainhead.js';
@@ -230,10 +230,7 @@ export function Versions({ project, full = false }) {
               <span class="fileicon">${version.name.split('.').pop()?.toUpperCase()}</span>
               <div class="grow">
                 <strong>${version.name} · v${version.number}</strong
-                ><small
-                  >${new Date(version.createdAt).toLocaleString()} ·
-                  ${t(STATUS[version.notesStatus])}</small
-                >
+                ><small>${formatTime(version.createdAt)} · ${t(STATUS[version.notesStatus])}</small>
               </div>
               <button
                 class="iconbtn"
@@ -293,7 +290,7 @@ export function Versions({ project, full = false }) {
                           </div>
                         </td>
                         <td><span class="tag">v${version.number}</span></td>
-                        <td>${new Date(version.createdAt).toLocaleString()}</td>
+                        <td>${formatTime(version.createdAt)}</td>
                         <td>
                           <button
                             onClick=${() => navigate({ view: 'version-notes', id: `${project.id}/${version.id}` })}

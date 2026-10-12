@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
-import { t } from '../i18n/index.js';
+import { t, formatTime } from '../i18n/index.js';
 import { renderMarkdown } from '../markdown.js';
 import { navigate } from '../route.js';
 import { useSnapshotCapture } from '../resource-snapshots.js';
@@ -139,7 +139,7 @@ export function VersionNotes({ projectId, id }) {
                 </select></label
               >
               <small
-                >${t('生成时间')}：${version?.generatedAt ? new Date(version.generatedAt).toLocaleString() : '—'}</small
+                >${t('生成时间')}：${version?.generatedAt ? formatTime(version.generatedAt) : '—'}</small
               >
               <p role="status">
                 ${version?.notesError || (version?.notesStatus === 'running' ? t('整理中') : '')}

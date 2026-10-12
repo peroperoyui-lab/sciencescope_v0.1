@@ -83,7 +83,7 @@ const entries = (manifest) =>
 function targetPath(root, entry) {
   const file = path.resolve(root, entry.path ?? entry.name);
   if (!file.startsWith(path.resolve(root) + path.sep))
-    throw new AppError('INVALID_MODEL_MANIFEST_PATH', 'Invalid model artifact path.');
+    throw new AppError('INVALID_MODEL_MANIFEST_PATH', '模型清单里的文件路径无效。');
   return file;
 }
 /** @param {any} handle @param {Uint8Array} chunk @returns {Promise<void>} */
@@ -92,7 +92,7 @@ export async function writeChunkFully(handle, chunk) {
   while (offset < chunk.length) {
     const { bytesWritten } = await handle.write(chunk, offset, chunk.length - offset);
     if (!bytesWritten)
-      throw new AppError('MODEL_DOWNLOAD_WRITE_INCOMPLETE', 'Model artifact write stopped.');
+      throw new AppError('MODEL_DOWNLOAD_WRITE_INCOMPLETE', '模型文件没有写完，请重新下载。');
     offset += bytesWritten;
   }
 }
@@ -187,7 +187,7 @@ export async function downloadEmbeddingFiles(
         if (hash.digest('hex') !== entry.sha256)
           throw new AppError(
             'MODEL_CHECKSUM_MISMATCH',
-            'Model artifact checksum does not match the manifest.',
+            '模型文件校验不一致，没有使用；请换一个下载源或稍后重试。',
           );
         await rename(temporary, destination);
         completed++;
@@ -228,8 +228,5 @@ export function embeddingDownloadUrls(manifest, relative, source, custom) {
     ];
   if (source === 'custom' && custom.trim())
     return [`${custom.trim().replace(/\/$/, '')}/${suffix}`];
-  throw new AppError(
-    'MODEL_DOWNLOAD_SOURCE_INVALID',
-    'Model download source is missing or invalid.',
-  );
+  throw new AppError('MODEL_DOWNLOAD_SOURCE_INVALID', '模型下载源未设置或无效，请在设置里选择。');
 }
