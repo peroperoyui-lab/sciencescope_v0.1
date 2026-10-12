@@ -135,3 +135,8 @@
   color: var(--warn);
   background: var(--warn-soft);
 }
+/* The compact transcript hides each answer's tool activity card, as it hid
+   the prototype's per-call cards. */
+.hide-tools .turn-activity {
+  display: none;
+}

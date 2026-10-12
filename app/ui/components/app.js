@@ -1,6 +1,6 @@
 // The whole window in the old interface's layout: top bar, sidebar, the
 // current page, the status bar and the popups.
-import { useEffect } from 'preact/hooks';
+import { useEffect, useLayoutEffect } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { comboOf } from '../appearance.js';
 import { html } from '../html.js';
@@ -67,7 +67,9 @@ export function App() {
     return null;
   });
   const actions = useActions();
-  useEffect(() => {
+  // Set before the new view is painted: a goal that completes in the meantime
+  // must not be marked as seen in the meeting the person just left.
+  useLayoutEffect(() => {
     actions.viewMeeting(route.view === 'meeting' ? route.id.split('/')[0] : null);
   }, [route.view, route.id]);
   useEffect(() => {

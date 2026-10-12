@@ -953,4 +953,11 @@ export const en = {
   展开或收起全局助手: 'Expand or collapse global assistant',
   收起为悬浮球: 'Collapse to orb',
   最近项目: 'Recent projects',
+  '正在使用工具 · {count}': 'Using tools · {count}',
+  '工具记录 · {count}': 'Tool activity · {count}',
+  '失败 {count}': '{count} failed',
+  展开查看: 'Show details',
+  输入: 'Input',
+  结果: 'Result',
+  完成: 'Done',
 };

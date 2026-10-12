@@ -134,9 +134,15 @@ test(
             releaseAnswers.resolve();
             await toolStarted.promise;
             await page.locator('.expert-state[data-state="tool"]').waitFor();
+            // While the answer runs its tool activity stays open.
+            const activity = page.locator('.expert-message .turn-activity').first();
+            assert.notEqual(await activity.getAttribute('open'), null);
+            assert.match(await activity.locator('summary b').textContent(), /正在使用工具/);
             releaseTool.resolve();
             await page.locator('.review-message .expert-state[data-state="done"]').waitFor();
-            await page.locator('.expert-message .tool').waitFor();
+            // When it ends the card folds into one line.
+            await page.locator('.expert-message .turn-activity:not([open])').first().waitFor();
+            assert.match(await activity.locator('summary b').textContent(), /工具记录/);
             await page.locator('[data-review-adopt]').click();
             await page.locator('[data-review-adopt][aria-pressed="true"]').waitFor();
             await page.locator('.usage-ring').click();

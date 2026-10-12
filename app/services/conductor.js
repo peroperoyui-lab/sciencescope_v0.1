@@ -8,6 +8,10 @@
 //   cut off at the same person's message; their answers are created up front in
 //   that order. The reviewer runs after every expert has ended, and its answer
 //   stays out of later context until the person adopts it.
+// - `autonomous` ("自动化"): the respondent keeps working toward the meeting's
+//   goal one turn after another, until it calls `goal_update`, the person pauses
+//   or ends it, the round limit is reached or a turn fails. Messages the person
+//   sends meanwhile wait in the outbox and join the next turn's input.
 import { mentionedParticipants } from '../core/context.js';
 import { AppError } from '../core/errors.js';
 import { runRound } from './conductor-round.js';

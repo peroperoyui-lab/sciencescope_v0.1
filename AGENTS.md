@@ -77,6 +77,11 @@ workflow, helping the user understand and advance their own research project
   evaluations (many questions, several rounds, model comparisons) only in tasks
   that ask for them.
 - Builds, caches, temporary files and test databases stay under `.sciencescope-local`.
+- Downloads on the user's machine (user 2026-10-12, limited cross-border
+  traffic): install dependencies from domestic mirrors (npm: npmmirror; pip/uv:
+  Aliyun or Tsinghua; models: ModelScope) and reuse local caches. Avoid
+  Hugging Face and other overseas sources unless there is no mirror; say so in
+  the report when one was used.
 
 ## Workflow
 

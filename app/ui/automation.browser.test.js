@@ -98,6 +98,9 @@ test(
             .click();
           await second.promise;
           await page.locator(`[data-object-id="${other.id}"] .tree-name`).click();
+          // The running badge also shows on the open meeting, so wait for the
+          // switch itself before the goal is allowed to complete.
+          await page.locator(`.tree-row.active[data-object-id="${other.id}"]`).waitFor();
           await page
             .locator(`[data-object-id="${meeting.id}"] .chat-activity-badge[data-state="running"]`)
             .waitFor();

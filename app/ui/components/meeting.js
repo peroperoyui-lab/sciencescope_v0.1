@@ -18,7 +18,7 @@ import { DiscussionStrip } from './discussion-strip.js';
 import { MainHead } from './mainhead.js';
 import { MinutesDialog } from './minutes-dialog.js';
 import { Deliverables } from './deliverables.js';
-import { ToolCard } from './meeting-tool.js';
+import { ToolActivity } from './meeting-tool.js';
 import { MemoryStatusDialog } from './memory-status.js';
 import { SecretaryPanel } from './secretary-panel.js';
 import { FieldForm } from './overlays.js';
@@ -167,7 +167,7 @@ function Message({ message, author, roleNote, target }) {
       ${expert && html`<${ExpertState} message=${message} calls=${calls} />`} ${time}
     </div>
     <div class="messagebody">
-      ${calls.map((call) => html`<${ToolCard} key=${call.id} call=${call} />`)}
+      <${ToolActivity} calls=${calls} running=${streaming} />
       <${CitedMarkdown} message=${message} text=${text} />
       <${Deliverables} files=${message.deliverables} />
       <${OutputStatus} message=${message} />

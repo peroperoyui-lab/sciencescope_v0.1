@@ -65,10 +65,24 @@ test(
 
       const answer = page.locator('.message:not(.user)').last();
       await answer.getByText('已记下：').waitFor();
-      assert.equal(await answer.locator('.tool small').textContent(), 'workspace_edit');
+      // A finished answer folds its tool activity into one line; opening it
+      // shows the model's pre-call words and the call itself.
+      const activity = answer.locator('.turn-activity');
+      assert.equal(await activity.getAttribute('open'), null);
+      assert.match(await activity.locator('summary b').textContent(), /工具记录 · 1/);
       assert.match(
-        await answer.locator('.tool summary').textContent(),
+        await activity.locator('.turn-activity-caption').textContent(),
         /我先把这项工作记到计划里。/,
+      );
+      await activity.locator('summary').first().click();
+      assert.notEqual(await activity.getAttribute('open'), null);
+      assert.match(
+        await activity.locator('.tool-preamble').textContent(),
+        /我先把这项工作记到计划里。/,
+      );
+      assert.equal(
+        await activity.locator('[data-tool-call] summary span').textContent(),
+        'workspace_edit',
       );
       assert.equal(await answer.locator('.message-text strong').textContent(), '清洗面板数据');
       assert.equal(await page.locator('.tree-row.child.active').count(), 1);

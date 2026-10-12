@@ -4,7 +4,7 @@ import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { CitedMarkdown } from './cited-markdown.js';
 import { Deliverables } from './deliverables.js';
-import { ToolCard } from './meeting-tool.js';
+import { ToolActivity } from './meeting-tool.js';
 import { InputReceipt } from './research-input.js';
 
 const EMPTY = [];
@@ -31,7 +31,7 @@ export function AssistantMessage({ message, label }) {
   >
     <small>${isUser ? name || t('用户') : t(label)}</small>
     <div class="turn-activity-host">
-      ${calls.map((call) => html`<${ToolCard} key=${call.id} call=${call} />`)}
+      <${ToolActivity} calls=${calls} running=${message.status === 'streaming'} />
     </div>
     <${CitedMarkdown} message=${message} text=${text} />
     <${Deliverables} files=${message.deliverables} />
