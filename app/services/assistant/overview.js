@@ -10,8 +10,13 @@ export function overviewHash(text) {
   return createHash('sha256').update(text).digest('hex');
 }
 
-function minutesGoals(text) {
-  if (!/^#{1,6}\s/mu.test(text)) return text.trim();
+/**
+ * @param {string} text
+ * @param {boolean} [fallback]
+ * @returns {string}
+ */
+export function minutesGoals(text, fallback = true) {
+  if (!/^#{1,6}\s/mu.test(text)) return fallback ? text.trim() : '';
   const sections = text.split(/(?=^#{1,6}\s)/mu);
   return (
     sections
@@ -21,7 +26,7 @@ function minutesGoals(text) {
         ),
       )
       .join('\n')
-      .trim() || text.trim()
+      .trim() || (fallback ? text.trim() : '')
   );
 }
 

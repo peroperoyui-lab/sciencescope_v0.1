@@ -1,5 +1,10 @@
 # Desktop implementation — first increment
 
+## 2026-10-12 R4-7d version-note inputs (Codex; pending review)
+- Verified7b19/28 requests:16/18 tool calls, diff JSON218,137chars with36,563 unchanged chars; last prompts153,919/299,490 tokens. Complete map/minutes were supported inputs, but these live fixtures had no human minutes, so not blamed for their usage.
+- Only complete marked changes with old/new parser paragraph ranges and up to two neighbouring sentences are sent; same-paragraph spans share context, unchanged ranges remain pageable. Research context sends goals/todos, plan lines and map title ancestry; filename metadata is separate. Tools remain open; instructions narrow work to notes and ambiguous passages, template/UI unchanged.
+- Related scripted paths6/6 pass, including150 changes with exact marked-part reconstruction, unchanged-body exclusion, metadata isolation, latest minutes first and map title projection. Real-model final two-run acceptance and independent clean check pending; exploratory runs retained. Evidence temp/r4-7d.
+
 ## 2026-10-12 R4-7c version comparison and log files (Codex; pending review)
 - Based on7b ce5dbf4. P09 compares complete parser text in same-group side/unified word views, jumps changes, opens originals and copies old bytes as a new numbered version. Parse failure keeps originals accessible; shared comparison also feeds7b.
 - P12 restores brief/files/details tabs and two-column page; schema1 references live in log Markdown, migration017 adds rebuildable projection refreshed by reads/external edits/revisions/undo/history. Secretary workbench append accepts links; shared workspace tools document the format, user edits check revision; bilingual strings complete.

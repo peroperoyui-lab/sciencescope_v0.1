@@ -68,6 +68,31 @@ test('secretary automatically organizes imported DOCX notes, changes baseline, k
       op: 'write',
       args: { text: '核查因果推断。' },
     });
+    const older = app.core.meetings.create({ projectId: project.id, title: '旧会议' });
+    await app.core.workspace.edit({
+      resource: 'minutes',
+      key: older.id,
+      op: 'write',
+      args: { text: '# 研究目标\n旧目标\n# 决策\n完整旧结论不得发送\n# 待办\n旧待办' },
+    });
+    await app.core.workspace.edit({
+      resource: 'minutes',
+      key: main.id,
+      op: 'write',
+      args: { text: '# 研究目标\n最新目标\n# 决策\n完整最新结论不得发送\n# 待办\n最新待办' },
+    });
+    await app.core.workspace.edit({
+      resource: 'map',
+      key: project.id,
+      op: 'addNode',
+      args: { node: { id: 'root', text: '研究问题', details: '导图完整详细内容不得发送' } },
+    });
+    await app.core.workspace.edit({
+      resource: 'map',
+      key: project.id,
+      op: 'addNode',
+      args: { node: { id: 'child', parent: 'root', text: '证据检验' } },
+    });
     const fixtures = await createResearchFixtures(temporary.dir);
     const imported = await app.versions.importFiles({
       projectId: project.id,
@@ -80,6 +105,14 @@ test('secretary automatically organizes imported DOCX notes, changes baseline, k
     assert.equal(inputs.length, 2);
     assert.equal(inputs[1].baseline.id, imported.versions[0].id);
     assert.equal(inputs[1].context.plans, '核查因果推断。');
+    assert.match(inputs[1].context.map, /研究问题 > 证据检验/u);
+    assert.ok(!JSON.stringify(inputs[1].context).includes('不得发送'));
+    assert.equal(inputs[1].context.minutes[0].meetingId, main.id);
+    assert.match(inputs[1].context.minutes[0].text, /最新目标[\s\S]*最新待办/u);
+    assert.equal(typeof inputs[1].changes, 'string');
+    assert.ok(!inputs[1].changes.includes('修订.docx'));
+    assert.ok(!inputs[1].changes.includes('原稿.docx'));
+    assert.match(inputs[1].changes, /共 0 处改动/u);
     assert.equal(inputs[1].template, '三部分及参考链接。');
     const version = app.versions.get(imported.versions[1].id);
     assert.equal(version.notesStatus, 'completed');

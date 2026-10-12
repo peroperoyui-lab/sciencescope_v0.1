@@ -5,6 +5,8 @@ import { AppError } from '../../core/errors.js';
 import { nowIso } from '../../core/ids.js';
 import { createBackgroundRunner } from '../secretary/background.js';
 import { DEFAULT_VERSION_TEMPLATE, VERSION_INSTRUCTIONS } from './template.js';
+import { changeSummary } from './comparison.js';
+import { minutesGoals } from '../assistant/overview.js';
 
 /**
  * @param {{core:import('../../core/index.js').Core,versions:any,runtime:import('../../runtime/port.js').Runtime,
@@ -103,10 +105,29 @@ export function createVersionOrganizer({ core, versions, runtime, tools, default
       )
         throw new AppError('VERSION_PARSE_FAILED', '无法提取比较文字，请打开原件检查后重试。');
       const settings = (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
+      const plans =
+        (await core.workspace.read({ resource: 'plans', key: version.projectId })).text ?? '';
+      const map = (await core.workspace.read({ resource: 'map', key: version.projectId })).value;
+      const nodes = map?.nodes ?? [];
+      const titlePath = (node) => {
+        const titles = [node.text];
+        const seen = new Set([node.id]);
+        let parent = nodes.find((candidate) => candidate.id === node.parent);
+        while (parent && !seen.has(parent.id)) {
+          titles.unshift(parent.text);
+          seen.add(parent.id);
+          parent = nodes.find((candidate) => candidate.id === parent.parent);
+        }
+        return `${node.id}: ${titles.join(' > ')}`;
+      };
+      const project = core.projects.get(version.projectId);
       const context = {
-        project: core.projects.get(version.projectId),
-        plans: (await core.workspace.read({ resource: 'plans', key: version.projectId })).value,
-        map: (await core.workspace.read({ resource: 'map', key: version.projectId })).value,
+        project: { name: project.name, description: project.description },
+        plans: plans
+          .split('\n')
+          .filter((line) => line.trim() && !/^#/.test(line))
+          .join('\n'),
+        map: nodes.map(titlePath).join('\n'),
         minutes: [],
       };
       for (const meeting of core.meetings.list({ projectId: version.projectId })) {
@@ -117,15 +138,37 @@ export function createVersionOrganizer({ core, versions, runtime, tools, default
         )
           continue;
         const minutes = await core.workspace.read({ resource: 'minutes', key: meeting.id });
-        if (minutes.text) context.minutes.push({ meetingId: meeting.id, text: minutes.text });
+        const points = minutesGoals(minutes.text ?? '', false);
+        if (points)
+          context.minutes.push({
+            meetingId: meeting.id,
+            text: points,
+            updatedAt:
+              core.workspace.history({ resource: 'minutes', key: meeting.id, limit: 1 })[0]
+                ?.createdAt ?? meeting.updatedAt,
+          });
       }
+      context.minutes.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+      const summary = changeSummary(compared);
+      const metadata = (entry) =>
+        entry
+          ? {
+              id: entry.id,
+              projectId: entry.projectId,
+              number: entry.number,
+              name: entry.name,
+              originalPath: entry.originalPath,
+            }
+          : null;
       response = await runner.run(
         meetingFor(version.projectId),
         VERSION_INSTRUCTIONS,
         JSON.stringify({
-          current: version,
-          baseline: compared.previous?.version ?? null,
-          changes: compared.changes,
+          current: metadata(version),
+          baseline: metadata(compared.previous?.version),
+          changeCount: summary.count,
+          changedParagraphs: summary.locations,
+          changes: summary.text,
           context,
           template: settings.versionNotes?.template || DEFAULT_VERSION_TEMPLATE,
           existingNotes: before.text,
