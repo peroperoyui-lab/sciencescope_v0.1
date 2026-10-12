@@ -121,7 +121,7 @@ test(
           onEnterProject: true,
           onLeaveProject: true,
           saveMarkdown: true,
-          workbench: { map: 'apply', plans: 'apply', log: 'apply' },
+          workbench: { map: 'apply', plans: 'apply', log: 'apply', versions: 'off' },
         });
         await page.reload();
         await form.getByLabel('主对话消息间隔').waitFor();
