@@ -1,9 +1,10 @@
 # Desktop implementation — first increment
 
 ## 2026-10-12 R4-7d version-note inputs (Codex; pending review)
-- Verified7b19/28 requests:16/18 tool calls, diff JSON218,137chars with36,563 unchanged chars; last prompts153,919/299,490 tokens. Complete map/minutes were supported inputs, but these live fixtures had no human minutes, so not blamed for their usage.
-- Only complete marked changes with old/new parser paragraph ranges and up to two neighbouring sentences are sent; same-paragraph spans share context, unchanged ranges remain pageable. Research context sends goals/todos, plan lines and map title ancestry; filename metadata is separate. Tools remain open; instructions narrow work to notes and ambiguous passages, template/UI unchanged.
-- Related scripted paths6/6 pass, including150 changes with exact marked-part reconstruction, unchanged-body exclusion, metadata isolation, latest minutes first and map title projection. Real-model final two-run acceptance and independent clean check pending; exploratory runs retained. Evidence temp/r4-7d.
+- Cause: earlier 19/28 requests repeatedly sent large comparison inputs and accumulated tool results; those real fixtures had empty maps and no human minutes, so neither explains their millions of tokens.
+- Complete marked changes now carry old/new parser paragraph numbers and neighbouring context; unchanged ranges remain readable. Research context includes goals/todos, plan entries and map title paths, with metadata separate. Tools, template structure and UI remain unchanged.
+- Related tests 6/6 pass. Final flash runs: 4 requests/254,935 tokens and 3/168,924; three sections and both named old quality checks pass, but the cost target is unmet and unchanged-context/table interpretation errors remain. A separate handwritten 9,871-character fixture used 2/47,230. All paid runs: 21/1,234,617, including one retained provider output-limit failure.
+- Independent fresh-install Windows npm run check passes 212/212, zero skips (399s), at feature 33c676e; evidence and detailed limitations: .sciencescope-local/temp/r4-7d/REPORT.md.
 
 ## 2026-10-12 R4-7c version comparison and log files (Codex; pending review)
 - Based on7b ce5dbf4. P09 compares complete parser text in same-group side/unified word views, jumps changes, opens originals and copies old bytes as a new numbered version. Parse failure keeps originals accessible; shared comparison also feeds7b.
