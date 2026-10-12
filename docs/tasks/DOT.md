@@ -1,5 +1,7 @@
 # Dot：验证、演练与评测助手（Linux）
 
+> 已停用（用户 2026-10-12）：安装、升级演练和评测改在用户本地 H 盘由 Sol / Codex 完成，Linux 复查由 Claude 在云端做。本文只作记录。
+
 - 设立：用户与 Claude，2026-10-03。Dot 运行在 Codex 提供的 Linux 虚拟机上，模型水平与 Astra 相同，Token 不限。
 - 分工：
   - **Sol**（GPT-6.1 Sol）：在用户的 Windows 机器上实现功能，并做原生验收；

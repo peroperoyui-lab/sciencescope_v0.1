@@ -87,8 +87,9 @@ workflow, helping the user understand and advance their own research project
 
 - **Claude**: design, frontend, review and merge into the integration branch.
   **Sol** (GPT-6.1 Sol): implementation and Windows acceptance; its subagents
-  use GPT-6.1 Sol, Git delivery uses GPT-6 Luna. **Dot**: Linux verification,
-  upgrade rehearsal and evaluation on `dot/` branches only; no product code.
+  use GPT-6.1 Sol, Git delivery uses GPT-6 Luna. Dot is no longer used (user
+  2026-10-12): Claude re-checks on Linux in the cloud; installs, upgrade
+  rehearsals and evaluations run locally on the user's H: drive by Sol / Codex.
 - Rebuild workflow: Claude builds R0–R3 in the cloud (Linux) and sets the
   baselines; Codex pulls to Windows and Sol localizes (L1); afterwards Sol takes
   the heavy work (R4–R6) with short briefs, Claude reviews diffs.

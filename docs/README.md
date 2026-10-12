@@ -14,7 +14,7 @@
 | `docs/design/UI_RESTORE.md` | 旧界面复原清单与缺口（界面工作的验收依据） |
 | `docs/02_INTERACTION_CONTRACTS.md` 最前面的日期修订节 | 用户确认的交互决定，优先于正文和旧原型 |
 | `docs/CODE_STYLE.md` | 代码风格，`npm run check` |
-| 当前任务的 `docs/tasks/R4-*.md` | 任务书 |
+| 当前任务的 `docs/tasks/R*.md` | 任务书 |
 
 按需查阅：`docs/SYSTEM_SPEC.md`（现状；§2 的技术实现大多仍是旧线，R5 时改写）、`docs/DESKTOP_IMPLEMENTATION.md`（按日期的过程记录）、`docs/idea.md`（暂缓的想法）、`docs/design/` 其他文件。
 
@@ -40,7 +40,7 @@
 | `docs/REVIEW_2026-10-05.md` | 整体复盘：流程、前端架构、代码风格、数据升级连续性、统一编辑、alpha 路线（S0–S5）与待用户决定的事项 |
 | `docs/design/ARCHITECTURE.md` | **总纲（已确认）**：五个原语、关键决定、代码结构、重建阶段 R0–R6、协作方式、功能清单 |
 | `docs/design/CORE_MODEL.md` | 核心模型：数据根、表、事件、工作区资源、参与者定义、发言规则、上下文组装、内置工具、接口 |
-| `docs/handoff/` | 每个重建阶段给 Windows 端（Sol）的交接说明 |
+| `docs/handoff/` | 每个重建阶段给 Windows 端（Sol）的交接说明；`PREVIEW_TEST.md` 是用户首测指南 |
 | `docs/CODE_STYLE.md` | 代码风格与检查工具（`npm run check`） |
 | `docs/design/DATA_AND_ROLES.md` | 数据布局（安装目录 `data/`：文件 + 一个 SQLite）与角色模型（一套工具、修改即生效可撤销）；S2、S3 按此实现 |
 | `docs/archive/` | 已被取代的旧规则与文档（如 2026-10-05 前的 AGENTS.md） |
@@ -51,7 +51,7 @@
 | `docs/NATIVE_SETUP.md` | Windows 原生构建环境 |
 
 ## 任务（交给执行者的任务书）
-`docs/tasks/`：重建期的任务书是 `R4-*.md`（当前）；`T01`–`T24`、`RB_COMMON.md`、`LOCAL_VALIDATION_2026-09-25.md` 是旧线时期的任务书，只作行为参考。任务状态统一写在 `ROADMAP.md`。
+`docs/tasks/`：重建期的任务书是 `R4-*.md`、`R6a_*.md` 等以 R 开头的文件（当前）；`DOT.md` 已停用；`T01`–`T24`、`RB_COMMON.md`、`LOCAL_VALIDATION_2026-09-25.md` 是旧线时期的任务书，只作行为参考。任务状态统一写在 `ROADMAP.md`。
 
 ## 记录（按日期，只追加）
 | 文件 | 内容 |

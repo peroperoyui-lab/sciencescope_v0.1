@@ -90,7 +90,7 @@ R2 结束时就有一条能跑通的最小链路；之后每个阶段都保持�
 1. **Claude 在云端 Linux 做 R0–R3**：直接在集成分支 `claude/determined-pasteur-jxpzw8` 上写代码，定下基线和规范（`CODE_STYLE.md`、目录结构、测试方式、组件写法）。每个阶段完成后推送，并写一份简短的"Windows 交接说明"。
 2. **Codex 拉到 Windows，由 Sol 做本地化（L1）**：在 Windows 上运行与测试，修复平台问题（路径、shell、字体、WebView2、Tauri 构建与原生窗口），推送到 `codex/` 分支，Claude 合并。
 3. **基线确立后，重活交给 Sol（R4–R6）**：每个任务一份短任务书，按新 AGENTS.md 执行，Claude 看 diff 审阅。界面部分由 Claude 先做出样板，Sol 按样板扩展。
-4. **Dot**：需要时在 Linux 上做阶段验证和升级演练，不是必需环节。
+4. **不再使用 Dot**（用户 2026-10-12）：Linux 复查由 Claude 在云端做；安装、升级演练和评测都由 Sol / Codex 在用户本地 H 盘完成。
 
 ## 7. 已确认的决定（用户 2026-10-05）
 
