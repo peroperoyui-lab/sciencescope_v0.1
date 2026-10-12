@@ -136,8 +136,9 @@ test('secretary automatically organizes imported DOCX notes, changes baseline, k
 test('secretary preserves concurrent user notes and records a failed organization for retry', async () => {
   const temporary = await tempDir('version-notes-race');
   let race = true;
+  let fail = true;
   const runtime = createScriptedRuntime({
-    script: async function* ({ input }) {
+    script: async function* ({ input, call }) {
       const packet = JSON.parse(input);
       if (race)
         await app.core.workspace.edit(
@@ -145,10 +146,20 @@ test('secretary preserves concurrent user notes and records a failed organizatio
             resource: 'versions',
             key: `${packet.current.projectId}/${packet.current.id}`,
             op: 'write',
-            args: { text: '用户刚刚补充。' },
+            args: { text: fail ? '用户刚刚补充。' : '用户再次补充。' },
           },
           { actorId: 'person_user' },
         );
+      if (fail) {
+        await call('workspace_edit', {
+          resource: 'plans',
+          key: packet.current.projectId,
+          op: 'append',
+          args: { text: '工具修改也必须留历史。' },
+        });
+        yield { stop: 'failed', error: 'provider disconnected after tool edit' };
+        return;
+      }
       yield JSON.stringify({
         markdown: '## 实际文件变化\n首版\n## 秘书解释\n保持\n## 待用户决定\n建议',
         references: [],
@@ -175,9 +186,17 @@ test('secretary preserves concurrent user notes and records a failed organizatio
       files: [{ name: '原稿.md', base64: Buffer.from('原文').toString('base64') }],
     });
     const id = imported.versions[0].id;
-    await assert.rejects(app.versionNotes.refresh(id), { code: 'REVISION_CONFLICT' });
+    await assert.rejects(app.versionNotes.refresh(id), { code: 'MINUTES_FAILED' });
     assert.equal(app.versions.get(id).notesStatus, 'failed');
     assert.equal((await app.versions.read(id)).notes.text, '用户刚刚补充。');
+    assert.ok(
+      app.core.workspace
+        .snapshots({ resource: 'plans', key: project.id })
+        .some((entry) => entry.actorId === 'agent_secretary'),
+    );
+    fail = false;
+    await assert.rejects(app.versionNotes.refresh(id), { code: 'REVISION_CONFLICT' });
+    assert.equal((await app.versions.read(id)).notes.text, '用户再次补充。');
     race = false;
     await app.versionNotes.refresh(id);
     assert.equal(app.versions.get(id).notesStatus, 'completed');

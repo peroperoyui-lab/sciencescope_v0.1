@@ -9,6 +9,7 @@ import { useSnapshotCapture } from '../resource-snapshots.js';
 import { openResourceHistory } from './resource-history.js';
 import { MainHead } from './mainhead.js';
 import { InfoTip } from './info-tip.js';
+import { ResearchCard } from './research-card.js';
 
 /**
  * @param {{projectId:string,id:string}} props
@@ -223,7 +224,14 @@ export function VersionNotes({ projectId, id }) {
                           id: reference.sourceId ?? reference.id,
                           projectId,
                         });
-                      else navigate({ view: 'database', id: projectId });
+                      else if (reference.kind === 'item')
+                        actions.attempt(async () => {
+                          const detail = await actions.researchItem(reference.id);
+                          actions.openModal(
+                            t('条目详情'),
+                            html`<${ResearchCard} item=${detail.item} onAction=${() => {}} />`,
+                          );
+                        });
                     }}
                   >
                     ${reference.label ?? reference.path ?? reference.id}
