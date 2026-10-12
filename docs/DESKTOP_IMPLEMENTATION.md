@@ -1,9 +1,9 @@
 # Desktop implementation — first increment
 
 ## 2026-10-12 R4-6b automation UI (Codex; pending review)
-- Restored legacy execution menu (Normal/Automation), editable per-goal turn setting, execution-state panel, sidebar badges and background chat navigation; goal/turn/outbox events drive updates without polling, English entries included. Based on6a83c8de1.
-- Edge functional flow and existing discussion tests pass; fixed decorative checkmark polluting menu names. Native shutdown exposed a completed goal being overwritten by a cancelled final reply: preserve reported terminal state, with regression test; runner unchanged.
-- Native actual100%/125% panel/background screenshots and process/WAL cleanup, real-model usage and clean-check results recorded in temp/r4-6b; first real3-turn goal18 requests/367,439 tokens completed CSV/chart/log, then failure reproduction and post-fix acceptance retained separately. Full IME candidate commit remains unverified.
+- Restored legacy execution menu (Normal/Automation), editable per-goal turn setting, execution-state panel, sidebar badges and background chat navigation; goal/turn/outbox events drive updates without polling, English entries included. Based on 6a 83c8de1.
+- Independent clean-install Windows check passed 196/196, zero skips, including Edge and real DSH/local-model contracts; fixed decorative checkmark polluting menu names. Native shutdown exposed a completed goal being overwritten by a cancelled final reply: preserve reported terminal state, with regression test; runner unchanged.
+- Native actual 100%/125% panel/background screenshots, clean process/WAL/SHM exits and restart passed. Real flash: first 3-turn run 18 requests/367,439 tokens (original acceptance FAIL retained), post-fix new goal 17/351,832 (PASS); total 35/719,271, all HTTP 200. Evidence temp/r4-6b. Full IME candidate commit remains unverified.
 
 ## 2026-10-11 R4-6a automation core (Codex; pending review)
 - Migration014 persists goals; conductor schedules ordinary turns, context assembly adds goal/delta, shared goal_update reports complete/blocked. Pause/resume/end, user round budget, queued input and restart recovery covered; runner unchanged. Existing round scheduling extracted without behaviour changes.

@@ -45,7 +45,9 @@ export function createGoalActions(api, store) {
       for (const turn of snapshot.running)
         store.update((state) => applyEvent(state, { type: 'turn.started', payload: turn }));
     },
-    /** @param {string} meetingId */
+    /**
+     * @param {string} meetingId
+     */
     async loadGoal(meetingId) {
       return apply(await api.get(`/api/meetings/${meetingId}/goal`));
     },
