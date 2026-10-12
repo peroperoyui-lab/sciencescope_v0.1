@@ -9,7 +9,6 @@ import { useSnapshotCapture } from '../resource-snapshots.js';
 import { openResourceHistory } from './resource-history.js';
 import { MainHead } from './mainhead.js';
 import { InfoTip } from './info-tip.js';
-import { ResearchCard } from './research-card.js';
 
 /**
  * @param {{projectId:string,id:string}} props
@@ -229,7 +228,13 @@ export function VersionNotes({ projectId, id }) {
                           const detail = await actions.researchItem(reference.id);
                           actions.openModal(
                             t('条目详情'),
-                            html`<${ResearchCard} item=${detail.item} onAction=${() => {}} />`,
+                            html`<article class="card">
+                              <h3>${detail.item.title}</h3>
+                              <div
+                                class="rendered-markdown"
+                                dangerouslySetInnerHTML=${{ __html: renderMarkdown(detail.item.body) }}
+                              />
+                            </article>`,
                           );
                         });
                     }}

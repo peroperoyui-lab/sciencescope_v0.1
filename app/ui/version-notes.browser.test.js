@@ -7,6 +7,7 @@ test(
   { skip: browserSkip, timeout: 120000 },
   async () => {
     let count = 0;
+    let item;
     await withBrowserApp(
       'version-notes-ui',
       async function* ({ input }) {
@@ -14,6 +15,13 @@ test(
         yield JSON.stringify({
           markdown: `# 版本说明\n## 实际文件变化\n整理第${++count}次，基线${packet.baseline?.number ?? '无'}。\n## 秘书的解释\n保持证据。\n## 待用户决定的建议\n建议尚未实施。`,
           references: [
+            {
+              schema: 1,
+              kind: 'item',
+              id: item.id,
+              projectId: item.projectId,
+              label: '关联研究条目',
+            },
             {
               schema: 1,
               kind: 'project-file',
@@ -26,6 +34,16 @@ test(
       },
       async ({ page, app, shot }) => {
         const project = await app.core.projects.create({ name: '版本说明验收' });
+        item = app.research.store.createItem({
+          type: 'claim',
+          subtype: 'hypothesis',
+          title: '核查研究关联',
+          body: '精确关联条目内容。',
+          projectId: project.id,
+          scope: 'project',
+          visibility: 'shared',
+          payload: {},
+        });
         const main = app.core.meetings.create({ projectId: project.id, title: '论文讨论' });
         await app.core.workspace.edit({
           resource: 'settings',
@@ -76,6 +94,9 @@ test(
           .getByText('整理第3次，基线无。', { exact: false })
           .waitFor();
         await shot('version-notes-chinese');
+        await page.getByRole('button', { name: '关联研究条目', exact: true }).click();
+        await page.getByRole('dialog').getByText('精确关联条目内容。', { exact: false }).waitFor();
+        await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click();
         await page.getByRole('button', { name: '查看对应稿件', exact: true }).click();
         await page
           .locator('.file-preview-content')
