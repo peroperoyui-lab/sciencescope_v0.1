@@ -13,7 +13,15 @@ export function registerWorkspaceRoutes(router, core) {
   );
   router.post('/api/resources/:resource', ({ params, body }) =>
     core.workspace.edit(
-      { resource: params.resource, key: body.key, op: body.op, args: body.args },
+      {
+        resource: params.resource,
+        key: body.key,
+        op: body.op,
+        args: body.args,
+        ...(Object.hasOwn(body, 'expectedRevisionId')
+          ? { expectedRevisionId: body.expectedRevisionId }
+          : {}),
+      },
       user,
     ),
   );

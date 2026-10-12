@@ -114,6 +114,12 @@ R4-7b：迁移016保存项目自动整理设置、说明关联引用、生成发
 秘书生成说明以agent_secretary写入原有versions资源并保存历史快照；保存前检查说明修订与基线，用户并发修改胜出。中断状态重启后显示失败、手动重试，不静默改写。
 说明使用schema1引用对象；P14支持原件／MD打开、补充及全文编辑、历史恢复、换基线重新整理，以及通过R4-2输入材料引用当前说明全文。总结更新versions默认off，apply只追加研究上下文、不声称原件被改。
 
+R4-7c：GET `/api/versions/:id/compare?baseline=<id>` 完整比较同组任意两版的提取文字；中文以 Intl.Segmenter 词粒度比较，完整保留未变、增、删片段。解析失败仍可打开两个原件；相同文字显示无变化。
+POST `/:id/save-as-new` 复制旧原件成递增编号的新版本，不覆盖原件或旧说明。
+日志关联使用同一 schema1 引用：每个 `##` 日志条目正文旁可写 `<!-- sciencescope:references [引用对象...] -->`，标签仅显示，版本按 id、项目文件／脚本按 projectId + path 打开。
+Markdown 是正本，迁移017 `log_file_references` 是按条目起始行和序号重建的投影，不提供第二套写入口；读取、外部修改、撤销和历史恢复都刷新投影。秘书总结的 log append 可携 references，通过既有工作区修订写入并留历史。
+日志详情 P12 恢复简述／文件列表／日志详情三栏签和双列布局，用户可关联、移除和修改正文；保存检查修订，遇到并发更新保留用户草稿并报冲突。POST `/api/projects/:id/log-file/open` 调用系统默认程序。
+
 ## 5. 参与者定义（`agents/<id>.md`）
 
 ```markdown

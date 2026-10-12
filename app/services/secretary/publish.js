@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { AppError } from '../../core/errors.js';
 import { writeTextAtomic } from '../../core/workspace/files.js';
+import { logEntryText, parseLog } from '../../shared/journal.js';
 
 /**
  * @param {import('../../core/index.js').Core} core
@@ -72,7 +73,8 @@ Enabled sections: ${enabled.join(', ')}.
 Allowed operations:
 map: {"target":"map","op":"add_child","parentId":null or an existing node id,"text":"..."}, or {"target":"map","op":"status","nodeId":"...","status":"..."}.
 plans: {"target":"plans","op":"add","text":"..."}, or {"target":"plans","op":"complete","text":"the exact existing unchecked task line"}.
-log: {"target":"log","op":"append","title":"...","note":"..."}.
+log: {"target":"log","op":"append","title":"...","note":"...","references":[{"schema":1,"kind":"version","id":"existing version id","projectId":"current project id","label":"file name"} or {"schema":1,"kind":"project-file","path":"relative file path","projectId":"current project id","label":"file name"}]}.
+Only associate files identified in the minutes or workbench; do not invent file paths.
 versions: {"target":"versions","op":"append","versionId":"existing version id","note":"context update from minutes; do not claim manuscript bytes changed"}.
 Preserve user text: only add nodes/tasks/log entries or mark node status/tasks complete. Do not rewrite or delete user content. Do not repeat an existing task, node or log.`;
   const response = await runner.run(
@@ -187,9 +189,14 @@ Preserve user text: only add nodes/tasks/log entries or mark node status/tasks c
         typeof operation.title === 'string' &&
         typeof operation.note === 'string'
       ) {
-        const entry = `## ${operation.title}\n${operation.note}`;
-        if ((current.text ?? '').includes(entry)) continue;
-        change = { resource: target, key: projectId, op: 'append', args: { text: `\n${entry}\n` } };
+        if (
+          parseLog(current.text).some(
+            (entry) => entry.title === operation.title && entry.body === operation.note.trim(),
+          )
+        )
+          continue;
+        const entry = logEntryText(operation.title, operation.note, '', operation.references ?? []);
+        change = { resource: target, key: projectId, op: 'append', args: { text: entry } };
       }
       if (!change) continue;
       const revision = await core.workspace.edit(change, actor);

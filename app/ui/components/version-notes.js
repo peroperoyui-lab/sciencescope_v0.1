@@ -159,6 +159,12 @@ export function VersionNotes({ projectId, id }) {
                 </button>
                 <button
                   class="btn tiny"
+                  onClick=${() => navigate({ view: 'version-diff', id: `${projectId}/${id}` })}
+                >
+                  ${t('比较变化')}
+                </button>
+                <button
+                  class="btn tiny"
                   disabled=${!document?.notes?.exists}
                   onClick=${() => setEditing({ text: document.notes.text, revisionId: document.notes.revisionId })}
                 >

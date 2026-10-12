@@ -155,3 +155,19 @@
   min-height: 28px;
   margin-bottom: 4px;
 }
+
+/* Word differences preserve paragraph breaks from the parser projection. */
+.version-diff-text {
+  overflow-wrap: anywhere;
+}
+[data-journal-entry] textarea {
+  width: 100%;
+  min-height: 160px;
+}
+
+[data-journal-entry] .filetree .grow {
+  text-align: left;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

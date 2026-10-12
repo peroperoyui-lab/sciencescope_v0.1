@@ -7,6 +7,7 @@ import { safeFileName } from '../../core/paths.js';
 import { AppError } from '../../core/errors.js';
 import { parseDocument } from '../research/parsers/index.js';
 import { openPath, recyclePath } from '../system.js';
+import { compareText } from './comparison.js';
 
 /**
  * @param {import('../../core/index.js').Core} core
@@ -181,6 +182,39 @@ export function createVersions(core, { open = openPath, recycle = recyclePath } 
     await core.workspace.captureSnapshot({ resource: 'versions', key }, { actorId: 'person_user' });
     return result;
   }
+  async function compare(id, baselineId = catalog.get(id).baselineId) {
+    const current = await read(id, { limit: Infinity });
+    const previous = baselineId ? await read(baselineId, { limit: Infinity }) : null;
+    if (previous && previous.version.groupId !== current.version.groupId)
+      throw new AppError('INVALID_BASELINE', '请选择同一版本组的版本进行比较。');
+    const ready =
+      current.parseStatus === 'ready' && (!previous || previous.parseStatus === 'ready');
+    const text = (entry) => entry?.blocks.map((block) => block.text).join('\n\n') ?? '';
+    const changes = ready ? compareText(text(previous), text(current)) : [];
+    return {
+      current,
+      previous,
+      changes,
+      status: !ready
+        ? 'originals-only'
+        : changes.every((part) => part.type === 'unchanged')
+          ? 'unchanged'
+          : 'ready',
+    };
+  }
+  async function saveAsNew(id, actor = {}) {
+    const previous = catalog.get(id);
+    return importFiles(
+      {
+        projectId: previous.projectId,
+        groupId: previous.groupId,
+        files: [
+          { name: previous.name, base64: (await readFile(catalog.file(id))).toString('base64') },
+        ],
+      },
+      actor,
+    );
+  }
   return {
     list: catalog.list,
     get: catalog.get,
@@ -192,5 +226,7 @@ export function createVersions(core, { open = openPath, recycle = recyclePath } 
     openOriginal,
     openNotes,
     editNotes,
+    compare,
+    saveAsNew,
   };
 }

@@ -153,6 +153,10 @@ export function Versions({ project, full = false }) {
       event,
       [
         {
+          text: t('比较变化'),
+          run: () => navigate({ view: 'version-diff', id: `${project.id}/${version.id}` }),
+        },
+        {
           text: t('版本说明'),
           icon: 'file',
           run: () => navigate({ view: 'version-notes', id: `${project.id}/${version.id}` }),

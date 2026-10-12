@@ -335,8 +335,8 @@ export function createActions(api, store) {
       () => {},
     );
   }
-  const editResource = (resource, key, op, args) => {
-    const pending = api.post(`/api/resources/${resource}`, { key, op, args });
+  const editResource = (resource, key, op, args, expectedRevisionId = undefined) => {
+    const pending = api.post(`/api/resources/${resource}`, { key, op, args, expectedRevisionId });
     trackResourceEdit(pending);
     return pending;
   };

@@ -3,6 +3,8 @@
  */
 export function createVersionActions(api) {
   return {
+    openLogFile: (projectId, reference) =>
+      api.post(`/api/projects/${projectId}/log-file/open`, { reference }),
     versionGroups: (projectId) =>
       api.get(`/api/versions?projectId=${encodeURIComponent(projectId)}`),
     async importVersions(projectId, files, groupId, groupName) {
@@ -23,6 +25,9 @@ export function createVersionActions(api) {
     deleteVersion: (id) => api.request('DELETE', `/api/versions/${id}`),
     openVersion: (id, reveal = false) => api.post(`/api/versions/${id}/open`, { reveal }),
     readVersion: (id) => api.get(`/api/versions/${id}`),
+    compareVersions: (id, baselineId) =>
+      api.get(`/api/versions/${id}/compare?baseline=${encodeURIComponent(baselineId ?? '')}`),
+    saveVersionAsNew: (id) => api.post(`/api/versions/${id}/save-as-new`),
     editVersionNotes: (id, text, revisionId) =>
       api.patch(`/api/versions/${id}/notes`, { text, revisionId }),
     organizeVersion: (id) => api.post(`/api/versions/${id}/organize`),

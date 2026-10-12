@@ -26,6 +26,12 @@ export function registerVersionRoutes(router, versions, organizer) {
   router.patch('/api/versions/:id/notes', ({ params, body }) =>
     versions.editNotes(params.id, body.text, body.revisionId),
   );
+  router.get('/api/versions/:id/compare', ({ params, query }) =>
+    versions.compare(params.id, query.has('baseline') ? query.get('baseline') || null : undefined),
+  );
+  router.post('/api/versions/:id/save-as-new', ({ params }) =>
+    versions.saveAsNew(params.id, { actorId: 'person_user' }),
+  );
   if (!organizer) return;
   router.get('/api/version-preferences/:projectId', ({ params }) => ({
     autoOrganize: organizer.autoOrganize(params.projectId),

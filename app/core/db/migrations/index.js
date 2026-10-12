@@ -24,6 +24,7 @@ import * as pythonEnvironments from './013-python-environments.js';
 import * as meetingGoals from './014-meeting-goals.js';
 import * as manuscriptVersions from './015-manuscript-versions.js';
 import * as versionNotes from './016-version-notes.js';
+import * as logFileReferences from './017-log-file-references.js';
 
 export const migrations = [
   core,
@@ -42,4 +43,5 @@ export const migrations = [
   meetingGoals,
   manuscriptVersions,
   versionNotes,
+  logFileReferences,
 ];

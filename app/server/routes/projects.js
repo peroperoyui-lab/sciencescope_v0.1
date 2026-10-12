@@ -4,6 +4,7 @@ import { AppError } from '../../core/errors.js';
 import { exportProject } from '../../services/export.js';
 import { createProjectFiles } from '../../services/project-files.js';
 import { openPath } from '../../services/system.js';
+import { createJournalFiles } from '../../services/journal-files.js';
 
 const user = { actorId: LOCAL_USER_ID };
 
@@ -14,6 +15,10 @@ const user = { actorId: LOCAL_USER_ID };
  */
 export function registerProjectRoutes(router, core, python) {
   const files = createProjectFiles(core);
+  const journalFiles = createJournalFiles(core);
+  router.post('/api/projects/:id/log-file/open', ({ params, body }) =>
+    journalFiles.open(params.id, body.reference),
+  );
   router.get('/api/projects', ({ query }) =>
     core.projects.list({ includeArchived: query.get('archived') === '1' }),
   );

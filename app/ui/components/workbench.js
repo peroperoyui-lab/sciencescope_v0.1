@@ -229,22 +229,17 @@ export function JournalStrip({ project, full = false }) {
   useSnapshotCapture([['log', project.id]]);
   const history = () => openResourceHistory(actions, { projectId: project.id, resource: 'log' });
   const entries = parseLog(file?.text ?? '');
-  const details = (entry) =>
-    actions.openModal(
-      entry.title,
-      html`<div>
-        <small>${entry.date}</small>
-        <div
-          class="rendered-markdown"
-          dangerouslySetInnerHTML=${{ __html: renderMarkdown(entry.body || t('没有详细内容。')) }}
-        ></div>
-      </div>`,
-    );
+  const details = (entry, initial = '日志详情') =>
+    navigate({
+      view: 'journal-entry',
+      id: `${project.id}/${entry.start}/${['简述', '文件列表', '日志详情'].indexOf(initial)}`,
+    });
   const menu = (event, entry) =>
     actions.openMenu(
       event,
       [
         { text: t('查看详情'), icon: 'file', run: () => details(entry) },
+        { text: t('文件列表'), icon: 'file', run: () => details(entry, '文件列表') },
         { sep: true },
         {
           text: t('删除'),
@@ -262,11 +257,7 @@ export function JournalStrip({ project, full = false }) {
     );
 
   const add = () => actions.openModal(t('添加日志'), html`<${LogForm} projectId=${project.id} />`);
-  const brief = (entry) =>
-    actions.openModal(
-      entry.title,
-      html`<p>${entry.body.split(/\n\s*\n/)[0] || t('没有详细内容。')}</p>`,
-    );
+  const brief = (entry) => details(entry, '简述');
 
   if (full) {
     return html`<div class="content">
@@ -289,6 +280,9 @@ export function JournalStrip({ project, full = false }) {
                 <h2 style="margin:0">${entry.title}</h2>
                 <div class="row">
                   <small>${entry.date}</small>
+                  <button class="btn tiny" onClick=${() => details(entry, '文件列表')}>
+                    ${t('文件列表')}
+                  </button>
                   <button
                     class="iconbtn"
                     title=${t('日志菜单')}
@@ -337,6 +331,7 @@ export function JournalStrip({ project, full = false }) {
             </button>
             <h3>${entry.title}</h3>
             <button onClick=${() => brief(entry)}>${t('简述')} ›</button>
+            <button onClick=${() => details(entry, '文件列表')}>${t('文件列表')} ›</button>
             <button onClick=${() => details(entry)}>${t('日志详情')} ›</button>
             <span class="stamp">${entry.date}</span>
           </article>`,

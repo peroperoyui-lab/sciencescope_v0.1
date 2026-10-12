@@ -17,7 +17,8 @@ import { createProjects } from './projects.js';
 import { createTurns } from './turns.js';
 import { createVersionCatalog } from './version-catalog.js';
 import { versionNotesResource } from './workspace/resources/versions.js';
-import { agent, log, minutes, notes, plans } from './workspace/resources/documents.js';
+import { agent, minutes, notes, plans } from './workspace/resources/documents.js';
+import { journalResource } from './workspace/resources/journal.js';
 import { map } from './workspace/resources/map.js';
 import { settings } from './workspace/resources/settings.js';
 import { createWorkspace } from './workspace/workspace.js';
@@ -35,7 +36,16 @@ export async function createCore({ dataRoot, now = nowIso, newId = defaultNewId 
     paths,
     now,
     newId,
-    resources: [map, plans, log, minutes, notes, agent, settings, versionNotesResource(db)],
+    resources: [
+      map,
+      plans,
+      journalResource(db),
+      minutes,
+      notes,
+      agent,
+      settings,
+      versionNotesResource(db),
+    ],
   });
   const projects = createProjects({ db, events, paths, now, newId });
   const participants = createParticipants({ db, events, workspace, now, newId });

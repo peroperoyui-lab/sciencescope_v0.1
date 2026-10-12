@@ -21,6 +21,8 @@ import { Sidebar } from './sidebar.js';
 import { Workbench } from './workbench.js';
 import { Versions } from './versions.js';
 import { VersionNotes } from './version-notes.js';
+import { JournalEntryPage } from './journal-entry.js';
+import { VersionDiff } from './version-diff.js';
 import { WorkbenchPage } from './workbench-pages.js';
 
 /**
@@ -59,7 +61,8 @@ export function App() {
   // Re-render everything when the language changes.
   useAppState((state) => state.settings?.appearance?.language);
   const projectId = useAppState((state) => {
-    if (route.view === 'version-notes') return route.id.split('/')[0];
+    if (['version-notes', 'version-diff', 'journal-entry'].includes(route.view))
+      return route.id.split('/')[0];
     if (route.view === 'map') return route.id.split('/')[0];
     if (
       ['workbench', 'new', 'plans', 'journal', 'files', 'map', 'database', 'versions'].includes(
@@ -108,6 +111,19 @@ export function App() {
     page = html`<${Versions} project=${{ id: projectId, name: projectName }} full />`;
   else if (route.view === 'version-notes')
     page = html`<${VersionNotes}
+      key=${route.id}
+      projectId=${projectId}
+      id=${route.id.split('/')[1]}
+    />`;
+  else if (route.view === 'journal-entry')
+    page = html`<${JournalEntryPage}
+      key=${route.id}
+      projectId=${projectId}
+      line=${Number(route.id.split('/')[1])}
+      initial=${['简述', '文件列表', '日志详情'][Number(route.id.split('/')[2])] ?? '日志详情'}
+    />`;
+  else if (route.view === 'version-diff')
+    page = html`<${VersionDiff}
       key=${route.id}
       projectId=${projectId}
       id=${route.id.split('/')[1]}

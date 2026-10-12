@@ -4,7 +4,6 @@
 import { AppError } from '../../core/errors.js';
 import { nowIso } from '../../core/ids.js';
 import { createBackgroundRunner } from '../secretary/background.js';
-import { compareText } from './comparison.js';
 import { DEFAULT_VERSION_TEMPLATE, VERSION_INSTRUCTIONS } from './template.js';
 
 /**
@@ -88,10 +87,7 @@ export function createVersionOrganizer({ core, versions, runtime, tools, default
     return versions.get(id);
   }
   async function comparison(id, baselineId = versions.get(id).baselineId) {
-    const current = await versions.read(id, { limit: Infinity });
-    const previous = baselineId ? await versions.read(baselineId, { limit: Infinity }) : null;
-    const text = (entry) => entry?.blocks.map((block) => block.text).join('\n\n') ?? '';
-    return { current, previous, changes: compareText(text(previous), text(current)) };
+    return versions.compare(id, baselineId);
   }
   async function organize(id) {
     const version = versions.get(id);

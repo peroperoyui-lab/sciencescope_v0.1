@@ -34,45 +34,11 @@ export function appendPlan(text, plan) {
   return `${base}- [ ] ${plan}\n`;
 }
 
-/**
- * Log entries: one per second-level heading, newest (last) first.
- * The heading may start with a date: `## 2026-10-05 Title`.
- * @param {string} text
- * @returns {Array<{ start: number, end: number, date: string, title: string, body: string }>}
- */
-export function parseLog(text) {
-  const lines = (text ?? '').split('\n');
-  const entries = [];
-  lines.forEach((line, index) => {
-    if (!line.startsWith('## ')) return;
-    if (entries.length) entries.at(-1).end = index;
-    const heading = line.slice(3).trim();
-    const date = /^\d{4}-\d{2}-\d{2}/.exec(heading)?.[0] ?? '';
-    entries.push({
-      start: index,
-      end: lines.length,
-      date,
-      title: heading.slice(date.length).trim() || heading,
-      body: '',
-    });
-  });
-  for (const entry of entries) {
-    entry.body = lines
-      .slice(entry.start + 1, entry.end)
-      .join('\n')
-      .trim();
-  }
-  return entries.reverse();
-}
+export { parseLog, logEntryText } from '../shared/journal.js';
 
 /** @param {string} text @param {{ start: number, end: number }} entry */
 export function removeLogEntry(text, entry) {
   const lines = text.split('\n');
   lines.splice(entry.start, entry.end - entry.start);
   return lines.join('\n');
-}
-
-/** @param {string} title @param {string} body @param {string} date YYYY-MM-DD */
-export function logEntryText(title, body, date) {
-  return `\n## ${date} ${title}\n${body ? `\n${body}\n` : ''}`;
 }

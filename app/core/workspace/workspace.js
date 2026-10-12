@@ -14,6 +14,7 @@ import { hashText, readText, removeFile, writeTextAtomic } from './files.js';
  * @typedef {{ name: string, ops: string[], file: (locate: Locate, key: string) => string,
  *   apply: (text: string | null, op: string, args: any) => string | null,
  *   parse?: (text: string | null) => any,
+ *   projectText?: (key:string,text:string|null) => void,
  *   list?: (locate: Locate, scope: string) => Promise<string[]> }} Resource
  * @typedef {{ actorId?: string | null, meetingId?: string | null, turnId?: string | null }} Actor
  */
@@ -105,6 +106,7 @@ export function createWorkspace({ db, events, paths, now, newId, resources }) {
   }
 
   function insertRevision({ resource, key, op, before, after, actor }) {
+    resourceOf(resource).projectText?.(key, after);
     const id = newId('rev');
     db.prepare(
       `INSERT INTO revisions (id, resource, resource_key, op, before_text, after_text, after_hash,
@@ -134,6 +136,7 @@ export function createWorkspace({ db, events, paths, now, newId, resources }) {
   /** Record a change made outside ScienceScope, if any. Returns the current text. */
   async function currentText(resource, key, file) {
     const text = await readText(file);
+    resourceOf(resource).projectText?.(key, text);
     const last = lastRevision(`${resource}:${key}`);
     if (last && hashText(text) !== (last.after_hash == null ? null : String(last.after_hash))) {
       const before = last.after_text == null ? null : String(last.after_text);

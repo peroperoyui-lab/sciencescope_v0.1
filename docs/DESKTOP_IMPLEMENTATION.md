@@ -1,5 +1,10 @@
 # Desktop implementation — first increment
 
+## 2026-10-12 R4-7c version comparison and log files (Codex; pending review)
+- Based on7b ce5dbf4. P09 compares complete parser text in same-group side/unified word views, jumps changes, opens originals and copies old bytes as a new numbered version. Parse failure keeps originals accessible; shared comparison also feeds7b.
+- P12 restores brief/files/details tabs and two-column page; schema1 references live in log Markdown, migration017 adds rebuildable projection refreshed by reads/external edits/revisions/undo/history. Secretary workbench append accepts links; shared workspace tools document the format, user edits check revision; bilingual strings complete.
+- Related DOCX/service/Edge paths pass, including copy preservation, failed parse opening, secretary history/undo/catalog rebuild, file opening and language changes. Real flash first log run failed JSON (2/3,300), diagnostic run passed linked real PDF IDs and history (1/3,523); both retained. Native actual100%/125% screenshots and clean exit checked; desktop occlusion exposed invalid initial captures, replaced with owned-window PrintWindow. Independent clean-install check pending; IME candidate commit unverified. Evidence temp/r4-7c.
+
 ## 2026-10-12 R4-7b version notes (Codex; pending review)
 - Based on7a bb9d80d. Migration016 stores auto notes, secretary background meeting identity and schema1 links; import triggers complete word diff/context/template organization through R4-4 runner and shared tools, with user-edit revision checks and recoverable failure.
 - P14 legacy Markdown/relationship/addition cards, full editing/history, baseline reorganization, original/MD opening and R4-2 quote snapshots; bilingual secretary template and minutes versions off/apply connected. Temporary background meetings excluded from human chat lists; existing Main tools test disables auto notes to isolate its original assertion.

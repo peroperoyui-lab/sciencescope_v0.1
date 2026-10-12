@@ -87,7 +87,7 @@ export const TOOL_SPECS = [
       'Read ScienceScope data. target "overview": all projects and meetings. "project": one project ' +
       '(key = project id) with its meetings and notes. "meeting": a meeting record (key = meeting id; ' +
       'page backwards with before = a message seq). "changes": recent edits (optional key = meeting id). ' +
-      'Resources: "map", "log" (key = project id), "plans" (project id or "global"), "minutes" ' +
+      'Resources: "map", "log" (key = project id; Markdown entries may carry <!-- sciencescope:references [schema-1 reference objects] -->), "plans" (project id or "global"), "minutes" ' +
       '(meeting id), "notes" (project id/name; give scope = project id without key to list), "agent" ' +
       '(participant id), "settings", "versions" (scope = project id lists groups; key = project id/version id reads extracted paragraphs and notes; offset/limit pages original text).',
     parameters: {
@@ -111,7 +111,7 @@ export const TOOL_SPECS = [
     description:
       'Change ScienceScope data. The change applies immediately and a history version is saved when the turn ends. It can be ' +
       'undone. Text resources (plans, log, minutes, notes, agent) support op "write" {text}, "append" ' +
-      '{text}, "replace" {find, with}, "delete". map supports "addNode" {node: {id?, parent, text}}, ' +
+      '{text}, "replace" {find, with}, "delete". Log entries may include <!-- sciencescope:references [{"schema":1,"kind":"version","id":"version id","projectId":"project id","label":"file name"}] --> or kind "project-file" with path instead of id. map supports "addNode" {node: {id?, parent, text}}, ' +
       '"updateNode" {id, changes}, "removeNode" {id}, "addEdge" {edge: {from, to, label?}}, "removeEdge" ' +
       '{id}, "write" {map}. settings supports "patch" {changes}. versions edits only the paired notes Markdown (project id/version id), never original bytes. Keys are as in workspace_read.',
     parameters: {
