@@ -130,6 +130,7 @@ export function createBackgroundRunner({ core, runtime, defaultModel, tools }) {
       error.turnId = turn.id;
       throw error;
     } finally {
+      if (tools) core.workspace.captureTurnSnapshots(turn.id);
       if (sessionId) {
         sessions.delete(sessionId);
         await runtime.release(sessionId).catch(() => {});
