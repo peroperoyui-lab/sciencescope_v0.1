@@ -2,6 +2,7 @@
 // the store. Later changes arrive through the event stream anyway; recording
 // the direct result keeps the interface responsive.
 import { createOutboxActions } from './outbox-actions.js';
+import { createGoalActions } from './goal-actions.js';
 import { createDeliverableActions } from './deliverable-actions.js';
 import { createSnapshotActions } from './snapshot-actions.js';
 import { createResearchActions } from './research-actions.js';
@@ -38,6 +39,7 @@ export function createActions(api, store) {
     ]);
     applyAppearance(settings);
     set({ settings, projects, meetings, participants });
+    await goals.loadActivity();
     await loadParticipantDefinitions();
     stopFollowing = api.follow(
       seq,
@@ -69,6 +71,7 @@ export function createActions(api, store) {
 
   /** Load a meeting's latest messages and the tool calls of its answers. */
   async function openMeeting(meetingId) {
+    goals.viewMeeting(meetingId);
     const page = await api.get(`/api/meetings/${meetingId}/messages`);
     store.update((state) => ({
       ...state,
@@ -78,6 +81,7 @@ export function createActions(api, store) {
     await Promise.all(page.messages.filter((m) => m.turnId).map((m) => loadTurn(m.turnId)));
     await loadMeetingContexts(meetingId);
     await outbox.loadOutbox(meetingId);
+    await goals.loadGoal(meetingId);
   }
 
   /**
@@ -161,8 +165,9 @@ export function createActions(api, store) {
    * Start a meeting from the welcome page with its first message; until then
    * the draft is not a meeting.
    * @param {string} text @param {string | null} [projectId] @param {any} [researchInput]
+   * @param {{maxRounds:number}} [automation]
    */
-  async function startMeeting(text, projectId = null, researchInput) {
+  async function startMeeting(text, projectId = null, researchInput, automation) {
     const meeting = await createMeeting({
       projectId,
       title: text.slice(0, 40),
@@ -170,7 +175,9 @@ export function createActions(api, store) {
       creation: projectId ? undefined : store.get().creationDetails,
     });
     await openMeeting(meeting.id);
-    const result = await postMessage(meeting.id, text, researchInput);
+    const result = automation
+      ? await goals.startGoal(meeting.id, text, automation.maxRounds, researchInput)
+      : await postMessage(meeting.id, text, researchInput);
     if (!projectId) set({ creationDetails: null });
     navigate({ view: 'meeting', id: meeting.id });
     return result;
@@ -446,8 +453,10 @@ export function createActions(api, store) {
   }
 
   const outbox = createOutboxActions(api, store);
+  const goals = createGoalActions(api, store);
   return {
     ...outbox,
+    ...goals,
     ...createDeliverableActions(api),
     ...createSnapshotActions(api, store, () => resourceEdits.catch(() => {})),
     ...createResearchActions(api),

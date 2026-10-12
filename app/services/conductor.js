@@ -84,7 +84,7 @@ export function createConductor({ core, runner }) {
           signal,
         });
         const current = core.goals.get(meetingId);
-        if (result?.status !== 'done' && current.status !== 'ended') {
+        if (result?.status !== 'done' && ['running', 'paused'].includes(current.status)) {
           const answer = core.messages
             .since(meetingId, 0)
             .find((message) => message.turnId === result?.id);

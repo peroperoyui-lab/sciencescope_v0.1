@@ -10,6 +10,7 @@ import { navigate } from '../route.js';
 import { FieldForm } from './overlays.js';
 import { ProjectSummary } from './project-summary.js';
 import { ProfileForm } from './shell.js';
+import { ActivityBadge, BackgroundActivity } from './background-activity.js';
 
 const byRecent = (a, b) => b.updatedAt.localeCompare(a.updatedAt);
 /** Meetings shown in the tree: not archived, not attached to another meeting. */
@@ -36,13 +37,6 @@ function useRename() {
 function ChatRow({ meeting, active, child = false, pinnedRow = false }) {
   const actions = useActions();
   const rename = useRename();
-  const running = useAppState((state) =>
-    Object.values(state.running).some(
-      (turn) =>
-        turn.meetingId === meeting.id &&
-        state.messages[meeting.id]?.some((message) => message.turnId === turn.id),
-    ),
-  );
   const items = [
     {
       text: t('打开对话'),
@@ -75,6 +69,7 @@ function ChatRow({ meeting, active, child = false, pinnedRow = false }) {
   return html`<div
     class=${`tree-row ${child ? 'child' : ''} ${pinnedRow ? 'pinned-item' : ''} ${active ? 'active' : ''}`}
     data-object="chat"
+    data-object-id=${meeting.id}
     onContextMenu=${openMenu}
   >
     <button
@@ -84,7 +79,7 @@ function ChatRow({ meeting, active, child = false, pinnedRow = false }) {
     >
       <${Icon} name="chat" />
       <span class="ellipsis">${meeting.title}</span>
-      ${running && html`<i class="unread-dot" title=${t('正在回答')}></i>`}
+      <${ActivityBadge} meetingId=${meeting.id} />
     </button>
     <button class="iconbtn" title=${t('对话菜单')} aria-label=${t('对话菜单')} onClick=${openMenu}>
       <${Icon} name="more" />
@@ -255,6 +250,9 @@ export function Sidebar({ route, currentProjectId }) {
     </div>
 
     <div class="navscroll">
+      <${BackgroundActivity}
+        currentMeetingId=${route.view === 'meeting' ? route.id.split('/')[0] : undefined}
+      />
       <div class="navsection">${t('置顶')}</div>
       ${
         pinnedMeetings.length + pinnedProjects.length === 0 &&

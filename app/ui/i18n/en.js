@@ -1,6 +1,27 @@
 // English for every Chinese interface string. A test checks that each
 // Chinese string literal in app/ui has an entry here.
 export const en = {
+  执行方式: 'Execution mode',
+  暂停: 'Pause',
+  常规: 'Normal',
+  自动化: 'Automation',
+  '每条消息回答一次。': 'Answer each message once.',
+  '有序讨论时不能使用自动化，请先切换到工作模式。':
+    'Automation is unavailable during ordered discussion. Switch to Work first.',
+  '围绕目标连续工作，可暂停、继续或结束；关闭程序后不会继续执行。':
+    'Work continuously toward a goal. Pause, resume or end it; closing the app stops execution.',
+  执行中: 'Executing',
+  需要处理: 'Needs attention',
+  已结束: 'Ended',
+  结束目标: 'End goal',
+  最多轮数: 'Maximum turns',
+  目标最多轮数: 'Goal maximum turns',
+  发送目标最多轮数: 'New goal maximum turns',
+  '{started} / {maximum} 轮': '{started} / {maximum} turns',
+  运行中: 'Running',
+  排队中: 'Queued',
+  后台对话: 'Background chats',
+  '后台任务 {count} · 查看状态': 'Background tasks {count} · View status',
   '正在检测系统 Python…': 'Detecting system Python…',
   'Python 环境': 'Python environment',
   '内置 · 科学分析': 'Built-in · Scientific analysis',

@@ -16,6 +16,10 @@ export const initialState = {
   meetingContexts: {},
   /** Durable queued input by meeting. */
   /** @type {Record<string, any>} */ outboxes: {},
+  /** @type {Record<string, any>} */ goals: {},
+  /** Current foreground meeting; completion badges are acknowledged here. */
+  /** @type {string|null} */ activeMeetingId: null,
+  /** @type {Record<string, string>} */ acknowledgedActivity: {},
   /** Loaded meeting records: meetingId → messages in `seq` order. */
   /** @type {Record<string, any[]>} */ messages: {},
   /** @type {Record<string, boolean>} */ hasBefore: {},
@@ -96,6 +100,20 @@ function without(record, key) {
  */
 export function applyEvent(state, { type, payload }) {
   switch (type) {
+    case 'goal.changed': {
+      const known = state.goals[payload.meetingId];
+      if (known?.updatedAt > payload.updatedAt) return state;
+      const acknowledgedActivity =
+        state.activeMeetingId === payload.meetingId &&
+        ['completed', 'failed'].includes(payload.status)
+          ? { ...state.acknowledgedActivity, [payload.meetingId]: payload.updatedAt }
+          : state.acknowledgedActivity;
+      return {
+        ...state,
+        goals: { ...state.goals, [payload.meetingId]: payload },
+        acknowledgedActivity,
+      };
+    }
     case 'python.changed':
       return { ...state, pythonVersion: state.pythonVersion + 1 };
     case 'research.input.changed':
@@ -142,6 +160,10 @@ export function applyEvent(state, { type, payload }) {
         ...state,
         turns: { ...state.turns, [payload.id]: payload },
         running: without(state.running, payload.id),
+        acknowledgedActivity:
+          state.activeMeetingId === payload.meetingId && payload.status === 'failed'
+            ? { ...state.acknowledgedActivity, [payload.meetingId]: payload.endedAt }
+            : state.acknowledgedActivity,
       };
     case 'tool.started':
     case 'tool.ended': {

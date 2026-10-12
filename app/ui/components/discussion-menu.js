@@ -73,12 +73,13 @@ export function DiscussionMenu({ label, items, className = '', disabled = false,
                   style="display:flex;align-items:center;gap:9px;flex:1;border:0;background:none;color:inherit;text-align:left;padding:0"
                   role="menuitemcheckbox"
                   aria-checked=${item.selected}
+                  disabled=${item.disabled}
                   onClick=${() => {
                     setOpen(false);
                     item.run();
                   }}
                 >
-                  <span class="menu-check">${item.selected ? '✓' : ''}</span
+                  <span class="menu-check" aria-hidden="true">${item.selected ? '✓' : ''}</span
                   ><span class="menu-text">${item.text}</span></button
                 >${item.description && html`<${InfoTip} text=${item.description} label=${t('{name}说明', { name: item.text })} />`}
               </div>`,

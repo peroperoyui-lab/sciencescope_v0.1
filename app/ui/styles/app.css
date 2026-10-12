@@ -105,3 +105,33 @@
 .research-base [data-rb-import-progress] [role='alert'] {
   color: var(--danger);
 }
+/* Goal controls supplement the preserved legacy execution panel and badges. */
+.goal-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 8px 0;
+}
+.goal-round-setting {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.goal-round-setting input {
+  width: 64px;
+  padding: 3px 5px;
+}
+.execution-state details {
+  margin-top: 8px;
+}
+.chat-activity-badge[data-state='completed'] {
+  width: auto;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 11px;
+  background: var(--sunken);
+}
+.chat-activity-badge[data-state='blocked'] {
+  color: var(--warn);
+  background: var(--warn-soft);
+}

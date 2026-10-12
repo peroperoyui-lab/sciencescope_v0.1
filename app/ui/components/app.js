@@ -68,6 +68,9 @@ export function App() {
   });
   const actions = useActions();
   useEffect(() => {
+    actions.viewMeeting(route.view === 'meeting' ? route.id.split('/')[0] : null);
+  }, [route.view, route.id]);
+  useEffect(() => {
     void actions.attempt(() => actions.focusProject(projectId));
   }, [projectId]);
   useShortcuts(projectId);

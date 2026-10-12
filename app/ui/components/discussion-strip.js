@@ -98,6 +98,9 @@ export function DiscussionStrip({ meetingId, running }) {
 /** @param {{meetingId?:string,running:boolean}} props */
 export function DiscussionMode({ meetingId, running }) {
   const { experts, policy, ordered, save } = useDiscussion(meetingId);
+  const goalActive = useAppState((state) =>
+    ['running', 'paused', 'blocked'].includes(state.goals[meetingId]?.status),
+  );
   if (!meetingId) return null;
   const items = [
     {
@@ -120,7 +123,10 @@ export function DiscussionMode({ meetingId, running }) {
         }),
     },
   ];
-  return html`<${DiscussionMenu} label=${t('工作方式')} items=${items} disabled=${running}
+  return html`<${DiscussionMenu}
+    label=${t('工作方式')}
+    items=${items}
+    disabled=${running || goalActive}
     >${ordered ? t('有序讨论') : t('工作')}<//
   >`;
 }

@@ -196,6 +196,7 @@ export function Welcome({ projectId = null }) {
               key=${projectId ?? 'standalone'}
               projectId=${projectId}
               onSend=${(text, input) => actions.startMeeting(text, projectId, input)}
+              onGoal=${(text, input, maxRounds) => actions.startMeeting(text, projectId, input, { maxRounds })}
             />
           </div>
         </div>

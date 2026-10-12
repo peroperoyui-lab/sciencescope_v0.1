@@ -13,6 +13,7 @@ import { DiscussionUsageRing } from './discussion-usage.js';
 import { useDiscussion } from './discussion-state.js';
 import { useDiscussionMention } from './discussion-mention.js';
 import { InputAdd, InputAttachments, useResearchInput } from './research-input.js';
+import { ExecutionMode } from './execution-mode.js';
 
 function useModelMenu() {
   const actions = useActions();
@@ -91,7 +92,8 @@ function useEffortMenu() {
 
 /**
  * @param {{ onSend: (text: string, input?:any) => Promise<any>, running?: boolean,
- *   onStop?: () => void, inputRef?: any, meetingId?: string, projectId?:string|null }} props
+ *   onStop?: () => void, inputRef?: any, meetingId?: string, projectId?:string|null,
+ *   onGoal?: (text:string,input:any,maxRounds:number)=>Promise<any> }} props
  */
 export function Composer({
   onSend,
@@ -100,6 +102,7 @@ export function Composer({
   inputRef,
   meetingId,
   projectId = null,
+  onGoal,
 }) {
   const actions = useActions();
   const sendKey = useAppState((state) => state.settings?.composer?.sendKey ?? 'enter');
@@ -114,6 +117,11 @@ export function Composer({
   const quote = useAppState((state) => state.quote);
   const fillDraft = useAppState((state) => state.fillDraft);
   const discussion = useDiscussion(meetingId);
+  const goal = useAppState((state) => state.goals[meetingId]);
+  const [executionMode, setExecutionMode] = useState('direct');
+  const [maxRounds, setMaxRounds] = useState(30);
+  const goalActive = goal && ['running', 'paused', 'blocked'].includes(goal.status);
+  const startsGoal = executionMode === 'autonomous' && !discussion.ordered && !goalActive;
   const mention = useDiscussionMention({
     candidates: discussion.candidates,
     enabled: Boolean(meetingId) && !discussion.ordered,
@@ -158,7 +166,9 @@ export function Composer({
     setSending(true);
     // Keep the draft until the host accepts the message.
     const snapshot = researchInput.value;
-    const sent = await actions.attempt(() => onSend(value, snapshot));
+    const sent = await actions.attempt(() =>
+      startsGoal ? onGoal(value, snapshot, maxRounds) : onSend(value, snapshot),
+    );
     setSending(false);
     if (sent !== undefined) {
       setText((current) => (current === text ? '' : current));
@@ -201,6 +211,8 @@ export function Composer({
     <div class="composerbar">
       <${InputAdd} owner=${owner} projectId=${projectId} value=${researchInput.value} />
       <${DiscussionMode} meetingId=${meetingId} running=${running} />
+      ${onGoal && html`<${ExecutionMode} mode=${goalActive ? 'autonomous' : executionMode} onChange=${setExecutionMode} ordered=${discussion.ordered} locked=${Boolean(goalActive) || running} />`}
+      ${startsGoal && html`<label class="goal-round-setting">${t('最多轮数')}<input type="number" min="1" step="1" aria-label=${t('发送目标最多轮数')} value=${maxRounds} onInput=${(event) => setMaxRounds(Number(event.currentTarget.value))} /></label>`}
       <span class="spacer"></span>
       <${DiscussionUsageRing} meetingId=${meetingId} />
       <button data-v="model-menu" onClick=${model.open}>
@@ -224,7 +236,7 @@ export function Composer({
       <button
         class="sendbtn"
         aria-label=${t('发送')}
-        disabled=${!text.trim() || sending}
+        disabled=${!text.trim() || sending || (startsGoal && (!Number.isSafeInteger(maxRounds) || maxRounds < 1))}
         onClick=${send}
       >
         <${Icon} name="arrow" />

@@ -168,6 +168,28 @@ test('ending interrupts the current goal turn and retains its partial answer', a
   );
 });
 
+test('closing after the model reports completion preserves the completed goal', async () => {
+  const reported = deferred();
+  await withAutomation(
+    async function* ({ call, signal }) {
+      await call('goal_update', { status: 'complete', summary: '工作已完成。' });
+      yield '最后汇报仍在输出。';
+      await new Promise((resolve) => {
+        signal.addEventListener('abort', resolve, { once: true });
+        reported.resolve();
+      });
+    },
+    async ({ conductor, goal, start }) => {
+      start();
+      await reported.promise;
+      conductor.stop();
+      await conductor.idle();
+      assert.equal(goal().status, 'completed');
+      assert.equal(goal().reason, '工作已完成。');
+    },
+  );
+});
+
 test('the user round setting pauses the goal and can be increased for continuation', () =>
   withAutomation(
     async function* ({ inputs, call }) {

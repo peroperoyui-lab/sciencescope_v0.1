@@ -10,6 +10,7 @@ import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
 import { navigate, routeHref } from '../route.js';
 import { Composer } from './composer.js';
+import { GoalPanel } from './goal-panel.js';
 import { CitedMarkdown } from './cited-markdown.js';
 import { InputReceipt, showInputContext } from './research-input.js';
 import { ExpertState, ReviewAdoption, expertState } from './discussion-message.js';
@@ -433,6 +434,7 @@ export function MeetingView({ meetingId, focusMessageId }) {
     <div class="mainbody">
       <div class=${`chatlayout ${compact ? 'hide-tools' : ''}`}>
         <div class="chatcol">
+          <${GoalPanel} meetingId=${meeting.id} />
           ${meeting.policy.mode === 'round' && html`<${DiscussionStrip} meetingId=${meeting.id} running=${running} />`}
           ${
             finding &&
@@ -493,6 +495,7 @@ export function MeetingView({ meetingId, focusMessageId }) {
               onStop=${() => actions.attempt(() => actions.interrupt(meeting.id))}
               projectId=${meeting.projectId}
               onSend=${(text, input) => actions.postMessage(meeting.id, text, input)}
+              onGoal=${(text, input, maxRounds) => actions.startGoal(meeting.id, text, maxRounds, input)}
             />
           </div>
         </div>
