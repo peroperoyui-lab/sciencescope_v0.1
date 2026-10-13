@@ -7,12 +7,15 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateNotices } from './notices.js';
+import { buildOptions } from './build-options.js';
+import { pruneProductionModules } from './prune.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const local = path.join(root, '.sciencescope-local');
 const stage = path.join(local, 'package/runtime-bundle');
 const npm = process.env.npm_execpath;
 const registry = process.env.SCIENCESCOPE_BUILD_REGISTRY || 'https://registry.npmmirror.com';
+const options = buildOptions(process.env);
 
 function run(command, args, cwd = root, successCodes = [0]) {
   return new Promise((resolve, reject) => {
@@ -111,9 +114,13 @@ for (const file of ['package.json', 'package-lock.json', '.npmrc'])
 const dependencyHash = manifestHash.digest('hex');
 const stamp = path.join(local, 'package/production-dependencies.sha256');
 const previousHash = await readFile(stamp, 'utf8').catch(() => '');
+const pruningStamp = path.join(local, 'package/production-pruned.sha256');
+const previousPruning = await readFile(pruningStamp, 'utf8').catch(() => '');
+const restoreDependencies =
+  previousHash !== dependencyHash || (!options.prune && previousPruning.length > 0);
 for (const file of ['package.json', 'package-lock.json', '.npmrc', 'LICENSE'])
   await cp(path.join(root, file), path.join(stage, file));
-if (previousHash !== dependencyHash) {
+if (restoreDependencies) {
   await run(
     process.execPath,
     [
@@ -129,6 +136,7 @@ if (previousHash !== dependencyHash) {
     stage,
   );
   await writeFile(stamp, dependencyHash);
+  await rm(pruningStamp, { force: true });
 }
 // onnxruntime-node's tarball includes other architectures even after npm's
 // platform selection. Keep only the Windows x64 native payload in this bundle.
@@ -167,25 +175,34 @@ try {
   if (!response.ok) throw new Error(`Node license HTTP ${response.status}`);
   await writeFile(nodeLicense, await response.text());
 }
-await generateNotices(path.join(stage, 'node_modules'), path.join(stage, 'THIRD_PARTY_NOTICES'), [
-  {
-    name: 'Node.js',
-    version: '22.22.2',
-    license: 'MIT and bundled dependency licenses',
-    repository: 'https://github.com/nodejs/node/tree/v22.22.2',
-    texts: [await readFile(nodeLicense, 'utf8')],
-  },
-  {
-    name: 'uv',
-    version: '0.12.19',
-    license: 'MIT OR Apache-2.0',
-    repository: 'https://github.com/astral-sh/uv/tree/0.12.19',
-    texts: [
-      await readFile(path.join(local, 'runtimes/uv/LICENSE-MIT'), 'utf8'),
-      await readFile(path.join(local, 'runtimes/uv/LICENSE-APACHE'), 'utf8'),
-    ],
-  },
-]);
+// Repeated builds reuse the complete pre-pruning notice catalog. An explicitly
+// unpruned timing build restores npm's full tree instead of reusing a slim one.
+if (restoreDependencies || previousPruning !== dependencyHash)
+  await generateNotices(path.join(stage, 'node_modules'), path.join(stage, 'THIRD_PARTY_NOTICES'), [
+    {
+      name: 'Node.js',
+      version: '22.22.2',
+      license: 'MIT and bundled dependency licenses',
+      repository: 'https://github.com/nodejs/node/tree/v22.22.2',
+      texts: [await readFile(nodeLicense, 'utf8')],
+    },
+    {
+      name: 'uv',
+      version: '0.12.19',
+      license: 'MIT OR Apache-2.0',
+      repository: 'https://github.com/astral-sh/uv/tree/0.12.19',
+      texts: [
+        await readFile(path.join(local, 'runtimes/uv/LICENSE-MIT'), 'utf8'),
+        await readFile(path.join(local, 'runtimes/uv/LICENSE-APACHE'), 'utf8'),
+      ],
+    },
+  ]);
+if (options.prune) {
+  const pruning = await pruneProductionModules(path.join(stage, 'node_modules'));
+  await writeFile(path.join(local, 'package/pruning.json'), JSON.stringify(pruning, null, 2));
+  console.log('Production pruning: ' + JSON.stringify(pruning));
+  await writeFile(pruningStamp, dependencyHash);
+}
 // Tauri copies every resource serially during its build script. Pre-stage with
 // Windows' parallel copy, then reference the exact destination so tauri-build
 // skips redundant copies. Data is never part of either staging directory.
@@ -228,6 +245,9 @@ await writeFile(
   config,
   JSON.stringify(
     {
+      ...(options.productName
+        ? { productName: options.productName, identifier: options.identifier }
+        : {}),
       build: { frontendDist: path.join(local, 'package/frontend') },
       bundle: {
         active: true,
