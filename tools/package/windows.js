@@ -6,6 +6,7 @@ import { cp, mkdir, readFile, writeFile, access, rm } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { generateNotices } from './notices.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const local = path.join(root, '.sciencescope-local');
@@ -59,6 +60,8 @@ async function locateUv() {
   const pinned = 'f94eddb81f3addca6ef8f2361a70c3edde31adcbd1000a55fc6674306ae0b1e7';
   try {
     await access(target);
+    await access(path.join(local, 'runtimes/uv/LICENSE-MIT'));
+    await access(path.join(local, 'runtimes/uv/LICENSE-APACHE'));
   } catch {
     const folder = path.join(local, 'downloads/uv-0.12.19');
     await mkdir(folder, { recursive: true });
@@ -78,6 +81,13 @@ async function locateUv() {
     if (!entry) throw new Error('uv executable missing from wheel');
     await mkdir(path.dirname(target), { recursive: true });
     await writeFile(target, await entry.async('nodebuffer'));
+    for (const name of ['LICENSE-MIT', 'LICENSE-APACHE']) {
+      const license = Object.values(archive.files).find((file) =>
+        file.name.endsWith('/licenses/' + name),
+      );
+      if (!license) throw new Error(`uv license missing: ${name}`);
+      await writeFile(path.join(path.dirname(target), name), await license.async('nodebuffer'));
+    }
   }
   if (
     createHash('sha256')
@@ -155,6 +165,35 @@ await cp(
 await mkdir(path.join(stage, 'runtime'), { recursive: true });
 await cp(await downloadNode(), path.join(stage, 'runtime/node.exe'));
 await cp(await locateUv(), path.join(stage, 'runtime/uv.exe'));
+const nodeLicense = path.join(local, 'downloads/node-22.22.2/LICENSE');
+try {
+  await access(nodeLicense);
+} catch {
+  // The binary mirror does not publish the complete dependency notices separately.
+  // Fetch this small text from the exact upstream release, never another version.
+  const response = await fetch('https://raw.githubusercontent.com/nodejs/node/v22.22.2/LICENSE');
+  if (!response.ok) throw new Error(`Node license HTTP ${response.status}`);
+  await writeFile(nodeLicense, await response.text());
+}
+await generateNotices(path.join(stage, 'node_modules'), path.join(stage, 'THIRD_PARTY_NOTICES'), [
+  {
+    name: 'Node.js',
+    version: '22.22.2',
+    license: 'MIT and bundled dependency licenses',
+    repository: 'https://github.com/nodejs/node/tree/v22.22.2',
+    texts: [await readFile(nodeLicense, 'utf8')],
+  },
+  {
+    name: 'uv',
+    version: '0.12.19',
+    license: 'MIT OR Apache-2.0',
+    repository: 'https://github.com/astral-sh/uv/tree/0.12.19',
+    texts: [
+      await readFile(path.join(local, 'runtimes/uv/LICENSE-MIT'), 'utf8'),
+      await readFile(path.join(local, 'runtimes/uv/LICENSE-APACHE'), 'utf8'),
+    ],
+  },
+]);
 // Tauri copies every resource serially during its build script. Pre-stage with
 // Windows' parallel copy, then reference the exact destination so tauri-build
 // skips redundant copies. Data is never part of either staging directory.
@@ -171,6 +210,7 @@ for (const folder of ['app', 'python', 'models', 'reference', 'runtime', 'node_m
   resources[path.join(release, folder) + '/'] = folder + '/';
 resources[path.join(release, 'package.json')] = 'package.json';
 resources[path.join(release, 'LICENSE')] = 'LICENSE';
+resources[path.join(release, 'THIRD_PARTY_NOTICES')] = 'THIRD_PARTY_NOTICES';
 const config = path.join(local, 'package/tauri-package.json');
 await mkdir(path.join(local, 'package/frontend'), { recursive: true });
 await writeFile(
@@ -190,6 +230,7 @@ await writeFile(
         resources,
         windows: {
           nsis: {
+            installerHooks: path.join(root, 'src-tauri/installer-hooks.nsh'),
             installMode: 'currentUser',
             displayLanguageSelector: true,
             languages: ['SimpChinese', 'English'],

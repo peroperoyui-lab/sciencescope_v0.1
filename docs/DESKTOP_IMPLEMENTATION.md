@@ -1,5 +1,10 @@
 # Desktop implementation — first increment
 
+## 2026-10-13 R6a-2 preview installer (Codex; merged by Claude)
+- Current-user NSIS installer with `LICENSE` and a generated `THIRD_PARTY_NOTICES` (production npm packages, Node, uv, native-library notices). The unchecked "delete application data" option now also removes `<install>\data` through an uninstall hook. Installer 128.22 MiB; program 687.3 MiB; acceptance data 2.28 GiB including Python caches.
+- Installed app at `<预览安装目录>`, real flash: message, two experts with reviewer and adoption, Chinese PDF with citations, built-in Python environment via the bundled uv, two-round automation, two real manuscripts: 7 requests / 115,607 tokens (model discovery separate). Overlay install (23 min 23 s) and default uninstall keep data; reinstall (7 min 48 s) keeps all 13 checked file hashes. Python preparation reused local caches and the Tsinghua index; product defaults restored afterwards.
+- Fixed a missing `catch` in Python settings initialisation found at shutdown, with a regression test. Windows clean checkout 213/213, no skips; notices test 1/1. Seven pages at 100% / 125%, no page errors, clean exit. Node's licence text came from GitHub (no mirror). Evidence: `.sciencescope-local/temp/r6a-2`.
+
 ## 2026-10-13 R6a-1 runtime bundle (Codex; merged by Claude)
 - The native shell starts the new core by default; the legacy host needs `SCIENCESCOPE_APP=legacy`. Tauri resources carry checksum-verified Node 22.22.2 and uv 0.12.19, `app/`, production `node_modules`, the Python and model manifests; data and logs live in `<install>/data`. Parallel pre-copy, a dependency fingerprint and a local tool cache make `npm run package` repeatable. Installer `1.0.0-alpha.0`: 128.17 MiB; installed at `<预览安装目录>`: 706.5 MiB before research data.
 - `sharp` stays (Transformers imports it statically); `esbuild` moved to production (the static server builds readers with it). Python download source: official or custom, passed only to uv; no domestic mirror offered because its files were not verified.
