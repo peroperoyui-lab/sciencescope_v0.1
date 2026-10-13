@@ -4,6 +4,27 @@ import { withBrowserApp, browserSkip } from './browser-testing.js';
 import { fakeUv } from '../services/python/testing.js';
 
 test(
+  'Python settings reports an unavailable host without unhandled initialization failures',
+  { skip: browserSkip },
+  async () => {
+    await withBrowserApp(
+      'python-ui-unavailable',
+      async function* () {},
+      async ({ page }) => {
+        await page.route('**/api/python', (route) => route.abort('failed'));
+        await page.evaluate(() => {
+          location.hash = '#/settings/environment';
+        });
+        await page
+          .locator('.python-settings')
+          .getByText('Failed to fetch', { exact: true })
+          .waitFor();
+      },
+    );
+  },
+);
+
+test(
   'Python settings manage packages and selection follows project, meeting and standalone details in both languages',
   { skip: browserSkip },
   async () => {

@@ -136,11 +136,14 @@ export function PythonSettings() {
       .pythonSystem()
       .then(setSystem)
       .catch((caught) => setError(caught.message));
-    void actions.pythonList().then((result) => {
-      setDefault(result.settings.defaultEnvironment ?? 'builtin-science');
-      setIndex(result.settings.indexUrl ?? 'https://pypi.org/simple');
-      setInstallMirror(result.settings.installMirror ?? '');
-    });
+    void actions
+      .pythonList()
+      .then((result) => {
+        setDefault(result.settings.defaultEnvironment ?? 'builtin-science');
+        setIndex(result.settings.indexUrl ?? 'https://pypi.org/simple');
+        setInstallMirror(result.settings.installMirror ?? '');
+      })
+      .catch((caught) => setError(caught.message));
   }, []);
   async function run(work) {
     setBusy(true);
