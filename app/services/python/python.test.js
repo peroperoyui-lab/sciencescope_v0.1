@@ -29,11 +29,32 @@ test('managed environments retain manifests, precedence, failure records and res
       'requests[socks]==2.32.0',
     ]);
     assert.throws(() => validatePackages(['--index-url=elsewhere']), /格式/u);
+    await app.core.workspace.edit({
+      resource: 'settings',
+      key: 'app',
+      op: 'patch',
+      args: { changes: { python: { installMirror: 'https://example.test/python' } } },
+    });
     const builtin = await app.python.operate({ action: 'builtin' });
     assert.equal(builtin.status, 'ready');
     const copy = await app.python.operate({ action: 'copy', id: builtin.id, name: '分析二' });
     assert.deepEqual(copy.lock, builtin.lock);
     assert.ok(fake.calls.every((call) => call.env.UV_NO_CONFIG === '1'));
+    assert.equal(
+      fake.calls.find((call) => call.args[0] === 'venv').env.UV_PYTHON_INSTALL_MIRROR,
+      'https://example.test/python',
+    );
+    assert.ok(
+      fake.calls
+        .filter((call) => call.args[0] === '--version')
+        .every((call) => !call.env.UV_PYTHON_INSTALL_MIRROR),
+    );
+    await app.core.workspace.edit({
+      resource: 'settings',
+      key: 'app',
+      op: 'patch',
+      args: { changes: { python: { installMirror: null } } },
+    });
     const project = await app.core.projects.create({ name: '中文项目' });
     const meeting = app.core.meetings.create({ projectId: project.id });
     assert.equal((await app.python.resolve(meeting.id)).id, 'system');

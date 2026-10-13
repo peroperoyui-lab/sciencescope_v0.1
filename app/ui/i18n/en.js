@@ -1,6 +1,10 @@
 // English for every Chinese interface string. A test checks that each
 // Chinese string literal in app/ui has an entry here.
 export const en = {
+  'Python 下载源': 'Python download source',
+  'Python 下载地址': 'Python download URL',
+  '官方源下载 CPython。自定义地址须提供与官方一致的文件；仅用于 uv 下载，不改变软件包镜像源。':
+    'The official source downloads CPython. A custom URL must serve identical files; it affects uv downloads only, not the package index.',
   版本: 'Version',
   '文件 / 文献组': 'File / version group',
   秘书说明: 'Secretary notes',

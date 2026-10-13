@@ -1,5 +1,10 @@
 # Desktop implementation — first increment
 
+## 2026-10-13 R6a-1 runtime bundle (Codex; pending acceptance)
+- Default native launch is the new core; legacy stays explicit. Installed resources contain Node22.22.2, uv, app, production modules and manifests; data/logs remain adjacent and development data unchanged.
+- Retained sharp because Transformers statically imports it; moved reader's actual runtime dependency esbuild to production. Python download source is official/custom only, scoped to uv; domestic mirror bytes are not verified.
+- Python service/Edge and English checks pass; Rust launch tests2/2. First Node22 DSH initialization timed out under concurrent install; diagnostic DSH/tool/resume path passed without timeout changes. Package and independent clean check pending. Evidence temp/r6a-1.
+
 ## 2026-10-12 R4-7d version-note inputs (Codex; pending review)
 - Cause: earlier 19/28 requests repeatedly sent large comparison inputs and accumulated tool results; those real fixtures had empty maps and no human minutes, so neither explains their millions of tokens.
 - Complete marked changes now carry old/new parser paragraph numbers and neighbouring context; unchanged ranges remain readable. Research context includes goals/todos, plan entries and map title paths, with metadata separate. Tools, template structure and UI remain unchanged.

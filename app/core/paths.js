@@ -18,6 +18,7 @@ export function dataPaths(root) {
     library: path.join(base, 'library'),
     deliverables: path.join(base, 'deliverables'),
     runtime: path.join(base, 'runtime'),
+    logs: path.join(base, 'logs'),
     models: path.join(base, 'models'),
     python: path.join(base, 'python'),
     secret: path.join(base, 'secret'),

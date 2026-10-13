@@ -1,9 +1,12 @@
 use std::{ffi::OsStr, path::{Path, PathBuf}};
 
-/// The opt-in host has its own data root, independent of the legacy host.
+/// Installed programs use their adjacent resources and data, while development
+/// retains the repository's ignored data root and optional launch overrides.
 pub struct NewAppLaunch {
     pub script: PathBuf,
     pub data_root: PathBuf,
+    pub node: PathBuf,
+    pub uv: PathBuf,
 }
 
 impl NewAppLaunch {
@@ -18,17 +21,31 @@ impl NewAppLaunch {
             None if cfg!(debug_assertions) => app_root.join(".sciencescope-local").join("data"),
             None => app_root.join("data"),
         };
-        Ok(Self { script: app_root.join("app").join("main.js"), data_root })
+        let node = if cfg!(debug_assertions) { PathBuf::from("node") }
+            else { app_root.join("runtime").join("node.exe") };
+        let uv = if cfg!(debug_assertions) { app_root.join(".sciencescope-local").join("runtimes").join("uv").join("uv.exe") }
+            else { app_root.join("runtime").join("uv.exe") };
+        Ok(Self { script: app_root.join("app").join("main.js"), data_root, node, uv })
     }
 
     pub fn configure(&self, command: &mut std::process::Command) {
         command.arg(&self.script).arg("--data").arg(&self.data_root)
             .current_dir(self.script.parent().and_then(Path::parent).expect("app script has a root"));
+        if std::env::var_os("SCIENCESCOPE_UV").is_none() {
+            command.env("SCIENCESCOPE_UV", &self.uv);
+        }
+        // Runtime tools must find the bundled Node, even with no developer PATH.
+        if let Some(parent) = self.node.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+            let paths = std::iter::once(parent.to_path_buf()).chain(
+                std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
+            ).collect::<Vec<_>>();
+            if let Ok(paths) = std::env::join_paths(paths) { command.env("PATH", paths); }
+        }
     }
 }
 
 pub fn is_new_app(mode: Option<&OsStr>) -> bool {
-    mode == Some(OsStr::new("new"))
+    mode != Some(OsStr::new("legacy"))
 }
 
 pub fn readiness(parsed: &serde_json::Value) -> Result<(String, String), Box<dyn std::error::Error>> {
@@ -46,8 +63,8 @@ mod tests {
     use std::io::{BufRead, BufReader};
 
     #[test]
-    fn default_remains_legacy_and_new_command_uses_separate_data() {
-        assert!(!is_new_app(None));
+    fn default_is_new_and_legacy_remains_explicit_with_separate_data() {
+        assert!(is_new_app(None));
         assert!(!is_new_app(Some(OsStr::new("legacy"))));
         assert!(is_new_app(Some(OsStr::new("new"))));
         let launch = NewAppLaunch::resolve(Path::new("."), None).unwrap();
@@ -56,7 +73,12 @@ mod tests {
         let args: Vec<_> = command.get_args().collect();
         assert_eq!(args, [launch.script.as_os_str(), OsStr::new("--data"), launch.data_root.as_os_str()]);
         assert!(launch.script.ends_with(Path::new("app").join("main.js")));
-        assert!(launch.data_root.ends_with(Path::new(".sciencescope-local").join("data")));
+        if cfg!(debug_assertions) {
+            assert!(launch.data_root.ends_with(Path::new(".sciencescope-local").join("data")));
+        } else {
+            assert!(launch.data_root.ends_with("data"));
+            assert!(launch.node.ends_with(Path::new("runtime").join("node.exe")));
+        }
     }
 
     #[test]

@@ -34,8 +34,16 @@ test(
           .waitFor();
         const entry = (await app.python.list()).environments[0];
         await page.locator('#python-default').selectOption(entry.id);
+        await page.getByLabel('Python 下载源', { exact: true }).selectOption('custom');
+        await page
+          .getByLabel('Python 下载地址', { exact: true })
+          .fill('https://example.test/python');
         await page.getByRole('button', { name: '保存环境设置' }).click();
         await page.getByText('环境操作已完成', { exact: true }).waitFor();
+        assert.equal(
+          (await app.python.list()).settings.installMirror,
+          'https://example.test/python',
+        );
         await shot('python-settings-zh');
         await page.evaluate(() => {
           location.hash = '#/project-new';

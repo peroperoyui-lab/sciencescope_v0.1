@@ -88,7 +88,8 @@ export function createPython(core, options = {}) {
     return task;
   }
   async function command(args) {
-    return uv.run(args, (await settings()).indexUrl);
+    const current = await settings();
+    return uv.run(args, current.indexUrl, current.installMirror);
   }
   const { sync, prepare } = createInstaller({
     root,

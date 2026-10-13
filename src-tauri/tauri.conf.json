@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "ScienceScope",
-  "version": "0.1.0",
+  "version": "1.0.0-alpha.0",
   "identifier": "org.sciencescope.desktop",
   "build": {
     "frontendDist": "../.sciencescope-local/desktop-dist"
@@ -14,7 +14,7 @@
         "create": false,
         "decorations": false,
         "devtools": false,
-        "title": "ScienceScope · 桌面开发版",
+        "title": "ScienceScope",
         "width": 1440,
         "height": 960,
         "minWidth": 960,
