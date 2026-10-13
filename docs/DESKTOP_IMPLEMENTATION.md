@@ -1,5 +1,10 @@
 # Desktop implementation — first increment
 
+## 2026-10-13 R6a-2 preview installer (Codex; pending review)
+- Current-user NSIS includes LICENSE and generated npm/Node/uv/native-library notices; unchecked delete-data option now targets adjacent data. Final package128.22MiB; program687.3MiB, acceptance data2.28GiB including reused Python caches. H:/ScienceScope-preview overlay23m23s and default uninstall retain data; fixed-package reinstall7m48s retains all13 durable-file hashes and opens prior research.
+- Installed real flash smoke passes message, two experts/reviewer/adoption, Chinese PDF/citations, bundled-uv builtin environment, two-round automation and two real manuscripts:7 model requests/115,607 tokens; discovery separately3 HTTP200 across fixture attempts. Invalid fixture credential ref and pagination shape failures retained, zero model calls for both. Python preparation reused interpreter/package cache with Tsinghua index, product defaults restored.
+- Found shutdown fetch rejection in Python initialization (one promise lacked catch); minimal UI fix and unavailable-host regression pass2/2. Final independent Windows Node22 check213/213, zero skips (503s); notices1/1. Final installed seven pages at100%/125%,14 native measurements, zero page errors, exit0/no owned processes/WAL/SHM clean; scale restored. Screens/logs/report in temp/r6a-2; download exception Node release license text from upstream.
+
 ## 2026-10-13 R6a-1 runtime bundle (Codex; pending review)
 - Default native launch is the new core; legacy stays explicit. Resources contain verified Node22.22.2/uv0.12.19, app, production modules and manifests; data/logs remain adjacent. Windows parallel pre-copy, dependency fingerprint reuse and local tool cache resolve slow serial staging and cross-drive rename failure; package1.0.0-alpha.0 succeeds128.17MiB, installed H:/ScienceScope-preview (706.5MiB before research data).
 - Retained sharp because Transformers statically imports it; moved reader's actual runtime dependency esbuild to production. Python download source is official/custom only, scoped to uv; domestic mirror bytes are not verified.
