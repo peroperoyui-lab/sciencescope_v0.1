@@ -55,10 +55,14 @@ test(
           .waitFor();
         const entry = (await app.python.list()).environments[0];
         await page.locator('#python-default').selectOption(entry.id);
-        await page.getByLabel('Python 下载源', { exact: true }).selectOption('custom');
-        await page
-          .getByLabel('Python 下载地址', { exact: true })
-          .fill('https://example.test/python');
+        const source = page.getByLabel('Python 下载源', { exact: true });
+        const address = page.getByLabel('Python 下载地址', { exact: true });
+        await source.selectOption('custom');
+        // Clearing the address while typing keeps the custom choice.
+        await address.fill('https://');
+        await address.fill('');
+        assert.equal(await source.inputValue(), 'custom');
+        await address.fill('https://example.test/python');
         await page.getByRole('button', { name: '保存环境设置' }).click();
         await page.getByText('环境操作已完成', { exact: true }).waitFor();
         assert.equal(

@@ -120,7 +120,10 @@ export function PythonSettings() {
     [template, setTemplate] = useState('');
   const [defaultEnvironment, setDefault] = useState('builtin-science'),
     [indexUrl, setIndex] = useState('https://pypi.org/simple');
-  const [installMirror, setInstallMirror] = useState('');
+  // The download source is its own choice, so an empty or half-typed custom
+  // address neither switches back to the official source nor gets saved.
+  const [pythonSource, setPythonSource] = useState('official'),
+    [installMirror, setInstallMirror] = useState('');
   const generation = useRef(0);
   async function refresh() {
     const current = ++generation.current;
@@ -141,6 +144,7 @@ export function PythonSettings() {
       .then((result) => {
         setDefault(result.settings.defaultEnvironment ?? 'builtin-science');
         setIndex(result.settings.indexUrl ?? 'https://pypi.org/simple');
+        setPythonSource(result.settings.installMirror ? 'custom' : 'official');
         setInstallMirror(result.settings.installMirror ?? '');
       })
       .catch((caught) => setError(caught.message));
@@ -196,7 +200,11 @@ export function PythonSettings() {
         event.preventDefault();
         void run(() =>
           actions.updateSettings({
-            python: { defaultEnvironment, indexUrl, installMirror: installMirror || null },
+            python: {
+              defaultEnvironment,
+              indexUrl,
+              installMirror: pythonSource === 'custom' ? installMirror : null,
+            },
           }),
         );
       }}
@@ -227,14 +235,24 @@ export function PythonSettings() {
         />
         <select
           aria-label=${t('Python 下载源')}
-          value=${installMirror ? 'custom' : 'official'}
-          onChange=${(event) => setInstallMirror(event.currentTarget.value === 'official' ? '' : installMirror || 'https://')}
+          value=${pythonSource}
+          onChange=${(event) => setPythonSource(event.currentTarget.value)}
         >
           <option value="official">${t('官方')}</option>
           <option value="custom">${t('自定义')}</option>
         </select>
       </label>
-      ${installMirror && html`<input type="url" aria-label=${t('Python 下载地址')} value=${installMirror} onInput=${(event) => setInstallMirror(event.currentTarget.value)} />`}
+      ${
+        pythonSource === 'custom' &&
+        html`<input
+          type="url"
+          required
+          placeholder="https://"
+          aria-label=${t('Python 下载地址')}
+          value=${installMirror}
+          onInput=${(event) => setInstallMirror(event.currentTarget.value)}
+        />`
+      }
       <button class="btn" disabled=${busy}>${t('保存环境设置')}</button>
     </form>
     <p>

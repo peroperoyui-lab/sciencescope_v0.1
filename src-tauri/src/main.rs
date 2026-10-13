@@ -438,7 +438,13 @@ fn host_url(log_dir: &std::path::Path, new_app: Option<&new_app::NewAppLaunch>) 
     };
     std::fs::create_dir_all(log_dir)?;
     // One log per launch; stdout carries only the capability line read below.
-    let host_log = fs::File::create(log_dir.join("desktop-host.log"))?;
+    // The previous launch's log is kept, so a crash is still on disk after the
+    // person reopens the app to report it.
+    let log = log_dir.join("desktop-host.log");
+    if log.exists() {
+        let _ = fs::rename(&log, log_dir.join("desktop-host.previous.log"));
+    }
+    let host_log = fs::File::create(&log)?;
     let mut command = Command::new(node);
     if let Some(launch) = new_app {
         launch.configure(&mut command);
