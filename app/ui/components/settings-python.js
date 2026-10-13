@@ -124,6 +124,9 @@ export function PythonSettings() {
   // address neither switches back to the official source nor gets saved.
   const [pythonSource, setPythonSource] = useState('official'),
     [installMirror, setInstallMirror] = useState('');
+  // The form appears once the saved settings are in, so they never overwrite
+  // a choice the person made while they were loading.
+  const [loaded, setLoaded] = useState(false);
   const generation = useRef(0);
   async function refresh() {
     const current = ++generation.current;
@@ -146,6 +149,7 @@ export function PythonSettings() {
         setIndex(result.settings.indexUrl ?? 'https://pypi.org/simple');
         setPythonSource(result.settings.installMirror ? 'custom' : 'official');
         setInstallMirror(result.settings.installMirror ?? '');
+        setLoaded(true);
       })
       .catch((caught) => setError(caught.message));
   }, []);
@@ -195,66 +199,69 @@ export function PythonSettings() {
     </h2>
     ${error && html`<p role="alert">${error}</p>`}
     <p role="status">${busy ? t('正在处理环境操作…') : feedback}</p>
-    <form
-      onSubmit=${(event) => {
-        event.preventDefault();
-        void run(() =>
-          actions.updateSettings({
-            python: {
-              defaultEnvironment,
-              indexUrl,
-              installMirror: pythonSource === 'custom' ? installMirror : null,
-            },
-          }),
-        );
-      }}
-    >
-      <label>${t('新任务默认环境')}</label
-      ><${PythonChoice} id="python-default" value=${defaultEnvironment} onChange=${setDefault} />
-      <label
-        >${t('软件包镜像源')}<select
-          aria-label=${t('软件包镜像源')}
-          value=${['https://pypi.org/simple', 'https://pypi.tuna.tsinghua.edu.cn/simple', 'https://mirrors.aliyun.com/pypi/simple'].includes(indexUrl) ? indexUrl : 'custom'}
-          onChange=${(event) => setIndex(event.currentTarget.value === 'custom' ? '' : event.currentTarget.value)}
-        >
-          <option value="https://pypi.org/simple">${t('官方')}</option>
-          <option value="https://pypi.tuna.tsinghua.edu.cn/simple">${t('清华')}</option>
-          <option value="https://mirrors.aliyun.com/pypi/simple">${t('阿里云')}</option>
-          <option value="custom">${t('自定义')}</option>
-        </select></label
+    ${
+      loaded &&
+      html`<form
+        onSubmit=${(event) => {
+          event.preventDefault();
+          void run(() =>
+            actions.updateSettings({
+              python: {
+                defaultEnvironment,
+                indexUrl,
+                installMirror: pythonSource === 'custom' ? installMirror : null,
+              },
+            }),
+          );
+        }}
       >
-      <input
-        type="url"
-        aria-label=${t('镜像地址')}
-        value=${indexUrl}
-        onInput=${(event) => setIndex(event.currentTarget.value)}
-      />
-      <label>
-        ${t('Python 下载源')}<${InfoTip}
-          text=${t('官方源下载 CPython。自定义地址须提供与官方一致的文件；仅用于 uv 下载，不改变软件包镜像源。')}
-        />
-        <select
-          aria-label=${t('Python 下载源')}
-          value=${pythonSource}
-          onChange=${(event) => setPythonSource(event.currentTarget.value)}
+        <label>${t('新任务默认环境')}</label
+        ><${PythonChoice} id="python-default" value=${defaultEnvironment} onChange=${setDefault} />
+        <label
+          >${t('软件包镜像源')}<select
+            aria-label=${t('软件包镜像源')}
+            value=${['https://pypi.org/simple', 'https://pypi.tuna.tsinghua.edu.cn/simple', 'https://mirrors.aliyun.com/pypi/simple'].includes(indexUrl) ? indexUrl : 'custom'}
+            onChange=${(event) => setIndex(event.currentTarget.value === 'custom' ? '' : event.currentTarget.value)}
+          >
+            <option value="https://pypi.org/simple">${t('官方')}</option>
+            <option value="https://pypi.tuna.tsinghua.edu.cn/simple">${t('清华')}</option>
+            <option value="https://mirrors.aliyun.com/pypi/simple">${t('阿里云')}</option>
+            <option value="custom">${t('自定义')}</option>
+          </select></label
         >
-          <option value="official">${t('官方')}</option>
-          <option value="custom">${t('自定义')}</option>
-        </select>
-      </label>
-      ${
-        pythonSource === 'custom' &&
-        html`<input
+        <input
           type="url"
-          required
-          placeholder="https://"
-          aria-label=${t('Python 下载地址')}
-          value=${installMirror}
-          onInput=${(event) => setInstallMirror(event.currentTarget.value)}
-        />`
-      }
-      <button class="btn" disabled=${busy}>${t('保存环境设置')}</button>
-    </form>
+          aria-label=${t('镜像地址')}
+          value=${indexUrl}
+          onInput=${(event) => setIndex(event.currentTarget.value)}
+        />
+        <label>
+          ${t('Python 下载源')}<${InfoTip}
+            text=${t('官方源下载 CPython。自定义地址须提供与官方一致的文件；仅用于 uv 下载，不改变软件包镜像源。')}
+          />
+          <select
+            aria-label=${t('Python 下载源')}
+            value=${pythonSource}
+            onChange=${(event) => setPythonSource(event.currentTarget.value)}
+          >
+            <option value="official">${t('官方')}</option>
+            <option value="custom">${t('自定义')}</option>
+          </select>
+        </label>
+        ${
+          pythonSource === 'custom' &&
+          html`<input
+            type="url"
+            required
+            placeholder="https://"
+            aria-label=${t('Python 下载地址')}
+            value=${installMirror}
+            onInput=${(event) => setInstallMirror(event.currentTarget.value)}
+          />`
+        }
+        <button class="btn" disabled=${busy}>${t('保存环境设置')}</button>
+      </form>`
+    }
     <p>
       ${system == null ? t('正在检测系统 Python…') : system.available ? `${t('系统 Python')} · ${system.version} · ${system.path}` : t('未检测到系统 Python')}
     </p>
