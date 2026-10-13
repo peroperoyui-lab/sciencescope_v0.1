@@ -2929,7 +2929,7 @@ dependencies = [
 
 [[package]]
 name = "sciencescope-desktop"
-version = "0.1.0"
+version = "1.0.0-alpha.0"
 dependencies = [
  "serde",
  "serde_json",

@@ -1,5 +1,10 @@
 # Desktop implementation — first increment
 
+## 2026-10-13 R6a-1 runtime bundle (Codex; pending review)
+- Default native launch is the new core; legacy stays explicit. Resources contain verified Node22.22.2/uv0.12.19, app, production modules and manifests; data/logs remain adjacent. Windows parallel pre-copy, dependency fingerprint reuse and local tool cache resolve slow serial staging and cross-drive rename failure; package1.0.0-alpha.0 succeeds128.17MiB, installed H:/ScienceScope-preview (706.5MiB before research data).
+- Retained sharp because Transformers statically imports it; moved reader's actual runtime dependency esbuild to production. Python download source is official/custom only, scoped to uv; domestic mirror bytes are not verified.
+- Python service/Edge and English checks pass; Rust launch tests2/2. Independent fresh-install Windows check at e715dd6 using bundled Node22.22.2 passes212/212, zero skips (638s); later edits affect packaging only. Installed native welcome/title/fonts, Python setting, Chinese project, bundled node and exit0/no owned processes/WAL/SHM pass; first welcome4.3s. Initial local DSH timeout retained, subsequent diagnostic/full check pass. Paid0/0; research smoke and scale/upgrade/uninstall acceptance follow6a-2. Evidence temp/r6a-1.
+
 ## 2026-10-12 R4-7d version-note inputs (Codex; pending review)
 - Cause: earlier 19/28 requests repeatedly sent large comparison inputs and accumulated tool results; those real fixtures had empty maps and no human minutes, so neither explains their millions of tokens.
 - Complete marked changes now carry old/new parser paragraph numbers and neighbouring context; unchanged ranges remain readable. Research context includes goals/todos, plan entries and map title paths, with metadata separate. Tools, template structure and UI remain unchanged.

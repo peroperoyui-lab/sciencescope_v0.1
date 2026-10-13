@@ -120,6 +120,7 @@ export function PythonSettings() {
     [template, setTemplate] = useState('');
   const [defaultEnvironment, setDefault] = useState('builtin-science'),
     [indexUrl, setIndex] = useState('https://pypi.org/simple');
+  const [installMirror, setInstallMirror] = useState('');
   const generation = useRef(0);
   async function refresh() {
     const current = ++generation.current;
@@ -138,6 +139,7 @@ export function PythonSettings() {
     void actions.pythonList().then((result) => {
       setDefault(result.settings.defaultEnvironment ?? 'builtin-science');
       setIndex(result.settings.indexUrl ?? 'https://pypi.org/simple');
+      setInstallMirror(result.settings.installMirror ?? '');
     });
   }, []);
   async function run(work) {
@@ -189,7 +191,11 @@ export function PythonSettings() {
     <form
       onSubmit=${(event) => {
         event.preventDefault();
-        void run(() => actions.updateSettings({ python: { defaultEnvironment, indexUrl } }));
+        void run(() =>
+          actions.updateSettings({
+            python: { defaultEnvironment, indexUrl, installMirror: installMirror || null },
+          }),
+        );
       }}
     >
       <label>${t('新任务默认环境')}</label
@@ -211,7 +217,22 @@ export function PythonSettings() {
         aria-label=${t('镜像地址')}
         value=${indexUrl}
         onInput=${(event) => setIndex(event.currentTarget.value)}
-      /><button class="btn" disabled=${busy}>${t('保存环境设置')}</button>
+      />
+      <label>
+        ${t('Python 下载源')}<${InfoTip}
+          text=${t('官方源下载 CPython。自定义地址须提供与官方一致的文件；仅用于 uv 下载，不改变软件包镜像源。')}
+        />
+        <select
+          aria-label=${t('Python 下载源')}
+          value=${installMirror ? 'custom' : 'official'}
+          onChange=${(event) => setInstallMirror(event.currentTarget.value === 'official' ? '' : installMirror || 'https://')}
+        >
+          <option value="official">${t('官方')}</option>
+          <option value="custom">${t('自定义')}</option>
+        </select>
+      </label>
+      ${installMirror && html`<input type="url" aria-label=${t('Python 下载地址')} value=${installMirror} onInput=${(event) => setInstallMirror(event.currentTarget.value)} />`}
+      <button class="btn" disabled=${busy}>${t('保存环境设置')}</button>
     </form>
     <p>
       ${system == null ? t('正在检测系统 Python…') : system.available ? `${t('系统 Python')} · ${system.version} · ${system.path}` : t('未检测到系统 Python')}

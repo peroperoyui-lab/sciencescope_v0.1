@@ -433,7 +433,7 @@ impl Drop for HostProcess {
 fn host_url(log_dir: &std::path::Path, new_app: Option<&new_app::NewAppLaunch>) -> Result<Option<(String, String, ChildHandle)>, Box<dyn std::error::Error>> {
     let node = match std::env::var_os("SCIENCESCOPE_NODE") {
         Some(value) if !value.is_empty() => value,
-        _ if new_app.is_some() => "node".into(),
+        _ if new_app.is_some() => new_app.unwrap().node.clone().into_os_string(),
         _ => return Ok(None),
     };
     std::fs::create_dir_all(log_dir)?;

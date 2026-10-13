@@ -50,7 +50,7 @@ export function createUv(root, { uvPath, runner = runProcess } = {}) {
     );
   const controllers = new Set();
   let closed = false;
-  async function invoke(command, args, indexUrl = null) {
+  async function invoke(command, args, indexUrl = null, installMirror = null) {
     if (closed) throw new Error('Python service is closed');
     const controller = new AbortController();
     controllers.add(controller);
@@ -71,13 +71,15 @@ export function createUv(root, { uvPath, runner = runProcess } = {}) {
         TMPDIR: path.join(root, 'tmp'),
       });
       if (indexUrl) env.UV_INDEX_URL = indexUrl;
+      if (installMirror) env.UV_PYTHON_INSTALL_MIRROR = installMirror;
       return await runner(command, args, { env, signal: controller.signal });
     } finally {
       controllers.delete(controller);
     }
   }
   return {
-    run: (args, indexUrl = null) => invoke(executable, args, indexUrl),
+    run: (args, indexUrl = null, installMirror = null) =>
+      invoke(executable, args, indexUrl, installMirror),
     python: (executablePath, args) => invoke(executablePath, args),
     close() {
       closed = true;
