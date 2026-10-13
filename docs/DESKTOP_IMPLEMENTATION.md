@@ -1,9 +1,10 @@
 # Desktop implementation — first increment
 
-## 2026-10-13 R6a-1 runtime bundle (Codex; pending review)
-- Default native launch is the new core; legacy stays explicit. Resources contain verified Node22.22.2/uv0.12.19, app, production modules and manifests; data/logs remain adjacent. Windows parallel pre-copy, dependency fingerprint reuse and local tool cache resolve slow serial staging and cross-drive rename failure; package1.0.0-alpha.0 succeeds128.17MiB, installed H:/ScienceScope-preview (706.5MiB before research data).
-- Retained sharp because Transformers statically imports it; moved reader's actual runtime dependency esbuild to production. Python download source is official/custom only, scoped to uv; domestic mirror bytes are not verified.
-- Python service/Edge and English checks pass; Rust launch tests2/2. Independent fresh-install Windows check at e715dd6 using bundled Node22.22.2 passes212/212, zero skips (638s); later edits affect packaging only. Installed native welcome/title/fonts, Python setting, Chinese project, bundled node and exit0/no owned processes/WAL/SHM pass; first welcome4.3s. Initial local DSH timeout retained, subsequent diagnostic/full check pass. Paid0/0; research smoke and scale/upgrade/uninstall acceptance follow6a-2. Evidence temp/r6a-1.
+## 2026-10-13 R6a-1 runtime bundle (Codex; merged by Claude)
+- The native shell starts the new core by default; the legacy host needs `SCIENCESCOPE_APP=legacy`. Tauri resources carry checksum-verified Node 22.22.2 and uv 0.12.19, `app/`, production `node_modules`, the Python and model manifests; data and logs live in `<install>/data`. Parallel pre-copy, a dependency fingerprint and a local tool cache make `npm run package` repeatable. Installer `1.0.0-alpha.0`: 128.17 MiB; installed at `<预览安装目录>`: 706.5 MiB before research data.
+- `sharp` stays (Transformers imports it statically); `esbuild` moved to production (the static server builds readers with it). Python download source: official or custom, passed only to uv; no domestic mirror offered because its files were not verified.
+- Windows clean checkout at `e715dd6` with the bundled Node: 212/212, no skips; Rust launch tests 2/2. Installed app: welcome page, title, fonts, Python setting, Chinese project, exit with no leftover processes; first welcome 4.3 s. Real-model smoke and reinstall / uninstall checks follow in 6a-2. Evidence: `.sciencescope-local/temp/r6a-1`.
+- Review (Claude): lockfile tarball URLs normalised to `registry.npmjs.org` (13 pointed at npmmirror and failed to install elsewhere; npm still rewrites them to the configured mirror). Remaining fixes go into 6a-2.
 
 ## 2026-10-12 R4-7d version-note inputs (Codex; pending review)
 - Cause: earlier 19/28 requests repeatedly sent large comparison inputs and accumulated tool results; those real fixtures had empty maps and no human minutes, so neither explains their millions of tokens.
