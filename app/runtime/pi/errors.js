@@ -11,6 +11,8 @@ export function explainFailure(failure) {
     (failure.status >= 400 ? failure.status : null) ??
     (Number(raw.match(/\b(400|401|403|404|408|413|429|5\d\d)\b/)?.[1]) || null);
   if (cancelled) return { status, message: '已停止。', retryable: false };
+  if (raw === 'empty_response')
+    return { status, message: '模型没有返回回答，请重试。', retryable: false };
   if (message?.role === 'assistant' && isContextOverflow(message))
     return { status, message: '内容超过了模型的上下文容量。', retryable: false };
   if (timeout)

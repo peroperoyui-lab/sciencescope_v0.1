@@ -148,6 +148,13 @@ export function controlledStream({
           if (signal.aborted) void iterator?.return?.().catch(() => {});
         }
 
+        if (
+          final.stopReason === 'stop' &&
+          !final.content.some(
+            (part) => part.type === 'toolCall' || (part.type === 'text' && part.text.trim()),
+          )
+        )
+          final = { ...final, stopReason: 'error', errorMessage: 'empty_response' };
         const failed =
           timeout ||
           parent.aborted ||

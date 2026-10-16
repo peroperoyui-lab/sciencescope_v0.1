@@ -228,3 +228,30 @@ test('a no-tools summary explicitly requests no tool selection and registers no 
     assert.equal((await runtime.send(id, 'Summarize', () => {})).stopReason, 'completed');
   });
 });
+
+test('output limits retain text and can continue, while an empty final answer is a failure', async () => {
+  await fixture(async ({ runtime, faux, options }) => {
+    faux.setResponses([
+      async (_context, request) => {
+        assert.equal(request.maxTokens, 70);
+        return fauxAssistantMessage('保留这段内容', { stopReason: 'length' });
+      },
+      fauxAssistantMessage('继续的内容'),
+      fauxAssistantMessage(''),
+    ]);
+    const id = await runtime.startSession({
+      ...options,
+      model: { ...options.model, maxTokens: 70 },
+    });
+    let text = '';
+    const limited = await runtime.send(id, 'Write', (event) => {
+      if (event.type === 'text-delta') text += event.delta;
+    });
+    assert.equal(limited.stopReason, 'max_tokens');
+    assert.equal(text, '保留这段内容');
+    assert.equal((await runtime.send(id, 'Continue', () => {})).stopReason, 'completed');
+    const empty = await runtime.send(id, 'Hello', () => {});
+    assert.equal(empty.stopReason, 'failed');
+    assert.match(empty.error, /没有返回回答/);
+  });
+});
