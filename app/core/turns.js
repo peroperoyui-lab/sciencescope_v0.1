@@ -13,6 +13,7 @@ function toTurn(row) {
     participantId: String(row.participant_id),
     triggerMessageId: nullable(row.trigger_message_id),
     status: /** @type {TurnStatus} */ (String(row.status)),
+    phase: String(row.phase),
     stopReason: nullable(row.stop_reason),
     usage: row.usage_json == null ? null : JSON.parse(String(row.usage_json)),
     startedAt: String(row.started_at),
@@ -27,6 +28,7 @@ function toToolCall(row) {
     seq: Number(row.seq),
     callId: nullable(row.call_id),
     name: String(row.name),
+    kind: String(row.kind),
     args: JSON.parse(String(row.args_json)),
     result: row.result_json == null ? null : JSON.parse(String(row.result_json)),
     status: String(row.status),
@@ -73,15 +75,28 @@ export function createTurns({ db, events, meetings, now, newId }) {
    * @param {{ status: TurnStatus, stopReason?: string | null, usage?: any }} result
    */
   function end(id, { status, stopReason = null, usage = null }) {
-    const turn = get(id);
+    const turn = setPhase(id, '');
     return db.transaction(() => {
       db.prepare(
-        'UPDATE turns SET status = ?, stop_reason = ?, usage_json = ?, ended_at = ? WHERE id = ?',
+        "UPDATE turns SET status = ?, stop_reason = ?, usage_json = ?, ended_at = ?, phase = '' WHERE id = ?",
       ).run(status, stopReason, usage == null ? null : JSON.stringify(usage), now(), id);
       const ended = get(id);
       events.record('turn.ended', ended, scope(turn.meetingId, turn.participantId));
       return ended;
     });
+  }
+
+  /**
+   * @param {string} id
+   * @param {string} phase
+   */
+  function setPhase(id, phase) {
+    const turn = get(id);
+    if (turn.phase === phase) return turn;
+    db.prepare('UPDATE turns SET phase = ? WHERE id = ?').run(phase, id);
+    const updated = get(id);
+    events.record('turn.phase', updated, scope(turn.meetingId, turn.participantId));
+    return updated;
   }
 
   /** Turns still marked running, e.g. after the program was closed mid-turn. */
@@ -90,9 +105,9 @@ export function createTurns({ db, events, meetings, now, newId }) {
   }
 
   /**
-   * @param {{ turnId: string, callId: string, name: string, args: any, preamble?: string }} input
+   * @param {{ turnId: string, callId: string, name: string, args: any, preamble?: string, kind?:string }} input
    */
-  function startToolCall({ turnId, callId, name, args, preamble = '' }) {
+  function startToolCall({ turnId, callId, name, args, preamble = '', kind = 'tool' }) {
     const turn = get(turnId);
     const id = newId('tool');
     return db.transaction(() => {
@@ -100,8 +115,8 @@ export function createTurns({ db, events, meetings, now, newId }) {
         .prepare('SELECT MAX(seq) AS seq FROM tool_calls WHERE turn_id = ?')
         .get(turnId);
       db.prepare(
-        `INSERT INTO tool_calls (id, turn_id, seq, call_id, name, args_json, status, preamble, started_at)
-         VALUES (?, ?, ?, ?, ?, ?, 'running', ?, ?)`,
+        `INSERT INTO tool_calls (id, turn_id, seq, call_id, name, args_json, status, preamble, started_at, kind)
+         VALUES (?, ?, ?, ?, ?, ?, 'running', ?, ?, ?)`,
       ).run(
         id,
         turnId,
@@ -111,11 +126,32 @@ export function createTurns({ db, events, meetings, now, newId }) {
         JSON.stringify(args ?? null),
         preamble,
         now(),
+        kind,
       );
       const call = toToolCall(db.prepare('SELECT * FROM tool_calls WHERE id = ?').get(id));
       events.record('tool.started', call, scope(turn.meetingId, turn.participantId));
       return call;
     });
+  }
+
+  /**
+   * A throttled projection update while a thinking segment is still running.
+   * @param {string} turnId
+   * @param {string} callId
+   * @param {any} result
+   */
+  function updateActivity(turnId, callId, result) {
+    const turn = get(turnId);
+    db.prepare('UPDATE tool_calls SET result_json = ? WHERE turn_id = ? AND call_id = ?').run(
+      JSON.stringify(result),
+      turnId,
+      callId,
+    );
+    const call = toToolCall(
+      db.prepare('SELECT * FROM tool_calls WHERE turn_id = ? AND call_id = ?').get(turnId, callId),
+    );
+    events.record('tool.updated', call, scope(turn.meetingId, turn.participantId));
+    return call;
   }
 
   /**
@@ -192,9 +228,11 @@ export function createTurns({ db, events, meetings, now, newId }) {
     get,
     start,
     end,
+    setPhase,
     running,
     startToolCall,
     endToolCall,
+    updateActivity,
     toolCalls,
     session,
     saveSession,

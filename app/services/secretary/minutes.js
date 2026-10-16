@@ -20,18 +20,19 @@ export { DEFAULT_SUMMARY, estimateTokens };
 /**
  * @param {{core:import('../../core/index.js').Core,runtime:import('../../runtime/port.js').Runtime,
  * defaultModel:(meeting?:any)=>Promise<import('../../runtime/port.js').ModelChoice|null>,
- * debounceMs?:number,pendingDelayMs?:number}} dependencies
+ * debounceMs?:number,pendingDelayMs?:number,modelCatalog?:any}} dependencies
  * @returns {{start:()=>void,close:()=>Promise<void>,idle:()=>Promise<void>,refresh:(meetingId:string,options?:{reason?:string})=>Promise<any>,status:(meetingId:string)=>Promise<any>,focus:(projectId:string|null)=>any,edit:(meetingId:string,text:string,expectedRevision:string|null)=>Promise<any>,coverage:(meetingId:string,revision?:any)=>number,coveredMessageIds:(meetingId:string,revision?:any)=>string[]}}
  */
 export function createMinutesService({
   core,
   runtime,
   defaultModel,
+  modelCatalog,
   debounceMs = 1500,
   pendingDelayMs = 30000,
 }) {
   const store = createMinutesStore(core);
-  const runner = createBackgroundRunner({ core, runtime, defaultModel });
+  const runner = createBackgroundRunner({ core, runtime, defaultModel, modelCatalog });
   const timers = new Map();
   const running = new Map();
   const deferred = new Map();

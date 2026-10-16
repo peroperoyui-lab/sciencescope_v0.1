@@ -5,6 +5,7 @@
 // Ordered rounds reserve their answers before starting, so the order in which
 // experts finish never changes the order in which they are shown.
 import { AppError } from '../core/errors.js';
+import { createTurnActivity } from './turn-activity.js';
 
 /** @type {Record<string, 'done' | 'max_tokens' | 'cancelled' | 'failed'>} */
 const STATUS_BY_STOP = {
@@ -92,13 +93,14 @@ export function createTurnRunner({
       env: context.env,
       instructions: context.instructions,
       tools: tools.specs,
-      onToolCall: ({ name, args, callId }) =>
+      onToolCall: ({ name, args, callId, signal }) =>
         tools.run(name, args, {
           participantId,
           meetingId,
           turnId,
           callId,
           environmentId: context.environmentId,
+          signal,
         }),
     };
     const saved = core.turns.session(meetingId, participantId);
@@ -170,10 +172,12 @@ export function createTurnRunner({
     let attemptBase = '';
     let stepText = '';
     let preamble = '';
+    const activity = createTurnActivity(core, turn.id);
 
     /** @param {import('../runtime/port.js').RuntimeEvent} event */
     function onEvent(event) {
       if (execution.cancelled) return;
+      if (activity.onEvent(event)) return;
       if (event.type === 'attempt-start') {
         attemptBase = text;
         stepText = '';
@@ -211,6 +215,7 @@ export function createTurnRunner({
     }
 
     const endTurn = (result) => {
+      activity.finish();
       core.workspace.captureTurnSnapshots(turn.id);
       return core.turns.end(turn.id, result);
     };
@@ -274,6 +279,7 @@ export function createTurnRunner({
         stopReason: execution.cancelled ? 'cancelled' : 'error',
       });
     } finally {
+      activity.finish();
       signal?.removeEventListener('abort', cancel);
       active.delete(turn.id);
       if (execution.sessionId) releaseLater(execution.sessionId);

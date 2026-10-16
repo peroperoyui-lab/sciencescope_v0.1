@@ -87,9 +87,9 @@ export function createPython(core, options = {}) {
     );
     return task;
   }
-  async function command(args) {
+  async function command(args, signal) {
     const current = await settings();
-    return uv.run(args, current.indexUrl, current.installMirror);
+    return uv.run(args, current.indexUrl, current.installMirror, signal);
   }
   const { sync, prepare } = createInstaller({
     root,
@@ -112,14 +112,22 @@ export function createPython(core, options = {}) {
       changed('created', id);
     });
   }
-  async function ensureBuiltin() {
+  async function ensureBuiltin(signal = null) {
+    signal?.throwIfAborted();
     const existing = rows().find((row) => row.id === BUILTIN);
     if (existing?.status === 'ready') return decode(existing);
     const meta = JSON.parse(await readFile(path.join(manifestRoot, 'builtin.json'), 'utf8'));
     const packages = requirements(await readFile(path.join(manifestRoot, 'builtin.in'), 'utf8'));
     const lock = requirements(await readFile(path.join(manifestRoot, 'builtin.lock'), 'utf8'));
     if (!existing) insert(BUILTIN, '内置 · 科学分析', meta.pythonVersion, packages, lock);
-    return prepare(BUILTIN, packages, lock, 'system', 'Prepare builtin scientific environment');
+    return prepare(
+      BUILTIN,
+      packages,
+      lock,
+      'system',
+      'Prepare builtin scientific environment',
+      signal,
+    );
   }
   function bindings(id) {
     return db
@@ -151,10 +159,11 @@ export function createPython(core, options = {}) {
       'system'
     );
   }
-  async function resolve(meetingId, override = null) {
+  async function resolve(meetingId, override = null, signal = null) {
+    signal?.throwIfAborted();
     const id = await selected(meetingId, override);
     if (id === 'system') return { id, name: '系统 Python', env: {} };
-    if (id === BUILTIN) await serialized(ensureBuiltin);
+    if (id === BUILTIN) await serialized(() => ensureBuiltin(signal));
     const environment = get(id);
     if (
       !['ready', 'partial'].includes(environment.status) ||
@@ -172,9 +181,17 @@ export function createPython(core, options = {}) {
       env: { PATH: bin + path.delimiter + (process.env.PATH ?? ''), VIRTUAL_ENV: envPath(id) },
     };
   }
-  async function changePackages(id, action, requested, actor = 'person_user', reason = '') {
+  async function changePackages(
+    id,
+    action,
+    requested,
+    actor = 'person_user',
+    reason = '',
+    signal = null,
+  ) {
     const specs = validatePackages(requested);
     return serialized(async () => {
+      signal?.throwIfAborted();
       const current = get(id);
       const names = new Set(specs.map(packageName));
       const next =
@@ -187,7 +204,7 @@ export function createPython(core, options = {}) {
         throw new AppError('INVALID_ACTION', '包操作无效。');
       update(id, { status: 'preparing', error: null });
       try {
-        const result = await sync(id, next);
+        const result = await sync(id, next, null, signal);
         update(id, {
           status: 'ready',
           packages_json: JSON.stringify(next),
@@ -331,6 +348,7 @@ export function createPython(core, options = {}) {
       const environment = await resolve(
         context.meetingId,
         args.environment ?? context.environmentId,
+        context.signal,
       );
       if (environment.id === 'system')
         throw new AppError('SYSTEM_PYTHON', '请先为此对话选择受管 Python 环境。');
@@ -340,6 +358,7 @@ export function createPython(core, options = {}) {
         args.packages,
         context.participantId,
         args.reason,
+        context.signal,
       );
     },
     exportManifest(id) {

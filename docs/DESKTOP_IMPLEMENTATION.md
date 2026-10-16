@@ -1,8 +1,13 @@
 # Desktop implementation — first increment
 
+## 2026-10-16 P1a: pi runtime and provider contracts (Codex)
+- Exact pi-ai / pi-agent-core 1.0.0 dependencies replace the new core's DSH subprocess bridge; DSH remains development-only for the frozen line. SDK Agent owns the loop; atomic transcripts, catalog capacities, key-only presets/model/test APIs, bounded cancellable request retries and metadata-only rotated logs are wired without UI edits.
+- Migration 018 adds phase and activity kind; complete thinking/retry records share the tool timeline. Stop reaches provider sockets, host tools and uv installs. Related runtime/conductor/migration tests 19/19, provider/log tests 2/2, Python 3/3; final clean-checkout and real acceptance evidence follows in `.sciencescope-local/temp/p1a/`.
+- API addition `turn.error` was proposed and deferred by the user to Claude; no field added. Both real presets connect and edit plans; real stop retained 26 characters and settled in 194 ms. Initial Go connection failure, a raw-tool-syntax summary, and follow-up diagnostics are retained; no installer generated and preview installation untouched. SDK README/API composition (MIT), no copied agent-loop code.
+
 ## 2026-10-16 P1a step 0: retained startup measurements (Codex)
 - Added native/Node/core/Python/semantic/listen/first-paint timestamps, one retained JSON row per launch; no startup optimization or UI component changes. Native debug/no-bundle executable, isolated H-drive data: hot 4.749 / 4.614 / 4.646 s (mean 4.670 s); HTTP-to-paint 4.138–4.197 s. First new-data launch 9.862 s is not an OS-cold sample.
-- User approved deferring three reboot-cold samples, process-scoped offline acceptance, and production staging instead of an installer. Measurements and original concurrent-I/O samples: `.sciencescope-local/temp/p1a/`; the user preview installation was not touched. Initial full check: 214/215; existing DSH initialization timed out during concurrent build/measurement, retained for independent verification.
+- User approved deferring three reboot-cold samples, process-scoped offline acceptance, and production staging instead of an installer. Measurements and original concurrent-I/O samples: `.sciencescope-local/temp/p1a/`; the user preview installation was not touched. Baseline and clean-checkout checks both 214/215: existing DSH initialization exceeded 30 s; concurrency alone is not established as its cause. P1a replaces that path.
 
 ## 2026-10-13 R6a-2b reviewed installer repackage (Codex; merged by Claude)
 - Rebuilt `e9b62d6` without product changes: 128.20 MiB, SHA-256 in PREVIEW_TEST; stage/release app and production dependencies match by path, size and hash, with no test files or listed development packages. Installed program: 687.32 MiB / 30,677 files; fresh install 8 min 9 s.

@@ -1,4 +1,4 @@
-// End to end with real DSH: the user posts in a meeting over the HTTP API, the
+// End to end with real pi: the user posts in a meeting over the HTTP API, the
 // main expert answers through a local fixture model, uses workspace_edit, and
 // the change lands in the project's files as a revision by that AI.
 import test from 'node:test';
@@ -66,7 +66,7 @@ function startFixtureModel() {
   });
 }
 
-test('a person posts, the main expert answers through DSH and edits the plan', async () => {
+test('a person posts, the main expert answers through pi and edits the plan', async () => {
   const { dir, cleanup } = await tempDir('e2e');
   const fixture = await startFixtureModel();
   const app = await createApp({

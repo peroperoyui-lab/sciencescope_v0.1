@@ -62,6 +62,7 @@ function tokenMatches(given, expected) {
  *   minutes?: ReturnType<typeof import('../services/secretary/minutes.js').createMinutesService>,
  *   secretary?: ReturnType<typeof import('../services/secretary/chat.js').createSecretaryChat>,
  *   assistant?: ReturnType<typeof import('../services/assistant/index.js').createAssistant>,
+ *   providers?:ReturnType<typeof import('../services/providers.js').createProviderService>,
  *   memory?: any, researchInput?:ReturnType<typeof import('../services/research-input/index.js').createResearchInput>,
  *   python?:ReturnType<typeof import('../services/python/index.js').createPython>,
  *   research?: ReturnType<typeof import('../services/research/index.js').createResearch>, semantic?:any,
@@ -85,6 +86,7 @@ export function createAppServer({
   assistant,
   memory,
   startup,
+  providers,
 }) {
   const router = createRouter();
   registerVersionRoutes(router, versions, versionNotes);
@@ -99,7 +101,7 @@ export function createAppServer({
   registerSecretaryRoutes(router, secretary);
   registerAssistantRoutes(router, assistant);
   registerMemoryRoutes(router, core, memory, research);
-  registerProviderRoutes(router, core);
+  registerProviderRoutes(router, core, providers);
   registerWorkspaceRoutes(router, core);
   registerEventRoutes(router, core);
   registerSystemRoutes(router, core);

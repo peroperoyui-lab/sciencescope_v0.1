@@ -1,6 +1,6 @@
 // The runtime port: everything ScienceScope needs from an agent runtime.
-// Core and services depend only on this shape; `dsh/` implements it with
-// DeepSeek Harness and `scripted.js` implements it for tests.
+// Core and services depend only on this shape; `pi/` composes pi-ai with
+// pi-agent-core and `scripted.js` implements it for tests.
 //
 // A runtime session is one AI's working memory in one meeting. The meeting
 // record (our database) stays the source of truth; a session can be dropped
@@ -17,6 +17,9 @@
  *   Runs a ScienceScope tool on behalf of the session and returns its JSON result.
  *
  * @typedef {{ type: 'text-delta', delta: string }
+ *   | { type: 'phase', phase: 'connecting' | 'thinking' | 'answering' | 'tool' | 'retrying' }
+ *   | { type: 'thinking-delta', delta: string }
+ *   | { type: 'retry', attempt: number, maxAttempts: number, error: string, delayMs: number }
  *   | { type: 'attempt-start' }
  *   | { type: 'attempt-discarded' }
  *   | { type: 'tool-call', callId: string, name: string, args: any }

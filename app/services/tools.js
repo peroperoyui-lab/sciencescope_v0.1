@@ -4,7 +4,7 @@ import { createResearch } from './research/index.js';
 import { AppError } from '../core/errors.js';
 import { createDeliverables } from './deliverables.js';
 
-/** @typedef {{ participantId: string, meetingId: string, turnId: string, callId?: string, environmentId?:string }} ToolContext */
+/** @typedef {{ participantId: string, meetingId: string, turnId: string, callId?: string, environmentId?:string, signal?:AbortSignal }} ToolContext */
 
 const RESOURCES = ['map', 'plans', 'log', 'minutes', 'notes', 'agent', 'settings', 'versions'];
 
