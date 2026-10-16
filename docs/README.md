@@ -11,7 +11,8 @@
 | `docs/REVIEW_2026-10-06.md` | 重建期复盘：偏差与改进做法（§5、§6 是 R4-3、R4-4 的补充） |
 | `docs/design/ARCHITECTURE.md` | 总纲：五个原语、代码结构、重建阶段 |
 | `docs/design/CORE_MODEL.md` | 新核心的数据、事件、发言规则、上下文组装、工具、接口 |
-| `docs/design/UI_RESTORE.md` | 旧界面复原清单与缺口（界面工作的验收依据） |
+| `docs/design/DESIGN_SYSTEM.md` | 设计系统：令牌、图标、组件与交互模式（2026-10-16 起界面工作的依据） |
+| `docs/design/UI_RESTORE.md` | 旧界面复原清单（2026-10-16 废止，只作历史参考） |
 | `docs/02_INTERACTION_CONTRACTS.md` 最前面的日期修订节 | 用户确认的交互决定，优先于正文和旧原型 |
 | `docs/CODE_STYLE.md` | 代码风格，`npm run check` |
 | 当前任务的 `docs/tasks/R*.md` | 任务书 |

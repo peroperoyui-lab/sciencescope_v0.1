@@ -38,19 +38,24 @@ workflow, helping the user understand and advance their own research project
 5. **Security is not a current focus.** Do not add guards, approval gates or
    security tests. Keep the cheap measures that already exist: keys live in a
    separate credentials file, never in environment variables or tracked files.
-6. **Visual baseline.** The approved `ScienceScope.html`, logo, colours and layout.
-   The new UI reproduces the old main interface one to one (same markup and the
-   old style sheets in `app/ui/styles/legacy/`); the rebuild changes the backend,
-   not the design.
+   One exception (user 2026-10-16): the execution mode 「请求批准」 asks the
+   user before shell commands, writes in the project folder and package installs.
+6. **Visual baseline.** Keep the logo, colours and art style of `ScienceScope.html`.
+   Layout, components and interaction follow `docs/design/DESIGN_SYSTEM.md`
+   (user 2026-10-16: the one-to-one restore of the old interface is retired,
+   `docs/design/UI_RESTORE.md` is history only). Compact rather than loose; one
+   icon set; no raw colours or font sizes outside the design tokens.
    The GUI is bilingual (中文 / English; every new string needs an English entry,
    `app/ui/i18n/en.js` for new code). Explanations go behind the "i" info tip; status,
    errors and data stay visible. Status means the outcome and what the user can do
    next: no token counters, batch progress or raw model output unless asked. Unfinished features stay hidden behind
    feature flags, never shown as "coming soon".
    No fake data presented as real.
-7. **Runtime.** DSH through the runtime port only (`docs/design/RUNTIME_PORT.md`):
-   only `app/runtime/` (old line: `adapters/runtime-*/`) imports runtime packages. Whether to keep DSH is
-   decided after alpha.
+7. **Runtime.** ScienceScope's own agent runtime on `@earendil-works/pi-ai` and
+   `@earendil-works/pi-agent-core`, through the runtime port only
+   (`docs/design/RUNTIME_PORT.md`): only `app/runtime/` imports model or agent
+   packages. DSH is being removed (user 2026-10-16, task P1a); the old line keeps
+   it as a dev dependency until R5.
 
 ## Engineering rules
 
@@ -86,17 +91,26 @@ workflow, helping the user understand and advance their own research project
 ## Workflow
 
 - **Claude**: design, frontend, review and merge into the integration branch.
-  **Sol** (GPT-6.1 Sol): implementation and Windows acceptance; its subagents
-  use GPT-6.1 Sol, Git delivery uses GPT-6 Luna. Dot is no longer used (user
+  All GUI work (design and implementation in `app/ui/`) is Claude's (user
+  2026-10-16). **Sol** (GPT-6.1 Sol): backend, packaging and Windows acceptance;
+  Sol does not design or restyle the UI, and touches `app/ui/` only where a
+  brief names it. Its subagents use GPT-6.1 Sol, Git delivery uses GPT-6 Luna. Dot is no longer used (user
   2026-10-12): Claude re-checks on Linux in the cloud; installs, upgrade
   rehearsals and evaluations run locally on the user's H: drive by Sol / Codex.
 - Rebuild workflow: Claude builds R0–R3 in the cloud (Linux) and sets the
   baselines; Codex pulls to Windows and Sol localizes (L1); afterwards Sol takes
   the heavy work (R4–R6) with short briefs, Claude reviews diffs.
-- One task, one brief: goal, files it may change, done criteria, things not to
-  do. About one to two hours of work; if it grows, stop and report.
+- One task, one brief: goal, how the user will use it, files it may change,
+  done criteria, things not to do. About one to two hours of work; if it grows,
+  stop and report. If the brief asks for something that will be awkward for the
+  user, say so before building it.
+- For complex features (parsers, editors, agent loop, mind map, file preview)
+  look for a mature open-source library or reference implementation first; name
+  it and its licence in the report.
 - Verification: related tests while working; the full suite (`npm test`, later
-  `npm run check`) once before delivery. One screenshot if the UI changed.
+  `npm run check`) once before delivery. When the user can see the change,
+  screenshots at 100% and 125% scaling. AI paths are accepted from a fresh
+  install: add the provider in Settings, then run the task.
   Native acceptance only if native code changed.
 - Report in 15 lines or fewer: what changed, which files, test result, open
   issues. Long material stays in `.sciencescope-local/temp`.
