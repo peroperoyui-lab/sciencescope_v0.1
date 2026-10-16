@@ -1,0 +1,27 @@
+<!-- @dsCard group="导航" height=166 subtitle="每页只有一行标签，放在 44px 页头里；数量写在标签右侧" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Tabs</title></head>
+<body>
+<div class="ds">
+  <div class="ds-box" style="overflow:hidden">
+    <div class="ss-header">
+      <div class="ss-header__title"><span>资料库</span></div>
+      <span class="ss-header__sep"></span>
+      <nav class="ss-tabs" role="tablist" aria-label="资料类型">
+        <button class="ss-tab" role="tab" aria-selected="true" type="button">文献与资料<span class="ss-tab__count">8</span></button>
+        <button class="ss-tab" role="tab" aria-selected="false" type="button">知识</button>
+        <button class="ss-tab" role="tab" aria-selected="false" type="button">模型与公式</button>
+        <button class="ss-tab" role="tab" aria-selected="false" type="button">主张与证据</button>
+        <button class="ss-tab" role="tab" aria-selected="false" type="button">记忆</button>
+        <button class="ss-tab" role="tab" aria-selected="false" type="button">收件箱<span class="ss-tab__count">3</span></button>
+        <button class="ss-tab" role="tab" aria-selected="false" type="button">项目简报</button>
+      </nav>
+    </div>
+    <div style="height:28px"></div>
+  </div>
+  <p class="ds-note">不要在标签下面再放第二行标签；范围、视图这类切换放进页头左侧的轻量选择器。没有内容的标签照样显示，点进去是空状态。</p>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

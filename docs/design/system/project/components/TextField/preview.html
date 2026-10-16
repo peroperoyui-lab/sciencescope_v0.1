@@ -1,0 +1,37 @@
+<!-- @dsCard group="输入" height=226 subtitle="28px；标签在上，说明和错误在下" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>TextField</title></head>
+<body>
+<div class="ds">
+  <div class="ds-cols">
+    <label class="ss-field">
+      <span class="ss-field__label">搜索资料</span>
+      <span class="ss-input"><i data-i="search"></i><input placeholder="标题、作者或正文" /><span class="ss-kbd">Ctrl K</span></span>
+    </label>
+    <label class="ss-field">
+      <span class="ss-field__label">服务地址</span>
+      <span class="ss-input"><input value="https://api.deepseek.com" /></span>
+      <span class="ss-field__hint">以 /v1 结尾的地址也可以。</span>
+    </label>
+    <label class="ss-field">
+      <span class="ss-field__label">API 密钥</span>
+      <span class="ss-input" data-invalid><i data-i="key-round"></i><input type="password" value="sk-0000000000" /><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="显示" data-tip="显示密钥"><i data-i="eye"></i></button></span>
+      <span class="ss-field__error"><i data-i="circle-alert" class="ss-i--sm"></i>密钥无效（HTTP 401），请检查后重新粘贴。</span>
+    </label>
+  </div>
+  <div class="ds-cols">
+    <label class="ss-field">
+      <span class="ss-field__label">备注</span>
+      <textarea class="ss-textarea" placeholder="写给自己的说明，可留空"></textarea>
+    </label>
+    <div class="ds-col">
+      <span class="ss-field__label">小号与禁用</span>
+      <span class="ss-input ss-input--sm"><i data-i="tag" class="ss-i--sm"></i><input placeholder="按标签筛选" /></span>
+      <span class="ss-input" data-disabled><input value="由预设自动填写" /></span>
+    </div>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

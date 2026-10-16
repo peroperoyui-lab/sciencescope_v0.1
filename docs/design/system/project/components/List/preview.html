@@ -1,0 +1,37 @@
+<!-- @dsCard group="数据" height=280 subtitle="对象列表：一行一个对象，点一下预览，悬停出现至多两个图标和 ⋯" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>List</title></head>
+<body>
+<div class="ds" style="grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+  <div class="ds-col">
+    <span class="ds-label">单行（36px）</span>
+    <div class="ss-list" data-selectable role="listbox" aria-label="资料">
+      <div class="ss-list-row" role="option" aria-selected="false" data-ctx="#m-row"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">城市韧性评价指标体系构建</span></div><span class="ss-list-row__meta">PDF</span><span class="ss-list-row__meta ss-list-row__meta--time">10-12</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="打开原件" data-tip="打开原件"><i data-i="external-link"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-row"><i data-i="ellipsis"></i></button></span></div>
+      <div class="ss-list-row" role="option" aria-selected="true" data-ctx="#m-row"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">社区韧性访谈记录汇编</span></div><span class="ss-tag ss-tag--warn">有提示</span><span class="ss-list-row__meta ss-list-row__meta--time">10-13</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="打开原件" data-tip="打开原件"><i data-i="external-link"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-row"><i data-i="ellipsis"></i></button></span></div>
+      <div class="ss-list-row" role="option" aria-selected="false" data-ctx="#m-row"><span class="ss-spin"></span><div class="ss-list-row__main"><span class="ss-list-row__title">韧性城市建设的财政投入效应</span></div><span class="ss-tag">解析中</span><span class="ss-list-row__meta ss-list-row__meta--time">刚刚</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-row"><i data-i="ellipsis"></i></button></span></div>
+      <div class="ss-list-row" role="option" aria-selected="false" data-ctx="#m-row"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">Urban resilience: a review of concepts and an overlong title that truncates</span></div><span class="ss-list-row__meta ss-list-row__meta--time">10-15</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="打开原件" data-tip="打开原件"><i data-i="external-link"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-row"><i data-i="ellipsis"></i></button></span></div>
+    </div>
+  </div>
+  <div class="ds-col" data-batch>
+    <span class="ds-label">两行（52px），可勾选批量处理</span>
+    <div class="ss-list" data-selectable role="listbox" aria-label="收件箱">
+      <div class="ss-list-row ss-list-row--2" role="option" aria-selected="false"><label class="ss-check"><input type="checkbox" data-batch-item aria-label="选择" checked /></label><div class="ss-list-row__main"><span class="ss-list-row__title">综述按研究方法分三节</span><span class="ss-list-row__sub">决定 · 任务秘书 · 文献综述框架讨论</span></div><span class="ss-list-row__meta ss-list-row__meta--time">刚刚</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="接受" data-tip="接受"><i data-i="check"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="拒绝" data-tip="拒绝"><i data-i="x"></i></button></span></div>
+      <div class="ss-list-row ss-list-row--2" role="option" aria-selected="false"><label class="ss-check"><input type="checkbox" data-batch-item aria-label="选择" /></label><div class="ss-list-row__main"><span class="ss-list-row__title">指标对照以 data/indicators.csv 为准</span><span class="ss-list-row__sub">背景 · 任务秘书 · 文献综述框架讨论</span></div><span class="ss-list-row__meta ss-list-row__meta--time">刚刚</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="接受" data-tip="接受"><i data-i="check"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="拒绝" data-tip="拒绝"><i data-i="x"></i></button></span></div>
+    </div>
+    <button class="ss-list__group" type="button" aria-expanded="true" data-toggle="next"><i data-i="chevron-down"></i>已处理<span class="ss-count">1</span></button>
+    <div class="ss-list">
+      <div class="ss-list-row ss-list-row--2 ss-list-row--done"><i data-i="circle-check" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">研究区域限定为 2010–2022 年地级市</span><span class="ss-list-row__sub">背景 · 已接受</span></div><span class="ss-list-row__meta ss-list-row__meta--time">10-14</span></div>
+    </div>
+  </div>
+</div>
+<div class="ss-menu" id="m-row" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="eye"></i>预览<span class="ss-menu__end">Space</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="external-link"></i>打开原件</button>
+  <button class="ss-menu__item" type="button"><i data-i="message-square"></i>在对话中引用</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>移出资料库</button>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

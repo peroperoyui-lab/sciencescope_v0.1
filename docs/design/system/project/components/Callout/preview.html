@@ -1,0 +1,39 @@
+<!-- @dsCard group="反馈" height=276 subtitle="页面里的提示条：一句话说结果和影响，细节收起，可以关掉" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Callout</title></head>
+<body>
+<div class="ds" style="gap:10px;max-width:720px">
+  <div class="ss-callout ss-callout--warn">
+    <i data-i="triangle-alert"></i>
+    <div class="ss-callout__body"><span class="ss-callout__title">2 篇材料解析时有提示，</span>正文已完整入库，检索不受影响。
+      <ul class="ss-callout__details" id="c-notes" hidden>
+        <li>社区韧性访谈记录汇编.docx：跳过了 3 种无法识别的样式（目录、页眉）</li>
+        <li>灾后恢复案例：郑州 2021.docx：跳过了 1 个公式样式</li>
+      </ul>
+    </div>
+    <div class="ss-callout__actions"><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" aria-expanded="false" data-toggle="#c-notes">查看</button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="不再提示" data-tip="不再提示"><i data-i="x"></i></button></div>
+  </div>
+  <div class="ss-callout ss-callout--danger">
+    <i data-i="circle-alert"></i>
+    <div class="ss-callout__body"><span class="ss-callout__title">模型 60 秒没有响应，已停止。</span>可以重试，或换一个模型。</div>
+    <div class="ss-callout__actions"><button class="ss-btn ss-btn--sm" type="button"><i data-i="rotate-cw"></i>重试</button></div>
+  </div>
+  <div class="ss-callout ss-callout--ok">
+    <i data-i="circle-check"></i>
+    <div class="ss-callout__body">连接正常 · 820 ms · 找到 3 个模型</div>
+  </div>
+  <div class="ss-callout ss-callout--auto">
+    <i data-i="zap"></i>
+    <div class="ss-callout__body"><span class="ss-callout__title">自动化进行中：</span>专家会按目标持续工作，命令不再逐条询问。</div>
+    <div class="ss-callout__actions"><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">改为请求批准</button></div>
+  </div>
+  <div class="ss-callout">
+    <i data-i="info"></i>
+    <div class="ss-callout__body">这个项目还没有设置 Python 环境，运行脚本时会使用内置环境。</div>
+    <div class="ss-callout__actions"><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">设置环境</button></div>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+<!-- @dsCard height=256 -->
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>ScienceScope</title>
+<style>
+  html, body { margin:0; height:100%; }
+  body { background:var(--paper); color:var(--ink); font-family:var(--font-sans); overflow:hidden; }
+  .cover { position:relative; width:960px; height:256px; overflow:hidden; }
+  /* top band: blocks and pattern full width, the name beneath (it is too wide for the 440px zone) */
+  .band { position:absolute; top:0; left:0; width:960px; height:96px; }
+  .band svg { display:block; width:960px; height:96px; }
+  .brand { fill:var(--accent); }
+  .tint { fill:var(--accent-line); }
+  .deep { fill:var(--ink); }
+  .mode { fill:var(--auto); }
+  .blk { rx:var(--r-lg); }
+  .arc { fill:none; stroke:var(--paper); stroke-width:var(--sp-8); }
+  .words { position:absolute; left:var(--sp-24); right:var(--sp-24); bottom:var(--sp-24); }
+  .name { margin:0; font-size:64px; line-height:.95; font-weight:600; letter-spacing:-.01em; color:var(--ink); }
+  .tag { margin:var(--sp-12) 0 0 2px; font-size:14px; line-height:20px; color:var(--muted); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="band" aria-hidden="true">
+<svg viewBox="0 0 960 96" width="960" height="96">
+<!--
+  blocks      accent 312 wide (the brand green, largest) · accent-line 168 (the tint) · ink 264 (the logo's ink) · auto 160, bled off the right (the automation mode, kept small) — all bleed off the top; about 30% of 960×256
+  arrangement a strip of unequal bands at sp-24 from the left edge, sp-16 gutters, bottoms stepping 96 / 72 / 96 / 48
+  pattern     lens arcs, from the mark itself (a lens ring around a spark): three quarter arcs cut into the ink block in paper, centred on its lower-left corner
+  scales      widths and heights in sp-8 multiples; gutter sp-16; arc radii 32 / 56 / 80 at an sp-24 pitch, stroke sp-8; corners r-lg
+-->
+<rect class="brand blk" x="24" y="-16" width="312" height="112" rx="12"/>
+<rect class="tint blk" x="352" y="-16" width="168" height="88" rx="12"/>
+<rect class="deep blk" x="536" y="-16" width="264" height="112" rx="12"/>
+<rect class="mode blk" x="816" y="-16" width="160" height="64" rx="12"/>
+<path class="arc" d="M536 64A32 32 0 0 1 568 96"/>
+<path class="arc" d="M536 40A56 56 0 0 1 592 96"/>
+<path class="arc" d="M536 16A80 80 0 0 1 616 96"/>
+</svg>
+</div>
+<div class="words">
+<h1 class="name">ScienceScope</h1>
+<p class="tag">安静、紧凑，看得见每一步的研究工作台。</p>
+</div>
+</div>
+</body>
+</html>

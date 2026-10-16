@@ -1,0 +1,27 @@
+<!-- @dsCard group="输入" height=92 subtitle="二到四个互斥选项，立即切换；更多选项用选择器" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>SegmentedControl</title></head>
+<body>
+<div class="ds">
+  <div class="ds-row" style="gap:16px">
+    <div class="ss-seg" role="group" aria-label="主题">
+      <button type="button" aria-pressed="false"><i data-i="sun"></i>浅色</button>
+      <button type="button" aria-pressed="true"><i data-i="moon"></i>深色</button>
+      <button type="button" aria-pressed="false"><i data-i="monitor"></i>跟随系统</button>
+    </div>
+    <div class="ss-seg ss-seg--icons" role="group" aria-label="视图">
+      <button type="button" aria-pressed="true" aria-label="列表" data-tip="列表视图"><i data-i="layout-list"></i></button>
+      <button type="button" aria-pressed="false" aria-label="表格" data-tip="表格视图"><i data-i="table-2"></i></button>
+    </div>
+    <div class="ss-seg ss-seg--sm" role="group" aria-label="思考强度">
+      <button type="button" aria-pressed="false">关闭</button>
+      <button type="button" aria-pressed="false">低</button>
+      <button type="button" aria-pressed="true">中</button>
+      <button type="button" aria-pressed="false">高</button>
+    </div>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

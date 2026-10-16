@@ -1,0 +1,23 @@
+<!-- @dsCard group="操作" height=136 subtitle="只有图标的按钮都有提示气泡；悬停后 0.5 秒出现" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>IconButton</title></head>
+<body>
+<div class="ds">
+  <div class="ds-row">
+    <button class="ss-icon-btn" type="button" aria-label="预览" data-tip="预览" data-kbd="Space"><i data-i="eye"></i></button>
+    <button class="ss-icon-btn" type="button" aria-label="打开原件" data-tip="打开原件"><i data-i="external-link"></i></button>
+    <button class="ss-icon-btn" type="button" aria-label="更多" data-tip="更多操作"><i data-i="ellipsis"></i></button>
+    <button class="ss-icon-btn" type="button" aria-label="筛选" data-tip="筛选"><i data-i="funnel"></i><span class="ss-icon-btn__badge">2</span></button>
+    <button class="ss-icon-btn" type="button" aria-label="右侧面板" aria-pressed="true" data-tip="收起右侧面板"><i data-i="panel-right"></i></button>
+    <button class="ss-icon-btn" type="button" aria-label="收件箱" data-dot data-tip="收件箱有新条目"><i data-i="inbox"></i></button>
+    <span style="width:16px"></span>
+    <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="复制" data-tip="复制"><i data-i="copy"></i></button>
+    <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="重新回答" data-tip="重新回答"><i data-i="rotate-cw"></i></button>
+    <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="删除" disabled><i data-i="trash-2"></i></button>
+  </div>
+  <p class="ds-note">28px 默认，24px 用在消息底部和行内。按下的切换状态用 selected 底色。行内操作最多露出两个图标，其余收进「更多」菜单，右键打开同一个菜单。</p>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<!-- @dsCard group="对话" height=440 subtitle="请求批准模式下，命令、文件改动和安装包先停在这里；说清要做什么、会改哪里" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>ApprovalCard</title></head>
+<body>
+<div class="ds" style="max-width:720px;gap:8px">
+  <div class="ss-approve" role="group" aria-label="需要你的批准">
+    <div class="ss-approve__head"><i data-i="shield-question-mark"></i><span class="ss-approve__title">需要你的批准</span><span class="ss-approve__tool">运行命令</span></div>
+    <div class="ss-approve__body">
+      <pre class="ss-approve__cmd">python scripts/match_indicators.py --out results/indicator_map.csv</pre>
+      <div class="ss-approve__meta">工作目录 D:\研究\城市韧性 · 会写入 results/indicator_map.csv</div>
+    </div>
+    <div class="ss-approve__foot">
+      <button class="ss-btn" type="button">拒绝</button>
+      <button class="ss-btn ss-btn--primary" type="button">允许</button>
+    </div>
+  </div>
+  <div class="ss-approve" role="group" aria-label="需要你的批准">
+    <div class="ss-approve__head"><i data-i="shield-question-mark"></i><span class="ss-approve__title">需要你的批准</span><span class="ss-approve__tool">安装包</span></div>
+    <div class="ss-approve__body">
+      <pre class="ss-approve__cmd">seaborn 0.13</pre>
+      <div class="ss-approve__meta">装进项目环境（Python 3.12）· 用来画热力图</div>
+    </div>
+    <div class="ss-approve__foot">
+      <button class="ss-btn" type="button">拒绝</button>
+      <button class="ss-btn ss-btn--primary" type="button">允许</button>
+    </div>
+  </div>
+  <div class="ss-act">
+    <div class="ss-act__row"><i data-i="circle-check" style="color:var(--ok)"></i><span class="ss-act__verb">已允许</span><span class="ss-act__target">python scripts/match_indicators.py</span><span class="ss-act__end">你 · 16:27</span></div>
+    <div class="ss-act__row"><i data-i="circle-x"></i><span class="ss-act__verb">已拒绝</span><span class="ss-act__target">安装 seaborn 0.13</span><span class="ss-act__end">你 · 16:28</span></div>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

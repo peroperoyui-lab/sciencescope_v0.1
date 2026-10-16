@@ -1,0 +1,30 @@
+<!-- @dsCard group="数据" height=244 subtitle="表格只用于需要比较的字段；表头可排序，数字右对齐，操作悬停才出现" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Table</title></head>
+<body>
+<div class="ds">
+  <div class="ds-box" style="overflow:hidden">
+    <table class="ss-table" data-selectable>
+      <colgroup><col style="width:26%" /><col style="width:30%" /><col style="width:12%" /><col style="width:12%" /><col style="width:14%" /><col style="width:44px" /></colgroup>
+      <thead><tr>
+        <th style="padding-left:12px"><button type="button">变量</button></th>
+        <th>含义</th>
+        <th class="ss-num" aria-sort="descending"><button type="button" style="margin-left:auto;margin-right:-6px">样本量<i data-i="chevron-down" class="ss-i--sm"></i></button></th>
+        <th class="ss-num">缺失率</th>
+        <th>来源</th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+        <tr><td class="ss-mono" style="padding-left:12px">gdp_pc</td><td>人均地区生产总值</td><td class="ss-num">3,588</td><td class="ss-num">0.4%</td><td>统计年鉴</td><td class="ss-table__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多"><i data-i="ellipsis"></i></button></td></tr>
+        <tr aria-selected="true"><td class="ss-mono" style="padding-left:12px">unemp</td><td>城镇登记失业率</td><td class="ss-num">3,412</td><td class="ss-num">4.9%</td><td>统计年鉴</td><td class="ss-table__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多"><i data-i="ellipsis"></i></button></td></tr>
+        <tr><td class="ss-mono" style="padding-left:12px">green_cov</td><td>建成区绿化覆盖率</td><td class="ss-num">3,301</td><td class="ss-num">8.0%</td><td>城建年鉴</td><td class="ss-table__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多"><i data-i="ellipsis"></i></button></td></tr>
+        <tr><td class="ss-mono" style="padding-left:12px">road_den</td><td>路网密度</td><td class="ss-num">2,976</td><td class="ss-num"><span style="color:var(--warn-ink)" data-tip="缺失超过 10%">17.1%</span></td><td>城建年鉴</td><td class="ss-table__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多"><i data-i="ellipsis"></i></button></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="ds-note">资料、对话这类对象用列表，不用表格。表头固定在顶部；空值写「—」，不写 null 或 undefined。</p>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

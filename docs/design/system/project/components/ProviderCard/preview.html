@@ -1,0 +1,54 @@
+<!-- @dsCard group="设置" height=340 subtitle="服务商卡片：连接状态和下一步写在头部，模型上限自动列出" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>ProviderCard</title></head>
+<body>
+<div class="ds" style="gap:8px;max-width:720px">
+  <div class="ss-provider" style="margin:0">
+    <div class="ss-provider__head">
+      <span class="ss-preset__mark ss-preset__mark--sm">DS</span>
+      <div class="ss-provider__main"><span class="ss-provider__name">DeepSeek 官方</span><span class="ss-provider__meta">api.deepseek.com · 密钥已保存</span></div>
+      <span class="ss-provider__status"><span class="ss-dot ss-dot--ok"></span>连接正常 · 820 ms</span>
+      <button class="ss-btn ss-btn--sm" type="button">测试连接</button>
+      <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-prov"><i data-i="ellipsis"></i></button>
+    </div>
+    <div class="ss-provider__body">
+      <table class="ss-table">
+        <colgroup><col style="width:36%" /><col style="width:13%" /><col style="width:13%" /><col style="width:22%" /><col style="width:16%" /></colgroup>
+        <thead><tr><th>模型</th><th class="ss-num">上下文</th><th class="ss-num">最长输出</th><th>思考强度</th><th>上限来源</th></tr></thead>
+        <tbody>
+          <tr><td class="ss-mono">deepseek-v4-pro</td><td class="ss-num">1M</td><td class="ss-num">64K</td><td>关闭、低、中、高</td><td class="ss-muted">目录</td></tr>
+          <tr><td class="ss-mono">deepseek-v4-flash</td><td class="ss-num">1M</td><td class="ss-num">64K</td><td>关闭、高</td><td class="ss-muted">目录</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="ss-provider" style="margin:0">
+    <div class="ss-provider__head">
+      <span class="ss-preset__mark ss-preset__mark--sm"><i data-i="plug"></i></span>
+      <div class="ss-provider__main"><span class="ss-provider__name">课题组中转</span><span class="ss-provider__meta">https://llm.example.edu/v1 · OpenAI 兼容</span></div>
+      <span class="ss-provider__status"><span class="ss-spin"></span>正在测试</span>
+      <button class="ss-btn ss-btn--sm" type="button" disabled>测试连接</button>
+      <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-prov"><i data-i="ellipsis"></i></button>
+    </div>
+  </div>
+  <div class="ss-provider" style="margin:0">
+    <div class="ss-provider__head">
+      <span class="ss-preset__mark ss-preset__mark--sm">Go</span>
+      <div class="ss-provider__main"><span class="ss-provider__name">OpenCode Go</span><span class="ss-provider__meta">订阅 · 6 个模型</span></div>
+      <span class="ss-provider__status ss-provider__status--danger"><span class="ss-dot ss-dot--danger"></span>密钥无效，请重新填写</span>
+      <button class="ss-btn ss-btn--sm" type="button">更新密钥</button>
+      <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-prov"><i data-i="ellipsis"></i></button>
+    </div>
+  </div>
+</div>
+<div class="ss-menu" id="m-prov" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="refresh-cw"></i>重新获取模型列表</button>
+  <button class="ss-menu__item" type="button"><i data-i="key-round"></i>更新密钥</button>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>编辑地址</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>移除服务商</button>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

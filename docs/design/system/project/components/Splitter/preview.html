@@ -1,0 +1,22 @@
+<!-- @dsCard group="布局" height=270 subtitle="每个侧栏和面板都能拖动调宽，双击恢复默认，宽度会记住" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Splitter</title></head>
+<body>
+<div class="ds" style="gap:10px">
+  <div class="ds-box" style="display:flex;height:180px;overflow:hidden">
+    <div style="position:relative;flex:none;width:220px;border-right:1px solid var(--line);background:var(--side)">
+      <div style="padding:12px;color:var(--muted);font-size:12px">左侧栏 · 160–320px</div>
+      <div class="ss-splitter ss-splitter--end" data-min="160" data-max="320" data-default="220" data-key="card-left"></div>
+    </div>
+    <div style="flex:1;min-width:0;padding:12px;color:var(--muted);font-size:12px">主区域随剩余空间伸缩</div>
+    <div style="position:relative;flex:none;width:260px;border-left:1px solid var(--line)">
+      <div style="padding:12px;color:var(--muted);font-size:12px">右侧面板 · 200–400px</div>
+      <div class="ss-splitter ss-splitter--start" data-min="200" data-max="400" data-default="260" data-key="card-right"></div>
+    </div>
+  </div>
+  <p class="ds-note">分隔线平时就是一条细线，悬停 0.15 秒后变粗变绿。拖动时跟手（每帧更新一次），面板内容不重新加载。选中分隔线后可以用 ← → 键调整。</p>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

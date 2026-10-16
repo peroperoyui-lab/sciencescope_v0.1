@@ -1,0 +1,197 @@
+<!-- @dsCard group="整页示例" page height=900 width=1536 subtitle="资料库：页头里一行标签，漏斗筛选，提示收起，点一下就在右侧预览" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>PageLibrary</title></head>
+<body>
+<div class="ss-shell">
+  <header class="ss-titlebar">
+    <span class="ss-titlebar__brand"><i data-logo></i>ScienceScope</span>
+    <button class="ss-titlebar__menu" type="button">文件</button>
+    <button class="ss-titlebar__menu" type="button">编辑</button>
+    <button class="ss-titlebar__menu" type="button">视图</button>
+    <button class="ss-titlebar__menu" type="button">帮助</button>
+    <span class="ss-titlebar__spacer"></span>
+    <button class="ss-winctl" type="button" aria-label="最小化"><i data-i="minus"></i></button>
+    <button class="ss-winctl" type="button" aria-label="最大化"><i data-i="square"></i></button>
+    <button class="ss-winctl ss-winctl--close" type="button" aria-label="关闭"><i data-i="x"></i></button>
+  </header>
+  <div class="ss-shell__body">
+    <aside class="ss-sidebar">
+      <div class="ss-sidebar__top">
+        <button class="ss-nav-item" type="button"><i data-i="square-pen"></i><span class="ss-nav-item__label">新对话</span></button>
+        <button class="ss-nav-item" type="button" aria-current="page"><i data-i="book-open"></i><span class="ss-nav-item__label">资料库</span><span class="ss-nav-item__end">8</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="box"></i><span class="ss-nav-item__label">工作站</span></button>
+        <button class="ss-search-trigger" type="button"><i data-i="search"></i><span class="ss-search-trigger__label">搜索与命令</span><span class="ss-kbd">Ctrl K</span></button>
+      </div>
+      <div class="ss-sidebar__scroll">
+        <div class="ss-side-section" style="margin-top:4px">
+          <div class="ss-side-section__head"><span>项目</span><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="新建项目" data-tip="新建项目"><i data-i="plus"></i></button></div>
+          <div class="ss-tree">
+            <div class="ss-tree-row" aria-expanded="true">
+              <button class="ss-tree-row__twisty" type="button" aria-label="收起"><i data-i="chevron-down"></i></button>
+              <i data-i="folder-open"></i><span class="ss-tree-row__label">城市韧性研究</span><span class="ss-tree-row__end"></span>
+            </div>
+            <div class="ss-tree">
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">文献综述框架讨论</span><span class="ss-tree-row__end"><span class="ss-spin"></span></span></div>
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">指标体系初稿</span><span class="ss-tree-row__end">2 天</span></div>
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">面板数据清洗</span><span class="ss-tree-row__end">5 天</span></div>
+            </div>
+            <div class="ss-tree-row" aria-expanded="false">
+              <button class="ss-tree-row__twisty" type="button" aria-label="展开"><i data-i="chevron-down"></i></button>
+              <i data-i="folder"></i><span class="ss-tree-row__label">劳动保障政策演化</span><span class="ss-tree-row__end"></span>
+            </div>
+          </div>
+        </div>
+        <div class="ss-side-section">
+          <div class="ss-side-section__head"><span>独立对话</span></div>
+          <div class="ss-tree">
+            <div class="ss-tree-row ss-tree-row--leaf"><span class="ss-tree-row__label">参考文献格式整理</span><span class="ss-tree-row__end">昨天</span></div>
+            <div class="ss-tree-row ss-tree-row--leaf"><span class="ss-tree-row__label">Zipf 定律推导</span><span class="ss-tree-row__end">3 天</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="ss-sidebar__foot">
+        <button class="ss-user" type="button"><span class="ss-avatar ss-avatar--lg ss-avatar--user">Y</span><span class="ss-truncate">Yui</span></button>
+        <button class="ss-icon-btn" type="button" aria-label="专家" data-tip="专家"><i data-i="users"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="设置" data-tip="设置"><i data-i="settings"></i></button>
+      </div>
+      <div class="ss-splitter ss-splitter--end" data-min="200" data-max="360" data-default="248"></div>
+    </aside>
+
+    <main class="ss-main">
+      <div class="ss-header">
+        <div class="ss-header__title"><span>资料库</span></div>
+        <button class="ss-select ss-select--ghost" type="button" aria-haspopup="menu" data-menu="#m-scope"><i data-i="folder-open"></i><span class="ss-select__value" data-slot="value">城市韧性研究</span><i data-i="chevron-down"></i></button>
+        <span class="ss-header__sep"></span>
+        <nav class="ss-tabs" role="tablist" aria-label="资料类型">
+          <button class="ss-tab" role="tab" aria-selected="true" type="button">文献与资料<span class="ss-tab__count">8</span></button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">知识</button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">模型与公式</button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">主张与证据</button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">记忆</button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">收件箱<span class="ss-tab__count">3</span></button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">项目简报</button>
+        </nav>
+        <div class="ss-header__actions">
+          <button class="ss-btn" type="button"><i data-i="import"></i>导入材料</button>
+        </div>
+      </div>
+
+      <div class="ss-toolbar">
+        <span class="ss-input"><i data-i="search"></i><input placeholder="搜索标题、作者或正文" /></span>
+        <button class="ss-icon-btn" type="button" aria-label="筛选" data-tip="筛选" data-pop="#p-filter"><i data-i="funnel"></i><span class="ss-icon-btn__badge">1</span></button>
+        <button class="ss-select ss-select--ghost" type="button" aria-haspopup="menu" data-menu="#m-sort"><i data-i="arrow-down-up"></i><span class="ss-select__value" data-slot="value">导入时间</span><i data-i="chevron-down"></i></button>
+        <span class="ss-toolbar__spacer"></span>
+        <span class="ss-muted" style="font-size:12px">8 篇</span>
+      </div>
+      <div class="ss-chips">
+        <span class="ss-chip">类型<b>PDF、Word</b><button type="button" aria-label="移除筛选"><i data-i="x"></i></button></span>
+        <button class="ss-linkbtn" type="button">清除筛选</button>
+      </div>
+      <div style="padding:0 16px 8px">
+        <div class="ss-callout ss-callout--warn">
+          <i data-i="triangle-alert"></i>
+          <div class="ss-callout__body">
+            <span class="ss-callout__title">2 篇材料解析时有提示，</span>正文已完整入库，检索不受影响。
+            <ul class="ss-callout__details" id="parse-notes" hidden>
+              <li>社区韧性访谈记录汇编.docx：跳过了 3 种无法识别的样式（目录、页眉）</li>
+              <li>灾后恢复案例：郑州 2021.docx：跳过了 1 个公式样式</li>
+            </ul>
+          </div>
+          <div class="ss-callout__actions">
+            <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" aria-expanded="false" data-toggle="#parse-notes">查看</button>
+            <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="不再提示" data-tip="不再提示"><i data-i="x"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="ss-content" style="padding:0 10px 12px">
+        <div class="ss-list" data-selectable role="listbox" aria-label="文献与资料">
+          <div class="ss-list-row" role="option" aria-selected="false" data-ctx="#m-item"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">城市韧性评价指标体系构建</span></div><span class="ss-list-row__meta">PDF · 2.4 MB</span><span class="ss-list-row__meta ss-list-row__meta--time">10-12</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="打开原件" data-tip="打开原件"><i data-i="external-link"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+          <div class="ss-list-row" role="option" aria-selected="false" data-ctx="#m-item"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">地级市面板数据下的城市韧性时空演化</span></div><span class="ss-list-row__meta">PDF · 1.8 MB</span><span class="ss-list-row__meta ss-list-row__meta--time">10-12</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="打开原件" data-tip="打开原件"><i data-i="external-link"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+          <div class="ss-list-row" role="option" aria-selected="true" data-ctx="#m-item"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">社区韧性访谈记录汇编</span></div><span class="ss-tag ss-tag--warn">有提示</span><span class="ss-list-row__meta">Word · 0.9 MB</span><span class="ss-list-row__meta ss-list-row__meta--time">10-13</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="打开原件" data-tip="打开原件"><i data-i="external-link"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+          <div class="ss-list-row" role="option" aria-selected="false" data-ctx="#m-item"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">基于熵权 TOPSIS 的城市韧性测度</span></div><span class="ss-list-row__meta">PDF · 3.1 MB</span><span class="ss-list-row__meta ss-list-row__meta--time">10-13</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="打开原件" data-tip="打开原件"><i data-i="external-link"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+          <div class="ss-list-row" role="option" aria-selected="false" data-ctx="#m-item"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">气候冲击与城市经济韧性</span></div><span class="ss-list-row__meta">PDF · 1.2 MB</span><span class="ss-list-row__meta ss-list-row__meta--time">10-14</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="打开原件" data-tip="打开原件"><i data-i="external-link"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+          <div class="ss-list-row" role="option" aria-selected="false" data-ctx="#m-item"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">灾后恢复案例：郑州 2021</span></div><span class="ss-tag ss-tag--warn">有提示</span><span class="ss-list-row__meta">Word · 2.0 MB</span><span class="ss-list-row__meta ss-list-row__meta--time">10-14</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="打开原件" data-tip="打开原件"><i data-i="external-link"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+          <div class="ss-list-row" role="option" aria-selected="false" data-ctx="#m-item"><span class="ss-spin"></span><div class="ss-list-row__main"><span class="ss-list-row__title">韧性城市建设的财政投入效应</span></div><span class="ss-tag">解析中</span><span class="ss-list-row__meta">PDF · 4.6 MB</span><span class="ss-list-row__meta ss-list-row__meta--time">刚刚</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="打开原件" data-tip="打开原件"><i data-i="external-link"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+          <div class="ss-list-row" role="option" aria-selected="false" data-ctx="#m-item"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">Urban resilience: a review of concepts</span></div><span class="ss-list-row__meta">PDF · 0.8 MB</span><span class="ss-list-row__meta ss-list-row__meta--time">10-15</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="打开原件" data-tip="打开原件"><i data-i="external-link"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="ss-panel" style="width:400px">
+      <div class="ss-splitter ss-splitter--start" data-min="280" data-max="640" data-default="400" data-key="page-preview"></div>
+      <div class="ss-panel__head">
+        <span class="ss-panel__title">社区韧性访谈记录汇编</span>
+        <button class="ss-icon-btn" type="button" aria-label="打开原件" data-tip="打开原件"><i data-i="external-link"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="关闭预览" data-tip="关闭预览"><i data-i="x"></i></button>
+      </div>
+      <div class="ss-panel__body" style="display:grid;gap:16px;align-content:start">
+        <dl class="ss-props">
+          <dt>类型</dt><dd>Word 文档 · 0.9 MB</dd>
+          <dt>导入</dt><dd>10-13 16:20 · 214 个文本块</dd>
+          <dt>引用编号</dt><dd>S3</dd>
+          <dt>标签</dt><dd><span class="ss-tag">访谈</span> <span class="ss-tag">社区</span> <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="添加标签" data-tip="添加标签" style="vertical-align:middle"><i data-i="plus"></i></button></dd>
+        </dl>
+        <div class="ss-callout ss-callout--warn"><i data-i="triangle-alert"></i><div class="ss-callout__body">解析时跳过了 3 种无法识别的样式（目录、页眉），正文完整。</div></div>
+        <div>
+          <h3 class="ss-section-title">正文预览</h3>
+          <div class="t-body" style="color:var(--ink)">
+            <p style="margin:0 0 8px">一、访谈对象与方法</p>
+            <p style="margin:0 0 8px;color:var(--ink-2)">本次访谈覆盖 3 个街道的 12 个社区，受访者包括社区书记、网格员和居民代表，共 36 人。访谈采用半结构化提纲，围绕灾前准备、灾中应对和灾后恢复三个阶段展开……</p>
+            <p style="margin:0;color:var(--ink-2)">二、主要发现</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+  <footer class="ss-statusbar">
+    <span class="ss-statusbar__item"><span class="ss-dot ss-dot--ok"></span>已连接</span>
+    <span class="ss-statusbar__item">项目文件夹 D:\研究\城市韧性</span>
+    <span class="ss-statusbar__spacer"></span>
+    <span class="ss-statusbar__item"><span class="ss-spin"></span>正在解析 1 篇</span>
+  </footer>
+</div>
+
+<div class="ss-menu" id="m-item" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="eye"></i>预览<span class="ss-menu__end">Space</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="external-link"></i>打开原件</button>
+  <button class="ss-menu__item" type="button"><i data-i="message-square"></i>在对话中引用</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>编辑信息</button>
+  <button class="ss-menu__item" type="button"><i data-i="refresh-cw"></i>重新解析</button>
+  <button class="ss-menu__item" type="button"><i data-i="tag"></i>标签…</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>移出资料库</button>
+</div>
+<div class="ss-menu" id="m-scope" hidden>
+  <div class="ss-menu__label">资料范围</div>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="true" data-label="城市韧性研究" type="button"><i data-i="folder-open"></i>当前项目：城市韧性研究<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="我的资料" type="button"><i data-i="book-marked"></i>我的资料（所有项目）<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="外部资源" type="button"><i data-i="globe"></i>外部资源<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<div class="ss-menu" id="m-sort" hidden>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="true" data-label="导入时间" type="button">导入时间<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="标题" type="button">标题<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="最近打开" type="button">最近打开<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<div class="ss-pop" id="p-filter" hidden style="width:280px">
+  <div class="ss-pop__body">
+    <div class="ss-pop__section"><span class="ss-pop__label">类型</span>
+      <label class="ss-check"><input type="checkbox" checked /><span>PDF</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>Word 文档</span></label>
+      <label class="ss-check"><input type="checkbox" /><span>网页与其他</span></label>
+    </div>
+    <div class="ss-pop__section"><span class="ss-pop__label">阅读状态</span>
+      <div class="ss-seg ss-seg--sm"><button type="button" aria-pressed="true">全部</button><button type="button" aria-pressed="false">未读</button><button type="button" aria-pressed="false">已读</button></div>
+    </div>
+    <div class="ss-pop__section"><span class="ss-pop__label">标签</span>
+      <span class="ss-input ss-input--sm"><i data-i="tag" class="ss-i--sm"></i><input placeholder="输入标签名" /></span>
+    </div>
+  </div>
+  <div class="ss-pop__foot"><span class="ss-muted" style="font-size:12px">筛选立即生效</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">清除</button></div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+<!-- @dsCard group="浮层" height=184 subtitle="操作结果在右下角停留 4 秒；能撤销的给撤销，出错的给下一步" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Toast</title></head>
+<body>
+<div class="ds" style="grid-template-columns:auto 1fr;align-items:start;gap:24px">
+  <div class="ds-col">
+    <div class="ss-toast" data-static><i data-i="circle-check"></i><span class="ss-toast__msg">已归档「Zipf 定律推导」</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">撤销</button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="关闭"><i data-i="x"></i></button></div>
+    <div class="ss-toast" data-static data-tone="warn"><i data-i="triangle-alert"></i><span class="ss-toast__msg">2 篇材料解析时有提示，正文已完整入库</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">查看</button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="关闭"><i data-i="x"></i></button></div>
+    <div class="ss-toast" data-static data-tone="danger"><i data-i="circle-alert"></i><span class="ss-toast__msg">连接失败：密钥无效</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">重新填写</button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="关闭"><i data-i="x"></i></button></div>
+  </div>
+  <div class="ds-col">
+    <span class="ds-label">试一试</span>
+    <div class="ds-row">
+      <button class="ss-btn" type="button" onclick="SS.toast('已复制')">普通</button>
+      <button class="ss-btn" type="button" onclick="SS.toast('已归档「Zipf 定律推导」', { action: '撤销' })">带撤销</button>
+      <button class="ss-btn" type="button" onclick="SS.toast('连接失败：密钥无效', { tone: 'danger', action: '重新填写' })">出错</button>
+    </div>
+    <p class="ds-note">一句话说结果，不写「操作成功」。需要用户决定的事不用提示条，改用对话框或就地提示。</p>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

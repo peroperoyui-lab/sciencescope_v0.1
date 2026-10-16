@@ -1,0 +1,57 @@
+<!-- @dsCard group="浮层" height=300 subtitle="二级窗口贴着按钮弹出，改动立即生效；点外面或按 Esc 关闭" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Popover</title></head>
+<body>
+<div class="ds" style="grid-template-columns:auto auto 1fr;align-items:start;gap:24px">
+  <div class="ds-col">
+    <div class="ss-pop" data-static style="width:280px">
+      <div class="ss-pop__body">
+        <div class="ss-pop__section"><span class="ss-pop__label">类型</span>
+          <label class="ss-check"><input type="checkbox" checked /><span>PDF</span></label>
+          <label class="ss-check"><input type="checkbox" checked /><span>Word 文档</span></label>
+          <label class="ss-check"><input type="checkbox" /><span>网页与其他</span></label>
+        </div>
+        <div class="ss-pop__section"><span class="ss-pop__label">阅读状态</span>
+          <div class="ss-seg ss-seg--sm"><button type="button" aria-pressed="true">全部</button><button type="button" aria-pressed="false">未读</button><button type="button" aria-pressed="false">已读</button></div>
+        </div>
+      </div>
+      <div class="ss-pop__foot"><span class="ss-muted" style="font-size:12px">筛选立即生效</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">清除</button></div>
+    </div>
+    <span class="ds-label">筛选面板（漏斗按钮打开）</span>
+  </div>
+  <div class="ds-col">
+    <div class="ss-pop" data-static style="width:260px">
+      <div class="ss-pop__head"><span>上下文</span><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="关闭"><i data-i="x"></i></button></div>
+      <div class="ss-pop__body" style="gap:8px">
+        <dl class="ss-props" style="grid-template-columns:72px 1fr">
+          <dt>已用</dt><dd>4.4 万 / 12.8 万 token</dd>
+          <dt>压缩门槛</dt><dd>80%（还剩约 5.8 万）</dd>
+        </dl>
+      </div>
+      <div class="ss-pop__foot"><span></span><button class="ss-btn ss-btn--sm" type="button"><i data-i="fold-vertical"></i>现在压缩</button></div>
+    </div>
+    <span class="ds-label">带标题的信息面板</span>
+  </div>
+  <div class="ds-col">
+    <span class="ds-label">试一试</span>
+    <div class="ds-row">
+      <button class="ss-icon-btn" type="button" aria-label="筛选" data-tip="筛选" data-pop="#p-demo"><i data-i="funnel"></i><span class="ss-icon-btn__badge">2</span></button>
+      <span class="ss-pop ss-pop--note" data-static>说明文字也可以用小面板，最宽 280px。</span>
+    </div>
+    <p class="ds-note">一次只开一个浮层。面板里不放「确定」按钮，选了就生效；需要确认的操作改用对话框。</p>
+  </div>
+</div>
+<div class="ss-pop" id="p-demo" hidden style="width:280px">
+  <div class="ss-pop__body">
+    <div class="ss-pop__section"><span class="ss-pop__label">类型</span>
+      <label class="ss-check"><input type="checkbox" checked /><span>PDF</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>Word 文档</span></label>
+      <label class="ss-check"><input type="checkbox" /><span>网页与其他</span></label>
+    </div>
+  </div>
+  <div class="ss-pop__foot"><span class="ss-muted" style="font-size:12px">筛选立即生效</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">清除</button></div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

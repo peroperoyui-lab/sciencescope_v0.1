@@ -1,0 +1,19 @@
+<!-- @dsCard group="反馈" height=150 subtitle="数量、标签和状态点；颜色只表达状态，不做装饰" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Badge</title></head>
+<body>
+<div class="ds">
+  <div class="ds-row" style="gap:24px">
+    <div class="ds-col"><div class="ds-row"><span class="ss-count">8</span><span class="ss-count">128</span><span class="ss-count ss-count--accent">3</span></div><span class="ds-label">数量</span></div>
+    <div class="ds-col"><div class="ds-row"><span class="ss-tag">PDF</span><span class="ss-tag">访谈</span><span class="ss-tag ss-tag--ok"><i data-i="check"></i>已添加</span><span class="ss-tag ss-tag--warn">有提示</span><span class="ss-tag ss-tag--danger">解析失败</span><span class="ss-tag ss-tag--auto"><i data-i="zap"></i>自动化</span></div><span class="ds-label">标签</span></div>
+    <div class="ds-col"><div class="ds-row" style="gap:14px"><span class="ds-row" style="gap:6px"><span class="ss-dot ss-dot--ok"></span>已连接</span><span class="ds-row" style="gap:6px"><span class="ss-dot ss-dot--live"></span>运行中</span><span class="ds-row" style="gap:6px"><span class="ss-dot ss-dot--warn"></span>等待批准</span><span class="ds-row" style="gap:6px"><span class="ss-dot ss-dot--danger"></span>连接失败</span><span class="ds-row" style="gap:6px"><span class="ss-dot"></span>未测试</span></div><span class="ds-label">状态点 + 文字</span></div>
+  </div>
+  <div class="ds-row" style="gap:24px">
+    <div class="ds-col"><div class="ds-row"><button class="ss-icon-btn" type="button" aria-label="筛选（已选 2 项）" data-tip="筛选"><i data-i="funnel"></i><span class="ss-icon-btn__badge">2</span></button><button class="ss-icon-btn" type="button" aria-label="收件箱（有新条目）" data-dot data-tip="收件箱"><i data-i="inbox"></i></button></div><span class="ds-label">按钮角标</span></div>
+    <p class="ds-note" style="align-self:center">状态点总是跟着文字，不能只靠颜色。标签不超过四个字，不用来放句子。</p>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

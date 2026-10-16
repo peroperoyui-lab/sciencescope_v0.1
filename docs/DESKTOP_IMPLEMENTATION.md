@@ -1,5 +1,10 @@
 # Desktop implementation — first increment
 
+## 2026-10-16 P2 design system gallery (Claude)
+- Published the first gallery (https://claude.ai/artifact/6MCyAAbMK2kD5nTsAkZEgk): 85 tokens in a light and a dark theme, 12 type styles, 107 Lucide icons with Chinese meanings, 37 components with previews and guidelines, and four full-page mocks at 1536×900 (chat, library, inbox, settings).
+- Sources in `docs/design/system/`; `build/build.py` regenerates the gallery runtime byte for byte. All 42 cards render without errors in both themes; contrast check lists only the documented exceptions.
+- Overview, feedback mapping and open review points in `docs/design/DESIGN_SYSTEM.md`. Not in the app yet: P3 ports the styles and components page by page.
+
 ## 2026-10-13 R6a-2b reviewed installer repackage (Codex; merged by Claude)
 - Rebuilt `e9b62d6` without product changes: 128.20 MiB, SHA-256 in PREVIEW_TEST; stage/release app and production dependencies match by path, size and hash, with no test files or listed development packages. Installed program: 687.32 MiB / 30,677 files; fresh install 8 min 9 s.
 - Checked the uninstall data-deletion checkbox and verified data removal. Installed native welcome, flash answer (1 request / 15,641 tokens), custom Python URL clearing, official-source save, previous-log rotation and process/WAL/SHM cleanup passed. Deleted acceptance data, verified empty projects/meetings/providers and no credentials, then closed; installation left untouched afterwards.

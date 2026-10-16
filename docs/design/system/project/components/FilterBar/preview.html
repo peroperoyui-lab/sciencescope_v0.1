@@ -1,0 +1,47 @@
+<!-- @dsCard group="数据" height=260 subtitle="搜索、漏斗、排序放一行；生效的筛选变成可删的小标签" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>FilterBar</title></head>
+<body>
+<div class="ds" style="gap:12px">
+  <div class="ds-box">
+    <div class="ss-toolbar">
+      <span class="ss-input"><i data-i="search"></i><input placeholder="搜索标题、作者或正文" /></span>
+      <button class="ss-icon-btn" type="button" aria-label="筛选" data-tip="筛选" data-pop="#p-f"><i data-i="funnel"></i><span class="ss-icon-btn__badge">2</span></button>
+      <button class="ss-select ss-select--ghost" type="button" aria-haspopup="menu" data-menu="#m-s"><i data-i="arrow-down-up"></i><span class="ss-select__value" data-slot="value">导入时间</span><i data-i="chevron-down"></i></button>
+      <span class="ss-toolbar__spacer"></span>
+      <span class="ss-muted" style="font-size:12px">5 / 8 篇</span>
+      <div class="ss-seg ss-seg--icons" role="group" aria-label="视图" style="margin-left:8px">
+        <button type="button" aria-pressed="true" aria-label="列表" data-tip="列表视图"><i data-i="layout-list"></i></button>
+        <button type="button" aria-pressed="false" aria-label="表格" data-tip="表格视图"><i data-i="table-2"></i></button>
+      </div>
+    </div>
+    <div class="ss-chips">
+      <span class="ss-chip">类型<b>PDF、Word</b><button type="button" aria-label="移除筛选"><i data-i="x"></i></button></span>
+      <span class="ss-chip">阅读状态<b>未读</b><button type="button" aria-label="移除筛选"><i data-i="x"></i></button></span>
+      <button class="ss-linkbtn" type="button">清除筛选</button>
+    </div>
+  </div>
+  <p class="ds-note">不要把筛选条件摊成一排下拉框。没有生效的筛选时，小标签这一行整行隐藏。数量写「5 / 8 篇」，让人知道有内容被筛掉了。</p>
+</div>
+<div class="ss-pop" id="p-f" hidden style="width:280px">
+  <div class="ss-pop__body">
+    <div class="ss-pop__section"><span class="ss-pop__label">类型</span>
+      <label class="ss-check"><input type="checkbox" checked /><span>PDF</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>Word 文档</span></label>
+      <label class="ss-check"><input type="checkbox" /><span>网页与其他</span></label>
+    </div>
+    <div class="ss-pop__section"><span class="ss-pop__label">阅读状态</span>
+      <div class="ss-seg ss-seg--sm"><button type="button" aria-pressed="false">全部</button><button type="button" aria-pressed="true">未读</button><button type="button" aria-pressed="false">已读</button></div>
+    </div>
+  </div>
+  <div class="ss-pop__foot"><span class="ss-muted" style="font-size:12px">筛选立即生效</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">清除</button></div>
+</div>
+<div class="ss-menu" id="m-s" hidden>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="true" data-label="导入时间" type="button">导入时间<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="标题" type="button">标题<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="最近打开" type="button">最近打开<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

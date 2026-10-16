@@ -1,0 +1,16 @@
+<!-- @dsCard group="反馈" height=124 subtitle="转圈表示正在进行；圆环表示用量；流光文字只给正在思考的模型" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Spinner</title></head>
+<body>
+<div class="ds">
+  <div class="ds-row" style="gap:32px;align-items:flex-start">
+    <div class="ds-col"><div class="ds-row" style="gap:12px;height:20px"><span class="ss-spin"></span><span class="ss-spin ss-spin--md"></span><span class="ds-row" style="gap:6px;color:var(--ink-2)"><span class="ss-spin"></span>正在解析 1 篇</span></div><span class="ds-label">进行中（14 / 16px）</span></div>
+    <div class="ds-col"><div class="ds-row" style="gap:14px;height:20px"><span class="ds-row" style="gap:6px" data-tip="上下文已用 34%"><i data-ring="34"></i>34%</span><span class="ds-row" style="gap:6px" data-tip="上下文已用 82%，接近压缩门槛"><i data-ring="82"></i>82%</span><span class="ds-row" style="gap:6px" data-tip="上下文已用 96%"><i data-ring="96"></i>96%</span></div><span class="ds-label">上下文用量：80% 变黄，95% 变红</span></div>
+    <div class="ds-col"><div class="ds-row" style="height:20px"><span class="ss-shimmer" style="font-size:13px">正在思考</span><span class="ss-status__time">12 秒</span></div><span class="ds-label">模型正在思考</span></div>
+  </div>
+  <p class="ds-note">不显示百分比进度条和批次计数；告诉用户在做什么、用了多久就够。不到 1 秒就结束的动作不显示转圈，免得闪一下。</p>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

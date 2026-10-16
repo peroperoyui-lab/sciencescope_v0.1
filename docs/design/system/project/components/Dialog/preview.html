@@ -1,0 +1,37 @@
+<!-- @dsCard group="浮层" height=312 subtitle="居中弹出，背景变暗；Esc 或点空白处关闭，焦点回到原按钮" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Dialog</title></head>
+<body>
+<div class="ds" style="grid-template-columns:auto auto;justify-content:start;align-items:start;gap:24px">
+  <div class="ds-col">
+    <div class="ss-dialog" data-static role="dialog" aria-labelledby="d1" style="width:420px">
+      <div class="ss-dialog__head"><h2 class="ss-dialog__title" id="d1">添加 OpenCode Go 订阅</h2><button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭" data-kbd="Esc"><i data-i="x"></i></button></div>
+      <div class="ss-dialog__body">
+        <label class="ss-field"><span class="ss-field__label">订阅密钥</span><span class="ss-input"><i data-i="key-round"></i><input type="password" value="sk-go-0000000000000000" aria-label="订阅密钥" /></span><span class="ss-field__hint">只保存在本机的密钥文件里。</span></label>
+        <div class="ss-callout ss-callout--ok"><i data-i="circle-check"></i><div class="ss-callout__body">连接正常 · 1.2 秒 · 找到 6 个模型</div></div>
+      </div>
+      <div class="ss-dialog__foot"><button class="ss-btn" type="button">取消</button><button class="ss-btn ss-btn--primary" type="button">保存</button></div>
+    </div>
+    <span class="ds-label">表单对话框：结果就地显示，不另弹提示</span>
+  </div>
+  <div class="ds-col">
+    <div class="ss-dialog ss-dialog--sm" data-static role="alertdialog" aria-labelledby="d2" style="width:340px">
+      <div class="ss-dialog__head"><h2 class="ss-dialog__title" id="d2">移除服务商「OpenCode Go」？</h2></div>
+      <div class="ss-dialog__body"><p>保存的密钥会一起删除。正在用它的对话会改用默认模型。</p></div>
+      <div class="ss-dialog__foot"><button class="ss-btn" type="button">取消</button><button class="ss-btn ss-btn--danger" type="button">移除</button></div>
+    </div>
+    <span class="ds-label">确认对话框：标题就是问题，按钮写动作</span>
+    <button class="ss-btn" type="button" data-dialog="#dlg-live" style="justify-self:start;margin-top:8px">打开真实对话框</button>
+  </div>
+</div>
+<div class="ss-scrim" id="dlg-live" hidden>
+  <div class="ss-dialog ss-dialog--sm" role="alertdialog" aria-modal="true" aria-labelledby="d3">
+    <div class="ss-dialog__head"><h2 class="ss-dialog__title" id="d3">删除对话「Zipf 定律推导」？</h2></div>
+    <div class="ss-dialog__body"><p>对话和里面的回答会一起删除，引用过的资料不受影响。</p></div>
+    <div class="ss-dialog__foot"><button class="ss-btn" type="button" data-close>取消</button><button class="ss-btn ss-btn--danger" type="button" data-close>删除</button></div>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

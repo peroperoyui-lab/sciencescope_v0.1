@@ -1,0 +1,28 @@
+<!-- @dsCard group="输入" height=152 subtitle="复选框、单选和开关；开关立即生效，复选框跟着表单或批量操作" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Checkbox</title></head>
+<body>
+<div class="ds">
+  <div class="ds-cols">
+    <div class="ds-col">
+      <label class="ss-check"><input type="checkbox" checked /><span>PDF</span></label>
+      <label class="ss-check"><input type="checkbox" /><span>Word 文档</span></label>
+      <label class="ss-check"><input type="checkbox" id="mixed" /><span>全选（部分）</span></label>
+      <label class="ss-check"><input type="checkbox" disabled /><span>网页（未启用）</span></label>
+    </div>
+    <div class="ds-col">
+      <label class="ss-check"><input type="radio" name="r" checked /><span>跟随系统</span></label>
+      <label class="ss-check"><input type="radio" name="r" /><span>浅色</span></label>
+      <label class="ss-check"><input type="radio" name="r" /><span>深色</span></label>
+    </div>
+    <div class="ds-col">
+      <label class="ss-check"><input class="ss-switch" type="checkbox" checked /><span>回答完成时通知</span></label>
+      <label class="ss-check"><input class="ss-switch" type="checkbox" /><span>启动时打开上次的项目</span></label>
+      <label class="ss-check"><input class="ss-switch" type="checkbox" disabled /><span>同步到云端（未启用）</span></label>
+    </div>
+  </div>
+</div>
+<script>document.getElementById('mixed').indeterminate = true; window.SS && SS.mount(document.body)</script>
+</body>
+</html>

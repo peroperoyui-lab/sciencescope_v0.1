@@ -1,0 +1,36 @@
+<!-- @dsCard group="对话" height=390 subtitle="用户消息靠右成气泡；专家消息不加框，头像 + 名字 + 模型，正文 14/22" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Message</title></head>
+<body>
+<div class="ss-thread" style="padding:16px 24px">
+  <div class="ss-msg ss-msg--user">
+    <div class="ss-msg__bubble">综合评价那两篇的指标能统一吗？我整理的指标在 data/indicators.csv。</div>
+    <div class="ss-msg__foot" style="opacity:1"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="编辑" data-tip="编辑后重新发送"><i data-i="pencil"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="复制" data-tip="复制"><i data-i="copy"></i></button><time>16:25</time></div>
+  </div>
+  <div class="ss-msg">
+    <div class="ss-msg__head"><span class="ss-avatar">主</span><span class="ss-msg__name">主专家</span><span class="ss-msg__role">deepseek-v4-pro</span></div>
+    <div class="ss-msg__body">
+      <p>可以统一一大半。两篇的一级指标都分经济、社会、生态、基础设施四类<span class="ss-cite" data-tip="S1 城市韧性评价指标体系构建">S1</span><span class="ss-cite" data-tip="S4 基于熵权 TOPSIS 的城市韧性测度">S4</span>，差别在二级指标：</p>
+      <ul>
+        <li>15 个可以直接对上，口径一致；</li>
+        <li>6 个名称不同但含义相近，建议按你的 <code>indicators.csv</code> 统一命名；</li>
+        <li>剩下 3 个只在 S4 出现，可以放进稳健性检验。</li>
+      </ul>
+      <p>对照表在 <a href="#" onclick="return false">results/indicator_map.csv</a>。</p>
+    </div>
+    <div class="ss-msg__foot" style="opacity:1"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="复制" data-tip="复制"><i data-i="copy"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="重新回答" data-tip="重新回答"><i data-i="rotate-cw"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-msg"><i data-i="ellipsis"></i></button><time>16:26 · 用时 41 秒</time></div>
+  </div>
+  <div class="ss-msg">
+    <div class="ss-msg__head"><span class="ss-avatar"><i data-i="clipboard-list" class="ss-i--sm"></i></span><span class="ss-msg__name">任务秘书</span><span class="ss-msg__role">跟进到第 6 条</span></div>
+    <div class="ss-msg__body"><p>新增决定：综述按方法分三节。<a href="#" onclick="return false">去收件箱确认</a></p></div>
+  </div>
+</div>
+<div class="ss-menu" id="m-msg" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="quote"></i>引用回复</button>
+  <button class="ss-menu__item" type="button"><i data-i="sticky-note"></i>存为笔记</button>
+  <button class="ss-menu__item" type="button"><i data-i="copy"></i>复制为 Markdown</button>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

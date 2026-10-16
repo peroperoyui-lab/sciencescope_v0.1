@@ -1,0 +1,100 @@
+<!-- @dsCard group="导航" height=632 subtitle="左侧栏：导航、搜索、项目树和独立对话；右键或 ⋯ 打开菜单，独立对话可拖进项目" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Sidebar</title></head>
+<body>
+<div class="ds" style="grid-template-columns:auto 1fr;align-items:start;gap:24px">
+  <div style="display:flex;height:600px;overflow:hidden;border:1px solid var(--line);border-radius:var(--r-md)">
+      <aside class="ss-sidebar">
+        <div class="ss-sidebar__top">
+          <button class="ss-nav-item" type="button" data-tip="新对话" data-kbd="Ctrl N" data-tip-place="right"><i data-i="square-pen"></i><span class="ss-nav-item__label">新对话</span></button>
+          <button class="ss-nav-item" type="button"><i data-i="book-open"></i><span class="ss-nav-item__label">资料库</span><span class="ss-nav-item__end">8</span></button>
+          <button class="ss-nav-item" type="button"><i data-i="box"></i><span class="ss-nav-item__label">工作站</span></button>
+          <button class="ss-search-trigger" type="button"><i data-i="search"></i><span class="ss-search-trigger__label">搜索与命令</span><span class="ss-kbd">Ctrl K</span></button>
+        </div>
+        <div class="ss-sidebar__scroll">
+          <div class="ss-side-section" style="margin-top:4px">
+            <div class="ss-side-section__head"><span>项目</span><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="新建项目" data-tip="新建项目"><i data-i="plus"></i></button></div>
+            <div class="ss-tree">
+              <div class="ss-tree-row" aria-expanded="true" data-drop-target data-ctx="#m-project">
+                <button class="ss-tree-row__twisty" type="button" aria-label="收起"><i data-i="chevron-down"></i></button>
+                <i data-i="folder-open"></i><span class="ss-tree-row__label">城市韧性研究</span>
+                <span class="ss-tree-row__end"></span>
+                <span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="在项目中新对话" data-tip="在项目中新对话"><i data-i="square-pen"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-project"><i data-i="ellipsis"></i></button></span>
+              </div>
+              <div class="ss-tree">
+                <div class="ss-tree-row ss-tree-row--child" aria-selected="true" data-ctx="#m-chat">
+                  <span class="ss-tree-row__label">文献综述框架讨论</span>
+                  <span class="ss-tree-row__end"><span class="ss-spin" aria-label="运行中"></span></span>
+                  <span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-chat"><i data-i="ellipsis"></i></button></span>
+                </div>
+                <div class="ss-tree-row ss-tree-row--child" data-ctx="#m-chat">
+                  <span class="ss-tree-row__label">指标体系初稿</span>
+                  <span class="ss-tree-row__end">2 天</span>
+                  <span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-chat"><i data-i="ellipsis"></i></button></span>
+                </div>
+                <div class="ss-tree-row ss-tree-row--child" data-ctx="#m-chat">
+                  <span class="ss-tree-row__label">面板数据清洗</span>
+                  <span class="ss-tree-row__end">5 天</span>
+                  <span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-chat"><i data-i="ellipsis"></i></button></span>
+                </div>
+              </div>
+              <div class="ss-tree-row" aria-expanded="false" data-drop-target data-ctx="#m-project">
+                <button class="ss-tree-row__twisty" type="button" aria-label="展开"><i data-i="chevron-down"></i></button>
+                <i data-i="folder"></i><span class="ss-tree-row__label">劳动保障政策演化</span>
+                <span class="ss-tree-row__end"></span>
+                <span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-project"><i data-i="ellipsis"></i></button></span>
+              </div>
+              <div class="ss-tree" hidden></div>
+            </div>
+          </div>
+          <div class="ss-side-section">
+            <div class="ss-side-section__head"><span>独立对话</span></div>
+            <div class="ss-tree">
+              <div class="ss-tree-row ss-tree-row--leaf" draggable="true" data-drag="chat" data-ctx="#m-chat" data-tip="拖到项目上即可移入" data-tip-place="right">
+                <span class="ss-tree-row__label">参考文献格式整理</span>
+                <span class="ss-tree-row__end">昨天</span>
+                <span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-chat"><i data-i="ellipsis"></i></button></span>
+              </div>
+              <div class="ss-tree-row ss-tree-row--leaf" draggable="true" data-drag="chat" data-ctx="#m-chat">
+                <span class="ss-tree-row__label">Zipf 定律推导</span>
+                <span class="ss-tree-row__end">3 天</span>
+                <span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-chat"><i data-i="ellipsis"></i></button></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="ss-sidebar__foot">
+          <button class="ss-user" type="button"><span class="ss-avatar ss-avatar--lg ss-avatar--user">Y</span><span class="ss-truncate">Yui</span></button>
+          <button class="ss-icon-btn" type="button" aria-label="专家" data-tip="专家"><i data-i="users"></i></button>
+          <button class="ss-icon-btn" type="button" aria-label="设置" data-tip="设置" data-kbd="Ctrl ,"><i data-i="settings"></i></button>
+        </div>
+        <div class="ss-splitter ss-splitter--end" data-min="200" data-max="360" data-default="248" data-key="card-sidebar"></div>
+      </aside>
+  </div>
+  <div class="ds-col" style="max-width:300px;padding-top:4px">
+    <span class="ds-title">试一试</span>
+    <p class="ds-note">把「参考文献格式整理」拖到「劳动保障政策演化」上，会移入这个项目。</p>
+    <p class="ds-note">在任意一行上点右键，或悬停后点 ⋯，打开同一份菜单。运行中的对话不能归档，菜单里写明原因。</p>
+    <p class="ds-note">拖动右边缘调整宽度，双击恢复 248px。</p>
+    <p class="ds-note">没有内容的分组整组隐藏，不显示「暂无置顶」之类的占位文字。</p>
+  </div>
+</div>
+<div class="ss-menu" id="m-chat" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>重命名<span class="ss-menu__end">F2</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="pin"></i>置顶</button>
+  <button class="ss-menu__item" type="button"><i data-i="folder"></i>移到项目…</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button" aria-disabled="true"><i data-i="archive"></i>归档（运行中不能归档）</button>
+  <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>删除</button>
+</div>
+<div class="ss-menu" id="m-project" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="square-pen"></i>在项目中新对话</button>
+  <button class="ss-menu__item" type="button"><i data-i="folder-open"></i>打开项目文件夹</button>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>重命名</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="archive"></i>归档项目</button>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

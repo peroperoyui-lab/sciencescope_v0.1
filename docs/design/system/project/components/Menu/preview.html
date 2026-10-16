@@ -1,0 +1,46 @@
+<!-- @dsCard group="浮层" height=330 subtitle="右键和 ⋯ 打开同一份菜单；不能用的项写明原因，危险项放最后" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Menu</title></head>
+<body>
+<div class="ds" style="grid-template-columns:auto auto 1fr;align-items:start;gap:24px">
+  <div class="ds-col">
+    <div class="ss-menu" data-static role="menu" aria-label="对话">
+      <button class="ss-menu__item" type="button" role="menuitem"><i data-i="pencil"></i>重命名<span class="ss-menu__end">F2</span></button>
+      <button class="ss-menu__item" type="button" role="menuitem"><i data-i="pin"></i>置顶</button>
+      <button class="ss-menu__item" type="button" role="menuitem"><i data-i="folder"></i>移到项目…</button>
+      <div class="ss-menu__sep"></div>
+      <div class="ss-menu__label">排序</div>
+      <button class="ss-menu__item" type="button" role="menuitemradio" aria-checked="true">最近活动<i data-i="check" class="ss-menu__check"></i></button>
+      <button class="ss-menu__item" type="button" role="menuitemradio" aria-checked="false">创建时间<i data-i="check" class="ss-menu__check"></i></button>
+      <div class="ss-menu__sep"></div>
+      <button class="ss-menu__item" type="button" role="menuitem" aria-disabled="true"><i data-i="archive"></i>归档（运行中不能归档）</button>
+      <button class="ss-menu__item ss-menu__item--danger" type="button" role="menuitem"><i data-i="trash-2"></i>删除</button>
+    </div>
+    <span class="ds-label">普通菜单：图标、快捷键、单选、分组、禁用、危险</span>
+  </div>
+  <div class="ds-col">
+    <div class="ss-menu" data-static role="menu" aria-label="执行方式" style="width:300px">
+      <button class="ss-menu__item ss-menu__item--rich" role="menuitemradio" aria-checked="true" type="button"><i data-i="shield-check"></i><span class="ss-menu__text"><span>请求批准</span><span class="ss-menu__desc">运行命令、写入项目文件夹、安装包之前先问你</span></span><i data-i="check" class="ss-menu__check"></i></button>
+      <button class="ss-menu__item ss-menu__item--rich" role="menuitemradio" aria-checked="false" type="button"><i data-i="play"></i><span class="ss-menu__text"><span>常规</span><span class="ss-menu__desc">直接执行，随时可以停止</span></span><i data-i="check" class="ss-menu__check"></i></button>
+      <button class="ss-menu__item ss-menu__item--rich ss-menu__item--auto" role="menuitemradio" aria-checked="false" type="button"><i data-i="zap"></i><span class="ss-menu__text"><span>自动化</span><span class="ss-menu__desc">按目标持续工作，直到完成或你停止</span></span><i data-i="check" class="ss-menu__check"></i></button>
+    </div>
+    <span class="ds-label">说明型菜单：每项一句话说清后果</span>
+  </div>
+  <div class="ds-col">
+    <span class="ds-label">试一试</span>
+    <div class="ss-list-row" data-ctx="#m-demo" style="border:1px dashed var(--line-strong)"><i data-i="message-square" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">在这一行点右键</span></div><span class="ss-list-row__actions" style="opacity:1"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-demo"><i data-i="ellipsis"></i></button></span></div>
+    <p class="ds-note">键盘：↑ ↓ 移动，Enter 选择，Esc 关闭并回到触发按钮。菜单贴着触发点出现，放不下时翻到另一侧。</p>
+  </div>
+</div>
+<div class="ss-menu" id="m-demo" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>重命名<span class="ss-menu__end">F2</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="pin"></i>置顶</button>
+  <button class="ss-menu__item" type="button"><i data-i="folder"></i>移到项目…</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button" aria-disabled="true"><i data-i="archive"></i>归档（运行中不能归档）</button>
+  <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>删除</button>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

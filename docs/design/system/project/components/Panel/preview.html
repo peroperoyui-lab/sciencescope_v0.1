@@ -1,0 +1,37 @@
+<!-- @dsCard group="布局" height=360 subtitle="右侧面板：预览、秘书、属性都用它；头部 44px，与页头对齐" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Panel</title></head>
+<body>
+<div class="ds" style="grid-template-columns:1fr auto;gap:20px;align-items:start">
+  <p class="ds-note" style="align-self:start">面板从右侧推开主区域，不盖在内容上。同一时间只开一个右侧面板；再点打开它的按钮就关上。底部操作栏只在需要提交时出现。</p>
+  <div class="ds-box" style="display:flex;height:328px;overflow:hidden">
+    <aside class="ss-panel" style="width:360px;border-left:0">
+      <div class="ss-splitter ss-splitter--start" data-min="280" data-max="420" data-default="360" data-key="card-panel"></div>
+      <div class="ss-panel__head">
+        <span class="ss-panel__title">社区韧性访谈记录汇编</span>
+        <button class="ss-icon-btn" type="button" aria-label="打开原件" data-tip="打开原件"><i data-i="external-link"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="更多" data-tip="更多"><i data-i="ellipsis"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭"><i data-i="x"></i></button>
+      </div>
+      <div class="ss-panel__body" style="display:grid;gap:16px;align-content:start">
+        <dl class="ss-props">
+          <dt>类型</dt><dd>Word 文档 · 0.9 MB</dd>
+          <dt>导入</dt><dd>10-13 16:20 · 214 个文本块</dd>
+          <dt>引用编号</dt><dd>S3</dd>
+        </dl>
+        <div>
+          <h3 class="ss-section-title">正文预览</h3>
+          <p class="t-body" style="margin:0;color:var(--ink-2)">本次访谈覆盖 3 个街道的 12 个社区，受访者包括社区书记、网格员和居民代表，共 36 人……</p>
+        </div>
+      </div>
+      <div class="ss-panel__foot">
+        <button class="ss-btn" type="button">取消</button>
+        <button class="ss-btn ss-btn--primary" type="button">保存信息</button>
+      </div>
+    </aside>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

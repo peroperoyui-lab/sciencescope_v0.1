@@ -1,0 +1,25 @@
+<!-- @dsCard group="基础" height=1100 subtitle="Lucide 线性图标，16px，线宽 1.75；一个含义只用一个图标" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Icons</title></head>
+<body>
+<div class="ds" id="icon-sheet"></div>
+<script>
+(function () {
+  var root = document.getElementById('icon-sheet');
+  if (!window.SS) return;
+  var html = '';
+  SS.iconGroups.forEach(function (g) {
+    html += '<h3 class="ds-title">' + g[0] + '</h3><div class="ds-icons">';
+    g[1].forEach(function (it) {
+      html += '<div class="ds-icon" data-tip="' + it[0] + '">' + SS.icon(it[0]) +
+        '<span><b>' + it[1] + '</b><code>' + it[0] + '</code></span></div>';
+    });
+    html += '</div>';
+  });
+  root.innerHTML = html;
+  SS.mount(document.body);
+})();
+</script>
+</body>
+</html>

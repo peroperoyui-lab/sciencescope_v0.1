@@ -1,0 +1,204 @@
+<!-- @dsCard group="整页示例" page height=900 width=1536 subtitle="收件箱：左边列表可批量处理，右边看依据再决定接受、修改或拒绝" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>PageInbox</title></head>
+<body>
+<div class="ss-shell">
+  <header class="ss-titlebar">
+    <span class="ss-titlebar__brand"><i data-logo></i>ScienceScope</span>
+    <button class="ss-titlebar__menu" type="button">文件</button>
+    <button class="ss-titlebar__menu" type="button">编辑</button>
+    <button class="ss-titlebar__menu" type="button">视图</button>
+    <button class="ss-titlebar__menu" type="button">帮助</button>
+    <span class="ss-titlebar__spacer"></span>
+    <button class="ss-winctl" type="button" aria-label="最小化"><i data-i="minus"></i></button>
+    <button class="ss-winctl" type="button" aria-label="最大化"><i data-i="square"></i></button>
+    <button class="ss-winctl ss-winctl--close" type="button" aria-label="关闭"><i data-i="x"></i></button>
+  </header>
+  <div class="ss-shell__body">
+    <aside class="ss-sidebar">
+      <div class="ss-sidebar__top">
+        <button class="ss-nav-item" type="button"><i data-i="square-pen"></i><span class="ss-nav-item__label">新对话</span></button>
+        <button class="ss-nav-item" type="button" aria-current="page"><i data-i="book-open"></i><span class="ss-nav-item__label">资料库</span><span class="ss-nav-item__end">8</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="box"></i><span class="ss-nav-item__label">工作站</span></button>
+        <button class="ss-search-trigger" type="button"><i data-i="search"></i><span class="ss-search-trigger__label">搜索与命令</span><span class="ss-kbd">Ctrl K</span></button>
+      </div>
+      <div class="ss-sidebar__scroll">
+        <div class="ss-side-section" style="margin-top:4px">
+          <div class="ss-side-section__head"><span>项目</span><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="新建项目" data-tip="新建项目"><i data-i="plus"></i></button></div>
+          <div class="ss-tree">
+            <div class="ss-tree-row" aria-expanded="true">
+              <button class="ss-tree-row__twisty" type="button" aria-label="收起"><i data-i="chevron-down"></i></button>
+              <i data-i="folder-open"></i><span class="ss-tree-row__label">城市韧性研究</span><span class="ss-tree-row__end"></span>
+            </div>
+            <div class="ss-tree">
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">文献综述框架讨论</span><span class="ss-tree-row__end"><span class="ss-spin"></span></span></div>
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">指标体系初稿</span><span class="ss-tree-row__end">2 天</span></div>
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">面板数据清洗</span><span class="ss-tree-row__end">5 天</span></div>
+            </div>
+            <div class="ss-tree-row" aria-expanded="false">
+              <button class="ss-tree-row__twisty" type="button" aria-label="展开"><i data-i="chevron-down"></i></button>
+              <i data-i="folder"></i><span class="ss-tree-row__label">劳动保障政策演化</span><span class="ss-tree-row__end"></span>
+            </div>
+          </div>
+        </div>
+        <div class="ss-side-section">
+          <div class="ss-side-section__head"><span>独立对话</span></div>
+          <div class="ss-tree">
+            <div class="ss-tree-row ss-tree-row--leaf"><span class="ss-tree-row__label">参考文献格式整理</span><span class="ss-tree-row__end">昨天</span></div>
+            <div class="ss-tree-row ss-tree-row--leaf"><span class="ss-tree-row__label">Zipf 定律推导</span><span class="ss-tree-row__end">3 天</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="ss-sidebar__foot">
+        <button class="ss-user" type="button"><span class="ss-avatar ss-avatar--lg ss-avatar--user">Y</span><span class="ss-truncate">Yui</span></button>
+        <button class="ss-icon-btn" type="button" aria-label="专家" data-tip="专家"><i data-i="users"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="设置" data-tip="设置"><i data-i="settings"></i></button>
+      </div>
+      <div class="ss-splitter ss-splitter--end" data-min="200" data-max="360" data-default="248"></div>
+    </aside>
+
+    <main class="ss-main">
+      <div class="ss-header">
+        <div class="ss-header__title"><span>资料库</span></div>
+        <button class="ss-select ss-select--ghost" type="button" aria-haspopup="menu" data-menu="#m-scope"><i data-i="folder-open"></i><span class="ss-select__value" data-slot="value">城市韧性研究</span><i data-i="chevron-down"></i></button>
+        <span class="ss-header__sep"></span>
+        <nav class="ss-tabs" role="tablist" aria-label="资料类型">
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">文献与资料<span class="ss-tab__count">8</span></button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">知识</button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">模型与公式</button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">主张与证据</button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">记忆</button>
+          <button class="ss-tab" role="tab" aria-selected="true" type="button">收件箱<span class="ss-tab__count">3</span></button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">项目简报</button>
+        </nav>
+        <div class="ss-header__actions">
+          <button class="ss-info" type="button" aria-label="说明" data-tip="秘书和专家从对话里整理出的记忆先放在这里，你接受后才写入项目记忆。" data-tip-place="bottom-end"><i data-i="info"></i></button>
+        </div>
+      </div>
+
+      <div data-batch style="display:flex;flex:1;flex-direction:column;min-height:0">
+        <div class="ss-toolbar" style="padding-left:22px">
+          <label class="ss-check" style="margin-right:8px"><input type="checkbox" data-batch-all aria-label="全选" /></label>
+          <span class="ss-input" data-batch-hide><i data-i="search"></i><input placeholder="搜索收件箱" /></span>
+          <button class="ss-icon-btn" type="button" aria-label="筛选" data-tip="筛选" data-pop="#p-inbox-filter" data-batch-hide><i data-i="funnel"></i></button>
+          <span class="ss-batch-count" data-batch-show style="margin-right:8px">已选 <span data-slot="count">0</span> 条</span>
+          <button class="ss-btn ss-btn--sm" type="button" data-batch-show><i data-i="x"></i>拒绝所选</button>
+          <button class="ss-btn ss-btn--sm ss-btn--primary" type="button" data-batch-show><i data-i="check-check"></i>接受所选</button>
+          <button class="ss-linkbtn" type="button" data-batch-clear data-batch-show style="margin-left:8px">取消选择</button>
+          <span class="ss-toolbar__spacer"></span>
+          <span class="ss-muted" style="font-size:12px">3 条待确认</span>
+        </div>
+
+        <div class="ss-content" style="padding:0 10px 12px">
+          <div class="ss-list" data-selectable role="listbox" aria-label="待确认">
+            <div class="ss-list-row ss-list-row--2" role="option" aria-selected="true" data-ctx="#m-inbox">
+              <label class="ss-check"><input type="checkbox" data-batch-item aria-label="选择" /></label>
+              <div class="ss-list-row__main"><span class="ss-list-row__title">综述按研究方法分三节</span><span class="ss-list-row__sub">决定 · 任务秘书 · 文献综述框架讨论</span></div>
+              <span class="ss-list-row__meta ss-list-row__meta--time">刚刚</span>
+              <span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="接受" data-tip="接受"><i data-i="check"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="拒绝" data-tip="拒绝"><i data-i="x"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-inbox"><i data-i="ellipsis"></i></button></span>
+            </div>
+            <div class="ss-list-row ss-list-row--2" role="option" aria-selected="false" data-ctx="#m-inbox">
+              <label class="ss-check"><input type="checkbox" data-batch-item aria-label="选择" /></label>
+              <div class="ss-list-row__main"><span class="ss-list-row__title">指标对照以 data/indicators.csv 为准</span><span class="ss-list-row__sub">背景 · 任务秘书 · 文献综述框架讨论</span></div>
+              <span class="ss-list-row__meta ss-list-row__meta--time">刚刚</span>
+              <span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="接受" data-tip="接受"><i data-i="check"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="拒绝" data-tip="拒绝"><i data-i="x"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-inbox"><i data-i="ellipsis"></i></button></span>
+            </div>
+            <div class="ss-list-row ss-list-row--2" role="option" aria-selected="false" data-ctx="#m-inbox">
+              <label class="ss-check"><input type="checkbox" data-batch-item aria-label="选择" /></label>
+              <div class="ss-list-row__main"><span class="ss-list-row__title">综合评价两篇的指标口径能否统一</span><span class="ss-list-row__sub">未决问题 · 主专家 · 文献综述框架讨论</span></div>
+              <span class="ss-list-row__meta ss-list-row__meta--time">10-15</span>
+              <span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="接受" data-tip="接受"><i data-i="check"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="拒绝" data-tip="拒绝"><i data-i="x"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-inbox"><i data-i="ellipsis"></i></button></span>
+            </div>
+          </div>
+          <button class="ss-list__group" type="button" aria-expanded="false" data-toggle="next"><i data-i="chevron-down"></i>已处理<span class="ss-count">2</span></button>
+          <div class="ss-list" hidden>
+            <div class="ss-list-row ss-list-row--2 ss-list-row--done">
+              <i data-i="circle-check" class="ss-list-row__icon"></i>
+              <div class="ss-list-row__main"><span class="ss-list-row__title">研究区域限定为 2010–2022 年地级市</span><span class="ss-list-row__sub">背景 · 已接受 · 写入项目记忆</span></div>
+              <span class="ss-list-row__meta ss-list-row__meta--time">10-14</span>
+            </div>
+            <div class="ss-list-row ss-list-row--2 ss-list-row--done">
+              <i data-i="circle-x" class="ss-list-row__icon"></i>
+              <div class="ss-list-row__main"><span class="ss-list-row__title">优先使用英文文献</span><span class="ss-list-row__sub">偏好 · 已拒绝</span></div>
+              <span class="ss-list-row__meta ss-list-row__meta--time">10-13</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="ss-panel" style="width:440px">
+      <div class="ss-splitter ss-splitter--start" data-min="320" data-max="640" data-default="440" data-key="page-inbox"></div>
+      <div class="ss-panel__head">
+        <span class="ss-panel__title">综述按研究方法分三节</span>
+        <button class="ss-icon-btn" type="button" aria-label="定位到消息" data-tip="定位到消息"><i data-i="locate"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="更多" data-menu="#m-inbox"><i data-i="ellipsis"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭"><i data-i="x"></i></button>
+      </div>
+      <div class="ss-panel__body" style="display:grid;gap:20px;align-content:start">
+        <dl class="ss-props">
+          <dt>类型</dt><dd>决定</dd>
+          <dt>写入</dt><dd>项目记忆 · 城市韧性研究</dd>
+          <dt>提出</dt><dd>任务秘书 · 今天 14:32</dd>
+        </dl>
+        <div>
+          <h3 class="ss-section-title">内容</h3>
+          <div class="ss-prose"><p>文献综述按研究方法分为三节：面板数据与计量（S2、S5、S7）、综合评价（S1、S4）、案例与访谈（S3、S6、S8）。</p></div>
+        </div>
+        <div style="display:grid;gap:12px">
+          <h3 class="ss-section-title" style="margin:0">依据</h3>
+          <blockquote class="ss-quote">按方法可以分成三组，正好对应综述的三小节：面板数据与计量、综合评价、案例与访谈。
+            <div class="ss-quote__src">主专家 · 第 3 条<button class="ss-linkbtn" type="button">定位到消息</button></div>
+          </blockquote>
+          <blockquote class="ss-quote">好，就按这三组写，访谈那节放在最后。
+            <div class="ss-quote__src">Yui · 第 4 条<button class="ss-linkbtn" type="button">定位到消息</button></div>
+          </blockquote>
+        </div>
+      </div>
+      <div class="ss-panel__foot">
+        <span class="ss-muted" style="margin-right:auto;font-size:12px">第 1 条，共 3 条</span>
+        <button class="ss-btn" type="button">拒绝</button>
+        <button class="ss-btn" type="button"><i data-i="pencil"></i>修改后接受</button>
+        <button class="ss-btn ss-btn--primary" type="button" data-tip="接受，转到下一条"><i data-i="check"></i>接受</button>
+      </div>
+    </aside>
+  </div>
+  <footer class="ss-statusbar">
+    <span class="ss-statusbar__item"><span class="ss-dot ss-dot--ok"></span>已连接</span>
+    <span class="ss-statusbar__item">项目文件夹 D:\研究\城市韧性</span>
+    <span class="ss-statusbar__spacer"></span>
+    <span class="ss-statusbar__item"><span class="ss-spin"></span>正在解析 1 篇</span>
+  </footer>
+</div>
+
+<div class="ss-menu" id="m-inbox" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="check"></i>接受</button>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>修改后接受</button>
+  <button class="ss-menu__item" type="button"><i data-i="x"></i>拒绝</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="locate"></i>定位到消息</button>
+  <button class="ss-menu__item" type="button"><i data-i="copy"></i>复制内容</button>
+</div>
+<div class="ss-menu" id="m-scope" hidden>
+  <div class="ss-menu__label">资料范围</div>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="true" data-label="城市韧性研究" type="button"><i data-i="folder-open"></i>当前项目：城市韧性研究<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="我的资料" type="button"><i data-i="book-marked"></i>我的资料（所有项目）<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<div class="ss-pop" id="p-inbox-filter" hidden style="width:260px">
+  <div class="ss-pop__body">
+    <div class="ss-pop__section"><span class="ss-pop__label">类型</span>
+      <label class="ss-check"><input type="checkbox" checked /><span>决定</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>背景</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>未决问题</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>经验与偏好</span></label>
+    </div>
+    <div class="ss-pop__section"><span class="ss-pop__label">提出者</span>
+      <div class="ss-seg ss-seg--sm"><button type="button" aria-pressed="true">全部</button><button type="button" aria-pressed="false">秘书</button><button type="button" aria-pressed="false">专家</button></div>
+    </div>
+  </div>
+  <div class="ss-pop__foot"><span class="ss-muted" style="font-size:12px">筛选立即生效</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">清除</button></div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

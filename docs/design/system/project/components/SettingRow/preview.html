@@ -1,0 +1,36 @@
+<!-- @dsCard group="设置" height=320 subtitle="一行一个设置：左边名称和一句说明，右边控件；改了立即生效" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>SettingRow</title></head>
+<body>
+<div class="ds" style="padding-top:4px">
+  <div style="max-width:680px">
+    <div class="ss-setting-row">
+      <div class="ss-setting-row__text"><span class="ss-setting-row__label">主题</span></div>
+      <div class="ss-setting-row__control"><div class="ss-seg" role="group" aria-label="主题"><button type="button" aria-pressed="false"><i data-i="sun"></i>浅色</button><button type="button" aria-pressed="false"><i data-i="moon"></i>深色</button><button type="button" aria-pressed="true"><i data-i="monitor"></i>跟随系统</button></div></div>
+    </div>
+    <div class="ss-setting-row">
+      <div class="ss-setting-row__text"><span class="ss-setting-row__label">界面语言</span></div>
+      <div class="ss-setting-row__control"><button class="ss-select" type="button" aria-haspopup="menu" data-menu="#m-lang" style="width:160px"><span class="ss-select__value" data-slot="value">中文</span><i data-i="chevron-down"></i></button></div>
+    </div>
+    <div class="ss-setting-row">
+      <div class="ss-setting-row__text"><span class="ss-setting-row__label">启动时打开上次的对话</span><span class="ss-setting-row__desc">关掉后，启动时停在新对话页</span></div>
+      <div class="ss-setting-row__control"><input class="ss-switch" type="checkbox" role="switch" checked aria-label="启动时打开上次的对话" /></div>
+    </div>
+    <div class="ss-setting-row">
+      <div class="ss-setting-row__text"><span class="ss-setting-row__label">发送消息</span><span class="ss-setting-row__desc">另一种组合用来换行</span></div>
+      <div class="ss-setting-row__control"><div class="ss-seg ss-seg--sm" role="group" aria-label="发送消息"><button type="button" aria-pressed="true">Enter</button><button type="button" aria-pressed="false">Ctrl Enter</button></div></div>
+    </div>
+    <div class="ss-setting-row">
+      <div class="ss-setting-row__text"><span class="ss-setting-row__label">缓存</span><span class="ss-setting-row__desc">占用 1.2 GB。清理后，第一次打开资料会慢一些</span></div>
+      <div class="ss-setting-row__control"><button class="ss-btn" type="button">清理缓存</button></div>
+    </div>
+  </div>
+</div>
+<div class="ss-menu" id="m-lang" hidden>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="true" data-label="中文" type="button">中文<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="English" type="button">English<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

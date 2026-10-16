@@ -1,0 +1,19 @@
+<!-- @dsCard group="输入" height=106 subtitle="连续数值；数值显示在右侧，不用上下键微调" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Slider</title></head>
+<body>
+<div class="ds">
+  <div class="ss-setting-row" style="max-width:640px;border:0;padding:0">
+    <div class="ss-setting-row__text">
+      <span class="ss-setting-row__label">上下文压缩门槛</span>
+      <span class="ss-setting-row__desc">用到模型上下文容量的这个比例时，自动把较早的对话整理成摘要。所有模型共用。</span>
+    </div>
+    <div class="ss-setting-row__control">
+      <span class="ss-slider" style="width:220px"><input type="range" min="50" max="95" step="5" value="80" data-unit="%" aria-label="上下文压缩门槛" /><output>80%</output></span>
+    </div>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!-- @dsCard group="对话" height=316 subtitle="在输入框里选模型和思考强度；只列出这个模型支持的强度" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>ModelPicker</title></head>
+<body>
+<div class="ds" style="grid-template-columns:auto 1fr;align-items:start;gap:24px">
+  <div class="ds-col">
+    <div class="ss-pop" data-static style="width:300px">
+      <div class="ss-models" role="listbox" aria-label="模型">
+        <div class="ss-menu__label">DeepSeek 官方</div>
+        <button class="ss-model" type="button" role="option" aria-selected="true"><span class="ss-model__main"><span class="ss-model__name">deepseek-v4-pro</span><span class="ss-model__meta">上下文 1M · 思考 关闭 / 低 / 中 / 高</span></span><i data-i="check"></i></button>
+        <button class="ss-model" type="button" role="option" aria-selected="false"><span class="ss-model__main"><span class="ss-model__name">deepseek-v4-flash</span><span class="ss-model__meta">上下文 1M · 思考 关闭 / 高</span></span><i data-i="check"></i></button>
+        <button class="ss-model" type="button" role="option" aria-selected="false"><span class="ss-model__main"><span class="ss-model__name">deepseek-v4-pro-preview</span><span class="ss-model__meta">上下文 128K · 不支持思考</span></span><i data-i="check"></i></button>
+        <div class="ss-menu__label">OpenCode Go</div>
+        <button class="ss-model" type="button" role="option" aria-selected="false" disabled><span class="ss-model__main"><span class="ss-model__name">deepseek-v4.1-flash</span><span class="ss-model__meta">密钥无效，去设置里更新</span></span><i data-i="check"></i></button>
+      </div>
+      <div class="ss-effort"><span>思考强度</span>
+        <div class="ss-seg ss-seg--sm" role="group" aria-label="思考强度"><button type="button" aria-pressed="false">关闭</button><button type="button" aria-pressed="false">低</button><button type="button" aria-pressed="true">中</button><button type="button" aria-pressed="false">高</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="ds-col">
+    <span class="ds-label">试一试</span>
+    <div class="ss-composer" style="margin:0;max-width:420px">
+      <div class="ss-composer__bar" style="padding:6px">
+        <span class="ss-composer__spacer"></span>
+        <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" data-pop="#p-model" data-tip="模型和思考强度">deepseek-v4-pro · 中<i data-i="chevron-down"></i></button>
+        <button class="ss-send" type="button" aria-label="发送" disabled><i data-i="arrow-up"></i></button>
+      </div>
+    </div>
+    <p class="ds-note">上下文和输出上限自动获取，不让用户填数字。换模型后，如果原来的强度不支持，就改成这个模型支持的最接近一档，并在按钮上显示出来。</p>
+  </div>
+</div>
+<div class="ss-pop" id="p-model" hidden style="width:300px">
+  <div class="ss-models" role="listbox" aria-label="模型">
+    <div class="ss-menu__label">DeepSeek 官方</div>
+    <button class="ss-model" type="button" role="option" aria-selected="true"><span class="ss-model__main"><span class="ss-model__name">deepseek-v4-pro</span><span class="ss-model__meta">上下文 1M · 思考 关闭 / 低 / 中 / 高</span></span><i data-i="check"></i></button>
+    <button class="ss-model" type="button" role="option" aria-selected="false"><span class="ss-model__main"><span class="ss-model__name">deepseek-v4-flash</span><span class="ss-model__meta">上下文 1M · 思考 关闭 / 高</span></span><i data-i="check"></i></button>
+  </div>
+  <div class="ss-effort"><span>思考强度</span>
+    <div class="ss-seg ss-seg--sm" role="group" aria-label="思考强度"><button type="button" aria-pressed="false">关闭</button><button type="button" aria-pressed="false">低</button><button type="button" aria-pressed="true">中</button><button type="button" aria-pressed="false">高</button></div>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

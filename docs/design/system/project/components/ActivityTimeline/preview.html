@@ -1,0 +1,42 @@
+<!-- @dsCard group="对话" height=600 subtitle="模型做的每一步都看得见：一行一个动作，点开看细节，回答结束后整体收起" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>ActivityTimeline</title></head>
+<body>
+<div class="ss-thread" style="padding:16px 24px" id="tl">
+  <div class="ss-msg">
+    <div class="ss-msg__head"><span class="ss-avatar">主</span><span class="ss-msg__name">主专家</span><span class="ss-msg__role">deepseek-v4-pro</span><span style="flex:1"></span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" aria-expanded="false" data-toggle-all="#tl"><i data-i="chevrons-up-down"></i>全部展开</button></div>
+    <div class="ss-act">
+      <button class="ss-act__row" type="button" aria-expanded="false" data-toggle="next"><i data-i="lightbulb"></i><span class="ss-act__verb">思考了 6 秒</span><i data-i="chevron-right" class="ss-act__chev"></i></button>
+      <div class="ss-act__thinking" hidden>两篇的一级指标都分四类，但二级指标数量不同。先读用户的指标表，再逐项对照。</div>
+      <p class="ss-act__narr">先读你整理的指标表，再和 S1、S4 的指标逐项对照。</p>
+      <button class="ss-act__row" type="button" aria-expanded="false" data-toggle="next"><i data-i="text-search"></i><span class="ss-act__verb">搜索资料库</span><span class="ss-act__target ss-act__target--text">指标体系 二级指标</span><span class="ss-act__end">6 条</span><i data-i="chevron-right" class="ss-act__chev"></i></button>
+      <div class="ss-act__nest" hidden>
+        <div class="ss-act__row"><i data-i="file-text"></i><span class="ss-act__verb">S1</span><span class="ss-act__target ss-act__target--text">城市韧性评价指标体系构建 · 第 3 节</span></div>
+        <div class="ss-act__row"><i data-i="file-text"></i><span class="ss-act__verb">S4</span><span class="ss-act__target ss-act__target--text">基于熵权 TOPSIS 的城市韧性测度 · 表 2</span></div>
+      </div>
+      <button class="ss-act__row" type="button" aria-expanded="false" data-toggle="next"><i data-i="file-search"></i><span class="ss-act__verb">读取文件</span><span class="ss-act__target">data/indicators.csv</span><span class="ss-act__end">26 行</span><i data-i="chevron-right" class="ss-act__chev"></i></button>
+      <div class="ss-act__detail" hidden><pre>指标,一级,方向,来源
+人均 GDP,经济,+,统计年鉴
+失业率,社会,-,统计年鉴
+……（共 26 行）</pre></div>
+      <button class="ss-act__row" type="button" aria-expanded="true" data-toggle="next"><i data-i="square-terminal"></i><span class="ss-act__verb">运行命令</span><span class="ss-act__target">python scripts/match_indicators.py</span><span class="ss-act__end">1.4 秒</span><i data-i="chevron-right" class="ss-act__chev"></i></button>
+      <div class="ss-act__detail">
+        <div class="ss-act__detail-head"><span>$ python scripts/match_indicators.py --out results/indicator_map.csv</span><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="复制" data-tip="复制"><i data-i="copy"></i></button></div>
+        <pre>读取 26 个指标
+直接对上 15 个，名称相近 6 个，只在 S4 出现 3 个
+已写入 results/indicator_map.csv</pre>
+        <div class="ss-act__detail-foot">退出码 0 · 工作目录 D:\研究\城市韧性</div>
+      </div>
+      <button class="ss-act__row" type="button" aria-expanded="false" data-toggle="next"><i data-i="file-diff"></i><span class="ss-act__verb">修改文件</span><span class="ss-act__target">drafts/review.md</span><span class="ss-act__end">+12 −3</span><i data-i="chevron-right" class="ss-act__chev"></i></button>
+      <div class="ss-act__detail" hidden><pre>+ ### 2.2 综合评价方法
++ 两篇研究均采用熵权 TOPSIS……</pre></div>
+      <div class="ss-act__row ss-act__row--fail"><i data-i="circle-x"></i><span class="ss-act__verb">安装包失败</span><span class="ss-act__target">seaborn</span><span class="ss-act__end">网络不可用</span></div>
+      <div class="ss-act__row ss-act__row--muted"><i data-i="fold-vertical"></i><span class="ss-act__verb">整理了较早的对话</span><span class="ss-act__target ss-act__target--text">上下文从 82% 降到 31%</span></div>
+      <div class="ss-act__row"><span class="ss-spin"></span><span class="ss-act__verb">正在写入文件</span><span class="ss-act__target">results/heatmap.png</span></div>
+    </div>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

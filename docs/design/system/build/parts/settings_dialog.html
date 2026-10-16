@@ -1,0 +1,139 @@
+
+<div class="ss-scrim" id="dlg-settings">
+  <div class="ss-dialog ss-dialog--settings" role="dialog" aria-modal="true" aria-label="设置">
+    <button class="ss-icon-btn ss-settings__close" type="button" aria-label="关闭" data-tip="关闭" data-kbd="Esc" data-close><i data-i="x"></i></button>
+    <div class="ss-settings">
+      <nav class="ss-settings__nav" aria-label="设置分类">
+        <div class="ss-settings__navtitle">设置</div>
+        <button class="ss-nav-item" type="button"><i data-i="settings"></i><span class="ss-nav-item__label">通用</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="palette"></i><span class="ss-nav-item__label">外观</span></button>
+        <button class="ss-nav-item" type="button" aria-current="page"><i data-i="plug"></i><span class="ss-nav-item__label">模型与服务商</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="shield-check"></i><span class="ss-nav-item__label">执行与批准</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="users"></i><span class="ss-nav-item__label">专家</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="database"></i><span class="ss-nav-item__label">数据与运行环境</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="keyboard"></i><span class="ss-nav-item__label">快捷键</span></button>
+        <div class="ss-settings__navsep"></div>
+        <button class="ss-nav-item" type="button"><i data-i="info"></i><span class="ss-nav-item__label">关于</span><span class="ss-nav-item__end">1.0.0-alpha</span></button>
+      </nav>
+      <div class="ss-settings__content">
+        <div class="ss-settings__inner">
+          <h2 class="ss-settings__title">模型与服务商 <button class="ss-info" type="button" aria-label="说明" data-tip="添加服务商后，模型的上下文和输出上限自动获取，查不到时用默认最大值。思考强度在对话输入框里选。"><i data-i="info"></i></button></h2>
+
+          <section class="ss-setting-section" style="margin-top:16px">
+            <div class="ss-setting-section__head"><h3 class="ss-setting-section__title">快速添加</h3><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="plus"></i>其他兼容服务</button></div>
+            <div class="ss-presets">
+              <div class="ss-preset">
+                <span class="ss-preset__mark">Go</span>
+                <div class="ss-preset__main"><span class="ss-preset__name">OpenCode Go 订阅</span><span class="ss-preset__desc">填入订阅密钥，模型自动列出</span></div>
+                <button class="ss-btn ss-btn--sm" type="button" data-dialog="#dlg-key">添加</button>
+              </div>
+              <div class="ss-preset">
+                <span class="ss-preset__mark">DS</span>
+                <div class="ss-preset__main"><span class="ss-preset__name">DeepSeek 官方</span><span class="ss-preset__desc">官方接口，按量付费</span></div>
+                <span class="ss-tag ss-tag--ok"><i data-i="check"></i>已添加</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="ss-setting-section">
+            <div class="ss-setting-section__head"><h3 class="ss-setting-section__title">已添加</h3></div>
+            <div class="ss-provider">
+              <div class="ss-provider__head">
+                <span class="ss-preset__mark ss-preset__mark--sm">DS</span>
+                <div class="ss-provider__main"><span class="ss-provider__name">DeepSeek 官方</span><span class="ss-provider__meta">api.deepseek.com · 密钥已保存</span></div>
+                <span class="ss-provider__status"><span class="ss-dot ss-dot--ok"></span>连接正常 · 820 ms</span>
+                <button class="ss-btn ss-btn--sm" type="button">测试连接</button>
+                <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-provider"><i data-i="ellipsis"></i></button>
+              </div>
+              <div class="ss-provider__body">
+                <table class="ss-table">
+                  <colgroup><col style="width:34%" /><col style="width:13%" /><col style="width:13%" /><col style="width:20%" /><col style="width:14%" /><col style="width:40px" /></colgroup>
+                  <thead><tr>
+                    <th>模型</th><th class="ss-num">上下文</th><th class="ss-num">最长输出</th><th>思考强度</th>
+                    <th>上限来源 <button class="ss-info" type="button" aria-label="说明" data-tip="目录：内置模型目录给出的上限。匹配：按名称匹配到目录里的同款模型。默认值：都没查到，用默认最大值，可在 ⋯ 里改。"><i data-i="info"></i></button></th><th></th>
+                  </tr></thead>
+                  <tbody>
+                    <tr><td class="ss-mono">deepseek-v4-pro</td><td class="ss-num">1M</td><td class="ss-num">64K</td><td>关闭、低、中、高</td><td class="ss-muted">目录</td><td class="ss-table__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-model"><i data-i="ellipsis"></i></button></td></tr>
+                    <tr><td class="ss-mono">deepseek-v4-flash</td><td class="ss-num">1M</td><td class="ss-num">64K</td><td>关闭、高</td><td class="ss-muted">目录</td><td class="ss-table__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-model"><i data-i="ellipsis"></i></button></td></tr>
+                    <tr><td class="ss-mono">deepseek-v4-pro-preview</td><td class="ss-num">128K</td><td class="ss-num">32K</td><td class="ss-muted">不支持</td><td class="ss-muted">默认值</td><td class="ss-table__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-model"><i data-i="ellipsis"></i></button></td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="ss-provider">
+              <div class="ss-provider__head">
+                <span class="ss-preset__mark ss-preset__mark--sm">Go</span>
+                <div class="ss-provider__main"><span class="ss-provider__name">OpenCode Go</span><span class="ss-provider__meta">订阅 · 6 个模型</span></div>
+                <span class="ss-provider__status ss-provider__status--danger"><span class="ss-dot ss-dot--danger"></span>密钥无效，请重新填写</span>
+                <button class="ss-btn ss-btn--sm" type="button" data-dialog="#dlg-key">更新密钥</button>
+                <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-provider"><i data-i="ellipsis"></i></button>
+              </div>
+            </div>
+          </section>
+
+          <section class="ss-setting-section">
+            <div class="ss-setting-section__head"><h3 class="ss-setting-section__title">默认模型</h3></div>
+            <div class="ss-setting-row">
+              <div class="ss-setting-row__text"><span class="ss-setting-row__label">对话</span><span class="ss-setting-row__desc">新对话默认使用，对话里可以随时换</span></div>
+              <div class="ss-setting-row__control"><button class="ss-select" type="button" aria-haspopup="menu" data-menu="#m-default" style="width:240px"><span class="ss-select__value" data-slot="value">deepseek-v4-pro</span><i data-i="chevron-down"></i></button></div>
+            </div>
+            <div class="ss-setting-row">
+              <div class="ss-setting-row__text"><span class="ss-setting-row__label">秘书与后台任务</span><span class="ss-setting-row__desc">整理纪要、记忆和对话标题</span></div>
+              <div class="ss-setting-row__control"><button class="ss-select" type="button" aria-haspopup="menu" data-menu="#m-default2" style="width:240px"><span class="ss-select__value" data-slot="value">deepseek-v4-flash</span><i data-i="chevron-down"></i></button></div>
+            </div>
+          </section>
+
+          <section class="ss-setting-section">
+            <div class="ss-setting-section__head"><h3 class="ss-setting-section__title">请求与上下文</h3></div>
+            <div class="ss-setting-row">
+              <div class="ss-setting-row__text"><span class="ss-setting-row__label">无响应时停止</span><span class="ss-setting-row__desc">模型超过这个时间没有任何输出，就停下并提示重试</span></div>
+              <div class="ss-setting-row__control"><button class="ss-select" type="button" aria-haspopup="menu" data-menu="#m-timeout" style="width:120px"><span class="ss-select__value" data-slot="value">60 秒</span><i data-i="chevron-down"></i></button></div>
+            </div>
+            <div class="ss-setting-row">
+              <div class="ss-setting-row__text"><span class="ss-setting-row__label">上下文压缩门槛</span><span class="ss-setting-row__desc">用到上下文容量的这个比例时，把较早的对话整理成摘要</span></div>
+              <div class="ss-setting-row__control"><span class="ss-slider" style="width:220px"><input type="range" min="50" max="95" step="5" value="80" data-unit="%" aria-label="上下文压缩门槛" /><output>80%</output></span></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ss-scrim" id="dlg-key" hidden>
+  <div class="ss-dialog" role="dialog" aria-modal="true" aria-labelledby="dlg-key-title">
+    <div class="ss-dialog__head"><h2 class="ss-dialog__title" id="dlg-key-title">添加 OpenCode Go 订阅</h2><button class="ss-icon-btn" type="button" aria-label="关闭" data-close><i data-i="x"></i></button></div>
+    <div class="ss-dialog__body">
+      <label class="ss-field"><span class="ss-field__label">订阅密钥</span><span class="ss-input"><i data-i="key-round"></i><input type="password" placeholder="粘贴密钥" /></span><span class="ss-field__hint">只保存在本机的密钥文件里。</span></label>
+    </div>
+    <div class="ss-dialog__foot"><button class="ss-btn" type="button" data-close>取消</button><button class="ss-btn ss-btn--primary" type="button">测试并保存</button></div>
+  </div>
+</div>
+
+<div class="ss-menu" id="m-provider" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="refresh-cw"></i>重新获取模型列表</button>
+  <button class="ss-menu__item" type="button"><i data-i="key-round"></i>更新密钥</button>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>编辑地址</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>移除服务商</button>
+</div>
+<div class="ss-menu" id="m-model" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>修改上限</button>
+  <button class="ss-menu__item" type="button"><i data-i="eye-off"></i>在模型列表里隐藏</button>
+</div>
+<div class="ss-menu" id="m-default" hidden>
+  <div class="ss-menu__label">DeepSeek 官方</div>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="true" data-label="deepseek-v4-pro" type="button">deepseek-v4-pro<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="deepseek-v4-flash" type="button">deepseek-v4-flash<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<div class="ss-menu" id="m-default2" hidden>
+  <div class="ss-menu__label">DeepSeek 官方</div>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="deepseek-v4-pro" type="button">deepseek-v4-pro<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="true" data-label="deepseek-v4-flash" type="button">deepseek-v4-flash<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<div class="ss-menu" id="m-timeout" hidden>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="30 秒" type="button">30 秒<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="true" data-label="60 秒" type="button">60 秒<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="2 分钟" type="button">2 分钟<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="5 分钟" type="button">5 分钟<i data-i="check" class="ss-menu__check"></i></button>
+</div>

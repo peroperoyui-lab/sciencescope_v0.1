@@ -1,0 +1,26 @@
+<!-- @dsCard group="浮层" height=448 subtitle="Ctrl K 打开，搜对话、资料和命令；所有二级窗口都学它的开关方式" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>CommandPalette</title></head>
+<body>
+<div class="ds" style="justify-items:center;padding-top:20px">
+  <div class="ss-cmd" role="dialog" aria-label="搜索与命令">
+    <div class="ss-cmd__input"><i data-i="search"></i><input value="" placeholder="搜索对话、资料，或输入命令" aria-label="搜索" /><span class="ss-kbd">Esc</span></div>
+    <div class="ss-cmd__list" role="listbox">
+      <div class="ss-cmd__group">对话</div>
+      <button class="ss-cmd__item" type="button" data-active><i data-i="message-square"></i>文献综述框架讨论<span class="ss-cmd__meta">城市韧性研究 · 运行中</span></button>
+      <button class="ss-cmd__item" type="button"><i data-i="message-square"></i>指标体系初稿<span class="ss-cmd__meta">城市韧性研究 · 2 天前</span></button>
+      <div class="ss-cmd__group">资料</div>
+      <button class="ss-cmd__item" type="button"><i data-i="file-text"></i>城市韧性评价指标体系构建<span class="ss-cmd__meta">S1 · PDF</span></button>
+      <button class="ss-cmd__item" type="button"><i data-i="file-text"></i>社区韧性访谈记录汇编<span class="ss-cmd__meta">S3 · Word</span></button>
+      <div class="ss-cmd__group">命令</div>
+      <button class="ss-cmd__item" type="button"><i data-i="square-pen"></i>新对话<span class="ss-cmd__meta"><span class="ss-kbd">Ctrl N</span></span></button>
+      <button class="ss-cmd__item" type="button"><i data-i="import"></i>导入材料</button>
+      <button class="ss-cmd__item" type="button"><i data-i="settings"></i>打开设置<span class="ss-cmd__meta"><span class="ss-kbd">Ctrl ,</span></span></button>
+    </div>
+    <div class="ss-cmd__foot"><span><span class="ss-kbd">↑</span><span class="ss-kbd">↓</span>选择</span><span><span class="ss-kbd">Enter</span>打开</span><span><span class="ss-kbd">Esc</span>关闭</span></div>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

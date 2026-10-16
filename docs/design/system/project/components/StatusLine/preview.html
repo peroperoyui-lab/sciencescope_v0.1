@@ -1,0 +1,18 @@
+<!-- @dsCard group="对话" height=280 subtitle="回答进行到哪一步，消息下方一行说清：已发送、思考中、执行中、等批准、停止" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>StatusLine</title></head>
+<body>
+<div class="ds" style="gap:6px">
+  <div class="ds-row" style="gap:0"><span class="ds-label" style="width:96px">发送后</span><div class="ss-status" style="padding-left:0"><span class="ss-spin"></span><span>已发送，等待模型响应</span><span class="ss-status__time">3 秒</span></div></div>
+  <div class="ds-row" style="gap:0"><span class="ds-label" style="width:96px">思考</span><div class="ss-status" style="padding-left:0"><i data-i="lightbulb"></i><span class="ss-shimmer">正在思考</span><span class="ss-status__time">12 秒</span></div></div>
+  <div class="ds-row" style="gap:0"><span class="ds-label" style="width:96px">执行工具</span><div class="ss-status" style="padding-left:0"><span class="ss-spin"></span><span>正在运行 python scripts/match_indicators.py</span><span class="ss-status__time">8 秒</span></div></div>
+  <div class="ds-row" style="gap:0"><span class="ds-label" style="width:96px">等批准</span><div class="ss-status ss-status--wait" style="padding-left:0"><i data-i="shield-question-mark"></i><span>等待你的批准</span><span class="ss-status__time">48 秒</span></div></div>
+  <div class="ds-row" style="gap:0"><span class="ds-label" style="width:96px">无响应</span><div class="ss-status ss-status--fail" style="padding-left:0"><i data-i="circle-alert"></i><span>模型 60 秒没有响应，已停止</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="rotate-cw"></i>重试</button></div></div>
+  <div class="ds-row" style="gap:0"><span class="ds-label" style="width:96px">出错</span><div class="ss-status ss-status--fail" style="padding-left:0"><i data-i="circle-alert"></i><span>服务商返回 401：密钥无效</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">去设置</button></div></div>
+  <div class="ds-row" style="gap:0"><span class="ds-label" style="width:96px">用户停止</span><div class="ss-status" style="padding-left:0"><i data-i="circle-stop"></i><span>你停止了这次回答，已保留到目前的内容</span></div></div>
+  <p class="ds-note" style="margin-top:8px">计时从这一步开始算。回答完成后状态行消失，换成时间线顶部的「用时 34 秒 · 读了 8 篇资料」。</p>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

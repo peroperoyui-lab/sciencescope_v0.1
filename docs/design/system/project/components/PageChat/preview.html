@@ -1,0 +1,275 @@
+<!-- @dsCard group="整页示例" page height=900 width=1536 subtitle="项目对话：行动时间线、批准卡片、合并的发送/停止、右侧秘书面板（1536×900，约等于 1920 宽屏幕 125% 缩放）" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>PageChat</title></head>
+<body>
+<div class="ss-shell">
+  <header class="ss-titlebar">
+    <span class="ss-titlebar__brand"><i data-logo></i>ScienceScope</span>
+    <button class="ss-titlebar__menu" type="button" data-menu="#m-file" aria-haspopup="menu">文件</button>
+    <button class="ss-titlebar__menu" type="button" aria-haspopup="menu">编辑</button>
+    <button class="ss-titlebar__menu" type="button" aria-haspopup="menu">视图</button>
+    <button class="ss-titlebar__menu" type="button" aria-haspopup="menu">帮助</button>
+    <span class="ss-titlebar__spacer"></span>
+    <button class="ss-winctl" type="button" aria-label="最小化"><i data-i="minus"></i></button>
+    <button class="ss-winctl" type="button" aria-label="最大化"><i data-i="square"></i></button>
+    <button class="ss-winctl ss-winctl--close" type="button" aria-label="关闭"><i data-i="x"></i></button>
+  </header>
+
+  <div class="ss-shell__body">
+    <aside class="ss-sidebar">
+      <div class="ss-sidebar__top">
+        <button class="ss-nav-item" type="button" data-tip="新对话" data-kbd="Ctrl N" data-tip-place="right"><i data-i="square-pen"></i><span class="ss-nav-item__label">新对话</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="book-open"></i><span class="ss-nav-item__label">资料库</span><span class="ss-nav-item__end">8</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="box"></i><span class="ss-nav-item__label">工作站</span></button>
+        <button class="ss-search-trigger" type="button"><i data-i="search"></i><span class="ss-search-trigger__label">搜索与命令</span><span class="ss-kbd">Ctrl K</span></button>
+      </div>
+      <div class="ss-sidebar__scroll">
+        <div class="ss-side-section" style="margin-top:4px">
+          <div class="ss-side-section__head"><span>项目</span><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="新建项目" data-tip="新建项目"><i data-i="plus"></i></button></div>
+          <div class="ss-tree">
+            <div class="ss-tree-row" aria-expanded="true" data-drop-target data-ctx="#m-project">
+              <button class="ss-tree-row__twisty" type="button" aria-label="收起"><i data-i="chevron-down"></i></button>
+              <i data-i="folder-open"></i><span class="ss-tree-row__label">城市韧性研究</span>
+              <span class="ss-tree-row__end"></span>
+              <span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="在项目中新对话" data-tip="在项目中新对话"><i data-i="square-pen"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-project"><i data-i="ellipsis"></i></button></span>
+            </div>
+            <div class="ss-tree">
+              <div class="ss-tree-row ss-tree-row--child" aria-selected="true" data-ctx="#m-chat">
+                <span class="ss-tree-row__label">文献综述框架讨论</span>
+                <span class="ss-tree-row__end"><span class="ss-spin" aria-label="运行中"></span></span>
+                <span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-chat"><i data-i="ellipsis"></i></button></span>
+              </div>
+              <div class="ss-tree-row ss-tree-row--child" data-ctx="#m-chat">
+                <span class="ss-tree-row__label">指标体系初稿</span>
+                <span class="ss-tree-row__end">2 天</span>
+                <span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-chat"><i data-i="ellipsis"></i></button></span>
+              </div>
+              <div class="ss-tree-row ss-tree-row--child" data-ctx="#m-chat">
+                <span class="ss-tree-row__label">面板数据清洗</span>
+                <span class="ss-tree-row__end">5 天</span>
+                <span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-chat"><i data-i="ellipsis"></i></button></span>
+              </div>
+            </div>
+            <div class="ss-tree-row" aria-expanded="false" data-drop-target data-ctx="#m-project">
+              <button class="ss-tree-row__twisty" type="button" aria-label="展开"><i data-i="chevron-down"></i></button>
+              <i data-i="folder"></i><span class="ss-tree-row__label">劳动保障政策演化</span>
+              <span class="ss-tree-row__end"></span>
+              <span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-project"><i data-i="ellipsis"></i></button></span>
+            </div>
+            <div class="ss-tree" hidden></div>
+          </div>
+        </div>
+        <div class="ss-side-section">
+          <div class="ss-side-section__head"><span>独立对话</span></div>
+          <div class="ss-tree">
+            <div class="ss-tree-row ss-tree-row--leaf" draggable="true" data-drag="chat" data-ctx="#m-chat" data-tip="拖到项目上即可移入" data-tip-place="right">
+              <span class="ss-tree-row__label">参考文献格式整理</span>
+              <span class="ss-tree-row__end">昨天</span>
+              <span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-chat"><i data-i="ellipsis"></i></button></span>
+            </div>
+            <div class="ss-tree-row ss-tree-row--leaf" draggable="true" data-drag="chat" data-ctx="#m-chat">
+              <span class="ss-tree-row__label">Zipf 定律推导</span>
+              <span class="ss-tree-row__end">3 天</span>
+              <span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-chat"><i data-i="ellipsis"></i></button></span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ss-sidebar__foot">
+        <button class="ss-user" type="button"><span class="ss-avatar ss-avatar--lg ss-avatar--user">Y</span><span class="ss-truncate">Yui</span></button>
+        <button class="ss-icon-btn" type="button" aria-label="专家" data-tip="专家"><i data-i="users"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="设置" data-tip="设置" data-kbd="Ctrl ,"><i data-i="settings"></i></button>
+      </div>
+      <div class="ss-splitter ss-splitter--end" data-min="200" data-max="360" data-default="248" data-key="page-sidebar"></div>
+    </aside>
+
+    <main class="ss-main">
+      <div class="ss-header">
+        <div class="ss-header__title"><span>文献综述框架讨论</span></div>
+        <span class="ss-header__sep"></span>
+        <span class="ss-avatars" style="align-self:center" data-tip="主专家、方法专家、文献专家"><span class="ss-avatar">主</span><span class="ss-avatar">方</span><span class="ss-avatar">文</span></span>
+        <div class="ss-header__actions">
+          <button class="ss-icon-btn" type="button" aria-label="历史版本" data-tip="对话里的文件改动"><i data-i="history"></i></button>
+          <button class="ss-icon-btn" type="button" aria-label="任务秘书" aria-pressed="true" data-tip="任务秘书" data-kbd="Ctrl J"><i data-i="panel-right"></i></button>
+          <button class="ss-icon-btn" type="button" aria-label="更多" data-menu="#m-chat"><i data-i="ellipsis"></i></button>
+        </div>
+      </div>
+      <div class="ss-content" id="thread-scroll">
+        <div class="ss-thread">
+          <div class="ss-msg ss-msg--user">
+            <div class="ss-msg__bubble">这 8 篇文献按研究方法分一下组，看看哪些可以放进综述的同一节。</div>
+          </div>
+          <div class="ss-msg">
+            <div class="ss-msg__head"><span class="ss-avatar">主</span><span class="ss-msg__name">主专家</span><span class="ss-msg__role">deepseek-v4-pro</span></div>
+            <div class="ss-act">
+              <button class="ss-act__summary" type="button" aria-expanded="false" data-toggle="next">用时 34 秒 · 读了 8 篇资料<i data-i="chevron-down"></i></button>
+              <div class="ss-act__list" hidden>
+                <div class="ss-act__row"><i data-i="text-search"></i><span class="ss-act__verb">搜索资料库</span><span class="ss-act__target">研究方法</span><span class="ss-act__end">8 条</span></div>
+              </div>
+            </div>
+            <div class="ss-msg__body">
+              <p>按方法可以分成三组，正好对应综述的三小节：</p>
+              <ul>
+                <li><b>面板数据与计量</b>（S2、S5、S7）：都用了 2010–2022 年的地级市面板。</li>
+                <li><b>综合评价</b>（S1、S4）：熵权 TOPSIS，指标口径差异较大。</li>
+                <li><b>案例与访谈</b>（S3、S6、S8）：适合放在讨论部分。</li>
+              </ul>
+            </div>
+            <div class="ss-msg__foot"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="复制" data-tip="复制"><i data-i="copy"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="重新回答" data-tip="重新回答"><i data-i="rotate-cw"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-msg"><i data-i="ellipsis"></i></button><time>16:24</time></div>
+          </div>
+          <div class="ss-msg ss-msg--user">
+            <div class="ss-msg__bubble">综合评价那两篇的指标能统一吗？我整理的指标在 data/indicators.csv。</div>
+          </div>
+          <div class="ss-msg">
+            <div class="ss-msg__head"><span class="ss-avatar">主</span><span class="ss-msg__name">主专家</span><span class="ss-msg__role">deepseek-v4-pro</span></div>
+            <div class="ss-act">
+              <button class="ss-act__row" type="button" aria-expanded="false" data-toggle="next"><i data-i="lightbulb"></i><span class="ss-act__verb">思考了 6 秒</span><i data-i="chevron-right" class="ss-act__chev"></i></button>
+              <div class="ss-act__thinking" hidden>两篇的一级指标都分经济、社会、生态、基础设施四类，但二级指标数量不同（S1 有 18 个，S4 有 24 个）。先读用户的 indicators.csv，再逐项对照。</div>
+              <p class="ss-act__narr">先读你整理的指标表，再和 S1、S4 的指标逐项对照。</p>
+              <button class="ss-act__row" type="button" aria-expanded="false" data-toggle="next"><i data-i="file-search"></i><span class="ss-act__verb">读取文件</span><span class="ss-act__target">data/indicators.csv</span><span class="ss-act__end">26 行</span><i data-i="chevron-right" class="ss-act__chev"></i></button>
+              <div class="ss-act__detail" hidden><pre>指标,一级,方向,来源
+人均 GDP,经济,+,统计年鉴
+失业率,社会,-,统计年鉴
+建成区绿化覆盖率,生态,+,城建年鉴
+……（共 26 行）</pre></div>
+              <button class="ss-act__row" type="button" aria-expanded="false" data-toggle="next"><i data-i="book-open"></i><span class="ss-act__verb">读取了 2 篇资料</span><span class="ss-act__target ss-act__target--text">S1、S4 的指标体系表</span><i data-i="chevron-right" class="ss-act__chev"></i></button>
+              <div class="ss-act__nest" hidden>
+                <div class="ss-act__row"><i data-i="file-text"></i><span class="ss-act__verb">S1</span><span class="ss-act__target ss-act__target--text">城市韧性评价指标体系构建（第 3 节）</span></div>
+                <div class="ss-act__row"><i data-i="file-text"></i><span class="ss-act__verb">S4</span><span class="ss-act__target ss-act__target--text">基于熵权 TOPSIS 的韧性测度（表 2）</span></div>
+              </div>
+              <p class="ss-act__narr">S1 有 18 个二级指标，S4 有 24 个，有 15 个可以直接对上。我写个脚本把对照表算出来。</p>
+              <button class="ss-act__row" type="button" aria-expanded="false" data-toggle="next"><i data-i="file-pen"></i><span class="ss-act__verb">写入文件</span><span class="ss-act__target">scripts/match_indicators.py</span><span class="ss-act__end">+42 行</span><i data-i="chevron-right" class="ss-act__chev"></i></button>
+              <div class="ss-act__detail" hidden><pre>import pandas as pd
+
+mine = pd.read_csv("data/indicators.csv")
+s1 = pd.read_csv("data/s1_indicators.csv")
+……</pre></div>
+              <div class="ss-approve" role="group" aria-label="需要你的批准">
+                <div class="ss-approve__head"><i data-i="shield-question-mark"></i><span class="ss-approve__title">需要你的批准</span><span class="ss-approve__tool">运行命令</span></div>
+                <div class="ss-approve__body">
+                  <pre class="ss-approve__cmd">python scripts/match_indicators.py --out results/indicator_map.csv</pre>
+                  <div class="ss-approve__meta">工作目录 D:\研究\城市韧性 · 会写入 results/indicator_map.csv</div>
+                </div>
+                <div class="ss-approve__foot">
+                  <button class="ss-btn" type="button">拒绝</button>
+                  <button class="ss-btn ss-btn--primary" type="button">允许</button>
+                </div>
+              </div>
+            </div>
+            <div class="ss-status ss-status--wait"><i data-i="shield-question-mark"></i><span>等待你的批准</span><span class="ss-status__time">48 秒</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="ss-composer-wrap">
+        <div class="ss-composer">
+          <textarea class="ss-composer__input" rows="1" placeholder="回复主专家，输入 @ 叫其他专家"></textarea>
+          <div class="ss-composer__bar">
+            <button class="ss-icon-btn" type="button" aria-label="添加" data-tip="添加文件或资料" data-menu="#m-add"><i data-i="plus"></i></button>
+            <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" aria-haspopup="menu" data-menu="#m-mode" data-tip="执行方式"><i data-i="shield-check"></i><span data-slot="value">请求批准</span><i data-i="chevron-down"></i></button>
+            <span class="ss-composer__spacer"></span>
+            <span data-tip="上下文已用 34%（34 万 / 100 万 token）"><i data-ring="34"></i></span>
+            <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" aria-haspopup="dialog" data-pop="#p-model" data-tip="模型和思考强度">deepseek-v4-pro · 中<i data-i="chevron-down"></i></button>
+            <button class="ss-send" type="button" aria-label="停止" data-tip="停止" data-kbd="Esc"><span class="ss-send__stop"></span></button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="ss-panel" style="width:340px">
+      <div class="ss-splitter ss-splitter--start" data-min="280" data-max="640" data-default="340" data-key="page-secretary"></div>
+      <div class="ss-panel__head">
+        <span class="ss-panel__title">任务秘书</span>
+        <button class="ss-icon-btn" type="button" aria-label="更多" data-tip="更多"><i data-i="ellipsis"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭" data-kbd="Ctrl J"><i data-i="x"></i></button>
+      </div>
+      <div class="ss-content">
+        <div class="ss-thread" style="padding:16px 16px 8px;gap:16px">
+          <div class="ss-msg">
+            <div class="ss-msg__head"><span class="ss-avatar"><i data-i="clipboard-list" class="ss-i--sm"></i></span><span class="ss-msg__name">任务秘书</span><span class="ss-msg__role">跟进到第 6 条</span></div>
+            <div class="ss-act">
+              <div class="ss-act__row"><i data-i="scroll-text"></i><span class="ss-act__verb">更新了纪要</span><span class="ss-act__target ss-act__target--text">第 3 版</span><span class="ss-act__end">+6 行</span></div>
+              <div class="ss-act__row"><i data-i="brain"></i><span class="ss-act__verb">记下 2 条待确认的记忆</span></div>
+            </div>
+            <div class="ss-msg__body">
+              <p>新增决定：综述按方法分三节。待你确认：指标对照以 indicators.csv 为准。</p>
+              <p><a href="#" onclick="return false">去收件箱确认</a></p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="ss-composer-wrap" style="padding:0 12px 12px">
+        <div class="ss-composer">
+          <textarea class="ss-composer__input" rows="1" placeholder="问秘书，或让它整理纪要" style="min-height:40px;padding:8px 12px 0"></textarea>
+          <div class="ss-composer__bar">
+            <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="添加" data-tip="添加文件或资料"><i data-i="plus"></i></button>
+            <span class="ss-composer__spacer"></span>
+            <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">deepseek-v4-flash<i data-i="chevron-down"></i></button>
+            <button class="ss-send" type="button" aria-label="发送" disabled><i data-i="arrow-up"></i></button>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="ss-statusbar">
+    <span class="ss-statusbar__item"><span class="ss-dot ss-dot--ok"></span>已连接</span>
+    <span class="ss-statusbar__item">项目文件夹 D:\研究\城市韧性</span>
+    <span class="ss-statusbar__spacer"></span>
+    <span class="ss-statusbar__item">Python 3.12（项目环境）</span>
+  </footer>
+</div>
+
+<div class="ss-pop" id="p-model" hidden data-place="top-end" style="width:300px">
+  <div class="ss-models" role="listbox" aria-label="模型">
+    <div class="ss-menu__label">DeepSeek 官方</div>
+    <button class="ss-model" type="button" role="option" aria-selected="true"><span class="ss-model__main"><span class="ss-model__name">deepseek-v4-pro</span><span class="ss-model__meta">上下文 1M · 思考 关闭 / 低 / 中 / 高</span></span><i data-i="check"></i></button>
+    <button class="ss-model" type="button" role="option" aria-selected="false"><span class="ss-model__main"><span class="ss-model__name">deepseek-v4-flash</span><span class="ss-model__meta">上下文 1M · 思考 关闭 / 高</span></span><i data-i="check"></i></button>
+  </div>
+  <div class="ss-effort"><span>思考强度</span>
+    <div class="ss-seg ss-seg--sm" role="group" aria-label="思考强度"><button type="button" aria-pressed="false">关闭</button><button type="button" aria-pressed="false">低</button><button type="button" aria-pressed="true">中</button><button type="button" aria-pressed="false">高</button></div>
+  </div>
+</div>
+<div class="ss-menu" id="m-mode" hidden data-place="top-start" style="width:300px">
+  <button class="ss-menu__item ss-menu__item--rich" role="menuitemradio" aria-checked="true" type="button" data-label="请求批准" data-icon="shield-check" data-mode="" data-trigger-class="ss-btn ss-btn--ghost ss-btn--sm"><i data-i="shield-check"></i><span class="ss-menu__text"><span>请求批准</span><span class="ss-menu__desc">运行命令、写入项目文件夹、安装包之前先问你</span></span><i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item ss-menu__item--rich" role="menuitemradio" aria-checked="false" type="button" data-label="常规" data-icon="play" data-mode="" data-trigger-class="ss-btn ss-btn--ghost ss-btn--sm"><i data-i="play"></i><span class="ss-menu__text"><span>常规</span><span class="ss-menu__desc">直接执行，随时可以停止</span></span><i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item ss-menu__item--rich ss-menu__item--auto" role="menuitemradio" aria-checked="false" type="button" data-label="自动化" data-icon="zap" data-mode="auto" data-trigger-class="ss-btn ss-btn--auto ss-btn--sm"><i data-i="zap"></i><span class="ss-menu__text"><span>自动化</span><span class="ss-menu__desc">按目标持续工作，直到完成或你停止</span></span><i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<div class="ss-menu" id="m-add" hidden data-place="top-start">
+  <button class="ss-menu__item" type="button"><i data-i="paperclip"></i>添加文件<span class="ss-menu__end">Ctrl U</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="book-open"></i>引用资料库</button>
+  <button class="ss-menu__item" type="button"><i data-i="at-sign"></i>叫其他专家</button>
+</div>
+<div class="ss-menu" id="m-chat" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>重命名<span class="ss-menu__end">F2</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="pin"></i>置顶</button>
+  <button class="ss-menu__item" type="button"><i data-i="folder"></i>移到项目…</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button" aria-disabled="true"><i data-i="archive"></i>归档（运行中不能归档）</button>
+  <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>删除</button>
+</div>
+<div class="ss-menu" id="m-project" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="square-pen"></i>在项目中新对话</button>
+  <button class="ss-menu__item" type="button"><i data-i="folder-open"></i>打开项目文件夹</button>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>重命名</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="archive"></i>归档项目</button>
+</div>
+<div class="ss-menu" id="m-msg" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="quote"></i>引用回复</button>
+  <button class="ss-menu__item" type="button"><i data-i="sticky-note"></i>存为笔记</button>
+  <button class="ss-menu__item" type="button"><i data-i="copy"></i>复制为 Markdown</button>
+</div>
+<div class="ss-menu" id="m-file" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="square-pen"></i>新对话<span class="ss-menu__end">Ctrl N</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="folder-plus"></i>新建项目</button>
+  <button class="ss-menu__item" type="button"><i data-i="import"></i>导入材料…<span class="ss-menu__end">Ctrl O</span></button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="settings"></i>设置<span class="ss-menu__end">Ctrl ,</span></button>
+</div>
+<script>
+window.SS && SS.mount(document.body);
+var sc = document.getElementById('thread-scroll'); sc.scrollTop = sc.scrollHeight;
+</script>
+</body>
+</html>

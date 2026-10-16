@@ -1,0 +1,24 @@
+<!-- @dsCard group="浮层" height=190 subtitle="全站同一种提示：深色小条，悬停 0.5 秒出现，贴着触发点，放不下就翻面" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Tooltip</title></head>
+<body>
+<div class="ds">
+  <div class="ds-row" style="gap:28px;align-items:flex-start">
+    <div class="ds-col"><span class="ss-tip" data-static>复制</span><span class="ds-label">只有名称</span></div>
+    <div class="ds-col"><span class="ss-tip" data-static>新对话<span class="ss-kbd">Ctrl N</span></span><span class="ds-label">名称 + 快捷键</span></div>
+    <div class="ds-col"><span class="ss-tip" data-static>上下文已用 34%（4.4 万 / 12.8 万 token）</span><span class="ds-label">状态说明，最宽 260px</span></div>
+    <div class="ds-col"><span class="ss-setting-row__label" style="display:inline-flex;align-items:center;gap:4px">上下文压缩门槛<button class="ss-info" type="button" aria-label="说明" data-tip="用到上下文容量的这个比例时，把较早的对话整理成摘要。所有模型共用。"><i data-i="info"></i></button></span><span class="ds-label">解释放在 i 后面</span></div>
+  </div>
+  <div class="ds-row" style="gap:4px">
+    <span class="ds-label" style="margin-right:8px">悬停试试</span>
+    <button class="ss-icon-btn" type="button" aria-label="复制" data-tip="复制"><i data-i="copy"></i></button>
+    <button class="ss-icon-btn" type="button" aria-label="重新回答" data-tip="重新回答"><i data-i="rotate-cw"></i></button>
+    <button class="ss-icon-btn" type="button" aria-label="任务秘书" data-tip="任务秘书" data-kbd="Ctrl J"><i data-i="panel-right"></i></button>
+    <button class="ss-icon-btn" type="button" aria-label="筛选" data-tip="筛选" data-tip-place="top"><i data-i="funnel"></i></button>
+  </div>
+  <p class="ds-note">离开后 0.4 秒内移到相邻按钮，提示立即出现。只有图标的按钮必须有提示；带文字的按钮不再重复提示。</p>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

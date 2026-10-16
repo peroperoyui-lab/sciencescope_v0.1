@@ -1,0 +1,17 @@
+<!-- @dsCard group="操作" height=132 subtitle="发送和停止是同一个按钮；运行中变成方形停止" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>SendButton</title></head>
+<body>
+<div class="ds">
+  <div class="ds-row" style="gap:32px">
+    <div class="ds-col" style="justify-items:center"><button class="ss-send" type="button" aria-label="发送" disabled><i data-i="arrow-up"></i></button><span class="ds-label">没有内容</span></div>
+    <div class="ds-col" style="justify-items:center"><button class="ss-send" type="button" aria-label="发送" data-tip="发送" data-kbd="Enter"><i data-i="arrow-up"></i></button><span class="ds-label">可以发送</span></div>
+    <div class="ds-col" style="justify-items:center"><button class="ss-send" type="button" aria-label="停止" data-tip="停止" data-kbd="Esc"><span class="ss-send__stop"></span></button><span class="ds-label">运行中</span></div>
+    <div class="ds-col" style="justify-items:center"><button class="ss-send" type="button" data-send-demo data-state="ready" aria-label="发送" data-tip="发送" data-kbd="Enter"><i data-i="arrow-up"></i></button><span class="ds-label">点一下试试</span></div>
+  </div>
+  <p class="ds-note">停止在 2 秒内生效并保留已生成的部分。运行中仍可输入下一条，按 Enter 排队。</p>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>
