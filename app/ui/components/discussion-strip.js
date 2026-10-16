@@ -3,6 +3,7 @@ import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { InfoTip } from './info-tip.js';
 import { DiscussionMenu } from './discussion-menu.js';
+import { ChoiceMenu } from './popover.js';
 import { useDiscussion } from './discussion-state.js';
 
 /** @param {{meetingId:string,running:boolean}} props */
@@ -123,10 +124,12 @@ export function DiscussionMode({ meetingId, running }) {
         }),
     },
   ];
-  return html`<${DiscussionMenu}
+  return html`<${ChoiceMenu}
     label=${t('工作方式')}
     items=${items}
     disabled=${running || goalActive}
-    >${ordered ? t('有序讨论') : t('工作')}<//
-  >`;
+    attrs=${{ 'data-v': 'mode-menu' }}
+  >
+    <span>${ordered ? t('有序讨论') : t('工作')}</span>
+  <//>`;
 }

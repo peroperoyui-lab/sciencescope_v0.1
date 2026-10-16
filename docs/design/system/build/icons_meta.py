@@ -15,7 +15,7 @@ GROUPS = [
   ('操作', [
     ('plus','添加'),('x','关闭'),('check','确认'),('copy','复制'),('pencil','编辑'),('trash-2','删除'),('archive','归档'),
     ('pin','置顶'),('import','导入'),('download','导出'),('external-link','打开原件'),('eye','预览'),('eye-off','隐藏'),
-    ('refresh-cw','重新解析'),('undo-2','撤销'),('redo-2','重做'),('link','链接'),('quote','引用'),('locate','定位到消息'),
+    ('refresh-cw','重新解析'),('undo-2','撤销'),('redo-2','重做'),('link','链接'),('quote','引用'),('git-branch','从这里分支'),('locate','定位到消息'),
     ('at-sign','提及'),('paperclip','附件'),('arrow-up','发送'),('funnel','筛选'),('arrow-down-up','排序'),('ellipsis','更多'),('search','搜索')]),
   ('界面', [
     ('chevron-down','展开'),('chevron-right','收起'),('chevron-up','向上'),('chevrons-down-up','全部收起'),('chevrons-up-down','全部展开'),

@@ -63,47 +63,41 @@ test(
       await page.getByPlaceholder('输入问题或下一步工作…').fill('请把下一步记到计划里');
       await page.getByRole('button', { name: '发送' }).click();
 
-      const answer = page.locator('.message:not(.user)').last();
+      const answer = page.locator('.ss-msg:not([data-user])').last();
       await answer.getByText('已记下：').waitFor();
-      // A finished answer folds its tool activity into one line; opening it
-      // shows the model's pre-call words and the call itself.
-      const activity = answer.locator('.turn-activity');
-      assert.equal(await activity.getAttribute('open'), null);
-      assert.match(await activity.locator('summary b').textContent(), /工具记录 · 1/);
+      // A finished answer folds its activity timeline into one line; opening
+      // it shows the model's pre-call words and the call in plain words.
+      const activity = answer.locator('[data-turn-activity]');
+      assert.match(await activity.locator('.ss-act__summary').textContent(), /1 个步骤/);
+      assert.equal(await activity.locator('.ss-act__list').count(), 0);
+      await activity.locator('.ss-act__summary').click();
       assert.match(
-        await activity.locator('.turn-activity-caption').textContent(),
+        await activity.locator('.ss-act__narr').textContent(),
         /我先把这项工作记到计划里。/,
       );
-      await activity.locator('summary').first().click();
-      assert.notEqual(await activity.getAttribute('open'), null);
-      assert.match(
-        await activity.locator('.tool-preamble').textContent(),
-        /我先把这项工作记到计划里。/,
-      );
-      assert.equal(
-        await activity.locator('[data-tool-call] summary span').textContent(),
-        'workspace_edit',
-      );
+      const row = activity.locator('[data-tool-call]');
+      assert.equal(await row.locator('.ss-act__verb').textContent(), '修改');
+      assert.equal(await row.locator('.ss-act__target').textContent(), '计划');
+      await row.click();
+      assert.match(await activity.locator('.ss-act__detail').textContent(), /workspace_edit/);
       assert.equal(await answer.locator('.message-text strong').textContent(), '清洗面板数据');
       assert.equal(await page.locator('.tree-row.child.active').count(), 1);
       await shot('meeting');
 
-      await page.locator('.usage-ring[data-context-known="true"]').waitFor();
-      await page
-        .locator('.mainhead')
-        .getByRole('button', { name: '查找当前对话 · Ctrl F' })
-        .click();
+      await page.locator('[data-usage="main"][data-context-known="true"]').waitFor();
+      await page.locator('.ss-header').getByRole('button', { name: '查找当前对话' }).click();
       await page.getByPlaceholder('查找当前对话').fill('清洗');
-      await page.locator('.message.msg-target', { hasText: '清洗面板数据' }).waitFor();
+      await page.locator('.ss-msg[data-target]', { hasText: '清洗面板数据' }).waitFor();
       await page.keyboard.press('Escape');
       await answer.getByRole('button', { name: '消息菜单' }).click();
       await page.getByRole('menuitem', { name: '引用到输入框' }).click();
       await page.waitForFunction(() =>
         /** @type {HTMLTextAreaElement} */ (
-          document.querySelector('.composer textarea')
+          document.querySelector('.ss-composer textarea')
         )?.value.startsWith('> 已记下'),
       );
-      await page.locator('.mainhead').getByRole('button', { name: '项目置顶摘要' }).click();
+      await page.getByRole('button', { name: '工作区菜单', exact: true }).click();
+      await page.getByRole('menuitem', { name: '项目置顶摘要' }).click();
       await page.locator('.project-flyout .flyfile', { hasText: '计划' }).first().waitFor();
       await page.getByRole('button', { name: '关闭项目摘要' }).click();
 

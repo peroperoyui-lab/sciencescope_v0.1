@@ -65,7 +65,7 @@ test(
           const other = createMeeting('另一个会议');
           await page.goto(new URL(`/?token=ui-token#/meeting/${meeting.id}`, page.url()).href);
           await page.getByRole('button', { name: '执行方式', exact: true }).click();
-          await page.getByRole('menuitemcheckbox', { name: '自动化', exact: true }).click();
+          await page.getByRole('menuitemradio', { name: '自动化', exact: true }).click();
           await page.getByLabel('发送目标最多轮数').fill('4');
           await page.getByLabel('主输入框').fill('读取 CSV 并保存统计图');
           await page.getByRole('button', { name: '发送', exact: true }).click();
@@ -133,16 +133,14 @@ test(
             /Automation.*Completed/s,
           );
           await page.getByRole('button', { name: 'Execution mode', exact: true }).click();
-          await page.getByRole('menuitemcheckbox', { name: 'Normal', exact: true }).click();
+          await page.getByRole('menuitemradio', { name: 'Normal', exact: true }).click();
           await shot('goal-english');
           // Ordered discussion disables automation with an explanation in its i tip.
           app.core.meetings.update(other.id, { policy: { mode: 'round' } });
           await page.locator(`[data-object-id="${other.id}"] .tree-name`).click();
           await page.getByRole('button', { name: 'Execution mode', exact: true }).click();
           assert.equal(
-            await page
-              .getByRole('menuitemcheckbox', { name: 'Automation', exact: true })
-              .isDisabled(),
+            await page.getByRole('menuitemradio', { name: 'Automation', exact: true }).isDisabled(),
             true,
           );
         },

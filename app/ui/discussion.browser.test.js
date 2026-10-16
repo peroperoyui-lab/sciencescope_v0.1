@@ -30,13 +30,13 @@ async function prepare(page, app) {
     members: [{ participantId: 'person_user' }, { participantId: 'agent_main' }],
   });
   await page.goto(new URL('/?token=ui-token#/meeting/' + meeting.id, page.url()).href);
-  await page.locator('.composer textarea').waitFor();
+  await page.locator('.ss-composer textarea').waitFor();
   return meeting;
 }
 
 async function chooseRound(page) {
   await page.locator('[data-v="mode-menu"]').click();
-  await page.getByRole('menuitemcheckbox', { name: '有序讨论', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: '有序讨论', exact: true }).click();
   await page.locator('[data-discussion-strip]').waitFor();
   const redTeam = page.locator('[data-panel-toggle="agent_red_team"]');
   if ((await redTeam.getAttribute('aria-pressed')) === 'true') await redTeam.click();
@@ -46,7 +46,7 @@ async function chooseRound(page) {
 
 async function workMode(page) {
   await page.locator('[data-v="mode-menu"]').click();
-  await page.getByRole('menuitemcheckbox', { name: '工作', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: '工作', exact: true }).click();
   await page.locator('[data-discussion-strip]').waitFor({ state: 'detached' });
 }
 
@@ -118,7 +118,7 @@ test(
               'false',
             );
             assert.equal(app.core.meetings.get(meeting.id).policy.reviewer, 'agent_reviewer');
-            const textarea = page.locator('.composer textarea');
+            const textarea = page.locator('.ss-composer textarea');
             await textarea.fill('完整讨论问题');
             await page.getByRole('button', { name: '发送', exact: true }).click();
             await waitingStarted.promise;
@@ -126,29 +126,33 @@ test(
             releaseWaiting.resolve();
             await twoStarted.promise;
             await page.locator('.expert-state[data-state="running"]').first().waitFor();
-            assert.equal(await page.locator('.expert-message').count(), 2);
-            assert.equal(await page.locator('.review-message').count(), 0);
-            const authors = await page.locator('.expert-message .messagehead').allTextContents();
+            assert.equal(await page.locator('[data-expert]').count(), 2);
+            assert.equal(await page.locator('[data-review]').count(), 0);
+            const authors = await page.locator('[data-expert] .ss-msg__head').allTextContents();
             assert.match(authors[0], /方法学家[\s\S]*研究设计/u);
             assert.match(authors[1], /统计审稿人[\s\S]*统计与数据/u);
             releaseAnswers.resolve();
             await toolStarted.promise;
             await page.locator('.expert-state[data-state="tool"]').waitFor();
             // While the answer runs its tool activity stays open.
-            const activity = page.locator('.expert-message .turn-activity').first();
-            assert.notEqual(await activity.getAttribute('open'), null);
-            assert.match(await activity.locator('summary b').textContent(), /正在使用工具/);
+            const activity = page.locator('[data-expert] [data-turn-activity]').first();
+            await activity.locator('.ss-act__row .ss-spin').waitFor();
+            assert.equal(await activity.locator('.ss-act__summary').count(), 0);
             releaseTool.resolve();
-            await page.locator('.review-message .expert-state[data-state="done"]').waitFor();
+            await page.locator('[data-review] .expert-state[data-state="done"]').waitFor();
             // When it ends the card folds into one line.
-            await page.locator('.expert-message .turn-activity:not([open])').first().waitFor();
-            assert.match(await activity.locator('summary b').textContent(), /工具记录/);
+            await page
+              .locator('[data-expert] [data-turn-activity]:not([data-running])')
+              .first()
+              .waitFor();
+            assert.match(await activity.locator('.ss-act__summary').textContent(), /1 个步骤/);
+            assert.equal(await activity.locator('.ss-act__list').count(), 0);
             await page.locator('[data-review-adopt]').click();
             await page.locator('[data-review-adopt][aria-pressed="true"]').waitFor();
-            await page.locator('.usage-ring').click();
-            await page.locator('.usage-pop').waitFor();
-            assert.match(await page.locator('.usage-pop').innerText(), /方法学家/u);
-            assert.match(await page.locator('.usage-pop').innerText(), /统计审稿人/u);
+            await page.locator('[data-usage="main"]').click();
+            await page.locator('[data-usage-pop]').waitFor();
+            assert.match(await page.locator('[data-usage-pop]').innerText(), /方法学家/u);
+            assert.match(await page.locator('[data-usage-pop]').innerText(), /统计审稿人/u);
             await page.keyboard.press('Escape');
             await workMode(page);
             const before = app.core.messages.since(meeting.id, 0).length;
@@ -175,7 +179,7 @@ test(
             await page.locator('[data-mention="agent_methodologist"]').click();
             await page.waitForFunction(
               () =>
-                /** @type {HTMLTextAreaElement} */ (document.querySelector('.composer textarea'))
+                /** @type {HTMLTextAreaElement} */ (document.querySelector('.ss-composer textarea'))
                   .value === '前文 @方法学家 后文',
             );
             assert.equal(await textarea.inputValue(), '前文 @方法学家 后文');
@@ -193,7 +197,7 @@ test(
             await textarea.pressSequentially('请检查识别条件');
             await page.getByRole('button', { name: '发送', exact: true }).click();
             await app.conductor.idle();
-            await page.locator('.expert-message').last().getByText('邀请专家回答完成。').waitFor();
+            await page.locator('[data-expert]').last().getByText('邀请专家回答完成。').waitFor();
             assert.equal(
               app.core.messages.since(meeting.id, 0).at(-1).authorId,
               'agent_methodologist',
@@ -247,20 +251,20 @@ test(
       async ({ page, app }) => {
         const meeting = await prepare(page, app);
         await chooseRound(page);
-        const textarea = page.locator('.composer textarea');
+        const textarea = page.locator('.ss-composer textarea');
         await textarea.fill('让两位专家回答');
         await page.getByRole('button', { name: '发送', exact: true }).click();
         await page
-          .locator('.expert-message')
+          .locator('[data-expert]')
           .getByRole('button', { name: '继续', exact: true })
           .waitFor();
         await app.conductor.idle();
         const before = invocations;
         await page
-          .locator('.expert-message')
+          .locator('[data-expert]')
           .getByRole('button', { name: '继续', exact: true })
           .click();
-        await page.locator('.expert-message').nth(3).waitFor();
+        await page.locator('[data-expert]').nth(3).waitFor();
         await app.conductor.idle();
         assert.equal(invocations, before + 1);
         assert.equal(app.core.messages.since(meeting.id, 0).at(-1).authorId, 'agent_methodologist');
@@ -273,11 +277,11 @@ test(
         await textarea.fill('停止这轮');
         await page.getByRole('button', { name: '发送', exact: true }).click();
         await page
-          .locator('.expert-message[data-streaming="true"]')
+          .locator('[data-expert][data-streaming="true"]')
           .first()
           .getByText('正在分析')
           .waitFor();
-        await page.getByRole('button', { name: '停止当前回复', exact: true }).click();
+        await page.getByRole('button', { name: '停止', exact: true }).click();
         await app.conductor.idle();
         await page.locator('.expert-state[data-state="failed"]').last().waitFor();
         assert.equal(app.core.turns.running().length, 0);
@@ -325,7 +329,7 @@ test(
           });
         await page.reload();
         await page.locator('[data-v="mode-menu"]').click();
-        await page.getByRole('menuitemcheckbox', { name: '有序讨论', exact: true }).click();
+        await page.getByRole('menuitemradio', { name: '有序讨论', exact: true }).click();
         await page.locator('[data-panel-toggle="agent_extra_5"]').waitFor();
         assert.equal(await page.locator('[data-panel-toggle]').count(), 9);
         assert.equal(await page.locator('[data-panel-toggle][aria-pressed="true"]').count(), 9);
@@ -352,12 +356,15 @@ test(
             },
           },
         });
-        await page.locator('.usage-ring').click();
+        await page.locator('[data-usage="main"]').click();
         const row = page.locator('[data-context-participant="agent_extra_5"]');
         await row.waitFor();
-        await row.getByText('4,321 / 未知 tokens', { exact: true }).waitFor();
+        await row.getByText('4321 / 未知 token', { exact: true }).waitFor();
         assert.doesNotMatch(await row.innerText(), /NaN|Infinity|100%/u);
-        assert.equal(await page.locator('.usage-ring').getAttribute('data-context-known'), 'false');
+        assert.equal(
+          await page.locator('[data-usage="main"]').getAttribute('data-context-known'),
+          'false',
+        );
         await page.reload();
         await page.locator('[data-panel-toggle="agent_extra_5"][aria-pressed="true"]').waitFor();
         await page.goto(new URL('/?token=ui-token#/settings/experts', page.url()).href);

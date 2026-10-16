@@ -1,12 +1,12 @@
-// The main input box in the old interface's markup (`.composer`), shared by
-// the welcome page and meetings: the context ring, the model and reasoning
-// menus (the default model in settings) and send / stop.
-import { useEffect, useRef, useState } from 'preact/hooks';
+// The main input box (design system Composer), shared by the welcome page and
+// meetings: attachments, the auto-growing input and one bar with the add
+// menu, work and execution modes, the context ring, the model picker and one
+// send / stop button.
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
-import { Icon } from '../icons.js';
-import { navigate } from '../route.js';
+import { Lucide } from '../icons.js';
 import { Outbox } from './outbox.js';
 import { DiscussionMode } from './discussion-strip.js';
 import { DiscussionUsageRing } from './discussion-usage.js';
@@ -14,81 +14,10 @@ import { useDiscussion } from './discussion-state.js';
 import { useDiscussionMention } from './discussion-mention.js';
 import { InputAdd, InputAttachments, useResearchInput } from './research-input.js';
 import { ExecutionMode } from './execution-mode.js';
+import { ModelPicker } from './model-picker.js';
 
-function useModelMenu() {
-  const actions = useActions();
-  const settings = useAppState((state) => state.settings);
-  const current = settings?.models?.default;
-  const choices = (settings?.providers ?? []).flatMap((provider) =>
-    provider.models.map((model) => ({
-      provider: provider.id,
-      model: model.id,
-      text: `${provider.name ?? provider.id} · ${model.name ?? model.id}`,
-    })),
-  );
-  const label = current
-    ? (choices.find((c) => c.provider === current.provider && c.model === current.model)?.text ??
-      `${current.provider} · ${current.model}`)
-    : t('未连接模型');
-  const open = (event) => {
-    actions.openMenu(
-      event,
-      [
-        ...choices.map((choice) => ({
-          text: choice.text,
-          check: current?.provider === choice.provider && current?.model === choice.model,
-          run: () =>
-            actions.attempt(() =>
-              actions.updateSettings({
-                // A different model has its own efforts; start from its default.
-                models: {
-                  default: { provider: choice.provider, model: choice.model, effort: null },
-                },
-              }),
-            ),
-        })),
-        ...(choices.length ? [{ sep: true }] : []),
-        {
-          text: t('管理模型与 API'),
-          icon: 'gear',
-          run: () => navigate({ view: 'settings', id: 'models' }),
-        },
-      ],
-      t('模型'),
-    );
-  };
-  return { label, open };
-}
-
-/** Reasoning effort of the default model, from the efforts the model lists. */
-function useEffortMenu() {
-  const actions = useActions();
-  const settings = useAppState((state) => state.settings);
-  const current = settings?.models?.default;
-  const model = (settings?.providers ?? [])
-    .find((provider) => provider.id === current?.provider)
-    ?.models.find((candidate) => candidate.id === current?.model);
-  const efforts = model?.efforts ?? [];
-  const choose = (effort) =>
-    actions.attempt(() =>
-      // Settings patches merge, so "model default" is stored as null.
-      actions.updateSettings({ models: { default: { ...current, effort: effort || null } } }),
-    );
-  const open = (event) =>
-    actions.openMenu(
-      event,
-      [
-        { text: t('模型默认'), check: !current?.effort, run: () => choose('') },
-        ...efforts.map((effort) => ({
-          text: effort,
-          check: current?.effort === effort,
-          run: () => choose(effort),
-        })),
-      ],
-      t('思考强度'),
-    );
-  return { label: current?.effort || t('模型默认'), open, disabled: !current };
-}
+// A floating layer is open: Esc belongs to it, not to the running answer.
+const LAYERS = '.ss-menu, .ss-pop, .ss-dialog, #v-menu, .modalback, .command-palette';
 
 /**
  * @param {{ onSend: (text: string, input?:any) => Promise<any>, running?: boolean,
@@ -112,8 +41,6 @@ export function Composer({
   const researchInput = useResearchInput(owner, projectId);
   const ownRef = useRef(null);
   const box = inputRef ?? ownRef;
-  const model = useModelMenu();
-  const effort = useEffortMenu();
   const quote = useAppState((state) => state.quote);
   const fillDraft = useAppState((state) => state.fillDraft);
   const discussion = useDiscussion(meetingId);
@@ -129,6 +56,29 @@ export function Composer({
     text,
     onChange: setText,
   });
+
+  // The input grows with its text up to the stylesheet's max-height.
+  useLayoutEffect(() => {
+    const element = box.current;
+    if (!element) return;
+    element.style.height = 'auto';
+    element.style.height = `${element.scrollHeight}px`;
+  }, [text]);
+
+  // Esc stops the answer when no floating layer is open and the input is empty.
+  useEffect(() => {
+    if (!running || !onStop) return undefined;
+    /** @param {KeyboardEvent} event */
+    const onKey = (event) => {
+      if (event.key !== 'Escape' || event.defaultPrevented || document.querySelector(LAYERS))
+        return;
+      if (box.current?.value.trim()) return;
+      event.preventDefault();
+      onStop();
+    };
+    addEventListener('keydown', onKey);
+    return () => removeEventListener('keydown', onKey);
+  }, [running, onStop]);
 
   // "引用到输入框" from a message of this meeting.
   useEffect(() => {
@@ -176,71 +126,91 @@ export function Composer({
     }
   }
 
-  return html`<div
-    class="composer"
-    data-composer="main"
-    onDrop=${researchInput.onDrop}
-    onDragOver=${researchInput.onDragOver}
-    onPaste=${researchInput.onPaste}
-  >
-    <${InputAttachments} owner=${owner} projectId=${projectId} value=${researchInput.value} />
-    ${meetingId && html`<${Outbox} meetingId=${meetingId} />`}
-    <textarea
-      ref=${box}
-      value=${text}
-      placeholder=${t('输入问题或下一步工作…')}
-      aria-label=${t('主输入框')}
-      onInput=${(event) => {
-        setText(event.currentTarget.value);
-        if (!event.isComposing) mention.update(event.currentTarget);
-      }}
-      onCompositionEnd=${(event) => mention.update(event.currentTarget)}
-      onClick=${(event) => mention.update(event.currentTarget)}
-      onKeyDown=${(event) => {
-        if (event.isComposing || event.keyCode === 229) return;
-        if (mention.onKey(event)) return;
-        if (event.key !== 'Enter' || event.shiftKey) return;
-        const wantsModifier = sendKey === 'ctrl-enter';
-        if (wantsModifier === (event.ctrlKey || event.metaKey)) {
-          event.preventDefault();
-          send();
+  // While an answer runs the button stops it; typed text is queued instead.
+  const stops = running && !text.trim() && Boolean(onStop);
+  const roundsInvalid = startsGoal && (!Number.isSafeInteger(maxRounds) || maxRounds < 1);
+  const auto = executionMode === 'autonomous' || Boolean(goalActive);
+  return html`<div class="ss-composer-wrap">
+    <div
+      class="ss-composer"
+      data-composer="main"
+      data-mode=${auto && !discussion.ordered ? 'auto' : undefined}
+      onDrop=${researchInput.onDrop}
+      onDragOver=${researchInput.onDragOver}
+      onPaste=${researchInput.onPaste}
+    >
+      <${InputAttachments} owner=${owner} projectId=${projectId} value=${researchInput.value} />
+      ${meetingId && html`<${Outbox} meetingId=${meetingId} />`}
+      <textarea
+        ref=${box}
+        class="ss-composer__input"
+        rows="1"
+        value=${text}
+        placeholder=${t('输入问题或下一步工作…')}
+        aria-label=${t('主输入框')}
+        onInput=${(event) => {
+          setText(event.currentTarget.value);
+          if (!event.isComposing) mention.update(event.currentTarget);
+        }}
+        onCompositionEnd=${(event) => mention.update(event.currentTarget)}
+        onClick=${(event) => mention.update(event.currentTarget)}
+        onKeyDown=${(event) => {
+          if (event.isComposing || event.keyCode === 229) return;
+          if (mention.onKey(event)) return;
+          if (event.key !== 'Enter' || event.shiftKey) return;
+          const wantsModifier = sendKey === 'ctrl-enter';
+          if (wantsModifier === (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            send();
+          }
+        }}
+      ></textarea>
+      ${mention.content}
+      <div class="ss-composer__bar">
+        <${InputAdd} owner=${owner} projectId=${projectId} value=${researchInput.value} />
+        <${DiscussionMode} meetingId=${meetingId} running=${running} />
+        ${onGoal && html`<${ExecutionMode} mode=${goalActive ? 'autonomous' : executionMode} onChange=${setExecutionMode} ordered=${discussion.ordered} locked=${Boolean(goalActive) || running} />`}
+        ${
+          startsGoal &&
+          html`<label class="goal-rounds"
+            >${t('最多轮数')}<input
+              type="number"
+              min="1"
+              step="1"
+              aria-label=${t('发送目标最多轮数')}
+              value=${maxRounds}
+              onInput=${(event) => setMaxRounds(Number(event.currentTarget.value))}
+          /></label>`
         }
-      }}
-    ></textarea>
-    ${mention.content}
-    <div class="composerbar">
-      <${InputAdd} owner=${owner} projectId=${projectId} value=${researchInput.value} />
-      <${DiscussionMode} meetingId=${meetingId} running=${running} />
-      ${onGoal && html`<${ExecutionMode} mode=${goalActive ? 'autonomous' : executionMode} onChange=${setExecutionMode} ordered=${discussion.ordered} locked=${Boolean(goalActive) || running} />`}
-      ${startsGoal && html`<label class="goal-round-setting">${t('最多轮数')}<input type="number" min="1" step="1" aria-label=${t('发送目标最多轮数')} value=${maxRounds} onInput=${(event) => setMaxRounds(Number(event.currentTarget.value))} /></label>`}
-      <span class="spacer"></span>
-      <${DiscussionUsageRing} meetingId=${meetingId} />
-      <button data-v="model-menu" onClick=${model.open}>
-        ${model.label} <${Icon} name="down" />
-      </button>
-      <button data-v="reasoning-menu" disabled=${effort.disabled} onClick=${effort.open}>
-        ${effort.label}
-      </button>
-      ${
-        running &&
-        html`<button
-          class="sendbtn"
-          data-main-stop
-          aria-label=${t('停止当前回复')}
-          title=${t('停止当前回复')}
-          onClick=${onStop}
-        >
-          ■
-        </button>`
-      }
-      <button
-        class="sendbtn"
-        aria-label=${t('发送')}
-        disabled=${!text.trim() || sending || (startsGoal && (!Number.isSafeInteger(maxRounds) || maxRounds < 1))}
-        onClick=${send}
-      >
-        <${Icon} name="arrow" />
-      </button>
+        <span class="ss-composer__spacer"></span>
+        <${DiscussionUsageRing} meetingId=${meetingId} />
+        <${ModelPicker} />
+        ${
+          stops
+            ? html`<button
+                type="button"
+                class="ss-send"
+                data-state="running"
+                aria-label=${t('停止')}
+                data-tip=${t('停止')}
+                data-kbd="Esc"
+                onClick=${onStop}
+              >
+                <span class="ss-send__stop"></span>
+              </button>`
+            : html`<button
+                type="button"
+                class="ss-send"
+                aria-label=${t('发送')}
+                data-tip=${running ? t('发送（排队，当前回答结束后发出）') : t('发送')}
+                data-kbd=${sendKey === 'ctrl-enter' ? 'Ctrl Enter' : 'Enter'}
+                disabled=${!text.trim() || sending || roundsInvalid}
+                onClick=${send}
+              >
+                <${Lucide} name="arrow-up" />
+              </button>`
+        }
+      </div>
     </div>
   </div>`;
 }

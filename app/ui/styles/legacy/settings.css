@@ -48,7 +48,7 @@
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 8px;
-  background: var(--panel);
+  background: var(--raised);
   color: var(--text);
   max-width: 100%;
 }

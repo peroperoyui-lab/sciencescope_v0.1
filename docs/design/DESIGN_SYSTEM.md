@@ -1,6 +1,6 @@
 # ScienceScope 设计系统
 
-- 起草：Claude，2026-10-16。首版画廊已发布，等用户审（§4）。
+- 起草：Claude，2026-10-16。用户 2026-10-16 认可画廊，作为全部界面的依据（§4）。
 - 画廊：<https://claude.ai/artifact/6MCyAAbMK2kD5nTsAkZEgk>（私有；用户可以在页面的 Share 菜单里共享）。
 - 源文件：`docs/design/system/`（§5）。
 - 界面工作以本文和画廊为准（AGENTS.md 原则 6）。品牌规则全文在 `system/project/README.md`，也就是画廊首页的品牌手册；每个组件的结构和规则在 `system/project/components/<名称>/README.md`。本文只写总览、对应的反馈和维护方法。
@@ -10,7 +10,7 @@
 | 部分 | 内容 |
 |---|---|
 | 令牌 | 85 个（`tokens.json`）：颜色 39 个，分浅色和深色两套；间距 10 个、圆角 6 个、阴影 3 个、尺寸 20 个、层级 6 个、透明度 1 个；字号 12 级 |
-| 图标 | Lucide 1.49.0（ISC），107 个，分六组，每个图标都写了中文含义；替换旧原型的 38 个手绘图标 |
+| 图标 | Lucide 1.49.0（ISC），108 个，分六组，每个图标都写了中文含义；替换旧原型的 38 个手绘图标 |
 | 组件 | 37 个，分十组：基础（图标、标志）、操作、输入、导航、浮层、反馈、数据、布局、对话、设置 |
 | 整页示例 | 对话、资料库、收件箱、设置，按 1536×900 绘制（1920 宽屏幕 125% 缩放） |
 | 标志 | 原件位图 `reference/ScienceScope_Logo.png`，以及从原件描出来的单色矢量 `system/logo/sciencescope-mark.svg` |
@@ -43,29 +43,36 @@
 
 ## 3. 应用里怎么用
 
-- 组件是 HTML 结构加 `ss-` 类名。P3 把 `bundle.css` 移进 `app/ui/styles/`，令牌生成 CSS 变量；Preact 组件输出同样的结构，交互照 `build/bundle.src.js` 实现。
-- 应用里不加载画廊的 `bundle.js`。
-- `styles/legacy/` 在 P3 逐页删除。
+2026-10-16（P1-UI 第一步）起，应用直接用设计系统的样式，加载顺序见 `app/ui/index.html`：旧样式在前，新样式在后。
 
-## 4. 等用户确认
+| 文件 | 内容 |
+|---|---|
+| `styles/tokens.css` | 由 `build.py` 从 `tokens.json` 生成，`:root` 和 `:root[data-theme='dark']` 两套变量，外加字号类。不要手改 |
+| `styles/components.css` | 组件样式的唯一来源（`ss-` 类名）；画廊的 `bundle.css` 由它加上 `build/gallery.css` 拼成 |
+| `styles/pages.css` | 应用自己的页面布局（对话列、查找条、待发队列等），只用令牌 |
+| `lucide-icons.js` | 由 `build.py` 生成的图标数据；`icons.js` 的 `Lucide` 输出 `ss-i` 图标，`Icon` 给旧页面用，旧图标名在 `ALIASES` 里映射 |
+| `features.js` | 还没做完的功能开关：`approval`（请求批准、批准卡片）、`phases`（阶段状态），等 P1a / P1b |
+| `components/popover.js`、`floating.js` | 锚定弹层（贴着触发按钮、放不下就翻转、Esc 和点外面关闭）与全局提示（`data-tip`、`data-kbd`） |
 
-- 浅色 `muted` 加深一档。
-- 图标整体换成 Lucide。
-- 标志矢量版是描出来的，需要对照原件看有没有走样。
-- 自动化的暗红（`auto`）和错误红（`danger`）色相接近，靠闪电图标和文字区分。
-- 设置改成居中的大窗口，按 Esc 关闭。
+- 已用新组件的：对话页（`meeting.js`、`chat-message.js`、`timeline.js`、`status-line.js`）和输入栏（`composer.js`、`model-picker.js`、`execution-mode.js`、`discussion-usage.js`）。秘书面板和全局助手还用旧的工具记录，下一步换成共用时间线。
+- 旧样式里的全局表单规则已排除 `ss-` 组件内的控件，新旧可以并存。`styles/legacy/` 在 P3 逐页删除。
+- 应用里不加载画廊的 `bundle.js`；交互照 `build/bundle.src.js` 用 Preact 实现。
+
+## 4. 用户确认（2026-10-16）
+
+用户认可整套画廊，下面几项按画廊执行：浅色 `muted` 加深一档；图标整体换成 Lucide；标志矢量版；自动化暗红靠闪电图标和文字与错误红区分；设置改成居中的大窗口。过渡动画另议（ROADMAP P3-M）。
 
 ## 5. 源文件与维护
 
 | 路径 | 内容 |
 |---|---|
-| `system/project/` | 画廊发布的全部内容：`design-system.json`（索引）、`README.md`、`tokens.json`、`components/`、`assets/Logos/README.md`。`components/bundle.js` 由脚本生成，不进仓库 |
+| `system/project/` | 画廊发布的全部内容：`design-system.json`（索引）、`README.md`、`tokens.json`、`components/`、`assets/Logos/README.md`。`components/bundle.js` 和 `components/bundle.css` 由脚本生成，不进仓库 |
 | `system/build/` | `bundle.src.js`（画廊交互脚本）、`icons_meta.py`（图标含义表）、`icons.json`（图标数据）、`build.py` 和检查工具 |
 | `system/logo/` | 界面用的标志矢量，颜色跟随文字 |
 
 常用命令（在仓库根目录运行）：
 
-- 生成：`python3 -I docs/design/system/build/build.py`。它写出 `bundle.js`，以及 `.sciencescope-local/temp/design-system/` 下的预览辅助文件。
+- 生成：`python3 -I docs/design/system/build/build.py`。它写出画廊的 `bundle.js`、`bundle.css`，应用的 `styles/tokens.css`、`lucide-icons.js`（用仓库里的 prettier 排版），以及 `.sciencescope-local/temp/design-system/` 下的预览辅助文件。改组件样式只改 `app/ui/styles/components.css`；画廊专用的样式在 `build/gallery.css`。
 - 截图：`node docs/design/system/build/shot.cjs <组件|all> [light|dark|both] [倍数]`，输出到 `.sciencescope-local/temp/design-system/shots/`。
 - 量高度：`node docs/design/system/build/measure.cjs <组件|all>`，对照卡片标记里的高度。
 - 对比度：`python3 -I docs/design/system/build/contrast.py`。目前有 10 项低于目标，都是品牌手册「可读性」写明的例外：`faint`、`line-strong`、深色主题的 `auto`，以及 `press` 上的 `muted`。

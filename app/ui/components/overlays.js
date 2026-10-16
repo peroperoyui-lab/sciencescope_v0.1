@@ -1,11 +1,11 @@
-// Popups over the window, in the old interface's markup: the menu
-// (`.menu-popup`), dialogs (`.modalback > .modal`), the toast and the search
+// Popups over the window: the menu (design system `ss-menu`), dialogs (`.modalback > .modal`), the toast and the search
 // palette (`.command-palette`). Their state lives in `state.overlay`.
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
-import { Icon } from '../icons.js';
+import { Icon, Lucide } from '../icons.js';
+import { moveFocus } from './popover.js';
 import { navigate } from '../route.js';
 
 function MenuLayer() {
@@ -19,8 +19,11 @@ function MenuLayer() {
     if (!menu || !element.current) return;
     const { offsetWidth, offsetHeight } = element.current;
     let top = menu.y;
-    if (top + offsetHeight > innerHeight - 15) top = Math.max(42, menu.y - offsetHeight - 40);
-    setPosition({ left: Math.max(8, Math.min(menu.x, innerWidth - offsetWidth - 10)), top });
+    if (top + offsetHeight > innerHeight - 8) top = Math.max(8, menu.y - offsetHeight - 36);
+    setPosition({ left: Math.max(8, Math.min(menu.x, innerWidth - offsetWidth - 8)), top });
+    /** @type {HTMLElement | null} */ (element.current.querySelector('[role^="menuitem"]'))?.focus({
+      preventScroll: true,
+    });
   }, [menu]);
 
   useEffect(() => {
@@ -28,45 +31,50 @@ function MenuLayer() {
     const close = (event) => {
       if (!element.current?.contains(event.target)) actions.closeMenu();
     };
-    const escape = (event) => event.key === 'Escape' && actions.closeMenu();
+    const escape = (event) => {
+      if (event.key !== 'Escape') return;
+      // Esc closes the menu first; it must not also stop a running answer.
+      event.preventDefault();
+      event.stopPropagation();
+      actions.closeMenu();
+    };
     document.addEventListener('pointerdown', close, true);
-    document.addEventListener('keydown', escape);
+    document.addEventListener('keydown', escape, true);
     return () => {
       document.removeEventListener('pointerdown', close, true);
-      document.removeEventListener('keydown', escape);
+      document.removeEventListener('keydown', escape, true);
     };
   }, [menu]);
 
   if (!menu) return null;
   return html`<div
     id="v-menu"
-    class="menu-popup"
+    class="ss-menu"
     role="menu"
     aria-label=${menu.label || t('快捷菜单')}
     ref=${element}
     style=${{ left: `${position.left}px`, top: `${position.top}px` }}
+    onKeyDown=${moveFocus}
   >
-    ${menu.label && html`<div class="menu-label">${menu.label}</div>`}
+    ${menu.label && html`<div class="ss-menu__label ss-truncate">${menu.label}</div>`}
     ${menu.items.map((item, index) =>
       item.sep
-        ? html`<hr class="menu-sep" key=${index} />`
+        ? html`<div class="ss-menu__sep" role="separator" key=${index}></div>`
         : html`<button
+            type="button"
             key=${index}
             role=${item.check === undefined ? 'menuitem' : 'menuitemcheckbox'}
             aria-checked=${item.check === undefined ? undefined : String(item.check)}
-            class=${`menu-line ${item.danger ? 'danger' : ''}`}
+            class=${`ss-menu__item ${item.danger ? 'ss-menu__item--danger' : ''}`}
             onClick=${() => {
               actions.closeMenu();
               item.run();
             }}
           >
-            ${
-              item.check === undefined
-                ? html`<${Icon} name=${item.icon ?? 'right'} />`
-                : html`<span class="menu-check">${item.check ? '✓' : ''}</span>`
-            }
-            <span class="menu-text">${item.text}</span>
-            ${item.key && html`<kbd>${item.key}</kbd>`}
+            ${item.icon && html`<${Lucide} name=${item.icon} />`}
+            <span class="ss-truncate">${item.text}</span>
+            ${item.key && html`<span class="ss-menu__end">${item.key}</span>`}
+            ${item.check !== undefined && html`<${Lucide} name="check" class="ss-menu__check" />`}
           </button>`,
     )}
   </div>`;

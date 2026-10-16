@@ -114,7 +114,7 @@ test(
         await external.locator('[data-rb-external]').waitFor();
         await shot('r4-4c-memory-inbox-zh');
         await external.getByRole('button', { name: '定位到消息', exact: true }).click();
-        await page.locator('[data-message-id="' + evidence[0].id + '"].msg-target').waitFor();
+        await page.locator('[data-message-id="' + evidence[0].id + '"][data-target]').waitFor();
         await page.getByRole('button', { name: '数据库', exact: false }).click();
         await page.locator('[data-rb-tab="inbox"]').click();
         await external.getByRole('button', { name: '修改后接受', exact: true }).click();

@@ -59,7 +59,7 @@ test(
         };
         await api('/api/meetings/' + meeting.id + '/minutes/refresh', {});
         await page.goto(new URL('/?token=ui-token#/meeting/' + meeting.id, page.url()).href);
-        await page.locator('.composer textarea').waitFor();
+        await page.locator('.ss-composer textarea').waitFor();
         await page.getByRole('button', { name: '工作区菜单', exact: true }).click();
         await page.getByRole('menuitem', { name: '对话纪要', exact: true }).click();
         const dialog = page.getByRole('dialog', { name: '对话纪要', exact: true });
@@ -210,7 +210,7 @@ test(
             text: 'Research evidence for summary.',
           });
           await page.goto(new URL('/?token=ui-token#/meeting/' + meeting.id, page.url()).href);
-          const composer = page.locator('.composer');
+          const composer = page.locator('.ss-composer');
           await composer.locator('textarea').waitFor();
           const response = page.evaluate(async (meetingId) => {
             const token = sessionStorage.getItem('sciencescope.token');
@@ -223,16 +223,16 @@ test(
           try {
             await started;
             await page.waitForFunction(() => {
-              const button = document.querySelector('.composer [data-main-stop]');
+              const button = document.querySelector('.ss-composer .ss-send[data-state="running"]');
               return !button;
             });
-            assert.equal(await composer.locator('[data-main-stop]').count(), 0);
+            assert.equal(await composer.locator('.ss-send[data-state="running"]').count(), 0);
             await composer
               .locator('textarea')
               .fill('Keep Main working while the secretary summarizes.');
             await composer.getByRole('button', { name: '发送', exact: true }).click();
             await page.getByText('Main is working concurrently.', { exact: true }).waitFor();
-            await composer.getByRole('button', { name: '停止当前回复', exact: true }).click();
+            await composer.getByRole('button', { name: '停止', exact: true }).click();
             await app.conductor.idle();
             await composer.getByRole('button', { name: '发送', exact: true }).waitFor();
             const active = app.core.turns.running();

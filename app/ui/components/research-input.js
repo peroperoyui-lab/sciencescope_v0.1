@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
-import { Icon } from '../icons.js';
+import { Lucide } from '../icons.js';
 import { InfoTip } from './info-tip.js';
 import { MarksPopover } from './marks-popover.js';
 import { navigate } from '../route.js';
@@ -61,23 +61,30 @@ export function InputAdd({ owner, projectId = null }) {
       }}
     />
     <button
-      class="ref-chip"
+      type="button"
+      class="ss-icon-btn"
       aria-label=${t('添加材料')}
+      data-tip=${t('添加文件或资料')}
       onClick=${(event) =>
         actions.openMenu(event, [
-          { text: t('文件'), run: () => picker.current.click() },
+          { text: t('文件'), icon: 'paperclip', run: () => picker.current.click() },
           {
             text: t('截图'),
+            icon: 'file',
             run: () =>
               actions.openModal(
                 t('截图'),
                 html`<${InfoTip} text=${t('使用系统截图后，在输入框中粘贴。')} />`,
               ),
           },
-          { text: t('引用'), run: () => actions.showMaterials({ owner, projectId }) },
+          {
+            text: t('引用'),
+            icon: 'quote',
+            run: () => actions.showMaterials({ owner, projectId }),
+          },
         ])}
     >
-      <${Icon} name="plus" />
+      <${Lucide} name="plus" />
     </button>
   </span>`;
 }
@@ -88,41 +95,50 @@ export function InputAdd({ owner, projectId = null }) {
 export function InputAttachments({ owner, value }) {
   const actions = useActions();
   if (!value.materials.length && !value.marks.length) return null;
-  return html`<div class="research-input-chips attachmentbar">
+  return html`<div class="ss-composer__files attachmentbar">
     <${MarksPopover} owner=${owner} marks=${value.marks} />
     ${value.materials.map(
       (entry) =>
-        html`<button
-          class="ref-chip"
-          key=${entry.selectionId}
-          onClick=${(event) =>
-            actions.openMenu(event, [
-              ...(entry.type === 'source'
-                ? [
-                    {
-                      text: t('预览'),
-                      run: () => actions.openPreview({ kind: 'source', id: entry.id, owner }),
-                    },
-                  ]
-                : []),
-              {
-                text: t('打开'),
-                run: () =>
-                  entry.type === 'source'
-                    ? actions.attempt(() => actions.openResearchSource(entry.id))
-                    : showInputContext(actions, { materials: [entry], marks: [] }),
-              },
-              {
-                text: t('移除附件'),
-                run: () =>
-                  actions.attempt(() =>
-                    actions.changeInput(owner, { op: 'remove', selectionId: entry.selectionId }),
-                  ),
-              },
-            ])}
-        >
-          ${entry.title}
-        </button>`,
+        html`<span class="ss-file-chip" key=${entry.selectionId}>
+          <${Lucide} name=${entry.type === 'source' ? 'book-open' : 'file-text'} />
+          <button
+            type="button"
+            class="ss-file-chip__open"
+            onClick=${(event) =>
+              actions.openMenu(event, [
+                ...(entry.type === 'source'
+                  ? [
+                      {
+                        text: t('预览'),
+                        icon: 'eye',
+                        run: () => actions.openPreview({ kind: 'source', id: entry.id, owner }),
+                      },
+                    ]
+                  : []),
+                {
+                  text: t('打开'),
+                  icon: 'external-link',
+                  run: () =>
+                    entry.type === 'source'
+                      ? actions.attempt(() => actions.openResearchSource(entry.id))
+                      : showInputContext(actions, { materials: [entry], marks: [] }),
+                },
+              ])}
+          >
+            ${entry.title}
+          </button>
+          <button
+            type="button"
+            aria-label=${t('移除附件')}
+            data-tip=${t('移除附件')}
+            onClick=${() =>
+              actions.attempt(() =>
+                actions.changeInput(owner, { op: 'remove', selectionId: entry.selectionId }),
+              )}
+          >
+            <${Lucide} name="x" small=${true} />
+          </button>
+        </span>`,
     )}
   </div>`;
 }

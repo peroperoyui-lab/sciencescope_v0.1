@@ -75,7 +75,7 @@ test(
         assert.ok(
           await page
             .locator(`[data-message-id="${source.id}"]`)
-            .evaluate((node) => node.classList.contains('msg-target')),
+            .evaluate((node) => node.hasAttribute('data-target')),
         );
         await selectText(page, selector, 'Second original');
         await page.getByRole('button', { name: '引用至任务秘书', exact: true }).click();

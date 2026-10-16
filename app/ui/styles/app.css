@@ -171,3 +171,9 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+/* Lucide icons in the older .ico slot keep the design system's size and stroke. */
+.ico > .ss-i {
+  width: var(--icon);
+  height: var(--icon);
+  stroke-width: 1.75;
+}

@@ -25,7 +25,7 @@ test(
         await page.goto(new URL('/?token=ui-token#/meeting/' + meeting.id, page.url()).href);
         await page.getByRole('textbox', { name: '主输入框' }).fill('展示公式');
         await page.getByRole('button', { name: '发送', exact: true }).click();
-        const answer = page.locator('.message:not(.user)').last();
+        const answer = page.locator('.ss-msg:not([data-user])').last();
         await answer.locator('.katex-display').waitFor();
         assert.equal(await answer.locator('.katex').count(), 2);
         assert.match(await answer.locator('.message-text').innerText(), /金额 \$5 and \$10/);

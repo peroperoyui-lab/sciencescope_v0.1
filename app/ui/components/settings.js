@@ -122,7 +122,7 @@ const LOOK_DEFAULTS = {
   theme: 'light',
   density: 'standard',
   codeFontSize: 14,
-  chatFontSize: 16,
+  chatFontSize: 14,
   reduceMotion: false,
   scrollbars: false,
 };

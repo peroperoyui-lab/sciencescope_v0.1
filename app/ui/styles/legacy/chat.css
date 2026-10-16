@@ -280,38 +280,6 @@
     animation: none;
   }
 }
-.main-outbox {
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--line, #dce2d7);
-  max-height: 150px;
-  overflow: auto;
-  font-size: 12px;
-}
-.outbox-item {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 5px 0;
-}
-.outbox-item > span {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.outbox-item > small {
-  flex: none;
-  color: var(--muted);
-}
-.outbox-item > button {
-  flex: none;
-  border: 0;
-  background: transparent;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-}
 /* Saved desktop preferences affect reading, never provider inputs. */
 .messages .message-text,
 .assistant-message .message-text {

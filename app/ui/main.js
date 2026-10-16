@@ -13,12 +13,14 @@ import { AssistantWindow } from './components/assistant-panel.js';
 import { AssistantOrb } from './components/assistant-orb.js';
 import { Overlays } from './components/overlays.js';
 import { MarkSelection } from './components/mark-selection.js';
+import { installTooltips } from './floating.js';
 
 const surface = new URLSearchParams(location.search).get('surface');
 if (surface === 'assistant-orb') document.documentElement.classList.add('native-orb');
 else {
   if (surface === 'assistant') document.documentElement.classList.add('assistant-panel');
   installWindowResize();
+  installTooltips();
 }
 const stopNavigation = installAssistantNavigation(surface);
 addEventListener('pagehide', stopNavigation, { once: true });

@@ -53,10 +53,10 @@ export function MarksPopover({ owner, marks }) {
       return;
     }
     element.scrollIntoView({ block: 'center' });
-    element.classList.add('msg-target');
+    element.setAttribute('data-target', '');
     const range = findMarkRange(element.querySelector('.message-text'), mark.text);
     if (range) markHighlight('research-focus', [range]);
-    setTimeout(() => element.classList.remove('msg-target'), 1800);
+    setTimeout(() => element.removeAttribute('data-target'), 1800);
   }
   if (!marks.length) return null;
   const rect = anchor.current?.getBoundingClientRect();

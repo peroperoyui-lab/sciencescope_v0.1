@@ -1,10 +1,9 @@
-/* ScienceScope components (design system v1, 2026-10-16).
+/* ScienceScope components (design system v1, 2026-10-16; docs/design/DESIGN_SYSTEM.md).
+   The single source of the ss- component styles: the app loads this file and
+   docs/design/system/build/build.py copies it into the gallery's bundle.css.
    Colours, spacing, radii, shadows, sizes and type come from tokens.css, which
    is generated from tokens.json. Motion lives here because tokens.json has no
-   motion family. Component classes use the ss- prefix; the gallery-only
-   scaffolding at the end uses ds- and is not shipped in the app. */
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-
+   motion family. */
 :root {
   --t-fast: 120ms;
   --t-med: 160ms;
@@ -13,6 +12,11 @@
 }
 [data-theme='dark'] {
   color-scheme: dark;
+}
+/* Settings → reduce motion sets data-reduce-motion on <html>. */
+:root[data-reduce-motion] {
+  --t-fast: 0ms;
+  --t-med: 0ms;
 }
 @media (prefers-reduced-motion: reduce) {
   :root {
@@ -61,10 +65,16 @@ button {
   width: 10px;
   height: 10px;
 }
+/* Thumbs show while the pointer is over a scroll area; Settings → show
+   scrollbars (data-show-scrollbars) keeps them visible. */
 ::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: var(--r-full);
-  background: var(--line-strong) content-box;
+  background: transparent content-box;
+}
+:hover::-webkit-scrollbar-thumb,
+[data-show-scrollbars] ::-webkit-scrollbar-thumb {
+  background-color: var(--line-strong);
 }
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--faint);
@@ -1848,7 +1858,8 @@ html[data-resizing] * {
   stroke: var(--danger);
 }
 .ss-shimmer {
-  background: linear-gradient(90deg, var(--muted) 35%, var(--ink) 50%, var(--muted) 65%) 0 0 / 300% 100%;
+  background: linear-gradient(90deg, var(--muted) 35%, var(--ink) 50%, var(--muted) 65%) 0 0 / 300%
+    100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -2822,6 +2833,23 @@ button.ss-act__row:hover {
   width: 12px;
   height: 12px;
 }
+/* The name as a button: opens the chip's menu (preview, open). */
+.ss-file-chip > .ss-file-chip__open {
+  display: block;
+  flex: 0 1 auto;
+  width: auto;
+  min-width: 0;
+  height: auto;
+  overflow: hidden;
+  color: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ss-file-chip > .ss-file-chip__open:hover {
+  background: transparent;
+  color: var(--ink);
+  text-decoration: underline;
+}
 
 /* ---------- Model picker ---------- */
 .ss-models {
@@ -3142,97 +3170,14 @@ button.ss-act__row:hover {
     animation: none;
   }
 }
-
-/* ---------- Gallery scaffolding (ds-, not shipped) ---------- */
-.ds {
-  display: grid;
-  gap: 16px;
-  padding: 16px;
+[data-reduce-motion] .ss-spin {
+  animation-duration: 2.4s;
 }
-.ds-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-.ds-col {
-  display: grid;
-  align-content: start;
-  gap: 8px;
-}
-.ds-cols {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 20px;
-}
-.ds-label {
+[data-reduce-motion] .ss-shimmer {
+  animation: none;
+  background: none;
   color: var(--muted);
-  font-size: 11px;
-  line-height: 16px;
 }
-.ds-note {
-  max-width: 560px;
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 18px;
-}
-.ds-box {
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  background: var(--paper);
-}
-.ds-surface {
-  padding: 12px;
-  border-radius: var(--r-md);
-  background: var(--side);
-}
-.ds-page {
-  height: 100vh;
-}
-.ds-icons {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 2px 8px;
-}
-.ds-icon {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-  height: 36px;
-  padding: 0 8px;
-  border-radius: var(--r-sm);
-  color: var(--ink-2);
-}
-.ds-icon:hover {
-  background: var(--hover);
-  color: var(--ink);
-}
-.ds-icon > span {
-  display: grid;
-  min-width: 0;
-}
-.ds-icon b {
-  overflow: hidden;
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.ds-icon code {
-  overflow: hidden;
-  color: var(--muted);
-  font: 10px/14px var(--font-mono);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.ds-title {
-  margin: 0;
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 600;
-  line-height: 16px;
+[data-reduce-motion] .ss-dot--live {
+  animation: none;
 }

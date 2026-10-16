@@ -20,9 +20,15 @@ export function applyAppearance(settings) {
   else delete root.dataset.density;
   root.toggleAttribute('data-reduce-motion', Boolean(look.reduceMotion));
   root.toggleAttribute('data-show-scrollbars', Boolean(look.scrollbars));
-  if (look.font) root.style.setProperty('--ss-font', `"${look.font}", var(--ss-font-default)`);
-  else root.style.removeProperty('--ss-font');
-  root.style.setProperty('--chat-font-size', `${look.chatFontSize ?? 16}px`);
+  // --ss-font for the legacy styles, --font-sans for the design system.
+  if (look.font) {
+    root.style.setProperty('--ss-font', `"${look.font}", var(--ss-font-default)`);
+    root.style.setProperty('--font-sans', `"${look.font}", var(--ss-font-default)`);
+  } else {
+    root.style.removeProperty('--ss-font');
+    root.style.removeProperty('--font-sans');
+  }
+  root.style.setProperty('--chat-font-size', `${look.chatFontSize ?? 14}px`);
   root.style.setProperty('--code-font-size', `${look.codeFontSize ?? 14}px`);
 }
 

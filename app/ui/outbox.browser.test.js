@@ -45,21 +45,21 @@ test(
         try {
           await send('第一条问题');
           await started;
-          await page.getByRole('button', { name: '停止当前回复', exact: true }).waitFor();
+          await page.getByRole('button', { name: '停止', exact: true }).waitFor();
           await send('第二条问题');
-          await page.locator('.outbox-item', { hasText: '第二条问题' }).waitFor();
+          await page.locator('.outbox__item', { hasText: '第二条问题' }).waitFor();
           await send('第三条问题');
-          const second = page.locator('.outbox-item', { hasText: '第二条问题' });
+          const second = page.locator('.outbox__item', { hasText: '第二条问题' });
           await second.getByRole('button', { name: '编辑', exact: true }).click();
           await page.locator('#modal input').fill('第二条问题修订');
           await page.locator('#modal').getByRole('button', { name: '保存', exact: true }).click();
-          await page.locator('.outbox-item', { hasText: '第二条问题修订' }).waitFor();
+          await page.locator('.outbox__item', { hasText: '第二条问题修订' }).waitFor();
           await page
-            .locator('.outbox-item', { hasText: '第三条问题' })
+            .locator('.outbox__item', { hasText: '第三条问题' })
             .getByRole('button', { name: '取消待发消息' })
             .click();
           await page
-            .locator('.outbox-item', { hasText: '第三条问题' })
+            .locator('.outbox__item', { hasText: '第三条问题' })
             .waitFor({ state: 'detached' });
           assert.equal(
             app.core.messages
@@ -68,7 +68,7 @@ test(
             1,
           );
           await shot('r4-11b-outbox');
-          await page.getByRole('button', { name: '停止当前回复', exact: true }).click();
+          await page.getByRole('button', { name: '停止', exact: true }).click();
           release();
           await page.getByText('处理了剩余排队消息', { exact: true }).waitFor();
           assert.deepEqual(

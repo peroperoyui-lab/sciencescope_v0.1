@@ -73,12 +73,34 @@ export function createActions(api, store) {
   /** Load a meeting's latest messages and the tool calls of its answers. */
   async function openMeeting(meetingId) {
     goals.viewMeeting(meetingId);
+    // An empty list first, so message events that arrive while the page
+    // loads are kept; the page must not roll them back.
+    store.update((state) =>
+      state.messages[meetingId]
+        ? state
+        : { ...state, messages: { ...state.messages, [meetingId]: [] } },
+    );
     const page = await api.get(`/api/meetings/${meetingId}/messages`);
-    store.update((state) => ({
-      ...state,
-      messages: { ...state.messages, [meetingId]: page.messages },
-      hasBefore: { ...state.hasBefore, [meetingId]: page.hasBefore },
-    }));
+    store.update((state) => {
+      const merged = new Map(page.messages.map((message) => [message.id, message]));
+      for (const current of state.messages[meetingId] ?? []) {
+        const loaded = merged.get(current.id);
+        if (
+          loaded
+            ? current.updatedAt > loaded.updatedAt
+            : current.seq > (page.messages.at(-1)?.seq ?? 0)
+        )
+          merged.set(current.id, current);
+      }
+      return {
+        ...state,
+        messages: {
+          ...state.messages,
+          [meetingId]: [...merged.values()].sort((a, b) => a.seq - b.seq),
+        },
+        hasBefore: { ...state.hasBefore, [meetingId]: page.hasBefore },
+      };
+    });
     await Promise.all(page.messages.filter((m) => m.turnId).map((m) => loadTurn(m.turnId)));
     await loadMeetingContexts(meetingId);
     await outbox.loadOutbox(meetingId);

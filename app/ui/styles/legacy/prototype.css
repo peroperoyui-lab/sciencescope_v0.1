@@ -57,9 +57,9 @@ a {
 a:hover {
   text-decoration: underline;
 }
-input,
-textarea,
-select {
+input:not([class^='ss-'], [class*=' ss-'], [class^='ss-'] *, [class*=' ss-'] *),
+textarea:not([class^='ss-'], [class*=' ss-'], [class^='ss-'] *, [class*=' ss-'] *),
+select:not([class^='ss-'], [class*=' ss-'], [class^='ss-'] *, [class*=' ss-'] *) {
   border: 1px solid var(--line);
   background: white;
   border-radius: 8px;
@@ -67,9 +67,9 @@ select {
   outline: 0;
   width: 100%;
 }
-input:focus,
-textarea:focus,
-select:focus {
+input:focus:not([class^='ss-'], [class*=' ss-'], [class^='ss-'] *, [class*=' ss-'] *),
+textarea:focus:not([class^='ss-'], [class*=' ss-'], [class^='ss-'] *, [class*=' ss-'] *),
+select:focus:not([class^='ss-'], [class*=' ss-'], [class^='ss-'] *, [class*=' ss-'] *) {
   border-color: #899883;
   box-shadow: 0 0 0 2px #89988312;
 }

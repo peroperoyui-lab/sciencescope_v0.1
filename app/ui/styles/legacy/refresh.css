@@ -46,7 +46,8 @@
   --t-fast: 120ms;
   --t-med: 160ms;
   --t-slow: 240ms;
-  --focus: 0 0 0 2px var(--paper), 0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent);
+  --focus-ring:
+    0 0 0 2px var(--paper), 0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent);
   /* map legacy prototype tokens onto the new set */
   --bg: var(--paper);
   --surface: var(--sunken);
@@ -118,11 +119,6 @@ select {
 }
 ::selection {
   background: color-mix(in srgb, var(--accent) 22%, transparent);
-}
-:focus-visible {
-  outline: none;
-  box-shadow: var(--focus);
-  border-radius: var(--r-sm);
 }
 .ico svg {
   width: 16px;
@@ -268,9 +264,15 @@ kbd,
   border-color: var(--accent-line);
   color: var(--accent-ink);
 }
-input:not([type='checkbox']):not([type='radio']):not([type='range']),
-select,
-textarea {
+/* Form controls inside design system components (ss-) keep their own styles. */
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not(
+    [class^='ss-'],
+    [class*=' ss-'],
+    [class^='ss-'] *,
+    [class*=' ss-'] *
+  ),
+select:not([class^='ss-'], [class*=' ss-'], [class^='ss-'] *, [class*=' ss-'] *),
+textarea:not([class^='ss-'], [class*=' ss-'], [class^='ss-'] *, [class*=' ss-'] *) {
   background: var(--raised);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-md);
@@ -280,18 +282,23 @@ textarea {
     border-color var(--t-fast),
     box-shadow var(--t-fast);
 }
-input:not([type='checkbox']):not([type='radio']):not([type='range']),
-select {
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not(
+    [class^='ss-'],
+    [class*=' ss-'],
+    [class^='ss-'] *,
+    [class*=' ss-'] *
+  ),
+select:not([class^='ss-'], [class*=' ss-'], [class^='ss-'] *, [class*=' ss-'] *) {
   height: 34px;
   padding: 0 10px;
 }
-textarea {
+textarea:not([class^='ss-'], [class*=' ss-'], [class^='ss-'] *, [class*=' ss-'] *) {
   padding: 10px 12px;
   line-height: 1.6;
 }
-input:focus,
-select:focus,
-textarea:focus {
+input:focus:not([class^='ss-'], [class*=' ss-'], [class^='ss-'] *, [class*=' ss-'] *),
+select:focus:not([class^='ss-'], [class*=' ss-'], [class^='ss-'] *, [class*=' ss-'] *),
+textarea:focus:not([class^='ss-'], [class*=' ss-'], [class^='ss-'] *, [class*=' ss-'] *) {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
@@ -1431,33 +1438,6 @@ dialog h2 {
   max-width: 160px;
   text-align: left;
 }
-.ss-empty {
-  margin: auto;
-  max-width: 280px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.7;
-  padding: 24px;
-}
-.ss-empty strong {
-  display: block;
-  color: var(--ink);
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 4px;
-}
-.ss-empty .ss-empty-icon {
-  width: 40px;
-  height: 40px;
-  margin: 0 auto 12px;
-  border-radius: 12px;
-  display: grid;
-  place-items: center;
-  background: var(--accent-soft);
-  color: var(--accent-ink);
-}
-
 /* ---------- home / welcome ---------- */
 .home,
 .new-chat-home {
@@ -2101,7 +2081,7 @@ dialog h2 {
 }
 .info-tip:focus-visible {
   outline: none;
-  box-shadow: var(--focus) !important;
+  box-shadow: var(--focus-ring) !important;
 }
 h1 .info-tip,
 h2 .info-tip,

@@ -14,7 +14,7 @@ export const DEFAULT_SETTINGS = {
     density: 'standard',
     font: '',
     codeFontSize: 14,
-    chatFontSize: 16,
+    chatFontSize: 14,
     reduceMotion: false,
     scrollbars: false,
     // 'compact' hides tool activity cards in meetings (视图 → 简洁执行记录).

@@ -117,7 +117,7 @@ test(
           await page.waitForURL('**/#/meeting/' + mainId);
           await input.fill('Queued question');
           await panel.getByRole('button', { name: '发送给全局助手', exact: true }).click();
-          await panel.locator('.outbox-item', { hasText: 'Queued question' }).waitFor();
+          await panel.locator('.outbox__item', { hasText: 'Queued question' }).waitFor();
           assert.equal(
             app.core.messages
               .since(assistant.id, 0)

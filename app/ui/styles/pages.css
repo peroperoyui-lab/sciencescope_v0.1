@@ -1,0 +1,132 @@
+/* Layout of the redesigned pages (P1-UI / P3). Components come from
+   components.css; this file only places them and covers app-only parts.
+   Colours, sizes and type use the design tokens (tokens.css). */
+
+/* ---------- Composer bar ---------- */
+/* The @ mention list is placed against the composer. */
+.ss-composer {
+  position: relative;
+}
+.usage-value {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  font-variant-numeric: tabular-nums;
+}
+.goal-rounds {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  margin-left: var(--sp-4);
+  color: var(--muted);
+  font-size: 12px;
+}
+.goal-rounds input {
+  width: 48px;
+  height: var(--h-sm);
+  padding: 0 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--raised);
+  color: var(--ink);
+  font-size: 12px;
+}
+.model-pop {
+  width: 300px;
+}
+
+/* ---------- Conversation page ---------- */
+.ss-main > .chatlayout {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+}
+.chat-col {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+.chat-col > .ss-content:focus-visible {
+  outline-offset: -2px;
+}
+.chat-day {
+  display: flex;
+  justify-content: center;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.ss-msg[data-target] {
+  border-radius: var(--r-md);
+  outline: 2px solid var(--accent-line);
+  outline-offset: 6px;
+}
+.chat-find {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.chat-find > .ss-input {
+  width: 280px;
+}
+.chat-find__count {
+  min-width: 40px;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+/* Settings → chat font size (default 14px, the design's t-body 14/22). */
+.ss-thread .message-text {
+  font-size: var(--chat-font-size, 14px);
+  line-height: calc(var(--chat-font-size, 14px) + 8px);
+}
+/* Settings → compact transcript hides each answer's activity timeline. */
+.hide-tools .ss-act {
+  display: none;
+}
+
+/* ---------- Queued messages (inside the composer) ---------- */
+.outbox {
+  display: grid;
+  gap: var(--sp-2);
+  max-height: 150px;
+  overflow: auto;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 18px;
+}
+.outbox__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding-left: 4px;
+  color: var(--muted);
+}
+.outbox__head > span {
+  flex: 1;
+}
+.outbox__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  min-height: var(--h-sm);
+  padding: 0 0 0 6px;
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+}
+.outbox__item:hover {
+  background: var(--hover);
+}
+.outbox__item > .ss-i {
+  color: var(--muted);
+}
+.outbox__item > .ss-truncate {
+  flex: 1;
+}
