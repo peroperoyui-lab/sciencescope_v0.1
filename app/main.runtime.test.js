@@ -5,6 +5,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { tempDir } from './testing.js';
 
 test('the native host publishes its UI and closes SQLite through its shutdown endpoint', async () => {
@@ -27,6 +28,19 @@ test('the native host publishes its UI and closes SQLite through its shutdown en
     assert.equal(launch.dataRoot, dir);
     assert.equal(launch.ui, `${launch.url}/?token=${launch.token}`);
     assert.ok(existsSync(path.join(dir, 'sciencescope.sqlite-wal')));
+    const pageRendered = Date.now();
+    const rendered = await fetch(`${launch.url}/api/startup/rendered`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${launch.token}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ pageRendered, renderStatus: 'rendered' }),
+    });
+    assert.equal(rendered.status, 200);
+    const startup = JSON.parse((await readFile(path.join(dir, 'logs/startup.log'), 'utf8')).trim());
+    assert.equal(startup.points.pageRendered, pageRendered);
+    assert.ok(startup.points.httpListening >= startup.points.createAppEnd);
+    assert.ok(startup.points.createCoreEnd >= startup.points.createCoreStart);
+    assert.ok(startup.points.semanticEnd >= startup.points.semanticStart);
+    assert.ok(startup.points.pythonEnd >= startup.points.pythonStart);
     const response = await fetch(`${launch.url}${launch.shutdownPath}`, {
       method: 'POST',
       headers: { authorization: `Bearer ${launch.shutdownToken}` },

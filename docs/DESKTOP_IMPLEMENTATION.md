@@ -1,5 +1,9 @@
 # Desktop implementation — first increment
 
+## 2026-10-16 P1a step 0: retained startup measurements (Codex)
+- Added native/Node/core/Python/semantic/listen/first-paint timestamps, one retained JSON row per launch; no startup optimization or UI component changes. Native debug/no-bundle executable, isolated H-drive data: hot 4.749 / 4.614 / 4.646 s (mean 4.670 s); HTTP-to-paint 4.138–4.197 s. First new-data launch 9.862 s is not an OS-cold sample.
+- User approved deferring three reboot-cold samples, process-scoped offline acceptance, and production staging instead of an installer. Measurements and original concurrent-I/O samples: `.sciencescope-local/temp/p1a/`; the user preview installation was not touched. Initial full check: 214/215; existing DSH initialization timed out during concurrent build/measurement, retained for independent verification.
+
 ## 2026-10-13 R6a-2b reviewed installer repackage (Codex; merged by Claude)
 - Rebuilt `e9b62d6` without product changes: 128.20 MiB, SHA-256 in PREVIEW_TEST; stage/release app and production dependencies match by path, size and hash, with no test files or listed development packages. Installed program: 687.32 MiB / 30,677 files; fresh install 8 min 9 s.
 - Checked the uninstall data-deletion checkbox and verified data removal. Installed native welcome, flash answer (1 request / 15,641 tokens), custom Python URL clearing, official-source save, previous-log rotation and process/WAL/SHM cleanup passed. Deleted acceptance data, verified empty projects/meetings/providers and no credentials, then closed; installation left untouched afterwards.

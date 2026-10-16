@@ -24,7 +24,8 @@ import { createVersionOrganizer } from './services/versions/organizer.js';
 /**
  * @param {{ dataRoot: string, token: string,
  *   runtime?: import('./runtime/port.js').Runtime, runtimeName?: string,
- *   extraEnv?: Record<string, string>, pythonOptions?:Parameters<typeof createPython>[1], onShutdown?: () => void }} options
+ *   extraEnv?: Record<string, string>, pythonOptions?:Parameters<typeof createPython>[1],
+ *   startup?: {mark:(name:string)=>void,finish:(page?:any)=>Promise<void>}, onShutdown?: () => void }} options
  *   `runtime` replaces DSH (tests); `extraEnv` passes fixture-only variables to DSH.
  */
 export async function createApp({
@@ -35,14 +36,21 @@ export async function createApp({
   extraEnv,
   pythonOptions,
   onShutdown,
+  startup,
 }) {
+  startup?.mark('createCoreStart');
   const core = await createCore({ dataRoot });
+  startup?.mark('createCoreEnd');
   const versions = createVersions(core);
   const semantic = createSemantic(core);
   const research = createResearch(core, { semantic });
   const researchInput = createResearchInput({ core, research });
+  startup?.mark('pythonStart');
   const python = createPython(core, pythonOptions);
+  startup?.mark('pythonEnd');
+  startup?.mark('semanticStart');
   await semantic.start();
+  startup?.mark('semanticEnd');
   const settings = async () =>
     (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
 
@@ -113,6 +121,7 @@ export async function createApp({
     secretary,
     assistant,
     memory,
+    startup,
   });
 
   return {
