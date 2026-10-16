@@ -75,8 +75,9 @@ export function createTurns({ db, events, meetings, now, newId }) {
    * @param {{ status: TurnStatus, stopReason?: string | null, usage?: any }} result
    */
   function end(id, { status, stopReason = null, usage = null }) {
-    const turn = setPhase(id, '');
+    const turn = get(id);
     return db.transaction(() => {
+      setPhase(id, '');
       db.prepare(
         "UPDATE turns SET status = ?, stop_reason = ?, usage_json = ?, ended_at = ?, phase = '' WHERE id = ?",
       ).run(status, stopReason, usage == null ? null : JSON.stringify(usage), now(), id);
@@ -93,10 +94,12 @@ export function createTurns({ db, events, meetings, now, newId }) {
   function setPhase(id, phase) {
     const turn = get(id);
     if (turn.phase === phase) return turn;
-    db.prepare('UPDATE turns SET phase = ? WHERE id = ?').run(phase, id);
-    const updated = get(id);
-    events.record('turn.phase', updated, scope(turn.meetingId, turn.participantId));
-    return updated;
+    return db.transaction(() => {
+      db.prepare('UPDATE turns SET phase = ? WHERE id = ?').run(phase, id);
+      const updated = get(id);
+      events.record('turn.phase', updated, scope(turn.meetingId, turn.participantId));
+      return updated;
+    });
   }
 
   /** Turns still marked running, e.g. after the program was closed mid-turn. */
@@ -142,16 +145,20 @@ export function createTurns({ db, events, meetings, now, newId }) {
    */
   function updateActivity(turnId, callId, result) {
     const turn = get(turnId);
-    db.prepare('UPDATE tool_calls SET result_json = ? WHERE turn_id = ? AND call_id = ?').run(
-      JSON.stringify(result),
-      turnId,
-      callId,
-    );
-    const call = toToolCall(
-      db.prepare('SELECT * FROM tool_calls WHERE turn_id = ? AND call_id = ?').get(turnId, callId),
-    );
-    events.record('tool.updated', call, scope(turn.meetingId, turn.participantId));
-    return call;
+    return db.transaction(() => {
+      db.prepare('UPDATE tool_calls SET result_json = ? WHERE turn_id = ? AND call_id = ?').run(
+        JSON.stringify(result),
+        turnId,
+        callId,
+      );
+      const call = toToolCall(
+        db
+          .prepare('SELECT * FROM tool_calls WHERE turn_id = ? AND call_id = ?')
+          .get(turnId, callId),
+      );
+      events.record('tool.updated', call, scope(turn.meetingId, turn.participantId));
+      return call;
+    });
   }
 
   /**
