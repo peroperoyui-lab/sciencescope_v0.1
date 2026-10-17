@@ -4,6 +4,13 @@
 - 执行：Sol（后端、Windows 验收）；审阅：Claude。批准卡片、执行方式菜单、压缩提示等界面由 Claude 做，本任务**不改 `app/ui/` 的组件和样式**。
 - 分三段交付，各自可合并：**1 内置工具**、**2 请求批准**、**3 上下文压缩**。每段约 2 小时，超出就停下汇报。
 
+## P1a 合并后的补充（2026-10-17）
+
+- 从集成分支 `10c83dc` 开始（P1a 与审阅修改都在里面）；分支名改为 `codex/p1b-tools-approval-20261017`。
+- 迁移已用到 019（`turns.error` 保存失败原因）；本任务需要的话从 020 开始。拒绝批准和取消不是失败，不写 `turns.error`。
+- 活动条目状态变化（等批准 → 允许 / 拒绝 / 取消）用 P1a 已有的 `tool.updated` 或 `tool.ended` 事件；界面已经按 `kind` 分行显示 `thinking` 和 `retry`，`approval`、`compaction` 两种由 Claude 接着做。
+- 发言阶段新增的 `waiting-approval`、`compacting` 写进 `port.js` 的类型注释即可，状态行由 Claude 做；`app/ui/features.js` 的 `approval` 开关也由 Claude 打开。
+
 ## 用户怎么用
 
 - 让主专家"用 Python 跑一下这份数据"：它写脚本、在项目文件夹里运行，时间线里能看到每条命令和输出。
@@ -89,6 +96,6 @@ DSH 自带的命令、文件和网页工具随 P1a 去掉了，这里补回。�
 
 ## 交付
 
-- 分支：`codex/p1b-tools-approval-20261016`，从合并了 P1a 的集成分支开始。
+- 分支：`codex/p1b-tools-approval-20261017`，从集成分支 `10c83dc` 开始。
 - 报告不超过 15 行，给出远程分支与 SHA，写明参考或复制了哪些开源代码。
 - 不建 PR、不合并。
