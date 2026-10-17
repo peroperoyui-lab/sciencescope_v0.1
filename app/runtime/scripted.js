@@ -6,7 +6,7 @@
  * @typedef {{ sessionId: string, input: string, inputs: string[], instructions: string,
  *   call: (name: string, args: any) => Promise<any>, signal: AbortSignal }} ScriptContext
  * @typedef {(context: ScriptContext) => AsyncIterable<
- *   string | { stop: 'max_tokens' | 'failed', error?: string }>} Script
+ *   string | { stop: 'max_tokens' | 'failed', error?: string } | import('./port.js').RuntimeEvent>} Script
  */
 
 /**
@@ -45,6 +45,7 @@ export function createScriptedRuntime({ script }) {
       let calls = 0;
       let text = '';
       onEvent({ type: 'attempt-start' });
+      onEvent({ type: 'phase', phase: 'connecting' });
       try {
         const steps = script({
           sessionId,
@@ -56,6 +57,7 @@ export function createScriptedRuntime({ script }) {
             const callId = `call-${++calls}`;
             onEvent({ type: 'step-end', text, hasToolCalls: true });
             text = '';
+            onEvent({ type: 'phase', phase: 'tool' });
             onEvent({ type: 'tool-call', callId, name, args });
             try {
               const result = await session.onToolCall({ name, args, callId, signal });
@@ -76,11 +78,12 @@ export function createScriptedRuntime({ script }) {
           if (signal.aborted) return { stopReason: 'cancelled' };
           if (typeof step === 'string') {
             text += step;
+            onEvent({ type: 'phase', phase: 'answering' });
             onEvent({ type: 'text-delta', delta: step });
           } else if ('stop' in step) {
             onEvent({ type: 'step-end', text, hasToolCalls: false });
             return { stopReason: step.stop, error: step.error };
-          }
+          } else onEvent(step);
         }
         onEvent({ type: 'step-end', text, hasToolCalls: false });
         // Context pressure as DSH reports it: here simply the characters sent so far.

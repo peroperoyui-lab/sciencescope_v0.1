@@ -10,10 +10,17 @@ import { minutesGoals } from '../assistant/overview.js';
 
 /**
  * @param {{core:import('../../core/index.js').Core,versions:any,runtime:import('../../runtime/port.js').Runtime,
- * tools:any,defaultModel:()=>Promise<any>}} dependencies
+ * tools:any,defaultModel:()=>Promise<any>,modelCatalog?:any}} dependencies
  */
-export function createVersionOrganizer({ core, versions, runtime, tools, defaultModel }) {
-  const runner = createBackgroundRunner({ core, runtime, tools, defaultModel });
+export function createVersionOrganizer({
+  core,
+  versions,
+  runtime,
+  tools,
+  defaultModel,
+  modelCatalog,
+}) {
+  const runner = createBackgroundRunner({ core, runtime, tools, defaultModel, modelCatalog });
   const projects = new Map();
   const active = new Map();
   let unsubscribe;

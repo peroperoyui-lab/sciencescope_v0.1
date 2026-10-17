@@ -69,6 +69,52 @@ test('the default respondent answers; later turns receive only new messages', ()
     },
   ));
 
+test('a turn records phase changes, full thinking and retry activities in sequence', () =>
+  withMeeting(
+    async function* ({ call }) {
+      yield { type: 'phase', phase: 'retrying' };
+      yield { type: 'retry', attempt: 2, maxAttempts: 3, error: 'Temporary failure', delayMs: 0 };
+      yield { type: 'phase', phase: 'thinking' };
+      yield { type: 'thinking-delta', delta: '先看' };
+      yield { type: 'phase', phase: 'thinking' };
+      yield { type: 'thinking-delta', delta: '计划。' };
+      yield '我来读取。';
+      await call('workspace_read', { resource: 'plans', key: null });
+      yield '完成。';
+    },
+    async ({ core, say }) => {
+      const events = [];
+      const unsubscribe = core.events.subscribe((event) => events.push(event));
+      try {
+        const answer = (await say('查看计划')).at(-1);
+        const activities = core.turns.toolCalls(answer.turnId);
+        assert.deepEqual(
+          activities.map((entry) => entry.kind),
+          ['retry', 'thinking', 'tool'],
+        );
+        assert.deepEqual(
+          activities.map((entry) => entry.seq),
+          [1, 2, 3],
+        );
+        assert.equal(activities[1].result, '先看计划。');
+        assert.equal(activities[2].preamble, '我来读取。');
+        assert.equal(core.turns.get(answer.turnId).phase, '');
+        assert.equal(
+          events.filter(
+            (event) => event.type === 'turn.phase' && event.payload.phase === 'thinking',
+          ).length,
+          1,
+        );
+        assert.equal(
+          events.filter((event) => event.type === 'turn.phase').at(-1).payload.phase,
+          '',
+        );
+      } finally {
+        unsubscribe();
+      }
+    },
+  ));
+
 test('text before a tool call goes to the tool card; edits are made as the AI', () =>
   withMeeting(
     async function* ({ call }) {

@@ -1,7 +1,8 @@
 // Assembles the whole host: core, runtime, tools, conductor and the HTTP
 // server. `main.js` starts it for real; tests start it with a fixture model.
 import { createCore } from './core/index.js';
-import { createDshRuntime } from './runtime/dsh/runtime.js';
+import { createPiRuntime } from './runtime/pi/runtime.js';
+import { createModelCatalog } from './runtime/pi/catalog.js';
 import { createAppServer } from './server/server.js';
 import { createConductor } from './services/conductor.js';
 import { createMinutesService } from './services/secretary/minutes.js';
@@ -9,7 +10,7 @@ import { createSecretaryChat } from './services/secretary/chat.js';
 import { createBackgroundRunner } from './services/secretary/background.js';
 import { projectBrief } from './services/secretary/project-brief.js';
 import { createMemoryService } from './services/memory/index.js';
-import { credentialsFile, runtimeProviderConfig } from './services/providers.js';
+import { createProviderService } from './services/providers.js';
 import { createTools } from './services/tools.js';
 import { createAssistant } from './services/assistant/index.js';
 import { createContextAssembly } from './services/context-assembly.js';
@@ -24,54 +25,68 @@ import { createVersionOrganizer } from './services/versions/organizer.js';
 /**
  * @param {{ dataRoot: string, token: string,
  *   runtime?: import('./runtime/port.js').Runtime, runtimeName?: string,
- *   extraEnv?: Record<string, string>, pythonOptions?:Parameters<typeof createPython>[1], onShutdown?: () => void }} options
- *   `runtime` replaces DSH (tests); `extraEnv` passes fixture-only variables to DSH.
+ *   pythonOptions?:Parameters<typeof createPython>[1],
+ *   startup?: {mark:(name:string)=>void,finish:(page?:any)=>Promise<void>}, onShutdown?: () => void }} options
+ *   `runtime` supplies a scripted model in tests.
  */
 export async function createApp({
   dataRoot,
   token,
   runtime,
-  runtimeName = 'dsh',
-  extraEnv,
+  runtimeName = 'pi',
   pythonOptions,
   onShutdown,
+  startup,
 }) {
+  startup?.mark('createCoreStart');
   const core = await createCore({ dataRoot });
+  startup?.mark('createCoreEnd');
   const versions = createVersions(core);
   const semantic = createSemantic(core);
   const research = createResearch(core, { semantic });
   const researchInput = createResearchInput({ core, research });
+  startup?.mark('pythonStart');
   const python = createPython(core, pythonOptions);
+  startup?.mark('pythonEnd');
+  startup?.mark('semanticStart');
   await semantic.start();
+  startup?.mark('semanticEnd');
   const settings = async () =>
     (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
+  const catalog = createModelCatalog({
+    paths: core.paths,
+    providers: async () => (await settings()).providers,
+  });
 
   const activeRuntime =
     runtime ??
-    createDshRuntime({
+    createPiRuntime({
       home: core.paths.runtime,
-      credentialsPath: credentialsFile(core.paths),
-      providerConfig: async () => runtimeProviderConfig((await settings()).providers),
-      extraEnv,
+      logs: core.paths.logs,
+      catalog,
     });
+  const providers = createProviderService({ core, catalog, runtime: activeRuntime });
   const minutes = createMinutesService({
     core,
     runtime: activeRuntime,
     defaultModel: async () => (await settings()).models.default,
+    modelCatalog: catalog,
   });
-  const secretary = createSecretaryChat({ core, minutes });
+  const secretary = createSecretaryChat({ core, minutes, modelCatalog: catalog });
   const tools = createTools(core, research, { secretary, python, versions });
   const versionNotes = createVersionOrganizer({
     core,
     versions,
     runtime: activeRuntime,
     tools,
+    modelCatalog: catalog,
     defaultModel: async () => (await settings()).models.default,
   });
   const memoryRunner = createBackgroundRunner({
     core,
     runtime: activeRuntime,
     defaultModel: async () => (await settings()).models.default,
+    modelCatalog: catalog,
   });
   const memory = createMemoryService({ core, minutes, research, runner: memoryRunner });
   const assistant = createAssistant({ core });
@@ -113,6 +128,8 @@ export async function createApp({
     secretary,
     assistant,
     memory,
+    startup,
+    providers,
   });
 
   return {
@@ -129,6 +146,8 @@ export async function createApp({
     memory,
     conductor,
     runtime: activeRuntime,
+    providers,
+    catalog,
     listen: server.listen,
     async close() {
       conductor.stop();

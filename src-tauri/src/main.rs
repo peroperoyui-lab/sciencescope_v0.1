@@ -430,7 +430,7 @@ impl Drop for HostProcess {
     }
 }
 
-fn host_url(log_dir: &std::path::Path, new_app: Option<&new_app::NewAppLaunch>) -> Result<Option<(String, String, ChildHandle)>, Box<dyn std::error::Error>> {
+fn host_url(log_dir: &std::path::Path, new_app: Option<&new_app::NewAppLaunch>, native_started: u128) -> Result<Option<(String, String, ChildHandle)>, Box<dyn std::error::Error>> {
     let node = match std::env::var_os("SCIENCESCOPE_NODE") {
         Some(value) if !value.is_empty() => value,
         _ if new_app.is_some() => new_app.unwrap().node.clone().into_os_string(),
@@ -465,6 +465,8 @@ fn host_url(log_dir: &std::path::Path, new_app: Option<&new_app::NewAppLaunch>) 
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         command.creation_flags(CREATE_NO_WINDOW);
     }
+    command.env("SCIENCESCOPE_STARTUP_NATIVE_MS", native_started.to_string());
+    command.env("SCIENCESCOPE_STARTUP_NODE_MS", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?.as_millis().to_string());
     let mut child = command.spawn()?;
     #[cfg(windows)]
     let job = match windows_job::Job::for_child(&child) {
@@ -592,6 +594,7 @@ mod windows_job {
 }
 
 fn main() {
+    let native_started = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).expect("system clock follows Unix epoch").as_millis();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -665,7 +668,7 @@ fn main() {
                 }
             }
         })
-        .setup(|app| {
+        .setup(move |app| {
             let executable = std::env::current_exe()?;
             let root = executable
                 .parent()
@@ -685,7 +688,7 @@ fn main() {
                 dimensions_path,
             });
 
-            let hosted = host_url(&native_data.join("logs"), new_app.as_ref())?;
+            let hosted = host_url(&native_data.join("logs"), new_app.as_ref(), native_started)?;
             let mut config = app.config().app.windows[0].clone();
             if let Some((url, api_token, child)) = hosted {
                 let parsed_url = url::Url::parse(&url)?;

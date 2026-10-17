@@ -50,9 +50,19 @@ export function createUv(root, { uvPath, runner = runProcess } = {}) {
     );
   const controllers = new Set();
   let closed = false;
-  async function invoke(command, args, indexUrl = null, installMirror = null) {
+  async function invoke(
+    command,
+    args,
+    indexUrl = null,
+    installMirror = null,
+    requestSignal = null,
+  ) {
     if (closed) throw new Error('Python service is closed');
     const controller = new AbortController();
+    const signal = requestSignal
+      ? AbortSignal.any([controller.signal, requestSignal])
+      : controller.signal;
+    signal.throwIfAborted();
     controllers.add(controller);
     try {
       const env = { ...process.env };
@@ -72,15 +82,16 @@ export function createUv(root, { uvPath, runner = runProcess } = {}) {
       });
       if (indexUrl) env.UV_INDEX_URL = indexUrl;
       if (installMirror) env.UV_PYTHON_INSTALL_MIRROR = installMirror;
-      return await runner(command, args, { env, signal: controller.signal });
+      return await runner(command, args, { env, signal });
     } finally {
       controllers.delete(controller);
     }
   }
   return {
-    run: (args, indexUrl = null, installMirror = null) =>
-      invoke(executable, args, indexUrl, installMirror),
-    python: (executablePath, args) => invoke(executablePath, args),
+    run: (args, indexUrl = null, installMirror = null, signal = null) =>
+      invoke(executable, args, indexUrl, installMirror, signal),
+    python: (executablePath, args, signal = null) =>
+      invoke(executablePath, args, null, null, signal),
     close() {
       closed = true;
       for (const controller of controllers) controller.abort();

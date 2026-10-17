@@ -11,7 +11,8 @@ const BUILTIN = 'builtin-science';
  * @param {any} dependencies
  */
 export function createInstaller({ root, get, update, log, uv, command, envPath, interpreter }) {
-  async function sync(id, packages, lock = null) {
+  async function sync(id, packages, lock = null, signal = null) {
+    signal?.throwIfAborted();
     const temp = path.join(root, 'tmp', randomUUID());
     await mkdir(temp, { recursive: true });
     const input = path.join(temp, 'requirements.in'),
@@ -24,37 +25,44 @@ export function createInstaller({ root, get, update, log, uv, command, envPath, 
         const previous = get(id).lock;
         if (previous.length) await writeFile(output, previous.join('\n'));
         details.push(
-          await command([
-            'pip',
-            'compile',
-            input,
-            '--python',
-            interpreter(id),
-            '--output-file',
-            output,
-            '--no-header',
-            '--no-annotate',
-          ]),
+          await command(
+            [
+              'pip',
+              'compile',
+              input,
+              '--python',
+              interpreter(id),
+              '--output-file',
+              output,
+              '--no-header',
+              '--no-annotate',
+            ],
+            signal,
+          ),
         );
       }
       const resolved = requirements(await readFile(output, 'utf8'));
-      details.push(await command(['pip', 'sync', '--python', interpreter(id), output]));
+      details.push(await command(['pip', 'sync', '--python', interpreter(id), output], signal));
       return { lock: resolved, details };
     } finally {
       await rm(temp, { recursive: true, force: true });
     }
   }
-  async function prepare(id, packages, lock, actor, reason) {
+  async function prepare(id, packages, lock, actor, reason, signal = null) {
+    signal?.throwIfAborted();
     update(id, { status: 'preparing', error: null });
     const details = [];
     try {
       await mkdir(path.dirname(envPath(id)), { recursive: true });
       if (!(await stat(interpreter(id)).catch(() => null))) {
         details.push(
-          await command(['venv', '--managed-python', '--python', get(id).version, envPath(id)]),
+          await command(
+            ['venv', '--managed-python', '--python', get(id).version, envPath(id)],
+            signal,
+          ),
         );
       }
-      const versionResult = await uv.python(interpreter(id), ['--version']);
+      const versionResult = await uv.python(interpreter(id), ['--version'], signal);
       const version = `${versionResult.stdout} ${versionResult.stderr}`.match(
         /Python\s+(3\.\d+\.\d+)/u,
       )?.[1];
@@ -64,8 +72,9 @@ export function createInstaller({ root, get, update, log, uv, command, envPath, 
       let result;
       const failed = [];
       try {
-        result = await sync(id, packages, lock);
+        result = await sync(id, packages, lock, signal);
       } catch (error) {
+        signal?.throwIfAborted();
         if (id !== BUILTIN || !lock) throw error;
         details.push({ message: error.message, stdout: error.stdout, stderr: error.stderr });
         // A missing platform wheel must not prevent independent packages from
@@ -76,24 +85,28 @@ export function createInstaller({ root, get, update, log, uv, command, envPath, 
           for (const spec of packages) {
             try {
               details.push(
-                await command([
-                  'pip',
-                  'install',
-                  '--python',
-                  interpreter(id),
-                  '--constraint',
-                  constraints,
-                  spec,
-                ]),
+                await command(
+                  [
+                    'pip',
+                    'install',
+                    '--python',
+                    interpreter(id),
+                    '--constraint',
+                    constraints,
+                    spec,
+                  ],
+                  signal,
+                ),
               );
             } catch (failure) {
+              signal?.throwIfAborted();
               failed.push({ package: spec, reason: failure.message });
             }
           }
         } finally {
           await rm(constraints, { force: true });
         }
-        const frozen = await command(['pip', 'freeze', '--python', interpreter(id)]);
+        const frozen = await command(['pip', 'freeze', '--python', interpreter(id)], signal);
         result = { lock: requirements(frozen.stdout), details: [] };
       }
       const status = failed.length

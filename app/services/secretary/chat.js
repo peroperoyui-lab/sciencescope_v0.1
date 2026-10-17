@@ -5,11 +5,11 @@ import { createSecretaryCatchUp } from './catch-up.js';
 import { createDraftProposals } from './proposals.js';
 
 /**
- * @param {{core:import('../../core/index.js').Core,minutes:any,refreshWaitMs?:number}} dependencies
+ * @param {{core:import('../../core/index.js').Core,minutes:any,refreshWaitMs?:number,modelCatalog?:any}} dependencies
  * @returns {{ensure:(mainMeetingId:string)=>any,snapshot:(mainMeetingId:string)=>any,cursor:(meetingId:string)=>any,catchUp:(meetingId:string,options?:any)=>Promise<any>,propose:(context:any,args:any)=>any,decide:(proposalId:string,changes:any)=>any,list:(mainMeetingId:string)=>any[],history:(proposalId:string)=>any[],undo:(historyId:string)=>any}}
  */
-export function createSecretaryChat({ core, minutes, refreshWaitMs = 60000 }) {
-  const followUp = createSecretaryCatchUp({ core, minutes, refreshWaitMs });
+export function createSecretaryChat({ core, minutes, refreshWaitMs = 60000, modelCatalog }) {
+  const followUp = createSecretaryCatchUp({ core, minutes, refreshWaitMs, modelCatalog });
   const proposals = createDraftProposals(core);
 
   /**

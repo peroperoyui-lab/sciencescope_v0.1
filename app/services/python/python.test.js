@@ -3,10 +3,65 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { createApp } from '../../app.js';
 import { createScriptedRuntime } from '../../runtime/scripted.js';
-import { tempDir } from '../../testing.js';
+import { tempDir, withCore } from '../../testing.js';
+import { createPython } from './index.js';
 import { validatePackages } from './files.js';
 
 import { fakeUv } from './testing.js';
+
+test('stopping a model package-install tool aborts uv instead of leaving installation running', () =>
+  withCore('python-tool-stop', async (core) => {
+    const fake = fakeUv();
+    let block = false;
+    let active = false;
+    let started;
+    const ready = new Promise((resolve) => {
+      started = resolve;
+    });
+    const python = createPython(core, {
+      runner: async (command, args, options) => {
+        if (!block) return fake.runner(command, args, options);
+        active = true;
+        started();
+        try {
+          await new Promise((_, reject) =>
+            options.signal.addEventListener('abort', () => reject(options.signal.reason), {
+              once: true,
+            }),
+          );
+        } finally {
+          active = false;
+        }
+      },
+    });
+    try {
+      const environment = await python.operate({
+        action: 'create',
+        name: 'Stop fixture',
+        version: '3.14',
+      });
+      const controller = new AbortController();
+      block = true;
+      const installing = python.install(
+        {
+          meetingId: null,
+          environmentId: environment.id,
+          participantId: 'agent_main',
+          signal: controller.signal,
+        },
+        { packages: ['example-package'], reason: 'Stop verification' },
+      );
+      const settled = assert.rejects(installing);
+      await ready;
+      const stoppedAt = performance.now();
+      controller.abort();
+      await settled;
+      assert.equal(active, false);
+      assert.ok(performance.now() - stoppedAt < 2000);
+    } finally {
+      await python.close();
+    }
+  }));
 
 test('managed environments retain manifests, precedence, failure records and reset deleted bindings', async () => {
   const { dir, cleanup } = await tempDir('python-environments');

@@ -10,6 +10,7 @@ import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { createStartupLog } from './services/startup.js';
 
 // node:sqlite is still marked experimental; its warning is noise for users.
 process.removeAllListeners('warning');
@@ -26,12 +27,23 @@ const dataRoot =
   process.env.SCIENCESCOPE_DATA ??
   path.join(repoRoot, '.sciencescope-local', 'data');
 
+const startup = createStartupLog(dataRoot, {
+  nativeStart: Number(process.env.SCIENCESCOPE_STARTUP_NATIVE_MS) || undefined,
+  nodeSpawn: Number(process.env.SCIENCESCOPE_STARTUP_NODE_MS) || undefined,
+  nodeStart: performance.timeOrigin,
+});
+startup.mark('appImportStart');
 const { createApp } = await import('./app.js');
+startup.mark('appImportEnd');
 
 const token = randomBytes(32).toString('hex');
 let closing;
-const app = await createApp({ dataRoot, token, onShutdown: () => void shutdown() });
+startup.mark('createAppStart');
+const app = await createApp({ dataRoot, token, startup, onShutdown: () => void shutdown() });
+startup.mark('createAppEnd');
+startup.mark('httpListenStart');
 const url = await app.listen({ port: Number(values.port ?? 0) });
+startup.mark('httpListening');
 // `ui` opens the interface in the native window or, during development, a browser.
 const ui = `${url}/?token=${token}`;
 process.stdout.write(
@@ -41,6 +53,7 @@ process.stdout.write(
 async function shutdown() {
   closing ??= app.close();
   await closing;
+  await startup.finish();
   process.exit(0);
 }
 process.on('SIGINT', shutdown);

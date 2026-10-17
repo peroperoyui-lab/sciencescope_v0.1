@@ -1,13 +1,14 @@
 // Background work uses disposable runtime sessions. Each invocation records a
 // turn and usage, but creates neither a main-thread message nor a session cursor.
 import { AppError } from '../../core/errors.js';
+import { createTurnActivity } from '../turn-activity.js';
 
 /**
  * @param {{core:import('../../core/index.js').Core,runtime:import('../../runtime/port.js').Runtime,
- * defaultModel:(meeting?:any)=>Promise<import('../../runtime/port.js').ModelChoice|null>,tools?:any}} dependencies
+ * defaultModel:(meeting?:any)=>Promise<import('../../runtime/port.js').ModelChoice|null>,tools?:any,modelCatalog?:any}} dependencies
  * @returns {{run:(meetingId:string,instructions:string,input:string,prepared?:any)=>Promise<{text:string,turnId:string,usage:any}>,close:()=>Promise<void>,prepare:(meetingId:string,options?:{model?:any})=>Promise<any>}}
  */
-export function createBackgroundRunner({ core, runtime, defaultModel, tools }) {
+export function createBackgroundRunner({ core, runtime, defaultModel, tools, modelCatalog }) {
   const sessions = new Set();
   let closed = false;
 
@@ -31,13 +32,19 @@ export function createBackgroundRunner({ core, runtime, defaultModel, tools }) {
       throw new AppError('MODEL_REQUIRED', '请先选择秘书或会议使用的模型。');
     const settings = (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
     const provider = settings.providers.find((candidate) => candidate.id === model.provider);
-    const descriptor = provider?.models?.find((candidate) => candidate.id === model.model);
+    const descriptor = modelCatalog
+      ? await modelCatalog.descriptor(model)
+      : provider?.models?.find((candidate) => candidate.id === model.model);
     return {
       meeting,
       model,
       prompt: secretary.definition?.prompt ?? '',
-      contextWindow: descriptor?.contextWindow ?? /** @type {any} */ (model).contextWindow ?? null,
-      outputTokens: /** @type {any} */ (model).maxTokens ?? descriptor?.maxTokens ?? 0,
+      contextWindow:
+        descriptor?.contextWindow ??
+        (modelCatalog ? null : /** @type {any} */ (model).contextWindow) ??
+        null,
+      outputTokens:
+        descriptor?.maxTokens ?? (modelCatalog ? 0 : /** @type {any} */ (model).maxTokens) ?? 0,
     };
   }
   /**
@@ -52,6 +59,7 @@ export function createBackgroundRunner({ core, runtime, defaultModel, tools }) {
     const { meeting, model } = prepared;
     const project = meeting.projectId ? core.projects.get(meeting.projectId) : null;
     const turn = core.turns.start({ meetingId, participantId: 'agent_secretary' });
+    const activity = createTurnActivity(core, turn.id);
     let sessionId;
     let result;
     let text = '';
@@ -73,6 +81,7 @@ export function createBackgroundRunner({ core, runtime, defaultModel, tools }) {
               meetingId,
               turnId: turn.id,
               callId: call.callId,
+              signal: call.signal,
             });
             core.turns.endToolCall(turn.id, call.callId, { result: value, isError: false });
             return value;
@@ -91,6 +100,7 @@ export function createBackgroundRunner({ core, runtime, defaultModel, tools }) {
         throw new AppError('MINUTES_CLOSED', '纪要服务已关闭。', 409);
       }
       result = await runtime.send(sessionId, input, (event) => {
+        if (activity.onEvent(event)) return;
         if (event.type === 'attempt-start' || event.type === 'attempt-discarded') text = '';
         if (event.type === 'text-delta') text += event.delta;
         if (event.type === 'step-end') text = event.text;
@@ -130,6 +140,7 @@ export function createBackgroundRunner({ core, runtime, defaultModel, tools }) {
       error.turnId = turn.id;
       throw error;
     } finally {
+      activity.finish();
       if (tools) core.workspace.captureTurnSnapshots(turn.id);
       if (sessionId) {
         sessions.delete(sessionId);

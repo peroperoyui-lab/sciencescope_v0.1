@@ -1,7 +1,11 @@
 import { discoverModels, keyRefs, saveKey } from '../../services/providers.js';
 
-/** @param {import('../router.js').Router} router @param {import('../../core/index.js').Core} core */
-export function registerProviderRoutes(router, core) {
+/**
+ * @param {import('../router.js').Router} router
+ * @param {import('../../core/index.js').Core} core
+ * @param {ReturnType<typeof import('../../services/providers.js').createProviderService>} [providers]
+ */
+export function registerProviderRoutes(router, core, providers) {
   // Provider settings themselves are part of /api/settings (`providers`).
   // Keys go only to the credentials file and are never returned.
   router.get('/api/providers/keys', async () => ({ refs: await keyRefs(core.paths) }));
@@ -12,4 +16,14 @@ export function registerProviderRoutes(router, core) {
   router.post('/api/providers/discover', async ({ body }) => ({
     models: await discoverModels(core.paths, body),
   }));
+  if (providers) {
+    router.get('/api/providers/presets', () => providers.presets());
+    router.post('/api/providers/presets/:presetId', ({ params, body }) =>
+      providers.savePreset(params.presetId, String(body.key ?? '')),
+    );
+    router.post('/api/providers/:providerId/test', ({ params, body }) =>
+      providers.test(params.providerId, body.model),
+    );
+    router.get('/api/models', () => providers.models());
+  }
 }

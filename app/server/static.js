@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import { reportStartup } from './startup-client.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const uiRoot = path.join(repoRoot, 'app', 'ui');
@@ -61,8 +62,14 @@ function locate(pathname) {
  * Serve a static file. Returns false when there is no such file.
  * @param {string} pathname
  * @param {import('node:http').ServerResponse} response
+ * @param {boolean} [startupReport]
  */
-export async function serveStatic(pathname, response) {
+export async function serveStatic(pathname, response, startupReport = false) {
+  if (pathname === '/__startup.js') {
+    response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' });
+    response.end(`(${reportStartup.toString()})();`);
+    return true;
+  }
   if (pathname === '/vendor/reader.js') {
     readerBundle ??= build({
       entryPoints: [path.join(uiRoot, 'readers/vendor.js')],
@@ -84,6 +91,13 @@ export async function serveStatic(pathname, response) {
   } catch (error) {
     if (error.code === 'ENOENT' || error.code === 'EISDIR') return false;
     throw error;
+  }
+  if (startupReport && file === path.join(uiRoot, 'index.html')) {
+    body = Buffer.from(
+      body
+        .toString('utf8')
+        .replace('</head>', '<script type="module" src="/__startup.js"></script></head>'),
+    );
   }
   response.writeHead(200, {
     'content-type': TYPES[path.extname(file)] ?? 'application/octet-stream',

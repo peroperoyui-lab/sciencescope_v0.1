@@ -55,12 +55,14 @@ function tokenMatches(given, expected) {
 
 /**
  * @param {{ core: import('../core/index.js').Core, token: string,
- *   onShutdown?: () => void, deliverables?: {open?: typeof import('../services/system.js').openPath},
+ *   onShutdown?: () => void, startup?: {finish:(page?:any)=>Promise<void>},
+ *   deliverables?: {open?: typeof import('../services/system.js').openPath},
  *   versions?: ReturnType<typeof import('../services/versions/index.js').createVersions>,
  *   versionNotes?: ReturnType<typeof import('../services/versions/organizer.js').createVersionOrganizer>,
  *   minutes?: ReturnType<typeof import('../services/secretary/minutes.js').createMinutesService>,
  *   secretary?: ReturnType<typeof import('../services/secretary/chat.js').createSecretaryChat>,
  *   assistant?: ReturnType<typeof import('../services/assistant/index.js').createAssistant>,
+ *   providers?:ReturnType<typeof import('../services/providers.js').createProviderService>,
  *   memory?: any, researchInput?:ReturnType<typeof import('../services/research-input/index.js').createResearchInput>,
  *   python?:ReturnType<typeof import('../services/python/index.js').createPython>,
  *   research?: ReturnType<typeof import('../services/research/index.js').createResearch>, semantic?:any,
@@ -83,6 +85,8 @@ export function createAppServer({
   secretary,
   assistant,
   memory,
+  startup,
+  providers,
 }) {
   const router = createRouter();
   registerVersionRoutes(router, versions, versionNotes);
@@ -97,11 +101,20 @@ export function createAppServer({
   registerSecretaryRoutes(router, secretary);
   registerAssistantRoutes(router, assistant);
   registerMemoryRoutes(router, core, memory, research);
-  registerProviderRoutes(router, core);
+  registerProviderRoutes(router, core, providers);
   registerWorkspaceRoutes(router, core);
   registerEventRoutes(router, core);
   registerSystemRoutes(router, core);
   registerResearchRoutes(router, core, research, semantic);
+  if (startup) {
+    router.post('/api/startup/rendered', async ({ body }) => {
+      await startup.finish({
+        pageRendered: Number(body.pageRendered),
+        renderStatus: body.renderStatus === 'error' ? 'error' : 'rendered',
+      });
+      return { recorded: true };
+    });
+  }
   if (onShutdown) {
     router.post('/api/shutdown', ({ response }) => {
       response.once('finish', onShutdown);
@@ -118,7 +131,8 @@ export function createAppServer({
     };
     try {
       if (!url.pathname.startsWith('/api/')) {
-        if (request.method === 'GET' && (await serveStatic(url.pathname, response))) return;
+        if (request.method === 'GET' && (await serveStatic(url.pathname, response, !!startup)))
+          return;
         throw new AppError('NOT_FOUND', '没有这个地址。', 404);
       }
       const bearer = request.headers.authorization?.replace(/^Bearer /, '');

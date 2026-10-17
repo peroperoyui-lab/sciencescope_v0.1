@@ -36,10 +36,10 @@ async function waitAtMost(work, milliseconds, signal) {
 }
 
 /**
- * @param {{core:import('../../core/index.js').Core,minutes:any,refreshWaitMs?:number}} dependencies
+ * @param {{core:import('../../core/index.js').Core,minutes:any,refreshWaitMs?:number,modelCatalog?:any}} dependencies
  * @returns {{cursor:(meetingId:string)=>any,catchUp:(meetingId:string,options?:any)=>Promise<any>}}
  */
-export function createSecretaryCatchUp({ core, minutes, refreshWaitMs = 60000 }) {
+export function createSecretaryCatchUp({ core, minutes, refreshWaitMs = 60000, modelCatalog }) {
   const { db } = core;
 
   function revisionNumber(mainMeetingId, revisionId) {
@@ -140,9 +140,12 @@ export function createSecretaryCatchUp({ core, minutes, refreshWaitMs = 60000 })
     if (model && !contextWindow) {
       const settings = (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
       const provider = settings.providers.find((candidate) => candidate.id === model.provider);
-      const descriptor = provider?.models?.find((candidate) => candidate.id === model.model);
-      contextWindow = descriptor?.contextWindow ?? model.contextWindow;
-      outputTokens = model.maxTokens ?? descriptor?.maxTokens ?? outputTokens;
+      const descriptor = modelCatalog
+        ? await modelCatalog.descriptor(model)
+        : provider?.models?.find((candidate) => candidate.id === model.model);
+      contextWindow = descriptor?.contextWindow ?? (modelCatalog ? undefined : model.contextWindow);
+      outputTokens =
+        descriptor?.maxTokens ?? (modelCatalog ? outputTokens : (model.maxTokens ?? outputTokens));
     }
     if (instructions) instructionsTokens = estimateTokens(instructions);
     const available = contextWindow
