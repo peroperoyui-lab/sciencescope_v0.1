@@ -17,7 +17,7 @@
  *   Runs a ScienceScope tool on behalf of the session and returns its JSON result.
  *
  * @typedef {{ type: 'text-delta', delta: string }
- *   | { type: 'phase', phase: 'connecting' | 'thinking' | 'answering' | 'tool' | 'retrying' }
+ *   | { type: 'phase', phase: 'connecting' | 'thinking' | 'answering' | 'tool' | 'retrying' | 'waiting-approval' }
  *   | { type: 'thinking-delta', delta: string }
  *   | { type: 'retry', attempt: number, maxAttempts: number, error: string, delayMs: number }
  *   | { type: 'attempt-start' }

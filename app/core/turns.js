@@ -109,9 +109,17 @@ export function createTurns({ db, events, meetings, now, newId }) {
   }
 
   /**
-   * @param {{ turnId: string, callId: string, name: string, args: any, preamble?: string, kind?:string }} input
+   * @param {{ turnId: string, callId: string, name: string, args: any, preamble?: string, kind?:string, status?:string }} input
    */
-  function startToolCall({ turnId, callId, name, args, preamble = '', kind = 'tool' }) {
+  function startToolCall({
+    turnId,
+    callId,
+    name,
+    args,
+    preamble = '',
+    kind = 'tool',
+    status = 'running',
+  }) {
     const turn = get(turnId);
     const id = newId('tool');
     return db.transaction(() => {
@@ -120,7 +128,7 @@ export function createTurns({ db, events, meetings, now, newId }) {
         .get(turnId);
       db.prepare(
         `INSERT INTO tool_calls (id, turn_id, seq, call_id, name, args_json, status, preamble, started_at, kind)
-         VALUES (?, ?, ?, ?, ?, ?, 'running', ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       ).run(
         id,
         turnId,
@@ -128,6 +136,7 @@ export function createTurns({ db, events, meetings, now, newId }) {
         callId,
         name,
         JSON.stringify(args ?? null),
+        status,
         preamble,
         now(),
         kind,
@@ -165,9 +174,9 @@ export function createTurns({ db, events, meetings, now, newId }) {
   /**
    * @param {string} turnId
    * @param {string} callId
-   * @param {{ result: any, isError: boolean }} outcome
+   * @param {{ result: any, isError: boolean, status?:string }} outcome
    */
-  function endToolCall(turnId, callId, { result, isError }) {
+  function endToolCall(turnId, callId, { result, isError, status }) {
     const turn = get(turnId);
     const row = db
       .prepare('SELECT * FROM tool_calls WHERE turn_id = ? AND call_id = ?')
@@ -176,7 +185,7 @@ export function createTurns({ db, events, meetings, now, newId }) {
     return db.transaction(() => {
       db.prepare(
         'UPDATE tool_calls SET result_json = ?, status = ?, ended_at = ? WHERE id = ?',
-      ).run(JSON.stringify(result ?? null), isError ? 'failed' : 'done', now(), row.id);
+      ).run(JSON.stringify(result ?? null), status ?? (isError ? 'failed' : 'done'), now(), row.id);
       const call = toToolCall(db.prepare('SELECT * FROM tool_calls WHERE id = ?').get(row.id));
       events.record('tool.ended', call, scope(turn.meetingId, turn.participantId));
       return call;

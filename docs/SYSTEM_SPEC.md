@@ -1,5 +1,7 @@
 # ScienceScope 系统功能与技术说明
 
+P1b 分支现状（2026-10-17）：共享宿主工具已恢复 shell、文件读写/精确编辑/搜索与网页读取。会议 `policy.approval` 默认为 `ask`；shell、数据目录外写入和 Python 包安装经批准接口等待，活动保存 `approval` 与 `pending/approved/rejected/cancelled`，拒绝及取消不写 `turns.error`。批准 UI 由 Claude 接入；详细接口见 `02_INTERACTION_CONTRACTS.md` 2026-10-16 修订。
+
 > **这份文档记录"现在是怎样"，不规定"必须这样"。**
 > 它描述当前代码中每个功能的用途、状态、技术实现和验证证据，供开发者（Codex、Claude 及后来者）
 > 快速了解现状，也方便用户查阅。功能的设计以后可以改变；改变时同步更新本文档即可，

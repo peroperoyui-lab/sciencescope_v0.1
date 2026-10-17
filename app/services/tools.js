@@ -4,6 +4,7 @@ import { createResearch } from './research/index.js';
 import { AppError } from '../core/errors.js';
 import { createDeliverables } from './deliverables.js';
 import { BUILTIN_SPECS, createBuiltinTools } from './builtin-tools/index.js';
+import { createApprovals } from './approvals.js';
 
 /** @typedef {{ participantId: string, meetingId: string, turnId: string, callId?: string, environmentId?:string, signal?:AbortSignal, workFolder?:string, env?:{PATH?:string,VIRTUAL_ENV?:string} }} ToolContext */
 
@@ -172,6 +173,7 @@ export function createTools(
 ) {
   const deliverables = createDeliverables(core);
   const builtins = createBuiltinTools(core, python);
+  const approvals = createApprovals(core);
   async function nameOf(id) {
     try {
       return (await core.participants.get(id)).name;
@@ -233,6 +235,8 @@ export function createTools(
    * @param {ToolContext} context
    */
   async function run(name, args, context) {
+    const decision = await approvals.request(name, args, context);
+    if (decision) return decision;
     if (BUILTIN_SPECS.some((spec) => spec.name === name)) return builtins(name, args, context);
     if (name === 'goal_update')
       return core.goals.report(
@@ -307,5 +311,5 @@ export function createTools(
     throw new Error(`Unknown tool: ${name}`);
   }
 
-  return { specs: TOOL_SPECS, run };
+  return { specs: TOOL_SPECS, run, approvals };
 }

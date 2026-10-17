@@ -130,6 +130,7 @@ export async function createApp({
     memory,
     startup,
     providers,
+    approvals: tools.approvals,
   });
 
   return {
@@ -151,6 +152,7 @@ export async function createApp({
     listen: server.listen,
     async close() {
       conductor.stop();
+      tools.approvals.close();
       await versionNotes.close();
       await python.close();
       await memory.close();

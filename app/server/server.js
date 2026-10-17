@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import { AppError } from '../core/errors.js';
 import { createRouter } from './router.js';
+import { registerApprovalRoutes } from './routes/approvals.js';
 import { registerAssistantRoutes } from './routes/assistant.js';
 import { registerDeliverableRoutes } from './routes/deliverables.js';
 import { registerEventRoutes } from './routes/events.js';
@@ -63,6 +64,7 @@ function tokenMatches(given, expected) {
  *   secretary?: ReturnType<typeof import('../services/secretary/chat.js').createSecretaryChat>,
  *   assistant?: ReturnType<typeof import('../services/assistant/index.js').createAssistant>,
  *   providers?:ReturnType<typeof import('../services/providers.js').createProviderService>,
+ *   approvals?:ReturnType<typeof import('../services/approvals.js').createApprovals>,
  *   memory?: any, researchInput?:ReturnType<typeof import('../services/research-input/index.js').createResearchInput>,
  *   python?:ReturnType<typeof import('../services/python/index.js').createPython>,
  *   research?: ReturnType<typeof import('../services/research/index.js').createResearch>, semantic?:any,
@@ -87,8 +89,10 @@ export function createAppServer({
   memory,
   startup,
   providers,
+  approvals,
 }) {
   const router = createRouter();
+  registerApprovalRoutes(router, approvals);
   registerVersionRoutes(router, versions, versionNotes);
   registerPythonRoutes(router, python);
   registerDeliverableRoutes(router, core, deliverables);

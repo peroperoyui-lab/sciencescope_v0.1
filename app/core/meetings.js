@@ -6,7 +6,7 @@ import { AppError } from './errors.js';
 
 /**
  * @typedef {{ mode: 'direct' | 'round' | 'autonomous', respondent?: string | null,
- *   order?: string[], reviewer?: string | null, goal?: string | null,
+ *   order?: string[], reviewer?: string | null, goal?: string | null, approval?: 'ask' | 'auto',
  *   model?: import('../runtime/port.js').ModelChoice | null }} Policy
  * @typedef {{ participantId: string, roleNote: string, position: number }} Member
  * @typedef {{ id: string, projectId: string | null, title: string, policy: Policy,
@@ -16,7 +16,12 @@ import { AppError } from './errors.js';
  *   members: Member[] }} Meeting
  */
 
-export const DEFAULT_POLICY = { mode: 'direct', respondent: null };
+export const DEFAULT_POLICY = { mode: 'direct', respondent: null, approval: 'ask' };
+
+function validateApproval(policy) {
+  if (policy && Object.hasOwn(policy, 'approval') && !['ask', 'auto'].includes(policy.approval))
+    throw new AppError('INVALID_APPROVAL', 'approval must be ask or auto.');
+}
 
 const nullable = (value) => (value == null ? null : String(value));
 
@@ -44,7 +49,7 @@ export function createMeetings({ db, events, now, newId, paths }) {
       id: String(row.id),
       projectId: nullable(row.project_id),
       title: String(row.title),
-      policy: JSON.parse(String(row.policy_json)),
+      policy: { approval: 'ask', ...JSON.parse(String(row.policy_json)) },
       parentMeetingId: nullable(row.parent_meeting_id),
       forkMessageId: nullable(row.fork_message_id),
       attachedToMeetingId: nullable(row.attached_to_meeting_id),
@@ -101,6 +106,7 @@ export function createMeetings({ db, events, now, newId, paths }) {
   }
 
   function insert(input, actor) {
+    validateApproval(input.policy);
     const id = newId('mtg');
     const time = now();
     const project = input.projectId
@@ -159,6 +165,7 @@ export function createMeetings({ db, events, now, newId, paths }) {
    * @returns {Meeting}
    */
   function update(id, changes, actor = {}) {
+    validateApproval(changes.policy);
     const meeting = get(id);
     if (changes.policy?.mode === 'round') {
       const goal = db.prepare('SELECT status FROM meeting_goals WHERE meeting_id=?').get(id);

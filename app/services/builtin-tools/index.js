@@ -79,13 +79,7 @@ export function createBuiltinTools(core, python) {
   const temp = path.join(core.paths.root, 'temp');
   const files = createFileTools({ secret: core.paths.secret, temp });
   return async function run(name, args, context) {
-    const meeting = core.meetings.get(context.meetingId);
-    const project = meeting.projectId ? core.projects.get(meeting.projectId) : null;
-    const workFolder =
-      context.workFolder ??
-      meeting.workFolder ??
-      project?.folder ??
-      (project ? core.workspace.locate.projectDir(project.id) : core.paths.root);
+    const workFolder = toolWorkFolder(core, context);
     const toolContext = { workFolder, signal: context.signal, temp };
     if (name === 'web_fetch') return fetchPage(args, toolContext);
     if (name === 'shell') {
@@ -96,4 +90,20 @@ export function createBuiltinTools(core, python) {
     }
     return files(name, args, toolContext);
   };
+}
+
+/**
+ * Use the same target resolution for approval and execution.
+ * @param {import('../../core/index.js').Core} core
+ * @param {import('../tools.js').ToolContext} context
+ */
+export function toolWorkFolder(core, context) {
+  const meeting = core.meetings.get(context.meetingId);
+  const project = meeting.projectId ? core.projects.get(meeting.projectId) : null;
+  return (
+    context.workFolder ??
+    meeting.workFolder ??
+    project?.folder ??
+    (project ? core.workspace.locate.projectDir(project.id) : core.paths.root)
+  );
 }

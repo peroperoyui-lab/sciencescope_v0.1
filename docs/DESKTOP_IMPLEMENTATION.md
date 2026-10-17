@@ -1,5 +1,9 @@
 # Desktop implementation — first increment
 
+## 2026-10-17 P1b segment 2: request approval (Codex)
+- Shared tools.run approval covers shell, writes/edits outside data and package installs; policy defaults to ask, including legacy meetings. Persistent approval cards and POST decisions reuse tool/phase/goal events; rejection, stop, goal end, shutdown and restart leave no turn error. No UI changes or schema migration.
+- Host-boundary integration covers foreground and background callers without changing the agent loop. app.js/server.js wire lifecycle and HTTP; file approval/execution share path resolution. Related tests cover the API, model refusal, cancellation/recovery and auto mode; clean Windows check and real flash evidence are recorded on delivery.
+
 ## 2026-10-17 P1b segment 1: built-in host tools (Codex)
 - Added shell/read_file/write_file/edit_file/list_files/grep_files/web_fetch through the shared tool service; meeting Python environment reaches the shell, Windows uses PowerShell, stop/timeout ends its process tree. Large output keeps both ends and saves the complete bytes under data/temp; file tools preserve the credential-path exclusion. No UI changes.
 - Reference: pi-coding-agent 1.0.0 tools and shell/output handling (MIT), adapted design, no coding-agent dependency. Node glob and existing parse5 handle file search and readable external web content. Web search remains deferred in ROADMAP; approval and compaction follow in separate segments.
