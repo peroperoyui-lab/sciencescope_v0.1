@@ -1,7 +1,8 @@
 // Activity timeline of one answer (design system ActivityTimeline): the
-// model's words between calls and one row per tool call, each opening to its
-// details. Open while the answer runs; afterwards it folds into one summary
-// line. Every call stays visible, failed ones with their reason.
+// model's words between calls, its thinking, retries of a failed request and
+// one row per tool call, each opening to its details. Open while the answer
+// runs; afterwards it folds into one summary line. Every call stays visible,
+// failed ones with their reason.
 import { useEffect, useState } from 'preact/hooks';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
@@ -136,6 +137,9 @@ TOOLS.write_file = TOOLS.write;
 TOOLS.edit_file = TOOLS.edit;
 TOOLS.fetch = TOOLS.web_fetch;
 
+/** Tool calls proper; thinking and retries share the same activity list. @param {any} call */
+export const isToolCall = (call) => (call.kind ?? 'tool') === 'tool';
+
 /** @param {any} call */
 export function describeCall(call) {
   const known = TOOLS[call.name]?.(call.args);
@@ -163,6 +167,50 @@ export function duration(ms) {
   const seconds = Math.max(1, Math.round(ms / 1000));
   if (seconds < 60) return t('{n} 秒', { n: seconds });
   return t('{m} 分 {s} 秒', { m: Math.floor(seconds / 60), s: seconds % 60 });
+}
+
+/** One stretch of the model's thinking, opening to its text. @param {{ call: any, running: boolean }} props */
+function ThinkingRow({ call, running }) {
+  const [open, setOpen] = useState(false);
+  const active = call.status === 'running' && running;
+  const took =
+    call.endedAt && call.startedAt
+      ? duration(Date.parse(call.endedAt) - Date.parse(call.startedAt))
+      : '';
+  return html`<button
+      type="button"
+      class="ss-act__row"
+      data-activity="thinking"
+      aria-expanded=${open}
+      onClick=${() => setOpen(!open)}
+    >
+      ${active ? html`<span class="ss-spin"></span>` : html`<${Lucide} name="lightbulb" />`}
+      <span class="ss-act__verb"
+        >${active ? t('正在思考') : took ? t('思考了 {time}', { time: took }) : t('思考')}</span
+      >
+      <${Lucide} name="chevron-right" class="ss-act__chev" />
+    </button>
+    ${open && html`<div class="ss-act__thinking">${typeof call.result === 'string' ? call.result : ''}</div>`}`;
+}
+
+/** A request that failed before any answer and is tried again. @param {{ call: any }} props */
+function RetryRow({ call }) {
+  const { attempt, maxAttempts, error } = call.result ?? {};
+  return html`<div class="ss-act__row ss-act__row--warn" data-activity="retry">
+    <${Lucide} name="refresh-cw" /><span class="ss-act__verb">${t('重试')}</span>
+    ${error && html`<span class="ss-act__target ss-act__target--text">${error}</span>`}
+    ${
+      attempt &&
+      html`<span class="ss-act__end">${t('第 {n}/{m} 次', { n: attempt, m: maxAttempts })}</span>`
+    }
+  </div>`;
+}
+
+/** @param {{ call: any, running: boolean }} props */
+function ActivityRow({ call, running }) {
+  if (call.kind === 'thinking') return html`<${ThinkingRow} call=${call} running=${running} />`;
+  if (call.kind === 'retry') return html`<${RetryRow} call=${call} />`;
+  return html`<${CallRow} call=${call} running=${running} />`;
 }
 
 /** @param {{ call: any, running: boolean }} props */
@@ -220,14 +268,18 @@ export function ActivityTimeline({ calls, running, turn }) {
   }, [running]);
   if (!calls.length) return null;
   const open = chosen ?? running;
-  const failed = calls.filter((call) => call.status === 'failed').length;
+  const tools = calls.filter(isToolCall);
+  const failed = tools.filter((call) => call.status === 'failed').length;
+  const retries = calls.filter((call) => call.kind === 'retry').length;
   const started = turn?.startedAt ?? calls[0].startedAt;
   const ended = turn?.endedAt ?? calls.at(-1).endedAt;
   const parts = [];
   if (!running && started && ended)
     parts.push(t('用时 {time}', { time: duration(Date.parse(ended) - Date.parse(started)) }));
-  parts.push(t('{n} 个步骤', { n: calls.length }));
+  if (tools.length) parts.push(t('{n} 个步骤', { n: tools.length }));
+  else if (calls.some((call) => call.kind === 'thinking')) parts.push(t('已思考'));
   if (failed) parts.push(t('{n} 个失败', { n: failed }));
+  if (retries) parts.push(t('重试 {n} 次', { n: retries }));
   return html`<div class="ss-act" data-turn-activity data-running=${running || undefined}>
     ${
       !running &&
@@ -243,7 +295,7 @@ export function ActivityTimeline({ calls, running, turn }) {
     ${
       open &&
       html`<div class="ss-act__list">
-        ${calls.map((call) => html`<${CallRow} key=${call.id} call=${call} running=${running} />`)}
+        ${calls.map((call) => html`<${ActivityRow} key=${call.id} call=${call} running=${running} />`)}
       </div>`
     }
   </div>`;

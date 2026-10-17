@@ -6,7 +6,8 @@ import { useActions } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
-import { describeCall } from './timeline.js';
+import { navigate } from '../route.js';
+import { describeCall, isToolCall } from './timeline.js';
 
 /** Seconds since `since`, refreshed every second while shown. @param {string | undefined} since */
 function useSeconds(since) {
@@ -25,11 +26,14 @@ function Elapsed({ since }) {
   return since ? html`<span class="ss-status__time">${t('{n} 秒', { n: seconds })}</span>` : null;
 }
 
-/** @param {{ message: any, calls: any[], text: string, reason?: string }} props */
-export function StatusLine({ message, calls, text, reason }) {
+/**
+ * @param {{ message: any, turn?: any, calls: any[], text: string, reason?: string }} props
+ */
+export function StatusLine({ message, turn, calls, text, reason }) {
   const actions = useActions();
   if (message.status === 'streaming') {
-    const active = calls.findLast((call) => call.status === 'running');
+    const phase = turn?.phase ?? '';
+    const active = calls.findLast((call) => call.status === 'running' && isToolCall(call));
     if (active) {
       const shown = describeCall(active);
       return html`<div class="ss-status" role="status">
@@ -37,17 +41,48 @@ export function StatusLine({ message, calls, text, reason }) {
         <${Elapsed} since=${active.startedAt} />
       </div>`;
     }
+    if (phase === 'retrying') {
+      const retry = calls.findLast((call) => call.kind === 'retry');
+      const { attempt, maxAttempts } = retry?.result ?? {};
+      return html`<div class="ss-status ss-status--wait" role="status">
+        <${Lucide} name="refresh-cw" /><span
+          >${attempt ? t('正在重试（第 {n}/{m} 次）', { n: attempt, m: maxAttempts }) : t('正在重试')}</span
+        >
+        <${Elapsed} since=${retry?.endedAt} />
+      </div>`;
+    }
     if (text.trim()) return null;
+    if (phase === 'thinking') {
+      const thinking = calls.findLast((call) => call.kind === 'thinking');
+      return html`<div class="ss-status" role="status">
+        <${Lucide} name="lightbulb" /><span class="ss-shimmer">${t('正在思考')}</span>
+        <${Elapsed} since=${thinking?.startedAt} />
+      </div>`;
+    }
     const last = calls.at(-1);
+    const label = last
+      ? t('等待模型继续')
+      : phase === 'connecting'
+        ? t('正在连接模型')
+        : t('已发送，等待模型响应');
     return html`<div class="ss-status" role="status">
-      <span class="ss-spin"></span
-      ><span>${last ? t('等待模型继续') : t('已发送，等待模型响应')}</span>
+      <span class="ss-spin"></span><span>${label}</span>
       <${Elapsed} since=${last?.endedAt ?? message.createdAt} />
     </div>`;
   }
   if (message.status === 'failed')
     return html`<div class="ss-status ss-status--fail" role="status">
       <${Lucide} name="circle-alert" /><span>${reason ?? t('这次发言失败了。')}</span>
+      ${
+        /HTTP 40[13]|密钥/.test(reason ?? '') &&
+        html`<button
+          type="button"
+          class="ss-btn ss-btn--ghost ss-btn--sm"
+          onClick=${() => navigate({ view: 'settings', id: 'models' })}
+        >
+          ${t('去设置')}
+        </button>`
+      }
       <button
         type="button"
         class="ss-btn ss-btn--sm"

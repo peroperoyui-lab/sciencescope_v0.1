@@ -1063,6 +1063,17 @@ export const en = {
   新版本: 'New version',
   稿件版本: 'Manuscript version',
   所属项目: 'Project',
+  // Model phases, thinking and retries (P1a, 2026-10-17).
+  正在思考: 'Thinking',
+  '思考了 {time}': 'Thought for {time}',
+  思考: 'Thinking',
+  已思考: 'Thought',
+  '第 {n}/{m} 次': 'attempt {n} of {m}',
+  '重试 {n} 次': '{n} retries',
+  '正在重试（第 {n}/{m} 次）': 'Retrying (attempt {n} of {m})',
+  正在重试: 'Retrying',
+  正在连接模型: 'Connecting to the model',
+  去设置: 'Open settings',
   // P1-UI conversation page (2026-10-16).
   不思考: 'No reasoning',
   从这里分支: 'Branch from here',

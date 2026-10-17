@@ -5,6 +5,7 @@ import { InfoTip } from './info-tip.js';
 import { DiscussionMenu } from './discussion-menu.js';
 import { ChoiceMenu } from './popover.js';
 import { useDiscussion } from './discussion-state.js';
+import { isToolCall } from './timeline.js';
 
 /** @param {{meetingId:string,running:boolean}} props */
 export function DiscussionStrip({ meetingId, running }) {
@@ -22,7 +23,7 @@ export function DiscussionStrip({ meetingId, running }) {
   const stateOf = (id) => {
     const turn = turns.find((entry) => entry.participantId === id);
     if (!turn) return null;
-    return calls[turn.id]?.some((call) => call.status === 'running')
+    return calls[turn.id]?.some((call) => call.status === 'running' && isToolCall(call))
       ? 'tool'
       : messages.find((message) => message.turnId === turn.id)?.refs?.discussion?.phase ===
           'waiting'

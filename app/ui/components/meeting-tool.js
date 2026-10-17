@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
+import { isToolCall } from './timeline.js';
 
 /** @param {any} value */
 function pretty(value) {
@@ -40,7 +41,9 @@ function ToolCall({ call, running }) {
  * All tool calls of one answer as a single card.
  * @param {{ calls: any[], running: boolean }} props
  */
-export function ToolActivity({ calls, running }) {
+export function ToolActivity({ calls: activity, running }) {
+  // Thinking and retries have their own rows in the new timeline only.
+  const calls = activity.filter(isToolCall);
   /** @type {[boolean | null, (open: boolean | null) => void]} */
   const [chosen, setChosen] = useState(null);
   // Folding happens when the answer ends; an earlier choice does not survive it.

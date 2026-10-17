@@ -3,6 +3,4 @@
 export const FEATURES = {
   // 「请求批准」 execution mode and the approval card (task P1b).
   approval: false,
-  // "正在思考" and other model phases in the status line (tasks P1a / P1b).
-  phases: false,
 };

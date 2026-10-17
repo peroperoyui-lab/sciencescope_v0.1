@@ -3,6 +3,7 @@ import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { useActions } from '../context.js';
 import { InfoTip } from './info-tip.js';
+import { isToolCall } from './timeline.js';
 
 const labels = {
   waiting: '等待中',
@@ -15,7 +16,7 @@ const labels = {
 /** @param {any} message @param {any[]} calls @returns {string} */
 export function expertState(message, calls) {
   if (message.status !== 'streaming') return message.status === 'done' ? 'done' : 'failed';
-  if (calls.some((call) => call.status === 'running')) return 'tool';
+  if (calls.some((call) => call.status === 'running' && isToolCall(call))) return 'tool';
   return message.refs?.discussion?.phase === 'waiting' ? 'waiting' : 'running';
 }
 

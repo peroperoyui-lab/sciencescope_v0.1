@@ -15,6 +15,7 @@ function toTurn(row) {
     status: /** @type {TurnStatus} */ (String(row.status)),
     phase: String(row.phase),
     stopReason: nullable(row.stop_reason),
+    error: nullable(row.error),
     usage: row.usage_json == null ? null : JSON.parse(String(row.usage_json)),
     startedAt: String(row.started_at),
     endedAt: nullable(row.ended_at),
@@ -72,15 +73,15 @@ export function createTurns({ db, events, meetings, now, newId }) {
 
   /**
    * @param {string} id
-   * @param {{ status: TurnStatus, stopReason?: string | null, usage?: any }} result
+   * @param {{ status: TurnStatus, stopReason?: string | null, usage?: any, error?: string | null }} result
    */
-  function end(id, { status, stopReason = null, usage = null }) {
+  function end(id, { status, stopReason = null, usage = null, error = null }) {
     const turn = get(id);
     return db.transaction(() => {
       setPhase(id, '');
       db.prepare(
-        "UPDATE turns SET status = ?, stop_reason = ?, usage_json = ?, ended_at = ?, phase = '' WHERE id = ?",
-      ).run(status, stopReason, usage == null ? null : JSON.stringify(usage), now(), id);
+        "UPDATE turns SET status = ?, stop_reason = ?, usage_json = ?, error = ?, ended_at = ?, phase = '' WHERE id = ?",
+      ).run(status, stopReason, usage == null ? null : JSON.stringify(usage), error, now(), id);
       const ended = get(id);
       events.record('turn.ended', ended, scope(turn.meetingId, turn.participantId));
       return ended;

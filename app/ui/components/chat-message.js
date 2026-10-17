@@ -105,10 +105,13 @@ export function Message({ message, author, roleNote, target }) {
   const defaultModel = useAppState((state) => state.settings?.models?.default?.model);
   const streaming = message.status === 'streaming';
   const text = streaming ? (draft ?? message.text) : message.text;
-  // A failed turn with no answer stores its reason as the text; the status
-  // line shows it instead of the body.
-  const reason =
-    message.status === 'failed' && text.startsWith('这次发言失败了') ? text : undefined;
+  // The turn keeps why it failed. Without a partial answer the reason is also
+  // the message text (older answers: "这次发言失败了…"), shown only once.
+  const failed = message.status === 'failed';
+  const reason = failed
+    ? (turn?.error ?? (text.startsWith('这次发言失败了') ? text : undefined))
+    : undefined;
+  const body = text && !(failed && (text === reason || text.startsWith('这次发言失败了')));
   if (author?.kind === 'human') {
     return html`<article
       class="ss-msg ss-msg--user"
@@ -149,9 +152,9 @@ export function Message({ message, author, roleNote, target }) {
       ${expert && html`<${ExpertState} message=${message} calls=${calls} />`}
     </div>
     <${ActivityTimeline} calls=${calls} running=${streaming} turn=${turn} />
-    ${text && !reason && html`<div class="ss-msg__body"><${CitedMarkdown} message=${message} text=${text} /></div>`}
+    ${body && html`<div class="ss-msg__body"><${CitedMarkdown} message=${message} text=${text} /></div>`}
     <${Deliverables} files=${message.deliverables} />
-    <${StatusLine} message=${message} calls=${calls} text=${text} reason=${reason} />
+    <${StatusLine} message=${message} turn=${turn} calls=${calls} text=${text} reason=${reason} />
     ${review && html`<${ReviewAdoption} message=${message} />`}
     ${!streaming && html`<${MessageFoot} message=${message} answer=${true} />`}
   </article>`;

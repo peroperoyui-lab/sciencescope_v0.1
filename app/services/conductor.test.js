@@ -226,17 +226,24 @@ test('interrupting stops the answer and keeps what was written', async () => {
   );
 });
 
-test('a failed answer can be retried and the same AI answers again', () => {
+test('a failed answer keeps its partial text and reason, and can be retried by the same AI', () => {
   let attempts = 0;
   return withMeeting(
     async function* () {
       attempts += 1;
-      if (attempts === 1) yield { stop: 'failed', error: 'HTTP 502' };
-      else yield '这次成功了';
+      if (attempts === 1) {
+        yield '先读了一半';
+        yield { stop: 'failed', error: '服务暂时不可用（HTTP 502），已尝试 3 次。' };
+      } else yield '这次成功了';
     },
     async ({ meeting, say, conductor, core }) => {
       const failed = (await say('先看数据')).at(-1);
       assert.equal(failed.status, 'failed');
+      assert.equal(failed.text, '先读了一半');
+      assert.equal(
+        core.turns.get(failed.turnId).error,
+        '服务暂时不可用（HTTP 502），已尝试 3 次。',
+      );
       await conductor.retry(failed.id);
       const answer = core.messages.list(meeting.id).messages.at(-1);
       assert.equal(answer.text, '这次成功了');

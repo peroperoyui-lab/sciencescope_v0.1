@@ -168,7 +168,18 @@ export function applyEvent(state, { type, payload }) {
             ? { ...state.acknowledgedActivity, [payload.meetingId]: payload.endedAt }
             : state.acknowledgedActivity,
       };
+    case 'turn.phase':
+      // A late phase must not revive a turn that has already ended.
+      if (state.turns[payload.id]?.endedAt) return state;
+      return {
+        ...state,
+        turns: { ...state.turns, [payload.id]: payload },
+        running: state.running[payload.id]
+          ? { ...state.running, [payload.id]: payload }
+          : state.running,
+      };
     case 'tool.started':
+    case 'tool.updated':
     case 'tool.ended': {
       const calls = upsert(state.toolCalls[payload.turnId] ?? [], payload).sort(
         (a, b) => a.seq - b.seq,

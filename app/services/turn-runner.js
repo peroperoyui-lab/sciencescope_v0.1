@@ -267,6 +267,7 @@ export function createTurnRunner({
         status,
         stopReason: execution.cancelled ? 'cancelled' : result.stopReason,
         usage: result.usage,
+        error: status === 'failed' ? (result.error ?? null) : null,
       });
     } catch (error) {
       const status = execution.cancelled ? 'cancelled' : 'failed';
@@ -277,6 +278,7 @@ export function createTurnRunner({
       return endTurn({
         status,
         stopReason: execution.cancelled ? 'cancelled' : 'error',
+        error: status === 'failed' ? error.message : null,
       });
     } finally {
       activity.finish();
