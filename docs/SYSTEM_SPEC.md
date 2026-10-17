@@ -1,5 +1,9 @@
 # ScienceScope 系统功能与技术说明
 
+P1b 分支现状（2026-10-17）：共享宿主工具已恢复 shell、文件读写/精确编辑/搜索与网页读取。会议 `policy.approval` 默认为 `ask`；shell、数据目录外写入和 Python 包安装经批准接口等待，活动保存 `approval` 与 `pending/approved/rejected/cancelled`，拒绝及取消不写 `turns.error`。批准 UI 由 Claude 接入；详细接口见 `02_INTERACTION_CONTRACTS.md` 2026-10-16 修订。
+
+P1b 压缩分支现状：全局 `context.compactPercent` 默认 80，可设置 50–95。每次模型请求前按实际发送内容的 UTF-8 大小估算上下文；达到比例时，同模型单次请求整理较早消息，最近两轮用户消息及其后工具结果保留原文。成功后原子保存会话、发 `compaction` 活动（`result={beforeTokens,afterTokens}`，均为估算）；阶段为 `compacting`。摘要失败或达到输出上限时保留原文继续；请求日志 `purpose=compaction` 记录用量及失败。秘书纪要与会议原文保持独立，设置和提示界面由 Claude 接入。
+
 > **这份文档记录"现在是怎样"，不规定"必须这样"。**
 > 它描述当前代码中每个功能的用途、状态、技术实现和验证证据，供开发者（Codex、Claude 及后来者）
 > 快速了解现状，也方便用户查阅。功能的设计以后可以改变；改变时同步更新本文档即可，

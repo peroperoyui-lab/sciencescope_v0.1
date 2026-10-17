@@ -2,6 +2,12 @@
 
 版本：v0.3 / 2026-09-17。适用于本轮原型及本地 Codex 开发。保留用户认可的浅灰白、低饱和绿和原 Logo。
 
+## 桌面修订：2026-10-16 请求批准（P1b 后端于 2026-10-17 接入）
+
+会议发言规则增加 `approval: ask | auto`，新会议与未设置的旧会议默认 `ask`。请求批准时，每条 shell 命令、数据目录外的文件写入和编辑、Python 包安装先等待决定；读取和有历史版本的工作区编辑直接执行。`POST /api/turns/:turnId/approvals/:activityId` 接受 `decision: approve | reject`；活动 `kind=approval` 的 `args={tool,summary}` 展示完整命令、目标路径及编辑行数或包列表。状态为 `pending → approved/rejected/cancelled`，通过 `tool.ended` 通知；等待阶段为 `waiting-approval`，目标通过既有 `goal.changed` 刷新。拒绝和取消不记为发言失败；重启不会继续执行待批准操作。界面三项由 Claude 接入：请求批准（direct+ask）、常规（direct+auto）、自动化（autonomous+auto），覆盖下文 2026-10-07 第 7 条。
+
+压缩接口补充（2026-10-17）：`GET/PATCH /api/settings` 的 `context.compactPercent` 为全局门槛，默认 80，范围 50–95。运行时阶段新增 `compacting`；完成事件 `compaction={beforeTokens,afterTokens}` 投影为 `kind=compaction` 的活动条目，`result` 保存两个估算值，并通过既有 `tool.started/tool.ended` 到达界面。摘要失败只记请求日志，仍使用原文继续回答；压缩期间停止会取消摘要请求。批准及压缩界面仍由 Claude 接入。
+
 ## 桌面修订：2026-10-12 用户确认的行为
 
 1. **工具记录自动收起**：一条回答的全部工具调用合成一张"工具记录"卡片（旧版 `.turn-activity` 结构）。回答进行中卡片展开，按顺序显示行动前导语和工具调用；回答结束后自动收起成一行（"工具记录 · N"，附最后一句前导语）。用户随时可以点开或收起；回答结束后用户的选择保持不变。参考：Codex 桌面版的工具折叠方式。

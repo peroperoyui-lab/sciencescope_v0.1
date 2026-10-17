@@ -43,6 +43,7 @@ export const DEFAULT_SETTINGS = {
   providers: [],
   // The model AIs use unless their own definition names one.
   models: { default: null },
+  context: { compactPercent: 80 },
   semantic: DEFAULT_SEMANTIC_SETTINGS,
   // A cumulative input/output cost budget; null turns the budget off.
   memory: { enabled: true, idleMinutes: 10, model: null, tokenLimit: 100000 },
@@ -82,6 +83,12 @@ function parse(text) {
 }
 
 function format(value) {
+  const percent = value.context?.compactPercent;
+  if (typeof percent !== 'number' || !Number.isFinite(percent) || percent < 50 || percent > 95)
+    throw new AppError(
+      'INVALID_COMPACTION_PERCENT',
+      'context.compactPercent must be between 50 and 95.',
+    );
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 

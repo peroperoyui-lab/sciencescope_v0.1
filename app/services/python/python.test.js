@@ -187,6 +187,7 @@ test('meeting environment changes on next turn while tool installation retains a
     });
     const meeting = app.core.meetings.create({
       members: [{ participantId: 'person_user' }, { participantId: 'agent_main' }],
+      policy: { approval: 'auto' },
     });
     app.python.bind('meeting', meeting.id, a.id);
     app.conductor.submit({
