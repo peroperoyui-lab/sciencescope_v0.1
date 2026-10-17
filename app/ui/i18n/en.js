@@ -1155,6 +1155,9 @@ export const en = {
   默认模型: 'Default model',
   '默认模型属于这个服务商，移除后请重新选择默认模型。':
     'The default model belongs to this provider. Choose a new default after removing it.',
+  '{name} 有内置配置：每个模型的接口格式和上限会自动设置，密钥沿用。':
+    '{name} has a built-in configuration: each model gets its API format and limits automatically, and the key is kept.',
+  改用内置配置: 'Use built-in configuration',
   // P1-UI conversation page (2026-10-16).
   不思考: 'No reasoning',
   从这里分支: 'Branch from here',

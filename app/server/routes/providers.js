@@ -21,6 +21,9 @@ export function registerProviderRoutes(router, core, providers) {
     router.post('/api/providers/presets/:presetId', ({ params, body }) =>
       providers.savePreset(params.presetId, String(body.key ?? '')),
     );
+    router.post('/api/providers/:providerId/adopt-preset', ({ params, body }) =>
+      providers.adoptPreset(params.providerId, String(body.preset ?? '')),
+    );
     router.post('/api/providers/:providerId/test', ({ params, body }) =>
       providers.test(params.providerId, body.model),
     );

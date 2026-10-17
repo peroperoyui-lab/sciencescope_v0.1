@@ -104,6 +104,66 @@ export function createProviderService({ core, catalog, runtime }) {
       );
       return entry;
     },
+    /**
+     * Replace a hand-configured provider with the built-in preset for the same
+     * service (an OpenCode Go entry from before P1a): its key moves to the
+     * preset, and every model choice that named it follows when the preset has
+     * that model, otherwise falls back to the inherited default.
+     * @param {string} id @param {string} presetId
+     */
+    async adoptPreset(id, presetId) {
+      const entry = catalog.preset(presetId);
+      const settings = (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
+      const old = settings.providers.find((provider) => provider.id === id);
+      if (!old) throw new AppError('PROVIDER_NOT_FOUND', '找不到这个服务商。', 404);
+      const key = (await readCredentials(core.paths)).refs?.[old.keyRef];
+      if (key) await saveKey(core.paths, entry.keyRef, key);
+      const follow = (choice) =>
+        choice?.provider !== id
+          ? choice
+          : entry.models.some((model) => model.id === choice.model)
+            ? { ...choice, provider: presetId }
+            : null;
+      const actor = { actorId: 'person_user' };
+      await core.workspace.edit(
+        {
+          resource: 'settings',
+          key: 'app',
+          op: 'patch',
+          args: {
+            changes: {
+              providers: [
+                ...settings.providers.filter(
+                  (provider) => provider.id !== id && provider.id !== presetId,
+                ),
+                entry,
+              ],
+              models: { default: follow(settings.models.default) },
+              memory: { model: follow(settings.memory?.model) },
+            },
+          },
+        },
+        actor,
+      );
+      for (const participant of core.participants.list()) {
+        if (participant.kind !== 'ai') continue;
+        const { definition } = await core.participants.get(participant.id);
+        if (definition.model?.provider === id)
+          await core.participants.updateDefinition(
+            participant.id,
+            { model: follow(definition.model) },
+            actor,
+          );
+      }
+      for (const meeting of core.meetings.list({ includeArchived: true }))
+        if (meeting.policy.model?.provider === id)
+          core.meetings.update(
+            meeting.id,
+            { policy: { model: follow(meeting.policy.model) } },
+            actor,
+          );
+      return entry;
+    },
     async test(id, modelId) {
       const settings = (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
       const provider = settings.providers.find((entry) => entry.id === id);

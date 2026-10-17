@@ -33,6 +33,8 @@ const PRESETS = {
 };
 /** Rows a provider card shows before "显示全部". */
 const SHOWN_MODELS = 8;
+/** Hand-configured services that a built-in preset covers better. */
+const PRESET_URLS = { 'opencode-go': /opencode\.ai\/zen\/go/i, deepseek: /api\.deepseek\.com/i };
 const SOURCES = { catalog: '目录', matched: '匹配', default: '默认值' };
 const PROTOCOLS = [
   ['openai-completions', 'OpenAI Chat Completions'],
@@ -234,9 +236,13 @@ function ModelTable({ provider }) {
 
 /**
  * @param {{ provider: any, entry: any, test: any, onTest: () => void,
- *   onKey: () => void, onMenu: (event: Event) => void }} props
+ *   onKey: () => void, onMenu: (event: Event) => void, onAdopt: (preset: string) => void }} props
  */
-function ProviderCard({ provider, entry, test, onTest, onKey, onMenu }) {
+function ProviderCard({ provider, entry, test, onTest, onKey, onMenu, onAdopt }) {
+  const builtin =
+    !provider.preset && entry?.baseUrl
+      ? Object.keys(PRESET_URLS).find((id) => PRESET_URLS[id].test(entry.baseUrl))
+      : undefined;
   const name = PRESETS[provider.preset] ? t(PRESETS[provider.preset].name) : provider.name;
   const meta = [
     entry?.baseUrl && !provider.preset ? hostOf(entry.baseUrl) : '',
@@ -299,6 +305,24 @@ function ProviderCard({ provider, entry, test, onTest, onKey, onMenu }) {
         <${Lucide} name="ellipsis" />
       </button>
     </div>
+    ${
+      builtin &&
+      html`<div class="ss-provider__hint">
+        <div class="ss-callout">
+          <${Lucide} name="info" />
+          <div class="ss-callout__body">
+            ${t('{name} 有内置配置：每个模型的接口格式和上限会自动设置，密钥沿用。', {
+              name: t(PRESETS[builtin].name),
+            })}
+          </div>
+          <div class="ss-callout__actions">
+            <button type="button" class="ss-btn ss-btn--sm" onClick=${() => onAdopt(builtin)}>
+              ${t('改用内置配置')}
+            </button>
+          </div>
+        </div>
+      </div>`
+    }
     ${provider.models.length > 0 && html`<${ModelTable} provider=${provider} />`}
   </article>`;
 }
@@ -522,6 +546,11 @@ export function ModelsPage() {
               onTest=${() => test(provider.id)}
               onKey=${() => updateKey(provider)}
               onMenu=${(event) => openMenu(event, provider)}
+              onAdopt=${(preset) =>
+                actions.attempt(async () => {
+                  await actions.adoptPreset(provider.id, preset);
+                  await test(preset);
+                })}
             />`,
         )}
       </section>`

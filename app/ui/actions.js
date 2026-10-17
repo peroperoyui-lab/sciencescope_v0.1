@@ -454,6 +454,12 @@ export function createActions(api, store) {
     await loadModels(true);
     return provider;
   }
+  /** Replace a hand-configured provider with the matching preset, keeping its key. */
+  async function adoptPreset(id, preset) {
+    await api.post(`/api/providers/${id}/adopt-preset`, { preset });
+    set({ settings: await api.get('/api/settings') });
+    await loadModels(true);
+  }
   /** One very short request. @param {string} id @param {string} [model] */
   const testProvider = (id, model) => api.post(`/api/providers/${id}/test`, { model });
   /** A participant with its definition (AIs). @param {string} id */
@@ -573,6 +579,7 @@ export function createActions(api, store) {
     loadModels,
     providerPresets,
     savePreset,
+    adoptPreset,
     testProvider,
     getParticipant,
     updateParticipant,

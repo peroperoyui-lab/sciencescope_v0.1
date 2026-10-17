@@ -1,5 +1,9 @@
 # Desktop implementation — first increment
 
+## 2026-10-17 R6a-4 review (Claude)
+- Merged Sol's second preview (`46539ee`, with R6a-3 pruning `94c4738`). Fresh install 9,697 files / 356 MiB, 164 s; overlay onto the user's preview 208 s but keeps the old dependency files (31,030 files), left for a follow-up installer cleanup.
+- The user's pre-P1a OpenCode Go provider (hand-configured, one API format for all models) answered the connection test with HTTP 400. Added `POST /api/providers/:id/adopt-preset` and a "改用内置配置" hint on cards whose address matches a preset: the key moves to the preset, and the default model, memory model, expert definitions and meeting overrides follow when the preset has the model (otherwise they fall back to inheriting). Browser test covers it.
+
 ## 2026-10-17 R6a-4 second preview package (Codex)
 - From 53cf686, cherry-picked R6a-3 5b8e8a1 as 94c4738; app/ unchanged. Formal 1.0.0-alpha.0: 95,426,967 bytes; fresh install 9,697 files / 356.18 MiB. Clean Windows check 244/244 (both Windows-only tests), packaging tests 2/2.
 - Fresh install 163.966 s; quick add, thinking, reject/allow, normal execution, stop (196 ms) and saved 70% threshold pass. Test product removed with data in 68.84 s; native WebView 100%/125% viewport captures retained.

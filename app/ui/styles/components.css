@@ -3131,6 +3131,9 @@ button.ss-act__row:hover {
 .ss-provider__body .ss-table tr:last-child td {
   border-bottom: 0;
 }
+.ss-provider__hint {
+  padding: 0 8px 8px 12px;
+}
 .ss-provider__more {
   margin: 4px 0 6px 4px;
 }

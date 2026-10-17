@@ -107,3 +107,62 @@ test(
       assert.equal(expert.definition.panel, 'expert');
     }),
 );
+
+test(
+  'an OpenCode Go service configured by hand switches to the built-in preset and keeps its key and choices',
+  { skip: browserSkip },
+  () =>
+    withBrowserApp('ui-settings-adopt', silent, async ({ page, app }) => {
+      const settings = async () =>
+        (await app.core.workspace.read({ resource: 'settings', key: 'app' })).value;
+      const old = { provider: 'opencode-go-old', model: 'deepseek-v4.1-flash' };
+      await app.core.workspace.edit({
+        resource: 'settings',
+        key: 'app',
+        op: 'patch',
+        args: {
+          changes: {
+            providers: [
+              {
+                id: 'opencode-go-old',
+                name: 'OpenCode Go',
+                api: 'openai-completions',
+                baseUrl: 'https://opencode.ai/zen/go/v1',
+                keyRef: 'SCIENCESCOPE_OPENCODE_GO_KEY',
+                models: [{ id: 'deepseek-v4.1-flash' }, { id: 'retired-model' }],
+              },
+            ],
+            models: { default: old },
+          },
+        },
+      });
+      await fetch(`${page.url().split('#')[0]}api/providers/keys/SCIENCESCOPE_OPENCODE_GO_KEY`, {
+        method: 'POST',
+        headers: { authorization: 'Bearer ui-token', 'content-type': 'application/json' },
+        body: JSON.stringify({ key: 'sk-old' }),
+      });
+      await app.core.participants.updateDefinition('agent_reviewer', {
+        model: { provider: 'opencode-go-old', model: 'retired-model' },
+      });
+
+      await page.goto(new URL('/?token=ui-token#/settings/models', page.url()).href);
+      const card = page.locator('[data-provider="opencode-go-old"]');
+      await card.getByRole('button', { name: '改用内置配置' }).click();
+      await page
+        .locator('[data-provider="opencode-go"]')
+        .getByText(/连接正常/)
+        .waitFor();
+      await card.waitFor({ state: 'detached' });
+
+      const saved = await settings();
+      assert.deepEqual(
+        saved.providers.map((provider) => provider.preset),
+        ['opencode-go'],
+      );
+      assert.deepEqual(saved.models.default, { ...old, provider: 'opencode-go' });
+      const reviewer = await app.core.participants.get('agent_reviewer');
+      assert.equal(reviewer.definition.model ?? null, null);
+      const { readCredentials } = await import('../services/providers.js');
+      assert.equal((await readCredentials(app.core.paths)).refs['opencode-go'], 'sk-old');
+    }),
+);
