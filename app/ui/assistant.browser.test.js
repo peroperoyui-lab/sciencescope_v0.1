@@ -78,8 +78,12 @@ test(
           await input.waitFor();
           await panel.getByRole('button', { name: '助手模型', exact: true }).waitFor();
           assert.match(await panel.innerText(), /assistant-model/u);
-          await panel.getByRole('button', { name: '助手思考强度', exact: true }).click();
-          await page.getByRole('menuitemcheckbox', { name: 'high', exact: true }).click();
+          await panel.getByRole('button', { name: '助手模型', exact: true }).click();
+          await page
+            .getByRole('dialog', { name: '助手模型', exact: true })
+            .getByRole('button', { name: '高', exact: true })
+            .click();
+          await panel.getByRole('button', { name: '助手模型', exact: true }).click();
           await input.fill('Which projects have pending tasks?');
           await input.dispatchEvent('keydown', { key: 'Enter', isComposing: true, bubbles: true });
           assert.equal(requests, 0);
@@ -101,7 +105,12 @@ test(
             .getByRole('button', { name: '全局助手', exact: true })
             .click();
           assert.equal(await input.inputValue(), 'Draft survives hiding.');
-          await panel.getByRole('button', { name: '停止助手回复', exact: true }).waitFor();
+          // Still answering: with text in the box the button queues instead of stopping.
+          await panel.locator('.ss-msg[data-streaming]').waitFor();
+          assert.equal(
+            await panel.getByRole('button', { name: '发送给全局助手', exact: true }).isEnabled(),
+            true,
+          );
           assert.equal(requests, 1);
           await panel.getByRole('link', { name: 'Open project', exact: true }).click();
           await page.waitForURL('**/#/workbench/' + projectId);

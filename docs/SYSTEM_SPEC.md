@@ -326,6 +326,7 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
 - **用途与操作**：每个主对话有一位私有秘书（侧栏），历史与主对话分开；可选模型、推理强度、询问/完全接管，可上传附件。
   秘书可以用 `propose_main_draft` 工具起草给主专家的指令，界面出现可编辑的提案卡片，
   由用户确认后才填入主对话草稿，仍需用户自己发送。
+- **界面（2026-10-17，Claude）**：秘书和全局助手是右侧面板（`app/ui/components/side-panel.js`），拖动左边缘调宽、双击恢复，宽度存 `appearance.panels`。对话用和主对话相同的消息、活动时间线、批准卡片和状态行（`assistant-surface.js` 复用 `chat-message.js`），消息底部只有复制和重新回答。输入框：添加、执行方式两档（请求批准 / 常规，存会议 `policy.approval`，面板不提供自动化）、模型和思考强度（`model-picker.js` 的覆盖模式：第一项跟随继承的模型，其余写会议 `policy.model`，不改默认模型）、发送 / 停止合一。秘书面板顶部一行写跟进位置；提案是卡片（待审阅 / 已填入草稿 / 已忽略，修改记录可撤销）。
 - **状态**：🟡（既有单元、DSH、界面、原生证据；T17 自动跟进层已通过完整测试、smoke 与 UI 截图复核，T17 原生客户端未重测）。
 - **技术实现**：前端 `desktop/assistant-chat.mjs`（秘书与全局助手共用）；后端 `scripts/assistant-chat-service.mjs`、`assistant-conversations.mjs`；
   接口 `GET /api/assistant`、`POST /api/assistant/chat|draft|model|approval|stop|proposal/resolve`；

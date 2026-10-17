@@ -381,9 +381,7 @@ export function MeetingView({ meetingId, focusMessageId }) {
           onGoal=${(text, input, maxRounds) => actions.startGoal(meeting.id, text, maxRounds, input)}
         />
       </div>
-      <div class=${`workspace-panel-slot ${secretary ? 'is-open' : ''}`}>
-        ${secretary && html`<${SecretaryPanel} mainMeetingId=${meeting.id} onClose=${() => setSecretary(false)} />`}
-      </div>
+      ${secretary && html`<${SecretaryPanel} mainMeetingId=${meeting.id} onClose=${() => setSecretary(false)} />`}
     </div>
     ${summary && project && html`<${ProjectSummary} project=${project} onClose=${() => setSummary(false)} />`}
   </main>`;

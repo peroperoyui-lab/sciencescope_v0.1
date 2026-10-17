@@ -78,7 +78,9 @@ test(
             const mainInput = page.locator('[data-composer="main"] textarea');
             await mainInput.fill('Keep this Main draft.');
             await page.getByRole('button', { name: '会议秘书', exact: true }).click();
-            const panel = page.locator('.assistant-rightpanel');
+            const panel = page.locator('.side-panel', {
+              has: page.locator('[data-scope="secretary"]'),
+            });
             const input = panel.getByLabel('任务秘书输入');
             await input.waitFor();
             await input.fill('Temporary secretary draft.');
@@ -87,16 +89,14 @@ test(
             assert.equal(await input.inputValue(), 'Temporary secretary draft.');
             assert.equal(await mainInput.inputValue(), 'Keep this Main draft.');
             await panel.getByRole('button', { name: '秘书模型', exact: true }).click();
-            await page
-              .getByRole('menuitemcheckbox', { name: 'Scripted / secretary-model', exact: true })
-              .click();
-            await panel.getByRole('button', { name: '秘书思考强度', exact: true }).click();
-            await page.getByRole('menuitemcheckbox', { name: 'high', exact: true }).click();
+            const picker = page.getByRole('dialog', { name: '秘书模型', exact: true });
+            await picker.getByRole('option', { name: /secretary-model/u }).click();
+            await picker.getByRole('button', { name: '高', exact: true }).click();
             const attached = app.core.meetings.list({ attachedTo: main.id })[0];
             await page.waitForFunction(() =>
               document
-                .querySelector('.assistant-composer .composerbar')
-                ?.textContent.includes('high'),
+                .querySelector('[data-composer="secretary"] .ss-composer__bar')
+                ?.textContent.includes('secretary-model · 高'),
             );
             assert.deepEqual(app.core.meetings.get(attached.id).policy.model, {
               provider: 'scripted',
@@ -125,7 +125,7 @@ test(
             assert.equal(app.core.messages.since(attached.id, 0).length, before);
             await panel.getByRole('button', { name: '发送给任务秘书', exact: true }).click();
             await panel.getByRole('heading', { name: 'Secretary response', exact: true }).waitFor();
-            const proposal = panel.locator('.assistant-proposal').first();
+            const proposal = panel.locator('.ss-proposal').first();
             await proposal.getByLabel('编辑秘书提案').waitFor();
             await proposal
               .getByLabel('编辑秘书提案')
@@ -136,7 +136,7 @@ test(
             await panel.getByText('The proposed instruction is ready.', { exact: false }).waitFor();
             await panel.locator('[data-follow-up]', { hasText: '第 1 条' }).waitFor();
             assert.match(inputs[0].input, /selected a natural experiment/u);
-            await proposal.getByRole('button', { name: '确认填入主对话草稿', exact: true }).click();
+            await proposal.getByRole('button', { name: '填入主对话草稿', exact: true }).click();
             await page.waitForFunction(
               () =>
                 /** @type {HTMLTextAreaElement} */ (
@@ -151,10 +151,10 @@ test(
             await shot('r4-4b-secretary-filled-zh');
             await page.reload();
             await page.getByRole('button', { name: '会议秘书', exact: true }).click();
-            await panel.getByText('秘书提案 · 已填入草稿', { exact: true }).waitFor();
-            await panel.getByText('秘书提案 · 已填入草稿', { exact: true }).click();
+            await proposal.getByText('已填入草稿', { exact: true }).waitFor();
+            await proposal.getByRole('button', { name: /秘书提案/u }).click();
             assert.match(await panel.innerText(), /Edited instruction/u);
-            await proposal.getByText('最近修改记录', { exact: true }).click();
+            await proposal.getByRole('button', { name: '最近修改记录', exact: true }).click();
             await proposal.getByRole('button', { name: '撤销', exact: true }).first().click();
             await proposal.getByLabel('编辑秘书提案').waitFor();
             assert.equal(
@@ -162,14 +162,16 @@ test(
               'Compare the identification strategies and cite the evidence.',
             );
             await proposal.getByRole('button', { name: '忽略', exact: true }).click();
-            await proposal.getByText('秘书提案 · 已忽略', { exact: true }).waitFor();
+            await proposal.getByText('已忽略', { exact: true }).waitFor();
             await input.fill('Please stop this secretary answer');
             await panel.getByRole('button', { name: '发送给任务秘书', exact: true }).click();
             await panel.getByText('Secretary is working.', { exact: true }).waitFor();
             await panel.getByRole('button', { name: '停止秘书回复', exact: true }).click();
-            await panel.getByText('已停止。', { exact: true }).waitFor();
+            await panel
+              .getByText('你停止了这次回答，已保留到目前的内容。', { exact: true })
+              .waitFor();
             await panel.getByRole('button', { name: '发送给任务秘书', exact: true }).waitFor();
-            await proposal.getByText('秘书提案 · 已忽略', { exact: true }).click();
+            await proposal.getByRole('button', { name: /秘书提案/u }).click();
             await page.getByRole('button', { name: '视图', exact: true }).click();
             await page.getByRole('menuitemcheckbox', { name: 'English', exact: true }).click();
             await panel.getByRole('button', { name: 'Close secretary', exact: true }).waitFor();

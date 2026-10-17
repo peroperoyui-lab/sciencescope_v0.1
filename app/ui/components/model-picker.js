@@ -1,6 +1,9 @@
 // Model and reasoning effort in the composer bar (design system ModelPicker).
-// The choice is the default model in settings, as before the redesign; models,
-// context windows and thinking levels come from the model catalog.
+// Without `onChange` the choice is the default model in settings. A panel that
+// keeps its own model (secretary, global assistant) passes its override,
+// what it inherits otherwise, and `onChange`; the first entry then follows
+// the inherited model. Models, context windows and thinking levels come from
+// the model catalog.
 import { useEffect } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
@@ -42,14 +45,28 @@ function modelMeta(model) {
   return parts.join(' · ');
 }
 
-export function ModelPicker() {
+/**
+ * @param {{ own?: any, inherited?: any, inheritLabel?: string,
+ *   onChange?: (model: any) => void, label?: string, disabled?: boolean }} [props]
+ */
+export function ModelPicker({
+  own,
+  inherited,
+  inheritLabel = '跟随默认模型',
+  onChange,
+  label: name = '模型和思考强度',
+  disabled = false,
+} = {}) {
   const actions = useActions();
   const settings = useAppState((state) => state.settings);
-  const current = settings?.models?.default;
+  const override = Boolean(onChange);
+  const current = override ? (own ?? inherited) : settings?.models?.default;
   const providers = useModelCatalog();
-  const model = providers
-    .find((provider) => provider.id === current?.provider)
-    ?.models.find((candidate) => candidate.id === current?.model);
+  const find = (choice) =>
+    providers
+      .find((provider) => provider.id === choice?.provider)
+      ?.models.find((candidate) => candidate.id === choice?.model);
+  const model = find(current);
   const efforts = thinkingChoices(model);
   const pop = usePopover({ placement: 'top-end' });
   useEffect(() => {
@@ -59,23 +76,18 @@ export function ModelPicker() {
           pop.layer.current?.querySelector('[role="option"]')
       )?.focus();
   }, [pop.open]);
+  // Settings patches merge, so "model default" effort is stored as null.
+  const save = (next) =>
+    override
+      ? onChange(next)
+      : actions.attempt(() => actions.updateSettings({ models: { default: next } }));
   const choose = (provider, next) =>
-    actions.attempt(() =>
-      actions.updateSettings({
-        // Settings patches merge, so "model default" effort is stored as null.
-        models: {
-          default: {
-            provider: provider.id,
-            model: next.id,
-            effort: thinkingChoices(next).includes(current?.effort) ? current.effort : null,
-          },
-        },
-      }),
-    );
-  const chooseEffort = (effort) =>
-    actions.attempt(() =>
-      actions.updateSettings({ models: { default: { ...current, effort: effort || null } } }),
-    );
+    save({
+      provider: provider.id,
+      model: next.id,
+      effort: thinkingChoices(next).includes(current?.effort) ? current.effort : null,
+    });
+  const chooseEffort = (effort) => save({ ...current, effort: effort || null });
   const label = current
     ? `${model?.name ?? current.model}${current.effort ? ` · ${effortName(current.effort)}` : ''}`
     : t('未连接模型');
@@ -84,29 +96,43 @@ export function ModelPicker() {
       ref=${pop.trigger}
       class="ss-btn ss-btn--ghost ss-btn--sm"
       data-v="model-menu"
-      aria-label=${t('模型和思考强度')}
+      aria-label=${t(name)}
       aria-haspopup="dialog"
       aria-expanded=${pop.open}
-      data-tip=${t('模型和思考强度')}
+      data-tip=${t(name)}
+      disabled=${disabled}
       onClick=${pop.toggle}
     >
       <span class="ss-truncate">${label}</span><${Lucide} name="chevron-down" />
     </button>
     ${
       pop.open &&
-      html`<div
-        ref=${pop.layer}
-        class="ss-pop model-pop"
-        role="dialog"
-        aria-label=${t('模型和思考强度')}
-      >
+      html`<div ref=${pop.layer} class="ss-pop model-pop" role="dialog" aria-label=${t(name)}>
         <div class="ss-models" role="listbox" aria-label=${t('模型')} onKeyDown=${moveFocus}>
+          ${
+            override &&
+            html`<button
+              type="button"
+              class="ss-model"
+              role="option"
+              aria-selected=${String(!own)}
+              onClick=${() => own && onChange(null)}
+            >
+              <span class="ss-model__main"
+                ><span class="ss-model__name">${t(inheritLabel)}</span
+                ><span class="ss-model__meta"
+                  >${find(inherited)?.name ?? inherited?.model ?? t('未连接模型')}</span
+                ></span
+              ><${Lucide} name="check" />
+            </button>`
+          }
           ${providers.map(
             (provider) =>
               html`<div class="ss-menu__label">${provider.name ?? provider.id}</div>
                 ${provider.models.map((candidate) => {
+                  const chosen = override ? own : current;
                   const selected =
-                    current?.provider === provider.id && current?.model === candidate.id;
+                    chosen?.provider === provider.id && chosen?.model === candidate.id;
                   return html`<button
                     type="button"
                     class="ss-model"

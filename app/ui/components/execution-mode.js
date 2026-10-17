@@ -1,5 +1,6 @@
 // Execution mode in the composer bar (design system ModeMenu): 「请求批准」
 // (direct, approval ask), 常规 (direct, approval auto), 自动化 (a goal).
+// Side panels have no goals and offer only the first two.
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
@@ -12,9 +13,9 @@ const MODES = {
 };
 
 /**
- * @param {{mode:string,onChange:(mode:string)=>void,ordered:boolean,locked:boolean}} props
+ * @param {{mode:string,onChange:(mode:string)=>void,ordered?:boolean,locked:boolean,goals?:boolean}} props
  */
-export function ExecutionMode({ mode, onChange, ordered, locked }) {
+export function ExecutionMode({ mode, onChange, ordered = false, locked, goals = true }) {
   const current = mode;
   const shown = MODES[current] ?? MODES.direct;
   const auto = current === 'autonomous';
@@ -37,7 +38,7 @@ export function ExecutionMode({ mode, onChange, ordered, locked }) {
         description: t('直接执行，不逐条询问，随时可以停止。'),
         run: () => onChange('direct'),
       },
-      {
+      goals && {
         text: t('自动化'),
         icon: 'zap',
         auto: true,
@@ -50,7 +51,7 @@ export function ExecutionMode({ mode, onChange, ordered, locked }) {
         ),
         run: () => onChange('autonomous'),
       },
-    ]}
+    ].filter(Boolean)}
   >
     <${Lucide} name=${shown.icon} /><span>${t(shown.text)}</span>
   <//>`;

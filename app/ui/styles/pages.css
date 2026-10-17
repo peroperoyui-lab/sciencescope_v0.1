@@ -130,3 +130,69 @@
 .outbox__item > .ss-truncate {
   flex: 1;
 }
+
+/* ---------- Side panels (secretary, global assistant) ---------- */
+.side-panel {
+  height: 100%;
+  min-height: 0;
+}
+.side-panel--window {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  border-left: 0;
+}
+.side-panel__note {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.side-panel__home {
+  flex: none;
+  padding: 12px 8px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.side-panel__home > .ss-section-title {
+  padding: 0 8px;
+}
+.side-panel__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-6);
+  padding: 8px 8px 0;
+}
+.assistant-surface {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.assistant-surface > .ss-content:focus-visible {
+  outline-offset: -2px;
+}
+.ss-thread--panel {
+  gap: var(--sp-16);
+  padding: 16px 16px 8px;
+}
+.side-panel__proposals {
+  display: grid;
+  gap: var(--sp-8);
+}
+.assistant-error {
+  flex: none;
+  padding: 0 16px 6px;
+}
+.assistant-surface .ss-composer-wrap {
+  padding: 0 12px 12px;
+}
+.assistant-surface .ss-composer__input {
+  min-height: 40px;
+  padding: 8px 12px 0;
+}

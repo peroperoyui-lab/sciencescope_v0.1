@@ -19,6 +19,8 @@ export const DEFAULT_SETTINGS = {
     scrollbars: false,
     // 'compact' hides tool activity cards in meetings (视图 → 简洁执行记录).
     transcript: 'full',
+    // Widths of the right-side panels, set by dragging their edge.
+    panels: { secretary: 360, assistant: 360 },
   },
   // Window shortcuts, recorded in Settings → 快捷键.
   shortcuts: {

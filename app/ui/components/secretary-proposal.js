@@ -1,9 +1,17 @@
-// Proposal edits remain local until an explicit fill or dismiss action.
-// Keeping each keyed card mounted preserves its text during streaming events.
+// A proposed instruction for Main, drafted by the secretary. Edits stay local
+// until the user fills the Main draft or dismisses it; keeping each keyed
+// card mounted preserves the text during streaming events.
 import { useEffect, useState } from 'preact/hooks';
 import { useActions } from '../context.js';
 import { html } from '../html.js';
 import { formatTime, t } from '../i18n/index.js';
+import { Lucide } from '../icons.js';
+
+const STATUS = {
+  pending: { text: '待审阅', tone: 'ss-tag--warn' },
+  filled: { text: '已填入草稿', tone: 'ss-tag--ok' },
+  dismissed: { text: '已忽略', tone: '' },
+};
 
 /**
  * @param {{ proposal: any, mainMeetingId: string }} props
@@ -16,9 +24,12 @@ export function SecretaryProposal({ proposal, mainMeetingId }) {
   const [error, setError] = useState('');
   const [history, setHistory] = useState([]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const pending = proposal.status === 'pending';
+  const [open, setOpen] = useState(pending);
   // A saved text change (including undo) replaces the server version; ordinary
   // streaming snapshots with the same text leave the user's local edits intact.
   useEffect(() => setText(proposal.text), [proposal.text]);
+  useEffect(() => setOpen(pending), [pending]);
   useEffect(() => {
     if (historyOpen)
       actions
@@ -39,61 +50,96 @@ export function SecretaryProposal({ proposal, mainMeetingId }) {
       setBusy(false);
     }
   }
-  return html`<details
-    open=${proposal.status === 'pending'}
-    class="assistant-proposal"
+  const status = STATUS[proposal.status] ?? STATUS.dismissed;
+  return html`<section
+    class="ss-proposal"
     data-proposal=${proposal.id}
+    data-status=${proposal.status}
+    aria-label=${t('秘书提案')}
   >
-    <summary>
-      ${proposal.status === 'pending' ? t('秘书提案 · 请审阅') : proposal.status === 'filled' ? t('秘书提案 · 已填入草稿') : t('秘书提案 · 已忽略')}
-    </summary>
+    <button
+      type="button"
+      class="ss-proposal__head"
+      aria-expanded=${open}
+      onClick=${() => setOpen(!open)}
+    >
+      <${Lucide} name="square-pen" /><span class="ss-proposal__title">${t('秘书提案')}</span
+      ><span class=${`ss-tag ${status.tone}`}>${t(status.text)}</span
+      ><${Lucide} name="chevron-down" class="ss-proposal__chev" />
+    </button>
     ${
-      proposal.status === 'pending'
-        ? html`
-            <textarea
-              aria-label=${t('编辑秘书提案')}
-              value=${text}
-              onInput=${(event) => setText(event.currentTarget.value)}
-            ></textarea>
-            <button
-              class="btn tiny"
-              data-assistant-action="apply-proposal"
-              disabled=${busy || !text.trim()}
-              onClick=${() => resolve('filled')}
-            >
-              ${t('确认填入主对话草稿')}
-            </button>
-            <button
-              class="btn tiny"
-              data-assistant-action="dismiss-proposal"
-              disabled=${busy}
-              onClick=${() => resolve('dismissed')}
-            >
-              ${t('忽略')}
-            </button>
-          `
-        : html`<p>${proposal.text}</p>`
+      open &&
+      html`<div class="ss-proposal__body">
+          ${
+            pending
+              ? html`<textarea
+                  class="ss-textarea"
+                  rows="3"
+                  aria-label=${t('编辑秘书提案')}
+                  value=${text}
+                  onInput=${(event) => setText(event.currentTarget.value)}
+                ></textarea>`
+              : html`<p class="ss-proposal__text">${proposal.text}</p>`
+          }
+          ${error && html`<div class="ss-proposal__error" role="alert">${error}</div>`}
+        </div>
+        ${
+          historyOpen &&
+          html`<div class="ss-proposal__history" aria-label=${t('最近修改记录')}>
+            ${history.length === 0 && html`<span class="ss-proposal__empty">${t('还没有修改')}</span>`}
+            ${history.map(
+              (entry) =>
+                html`<div class="ss-proposal__change" key=${entry.id}>
+                  <time>${formatTime(entry.createdAt)}</time>
+                  <button
+                    type="button"
+                    class="ss-btn ss-btn--ghost ss-btn--sm"
+                    disabled=${busy || entry.undoneBy}
+                    onClick=${() =>
+                      actions.attempt(async () => {
+                        await actions.undoSecretaryProposal(entry.id);
+                        await actions.secretarySnapshot(mainMeetingId);
+                        setHistory(await actions.secretaryProposalHistory(proposal.id));
+                      })}
+                  >
+                    ${entry.undoneBy ? t('已撤销') : t('撤销')}
+                  </button>
+                </div>`,
+            )}
+          </div>`
+        }
+        <div class="ss-proposal__foot">
+          <button
+            type="button"
+            class="ss-btn ss-btn--ghost ss-btn--sm"
+            aria-expanded=${historyOpen}
+            onClick=${() => setHistoryOpen(!historyOpen)}
+          >
+            <${Lucide} name="history" /><span>${t('最近修改记录')}</span>
+          </button>
+          <span class="ss-composer__spacer"></span>
+          ${
+            pending &&
+            html`<button
+                type="button"
+                class="ss-btn ss-btn--sm"
+                data-assistant-action="dismiss-proposal"
+                disabled=${busy}
+                onClick=${() => resolve('dismissed')}
+              >
+                ${t('忽略')}
+              </button>
+              <button
+                type="button"
+                class="ss-btn ss-btn--primary ss-btn--sm"
+                data-assistant-action="apply-proposal"
+                disabled=${busy || !text.trim()}
+                onClick=${() => resolve('filled')}
+              >
+                ${t('填入主对话草稿')}
+              </button>`
+          }
+        </div>`
     }
-    <details onToggle=${(event) => setHistoryOpen(event.currentTarget.open)}>
-      <summary>${t('最近修改记录')}</summary>
-      ${history.map(
-        (entry) =>
-          html`<div class="listrow" key=${entry.id}>
-            <span class="grow">${formatTime(entry.createdAt)}</span>
-            <button
-              class="btn tiny"
-              disabled=${busy || entry.undoneBy}
-              onClick=${() =>
-                actions.attempt(async () => {
-                  await actions.undoSecretaryProposal(entry.id);
-                  await actions.secretarySnapshot(mainMeetingId);
-                })}
-            >
-              ${entry.undoneBy ? t('已撤销') : t('撤销')}
-            </button>
-          </div>`,
-      )}
-    </details>
-    <p role="status">${error}</p>
-  </details>`;
+  </section>`;
 }

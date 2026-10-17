@@ -36,20 +36,6 @@
   height: auto;
   min-height: 0;
 }
-.global-assistant-panel {
-  width: min(var(--panel-width), 42vw);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-.assistant-composer .assistant-model > .ellipsis {
-  min-width: 0;
-  flex: 1;
-  text-align: left;
-}
-.assistant-composer .assistant-model > .ico {
-  flex: none;
-}
 .menu-popup {
   position: fixed;
 }

@@ -21,8 +21,8 @@ const pad = (n) => String(n).padStart(2, '0');
 /** "10:28" @param {Date} date */
 const clock = (date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 
-/** @param {{ message: any, answer: boolean }} props */
-function MessageFoot({ message, answer }) {
+/** @param {{ message: any, answer: boolean, compact?: boolean }} props */
+function MessageFoot({ message, answer, compact = false }) {
   const actions = useActions();
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -80,21 +80,27 @@ function MessageFoot({ message, answer }) {
         <${Lucide} name="rotate-cw" />
       </button>`
     }
-    <button
-      type="button"
-      class="ss-icon-btn ss-icon-btn--sm"
-      aria-label=${t('消息菜单')}
-      data-tip=${t('更多')}
-      onClick=${menu}
-    >
-      <${Lucide} name="ellipsis" />
-    </button>
+    ${
+      !compact &&
+      html`<button
+        type="button"
+        class="ss-icon-btn ss-icon-btn--sm"
+        aria-label=${t('消息菜单')}
+        data-tip=${t('更多')}
+        onClick=${menu}
+      >
+        <${Lucide} name="ellipsis" />
+      </button>`
+    }
     <time title=${message.createdAt}>${clock(created)}</time>
   </div>`;
 }
 
-/** @param {{ message: any, author: any, roleNote: string, target: boolean }} props */
-export function Message({ message, author, roleNote, target }) {
+/**
+ * `compact` is a side panel's conversation: no branch, quote or location menu.
+ * @param {{ message: any, author: any, roleNote: string, target: boolean, compact?: boolean }} props
+ */
+export function Message({ message, author, roleNote, target, compact = false }) {
   const draft = useAppState((state) => state.drafts[message.id]);
   const calls = useAppState((state) =>
     message.turnId ? (state.toolCalls[message.turnId] ?? EMPTY) : EMPTY,
@@ -121,7 +127,7 @@ export function Message({ message, author, roleNote, target }) {
     >
       <div class="ss-msg__bubble message-text">${message.text}</div>
       <${InputReceipt} message=${message} />
-      <${MessageFoot} message=${message} answer=${false} />
+      <${MessageFoot} message=${message} answer=${false} compact=${compact} />
     </article>`;
   }
   const expert = Boolean(message.refs?.discussion || fullAuthor?.definition?.panel);
@@ -145,7 +151,9 @@ export function Message({ message, author, roleNote, target }) {
     data-review=${review || undefined}
   >
     <div class="ss-msg__head">
-      <span class="ss-avatar">${name.slice(0, 1).toUpperCase()}</span>
+      <span class="ss-avatar"
+        >${author?.icon ? html`<${Lucide} name=${author.icon} small />` : name.slice(0, 1).toUpperCase()}</span
+      >
       <span class="ss-msg__name">${name}</span>
       ${role && html`<span class="ss-msg__role">${role}</span>`}
       ${review && html`<span class="ss-tag">${t('审核')}</span>`}
@@ -156,6 +164,6 @@ export function Message({ message, author, roleNote, target }) {
     <${Deliverables} files=${message.deliverables} />
     <${StatusLine} message=${message} turn=${turn} calls=${calls} text=${text} reason=${reason} />
     ${review && html`<${ReviewAdoption} message=${message} />`}
-    ${!streaming && html`<${MessageFoot} message=${message} answer=${true} />`}
+    ${!streaming && html`<${MessageFoot} message=${message} answer=${true} compact=${compact} />`}
   </article>`;
 }

@@ -2748,6 +2748,95 @@ button.ss-act__row:hover {
   padding: 10px 12px;
 }
 
+/* ---------- Secretary proposal (an instruction drafted for Main) ---------- */
+.ss-proposal {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+}
+.ss-proposal[data-status='pending'] {
+  border-color: var(--accent-line);
+}
+.ss-proposal__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.ss-proposal__head:hover {
+  background: var(--hover);
+}
+.ss-proposal__head > .ss-i:first-child {
+  color: var(--accent);
+}
+.ss-proposal__title {
+  flex: 1;
+  font-weight: 600;
+}
+.ss-proposal__chev {
+  color: var(--muted);
+  transition: transform var(--t-fast) var(--ease);
+}
+.ss-proposal__head[aria-expanded='false'] > .ss-proposal__chev {
+  transform: rotate(-90deg);
+}
+.ss-proposal__body {
+  display: grid;
+  gap: var(--sp-6);
+  padding: 0 12px;
+}
+.ss-proposal__body > .ss-textarea {
+  width: 100%;
+  resize: vertical;
+}
+.ss-proposal__text {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-wrap;
+}
+.ss-proposal__error {
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 18px;
+}
+.ss-proposal__history {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 8px 12px 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+.ss-proposal__change {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ss-proposal__empty {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 24px;
+}
+.ss-proposal__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: 8px 8px 8px 6px;
+}
+
 /* ---------- Composer ---------- */
 .ss-composer-wrap {
   flex: none;

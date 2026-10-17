@@ -1,5 +1,9 @@
 # Desktop implementation — first increment
 
+## 2026-10-17 Secretary and assistant panels (Claude)
+- Both panels are `ss-panel` side panels (`side-panel.js`, splitter width in `appearance.panels`) whose conversation reuses the meeting `Message` (activity timeline, approval cards, status line) and a compact composer with execution mode (ask / auto only) and `ModelPicker` in override mode (`policy.model`).
+- Secretary proposals are cards; old `assistant-message.js`, `assistant-model.js`, `secretary-model.js` removed. New `panels.browser.test.js` covers approval, 常规 and the remembered width. Linux check 244 pass, 2 Windows-only skipped.
+
 ## 2026-10-17 R6a-5 overlay cleanup (Codex)
 - PREINSTALL removes only app/node_modules/runtime/python/models/reference, package.json/LICENSE/THIRD_PARTY_NOTICES and the main executable; skips new destinations, checks the running app before deletion and aborts on cleanup failure. Existing opt-in uninstall data removal is reused; app/ unchanged.
 - Clean Windows checkout check 245/245, zero skips, including both Windows-only tests; packaging tests 3/3 include compiling/running the NSIS hook with Chinese data paths and retained user files.
