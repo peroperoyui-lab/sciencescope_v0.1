@@ -1,5 +1,11 @@
 # Desktop implementation — first increment
 
+## 2026-10-17 R6a-4 second preview package (Codex)
+- From 53cf686, cherry-picked R6a-3 5b8e8a1 as 94c4738; app/ unchanged. Formal 1.0.0-alpha.0: 95,426,967 bytes; fresh install 9,697 files / 356.18 MiB. Clean Windows check 244/244 (both Windows-only tests), packaging tests 2/2.
+- Fresh install 163.966 s; quick add, thinking, reject/allow, normal execution, stop (196 ms) and saved 70% threshold pass. Test product removed with data in 68.84 s; native WebView 100%/125% viewport captures retained.
+- Verified 48,152-file backup before 208.066 s user upgrade; 1 project / 7 meetings / 22 messages and settings unchanged, startup log clean, no residual processes. Old Go connection test HTTP 400/default model limits retained for Claude; overwrite leaves 31,030 program files including old dependencies.
+- Real calls: 11 attempts / 30,204 reported tokens / 2 unknown (flash dialogue 9/30,038, Go preset probe minimax-m3 1/166, old-config probe 1/unknown). Package hash, screenshots, top-10 packages and fixture failures: `.sciencescope-local/temp/r6a-4/REPORT.md`; PREVIEW_TEST sections 1–2 updated.
+
 ## 2026-10-17 P1-UI step 2: models and providers settings (Claude)
 - Settings → 模型与服务商 rebuilt from the gallery: preset quick add (key-only dialog, test and save), provider cards with test connection and a ⋯ menu (edit address and models, fetch model list again, update key, remove with confirmation), model table from `GET /api/models` (context, max output, thinking levels, limits source; collapses past 8), default model select, compaction slider (`context.compactPercent`). Custom-service form without capacity fields. Composer, secretary and assistant model menus and the context ring read the catalog; the ring warns at the compaction threshold. New shared `components/dialog.js` (`ss-scrim` / `ss-dialog`); `ChoiceMenu` takes group labels; menus scroll past 420px.
 - Not built (no stored value or consumer): no-response timeout, per-model limit override and hiding. The secretary's model stays on the 任务秘书 page. Settings browser test rewritten for the preset flow; screenshots at 100% / 125% in `.sciencescope-local/temp/p1ui2/out`.
