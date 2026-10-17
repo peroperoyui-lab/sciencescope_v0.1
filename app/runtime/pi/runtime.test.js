@@ -153,6 +153,7 @@ test('temporary failures are visible retries; an invalid key fails once', async 
       .map((line) => JSON.parse(line));
     assert.equal(rows.length, 4);
     assert.equal(rows.at(-1).usage, null);
+    assert.equal(rows.at(-1).httpStatus, 401);
   });
 });
 

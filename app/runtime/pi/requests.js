@@ -104,7 +104,14 @@ export function controlledStream({
             signal,
             maxRetries: 0,
             timeoutMs: limits.timeoutMs,
-            ...(requestFetch ? { fetch: requestFetch } : {}),
+            // SDK onResponse runs only after a successful HTTP response. Observe
+            // failed responses too, before the SDK converts them into errors.
+            fetch: async (input, init) => {
+              const response = await (requestFetch ?? globalThis.fetch)(input, init);
+              status = response.status;
+              retryAfter = response.headers.get('retry-after');
+              return response;
+            },
             ...(choice.effort ? { reasoning: choice.effort } : { reasoning: undefined }),
             ...(choice.maxTokens ? { maxTokens: choice.maxTokens } : {}),
             ...(noTools ? { toolChoice: 'none' } : {}),
@@ -180,7 +187,7 @@ export function controlledStream({
           model: model.id,
           api: model.api,
           hostname,
-          httpStatus: status ?? null,
+          httpStatus: explanation?.status ?? status ?? null,
           totalMs: performance.now() - started,
           firstEventMs,
           stopReason: parent.aborted ? 'cancelled' : failed ? 'failed' : final.stopReason,
