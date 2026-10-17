@@ -257,7 +257,7 @@ await writeFile(
         resources,
         windows: {
           nsis: {
-            installerHooks: path.join(root, 'src-tauri/installer-hooks.nsh'),
+            installerHooks: path.join(root, 'tools/package/installer-hooks.nsh'),
             installMode: 'currentUser',
             displayLanguageSelector: true,
             languages: ['SimpChinese', 'English'],
