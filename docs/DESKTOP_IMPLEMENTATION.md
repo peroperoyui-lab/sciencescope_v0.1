@@ -1,5 +1,11 @@
 # Desktop implementation — first increment
 
+## 2026-10-17 R6a-4 second preview package (Codex)
+- From 53cf686, cherry-picked R6a-3 5b8e8a1 as 94c4738; app/ unchanged. Formal 1.0.0-alpha.0: 95,426,967 bytes; fresh install 9,697 files / 356.18 MiB. Clean Windows check 244/244 (both Windows-only tests), packaging tests 2/2.
+- Fresh install 163.966 s; quick add, thinking, reject/allow, normal execution, stop (196 ms) and saved 70% threshold pass. Test product removed with data in 68.84 s; native WebView 100%/125% viewport captures retained.
+- Verified 48,152-file backup before 208.066 s user upgrade; 1 project / 7 meetings / 22 messages and settings unchanged, startup log clean, no residual processes. Old Go connection test HTTP 400/default model limits retained for Claude; overwrite leaves 31,030 program files including old dependencies.
+- Real calls: 11 attempts / 30,204 reported tokens / 2 unknown (flash dialogue 9/30,038, Go preset probe minimax-m3 1/166, old-config probe 1/unknown). Package hash, screenshots, top-10 packages and fixture failures: `.sciencescope-local/temp/r6a-4/REPORT.md`; PREVIEW_TEST sections 1–2 updated.
+
 ## 2026-10-17 P1-UI step 2: models and providers settings (Claude)
 - Settings → 模型与服务商 rebuilt from the gallery: preset quick add (key-only dialog, test and save), provider cards with test connection and a ⋯ menu (edit address and models, fetch model list again, update key, remove with confirmation), model table from `GET /api/models` (context, max output, thinking levels, limits source; collapses past 8), default model select, compaction slider (`context.compactPercent`). Custom-service form without capacity fields. Composer, secretary and assistant model menus and the context ring read the catalog; the ring warns at the compaction threshold. New shared `components/dialog.js` (`ss-scrim` / `ss-dialog`); `ChoiceMenu` takes group labels; menus scroll past 420px.
 - Not built (no stored value or consumer): no-response timeout, per-model limit override and hiding. The secretary's model stays on the 任务秘书 page. Settings browser test rewritten for the preset flow; screenshots at 100% / 125% in `.sciencescope-local/temp/p1ui2/out`.
@@ -39,6 +45,11 @@
 - Published the first gallery (https://claude.ai/artifact/6MCyAAbMK2kD5nTsAkZEgk): 85 tokens in a light and a dark theme, 12 type styles, 107 Lucide icons with Chinese meanings, 37 components with previews and guidelines, and four full-page mocks at 1536×900 (chat, library, inbox, settings).
 - Sources in `docs/design/system/`; `build/build.py` regenerates the gallery runtime byte for byte. All 42 cards render without errors in both themes; contrast check lists only the documented exceptions.
 - Overview, feedback mapping and open review points in `docs/design/DESIGN_SYSTEM.md`. Not in the app yet: P3 ports the styles and components page by page.
+
+## 2026-10-13 R6a-3 production installer pruning (Codex; pending review)
+- After complete notices, remove declarations/maps/TS, non-license Markdown outside DSH and onnxruntime-web; preserve DSH packages, prompts, JavaScript and all remaining licenses. Audited 246 DSH runtime exports and typert's compiled-JS loader; pruning/notices tests 2/2. Isolated installtest product/identifier is environment-selected; production defaults unchanged.
+- Stage 30,677→14,783 files; 248.42 MiB removed. Direct release Node/Edge: flash 1/17,591 tokens, real PDF search, 94-passage vectorization/hybrid, PDF/DOCX preview, Python 3.14.7/77 cached packages and scientific imports pass. Python online metadata waited; offline cache preparation and fixture failures retained. Final clean checkout check 213/213, zero skips; initial DSH timeout retained.
+- Official package 103.04 MiB, SHA-256 in PREVIEW_TEST, not installed. USB WD40EFRX HDD installtest: program 30,677→14,783 files / 687.32→438.81 MiB; fresh 458.536→209.187 s, same-version overlay 573.845→274.134 s (no old uninstaller), deletion/finish 297.115→127.829 s; initial cancelled-uninstall/recovery total retained separately. Test product/data/registration/shortcuts removed, user's installation unchanged. Evidence/top-ten packages: `.sciencescope-local/temp/r6a-3/REPORT.md`.
 
 ## 2026-10-13 R6a-2b reviewed installer repackage (Codex; merged by Claude)
 - Rebuilt `e9b62d6` without product changes: 128.20 MiB, SHA-256 in PREVIEW_TEST; stage/release app and production dependencies match by path, size and hash, with no test files or listed development packages. Installed program: 687.32 MiB / 30,677 files; fresh install 8 min 9 s.
