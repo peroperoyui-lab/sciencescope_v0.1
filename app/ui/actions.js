@@ -147,13 +147,19 @@ export function createActions(api, store) {
   async function loadTurn(turnId) {
     const { turn, toolCalls } = await api.get(`/api/turns/${turnId}`);
     store.update((state) => {
-      // The event stream may already have reported a newer state of this turn.
-      const known = state.turns[turn.id];
-      if (known?.endedAt)
-        return { ...state, toolCalls: { ...state.toolCalls, [turnId]: toolCalls } };
+      // The event stream may already have reported a newer state of this turn
+      // and its activity (a request sent just after the page opened): keep what
+      // it reported and add only the entries the snapshot alone knows.
+      const reported = state.toolCalls[turnId] ?? [];
+      const calls = [
+        ...toolCalls.filter((call) => !reported.some((known) => known.id === call.id)),
+        ...reported,
+      ].sort((a, b) => a.seq - b.seq);
+      if (state.turns[turn.id])
+        return { ...state, toolCalls: { ...state.toolCalls, [turnId]: calls } };
       return {
         ...state,
-        toolCalls: { ...state.toolCalls, [turnId]: toolCalls },
+        toolCalls: { ...state.toolCalls, [turnId]: calls },
         turns: { ...state.turns, [turn.id]: turn },
         running: turn.status === 'running' ? { ...state.running, [turn.id]: turn } : state.running,
       };
@@ -432,6 +438,24 @@ export function createActions(api, store) {
     api.post(`/api/providers/keys/${encodeURIComponent(keyRef)}`, { key });
   const discoverModels = async (provider) =>
     (await api.post('/api/providers/discover', provider)).models;
+  /** Reload the model catalog; repeated calls for the same providers share one request. */
+  let catalogFor;
+  function loadModels(force = false) {
+    const providers = store.get().settings?.providers;
+    if (!force && catalogFor === providers) return Promise.resolve();
+    catalogFor = providers;
+    return api.get('/api/models').then((modelCatalog) => set({ modelCatalog }));
+  }
+  const providerPresets = () => api.get('/api/providers/presets');
+  /** Save a preset provider with only its key. @param {string} id @param {string} key */
+  async function savePreset(id, key) {
+    const provider = await api.post(`/api/providers/presets/${id}`, { key });
+    set({ settings: await api.get('/api/settings') });
+    await loadModels(true);
+    return provider;
+  }
+  /** One very short request. @param {string} id @param {string} [model] */
+  const testProvider = (id, model) => api.post(`/api/providers/${id}/test`, { model });
   /** A participant with its definition (AIs). @param {string} id */
   const getParticipant = (id) => api.get(`/api/participants/${id}`);
   /** @param {string} id @param {Record<string, any>} definition */
@@ -546,6 +570,10 @@ export function createActions(api, store) {
     keyRefs,
     saveKey,
     discoverModels,
+    loadModels,
+    providerPresets,
+    savePreset,
+    testProvider,
     getParticipant,
     updateParticipant,
     createParticipant,

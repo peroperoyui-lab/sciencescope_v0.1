@@ -1,6 +1,7 @@
-// Settings in a real browser: add a model service and make it the default,
-// change the theme, and rename an expert on the roster. Each change is
-// checked where it is stored.
+// Settings in a real browser: add a preset provider with only its key, set
+// the compaction threshold, add and remove another compatible service, change
+// the theme, and rename an expert on the roster. Each change is checked where
+// it is stored.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { browserSkip, withBrowserApp } from './browser-testing.js';
@@ -16,32 +17,78 @@ test(
         (await app.core.workspace.read({ resource: 'settings', key: 'app' })).value;
 
       await page.locator('.userbar').getByRole('button', { name: '设置' }).click();
-      await page.locator('.settingsnav').getByRole('button', { name: '模型与 API' }).click();
-      await page.getByRole('button', { name: '添加第一个服务' }).click();
-      await page.getByLabel('服务名称').fill('OpenCode Go');
-      await page.getByLabel('API 格式').selectOption('openai-completions');
-      await page.getByLabel('接口地址 · Base URL').fill('https://opencode.ai/zen/go/v1');
-      await page.locator('#api-key-preview').fill('sk-test');
-      await page.locator('#api-headers').fill('x-opencode-session: s1');
-      await page.locator('#api-models').fill('deepseek-v4.1-flash');
-      await page.getByLabel('deepseek-v4.1-flash 上下文窗口').fill('128000');
-      await page.getByRole('button', { name: '保存服务' }).click();
-      await page.locator('.api-provider', { hasText: 'OpenCode Go' }).waitFor();
-      await shot('settings-models');
+      const keyRefs = async () =>
+        (
+          await (
+            await fetch(`${page.url().split('#')[0]}api/providers/keys`, {
+              headers: { authorization: 'Bearer ui-token' },
+            })
+          ).json()
+        ).refs;
+      await page.locator('.settingsnav').getByRole('button', { name: '模型与服务商' }).click();
 
-      const saved = await settings();
-      assert.equal(saved.providers[0].headers['x-opencode-session'], 's1');
-      assert.equal(saved.providers[0].models[0].contextWindow, 128000);
-      assert.deepEqual(saved.models.default, {
+      // Quick add: only the key; the test request runs before the dialog closes.
+      await page.getByRole('button', { name: '添加 OpenCode Go 订阅' }).click();
+      const dialog = page.getByRole('dialog', { name: '添加 OpenCode Go 订阅' });
+      await dialog.getByLabel('订阅密钥').fill('sk-test');
+      await dialog.getByRole('button', { name: '测试并保存' }).click();
+      await dialog.waitFor({ state: 'detached' });
+      const card = page.locator('[data-provider="opencode-go"]');
+      await card.getByText(/连接正常 · \d+ ms/).waitFor();
+      await page.locator('[data-preset="opencode-go"]').getByText('已添加').waitFor();
+      const flash = card.locator('tr[data-model="deepseek-v4.1-flash"]');
+      assert.match(await flash.textContent(), /1M.*384K.*目录/);
+      assert.deepEqual((await settings()).models.default, {
         provider: 'opencode-go',
         model: 'deepseek-v4.1-flash',
       });
-      const keys = await (
-        await fetch(`${page.url().split('#')[0]}api/providers/keys`, {
-          headers: { authorization: 'Bearer ui-token' },
-        })
-      ).json();
-      assert.deepEqual(keys.refs, ['SCIENCESCOPE_OPENCODE_GO_KEY']);
+      assert.deepEqual(await keyRefs(), ['opencode-go']);
+
+      await page.locator('[data-settings="models"] input[type="range"]').evaluate((input) => {
+        /** @type {HTMLInputElement} */ (input).value = '70';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      await page.getByText('70%', { exact: true }).waitFor();
+      await shot('settings-models');
+      await page.waitForFunction(
+        async () =>
+          (
+            await (
+              await fetch('/api/settings', { headers: { authorization: 'Bearer ui-token' } })
+            ).json()
+          ).context.compactPercent === 70,
+      );
+
+      // Any other compatible service: address, protocol, key and model IDs.
+      await page.getByRole('button', { name: '其他兼容服务' }).click();
+      await page.getByLabel('服务名称').fill('Lab Proxy');
+      await page.getByRole('button', { name: 'API 格式' }).click();
+      await page.getByRole('menuitemradio', { name: 'OpenAI Chat Completions' }).click();
+      await page.getByLabel('接口地址').fill('https://proxy.example.com/v1');
+      await page.getByLabel('API 密钥').fill('sk-lab');
+      await page.getByLabel('附加请求头').fill('x-session: s1');
+      await page.getByRole('textbox', { name: '模型 ID' }).fill('deepseek-v4.1-flash');
+      await shot('settings-provider-form');
+      await page.getByRole('button', { name: '保存服务' }).click();
+      const lab = page.locator('[data-provider="lab-proxy"]');
+      await lab.getByText('proxy.example.com · 1 个模型 · 密钥已保存').waitFor();
+      const saved = await settings();
+      assert.equal(saved.providers[1].headers['x-session'], 's1');
+      assert.deepEqual(saved.providers[1].models, [{ id: 'deepseek-v4.1-flash' }]);
+      assert.deepEqual(await keyRefs(), ['opencode-go', 'SCIENCESCOPE_LAB_PROXY_KEY']);
+
+      await lab.getByRole('button', { name: 'Lab Proxy 的更多操作' }).click();
+      await page.getByRole('menuitem', { name: '移除服务商' }).click();
+      await page
+        .getByRole('dialog', { name: '移除 Lab Proxy？' })
+        .getByRole('button', { name: '移除' })
+        .click();
+      await lab.waitFor({ state: 'detached' });
+      assert.deepEqual(
+        (await settings()).providers.map((provider) => provider.id),
+        ['opencode-go'],
+      );
 
       await page.locator('.settingsnav').getByRole('button', { name: '个人资料与常规' }).click();
       await page.locator('.settingrow', { hasText: '主题' }).locator('select').selectOption('dark');

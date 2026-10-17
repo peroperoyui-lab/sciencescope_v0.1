@@ -1,10 +1,12 @@
 // Model and reasoning effort in the composer bar (design system ModelPicker).
-// The choice is the default model in settings, as before the redesign.
+// The choice is the default model in settings, as before the redesign; models,
+// context windows and thinking levels come from the model catalog.
 import { useEffect } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
+import { thinkingChoices, useModelCatalog } from '../model-catalog.js';
 import { navigate } from '../route.js';
 import { moveFocus, usePopover } from './popover.js';
 
@@ -31,9 +33,10 @@ function modelMeta(model) {
   const parts = [];
   if (model.contextWindow)
     parts.push(t('上下文 {size}', { size: windowSize(model.contextWindow) }));
+  const levels = thinkingChoices(model);
   parts.push(
-    model.efforts?.length
-      ? t('思考 {levels}', { levels: model.efforts.map(effortName).join(' / ') })
+    levels.length
+      ? t('思考 {levels}', { levels: levels.map(effortName).join(' / ') })
       : t('不支持选择思考强度'),
   );
   return parts.join(' · ');
@@ -43,11 +46,11 @@ export function ModelPicker() {
   const actions = useActions();
   const settings = useAppState((state) => state.settings);
   const current = settings?.models?.default;
-  const providers = settings?.providers ?? [];
+  const providers = useModelCatalog();
   const model = providers
     .find((provider) => provider.id === current?.provider)
     ?.models.find((candidate) => candidate.id === current?.model);
-  const efforts = model?.efforts ?? [];
+  const efforts = thinkingChoices(model);
   const pop = usePopover({ placement: 'top-end' });
   useEffect(() => {
     if (pop.open)
@@ -64,7 +67,7 @@ export function ModelPicker() {
           default: {
             provider: provider.id,
             model: next.id,
-            effort: next.efforts?.includes(current?.effort) ? current.effort : null,
+            effort: thinkingChoices(next).includes(current?.effort) ? current.effort : null,
           },
         },
       }),
@@ -155,7 +158,7 @@ export function ModelPicker() {
               navigate({ view: 'settings', id: 'models' });
             }}
           >
-            <${Lucide} name="settings" /><span>${t('管理模型与 API')}</span>
+            <${Lucide} name="settings" /><span>${t('管理模型与服务商')}</span>
           </button>
         </div>
       </div>`

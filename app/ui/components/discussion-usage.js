@@ -5,9 +5,10 @@ import { useActions, useAppState } from '../context.js';
 import { currentLanguage, t } from '../i18n/index.js';
 import { html } from '../html.js';
 import { usePopover } from './popover.js';
+import { useModelCatalog } from '../model-catalog.js';
 
-// Level at which the ring turns to the warning colour; compaction (task P1b)
-// will read its threshold from settings.
+// Level at which the ring turns to the warning colour when settings have not
+// loaded; otherwise the compaction threshold (`context.compactPercent`).
 const WARN_AT = 80;
 
 /** @param {any} context @param {number | undefined} configured */
@@ -57,12 +58,14 @@ export function DiscussionUsageRing({ meetingId }) {
   const settings = useAppState((state) => state.settings);
   const contexts = useAppState((state) => state.meetingContexts[meetingId] ?? []);
   const definitions = useAppState((state) => state.participantDefinitions);
+  const catalog = useModelCatalog();
   const pop = usePopover({ placement: 'top-end' });
+  const warnAt = settings?.context?.compactPercent ?? WARN_AT;
   const modelFor = (id) => definitions[id]?.definition.model ?? settings?.models?.default;
   const measurement = (entry) => {
     const model = modelFor(entry.participantId);
-    const window = settings?.providers
-      ?.find((provider) => provider.id === model?.provider)
+    const window = catalog
+      .find((provider) => provider.id === model?.provider)
       ?.models.find((candidate) => candidate.id === model?.model)?.contextWindow;
     return normalize(entry.context, window);
   };
@@ -87,7 +90,7 @@ export function DiscussionUsageRing({ meetingId }) {
     html`<div class="ss-pop__section" ...${extra}>
       <span class="ss-pop__label">${label}${value?.estimated ? t('（估计）') : ''}</span>
       <span class="usage-value"
-        ><${Ring} percent=${value?.percent ?? 0} />${percent(value)}
+        ><${Ring} percent=${value?.percent ?? 0} warnAt=${warnAt} />${percent(value)}
         <span class="ss-muted">${amount(value)}</span></span
       >
     </div>`;
@@ -102,7 +105,7 @@ export function DiscussionUsageRing({ meetingId }) {
       data-tip=${tip}
       onClick=${pop.toggle}
     >
-      <${Ring} percent=${usage?.percent ?? 0} />
+      <${Ring} percent=${usage?.percent ?? 0} warnAt=${warnAt} />
     </button>
     ${
       pop.open &&

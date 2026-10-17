@@ -65,7 +65,7 @@ export function moveFocus(event) {
 
 /**
  * @typedef {{ text: string, icon?: string, description?: string, selected?: boolean,
- *   disabled?: boolean, auto?: boolean, run: () => void }} Choice
+ *   disabled?: boolean, auto?: boolean, run: () => void } | { group: string }} Choice
  */
 
 /**
@@ -114,34 +114,35 @@ export function ChoiceMenu({
         aria-label=${label}
         onKeyDown=${moveFocus}
       >
-        ${items.map(
-          (item) =>
-            html`<button
-              type="button"
-              role="menuitemradio"
-              class=${`ss-menu__item ${item.description ? 'ss-menu__item--rich' : ''} ${item.auto ? 'ss-menu__item--auto' : ''}`}
-              aria-label=${item.text}
-              aria-description=${item.description}
-              aria-checked=${String(Boolean(item.selected))}
-              aria-disabled=${item.disabled ? 'true' : undefined}
-              onClick=${() => {
-                if (item.disabled) return;
-                menu.setOpen(false);
-                menu.trigger.current?.focus();
-                item.run();
-              }}
-            >
-              ${item.icon && html`<${Lucide} name=${item.icon} />`}
-              ${
-                item.description
-                  ? html`<span class="ss-menu__text"
-                      ><span>${item.text}</span
-                      ><span class="ss-menu__desc">${item.description}</span></span
-                    >`
-                  : html`<span>${item.text}</span>`
-              }
-              <${Lucide} name="check" class="ss-menu__check" />
-            </button>`,
+        ${items.map((item) =>
+          'group' in item
+            ? html`<div class="ss-menu__label ss-truncate">${item.group}</div>`
+            : html`<button
+                type="button"
+                role="menuitemradio"
+                class=${`ss-menu__item ${item.description ? 'ss-menu__item--rich' : ''} ${item.auto ? 'ss-menu__item--auto' : ''}`}
+                aria-label=${item.text}
+                aria-description=${item.description}
+                aria-checked=${String(Boolean(item.selected))}
+                aria-disabled=${item.disabled ? 'true' : undefined}
+                onClick=${() => {
+                  if (item.disabled) return;
+                  menu.setOpen(false);
+                  menu.trigger.current?.focus();
+                  item.run();
+                }}
+              >
+                ${item.icon && html`<${Lucide} name=${item.icon} />`}
+                ${
+                  item.description
+                    ? html`<span class="ss-menu__text"
+                        ><span>${item.text}</span
+                        ><span class="ss-menu__desc">${item.description}</span></span
+                      >`
+                    : html`<span>${item.text}</span>`
+                }
+                <${Lucide} name="check" class="ss-menu__check" />
+              </button>`,
         )}
       </div>`
     }`;

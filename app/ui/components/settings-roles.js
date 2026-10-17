@@ -6,16 +6,17 @@ import { useEffect, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { formatTime, t } from '../i18n/index.js';
+import { thinkingChoices, useModelCatalog } from '../model-catalog.js';
 import { InfoTip } from './info-tip.js';
 
 /** Model choices from the configured providers, plus the stored one if it disappeared. */
 function useModelChoices() {
-  const providers = useAppState((state) => state.settings?.providers ?? []);
+  const providers = useModelCatalog();
   return providers.flatMap((provider) =>
     provider.models.map((model) => ({
       value: JSON.stringify({ provider: provider.id, model: model.id }),
       label: `${provider.name ?? provider.id} / ${model.name ?? model.id}`,
-      efforts: model.efforts ?? [],
+      efforts: thinkingChoices(model),
     })),
   );
 }

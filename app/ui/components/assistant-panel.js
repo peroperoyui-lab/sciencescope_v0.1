@@ -117,7 +117,6 @@ export function AssistantPanel({ onClose, detached = false }) {
         html`<${AssistantModel}
           current=${current}
           own=${own}
-          providers=${settings?.providers ?? []}
           running=${running}
           modelLabel="助手模型"
           effortLabel="助手思考强度"

@@ -59,6 +59,8 @@ export const initialState = {
   /** @type {any} */ creationDetails: null,
   /** @type {any} */
   semanticStatus: null,
+  /** `GET /api/models`: providers with catalog capacities and thinking levels. */
+  /** @type {any} */ modelCatalog: null,
   /** Bumped after the person changes files in a project folder. */
   filesVersion: 0,
   /** Popups over the window: one menu, one dialog, one toast, the search palette. */
@@ -249,6 +251,17 @@ export function useStore(store, select) {
   const latest = useRef(select);
   latest.current = select;
   const [, setValue] = useState(() => select(store.get()));
-  useEffect(() => store.subscribe((state) => setValue(() => latest.current(state))), [store]);
-  return select(store.get());
+  const value = select(store.get());
+  const rendered = useRef(value);
+  rendered.current = value;
+  useEffect(() => {
+    const update = (state) => setValue(() => latest.current(state));
+    const unsubscribe = store.subscribe(update);
+    // Events that arrived between the render and this subscription (a burst
+    // right after a new message mounts) would otherwise never re-render it.
+    const now = latest.current(store.get());
+    if (!Object.is(now, rendered.current)) setValue(() => now);
+    return unsubscribe;
+  }, [store]);
+  return value;
 }

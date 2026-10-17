@@ -37,8 +37,9 @@ test(
                     id: 'scripted',
                     name: 'Scripted',
                     models: [
-                      { id: 'main-model', efforts: ['low'] },
-                      { id: 'assistant-model', efforts: ['low', 'high'] },
+                      { id: 'main-model' },
+                      // A catalog model that supports the "high" thinking level.
+                      { id: 'deepseek-v4-pro', name: 'assistant-model' },
                     ],
                   },
                 ],
@@ -55,7 +56,7 @@ test(
             },
           });
           await app.core.participants.updateDefinition('agent_assistant', {
-            model: { provider: 'scripted', model: 'assistant-model' },
+            model: { provider: 'scripted', model: 'deepseek-v4-pro' },
           });
           const project = await app.core.projects.create({ name: 'Assistant project' });
           projectId = project.id;

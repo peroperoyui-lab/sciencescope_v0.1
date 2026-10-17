@@ -304,7 +304,7 @@ test(
 );
 
 test(
-  'the discussion roster supports more than eight experts and context rows preserve unknown windows',
+  'the discussion roster supports more than eight experts and context rows fall back to the catalog window',
   { skip: browserSkip, timeout: 120000 },
   async () => {
     await withBrowserApp(
@@ -359,11 +359,12 @@ test(
         await page.locator('[data-usage="main"]').click();
         const row = page.locator('[data-context-participant="agent_extra_5"]');
         await row.waitFor();
-        await row.getByText('4321 / 未知 token', { exact: true }).waitFor();
+        // The turn reported no window; the catalog's default (131,072) is what compaction uses.
+        await row.getByText('4321 / 13 万 token', { exact: true }).waitFor();
         assert.doesNotMatch(await row.innerText(), /NaN|Infinity|100%/u);
         assert.equal(
           await page.locator('[data-usage="main"]').getAttribute('data-context-known'),
-          'false',
+          'true',
         );
         await page.reload();
         await page.locator('[data-panel-toggle="agent_extra_5"][aria-pressed="true"]').waitFor();

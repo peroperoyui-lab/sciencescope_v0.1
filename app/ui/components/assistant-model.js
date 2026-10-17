@@ -2,10 +2,11 @@
 // Each caller supplies its own inheritance chain and visible menu labels.
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
+import { thinkingChoices, useModelCatalog } from '../model-catalog.js';
 import { DiscussionMenu } from './discussion-menu.js';
 
 /**
- * @param {{ current: any, own: any, providers: any[], running: boolean,
+ * @param {{ current: any, own: any, running: boolean,
  * modelLabel: string, effortLabel: string, inheritLabel: string,
  * onUpdate: (model: any) => void }} props
  * @returns {import('preact').VNode}
@@ -13,18 +14,18 @@ import { DiscussionMenu } from './discussion-menu.js';
 export function AssistantModel({
   current,
   own,
-  providers,
   running,
   modelLabel,
   effortLabel,
   inheritLabel,
   onUpdate,
 }) {
+  const providers = useModelCatalog();
   const choices = providers.flatMap((provider) =>
     provider.models.map((descriptor) => ({
       model: { provider: provider.id, model: descriptor.id },
       text: `${provider.name ?? provider.id} / ${descriptor.name ?? descriptor.id}`,
-      efforts: descriptor.efforts ?? [],
+      efforts: thinkingChoices(descriptor),
     })),
   );
   const selected = choices.find(

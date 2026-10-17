@@ -23,7 +23,6 @@ export function SecretaryModel({ meeting, mainMeetingId, running }) {
   return html`<${AssistantModel}
     current=${current}
     own=${own}
-    providers=${settings?.providers ?? []}
     running=${running}
     modelLabel="秘书模型"
     effortLabel="秘书思考强度"

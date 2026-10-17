@@ -33,7 +33,7 @@ const GROUPS = [
   [
     '科研协作',
     [
-      ['models', '模型与 API', '模型与 API · 服务列表'],
+      ['models', '模型与服务商', '模型与服务商'],
       ['persona', '人格与记忆', '人格与记忆'],
       ['experts', '专家角色', '专家角色分配'],
       ['secretary-settings', '任务秘书', '会议秘书设置'],
@@ -51,7 +51,7 @@ const GROUPS = [
 
 /** @param {string} page */
 function titleOf(page) {
-  if (page.startsWith('provider')) return t('添加服务 · API 表单');
+  if (page.startsWith('provider')) return t('其他兼容服务');
   for (const [, items] of GROUPS) {
     const found = items.find(([id]) => id === page);
     if (found) return t(found[2]);

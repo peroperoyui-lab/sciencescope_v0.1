@@ -46,8 +46,9 @@ test(
                       id: 'scripted',
                       name: 'Scripted',
                       models: [
-                        { id: 'main-model', efforts: ['low'] },
-                        { id: 'secretary-model', efforts: ['low', 'high'] },
+                        { id: 'main-model' },
+                        // A catalog model that supports the "high" thinking level.
+                        { id: 'deepseek-v4-pro', name: 'secretary-model' },
                       ],
                     },
                   ],
@@ -99,7 +100,7 @@ test(
             );
             assert.deepEqual(app.core.meetings.get(attached.id).policy.model, {
               provider: 'scripted',
-              model: 'secretary-model',
+              model: 'deepseek-v4-pro',
               effort: 'high',
             });
             assert.equal(
