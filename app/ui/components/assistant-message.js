@@ -4,6 +4,7 @@ import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { CitedMarkdown } from './cited-markdown.js';
 import { Deliverables } from './deliverables.js';
+import { ApprovalCard } from './approval.js';
 import { ToolActivity } from './meeting-tool.js';
 import { InputReceipt } from './research-input.js';
 
@@ -33,6 +34,9 @@ export function AssistantMessage({ message, label }) {
     <div class="turn-activity-host">
       <${ToolActivity} calls=${calls} running=${message.status === 'streaming'} />
     </div>
+    ${calls
+      .filter((call) => call.kind === 'approval' && call.status === 'pending')
+      .map((call) => html`<${ApprovalCard} key=${call.id} call=${call} />`)}
     <${CitedMarkdown} message=${message} text=${text} />
     <${Deliverables} files=${message.deliverables} />
     <${InputReceipt} message=${message} />

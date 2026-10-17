@@ -7,6 +7,8 @@ import { useEffect, useState } from 'preact/hooks';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
+import { ApprovalRow } from './approval.js';
+import { tokenAmount } from './discussion-usage.js';
 
 const RESOURCE_NAMES = {
   map: '导图',
@@ -131,6 +133,14 @@ const TOOLS = {
     mono: true,
   }),
 };
+TOOLS.list_files = (args) => ({
+  icon: 'folder-open',
+  verb: '列出文件',
+  running: '正在列出文件',
+  target: text(args?.pattern ?? args?.path),
+  mono: true,
+});
+TOOLS.grep_files = TOOLS.grep;
 TOOLS.shell = TOOLS.bash;
 TOOLS.read_file = TOOLS.read;
 TOOLS.write_file = TOOLS.write;
@@ -206,21 +216,54 @@ function RetryRow({ call }) {
   </div>`;
 }
 
-/** @param {{ call: any, running: boolean }} props */
-function ActivityRow({ call, running }) {
-  if (call.kind === 'thinking') return html`<${ThinkingRow} call=${call} running=${running} />`;
-  if (call.kind === 'retry') return html`<${RetryRow} call=${call} />`;
-  return html`<${CallRow} call=${call} running=${running} />`;
+/** The session context was summarised to make room. @param {{ call: any }} props */
+function CompactionRow({ call }) {
+  const { beforeTokens, afterTokens } = call.result ?? {};
+  return html`<div class="ss-act__row ss-act__row--muted" data-activity="compaction">
+    <${Lucide} name="fold-vertical" /><span class="ss-act__verb">${t('上下文已自动压缩')}</span>
+    ${
+      beforeTokens &&
+      html`<span class="ss-act__end"
+        >${t('{before} → {after} token', {
+          before: tokenAmount(beforeTokens),
+          after: tokenAmount(afterTokens),
+        })}</span
+      >`
+    }
+  </div>`;
 }
 
-/** @param {{ call: any, running: boolean }} props */
-function CallRow({ call, running }) {
+/** @param {{ call: any, running: boolean, waiting: boolean }} props */
+function ActivityRow({ call, running, waiting }) {
+  if (call.kind === 'thinking') return html`<${ThinkingRow} call=${call} running=${running} />`;
+  if (call.kind === 'retry') return html`<${RetryRow} call=${call} />`;
+  if (call.kind === 'approval') return html`<${ApprovalRow} call=${call} />`;
+  if (call.kind === 'compaction') return html`<${CompactionRow} call=${call} />`;
+  return html`<${CallRow} call=${call} running=${running} waiting=${waiting} />`;
+}
+
+/** @param {{ call: any, running: boolean, waiting?: boolean }} props */
+function CallRow({ call, running, waiting = false }) {
   const [open, setOpen] = useState(false);
   const shown = describeCall(call);
-  const active = call.status === 'running' && running;
+  // A call held for approval is not running yet; its card follows it.
+  const held = call.status === 'running' && running && waiting;
+  const active = call.status === 'running' && running && !waiting;
   const failed = call.status === 'failed';
   const unfinished = call.status === 'running' && !running;
-  const end = failed ? t('失败') : unfinished ? t('未完成') : active ? '' : outcome(call.result);
+  const end = failed
+    ? t('失败')
+    : unfinished
+      ? t('未完成')
+      : held
+        ? t('等待批准')
+        : active
+          ? ''
+          : call.result?.rejected
+            ? t('已拒绝')
+            : call.result?.cancelled
+              ? t('已取消')
+              : outcome(call.result);
   const tone = failed ? 'ss-act__row--fail' : unfinished ? 'ss-act__row--muted' : '';
   return html`${call.preamble && html`<p class="ss-act__narr">${call.preamble}</p>`}
     <button
@@ -271,6 +314,7 @@ export function ActivityTimeline({ calls, running, turn }) {
   const tools = calls.filter(isToolCall);
   const failed = tools.filter((call) => call.status === 'failed').length;
   const retries = calls.filter((call) => call.kind === 'retry').length;
+  const waiting = calls.some((call) => call.kind === 'approval' && call.status === 'pending');
   const started = turn?.startedAt ?? calls[0].startedAt;
   const ended = turn?.endedAt ?? calls.at(-1).endedAt;
   const parts = [];
@@ -295,7 +339,7 @@ export function ActivityTimeline({ calls, running, turn }) {
     ${
       open &&
       html`<div class="ss-act__list">
-        ${calls.map((call) => html`<${ActivityRow} key=${call.id} call=${call} running=${running} />`)}
+        ${calls.map((call) => html`<${ActivityRow} key=${call.id} call=${call} running=${running} waiting=${waiting} />`)}
       </div>`
     }
   </div>`;

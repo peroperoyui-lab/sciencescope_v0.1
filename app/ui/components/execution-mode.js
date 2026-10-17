@@ -1,6 +1,5 @@
-// Execution mode in the composer bar (design system ModeMenu). 「请求批准」
-// waits for task P1b behind FEATURES.approval.
-import { FEATURES } from '../features.js';
+// Execution mode in the composer bar (design system ModeMenu): 「请求批准」
+// (direct, approval ask), 常规 (direct, approval auto), 自动化 (a goal).
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
@@ -16,7 +15,7 @@ const MODES = {
  * @param {{mode:string,onChange:(mode:string)=>void,ordered:boolean,locked:boolean}} props
  */
 export function ExecutionMode({ mode, onChange, ordered, locked }) {
-  const current = mode === 'autonomous' && ordered ? 'direct' : mode;
+  const current = mode;
   const shown = MODES[current] ?? MODES.direct;
   const auto = current === 'autonomous';
   return html`<${ChoiceMenu}
@@ -24,17 +23,13 @@ export function ExecutionMode({ mode, onChange, ordered, locked }) {
     triggerClass=${`ss-btn ss-btn--sm ${auto ? 'ss-btn--auto' : 'ss-btn--ghost'}`}
     disabled=${locked}
     items=${[
-      ...(FEATURES.approval
-        ? [
-            {
-              text: t('请求批准'),
-              icon: 'shield-check',
-              selected: current === 'approval',
-              description: t('运行命令、写项目文件夹和安装包之前先问你。'),
-              run: () => onChange('approval'),
-            },
-          ]
-        : []),
+      {
+        text: t('请求批准'),
+        icon: 'shield-check',
+        selected: current === 'approval',
+        description: t('运行命令、写项目文件夹和安装包之前先问你。'),
+        run: () => onChange('approval'),
+      },
       {
         text: t('常规'),
         icon: 'play',

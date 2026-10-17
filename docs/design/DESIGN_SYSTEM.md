@@ -51,7 +51,6 @@
 | `styles/components.css` | 组件样式的唯一来源（`ss-` 类名）；画廊的 `bundle.css` 由它加上 `build/gallery.css` 拼成 |
 | `styles/pages.css` | 应用自己的页面布局（对话列、查找条、待发队列等），只用令牌 |
 | `lucide-icons.js` | 由 `build.py` 生成的图标数据；`icons.js` 的 `Lucide` 输出 `ss-i` 图标，`Icon` 给旧页面用，旧图标名在 `ALIASES` 里映射 |
-| `features.js` | 还没做完的功能开关：`approval`（请求批准、批准卡片），等 P1b |
 | `components/popover.js`、`floating.js` | 锚定弹层（贴着触发按钮、放不下就翻转、Esc 和点外面关闭）与全局提示（`data-tip`、`data-kbd`） |
 
 - 已用新组件的：对话页（`meeting.js`、`chat-message.js`、`timeline.js`、`status-line.js`）和输入栏（`composer.js`、`model-picker.js`、`execution-mode.js`、`discussion-usage.js`）。秘书面板和全局助手还用旧的工具记录，下一步换成共用时间线。

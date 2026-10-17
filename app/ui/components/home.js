@@ -195,8 +195,8 @@ export function Welcome({ projectId = null }) {
             <${Composer}
               key=${projectId ?? 'standalone'}
               projectId=${projectId}
-              onSend=${(text, input) => actions.startMeeting(text, projectId, input)}
-              onGoal=${(text, input, maxRounds) => actions.startMeeting(text, projectId, input, { maxRounds })}
+              onSend=${(text, input, approval) => actions.startMeeting(text, projectId, input, undefined, approval)}
+              onGoal=${(text, input, maxRounds, approval) => actions.startMeeting(text, projectId, input, { maxRounds }, approval)}
             />
           </div>
         </div>

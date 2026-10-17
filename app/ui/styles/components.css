@@ -2584,6 +2584,9 @@ button.ss-act__row:hover {
 .ss-act__row--muted .ss-act__verb {
   color: var(--muted);
 }
+.ss-act__row--ok > .ss-i {
+  color: var(--ok);
+}
 .ss-act__nest {
   display: grid;
   margin-left: 22px;

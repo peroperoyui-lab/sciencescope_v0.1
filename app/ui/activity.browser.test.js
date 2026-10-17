@@ -86,3 +86,68 @@ test(
     );
   },
 );
+
+test(
+  'in 请求批准 mode a command waits for the person, a rejection reaches the model and 常规 runs without asking',
+  { skip: browserSkip },
+  async () => {
+    const results = [];
+    await withBrowserApp(
+      'p1b-approval',
+      async function* ({ call }) {
+        results.push(await call('shell', { command: 'echo first' }));
+        results.push(await call('shell', { command: 'echo second' }));
+        yield { type: 'compaction', beforeTokens: 123000, afterTokens: 18000 };
+        yield '处理完了';
+      },
+      async ({ page, app, shot }) => {
+        await app.core.workspace.edit({
+          resource: 'settings',
+          key: 'app',
+          op: 'patch',
+          args: { changes: { models: { default: { provider: 'scripted', model: 'scripted' } } } },
+        });
+        const meeting = app.core.meetings.create({
+          members: [{ participantId: 'person_user' }, { participantId: 'agent_main' }],
+          policy: { mode: 'direct', respondent: 'agent_main' },
+        });
+        await page.goto(new URL('/?token=ui-token#/meeting/' + meeting.id, page.url()).href);
+        const mode = page.getByRole('button', { name: '执行方式', exact: true });
+        assert.match(await mode.textContent(), /请求批准/);
+        await page.getByRole('textbox', { name: '主输入框' }).fill('运行两条命令');
+        await page.getByRole('button', { name: '发送', exact: true }).click();
+
+        const answer = page.locator('.ss-msg:not([data-user])').last();
+        const card = answer.getByRole('group', { name: '需要你的批准' });
+        await card.getByText('echo first').waitFor();
+        await answer.locator('.ss-status--wait', { hasText: '等待你的批准' }).waitFor();
+        await shot('p1b-approval');
+        await card.getByRole('button', { name: '拒绝', exact: true }).click();
+        await answer.locator('[data-activity="approval"][data-status="rejected"]').waitFor();
+        await card.getByText('echo second').waitFor();
+        await card.getByRole('button', { name: '允许', exact: true }).click();
+
+        await answer.getByText('处理完了').waitFor();
+        assert.equal(results[0].rejected, true);
+        assert.match(results[1].output, /second/);
+        const activity = answer.locator('[data-turn-activity]');
+        await activity.locator('.ss-act__summary').click();
+        assert.match(
+          await activity.locator('[data-activity="compaction"]').textContent(),
+          /上下文已自动压缩.*12 万 → 1\.8 万 token/,
+        );
+        assert.match(await activity.locator('[data-tool-call]').first().textContent(), /已拒绝/);
+        await shot('p1b-decided');
+
+        await mode.click();
+        await page.getByRole('menuitemradio', { name: '常规', exact: true }).click();
+        await page.waitForFunction(async (id) => {
+          const response = await fetch(`/api/meetings/${id}`, {
+            headers: { authorization: 'Bearer ui-token' },
+          });
+          return (await response.json()).policy.approval === 'auto';
+        }, meeting.id);
+      },
+    );
+  },
+);

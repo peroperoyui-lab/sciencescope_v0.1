@@ -33,6 +33,17 @@ export function StatusLine({ message, turn, calls, text, reason }) {
   const actions = useActions();
   if (message.status === 'streaming') {
     const phase = turn?.phase ?? '';
+    if (phase === 'waiting-approval') {
+      const card = calls.findLast((call) => call.kind === 'approval' && call.status === 'pending');
+      return html`<div class="ss-status ss-status--wait" role="status">
+        <${Lucide} name="shield-question-mark" /><span>${t('等待你的批准')}</span>
+        <${Elapsed} since=${card?.startedAt} />
+      </div>`;
+    }
+    if (phase === 'compacting')
+      return html`<div class="ss-status" role="status">
+        <span class="ss-spin"></span><span>${t('正在压缩上下文')}</span>
+      </div>`;
     const active = calls.findLast((call) => call.status === 'running' && isToolCall(call));
     if (active) {
       const shown = describeCall(active);

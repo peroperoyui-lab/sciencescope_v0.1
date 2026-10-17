@@ -162,13 +162,20 @@ export function createActions(api, store) {
 
   /**
    * A new meeting with the local user and the main expert.
-   * @param {{ projectId?: string | null, title?: string, navigateAfter?:boolean, creation?:any }} [options]
+   * @param {{ projectId?: string | null, title?: string, navigateAfter?:boolean, creation?:any, policy?:any }} [options]
    */
-  async function createMeeting({ projectId = null, title, navigateAfter = true, creation } = {}) {
+  async function createMeeting({
+    projectId = null,
+    title,
+    navigateAfter = true,
+    creation,
+    policy,
+  } = {}) {
     const meeting = await api.post('/api/meetings', {
       projectId,
       title,
       creation,
+      policy,
       members: [{ participantId: LOCAL_USER_ID }, { participantId: MAIN_EXPERT_ID }],
     });
     apply('meeting.created', meeting);
@@ -188,14 +195,15 @@ export function createActions(api, store) {
    * Start a meeting from the welcome page with its first message; until then
    * the draft is not a meeting.
    * @param {string} text @param {string | null} [projectId] @param {any} [researchInput]
-   * @param {{maxRounds:number}} [automation]
+   * @param {{maxRounds:number}} [automation] @param {'ask' | 'auto'} [approval]
    */
-  async function startMeeting(text, projectId = null, researchInput, automation) {
+  async function startMeeting(text, projectId = null, researchInput, automation, approval) {
     const meeting = await createMeeting({
       projectId,
       title: text.slice(0, 40),
       navigateAfter: false,
       creation: projectId ? undefined : store.get().creationDetails,
+      policy: approval ? { approval } : undefined,
     });
     await openMeeting(meeting.id);
     const result = automation
@@ -213,6 +221,13 @@ export function createActions(api, store) {
 
   /** Answer again after a failed or stopped answer. @param {string} messageId */
   const retry = (messageId) => api.post(`/api/messages/${messageId}/retry`);
+
+  /**
+   * Allow or reject one pending tool action.
+   * @param {any} call @param {'approve' | 'reject'} decision
+   */
+  const decideApproval = (call, decision) =>
+    api.post(`/api/turns/${call.turnId}/approvals/${call.id}`, { decision });
 
   /** Continue only the author of this answer. @param {string} messageId */
   const continueAnswer = (messageId) => api.post(`/api/messages/${messageId}/continue`);
@@ -502,6 +517,7 @@ export function createActions(api, store) {
     updateMeeting,
     loadArchived,
     retry,
+    decideApproval,
     continueAnswer,
     adoptReview,
     loadMeetingContexts,

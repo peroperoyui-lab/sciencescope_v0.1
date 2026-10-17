@@ -20,9 +20,9 @@ import { ModelPicker } from './model-picker.js';
 const LAYERS = '.ss-menu, .ss-pop, .ss-dialog, #v-menu, .modalback, .command-palette';
 
 /**
- * @param {{ onSend: (text: string, input?:any) => Promise<any>, running?: boolean,
+ * @param {{ onSend: (text: string, input?:any, approval?:'ask' | 'auto') => Promise<any>, running?: boolean,
  *   onStop?: () => void, inputRef?: any, meetingId?: string, projectId?:string|null,
- *   onGoal?: (text:string,input:any,maxRounds:number)=>Promise<any> }} props
+ *   onGoal?: (text:string,input:any,maxRounds:number,approval?:'ask' | 'auto')=>Promise<any> }} props
  */
 export function Composer({
   onSend,
@@ -46,6 +46,16 @@ export function Composer({
   const discussion = useDiscussion(meetingId);
   const goal = useAppState((state) => state.goals[meetingId]);
   const [executionMode, setExecutionMode] = useState('direct');
+  // Approval is part of the meeting's rules; before the meeting exists the
+  // choice waits here and is passed when the first message creates it.
+  const [draftApproval, setDraftApproval] = useState('ask');
+  const approval = meetingId ? (discussion.policy.approval ?? 'ask') : draftApproval;
+  const chooseMode = (mode) => {
+    setExecutionMode(mode === 'autonomous' ? 'autonomous' : 'direct');
+    const next = mode === 'approval' ? 'ask' : 'auto';
+    if (!meetingId) setDraftApproval(next);
+    else if (next !== approval) discussion.save({ approval: next });
+  };
   const [maxRounds, setMaxRounds] = useState(30);
   const goalActive = goal && ['running', 'paused', 'blocked'].includes(goal.status);
   const startsGoal = executionMode === 'autonomous' && !discussion.ordered && !goalActive;
@@ -117,7 +127,7 @@ export function Composer({
     // Keep the draft until the host accepts the message.
     const snapshot = researchInput.value;
     const sent = await actions.attempt(() =>
-      startsGoal ? onGoal(value, snapshot, maxRounds) : onSend(value, snapshot),
+      startsGoal ? onGoal(value, snapshot, maxRounds, 'auto') : onSend(value, snapshot, approval),
     );
     setSending(false);
     if (sent !== undefined) {
@@ -169,7 +179,7 @@ export function Composer({
       <div class="ss-composer__bar">
         <${InputAdd} owner=${owner} projectId=${projectId} value=${researchInput.value} />
         <${DiscussionMode} meetingId=${meetingId} running=${running} />
-        ${onGoal && html`<${ExecutionMode} mode=${goalActive ? 'autonomous' : executionMode} onChange=${setExecutionMode} ordered=${discussion.ordered} locked=${Boolean(goalActive) || running} />`}
+        ${onGoal && html`<${ExecutionMode} mode=${goalActive || (executionMode === 'autonomous' && !discussion.ordered) ? 'autonomous' : approval === 'ask' ? 'approval' : 'direct'} onChange=${chooseMode} ordered=${discussion.ordered} locked=${Boolean(goalActive) || running} />`}
         ${
           startsGoal &&
           html`<label class="goal-rounds"
