@@ -1,5 +1,11 @@
 # Desktop implementation — first increment
 
+## 2026-10-17 R6a-5 overlay cleanup (Codex)
+- PREINSTALL removes only app/node_modules/runtime/python/models/reference, package.json/LICENSE/THIRD_PARTY_NOTICES and the main executable; skips new destinations, checks the running app before deletion and aborts on cleanup failure. Existing opt-in uninstall data removal is reused; app/ unchanged.
+- Clean Windows checkout check 245/245, zero skips, including both Windows-only tests; packaging tests 3/3 include compiling/running the NSIS hook with Chinese data paths and retained user files.
+- Installtest overlay 248.151 s, fresh 161.534 s: identical 9,697-file program manifests and SHA-256 values, 356.18 MiB; all 329 data files and two user files retained. Native project/connection pass, owned processes exit; two Go connection probes (minimax-m3) / 333 tokens.
+- Formal package 95,429,910 bytes, product/version unchanged; PREVIEW_TEST section 1 updated. User preview and backup untouched; package SHA-256, cleanup and screenshots: `.sciencescope-local/temp/r6a-5/REPORT.md`.
+
 ## 2026-10-17 R6a-4 review (Claude)
 - Merged Sol's second preview (`46539ee`, with R6a-3 pruning `94c4738`). Fresh install 9,697 files / 356 MiB, 164 s; overlay onto the user's preview 208 s but keeps the old dependency files (31,030 files), left for a follow-up installer cleanup.
 - The user's pre-P1a OpenCode Go provider (hand-configured, one API format for all models) answered the connection test with HTTP 400. Added `POST /api/providers/:id/adopt-preset` and a "改用内置配置" hint on cards whose address matches a preset: the key moves to the preset, and the default model, memory model, expert definitions and meeting overrides follow when the preset has the model (otherwise they fall back to inheriting). Browser test covers it.
