@@ -100,6 +100,8 @@ export function createTurnRunner({
           turnId,
           callId,
           environmentId: context.environmentId,
+          workFolder: context.workFolder,
+          env: context.env,
           signal,
         }),
     };
