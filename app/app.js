@@ -64,6 +64,7 @@ export async function createApp({
       home: core.paths.runtime,
       logs: core.paths.logs,
       catalog,
+      compactPercent: async () => (await settings()).context.compactPercent,
     });
   const providers = createProviderService({ core, catalog, runtime: activeRuntime });
   const minutes = createMinutesService({

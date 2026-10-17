@@ -9,12 +9,20 @@ import { controlledStream } from './requests.js';
 import { sessionStore } from './sessions.js';
 import { aggregateUsage } from './usage.js';
 import { createRequestLog } from './request-log.js';
+import { createCompactor } from './compaction.js';
 
 /**
- * @param {{home:string,logs:string,catalog:any,limits?:any,fetch?:any}} dependencies
+ * @param {{home:string,logs:string,catalog:any,limits?:any,fetch?:any,compactPercent?:()=>Promise<number>}} dependencies
  * @returns {import('../port.js').Runtime}
  */
-export function createPiRuntime({ home, logs, catalog, limits, fetch: requestFetch }) {
+export function createPiRuntime({
+  home,
+  logs,
+  catalog,
+  limits,
+  fetch: requestFetch,
+  compactPercent = async () => 80,
+}) {
   const sessions = new Map();
   const store = sessionStore(home);
   const log = createRequestLog(logs);
@@ -65,7 +73,7 @@ export function createPiRuntime({ home, logs, catalog, limits, fetch: requestFet
     const requests = [];
     session.cancelled = false;
     session.requests = requests;
-    agent.streamFunction = controlledStream({
+    const streamOptions = {
       selection,
       choice,
       sessionId: id,
@@ -75,6 +83,15 @@ export function createPiRuntime({ home, logs, catalog, limits, fetch: requestFet
       limits,
       noTools: session.noTools,
       fetch: requestFetch,
+    };
+    agent.streamFunction = controlledStream(streamOptions);
+    agent.prepareRequest = createCompactor({
+      agent,
+      store,
+      id,
+      streamOptions,
+      percent: compactPercent,
+      onEvent,
     });
     const unsubscribe = agent.subscribe(async (event) => {
       if (event.type === 'message_update') {

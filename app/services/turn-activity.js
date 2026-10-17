@@ -44,6 +44,21 @@ export function createTurnActivity(core, turnId) {
         return true;
       }
       finish();
+      if (event.type === 'compaction') {
+        const callId = randomUUID();
+        core.turns.startToolCall({
+          turnId,
+          callId,
+          name: 'compaction',
+          kind: 'compaction',
+          args: null,
+        });
+        core.turns.endToolCall(turnId, callId, {
+          result: { beforeTokens: event.beforeTokens, afterTokens: event.afterTokens },
+          isError: false,
+        });
+        return true;
+      }
       if (event.type === 'retry') {
         const { attempt, maxAttempts, error } = event;
         const callId = randomUUID();

@@ -1,5 +1,9 @@
 # Desktop implementation — first increment
 
+## 2026-10-17 P1b segment 3: session compaction (Codex)
+- Global context.compactPercent (80, range 50–95) feeds pi prepareRequest before every call; one same-model summary replaces older exchanges atomically, keeping the last two exchanges and current tool results intact. Compaction phase/activity and request purpose are emitted; failed summaries preserve the original and continue. No UI or meeting-record rewrite.
+- References: pi-coding-agent 1.0.0 and OpenCode compaction (MIT), design adaptation without copied modules. Fixed double-counted tool details and missing session routing on auxiliary requests (Go HTTP 400); related tests 10/10. Real flash continuation compacts estimated 556,506 → 3,791 tokens and preserves all checked decisions; fixed run 2 requests / 416,930 tokens. Full check and total retained attempts recorded on delivery.
+
 ## 2026-10-17 P1b segment 2: request approval (Codex)
 - Shared tools.run approval covers shell, writes/edits outside data and package installs; policy defaults to ask, including legacy meetings. Persistent approval cards and POST decisions reuse tool/phase/goal events; rejection, stop, goal end, shutdown and restart leave no turn error. No UI changes or schema migration.
 - Host-boundary integration covers foreground and background callers without changing the agent loop. app.js/server.js wire lifecycle and HTTP; file approval/execution share path resolution. Windows clean-checkout npm run check 239/239, zero skips; related approval/Python tests 6/6. Real flash rejects then approves script/write/run: 5 requests / 19,838 tokens, output 10, no turn errors. Initial missing-member test fixture corrected; evidence `.sciencescope-local/temp/p1b/SEGMENT2.md`.

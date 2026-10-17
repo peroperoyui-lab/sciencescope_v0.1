@@ -49,7 +49,7 @@ function emptyMessage(model) {
 
 /**
  * @param {{selection:any,choice:any,sessionId:string,onEvent:(event:any)=>void,
- *   log:(record:any)=>Promise<void>,requests:any[],limits?:Partial<typeof REQUEST_LIMITS>,fetch?:any,noTools?:boolean}} dependencies
+ *   log:(record:any)=>Promise<void>,requests:any[],limits?:Partial<typeof REQUEST_LIMITS>,fetch?:any,noTools?:boolean,purpose?:string}} dependencies
  */
 export function controlledStream({
   selection,
@@ -61,6 +61,7 @@ export function controlledStream({
   limits: overrides,
   fetch: requestFetch,
   noTools = false,
+  purpose = 'answer',
 }) {
   const limits = { ...REQUEST_LIMITS, ...overrides };
   return (model, context, options = {}) => {
@@ -100,6 +101,9 @@ export function controlledStream({
         try {
           const stream = selection.models.streamSimple(model, context, {
             ...options,
+            // Auxiliary requests do not pass through Agent, but providers still
+            // need the same session routing/cache identity (e.g. OpenCode Go).
+            sessionId: options.sessionId ?? sessionId,
             headers: { ...selection.entry.headers, ...options.headers },
             signal,
             maxRetries: 0,
@@ -183,6 +187,7 @@ export function controlledStream({
         await log({
           time: new Date().toISOString(),
           session: sessionId,
+          purpose,
           provider: model.provider,
           model: model.id,
           api: model.api,
