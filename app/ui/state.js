@@ -17,7 +17,6 @@ export const initialState = {
   meetingContexts: {},
   /** Durable queued input by meeting. */
   /** @type {Record<string, any>} */ outboxes: {},
-  /** @type {Record<string, any>} */ goals: {},
   /** Current foreground meeting; completion badges are acknowledged here. */
   /** @type {string|null} */ activeMeetingId: null,
   /** @type {Record<string, string>} */ acknowledgedActivity: {},
@@ -105,20 +104,6 @@ export function applyEvent(state, { type, payload }) {
   switch (type) {
     case 'versions.changed':
       return { ...state, versionsVersion: state.versionsVersion + 1 };
-    case 'goal.changed': {
-      const known = state.goals[payload.meetingId];
-      if (known?.updatedAt > payload.updatedAt) return state;
-      const acknowledgedActivity =
-        state.activeMeetingId === payload.meetingId &&
-        ['completed', 'failed'].includes(payload.status)
-          ? { ...state.acknowledgedActivity, [payload.meetingId]: payload.updatedAt }
-          : state.acknowledgedActivity;
-      return {
-        ...state,
-        goals: { ...state.goals, [payload.meetingId]: payload },
-        acknowledgedActivity,
-      };
-    }
     case 'python.changed':
       return { ...state, pythonVersion: state.pythonVersion + 1 };
     case 'research.input.changed':

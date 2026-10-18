@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { initialState, applyEvent, createStore } from './state.js';
 import { meetingActivity } from './activity.js';
-import { createGoalActions } from './goal-actions.js';
+import { createActivityActions } from './activity-actions.js';
 
 test('background ordinary replies and queued messages show activity without loading their transcript', () => {
   let state = applyEvent(initialState, {
@@ -28,16 +28,16 @@ test('background ordinary replies and queued messages show activity without load
   assert.equal(meetingActivity(state, 'meeting').status, 'queued');
 });
 
-test('opening a completed goal acknowledges its badge and stale goal snapshots cannot revive it', async () => {
-  const done = { meetingId: 'meeting', status: 'completed', updatedAt: '3' };
-  const store = createStore(applyEvent(initialState, { type: 'goal.changed', payload: done }));
-  assert.equal(meetingActivity(store.get(), 'meeting').status, 'completed');
-  const api = /** @type {any} */ ({
-    get: async () => ({ ...done, status: 'running', updatedAt: '2' }),
-  });
-  const actions = createGoalActions(api, store);
-  actions.viewMeeting('meeting');
+test('opening a meeting acknowledges a failed answer badge', () => {
+  const failed = {
+    id: 'turn',
+    meetingId: 'meeting',
+    participantId: 'agent_main',
+    status: 'failed',
+    endedAt: '3',
+  };
+  const store = createStore(applyEvent(initialState, { type: 'turn.ended', payload: failed }));
+  assert.equal(meetingActivity(store.get(), 'meeting').status, 'failed');
+  createActivityActions(/** @type {any} */ ({}), store).viewMeeting('meeting');
   assert.equal(meetingActivity(store.get(), 'meeting'), null);
-  await actions.loadGoal('meeting');
-  assert.equal(store.get().goals.meeting.status, 'completed');
 });

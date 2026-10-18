@@ -13,24 +13,6 @@
   gap: var(--sp-6);
   font-variant-numeric: tabular-nums;
 }
-.goal-rounds {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-6);
-  margin-left: var(--sp-4);
-  color: var(--muted);
-  font-size: 12px;
-}
-.goal-rounds input {
-  width: 48px;
-  height: var(--h-sm);
-  padding: 0 6px;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--r-sm);
-  background: var(--raised);
-  color: var(--ink);
-  font-size: 12px;
-}
 .model-pop {
   width: 300px;
 }

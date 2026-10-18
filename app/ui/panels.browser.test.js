@@ -45,7 +45,7 @@ test(
         assert.match(results[0].output, /from-panel/);
 
         await mode.click();
-        // Side panels have no goals, so 自动化 is not offered.
+        // Only 请求批准 and 常规 are offered.
         assert.equal(await page.getByRole('menuitemradio', { name: '自动化' }).count(), 0);
         await page.getByRole('menuitemradio', { name: '常规', exact: true }).click();
         const assistant = app.core.meetings

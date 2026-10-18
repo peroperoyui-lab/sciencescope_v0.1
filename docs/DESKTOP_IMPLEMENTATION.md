@@ -1,5 +1,8 @@
 # Desktop implementation — first increment
 
+## 2026-10-18 Automation removed from the UI (Claude)
+- User decision: execution mode is 请求批准 or 常规 only. Removed the 自动化 option, goal rounds input, `GoalPanel`, goal actions (`goal-actions.js` → `activity-actions.js`, failures only), `goal.changed` subscription and the `automation.browser.test.js`. Backend removal is brief A2-2 for Sol.
+
 ## 2026-10-18 Second-round test fixes (Claude)
 - Compact activity view keeps cards waiting for approval; preambles render as Markdown; chat/project menus show 置顶 as an item; source detail wraps long text; file preview and materials panels use `SidePanel`. Old `meeting-tool.js` removed. Check 245 pass, 2 Windows-only skipped (`map.browser.test.js` still flaky on the base branch).
 

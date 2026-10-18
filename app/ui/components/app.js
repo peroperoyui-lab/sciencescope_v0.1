@@ -78,7 +78,7 @@ export function App() {
     return null;
   });
   const actions = useActions();
-  // Set before the new view is painted: a goal that completes in the meantime
+  // Set before the new view is painted: an answer that fails in the meantime
   // must not be marked as seen in the meeting the person just left.
   useLayoutEffect(() => {
     actions.viewMeeting(route.view === 'meeting' ? route.id.split('/')[0] : null);

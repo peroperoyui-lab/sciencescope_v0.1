@@ -2,7 +2,7 @@
 // the store. Later changes arrive through the event stream anyway; recording
 // the direct result keeps the interface responsive.
 import { createOutboxActions } from './outbox-actions.js';
-import { createGoalActions } from './goal-actions.js';
+import { createActivityActions } from './activity-actions.js';
 import { createVersionActions } from './version-actions.js';
 import { createDeliverableActions } from './deliverable-actions.js';
 import { createSnapshotActions } from './snapshot-actions.js';
@@ -40,7 +40,7 @@ export function createActions(api, store) {
     ]);
     applyAppearance(settings);
     set({ settings, projects, meetings, participants });
-    await goals.loadActivity();
+    await activity.loadActivity();
     await loadParticipantDefinitions();
     stopFollowing = api.follow(
       seq,
@@ -72,7 +72,7 @@ export function createActions(api, store) {
 
   /** Load a meeting's latest messages and the tool calls of its answers. */
   async function openMeeting(meetingId) {
-    goals.viewMeeting(meetingId);
+    activity.viewMeeting(meetingId);
     // An empty list first, so message events that arrive while the page
     // loads are kept; the page must not roll them back.
     store.update((state) =>
@@ -104,7 +104,6 @@ export function createActions(api, store) {
     await Promise.all(page.messages.filter((m) => m.turnId).map((m) => loadTurn(m.turnId)));
     await loadMeetingContexts(meetingId);
     await outbox.loadOutbox(meetingId);
-    await goals.loadGoal(meetingId);
   }
 
   /**
@@ -201,9 +200,9 @@ export function createActions(api, store) {
    * Start a meeting from the welcome page with its first message; until then
    * the draft is not a meeting.
    * @param {string} text @param {string | null} [projectId] @param {any} [researchInput]
-   * @param {{maxRounds:number}} [automation] @param {'ask' | 'auto'} [approval]
+   * @param {'ask' | 'auto'} [approval]
    */
-  async function startMeeting(text, projectId = null, researchInput, automation, approval) {
+  async function startMeeting(text, projectId = null, researchInput, approval) {
     const meeting = await createMeeting({
       projectId,
       title: text.slice(0, 40),
@@ -212,9 +211,7 @@ export function createActions(api, store) {
       policy: approval ? { approval } : undefined,
     });
     await openMeeting(meeting.id);
-    const result = automation
-      ? await goals.startGoal(meeting.id, text, automation.maxRounds, researchInput)
-      : await postMessage(meeting.id, text, researchInput);
+    const result = await postMessage(meeting.id, text, researchInput);
     if (!projectId) set({ creationDetails: null });
     navigate({ view: 'meeting', id: meeting.id });
     return result;
@@ -521,10 +518,10 @@ export function createActions(api, store) {
   }
 
   const outbox = createOutboxActions(api, store);
-  const goals = createGoalActions(api, store);
+  const activity = createActivityActions(api, store);
   return {
     ...outbox,
-    ...goals,
+    ...activity,
     ...createVersionActions(api),
     ...createDeliverableActions(api),
     ...createSnapshotActions(api, store, () => resourceEdits.catch(() => {})),

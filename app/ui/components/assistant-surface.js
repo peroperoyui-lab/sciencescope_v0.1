@@ -198,7 +198,6 @@ export function AssistantSurface({
             meeting &&
             html`<${ExecutionMode}
               mode=${approval === 'ask' ? 'approval' : 'direct'}
-              goals=${false}
               locked=${running}
               onChange=${(mode) => {
                 const next = mode === 'approval' ? 'ask' : 'auto';

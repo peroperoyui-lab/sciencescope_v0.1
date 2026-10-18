@@ -21,8 +21,7 @@ const LAYERS = '.ss-menu, .ss-pop, .ss-dialog, #v-menu, .modalback, .command-pal
 
 /**
  * @param {{ onSend: (text: string, input?:any, approval?:'ask' | 'auto') => Promise<any>, running?: boolean,
- *   onStop?: () => void, inputRef?: any, meetingId?: string, projectId?:string|null,
- *   onGoal?: (text:string,input:any,maxRounds:number,approval?:'ask' | 'auto')=>Promise<any> }} props
+ *   onStop?: () => void, inputRef?: any, meetingId?: string, projectId?:string|null }} props
  */
 export function Composer({
   onSend,
@@ -31,7 +30,6 @@ export function Composer({
   inputRef,
   meetingId,
   projectId = null,
-  onGoal,
 }) {
   const actions = useActions();
   const sendKey = useAppState((state) => state.settings?.composer?.sendKey ?? 'enter');
@@ -44,21 +42,15 @@ export function Composer({
   const quote = useAppState((state) => state.quote);
   const fillDraft = useAppState((state) => state.fillDraft);
   const discussion = useDiscussion(meetingId);
-  const goal = useAppState((state) => state.goals[meetingId]);
-  const [executionMode, setExecutionMode] = useState('direct');
   // Approval is part of the meeting's rules; before the meeting exists the
   // choice waits here and is passed when the first message creates it.
   const [draftApproval, setDraftApproval] = useState('ask');
   const approval = meetingId ? (discussion.policy.approval ?? 'ask') : draftApproval;
   const chooseMode = (mode) => {
-    setExecutionMode(mode === 'autonomous' ? 'autonomous' : 'direct');
     const next = mode === 'approval' ? 'ask' : 'auto';
     if (!meetingId) setDraftApproval(next);
     else if (next !== approval) discussion.save({ approval: next });
   };
-  const [maxRounds, setMaxRounds] = useState(30);
-  const goalActive = goal && ['running', 'paused', 'blocked'].includes(goal.status);
-  const startsGoal = executionMode === 'autonomous' && !discussion.ordered && !goalActive;
   const mention = useDiscussionMention({
     candidates: discussion.candidates,
     enabled: Boolean(meetingId) && !discussion.ordered,
@@ -126,9 +118,7 @@ export function Composer({
     setSending(true);
     // Keep the draft until the host accepts the message.
     const snapshot = researchInput.value;
-    const sent = await actions.attempt(() =>
-      startsGoal ? onGoal(value, snapshot, maxRounds, 'auto') : onSend(value, snapshot, approval),
-    );
+    const sent = await actions.attempt(() => onSend(value, snapshot, approval));
     setSending(false);
     if (sent !== undefined) {
       setText((current) => (current === text ? '' : current));
@@ -138,13 +128,10 @@ export function Composer({
 
   // While an answer runs the button stops it; typed text is queued instead.
   const stops = running && !text.trim() && Boolean(onStop);
-  const roundsInvalid = startsGoal && (!Number.isSafeInteger(maxRounds) || maxRounds < 1);
-  const auto = executionMode === 'autonomous' || Boolean(goalActive);
   return html`<div class="ss-composer-wrap">
     <div
       class="ss-composer"
       data-composer="main"
-      data-mode=${auto && !discussion.ordered ? 'auto' : undefined}
       onDrop=${researchInput.onDrop}
       onDragOver=${researchInput.onDragOver}
       onPaste=${researchInput.onPaste}
@@ -179,19 +166,11 @@ export function Composer({
       <div class="ss-composer__bar">
         <${InputAdd} owner=${owner} projectId=${projectId} value=${researchInput.value} />
         <${DiscussionMode} meetingId=${meetingId} running=${running} />
-        ${onGoal && html`<${ExecutionMode} mode=${goalActive || (executionMode === 'autonomous' && !discussion.ordered) ? 'autonomous' : approval === 'ask' ? 'approval' : 'direct'} onChange=${chooseMode} ordered=${discussion.ordered} locked=${Boolean(goalActive) || running} />`}
-        ${
-          startsGoal &&
-          html`<label class="goal-rounds"
-            >${t('最多轮数')}<input
-              type="number"
-              min="1"
-              step="1"
-              aria-label=${t('发送目标最多轮数')}
-              value=${maxRounds}
-              onInput=${(event) => setMaxRounds(Number(event.currentTarget.value))}
-          /></label>`
-        }
+        <${ExecutionMode}
+          mode=${approval === 'ask' ? 'approval' : 'direct'}
+          onChange=${chooseMode}
+          locked=${running}
+        />
         <span class="ss-composer__spacer"></span>
         <${DiscussionUsageRing} meetingId=${meetingId} />
         <${ModelPicker} />
@@ -214,7 +193,7 @@ export function Composer({
                 aria-label=${t('发送')}
                 data-tip=${running ? t('发送（排队，当前回答结束后发出）') : t('发送')}
                 data-kbd=${sendKey === 'ctrl-enter' ? 'Ctrl Enter' : 'Enter'}
-                disabled=${!text.trim() || sending || roundsInvalid}
+                disabled=${!text.trim() || sending}
                 onClick=${send}
               >
                 <${Lucide} name="arrow-up" />

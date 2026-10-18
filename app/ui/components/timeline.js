@@ -85,11 +85,6 @@ const TOOLS = {
     verb: '起草主对话指令',
     running: '正在起草主对话指令',
   }),
-  goal_update: (args) => ({
-    icon: 'list-checks',
-    verb: args?.status === 'blocked' ? '报告目标受阻' : '报告目标完成',
-    running: '正在更新目标',
-  }),
   // Runtime tools (shell, files, web).
   bash: (args) => ({
     icon: 'square-terminal',

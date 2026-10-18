@@ -1,6 +1,6 @@
 # ScienceScope 系统功能与技术说明
 
-P1b（2026-10-17，已合并）：共享宿主工具已恢复 shell、文件读写/精确编辑/搜索与网页读取。会议 `policy.approval` 默认为 `ask`；shell、数据目录外写入和 Python 包安装经批准接口等待，活动保存 `approval` 与 `pending/approved/rejected/cancelled`，拒绝及取消不写 `turns.error`。界面：输入栏执行方式三档（请求批准、常规、自动化），新对话默认请求批准，选择存在会议规则里；批准卡片出现在时间线里它发生的位置，状态行显示「等待你的批准」，处理后收成「已允许 / 已拒绝 / 已取消」一行；秘书和全局助手的回答里同样出现批准卡片。详细接口见 `02_INTERACTION_CONTRACTS.md` 2026-10-16 修订。
+P1b（2026-10-17，已合并）：共享宿主工具已恢复 shell、文件读写/精确编辑/搜索与网页读取。会议 `policy.approval` 默认为 `ask`；shell、数据目录外写入和 Python 包安装经批准接口等待，活动保存 `approval` 与 `pending/approved/rejected/cancelled`，拒绝及取消不写 `turns.error`。界面：输入栏执行方式两档（请求批准、常规；2026-10-18 用户决定删掉自动化，界面已删，后端目标服务待 A2-2 删除），新对话默认请求批准，选择存在会议规则里；批准卡片出现在时间线里它发生的位置，状态行显示「等待你的批准」，处理后收成「已允许 / 已拒绝 / 已取消」一行；秘书和全局助手的回答里同样出现批准卡片。详细接口见 `02_INTERACTION_CONTRACTS.md` 2026-10-16 修订。
 
 P1b 上下文压缩：全局 `context.compactPercent` 默认 80，可设置 50–95。每次模型请求前按实际发送内容的 UTF-8 大小估算上下文；达到比例时，同模型单次请求整理较早消息，最近两轮用户消息及其后工具结果保留原文。成功后原子保存会话、发 `compaction` 活动（`result={beforeTokens,afterTokens}`，均为估算）；阶段为 `compacting`。摘要失败或达到输出上限时保留原文继续；请求日志 `purpose=compaction` 记录用量及失败。秘书纪要与会议原文保持独立。时间线显示「上下文已自动压缩 12 万 → 1.8 万 token」一行，状态行显示「正在压缩上下文」；门槛在「设置 → 模型与服务商」用滑块调整（50–95，松手保存），输入栏的上下文环到这个比例变成提醒色。
 
@@ -326,7 +326,7 @@ T19 核对补充（2026-09-27）：独立审核支持单独的人设和技能绑
 - **用途与操作**：每个主对话有一位私有秘书（侧栏），历史与主对话分开；可选模型、推理强度、询问/完全接管，可上传附件。
   秘书可以用 `propose_main_draft` 工具起草给主专家的指令，界面出现可编辑的提案卡片，
   由用户确认后才填入主对话草稿，仍需用户自己发送。
-- **界面（2026-10-17，Claude）**：秘书和全局助手是右侧面板（`app/ui/components/side-panel.js`），拖动左边缘调宽、双击恢复，宽度存 `appearance.panels`。对话用和主对话相同的消息、活动时间线、批准卡片和状态行（`assistant-surface.js` 复用 `chat-message.js`），消息底部只有复制和重新回答。输入框：添加、执行方式两档（请求批准 / 常规，存会议 `policy.approval`，面板不提供自动化）、模型和思考强度（`model-picker.js` 的覆盖模式：第一项跟随继承的模型，其余写会议 `policy.model`，不改默认模型）、发送 / 停止合一。秘书面板顶部一行写跟进位置；提案是卡片（待审阅 / 已填入草稿 / 已忽略，修改记录可撤销）。
+- **界面（2026-10-17，Claude）**：秘书和全局助手是右侧面板（`app/ui/components/side-panel.js`），拖动左边缘调宽、双击恢复，宽度存 `appearance.panels`。对话用和主对话相同的消息、活动时间线、批准卡片和状态行（`assistant-surface.js` 复用 `chat-message.js`），消息底部只有复制和重新回答。输入框：添加、执行方式两档（请求批准 / 常规，存会议 `policy.approval`）、模型和思考强度（`model-picker.js` 的覆盖模式：第一项跟随继承的模型，其余写会议 `policy.model`，不改默认模型）、发送 / 停止合一。秘书面板顶部一行写跟进位置；提案是卡片（待审阅 / 已填入草稿 / 已忽略，修改记录可撤销）。
 - **状态**：🟡（既有单元、DSH、界面、原生证据；T17 自动跟进层已通过完整测试、smoke 与 UI 截图复核，T17 原生客户端未重测）。
 - **技术实现**：前端 `desktop/assistant-chat.mjs`（秘书与全局助手共用）；后端 `scripts/assistant-chat-service.mjs`、`assistant-conversations.mjs`；
   接口 `GET /api/assistant`、`POST /api/assistant/chat|draft|model|approval|stop|proposal/resolve`；

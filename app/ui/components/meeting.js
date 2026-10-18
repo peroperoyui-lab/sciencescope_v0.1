@@ -10,7 +10,6 @@ import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
 import { navigate } from '../route.js';
 import { Composer } from './composer.js';
-import { GoalPanel } from './goal-panel.js';
 import { Message } from './chat-message.js';
 import { DiscussionStrip } from './discussion-strip.js';
 import { MinutesDialog } from './minutes-dialog.js';
@@ -319,7 +318,6 @@ export function MeetingView({ meetingId, focusMessageId }) {
     </div>
     <div class=${`chatlayout ${compact ? 'hide-tools' : ''}`}>
       <div class="chat-col">
-        <${GoalPanel} meetingId=${meeting.id} />
         ${meeting.policy.mode === 'round' && html`<${DiscussionStrip} meetingId=${meeting.id} running=${running} />`}
         ${
           finding &&
@@ -378,7 +376,6 @@ export function MeetingView({ meetingId, focusMessageId }) {
           onStop=${() => actions.attempt(() => actions.interrupt(meeting.id))}
           projectId=${meeting.projectId}
           onSend=${(text, input) => actions.postMessage(meeting.id, text, input)}
-          onGoal=${(text, input, maxRounds) => actions.startGoal(meeting.id, text, maxRounds, input)}
         />
       </div>
       ${secretary && html`<${SecretaryPanel} mainMeetingId=${meeting.id} onClose=${() => setSecretary(false)} />`}

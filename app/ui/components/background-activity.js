@@ -34,7 +34,7 @@ export function BackgroundActivity({ currentMeetingId }) {
           meeting.id !== currentMeetingId,
       )
       .map((meeting) => ({ meeting, activity: meetingActivity(state, meeting.id) }))
-      .filter(({ activity }) => activity && !['completed', 'failed'].includes(activity.status)),
+      .filter(({ activity }) => activity && activity.status !== 'failed'),
   );
   if (!background.length) return null;
   return html`<button
