@@ -23,7 +23,7 @@
 | `plans/` | 往哪走 | `ROADMAP.md` 路线图；`IDEAS.md` 还没排期的想法；`tasks/` 进行中的任务书；`tasks/done/` 已完成的任务书（写新任务书时可参考） |
 | `reviews/` | 复盘 | 每次首测或阶段评审一份：`REVIEW_2026-09-23`（Claude 首次深度审阅）、`10-05` 整体复盘、`10-06`、`10-07`、`10-16` 首测、`10-18` 第二轮首测 |
 | `log/` | 发生了什么 | `IMPLEMENTATION_LOG.md` 新核心的开发与验收日志，最新在上 |
-| `research/` | 调研 | `RESEARCH_MEMO_2026-09-25.md` 记忆、知识管理、检索、文档工具、浏览器；`RESEARCH_NOTES_2026-09.md` |
+| `research/` | 调研 | `RESEARCH_MEMO_2026-09-25.md` 记忆、知识管理、检索、文档工具、浏览器；`RESEARCH_NOTES_2026-09.md`；`KNOWLEDGE_BASE_RESEARCH.md` 知识库调研（2026-10-18）；`EDITING_DESK_RESEARCH.md` 编辑台调研（2026-10-18） |
 | `handoff/` | 给用户的测试指南 | `PREVIEW_TEST.md` 预览版首测指南 |
 | `archive/` | 已被取代的文档，只读 | `AGENTS_2026-10-05.md`、`ROADMAP_2026-10-06.md`；`legacy/` 是旧原型（`desktop/`、`scripts/`、`adapters/`）时期的全部文档：旧 `SYSTEM_SPEC`、旧实施日志、T01–T24 任务书和报告、P01–P49 页面说明、流程说明、`page-manifest.json`、`UI_RESTORE.md` 等 |
 
