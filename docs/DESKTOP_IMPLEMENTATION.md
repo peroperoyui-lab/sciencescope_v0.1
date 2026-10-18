@@ -1,5 +1,8 @@
 # Desktop implementation — first increment
 
+## 2026-10-18 Second-round test fixes (Claude)
+- Compact activity view keeps cards waiting for approval; preambles render as Markdown; chat/project menus show 置顶 as an item; source detail wraps long text; file preview and materials panels use `SidePanel`. Old `meeting-tool.js` removed. Check 245 pass, 2 Windows-only skipped (`map.browser.test.js` still flaky on the base branch).
+
 ## 2026-10-17 Secretary and assistant panels (Claude)
 - Both panels are `ss-panel` side panels (`side-panel.js`, splitter width in `appearance.panels`) whose conversation reuses the meeting `Message` (activity timeline, approval cards, status line) and a compact composer with execution mode (ask / auto only) and `ModelPicker` in override mode (`policy.model`).
 - Secretary proposals are cards; old `assistant-message.js`, `assistant-model.js`, `secretary-model.js` removed. New `panels.browser.test.js` covers approval, 常规 and the remembered width. Linux check 244 pass, 2 Windows-only skipped.
