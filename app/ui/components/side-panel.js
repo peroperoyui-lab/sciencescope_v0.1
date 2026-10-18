@@ -12,7 +12,8 @@ const MIN_WIDTH = 280;
 const MAX_WIDTH = 640;
 
 /**
- * @param {{ name: 'secretary' | 'assistant', title: string, closeLabel: string,
+ * @param {{ name: 'secretary' | 'assistant' | 'preview' | 'materials', title: string, closeLabel: string,
+ *   defaultWidth?: number,
  *   onClose: () => void, buttons?: any, onHeadPointerDown?: (event: PointerEvent) => void,
  *   detached?: boolean, className?: string, children: any }} props
  */
@@ -25,11 +26,12 @@ export function SidePanel({
   onHeadPointerDown,
   detached = false,
   className = '',
+  defaultWidth = DEFAULT_WIDTH,
   children,
 }) {
   const actions = useActions();
   const stored = useAppState((state) => state.settings?.appearance?.panels?.[name]);
-  const width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, stored ?? DEFAULT_WIDTH));
+  const width = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, stored ?? defaultWidth));
   return html`<aside
     class=${`ss-panel side-panel ${detached ? 'side-panel--window' : ''} ${className}`}
     style=${detached ? undefined : { width: `${width}px` }}
@@ -42,7 +44,7 @@ export function SidePanel({
         width=${width}
         min=${MIN_WIDTH}
         max=${MAX_WIDTH}
-        defaultWidth=${DEFAULT_WIDTH}
+        defaultWidth=${defaultWidth}
         onCommit=${(next) =>
           actions.attempt(() =>
             actions.updateSettings({ appearance: { panels: { [name]: next } } }),

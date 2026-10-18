@@ -2,8 +2,10 @@ import { useEffect, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
-import { Icon } from '../icons.js';
+import { Lucide } from '../icons.js';
 import { DocumentReader } from './document-reader.js';
+import { ChoiceMenu } from './popover.js';
+import { SidePanel } from './side-panel.js';
 
 export function FilePreview() {
   const actions = useActions();
@@ -32,33 +34,42 @@ export function FilePreview() {
     };
   }, [target?.kind, target?.id, target?.path]);
   if (!target) return null;
-  return html`<aside class="rightpanel file-preview-panel">
-    <div class="panelhead between">
-      <h2>${t('文件预览与标记')}</h2>
-      <button aria-label=${t('关闭侧栏')} onClick=${() => actions.openPreview(null)}>
-        <${Icon} name="close" />
+  const listed = sources.some((source) => source.id === target.id);
+  const choices = [
+    ...(listed ? [] : [{ id: target.id ?? '', title: doc?.name ?? t('正在读取…') }]),
+    ...sources,
+  ];
+  return html`<${SidePanel}
+    name="preview"
+    title="文件预览与标记"
+    closeLabel="关闭侧栏"
+    defaultWidth=${440}
+    className="file-preview-panel"
+    onClose=${() => actions.openPreview(null)}
+  >
+    <div class="file-preview-toolbar">
+      <${ChoiceMenu}
+        label=${t('选择要预览的资料')}
+        triggerClass="ss-select file-preview-select"
+        items=${choices.map((source) => ({
+          text: source.title,
+          selected: source.id === target.id,
+          run: () => actions.openPreview({ kind: 'source', id: source.id, owner: target.owner }),
+        }))}
+      >
+        <span class="ss-select__value">${doc?.name ?? t('正在读取…')}</span>
+      <//>
+      <button
+        type="button"
+        class="ss-btn ss-btn--sm"
+        onClick=${() => actions.attempt(() => actions.openPreviewOriginal(target))}
+      >
+        <${Lucide} name="external-link" /><span>${t('打开原件')}</span>
       </button>
     </div>
-    <div class="panelbody file-preview-body">
-      <div class="file-preview-toolbar">
-        <select
-          aria-label=${t('选择要预览的资料')}
-          value=${target.id ?? ''}
-          onChange=${(event) => actions.openPreview({ kind: 'source', id: event.currentTarget.value, owner: target.owner })}
-        >
-          ${!sources.some((source) => source.id === target.id) && html`<option value=${target.id ?? ''}>${doc?.name ?? t('正在读取…')}</option>`}
-          ${sources.map((source) => html`<option value=${source.id}>${source.title}</option>`)}</select
-        ><button
-          class="btn tiny"
-          onClick=${() => actions.attempt(() => actions.openPreviewOriginal(target))}
-        >
-          ${t('打开原件')}
-        </button>
-      </div>
-      ${error && html`<p role="alert">${error}</p>`}
-      <div class="file-preview-content">
-        ${doc && html`<${DocumentReader} key=${JSON.stringify([target.kind, target.id, target.path])} doc=${doc} target=${target} />`}
-      </div>
+    ${error && html`<div class="ss-status ss-status--fail file-preview-error" role="alert">${error}</div>`}
+    <div class="file-preview-content">
+      ${doc && html`<${DocumentReader} key=${JSON.stringify([target.kind, target.id, target.path])} doc=${doc} target=${target} />`}
     </div>
-  </aside>`;
+  <//>`;
 }

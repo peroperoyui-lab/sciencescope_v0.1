@@ -7,6 +7,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
+import { renderMarkdown } from '../markdown.js';
 import { ApprovalRow } from './approval.js';
 import { tokenAmount } from './discussion-usage.js';
 
@@ -265,7 +266,13 @@ function CallRow({ call, running, waiting = false }) {
               ? t('已取消')
               : outcome(call.result);
   const tone = failed ? 'ss-act__row--fail' : unfinished ? 'ss-act__row--muted' : '';
-  return html`${call.preamble && html`<p class="ss-act__narr">${call.preamble}</p>`}
+  return html`${
+      call.preamble &&
+      html`<div
+        class="ss-act__narr ss-prose"
+        dangerouslySetInnerHTML=${{ __html: renderMarkdown(call.preamble) }}
+      ></div>`
+    }
     <button
       type="button"
       class=${`ss-act__row ${tone}`}

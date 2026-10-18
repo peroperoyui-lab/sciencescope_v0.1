@@ -198,7 +198,7 @@ export function MeetingView({ meetingId, focusMessageId }) {
     },
     {
       text: meeting.pinned ? t('取消置顶') : t('置顶'),
-      check: meeting.pinned,
+      icon: 'pin',
       run: () =>
         actions.attempt(() => actions.updateMeeting(meeting.id, { pinned: !meeting.pinned })),
     },

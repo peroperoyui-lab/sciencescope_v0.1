@@ -2663,6 +2663,12 @@ button.ss-act__row:hover {
   font-size: 14px;
   line-height: 22px;
 }
+.ss-act__narr > :first-child {
+  margin-top: 0;
+}
+.ss-act__narr > :last-child {
+  margin-bottom: 0;
+}
 .ss-act__narr + .ss-act__row,
 .ss-act__row + .ss-act__narr {
   margin-top: 4px;

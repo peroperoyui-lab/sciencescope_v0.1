@@ -47,7 +47,7 @@ function ChatRow({ meeting, active, child = false, pinnedRow = false }) {
     { sep: true },
     {
       text: meeting.pinned ? t('取消置顶') : t('置顶'),
-      check: meeting.pinned,
+      icon: 'pin',
       run: () =>
         actions.attempt(() => actions.updateMeeting(meeting.id, { pinned: !meeting.pinned })),
     },
@@ -109,7 +109,7 @@ function ProjectRow({ project, active, pinnedRow = false, expanded, onToggle }) 
     { sep: true },
     {
       text: project.pinned ? t('取消置顶') : t('置顶'),
-      check: project.pinned,
+      icon: 'pin',
       run: () =>
         actions.attempt(() => actions.updateProject(project.id, { pinned: !project.pinned })),
     },

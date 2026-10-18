@@ -86,8 +86,11 @@
   font-size: var(--chat-font-size, 14px);
   line-height: calc(var(--chat-font-size, 14px) + 8px);
 }
-/* Settings → compact transcript hides each answer's activity timeline. */
-.hide-tools .ss-act {
+/* 视图 → 简洁执行记录 hides the activity timeline; a card waiting for
+   approval stays, or the answer would wait unseen. The status line still
+   says what is running. */
+.hide-tools .ss-act:not([data-running]),
+.hide-tools .ss-act__list > :not(.ss-approve) {
   display: none;
 }
 
@@ -195,4 +198,33 @@
 .assistant-surface .ss-composer__input {
   min-height: 40px;
   padding: 8px 12px 0;
+}
+
+/* ---------- File preview panel ---------- */
+.file-preview-toolbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.file-preview-select {
+  flex: 1;
+  max-width: none;
+  min-width: 0;
+}
+.file-preview-error {
+  flex: none;
+  padding: 6px 16px;
+}
+.file-preview-panel .file-preview-content {
+  padding: 0 4px;
+}
+.materials-panel .rb-materials > form {
+  display: flex;
+  gap: var(--sp-8);
+}
+.materials-panel .rb-materials > form > .ss-input {
+  flex: 1;
 }

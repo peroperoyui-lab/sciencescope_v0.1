@@ -124,7 +124,11 @@ test(
             await input.dispatchEvent('keydown', { key: 'Enter', keyCode: 229, bubbles: true });
             assert.equal(app.core.messages.since(attached.id, 0).length, before);
             await panel.getByRole('button', { name: '发送给任务秘书', exact: true }).click();
-            await panel.getByRole('heading', { name: 'Secretary response', exact: true }).waitFor();
+            // The words before the tool call render as Markdown too; wait for the answer body.
+            await panel
+              .locator('.ss-msg__body')
+              .getByRole('heading', { name: 'Secretary response', exact: true })
+              .waitFor();
             const proposal = panel.locator('.ss-proposal').first();
             await proposal.getByLabel('编辑秘书提案').waitFor();
             await proposal

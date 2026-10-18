@@ -13,11 +13,6 @@
   color: var(--accent);
   text-decoration: underline;
 }
-.file-preview-panel {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
 .reader-host {
   flex: 1;
   min-height: 0;
@@ -67,9 +62,18 @@
 .native-orb #app {
   height: 64px;
 }
+/* 材料详情: long paths and unbroken strings wrap inside the dialog instead
+   of widening it into a horizontal scroll. */
+.rb-dialog {
+  overflow-x: hidden;
+}
+.rb-dialog > *,
+.rb-dialog .between > * {
+  min-width: 0;
+}
 .rb-source-info {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: 6px 18px;
 }
 .rb-source-info dd {
@@ -78,6 +82,7 @@
 }
 .rb-passage-text {
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
   user-select: text;
 }
 .rb-passage[data-focused='true'] {
@@ -120,11 +125,6 @@
 .chat-activity-badge[data-state='blocked'] {
   color: var(--warn);
   background: var(--warn-soft);
-}
-/* The compact transcript hides each answer's tool activity card, as it hid
-   the prototype's per-call cards. */
-.hide-tools .turn-activity {
-  display: none;
 }
 .versionrow .grow > strong,
 .versionrow .grow > small {

@@ -61,7 +61,7 @@ test(
         await page.unroute('**/api/meetings/*/messages');
         await composer.getByRole('button', { name: '添加材料', exact: true }).click();
         await page.getByRole('menuitem', { name: '引用', exact: true }).click();
-        await page.locator('[data-materials-panel] input[type="checkbox"]').waitFor();
+        await page.locator('.materials-panel input[type="checkbox"]').waitFor();
         await shot('attachments-materials-zh');
         await page.getByLabel('关闭侧栏').click();
         await composer.getByRole('button', { name: '发送', exact: true }).click();

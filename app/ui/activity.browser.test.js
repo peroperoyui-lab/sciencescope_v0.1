@@ -151,3 +151,45 @@ test(
     );
   },
 );
+
+test(
+  'the compact activity view still shows a card waiting for approval',
+  { skip: browserSkip },
+  async () => {
+    await withBrowserApp(
+      'compact-approval',
+      async function* ({ call }) {
+        await call('shell', { command: 'echo compact' });
+        yield '好了';
+      },
+      async ({ page, app }) => {
+        await app.core.workspace.edit({
+          resource: 'settings',
+          key: 'app',
+          op: 'patch',
+          args: {
+            changes: {
+              models: { default: { provider: 'scripted', model: 'scripted' } },
+              appearance: { transcript: 'compact' },
+            },
+          },
+        });
+        const meeting = app.core.meetings.create({
+          members: [{ participantId: 'person_user' }, { participantId: 'agent_main' }],
+          policy: { mode: 'direct', respondent: 'agent_main' },
+        });
+        await page.goto(new URL('/?token=ui-token#/meeting/' + meeting.id, page.url()).href);
+        await page.getByRole('textbox', { name: '主输入框' }).fill('运行一条命令');
+        await page.getByRole('button', { name: '发送', exact: true }).click();
+        const answer = page.locator('.ss-msg:not([data-user])').last();
+        const card = answer.getByRole('group', { name: '需要你的批准' });
+        await card.getByText('echo compact').waitFor();
+        // Other rows stay folded away in the compact view.
+        assert.equal(await answer.locator('[data-tool-call]').isVisible(), false);
+        await card.getByRole('button', { name: '允许', exact: true }).click();
+        await answer.getByText('好了').waitFor();
+        assert.equal(await answer.locator('[data-turn-activity]').isVisible(), false);
+      },
+    );
+  },
+);
