@@ -1,5 +1,5 @@
 // The conductor decides who speaks after a person posts in a meeting, by the
-// meeting's speaking policy (docs/design/CORE_MODEL.md §6), and runs those turns.
+// meeting's speaking policy (docs/architecture/CORE_MODEL.md §6), and runs those turns.
 // Each meeting has one queue of requests, so requests never interleave.
 // - `direct` ("工作"): @-mentioned AIs answer in order of mention, otherwise the
 //   default respondent. Enabled panel experts can be @-mentioned without being

@@ -132,7 +132,7 @@ async function sourceProof(source, metadataPath) {
 export async function latestSourceProof(source = latestSource, baselineRevision = expectedLatestRevision) {
   const checkoutRevision = (await runFile('git', ['rev-parse', 'HEAD'], { cwd: source })).stdout.trim();
   const changed = (await runFile('git', ['diff', '--name-only', '-z', '--no-renames', baselineRevision, '--'], { cwd: source })).stdout.split('\0').filter(Boolean);
-  const allowed = relative => ['scripts/rehearsal/', 'docs/dot/', 'tests/'].some(prefix => relative.startsWith(prefix));
+  const allowed = relative => ['scripts/rehearsal/', 'docs/archive/legacy/dot/', 'tests/'].some(prefix => relative.startsWith(prefix));
   assert.equal(changed.every(allowed), true, 'Only rehearsal, report and test differences may follow the pinned product baseline');
   const tree = (await runFile('git', ['ls-tree', '-r', '-z', baselineRevision, '--', 'adapters/runtime-dsh', 'desktop/provider-draft.mjs', 'package.json', 'package-lock.json'], { cwd: source })).stdout.split('\0').filter(Boolean);
   const hashes = {};

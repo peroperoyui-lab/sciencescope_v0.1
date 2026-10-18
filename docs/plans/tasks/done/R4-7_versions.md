@@ -1,6 +1,6 @@
 # R4-7 文献版本
 
-- 起草：Claude，2026-10-12。alpha 必需功能的最后一项（`docs/ROADMAP.md`），做完进入 M2 验收。
+- 起草：Claude，2026-10-12。alpha 必需功能的最后一项（`docs/plans/ROADMAP.md`），做完进入 M2 验收。
 - 执行：Sol；审阅：Claude。分三步交付，各自可合并：
   - **7a 版本存储与导入**
   - **7b 版本说明**
@@ -18,8 +18,8 @@
 ## 依据
 
 行为以旧版为准：
-- 规格：`docs/SYSTEM_SPEC.md` §2.10 的"文献版本""秘书整理版本说明"两行。
-- 原型页面（`docs/page-manifest.json`）：P13 文献版本管理 · 导入、P14 版本说明 · 跟随 Markdown、P09 版本比较 · 字词变化、P12 项目日志详情（关联文件）。
+- 规格：`docs/archive/legacy/SYSTEM_SPEC_2026-10-18.md` §2.10 的"文献版本""秘书整理版本说明"两行。
+- 原型页面（`docs/archive/legacy/page-manifest.json`）：P13 文献版本管理 · 导入、P14 版本说明 · 跟随 Markdown、P09 版本比较 · 字词变化、P12 项目日志详情（关联文件）。
 - 旧代码：
   - `desktop/workbench.mjs` 的版本部分；
   - `scripts/version-organizer.mjs`；
@@ -41,9 +41,9 @@
 
 ## 统一引用格式（给以后的写作工作台留接口）
 
-依据 `REVIEW_2026-10-07.md` §5 和 `docs/idea.md`"写作与编辑工作台"。
+依据 `reviews/REVIEW_2026-10-07.md` §5 和 `docs/plans/IDEAS.md`"写作与编辑工作台"。
 
-- 在 `docs/design/CORE_MODEL.md` 新增一节"引用"，定义一种引用对象，覆盖：
+- 在 `docs/architecture/CORE_MODEL.md` 新增一节"引用"，定义一种引用对象，覆盖：
   - 稿件版本：版本 id，可带页 / 段落 / 字符范围；
   - 项目文件：路径，可带行或范围；
   - 资料库来源与段落；
@@ -123,7 +123,7 @@
 - 界面：`app/ui/`（工作站左栏、说明页、比较页、日志详情、设置的秘书页与运行环境页）、`app/ui/i18n/en.js`、`styles/app.css`（只做补充）。
 - 依赖：`diff`（如需要）。
 - 测试。
-- 文档：`CORE_MODEL.md`（版本资源、引用格式）、`SYSTEM_SPEC.md`（合并后的现状）、`UI_RESTORE.md`、`DESKTOP_IMPLEMENTATION.md`（每步不超过 5 行）。
+- 文档：`CORE_MODEL.md`（版本资源、引用格式）、`archive/legacy/SYSTEM_SPEC_2026-10-18.md`（合并后的现状）、`UI_RESTORE.md`、`log/IMPLEMENTATION_LOG.md`（每步不超过 5 行）。
 
 ## 不做的
 

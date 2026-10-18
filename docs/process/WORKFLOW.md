@@ -1,0 +1,65 @@
+# 协作方式
+
+> 2026-10-18 从 `AGENTS.md`、`plans/ROADMAP.md`「工作方式」一节和各次复盘整理。规则本身以仓库根目录的 `AGENTS.md` 为准，这里写具体怎么做。决定的来历见 `decisions/DECISIONS.md`。
+
+## 1. 角色
+
+| 角色 | 是谁 | 做什么 |
+|---|---|---|
+| 负责人 | Yui（发布者 peroperoyui） | 定方向和取舍，做首测，批准任务书和方案。开工前要先和 Yui 对齐需求。 |
+| Claude | 云端 Linux 会话 | 设计、全部界面（设计和实现）、审阅 Sol 的分支、合并到集成分支、写任务书和给 Sol 的提示、维护文档。 |
+| Sol | GPT-6.1 Sol，在 Yui 的 Windows 电脑上（H 盘） | 后端、打包、原生、Windows 验收、真实模型检查、本地安装与升级演练。只在任务书点名时改 `app/ui/`，不设计也不改界面样式。子代理也用 GPT-6.1 Sol，Git 交付用 GPT-6 Luna。 |
+
+Dot 从 2026-10-12 起不再使用。
+
+## 2. 分支与提交
+
+- 集成分支：`claude/determined-pasteur-jxpzw8`。不建 PR，不合并到 `main`，除非 Yui 要求。
+- Sol 的分支：`codex/<任务号>-<主题>-YYYYMMDD`，从集成分支最新提交开始。报告里写远程分支和 SHA。
+- Claude 直接在集成分支提交；合并 Sol 的分支前在 Linux 上重跑 `npm run check`。
+- 不提交密钥、本地状态、日志和构建产物。构建、缓存、临时文件和测试数据库都放在 `.sciencescope-local/`。
+- 提交信息用英文，写清改了什么、为什么；不写模型标识。
+
+## 3. 一个任务的流程
+
+1. **需求**：Yui 提出或 Claude 从复盘里拆出。需求不清时先问，问题要能用一个词回答，并给出建议。
+2. **任务书**：Claude 按 `process/BRIEF_TEMPLATE.md` 写，放在 `plans/tasks/`，规模约一到两小时。会让用户别扭的要求，在写之前就说出来。
+3. **提示**：Claude 给 Yui 一段可以直接粘贴给 Sol 的中文提示（模板见 `BRIEF_TEMPLATE.md` 末尾）。
+4. **执行**：Sol 按任务书做，超出范围就停下汇报。复杂功能先找成熟的开源库或参考实现，报告里写名称和许可证。
+5. **报告**：不超过 15 行，写改了什么、哪些文件、测试结果、未解决的问题、远程分支和 SHA。长材料放 `.sciencescope-local/temp`。
+6. **审阅与合并**：Claude 按 `process/REVIEW_CHECKLIST.md` 审阅。小问题直接修，大问题退回。合并后更新文档（见第 5 节），再写下一份任务书。
+7. **完成的任务书**移到 `plans/tasks/done/`，状态写在 `plans/ROADMAP.md`。
+
+## 4. 验证
+
+按 `process/ACCEPTANCE.md`。简单说就是：工作中跑相关测试，交付前跑完整的 `npm run check`；用户看得见的改动附 100% 和 125% 缩放的截图；涉及 AI 的路径用便宜的付费模型真实跑一次。
+
+## 5. 文档维护
+
+| 文件 | 什么时候更新 | 谁 |
+|---|---|---|
+| `product/FEATURES.md` | 行为变化时，和代码放在同一个提交里 | 改代码的人 |
+| `plans/ROADMAP.md` | 任务开始、完成、合并或顺序变化时；每条进度不超过 3 行 | Claude |
+| `log/IMPLEMENTATION_LOG.md` | 每次交付一条，不超过 5 行，最新在上 | 交付的人 |
+| `decisions/DECISIONS.md` | Yui 做出或批准新决定时 | Claude |
+| `plans/IDEAS.md` | 有了还没排期的想法时；排进路线图后从这里删掉 | Claude |
+| `reviews/REVIEW_YYYY-MM-DD.md` | 每次首测或阶段复盘一份 | Claude |
+| `handoff/PREVIEW_TEST.md` | 给 Yui 新的预览包时 | Sol 写包信息，Claude 写测试重点 |
+| `docs/README.md` | 新增、移动或归档文档时 | 改动的人 |
+
+- 不为每次事故在 `AGENTS.md` 里加一条规则，优先加测试。
+- 过时的文档移到 `archive/`，不删。
+
+## 6. 环境约定
+
+- Yui 的网络出境流量有限，本机安装依赖走国内镜像：npm 用 npmmirror，pip 和 uv 用阿里云或清华，模型用 ModelScope。没有镜像只能用境外源时，在报告里说明。
+- 密钥只放在单独的凭据文件里（`data/secret/credentials.yaml`），不放进环境变量或被跟踪的文件。
+- Yui 的预览安装在 `<预览安装目录>`，数据备份在 `<预览安装目录>-backup-20261017`。没有明确安排时，谁都不碰这两个目录。
+- 云端没有模型密钥，付费模型的检查由 Sol 在 Windows 上跑。
+- 有些测试只能在 Windows 上跑（截至 2026-10-18 是 2 项），Linux 上会跳过。
+
+## 7. 和用户说话
+
+- 用 Yui 最近一条消息的语言，中文为主。
+- 先说结论，再说依据（链接、文件位置、命令输出）；推断出来的要说明是推断。
+- 进度写在状态清单里，回复只在有结果、遇到阻碍或需要 Yui 决定时发。

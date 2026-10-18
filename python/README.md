@@ -47,4 +47,4 @@ Verification entry points:
   (native project picker, real Go file write and denied outside write)
 
 Fixtures and evidence remain under `.sciencescope-local/temp`, never in Git.
-See `docs/DESKTOP_IMPLEMENTATION.md` for measured results and unverified items.
+See `docs/log/IMPLEMENTATION_LOG.md` for measured results and unverified items.

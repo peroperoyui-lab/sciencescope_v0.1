@@ -2,7 +2,7 @@
 
 ## 先读
 
-每次任务开始先读 `docs/SYSTEM_SPEC.md`（系统功能与技术说明，记录现状，不作为设计约束），
+每次任务开始先读 `docs/product/FEATURES.md`（系统功能与技术说明，记录现状，不作为设计约束），
 改动功能时同步更新它。
 
 ## 当前开发入口（2026-09-19）
@@ -13,7 +13,7 @@
 
 设计包仍是视觉基线，不代表全部功能已经接通。已推送的桌面开发基线为
 `60ac8bb`；下一目标是可安装、可查询、可更新的 `1.0.0-alpha` 内测产品。
-先阅读 `docs/DESKTOP_IMPLEMENTATION.md` 顶部的三阶段交付计划与当前限制，
+先阅读 `docs/log/IMPLEMENTATION_LOG.md` 顶部的三阶段交付计划与当前限制，
 再按下面的原始设计说明工作。A1 独立助手/秘书及 A2.1 主聊天中断、文本队列、工具分组已有本地验收；材料/精确引用与多专家派发尚未完成。整体计划仍在实施；不要把页面演示或开发机启动
 当成真实多角色执行、正式安装包、签名与升级验收。
 
@@ -23,11 +23,11 @@
 
 1. `ScienceScope.html`：自包含原型，可直接用浏览器打开。保留 48 个原有页面状态，新增 P49 完整修改记录。底栏可切页面。
 2. `reference/ScienceScope_User_Design.pptx`：用户最新原图；`reference/Codex_Overview_Reference.png` 是摘要浮层参考截图。
-3. `docs/00_MASTER_FUNCTIONS.md`：总功能与工作方式。
-4. `docs/02_INTERACTION_CONTRACTS.md`：本轮最重要的菜单/窗口/上下文/键盘规则。
-5. `docs/04_FEEDBACK_MATRIX.md`：十条反馈的落实和正式版接线。
-6. `docs/pages/`：49 份逐页说明；`docs/flows/` 是版本、导图、批注、日志和文件位置的细节。
-7. `docs/03_DESKTOP_WINDOWS.md`：原型窗口与 OS 原生窗口的区别。
+3. `docs/archive/legacy/00_MASTER_FUNCTIONS.md`：总功能与工作方式。
+4. `docs/design/INTERACTION_CONTRACTS.md`：本轮最重要的菜单/窗口/上下文/键盘规则。
+5. `docs/archive/legacy/04_FEEDBACK_MATRIX.md`：十条反馈的落实和正式版接线。
+6. `docs/archive/legacy/pages/`：49 份逐页说明；`docs/archive/legacy/flows/` 是版本、导图、批注、日志和文件位置的细节。
+7. `docs/archive/legacy/03_DESKTOP_WINDOWS.md`：原型窗口与 OS 原生窗口的区别。
 8. `qa/results.json`：本轮自动化结果和范围，`screenshots/index.html` 是完整页面图册。
 
 ## 设计原则

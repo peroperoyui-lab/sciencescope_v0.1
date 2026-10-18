@@ -1,6 +1,6 @@
 # P1b 内置工具、请求批准与上下文压缩
 
-- 起草：Claude，2026-10-16。依据：用户首测（`REVIEW_2026-10-16.md` §3 编号 2、16、大7）与用户决定 D3。前置：P1a 已合并。
+- 起草：Claude，2026-10-16。依据：用户首测（`reviews/REVIEW_2026-10-16.md` §3 编号 2、16、大7）与用户决定 D3。前置：P1a 已合并。
 - 执行：Sol（后端、Windows 验收）；审阅：Claude。批准卡片、执行方式菜单、压缩提示等界面由 Claude 做，本任务**不改 `app/ui/` 的组件和样式**。
 - 分三段交付，各自可合并：**1 内置工具**、**2 请求批准**、**3 上下文压缩**。每段约 2 小时，超出就停下汇报。
 
@@ -34,7 +34,7 @@ DSH 自带的命令、文件和网页工具随 P1a 去掉了，这里补回。�
 - 输出过长时只按原则 4 处理：保留开头和结尾，写明"共 N 字节，省略了中间 M 字节，完整输出在 `<路径>`"，完整内容存到 `data/temp/`。不设硬上限、不静默截断。
 - `data/secret/` 下的文件一律拒绝读写（保留现有的凭据保护）。
 - 实现参考 pi 编程智能体的 `bash`、`read`、`write`、`edit`、`grep`、`find` 工具（MIT）：可以复制改写，保留出处注释，不引入 `@earendil-works/pi-coding-agent` 这个包本身。
-- 网页搜索（DSH 原来用 DeepSeek 的搜索服务）这次不做；在 `ROADMAP.md` 的"alpha 之后"里记一行，等用户决定用哪个搜索服务。
+- 网页搜索（DSH 原来用 DeepSeek 的搜索服务）这次不做；在 `plans/ROADMAP.md` 的"alpha 之后"里记一行，等用户决定用哪个搜索服务。
 
 ## 2. 请求批准
 
@@ -52,7 +52,7 @@ DSH 自带的命令、文件和网页工具随 P1a 去掉了，这里补回。�
   4. 允许就执行；拒绝就给模型返回"用户拒绝了这次操作"，条目状态记为 `rejected`；
   5. 中断、结束目标或程序退出时，待批准的条目记为 `cancelled`，工具返回已取消。
 - 自动化目标在等批准时，后台活动显示"等待批准"（发 `goal.changed` 或现有的后台活动事件，选最省事的一种）。
-- 推翻了 2026-10-07 的"审批两档不做"：`AGENTS.md` 原则 5 已写明这一例外；`02_INTERACTION_CONTRACTS.md` 加一条 2026-10-16 修订。
+- 推翻了 2026-10-07 的"审批两档不做"：`AGENTS.md` 原则 5 已写明这一例外；`design/INTERACTION_CONTRACTS.md` 加一条 2026-10-16 修订。
 
 ## 3. 上下文压缩
 
@@ -81,7 +81,7 @@ DSH 自带的命令、文件和网页工具随 P1a 去掉了，这里补回。�
 
 ## 可以改的
 
-`app/services/`（新工具、`tools.js`、`turn-runner.js`）、`app/runtime/pi/`、`app/core/`（发言规则、活动条目）、`app/core/db/migrations/`（需要时）、`app/server/routes/`（批准接口）、`docs/02_INTERACTION_CONTRACTS.md`（一条修订）、`ROADMAP.md`（"alpha 之后"一行）、`DESKTOP_IMPLEMENTATION.md`（不超过 5 行）。
+`app/services/`（新工具、`tools.js`、`turn-runner.js`）、`app/runtime/pi/`、`app/core/`（发言规则、活动条目）、`app/core/db/migrations/`（需要时）、`app/server/routes/`（批准接口）、`docs/design/INTERACTION_CONTRACTS.md`（一条修订）、`plans/ROADMAP.md`（"alpha 之后"一行）、`log/IMPLEMENTATION_LOG.md`（不超过 5 行）。
 
 ## 不做的
 

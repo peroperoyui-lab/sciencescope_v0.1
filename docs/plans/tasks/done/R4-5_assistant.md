@@ -1,6 +1,6 @@
 # R4-5 全局助手（先整理上下文组装）
 
-- 起草：Claude，2026-10-07。依据：`REVIEW_2026-10-07.md` §3.3（先整理再加功能）、`ROADMAP.md`（alpha 必需线）。
+- 起草：Claude，2026-10-07。依据：`reviews/REVIEW_2026-10-07.md` §3.3（先整理再加功能）、`plans/ROADMAP.md`（alpha 必需线）。
 - 执行：Sol；审阅：Claude。分三步交付，各自可合并：
   - **5a 上下文组装整理**（不改行为）；
   - **5b 全局助手会话**（后端 + 主窗口里的界面）；
@@ -20,7 +20,7 @@
   - 它调用 `core/context.js` 的纯函数，以及纪要、秘书、资料库服务；在 `app.js` 注入。
 - `turn-runner.js` 只管：会话的开始与恢复、发送、流式输出、工具调用记录、收尾、中断。
 - 顺手整理（只限这次碰到的文件）：
-  - JSDoc 参数恢复多行（`CODE_STYLE.md`）；
+  - JSDoc 参数恢复多行（`process/CODE_STYLE.md`）；
   - 对外函数补上类型，减少 `any`；
   - 保留原有说明注释。
 - **验收**：
@@ -30,7 +30,7 @@
 
 ## 5b 全局助手会话
 
-参照旧版：`docs/SYSTEM_SPEC.md` §2.8（含 T17 跨项目查阅）、`desktop/assistant-chat.mjs`（秘书与助手共用的界面）、`docs/design/CONTEXT_ACCESS.md`。
+参照旧版：`docs/archive/legacy/SYSTEM_SPEC_2026-10-18.md` §2.8（含 T17 跨项目查阅）、`desktop/assistant-chat.mjs`（秘书与助手共用的界面）、`docs/architecture/CONTEXT_ACCESS.md`。
 
 - **助手就是参与者** `agent_assistant`。默认定义已有，设置页"全局助手"已能改提示词和模型。
 - **会话**：全局只有一场助手会议，不属于任何项目，成员是用户和助手，历史一直保留。助手会议不出现在侧栏的项目与聊天树里。
@@ -63,7 +63,7 @@
 - 5a：`app/services/turn-runner.js`、新的上下文组装模块、`app/app.js`、`app/services/secretary/`、`app/core/context.js`，以及相关测试的构造部分。
 - 5b：`app/services/`、`app/server/routes/`、`app/core/`（如需迁移）、`app/ui/`、`app/ui/i18n/en.js`、测试。
 - 5c：`src-tauri/`（只限助手窗口、浮球和授权）、`app/ui/`、设置资源、测试。
-- 文档：`CORE_MODEL.md`（上下文组装一节、助手会议）、`SYSTEM_SPEC.md`（合并后的现状）、`UI_RESTORE.md`、`DESKTOP_IMPLEMENTATION.md`（每步不超过 5 行）。
+- 文档：`CORE_MODEL.md`（上下文组装一节、助手会议）、`archive/legacy/SYSTEM_SPEC_2026-10-18.md`（合并后的现状）、`UI_RESTORE.md`、`log/IMPLEMENTATION_LOG.md`（每步不超过 5 行）。
 
 ## 不做的
 

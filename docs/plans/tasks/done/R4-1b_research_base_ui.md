@@ -1,6 +1,6 @@
 # R4-1b 资料库界面与本地混合检索
 
-- 起草：Claude，2026-10-06。接 R4-1a（已合并，`app/services/research/`）。队列见 `docs/design/UI_RESTORE.md`。
+- 起草：Claude，2026-10-06。接 R4-1a（已合并，`app/services/research/`）。队列见 `docs/archive/legacy/UI_RESTORE.md`。
 - 执行：Sol；审阅：Claude。约 2 小时；超出就按"拆分"一节先交前半，停下汇报。
 
 ## 目标
@@ -23,13 +23,13 @@
 ## 后端补齐
 
 - 接口：`PATCH /api/research/sources/:id`（标题、类型、作者、年份、来源、标签、阅读状态，存进 `metadata_json`，标题同步进全文索引）、`POST /api/research/sources/:id/reparse`、`POST /api/research/sources/:id/open`（用 `services/system.js` 打开原件）、`GET /api/research/sources` 支持 kind / readStatus / tag / sort / direction 筛选。
-- 本地混合检索：移植旧 `scripts/research-base/` 的 `embedding*.mjs`、`model-assets.mjs`、`vector-store.mjs`、`hybrid.mjs`、`semantic-service.mjs` 到 `app/services/research/semantic/`，按 `docs/CODE_STYLE.md` 重写。保留已验证行为：模型清单 `models/default-embedding.json`（multilingual-e5-small int8 384）与 sha256 校验、首次下载必须由用户点击、硬件检测、工作线程推理、对话运行时暂停建索引、索引版本不一致或向量阶段超时整次退回关键词检索、结果标明本次用的是哪种检索。
+- 本地混合检索：移植旧 `scripts/research-base/` 的 `embedding*.mjs`、`model-assets.mjs`、`vector-store.mjs`、`hybrid.mjs`、`semantic-service.mjs` 到 `app/services/research/semantic/`，按 `docs/process/CODE_STYLE.md` 重写。保留已验证行为：模型清单 `models/default-embedding.json`（multilingual-e5-small int8 384）与 sha256 校验、首次下载必须由用户点击、硬件检测、工作线程推理、对话运行时暂停建索引、索引版本不一致或向量阶段超时整次退回关键词检索、结果标明本次用的是哪种检索。
 - 向量存进同一个 SQLite（新迁移 `004-research-vectors.js`；可沿用旧版 `sqlite-vec`），模型文件放 `dataPaths()` 下的模型目录，不进项目文件夹。开关存设置（有真实消费者）。
 - `research_search` 工具与 `/api/research/search` 共用混合检索；返回里带 `mode: 'hybrid' | 'keyword'`。
 
 ## 可以改的
 
-`app/ui/`（新组件如 `components/research-*.js`、路由、侧栏、设置页、样式补充放 `styles/app.css`）、`app/ui/i18n/en.js`、`app/services/research/`、`app/server/routes/research.js`、`app/core/db/migrations/`、`app/core/paths.js`、`app/core/defaults.js`（设置默认值）、相关测试、`docs/SYSTEM_SPEC.md`、`docs/design/CORE_MODEL.md`、`docs/design/UI_RESTORE.md`（R4-1 标为已复原）、`docs/DESKTOP_IMPLEMENTATION.md`。
+`app/ui/`（新组件如 `components/research-*.js`、路由、侧栏、设置页、样式补充放 `styles/app.css`）、`app/ui/i18n/en.js`、`app/services/research/`、`app/server/routes/research.js`、`app/core/db/migrations/`、`app/core/paths.js`、`app/core/defaults.js`（设置默认值）、相关测试、`docs/archive/legacy/SYSTEM_SPEC_2026-10-18.md`、`docs/architecture/CORE_MODEL.md`、`docs/archive/legacy/UI_RESTORE.md`（R4-1 标为已复原）、`docs/log/IMPLEMENTATION_LOG.md`。
 
 ## 不做的
 

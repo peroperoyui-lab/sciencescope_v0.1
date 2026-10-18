@@ -106,7 +106,7 @@ Slice B 多专家若沿用"每位专家一个进程"，4 专家 × 数个对话�
 - 前端通过重新赋值原型全局函数叠加行为（`messageHTML = function…` 在 `markdown.mjs`、`research-input.mjs`、`turn-activity.mjs`
   各包一层）。顺序依赖隐式，某个模块漏加载就静默回到原型行为（AGENTS.md 已记录过这类事故）。
   建议保留视觉不变，但加一个显式的 `messageRenderers` 注册表，由一个入口按固定顺序组合。
-- `DESKTOP_IMPLEMENTATION.md` 已 90KB，是按日期堆叠的日志。建议拆成 `CHANGELOG.md`（按日期）+ `docs/adr/`（决策）+
+- `log/IMPLEMENTATION_LOG.md` 已 90KB，是按日期堆叠的日志。建议拆成 `CHANGELOG.md`（按日期）+ `docs/adr/`（决策）+
   一页"当前状态"，否则新 agent 每次都要读完全部历史才能判断哪条已被覆盖。
 - 大量单行长函数（例如 `research-input.mjs` 的 `annotationEditor`）不利于 review 与 diff。可以在下次触碰时顺手格式化，不必单独大改。
 
@@ -201,4 +201,4 @@ ScienceScope 的差异化在"多模型交流"。成熟系统的共同经验：**
 - 小请求：返回哨兵 `SCIENCESCOPE_LIVE_OK`，约 4 秒。PASS。
 - 不存在的模型：provider 返回 `400 … Model is unavailable`，宿主得到分类错误 `DSH model request failed (INVALID_REQUEST)`，进程存活。PASS。
   据此把 "model is unavailable" 加入"找不到模型"的中文提示分类，并给 401/403/429 加上词边界，避免数字误判。
-- 超过 5 分钟的长轮次（`--long`）尚未在真实 provider 上运行；Windows 原生复验交给 `docs/tasks/T01_windows_acceptance_and_api_token.md`。
+- 超过 5 分钟的长轮次（`--long`）尚未在真实 provider 上运行；Windows 原生复验交给 `docs/archive/legacy/tasks/T01_windows_acceptance_and_api_token.md`。

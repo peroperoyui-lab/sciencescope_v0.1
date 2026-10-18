@@ -1,7 +1,7 @@
 // Runs one turn: one AI participant speaking once in a meeting.
 // It resumes or rebuilds the participant's runtime
 // session, streams the answer into a message, records tool calls and ends
-// the turn with a status. See docs/design/CORE_MODEL.md §6–§7.
+// the turn with a status. See docs/architecture/CORE_MODEL.md §6–§7.
 // Ordered rounds reserve their answers before starting, so the order in which
 // experts finish never changes the order in which they are shown.
 import { AppError } from '../core/errors.js';

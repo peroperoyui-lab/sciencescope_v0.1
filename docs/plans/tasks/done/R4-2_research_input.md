@@ -1,6 +1,6 @@
 # R4-2 研究输入：附件、文件预览与标记
 
-- 起草：Claude，2026-10-08。顺序见 `docs/ROADMAP.md`（alpha 必需线）。
+- 起草：Claude，2026-10-08。顺序见 `docs/plans/ROADMAP.md`（alpha 必需线）。
 - 执行：Sol；审阅：Claude。分三步交付，按功能拆分，每步包含自己的后端和界面，各自可合并：
   - **2a 附件与发送**
   - **2b 文件预览与阅读器**
@@ -16,8 +16,8 @@
 - 回答里的引用标签（如 `[S3 p.4]`）可以点击，打开原文对应的页。
 
 行为以旧版为准：
-- 规格：`docs/SYSTEM_SPEC.md` §2.4。
-- 交互：`docs/02_INTERACTION_CONTRACTS.md` 2026-09-24 修订第 2 条（标记）。
+- 规格：`docs/archive/legacy/SYSTEM_SPEC_2026-10-18.md` §2.4。
+- 交互：`docs/design/INTERACTION_CONTRACTS.md` 2026-09-24 修订第 2 条（标记）。
 - 旧代码：`desktop/research-input.mjs`、`file-preview.mjs`、`document-readers.mjs`、`research-citations.mjs`、`marks.css`，以及 `desktop/research-base.mjs` 末尾的"项目材料与引用"右栏。
 - 旧后端：`scripts/research-input*.mjs`、`chat-attachments.mjs`。
 - 原型页面：P08（文件预览与批注）、P46（本次上下文）。
@@ -86,12 +86,12 @@
 - 后端：`app/services/`（新目录如 `research-input/`）、上下文组装模块、`app/services/research/`（只限附件导入、读取原件、引用解析）、`app/server/routes/`、`app/core/db/migrations/`。
 - 界面：`app/ui/`（输入框、附件条、预览栏、阅读器、标记窗口、消息菜单、右栏）、`app/ui/i18n/en.js`、`styles/app.css`（只做补充）。
 - 测试。
-- 文档：`CORE_MODEL.md`、`SYSTEM_SPEC.md`（合并后的现状）、`UI_RESTORE.md`、`DESKTOP_IMPLEMENTATION.md`（每步不超过 5 行）。
+- 文档：`CORE_MODEL.md`、`archive/legacy/SYSTEM_SPEC_2026-10-18.md`（合并后的现状）、`UI_RESTORE.md`、`log/IMPLEMENTATION_LOG.md`（每步不超过 5 行）。
 
 ## 不做的
 
 - OCR，编辑原件，键盘选区（旧版也没有）。
-- 写作工作台的"划选后改写"和"来源绑定"（alpha 之后，见 `docs/idea.md`）。这次的标记数据结构要能被以后复用：记录来源、位置、原文、备注。
+- 写作工作台的"划选后改写"和"来源绑定"（alpha 之后，见 `docs/plans/IDEAS.md`）。这次的标记数据结构要能被以后复用：记录来源、位置、原文、备注。
 - 安全测试、硬上限；不改旧线和旧样式表。
 
 ## 完成标准

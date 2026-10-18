@@ -1,51 +1,44 @@
-# ScienceScope · 交互优化版 v0.3
+# ScienceScope
 
-## 桌面客户端开发状态
+一个在本机运行的学术研究助手：几位 AI 专家和你一起讨论，按完整的研究流程（读资料、分析、写作）帮你理解和推进自己的研究项目。所有数据都在安装目录的 `data/` 下，离开应用也能读。
 
-本轮试用与网页端讨论入口：[2026-09-20 交接清单](docs/WEB_REVIEW_HANDOFF.md)。
-**系统功能与技术说明（现状记录，每次开发先读）：[SYSTEM_SPEC](docs/SYSTEM_SPEC.md)。**
-Claude 深度审阅、已修复缺陷与路线建议：[2026-09-23 审阅](docs/REVIEW_CLAUDE_2026-09-23.md)。
-列明已实现、实际验证、未完成项和建议试用路径；不代表 alpha 已发布。
+当前版本：`1.0.0-alpha.0` 预览，正在重做界面并向 1.0.0-alpha 推进。尚无正式发布的安装包，预览包没有数字签名。
 
-当前仓库包含已批准的 HTML 设计基线，以及 `desktop/`、`scripts/`、`src-tauri/`
-中的实际桌面实现。以下设计包说明不是生产功能清单。
+## 文档
 
-下一目标是 `1.0.0-alpha`：完整计划、真实接线与验收范围见
-[开发手册](docs/DESKTOP_IMPLEMENTATION.md)，本机开发启动见
-[Windows 环境说明](docs/NATIVE_SETUP.md)。当前尚无完成验收的正式安装包。
+从 [`docs/README.md`](docs/README.md) 开始，它是全部文档的索引。最常用的几份：
 
-Publisher: **peroperoyui**。Contributors: **Codex (AI-assisted development)**、**Claude (Anthropic, AI-assisted review & development)**。
-此署名不是 Windows 数字签名或已发布声明。
+- [产品定位与 alpha 范围](docs/product/VISION.md)
+- [现有功能与代码位置](docs/product/FEATURES.md)
+- [路线图](docs/plans/ROADMAP.md)
+- [决定记录](docs/decisions/DECISIONS.md)
+- [协作方式](docs/process/WORKFLOW.md)
+- 开发规则：根目录 [`AGENTS.md`](AGENTS.md)
 
-## 原始设计包
+## 开发
 
-先打开 **ScienceScope.html**。不需要 npm 或服务器。底栏“页面目录”可浏览 49 个页面状态；Ctrl K 搜索与命令。
+需要 Node 22。
 
-本轮保持上版视觉与用户 PPT 结构，修复菜单/浮层、置顶、项目折叠、浏览全部、上下文悬停、消息操作、计划日志及多窗口体验。
+```sh
+npm install          # 依赖装在 node_modules；国内网络用 npmmirror
+npm run start:app    # 开发版：启动新核心（app/），数据在 .sciencescope-local/data
+npm run check        # 格式、lint、类型和全部测试
+npm run package      # Windows 安装包（NSIS），只在 Windows 上运行
+```
 
-## 体验路径
+Windows 原生外壳（Tauri）的构建环境见 [`docs/process/NATIVE_SETUP.md`](docs/process/NATIVE_SETUP.md)。
 
-工作对话 → 右上角项目摘要 → 文件预览与批注 → 会议秘书 → 编辑下一步提示词。
+## 目录
 
-工作站 → 添加计划/日志 → 拖入附件 → 保存/删除/撤销；点日志卡打开详情并定位消息。
+| 目录 | 内容 |
+|---|---|
+| `app/` | 新核心：`core/` 数据与事件，`services/` 发言、工具、秘书、资料库等，`runtime/` 智能体运行时（pi-ai），`server/` HTTP 接口，`ui/` 界面（Preact + htm） |
+| `src-tauri/` | Windows 原生外壳 |
+| `tools/` | 打包脚本 |
+| `docs/` | 文档 |
+| `ScienceScope.html`、`reference/` | 视觉基线：logo、配色和美术风格的来源 |
+| `desktop/`、`scripts/`、`adapters/`、`src/`、`qa/`、`tests/`、`screenshots/` | 旧原型，已冻结，R5 时删除 |
 
-项目/对话 … 或右键 → 手动置顶/归档/重命名；侧栏底部浏览全部支持搜索。
+## 署名
 
-左下角全局助手 → 独立窗口 → 收起为球 → 展开 → 点击项目/工作站定位主应用。
-
-## 包内文件
-
-- `CODEX_START.md`：本地开发总入口。
-- `docs/`：总说明、交互与窗口说明、十条反馈、研究参考、49 份逐页文档、五份流程说明。
-- `screenshots/index.html`：全页面截图索引。
-- `qa/results.json` 与 `qa/test_interactions.py`：本轮可重复检查及结果。
-- `src/`：保留的上版源文件和本轮可读样式/交互改动，`build.py` 可生成独立 HTML。
-- `reference/`：用户 PPT、Logo 与本轮 Codex 截图。
-
-## 使用范围
-
-页面的导航、编辑、附件、批注、消息和独立浏览窗口可操作；数据保存在本次内存，刷新会重置，可显式导出。模型/API/秘书总结、统计值和外部网页属于示例或待接入。真实 DSH 及 Windows 原生窗口/目录由本地 Codex 实现。
-
-普通浏览器可能将弹窗作为新标签或阻止弹窗，请允许当前文件打开辅助窗口。OS 悬浮球、透明窗、always-on-top 由正式桌面宿主提供。
-
-没有字体文件、依赖目录、API 密钥、数据库或本地研究数据。源 PPT 内的原有示例文字仅作用户设计依据。
+Publisher：**peroperoyui**。Contributors：**Codex**（AI 辅助开发）、**Claude**（Anthropic，AI 辅助审阅与开发）。此署名不是 Windows 数字签名。

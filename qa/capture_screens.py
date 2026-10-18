@@ -3,7 +3,7 @@ import json,html
 from playwright.sync_api import sync_playwright
 ROOT=Path(__file__).resolve().parents[1]
 source=(ROOT/'ScienceScope.html').read_text()
-specs=json.loads((ROOT/'docs/page-manifest.json').read_text())
+specs=json.loads((ROOT/'docs/archive/legacy/page-manifest.json').read_text())
 with sync_playwright() as p:
  b=p.chromium.launch(executable_path='/usr/bin/chromium',args=['--no-sandbox'])
  ctx=b.new_context(viewport={'width':1440,'height':960},device_scale_factor=1)

@@ -5,7 +5,7 @@
   - `CORE_MODEL.md`：数据模型、事件、接口、上下文组装、发言规则，是 R1 / R2 的依据；
   - `DATA_AND_ROLES.md`：数据布局与角色模型；
   - `RUNTIME_PORT.md`：运行时接口；
-  - `../CODE_STYLE.md`：代码风格。
+  - `../process/CODE_STYLE.md`：代码风格。
 - 用户的话：旧版本的问题是可维护性差，**不是理念或功能想法有问题**，那些都是一点点讨论出来的。所以 §8 的功能清单要完整带过去。
 
 ## 1. 本质
@@ -87,7 +87,7 @@ R2 结束时就有一条能跑通的最小链路；之后每个阶段都保持�
 
 ## 6. 协作方式
 
-1. **Claude 在云端 Linux 做 R0–R3**：直接在集成分支 `claude/determined-pasteur-jxpzw8` 上写代码，定下基线和规范（`CODE_STYLE.md`、目录结构、测试方式、组件写法）。每个阶段完成后推送，并写一份简短的"Windows 交接说明"。
+1. **Claude 在云端 Linux 做 R0–R3**：直接在集成分支 `claude/determined-pasteur-jxpzw8` 上写代码，定下基线和规范（`process/CODE_STYLE.md`、目录结构、测试方式、组件写法）。每个阶段完成后推送，并写一份简短的"Windows 交接说明"。
 2. **Codex 拉到 Windows，由 Sol 做本地化（L1）**：在 Windows 上运行与测试，修复平台问题（路径、shell、字体、WebView2、Tauri 构建与原生窗口），推送到 `codex/` 分支，Claude 合并。
 3. **基线确立后，重活交给 Sol（R4–R6）**：每个任务一份短任务书，按新 AGENTS.md 执行，Claude 看 diff 审阅。界面部分由 Claude 先做出样板，Sol 按样板扩展。
 4. **不再使用 Dot**（用户 2026-10-12）：Linux 复查由 Claude 在云端做；安装、升级演练和评测都由 Sol / Codex 在用户本地 H 盘完成。
@@ -102,7 +102,7 @@ R2 结束时就有一条能跑通的最小链路；之后每个阶段都保持�
 
 ## 8. 功能清单（旧版的理念与功能，全部带过去）
 
-下表来自 `SYSTEM_SPEC.md`、`02_INTERACTION_CONTRACTS.md`、`docs/archive/AGENTS_2026-10-05.md` 与设计文档。实现细节以这些原文为参考，新代码按新原语重写。
+下表来自 `product/FEATURES.md`、`design/INTERACTION_CONTRACTS.md`、`docs/archive/AGENTS_2026-10-05.md` 与设计文档。实现细节以这些原文为参考，新代码按新原语重写。
 
 | 领域 | 要保留的功能与决定 | 在新架构中 | 阶段 |
 |---|---|---|---|

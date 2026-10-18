@@ -48,7 +48,7 @@ Linux 上 `npm ci --omit=dev` 的结果：30,388 个文件，913 MB。按类型�
 
 ## 可以改的
 
-`tools/package/`（裁剪函数和测试、测试用产品名的环境变量）、`docs/handoff/PREVIEW_TEST.md`（安装耗时）、`DESKTOP_IMPLEMENTATION.md`（不超过 5 行）。
+`tools/package/`（裁剪函数和测试、测试用产品名的环境变量）、`docs/handoff/PREVIEW_TEST.md`（安装耗时）、`log/IMPLEMENTATION_LOG.md`（不超过 5 行）。
 
 ## 不做的
 

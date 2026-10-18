@@ -33,7 +33,7 @@ async function execute(phase,source,data,evidence,label){
  return {exitCode,result,log};
 }
 try{
- const changed=(await git('git',['diff','--name-only',pins.edf02f3],{cwd:root})).stdout.trim().split('\n').filter(Boolean);assert.ok(changed.every(p=>p.startsWith('scripts/rehearsal/')||p.startsWith('docs/dot/')||p.startsWith('tests/')),'Only approved rehearsal/test/report changes may differ from pinned product baseline');
+ const changed=(await git('git',['diff','--name-only',pins.edf02f3],{cwd:root})).stdout.trim().split('\n').filter(Boolean);assert.ok(changed.every(p=>p.startsWith('scripts/rehearsal/')||p.startsWith('docs/archive/legacy/dot/')||p.startsWith('tests/')),'Only approved rehearsal/test/report changes may differ from pinned product baseline');
  for(const [label,sha] of Object.entries(pins)){
   const source=label==='edf02f3'?root:path.join(historical,label);
   if(label!=='edf02f3')assert.equal((await git('git',['rev-parse','HEAD'],{cwd:source})).stdout.trim(),sha,'Exact pinned historical checkout required');

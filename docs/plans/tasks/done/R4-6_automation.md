@@ -1,6 +1,6 @@
 # R4-6 自动化
 
-- 起草：Claude，2026-10-08。依据：用户 2026-10-07 决定只做"自动化"，"询问 / 完全接管"两档不做（`02_INTERACTION_CONTRACTS.md` 2026-10-07 修订第 7 条，原则 5）。
+- 起草：Claude，2026-10-08。依据：用户 2026-10-07 决定只做"自动化"，"询问 / 完全接管"两档不做（`design/INTERACTION_CONTRACTS.md` 2026-10-07 修订第 7 条，原则 5）。
 - 执行：Sol；审阅：Claude。分两步交付，各自可合并：**6a 自动化发言规则**（后端）、**6b 目标面板与后台活动**（界面）。
 - 每步约 2 小时，超出就停下汇报。
 
@@ -11,10 +11,10 @@
 用户离开这场会议时，侧栏能看到哪些会议在后台运行、排队或已暂停。
 
 行为以旧版为准：
-- 规格：`docs/SYSTEM_SPEC.md` §2.3 的"自动化"部分（审批部分不做）；
+- 规格：`docs/archive/legacy/SYSTEM_SPEC_2026-10-18.md` §2.3 的"自动化"部分（审批部分不做）；
 - 旧代码：`desktop/execution.mjs`（菜单、目标面板）、`desktop/background-activity.mjs`（侧栏后台状态）、`scripts/execution-service.mjs`。
 
-旧版靠 DSH 自带的 goal 服务实现。新核心按 `docs/design/CORE_MODEL.md` §6 的 `autonomous` 发言规则写在调度器里，不依赖运行时的 goal 功能（原则 7：运行时可替换）。
+旧版靠 DSH 自带的 goal 服务实现。新核心按 `docs/architecture/CORE_MODEL.md` §6 的 `autonomous` 发言规则写在调度器里，不依赖运行时的 goal 功能（原则 7：运行时可替换）。
 
 ## 6a 自动化发言规则
 
@@ -76,7 +76,7 @@
 
 - 6a：`app/services/conductor.js`、上下文组装模块、`app/services/tools.js`、`app/core/meetings.js`、`app/core/db/migrations/`、`app/server/routes/`、测试。
 - 6b：`app/ui/`（输入框执行菜单、目标面板、侧栏角标与后台任务）、`app/ui/i18n/en.js`、`styles/app.css`（只做补充）、浏览器测试。
-- 文档：`CORE_MODEL.md` §6、`SYSTEM_SPEC.md`（合并后的现状）、`UI_RESTORE.md`、`DESKTOP_IMPLEMENTATION.md`（每步不超过 5 行）。
+- 文档：`CORE_MODEL.md` §6、`archive/legacy/SYSTEM_SPEC_2026-10-18.md`（合并后的现状）、`UI_RESTORE.md`、`log/IMPLEMENTATION_LOG.md`（每步不超过 5 行）。
 
 ## 不做的
 

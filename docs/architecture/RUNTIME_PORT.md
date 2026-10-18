@@ -1,6 +1,6 @@
 # 运行时接口（Runtime Port）· 初稿
 
-> **2026-10-16**：用户决定在 P1 用 `@earendil-works/pi-ai` + `@earendil-works/pi-agent-core` 替换 DSH（`REVIEW_2026-10-16.md` D2，§10 的决策时点提前）。新运行时在 `app/runtime/pi/`，端口新增的事件与选项见 `tasks/P1a_runtime_providers.md`，合并后由 Claude 更新本文。
+> **2026-10-16**：用户决定在 P1 用 `@earendil-works/pi-ai` + `@earendil-works/pi-agent-core` 替换 DSH（`reviews/REVIEW_2026-10-16.md` D2，§10 的决策时点提前）。新运行时在 `app/runtime/pi/`，端口新增的事件与选项见 `plans/tasks/done/P1a_runtime_providers.md`，合并后由 Claude 更新本文。
 
 > R4-8a（2026-10-08）：新端口startSession新增可选env:{PATH?,VIRTUAL_ENV?}，只接收宿主解析的这两个变量，不改变宿主process.env。DSH比较model+env，变化时在下一轮释放旧进程并恢复同一sessionId；当前轮工具使用固定环境。真实DSH+本地模型已验证shell变量与历史恢复。
 

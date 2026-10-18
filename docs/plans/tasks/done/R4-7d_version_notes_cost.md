@@ -5,7 +5,7 @@
 
 ## 问题
 
-R4-7b 用真实 `deepseek-v4.1-flash` 自动整理了两次版本说明，见 `DESKTOP_IMPLEMENTATION.md` 2026-10-12 R4-7b 条。
+R4-7b 用真实 `deepseek-v4.1-flash` 自动整理了两次版本说明，见 `log/IMPLEMENTATION_LOG.md` 2026-10-12 R4-7b 条。
 
 **用量：**
 - 第一次：19 次请求、207 万 tokens；
@@ -44,7 +44,7 @@ R4-7b 用真实 `deepseek-v4.1-flash` 自动整理了两次版本说明，见 `D
 
 ## 可以改的
 
-`app/services/versions/organizer.js`、`comparison.js`、`template.js`（只改指令）、`app/services/assistant/overview.js`（如需复用提取目标 / 待办的函数，可以把它移到共用位置），以及相关测试和 `DESKTOP_IMPLEMENTATION.md`（不超过 5 行）。
+`app/services/versions/organizer.js`、`comparison.js`、`template.js`（只改指令）、`app/services/assistant/overview.js`（如需复用提取目标 / 待办的函数，可以把它移到共用位置），以及相关测试和 `log/IMPLEMENTATION_LOG.md`（不超过 5 行）。
 
 ## 不做的
 

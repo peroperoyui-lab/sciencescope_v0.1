@@ -246,14 +246,14 @@ R4-2b（待审阅）：GET /api/preview/document与/content按来源、交付物
 
 R4-8b（待审阅）：运行环境页管理Python清单/锁、默认环境、镜像与共享缓存；环境状态由python.changed触发读取，不轮询。项目创建environment绑定项目；独立对话详情先存欢迎草稿，首条消息创建时由creation保存工作目录与会议绑定；项目内对话继承。会议工作区菜单可单独改绑定，下一轮生效。列表先冻结数据库快照再统计磁盘，关闭时不回读SQLite。
 
-- **2026-10-16 起本条废止**：界面按 `design/DESIGN_SYSTEM.md` 重做，由 Claude 设计并实现（`REVIEW_2026-10-16.md` D1、D5）。以下为原文，留作历史：
+- **2026-10-16 起本条废止**：界面按 `design/DESIGN_SYSTEM.md` 重做，由 Claude 设计并实现（`reviews/REVIEW_2026-10-16.md` D1、D5）。以下为原文，留作历史：
 - **原则：界面沿用旧主界面的设计，一比一复刻**（2026-10-05 用户确认）。组件输出与旧界面相同的 DOM 结构和类名，样式直接使用旧界面的样式表：`styles/legacy/` 依次为已批准原型（`prototype.css`，取自 `ScienceScope.html`）和旧桌面的 `chat`、`workspace`、`workbench`、`desktop-behavior`、`refresh`，加载顺序与旧界面相同；`styles/app.css` 只放新界面需要的少量补充。图标路径取自原型的 `iconPaths`。重构的重点在后端，界面不另行设计。
 - 入口：`node app/main.js` 输出的 `ui` 地址（`<url>/?token=<口令>`）；口令随后存入会话存储并从地址栏去掉。原生外壳打开同一地址。
 - 依赖：`preact`、`htm`、`marked`、`dompurify` 与思源黑体字体，由 `app/server/static.js` 从 `node_modules` 提供，页面用 import map 引用；不打包、不复制到仓库。
 - 结构：`api.js`（请求与事件流）→ `state.js`（一个状态对象；`applyEvent` 按 id 合并事件，重放无害；`overlay` 放菜单、对话框、提示与搜索面板）→ `actions.js`（用户操作）→ `components/`。组件只读状态、调用 actions，不互相包裹或覆盖。
 - 路由在地址的 hash：`#/`（新对话欢迎页，发出第一条消息才建会议）、`#/new/<projectId>`（项目内新对话）、`#/meeting/<id>`、`#/workbench/<projectId>`、`#/all`（浏览全部）。
 - 文字：组件里写中文，`i18n/en.js` 给出英文；测试检查每个中文字符串都有英文条目。语言存于 `settings.appearance.language`，在"视图"菜单切换。
-- 已复原的入口与待复原的 R4 队列：`design/UI_RESTORE.md`。
+- 已复原的入口与待复原的 R4 队列：`archive/legacy/UI_RESTORE.md`。
 - 后端补充：`GET /api/search?q=`（消息全文）；`GET/POST /api/projects/:id/files`（列表；mkdir、rename、add、open）与 `GET /api/projects/:id/export`（zip）；`GET /api/meetings/:id/export`（Markdown）；`POST /api/messages/:id/retry`；`GET /api/system`、`POST /api/system/open`；`GET /api/providers/keys`（只有名称）、`POST /api/providers/discover`；`GET /api/events/head`。设置新增 `sites`、`shortcuts`、`appearance`（theme、density、font、codeFontSize、chatFontSize、reduceMotion、scrollbars、transcript）；服务商模型可写 `contextWindow`、`maxTokens`、`efforts`。AI 定义文件新增 `role`、`panel`（expert / reviewer）、`enabled`、`position`，默认专家名册随首次启动创建。DSH 回合结束时报告上下文占用（`usage.context`），供输入框的上下文环。
 
 ## 11. 研究资料库（R4-1a，2026-10-06）

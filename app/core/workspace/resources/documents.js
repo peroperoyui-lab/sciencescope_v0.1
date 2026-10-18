@@ -1,5 +1,5 @@
 // Markdown resources. They share the text operations and differ only in where
-// the file lives. Keys: see docs/design/CORE_MODEL.md §4.
+// the file lives. Keys: see docs/architecture/CORE_MODEL.md §4.
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { AppError } from '../../errors.js';

@@ -21,7 +21,7 @@
 
 ## 可以改的
 
-`tools/package/`（含 NSIS 钩子文件和测试）、`docs/handoff/PREVIEW_TEST.md` 第 1 节、`docs/DESKTOP_IMPLEMENTATION.md`（不超过 5 行）。
+`tools/package/`（含 NSIS 钩子文件和测试）、`docs/handoff/PREVIEW_TEST.md` 第 1 节、`docs/log/IMPLEMENTATION_LOG.md`（不超过 5 行）。
 
 ## 不做的
 

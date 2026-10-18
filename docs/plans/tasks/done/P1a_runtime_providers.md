@@ -1,7 +1,7 @@
 # P1a 运行时与服务商：用 pi-ai 替换 DSH
 
-- 起草：Claude，2026-10-16。依据：用户首测（`REVIEW_2026-10-16.md` §1 第 2、3 条，§3 编号 1、2、大3）与用户决定 D2。
-- 执行：Sol（后端、Windows 验收）；审阅：Claude。界面由 Claude 另做（`ROADMAP.md` P1-UI），本任务**不改 `app/ui/` 的组件和样式**，只提供接口和事件。
+- 起草：Claude，2026-10-16。依据：用户首测（`reviews/REVIEW_2026-10-16.md` §1 第 2、3 条，§3 编号 1、2、大3）与用户决定 D2。
+- 执行：Sol（后端、Windows 验收）；审阅：Claude。界面由 Claude 另做（`plans/ROADMAP.md` P1-UI），本任务**不改 `app/ui/` 的组件和样式**，只提供接口和事件。
 - 第 0 步单独提交；第 1–9 步约 2 小时一段，按"可合并"分段推送，每段跑一次 `npm run check`。超出就停下汇报。
 - 本任务合并后、P1b 合并前**不出安装包**：P1a 去掉了 DSH 自带的命令、文件和网页工具，P1b 补回。
 
@@ -116,7 +116,7 @@
 
 ### 8. 用量与上下文
 
-- `send` 的返回照旧带 `usage`：汇总本次所有请求的输入、输出、缓存读写、推理 token 和请求数，字段名沿用现有的（`docs/design/RUNTIME_PORT.md` §4 T24）。
+- `send` 的返回照旧带 `usage`：汇总本次所有请求的输入、输出、缓存读写、推理 token 和请求数，字段名沿用现有的（`docs/architecture/RUNTIME_PORT.md` §4 T24）。
 - `usage.context = { usedTokens, contextWindow, estimated }`，供输入栏的上下文环使用：`usedTokens` 取最后一次请求的实际输入加输出，`contextWindow` 取模型目录。
 
 ### 9. 测试
@@ -138,7 +138,7 @@
 
 ## 可以改的
 
-`app/runtime/`、`app/app.js`、`app/services/turn-runner.js`、`app/services/providers.js`、`app/services/secretary/`、`app/services/memory/` 中读模型容量的地方、`app/server/routes/providers.js`（及新的模型目录路由）、`app/core/turns.js`、`app/core/db/migrations/`、`app/main.js` 与原生外壳的启动时间点、`package.json`、`package-lock.json`、`DESKTOP_IMPLEMENTATION.md`（不超过 5 行）。
+`app/runtime/`、`app/app.js`、`app/services/turn-runner.js`、`app/services/providers.js`、`app/services/secretary/`、`app/services/memory/` 中读模型容量的地方、`app/server/routes/providers.js`（及新的模型目录路由）、`app/core/turns.js`、`app/core/db/migrations/`、`app/main.js` 与原生外壳的启动时间点、`package.json`、`package-lock.json`、`log/IMPLEMENTATION_LOG.md`（不超过 5 行）。
 
 ## 不做的
 

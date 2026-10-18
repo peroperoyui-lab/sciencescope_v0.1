@@ -1,6 +1,6 @@
 # R4-8 Python 运行环境
 
-- 起草：Claude，2026-10-08。顺序见 `docs/ROADMAP.md`（alpha 必需线；放在 R4-6 自动化之前，自动化要能跑分析脚本）。
+- 起草：Claude，2026-10-08。顺序见 `docs/plans/ROADMAP.md`（alpha 必需线；放在 R4-6 自动化之前，自动化要能跑分析脚本）。
 - 执行：Sol；审阅：Claude。分两步交付，各自可合并：
   - **8a 环境服务与会话接入**（后端 + 运行时）
   - **8b 设置页与选择入口**（界面）
@@ -15,8 +15,8 @@
 - 用户在设置里管理环境。
 
 行为以旧版为准：
-- `docs/design/PYTHON_ENVIRONMENTS.md`（设计，含新建时的详情窗口）
-- `docs/SYSTEM_SPEC.md` §2.20（T11 的实现与验证）
+- `docs/architecture/PYTHON_ENVIRONMENTS.md`（设计，含新建时的详情窗口）
+- `docs/archive/legacy/SYSTEM_SPEC_2026-10-18.md` §2.20（T11 的实现与验证）
 - 旧代码 `scripts/python-env/`（`uv.mjs`、`environments.mjs`）、`desktop/python-settings.mjs`、`desktop/creation-details.mjs`
 - 包清单 `python/builtin.in`、`builtin.lock`、`builtin.json`（已在仓库，直接复用）
 
@@ -79,7 +79,7 @@
 - 后端：`app/services/python/`、`app/runtime/port.js` 与 `app/runtime/dsh/`（只限环境变量参数）、上下文组装模块、`app/services/tools.js`、`app/core/paths.js`、`app/core/db/migrations/`、设置资源、`app/server/routes/`。
 - 界面：`app/ui/`（设置运行环境页、新建项目页、新建对话详情窗口、工作区菜单）、`app/ui/i18n/en.js`、`styles/app.css`（只做补充）。
 - 测试。
-- 文档：`CORE_MODEL.md`、`RUNTIME_PORT.md`（新参数）、`PYTHON_ENVIRONMENTS.md`（标出与旧版不同的两处）、`SYSTEM_SPEC.md`（合并后的现状）、`UI_RESTORE.md`、`DESKTOP_IMPLEMENTATION.md`（每步不超过 5 行）。
+- 文档：`CORE_MODEL.md`、`RUNTIME_PORT.md`（新参数）、`PYTHON_ENVIRONMENTS.md`（标出与旧版不同的两处）、`archive/legacy/SYSTEM_SPEC_2026-10-18.md`（合并后的现状）、`UI_RESTORE.md`、`log/IMPLEMENTATION_LOG.md`（每步不超过 5 行）。
 
 ## 不做的
 

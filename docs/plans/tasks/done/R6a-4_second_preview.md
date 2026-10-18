@@ -18,7 +18,7 @@
 
 1. **带上 R6a-3 安装瘦身**：
    - 从集成分支 `53cf686` 开分支，cherry-pick 你的 R6a-3 提交 `5b8e8a1`。这个提交还没单独审阅，这次和本任务一起审。
-   - 冲突只有 `docs/DESKTOP_IMPLEMENTATION.md`：两条记录都保留，按日期排序。
+   - 冲突只有 `docs/log/IMPLEMENTATION_LOG.md`：两条记录都保留，按日期排序。
    - DSH 已经不在生产依赖里（P1a），`prune.js` 里保留 `@deepseek-ai` Markdown 的规则可以留着，不用改。
    - 报告裁剪后的文件数、程序大小，以及文件数最多的 10 个包。
 2. **打正式包**：`npm run package`。产品名、identifier、版本号（`1.0.0-alpha.0`）都不变。报告安装包大小和 SHA-256。
@@ -41,7 +41,7 @@
 
 ## 可以改的
 
-`tools/package/`、`docs/handoff/PREVIEW_TEST.md` 第 1、2 节、`docs/DESKTOP_IMPLEMENTATION.md`（不超过 5 行）。
+`tools/package/`、`docs/handoff/PREVIEW_TEST.md` 第 1、2 节、`docs/log/IMPLEMENTATION_LOG.md`（不超过 5 行）。
 
 ## 不做的
 

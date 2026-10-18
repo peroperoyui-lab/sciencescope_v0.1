@@ -1,6 +1,6 @@
 # A2-1 图片发给模型、不主动读别的对话、截图
 
-- 起草：Claude，2026-10-18。依据：第二轮首测（`REVIEW_2026-10-18.md` A 组第 18、1、10 条）。同一轮的界面问题 Claude 已在集成分支修好（`3a1f805`）。
+- 起草：Claude，2026-10-18。依据：第二轮首测（`reviews/REVIEW_2026-10-18.md` A 组第 18、1、10 条）。同一轮的界面问题 Claude 已在集成分支修好（`3a1f805`）。
 - 执行：Sol（Windows，本地 H 盘）；审阅：Claude。约 2 小时，一步交付；超出就停下汇报。
 
 ## 目标
@@ -35,7 +35,7 @@
 
 ## 可以改的
 
-`app/services/research-input/`、`app/services/turn-runner.js` 和上下文组装、`app/runtime/`（只在运行时接口内）、`app/core/defaults.js`、`app/core/workspace/resources/settings.js`、`src-tauri/`、`app/ui/components/research-input.js`（只改截图入口的行为，不改样式）、相关测试、`docs/SYSTEM_SPEC.md`、`docs/DESKTOP_IMPLEMENTATION.md`（不超过 5 行）。
+`app/services/research-input/`、`app/services/turn-runner.js` 和上下文组装、`app/runtime/`（只在运行时接口内）、`app/core/defaults.js`、`app/core/workspace/resources/settings.js`、`src-tauri/`、`app/ui/components/research-input.js`（只改截图入口的行为，不改样式）、相关测试、`docs/product/FEATURES.md`、`docs/log/IMPLEMENTATION_LOG.md`（不超过 5 行）。
 
 ## 不做的
 

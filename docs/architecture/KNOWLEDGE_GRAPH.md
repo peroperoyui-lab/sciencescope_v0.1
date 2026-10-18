@@ -1,7 +1,7 @@
 # 资料库的图层：一个库、项目视角、向量 + 图，由智能体整理、由人确认
 
-- 起草：Claude，2026-09-27。状态：**方向已定**（用户认可"一个库、项目只是视角"和"向量 + 图"）；实现任务 `docs/tasks/T20_knowledge_graph.md`。
-- 前置：`design/RESEARCH_BASE.md`（五类记录、`rb_links`、提议收件箱）、`design/CONTEXT_ACCESS.md`（各角色的范围表）、T10（向量检索）、T06（文献元数据与引用）。
+- 起草：Claude，2026-09-27。状态：**方向已定**（用户认可"一个库、项目只是视角"和"向量 + 图"）；实现任务 `docs/archive/legacy/tasks/T20_knowledge_graph.md`。
+- 前置：`architecture/RESEARCH_BASE.md`（五类记录、`rb_links`、提议收件箱）、`architecture/CONTEXT_ACCESS.md`（各角色的范围表）、T10（向量检索）、T06（文献元数据与引用）。
 - 用户要求（2026-09-27）：
   - 数据库是项目的关键；
   - 全局库要能看、能管；

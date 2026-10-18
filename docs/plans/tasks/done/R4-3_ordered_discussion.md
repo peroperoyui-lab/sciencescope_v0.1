@@ -1,6 +1,6 @@
 # R4-3 有序讨论（多位专家）
 
-- 起草：Claude，2026-10-06。顺序见 `docs/ROADMAP.md`（讨论与秘书优先）。
+- 起草：Claude，2026-10-06。顺序见 `docs/plans/ROADMAP.md`（讨论与秘书优先）。
 - 执行：Sol；审阅：Claude。分两步交付，各自可合并：**3a 后端**、**3b 界面**。每步约 2 小时，超出就停下汇报。
 
 ## 目标
@@ -9,7 +9,7 @@
 1. 在"工作"模式下用 `@专家名` 邀请某位专家回答（主专家本轮不答）；
 2. 切到"有序讨论"，选几位专家并行回答同一问题，可选一位审核专家在他们全部完成后审核；审核结论经用户采纳才进入后续上下文。
 
-行为以旧版为准：`docs/SYSTEM_SPEC.md` §2.5、`scripts/discussion-service.mjs`、`desktop/discussion.mjs`、`desktop/work-mode.mjs`。实现按新核心的模型写（`docs/design/CORE_MODEL.md` §6–§7），不照搬旧的子代理和 NDJSON 接口。
+行为以旧版为准：`docs/archive/legacy/SYSTEM_SPEC_2026-10-18.md` §2.5、`scripts/discussion-service.mjs`、`desktop/discussion.mjs`、`desktop/work-mode.mjs`。实现按新核心的模型写（`docs/architecture/CORE_MODEL.md` §6–§7），不照搬旧的子代理和 NDJSON 接口。
 
 ## 新核心里的做法（3a）
 
@@ -40,8 +40,8 @@
 
 ## 可以改的
 
-- 3a：`app/services/conductor.js`、`app/services/turn-runner.js`、`app/core/context.js`、`app/core/meetings.js`、`app/core/messages.js`、`app/server/routes/meetings.js`，必要时 `app/runtime/` 里与并发相关的部分；相关测试；`docs/design/CORE_MODEL.md` §6、`docs/SYSTEM_SPEC.md`。
-- 3b：`app/ui/`（composer、meeting、新组件 `components/discussion*.js`、state / actions）、`app/ui/i18n/en.js`、`styles/app.css`（只做补充）；浏览器测试；`docs/design/UI_RESTORE.md`（R4-3 标为已复原）、`docs/DESKTOP_IMPLEMENTATION.md`（不超过 5 行）。
+- 3a：`app/services/conductor.js`、`app/services/turn-runner.js`、`app/core/context.js`、`app/core/meetings.js`、`app/core/messages.js`、`app/server/routes/meetings.js`，必要时 `app/runtime/` 里与并发相关的部分；相关测试；`docs/architecture/CORE_MODEL.md` §6、`docs/archive/legacy/SYSTEM_SPEC_2026-10-18.md`。
+- 3b：`app/ui/`（composer、meeting、新组件 `components/discussion*.js`、state / actions）、`app/ui/i18n/en.js`、`styles/app.css`（只做补充）；浏览器测试；`docs/archive/legacy/UI_RESTORE.md`（R4-3 标为已复原）、`docs/log/IMPLEMENTATION_LOG.md`（不超过 5 行）。
 
 ## 不做的
 

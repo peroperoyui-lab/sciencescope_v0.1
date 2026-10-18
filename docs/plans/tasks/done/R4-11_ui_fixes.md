@@ -1,6 +1,6 @@
 # R4-11 界面补齐与调整
 
-- 起草：Claude，2026-10-07。依据：用户 Windows 实测反馈（`02_INTERACTION_CONTRACTS.md` 2026-10-07 修订）和 Claude 对照旧界面的缺口核对（`design/UI_RESTORE.md`"2026-10-07 核对的缺口"）。
+- 起草：Claude，2026-10-07。依据：用户 Windows 实测反馈（`design/INTERACTION_CONTRACTS.md` 2026-10-07 修订）和 Claude 对照旧界面的缺口核对（`archive/legacy/UI_RESTORE.md`"2026-10-07 核对的缺口"）。
 - 执行：Sol；审阅：Claude。分两步交付，各自可合并：**11a 窗口、历史版本、项目文件夹**，**11b 对话与导图补齐**。每步约 2 小时，超出就停下汇报。
 - Claude 已在集成分支上直接改掉的三处，不用再做：
   - 记忆整理弹窗只显示结果；
@@ -45,7 +45,7 @@
   - 项目置顶摘要（P07）的"最近变更（可撤销）"改为最近的几个历史版本。
   - 导图编辑窗口里的撤销 / 重做只作用于这次打开的编辑，关闭窗口后清空。
 - **AI 工具**：`workspace_undo` 保留，供 AI 在一轮里改正自己刚做的修改；另加 `workspace_versions`（列出、读取、恢复），所有角色共用。
-- 文档：`CORE_MODEL.md` 写明版本与修订的关系，并更新 `docs/design/DATA_AND_ROLES.md` 里"修改即生效可撤销"的说法。
+- 文档：`CORE_MODEL.md` 写明版本与修订的关系，并更新 `docs/architecture/DATA_AND_ROLES.md` 里"修改即生效可撤销"的说法。
 
 ### 3. 项目文件夹
 
@@ -65,7 +65,7 @@
    - 排队存在会议上，重启后不丢。
 2. **交付物**：
    - AI 在回答里展示的文件（图片、文档）显示在回答下方：图片显示缩略图，文档显示卡片，点击用默认程序打开。
-   - 展示方式按 `docs/design/RUNTIME_PORT.md` 选择：用 DSH 的 `present`，或加一个 ScienceScope 自己的工具，选哪种写进文档。
+   - 展示方式按 `docs/architecture/RUNTIME_PORT.md` 选择：用 DSH 的 `present`，或加一个 ScienceScope 自己的工具，选哪种写进文档。
    - 交付物进入其他参与者的上下文（只有路径和说明，`SYSTEM_SPEC` §2.5a 旧规则）。
 3. **对话里的公式**：回答中的 `$…$`、`$$…$$` 用已经接入的 KaTeX 渲染，沿用旧版的净化规则（只有 KaTeX 生成的标记放宽）。
 4. **导图**：
@@ -80,7 +80,7 @@
 
 ## 可以改的
 
-`src-tauri/`（只限窗口大小与缩放相关）、`app/core/`（迁移、工作区）、`app/services/`、`app/server/routes/`、`app/ui/`、`app/ui/i18n/en.js`、`styles/app.css`（只做补充）、测试；文档 `CORE_MODEL.md`、`DATA_AND_ROLES.md`、`SYSTEM_SPEC.md`、`UI_RESTORE.md`、`DESKTOP_IMPLEMENTATION.md`（每步不超过 5 行）。
+`src-tauri/`（只限窗口大小与缩放相关）、`app/core/`（迁移、工作区）、`app/services/`、`app/server/routes/`、`app/ui/`、`app/ui/i18n/en.js`、`styles/app.css`（只做补充）、测试；文档 `CORE_MODEL.md`、`DATA_AND_ROLES.md`、`archive/legacy/SYSTEM_SPEC_2026-10-18.md`、`UI_RESTORE.md`、`log/IMPLEMENTATION_LOG.md`（每步不超过 5 行）。
 
 ## 不做的
 

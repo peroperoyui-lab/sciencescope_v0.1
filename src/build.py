@@ -15,7 +15,7 @@ pre="<script>window.SS_SOURCE_HTML='<!DOCTYPE html>'+document.documentElement.ou
 s=s.replace('</style>', '</style><style>'+css+'</style>',1)
 last=s.rfind('render();\n</script>')
 assert last>0
-spec_updates=json.loads((root/'docs/page-manifest.json').read_text())
+spec_updates=json.loads((root/'docs/archive/legacy/page-manifest.json').read_text())
 js+='\nfor(const d of '+json.dumps(spec_updates,ensure_ascii=False).replace('<','\\u003c')+'){const p=window.PAGE_SPECS.find(p=>p.route===d.route);if(p)Object.assign(p,d);}'
 s=s.replace('48 个页面','49 个页面').replace('P01 / 48','P01 / 49')
 capture="window.SS_SOURCE_HTML='<!DOCTYPE html>'+document.documentElement.outerHTML;\n"

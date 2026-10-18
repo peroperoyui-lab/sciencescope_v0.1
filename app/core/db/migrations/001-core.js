@@ -1,4 +1,4 @@
-// Core tables for the five primitives. See docs/design/CORE_MODEL.md §2.
+// Core tables for the five primitives. See docs/architecture/CORE_MODEL.md §2.
 
 export const version = 1;
 export const name = 'core';

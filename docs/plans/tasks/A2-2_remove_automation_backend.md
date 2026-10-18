@@ -1,6 +1,6 @@
 # A2-2 删掉自动化（后端）
 
-- 起草：Claude，2026-10-18。依据：用户 2026-10-18 决定删掉「自动化」执行方式和目标功能，只留请求批准和常规（`REVIEW_2026-10-18.md` 第 19 条）。界面部分 Claude 已删（输入栏执行方式只剩两档，目标面板、轮数输入、`goal.changed` 订阅都已去掉）。
+- 起草：Claude，2026-10-18。依据：用户 2026-10-18 决定删掉「自动化」执行方式和目标功能，只留请求批准和常规（`reviews/REVIEW_2026-10-18.md` 第 19 条）。界面部分 Claude 已删（输入栏执行方式只剩两档，目标面板、轮数输入、`goal.changed` 订阅都已去掉）。
 - 执行：Sol（Windows）；审阅：Claude。约 1 小时，一步交付；超出就停下汇报。可以接在 A2-1 后面做，也可以和 A2-1 放在同一个分支里分两个提交。
 
 ## 目标
@@ -22,7 +22,7 @@
 6. `app/services/approvals.js`：去掉 `goal.changed` 相关的两段（批准等待时发目标事件、目标结束时取消批准）。停止回答、关闭程序时取消批准的行为不变。
 7. `app/server/routes/meetings.js`：删除 `/api/meetings/:id/goal` 三个接口；`/api/activity` 不再返回 `goals` 字段（界面已不读）。
 8. 测试：删除 `app/services/automation.test.js`；`approvals.test.js` 里的 `goal` 情形删掉，其余三种保留；加一条迁移测试：一个 `autonomous` 会议带一条 `paused` 目标，迁移后是 `direct`，发消息得到普通回答。
-9. 文档：`SYSTEM_SPEC.md` 删除新核心里自动化的描述（旧线 2.3 节保留原样，那是旧原型），`02_INTERACTION_CONTRACTS.md` 去掉目标接口；`DESKTOP_IMPLEMENTATION.md` 一行。
+9. 文档：`product/FEATURES.md` 删除新核心里自动化的描述（旧线 2.3 节保留原样，那是旧原型），`design/INTERACTION_CONTRACTS.md` 去掉目标接口；`log/IMPLEMENTATION_LOG.md` 一行。
 
 ## 可以改的
 

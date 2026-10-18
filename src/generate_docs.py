@@ -1,7 +1,7 @@
 from pathlib import Path
 import json,shutil,re,base64
 R=Path(__file__).resolve().parents[1]
-specs=json.loads((R/'docs/page-manifest.json').read_text())
+specs=json.loads((R/'docs/archive/legacy/page-manifest.json').read_text())
 updates={
 'home':dict(title='开始与继续',actions=['最近工作按真实项目和对话身份打开。','常用站点通过浏览器侧栏打开，菜单管理站点。','输入框支持附件和模型/运行方式菜单。','顶部按钮使用下拉菜单；全局助手打开独立窗口。']),
 'work':dict(title='主工作聊天',actions=['用户消息右对齐，显示日期、时间和消息操作。','复制消息、引用到输入框、从选中消息前缀开始分支。','Ctrl F 查找当前对话；Ctrl K 搜索项目、对话和操作。','输入框圆环悬停显示模型上下文和缓存，引用及批注另设入口。','项目摘要在右上角浮出；浏览器/秘书侧栏仍可独立操作。']),
@@ -22,20 +22,20 @@ for sp in specs:
  if sp['route'] in updates:sp.update(updates[sp['route']])
 sp49={'id':'P49','route':'changes','title':'项目修改记录','group':'研究记录','source':'本轮用户反馈','goal':'查看细粒度项目文件变化，与关键节点日志分开。','entry':'项目摘要中的查看全部修改；命令入口。','regions':['按实际操作显示的变化列表。'],'actions':['查看创建、修改、删除、重命名和实际来源。','文件/版本与预览联动。'],'states':['有修改','无修改'],'checks':['项目归属正确。','修改记录不是全文审阅通过声明。']}
 if not any(x['route']=='changes' for x in specs):specs.append(sp49)
-(R/'docs/page-manifest.json').write_text(json.dumps(specs,ensure_ascii=False,indent=2))
+(R/'docs/archive/legacy/page-manifest.json').write_text(json.dumps(specs,ensure_ascii=False,indent=2))
 for s in specs:
  text=f"# {s['id']} {s['title']}\n\n版本 v0.3；路由 `#{s['route']}`。\n\n## 目的与入口\n\n{s['goal']}\n\n入口：{s['entry']}\n\n依据：{s['source']}。本轮菜单/窗口定义见 `../02_INTERACTION_CONTRACTS.md`，与早期原型描述不同处以本轮为准。\n"
  for key,title in [('regions','页面组成'),('actions','用户操作与结果'),('states','状态'),('checks','验收')]:
   text+='\n## '+title+'\n\n'+'\n'.join('- '+v for v in s.get(key,[]))+'\n'
  text+='\n## 开发接入\n\n首先检查完整 DSH 已有的对应组件和服务。原型的入口和结果作为功能依据，数据保存、模型调用及操作系统能力接入真实应用。未配置/不可用时用具体状态反馈，保持其他功能可用。\n'
- (R/'docs/pages'/f"{s['id']}_{s['route']}.md").write_text(text)
+ (R/'docs/archive/legacy/pages'/f"{s['id']}_{s['route']}.md").write_text(text)
 # User-provided files, preserving original design/logo.
 shutil.copy('/mnt/data/d286c339-023f-47d4-a806-f15adf372eb4.pptx',R/'reference/ScienceScope_User_Design.pptx')
 shutil.copy('/mnt/data/67a08cba-b0b0-451e-a508-8fa1977ab38a.png',R/'reference/Codex_Overview_Reference.png')
 s=(R/'src/original-base.html').read_text();m=re.search(r"window.LOGO_SRC='data:image/png;base64,([^']+)'",s)
 if m:(R/'reference/ScienceScope_Logo.png').write_bytes(base64.b64decode(m.group(1)))
 # Update focused flow sheets to link latest interaction notes, avoiding contradictory earlier wording.
-for p in (R/'docs/flows').glob('*.md'):
+for p in (R/'docs/archive/legacy/flows').glob('*.md'):
  t=p.read_text();p.write_text(t+'\n\n## v0.3 交互补充\n\n阅读 `../02_INTERACTION_CONTRACTS.md` 与 `../03_DESKTOP_WINDOWS.md`：本轮修正了菜单/浮层、计划日志附件、消息定位、独立窗口和上下文占用。保留本文件的数据语义，实际点击方式以本轮说明为准。\n')
 (R/'README.md').write_text('''# ScienceScope · 交互优化版 v0.3
 

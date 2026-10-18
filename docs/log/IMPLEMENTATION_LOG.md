@@ -78,7 +78,7 @@
 - Rebuilt `e9b62d6` without product changes: 128.20 MiB, SHA-256 in PREVIEW_TEST; stage/release app and production dependencies match by path, size and hash, with no test files or listed development packages. Installed program: 687.32 MiB / 30,677 files; fresh install 8 min 9 s.
 - Checked the uninstall data-deletion checkbox and verified data removal. Installed native welcome, flash answer (1 request / 15,641 tokens), custom Python URL clearing, official-source save, previous-log rotation and process/WAL/SHM cleanup passed. Deleted acceptance data, verified empty projects/meetings/providers and no credentials, then closed; installation left untouched afterwards.
 - Independent fresh-install Windows `npm run check`: 213/213, zero skips (450 s); first check's five local DSH startup failures during concurrent build I/O retained. Acceptance fixtures also retained initial async-settings/PID-check failures; settings requests and process creation times now identify the verified state. Evidence, screenshots and the ten largest directories: `.sciencescope-local/temp/r6a-2b/REPORT.md`; R6a-1's initial unpaid startup timeout clarified below.
-- Review (Claude): the Python settings form now appears only after the saved settings load, so a quick choice is no longer overwritten by the late backfill. Install time goes to R6a-3 (`tasks/R6a-3_install_size.md`).
+- Review (Claude): the Python settings form now appears only after the saved settings load, so a quick choice is no longer overwritten by the late backfill. Install time goes to R6a-3 (`plans/tasks/done/R6a-3_install_size.md`).
 
 ## 2026-10-13 R6a-2 preview installer (Codex; merged by Claude)
 - Current-user NSIS installer with `LICENSE` and a generated `THIRD_PARTY_NOTICES` (production npm packages, Node, uv, native-library notices). The unchecked "delete application data" option now also removes `<install>\data` through an uninstall hook. Installer 128.22 MiB; program 687.3 MiB; acceptance data 2.28 GiB including Python caches.
@@ -207,7 +207,7 @@
 
 - R4-1b merged (`ee83c3d`); fixed 10 tests that needed a pre-existing temp
   folder (`3e058fe`). Linux check 68: 66 pass, 2 Windows-only.
-- Review `REVIEW_2026-10-06.md`: mainline on track; biggest gap is multi-expert
+- Review `reviews/REVIEW_2026-10-06.md`: mainline on track; biggest gap is multi-expert
   discussion (only `direct`). ROADMAP rewritten for R4–R6 with discussion and
   secretary first, milestones M1/M2; old roadmap archived.
 
@@ -330,7 +330,7 @@
 
 - User direction: the front-end design stays; every feature design not
   rejected is kept. Inventory of all 48 prototype pages and old modules:
-  `docs/design/UI_RESTORE.md`.
+  `docs/archive/legacy/UI_RESTORE.md`.
 - Batch 1 `b466bb3` settings; batch 2 `152200d` meeting chrome; batch 3
   `649340a` workbench and navigation pages. Full old style sheet stack.
 - Fixes found on the way: settings reload when changed elsewhere; a loaded
@@ -458,4 +458,4 @@
   - `server/`: routes per domain, local token, SSE with replay; `main.js`;
     `cli.js`.
 - Verification: `npm run check` (Prettier, ESLint, tsc, 21 tests) on Linux.
-  Windows handoff: `docs/handoff/R1_WINDOWS.md`.
+  Windows handoff: `docs/archive/legacy/handoff/R1_WINDOWS.md`.

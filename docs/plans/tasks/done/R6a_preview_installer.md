@@ -5,7 +5,7 @@
   - **6a-1 新核心成为默认、运行时随包**
   - **6a-2 安装包与安装验收**
 - 每步约 2 小时，超出就停下汇报。
-- 参考：旧线时期的 `docs/tasks/T22_packaging_and_release.md`。那份针对旧宿主，这里只取适用于新核心的部分。
+- 参考：旧线时期的 `docs/archive/legacy/tasks/T22_packaging_and_release.md`。那份针对旧宿主，这里只取适用于新核心的部分。
 
 ## 目标
 
@@ -34,7 +34,7 @@
    - 核实 `sharp` 等间接依赖是否真的会用到，用不到就不打进包。
    - 向量模型不随包，首次开启时下载（已有，默认官方源）。
    - Python 本体不随包，由 uv 首次需要时下载。
-3. **数据目录**（原则 1，`docs/design/DATA_AND_ROLES.md`）：
+3. **数据目录**（原则 1，`docs/architecture/DATA_AND_ROLES.md`）：
    - 安装目录下 `data/` 放全部用户数据，`app/` 等放程序；覆盖安装只替换程序，不动 `data/`。
    - 日志写在 `data/logs/`，用户反馈时可以打包发送。
    - 开发版的数据目录不变。
@@ -64,7 +64,7 @@
 - `package.json`（`package` 脚本）、构建脚本（放 `tools/` 或 `scripts/package/`，不放旧线的 `scripts/` 根下与旧代码混在一起）；
 - `app/main.js`、`app/core/paths.js`（定位安装目录与 `data/`）；
 - `app/services/python/`（Python 下载源）、设置资源与设置页 Python 一节；
-- `docs/handoff/PREVIEW_TEST.md`（补实际路径）、`SYSTEM_SPEC.md`（安装与数据目录一节）、`DESKTOP_IMPLEMENTATION.md`（每步不超过 5 行）。
+- `docs/handoff/PREVIEW_TEST.md`（补实际路径）、`archive/legacy/SYSTEM_SPEC_2026-10-18.md`（安装与数据目录一节）、`log/IMPLEMENTATION_LOG.md`（每步不超过 5 行）。
 
 ## 不做的
 

@@ -1,5 +1,5 @@
 // Context assembly: what an AI participant is told when it speaks in a meeting.
-// Pure functions over core data; see docs/design/CORE_MODEL.md §7.
+// Pure functions over core data; see docs/architecture/CORE_MODEL.md §7.
 //
 // - Instructions: the participant's own definition, who is present, the project.
 // - First turn in a meeting (or after its working memory was lost): the latest

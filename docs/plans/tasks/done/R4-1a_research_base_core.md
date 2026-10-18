@@ -1,6 +1,6 @@
 # R4-1a 资料库后端（移植到新核心）
 
-- 起草：Claude，2026-10-06。队列见 `docs/design/UI_RESTORE.md`（R4-1 拆为 1a 后端、1b 界面与语义检索）。
+- 起草：Claude，2026-10-06。队列见 `docs/archive/legacy/UI_RESTORE.md`（R4-1 拆为 1a 后端、1b 界面与语义检索）。
 - 执行：Sol；审阅：Claude。约 2 小时，超出就停下汇报。
 
 ## 目标
@@ -9,7 +9,7 @@
 
 ## 做法
 
-- 代码放 `app/services/research/`，按 `docs/CODE_STYLE.md` 重写，不要整份复制：保留旧版已验证的行为（解析、分段、引用格式 `[S3 p.4]`、被取代的记录保留、私有条目不进入 AI 候选），去掉旧线特有的接线（宿主 RPC、旧 chatStore、功能开关）。
+- 代码放 `app/services/research/`，按 `docs/process/CODE_STYLE.md` 重写，不要整份复制：保留旧版已验证的行为（解析、分段、引用格式 `[S3 p.4]`、被取代的记录保留、私有条目不进入 AI 候选），去掉旧线特有的接线（宿主 RPC、旧 chatStore、功能开关）。
 - 数据库：`rb_*` 表进新的编号迁移 `app/core/db/migrations/003-research-base.js`（表结构可沿用旧 `schema.mjs`，删掉新核心用不上的列）。原件存 `data/library/originals/`（`dataPaths().library`）。
 - 解析器：PDF、DOCX、Markdown、LaTeX、纯文本，沿用旧 `parsers/` 的依赖（`pdfjs-dist`、`mammoth` 等已在 `package.json`）。不设长度上限（AGENTS.md 原则 4），分段大小沿用旧版。
 - 工具：在 `app/services/tools.js` 的工具表里加 `research_search`（问法、项目范围、返回数量）和 `research_read`（来源 / 条目 / 段落，分页并说明还有多少），所有角色共用。
@@ -18,7 +18,7 @@
 
 ## 可以改的
 
-`app/services/research/`、`app/services/tools.js`、`app/server/routes/research.js`、`app/server/server.js`（注册路由）、`app/core/db/migrations/`、`app/core/paths.js`（如需新目录）、相关测试、`docs/design/CORE_MODEL.md`（补一节资料库）、`docs/SYSTEM_SPEC.md`。
+`app/services/research/`、`app/services/tools.js`、`app/server/routes/research.js`、`app/server/server.js`（注册路由）、`app/core/db/migrations/`、`app/core/paths.js`（如需新目录）、相关测试、`docs/architecture/CORE_MODEL.md`（补一节资料库）、`docs/archive/legacy/SYSTEM_SPEC_2026-10-18.md`。
 
 ## 不做的
 

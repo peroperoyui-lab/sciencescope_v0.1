@@ -1,6 +1,6 @@
 # R4-4 任务秘书：纪要、秘书会话与记忆整理
 
-- 起草：Claude，2026-10-07。顺序见 `docs/ROADMAP.md`。做完进入 M1。
+- 起草：Claude，2026-10-07。顺序见 `docs/plans/ROADMAP.md`。做完进入 M1。
 - 执行：Sol；审阅：Claude。分三步交付，按功能拆分，每步包含自己的后端和界面，各自可合并：**4a 纪要与总结规则**、**4b 秘书会话**、**4c 记忆整理**。每步约 2 小时，超出就停下汇报。
 
 ## 目标
@@ -10,14 +10,14 @@
 - 秘书在侧栏和用户单独对话，能自动跟上主对话，并起草给主专家的指令。
 - 空闲时把纪要的变化整理成候选记忆。候选进入收件箱，经用户确认后成为项目记忆，并以项目简报的形式提供给主专家。
 
-行为以旧版为准：`docs/SYSTEM_SPEC.md` §2.5b、§2.7、§2.11、§2.17，以及 `docs/design/EXPERT_CONTEXT.md`、`docs/design/CONTEXT_ACCESS.md`。实现按新核心写（`docs/design/CORE_MODEL.md` §6–§7："后台参与者订阅事件、按规则触发"），不照搬旧的表和接口。
+行为以旧版为准：`docs/archive/legacy/SYSTEM_SPEC_2026-10-18.md` §2.5b、§2.7、§2.11、§2.17，以及 `docs/architecture/EXPERT_CONTEXT.md`、`docs/architecture/CONTEXT_ACCESS.md`。实现按新核心写（`docs/architecture/CORE_MODEL.md` §6–§7："后台参与者订阅事件、按规则触发"），不照搬旧的表和接口。
 
 ## 共同要求
 
 - 秘书就是参与者 `agent_secretary`，已有默认定义，设置页已能改提示词和模型。秘书未设置模型时，使用会议的模型。
 - 秘书和记忆整理做的每次修改（纪要、工作台、记忆条目）都以 `agent_secretary` 名义写入，进入更改记录，可以撤销（AGENTS.md 原则 3）。
 - 后台运行也记录为发言（turn），带用量，但不在主会议里生成消息。在 `turn-runner.js` 加一个"后台发言"入口，或另写一个小服务，二选一并在 `CORE_MODEL.md` 写明。
-- 遵守 `docs/CODE_STYLE.md`，**包括新补的一条：保留原有说明注释，JSDoc 按多行写**。`conductor.js` 和 `turn-runner.js` 尤其注意。
+- 遵守 `docs/process/CODE_STYLE.md`，**包括新补的一条：保留原有说明注释，JSDoc 按多行写**。`conductor.js` 和 `turn-runner.js` 尤其注意。
 - 新状态优先放进编号迁移（`005-…`）建的表或列，不再往消息 `refs` 里堆。
 - 不设长度上限（原则 4）。旧版的字符上限和截断都不要搬过来；需要分批的地方按 token 估算分批，不丢内容。
 
@@ -41,7 +41,7 @@
   - 旧版还有"提议"一档；按原则 3（修改直接生效、可撤销）和原则 5（不加审批）不再保留。
   - 直接更新只追加或标记，不改写用户内容；导图上秘书加的节点显示"秘书添加"。
   - "稿件版本"一项属于 R4-7，这次不做。
-- **专家长上下文**：确认现有上下文组装在会话丢失、首次发言时使用"纪要 + 纪要之后原文"（`docs/design/EXPERT_CONTEXT.md`），写测试覆盖主专家和专家。
+- **专家长上下文**：确认现有上下文组装在会话丢失、首次发言时使用"纪要 + 纪要之后原文"（`docs/architecture/EXPERT_CONTEXT.md`），写测试覆盖主专家和专家。
 - **界面**：
   - 会议"…"菜单里的"对话纪要"窗口：查看（Markdown）、编辑、让秘书立即更新、显示距下次总结还差多少条消息或 token。
   - 设置"任务秘书"页（P36）的"自动总结"一节和"随总结更新工作台"一节，按旧结构复刻。
@@ -86,7 +86,7 @@
 
 - 后端：`app/services/`（新目录 `secretary/`、`memory/` 或类似）、`conductor.js`、`turn-runner.js`、`tools.js`、`app/core/context.js`、`app/core/meetings.js`、`app/core/db/migrations/`、`app/core/defaults.js`、设置资源、`app/server/routes/`、`app/services/research/`（仅条目状态和记忆子类型）。
 - 界面：`app/ui/`（会议页、秘书栏、纪要窗口、设置秘书页、资料库三个标签、侧栏角标）、`app/ui/i18n/en.js`、`styles/app.css`（只做补充）。
-- 测试；文档：`CORE_MODEL.md`、`SYSTEM_SPEC.md`（只写合并后的现状）、`UI_RESTORE.md`、`DESKTOP_IMPLEMENTATION.md`（每步不超过 5 行）。
+- 测试；文档：`CORE_MODEL.md`、`archive/legacy/SYSTEM_SPEC_2026-10-18.md`（只写合并后的现状）、`UI_RESTORE.md`、`log/IMPLEMENTATION_LOG.md`（每步不超过 5 行）。
 
 ## 不做的
 
