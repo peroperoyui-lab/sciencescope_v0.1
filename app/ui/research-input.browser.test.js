@@ -66,9 +66,11 @@ test(
         await page.getByLabel('关闭侧栏').click();
         await composer.getByRole('button', { name: '发送', exact: true }).click();
         await page.getByText('Material received.', { exact: true }).waitFor();
-        const receipt = page.locator('.research-receipt');
+        // The sent message names its file; clicking it shows this message's context.
+        const receipt = page
+          .locator('.ss-msg--user [data-input-receipt]')
+          .getByRole('button', { name: '中文材料.txt', exact: true });
         await receipt.waitFor();
-        assert.match(await receipt.innerText(), /标记 0 条 · 材料 1 份/u);
         await receipt.click();
         await page.locator('#modal').getByText('本次上下文', { exact: true }).waitFor();
         await shot('attachments-receipt-zh');

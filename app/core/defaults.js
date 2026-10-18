@@ -2,6 +2,9 @@
 // the user and the AIs can rename them and rewrite their instructions.
 
 export const LOCAL_USER_ID = 'person_user';
+// Added to every main and expert turn by context assembly, so edited prompts keep it.
+export const MEETING_READING_GUIDANCE =
+  '用户没有提到其他对话时，不查阅本对话以外的会议记录；需要时先说明再查。';
 
 export const DEFAULT_AGENTS = [
   {

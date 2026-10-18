@@ -3,6 +3,7 @@
   "description": "Local main window controls only; no filesystem or process execution.",
   "windows": ["main", "secondary-*"],
   "permissions": [
+    "allow-capture-screenshot",
     "allow-open-secondary-window",
     "allow-set-assistant-mode",
     "allow-get-assistant-mode",

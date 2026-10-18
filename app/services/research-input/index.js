@@ -2,11 +2,13 @@
 // a send acknowledgement cannot replace newer selections.
 import { randomUUID } from 'node:crypto';
 import { AppError } from '../../core/errors.js';
+import { imageAttachments, imageMime } from './images.js';
 
 /**
  * @param {{core:import('../../core/index.js').Core, research:ReturnType<typeof import('../research/index.js').createResearch>}} dependencies
  */
 export function createResearchInput({ core, research }) {
+  const images = imageAttachments(core);
   const empty = () => ({ materials: [], marks: [] });
   function draft(ownerId) {
     const row = core.db
@@ -17,6 +19,7 @@ export function createResearchInput({ core, research }) {
       : { ...empty(), version: 0 };
   }
   function material(ref) {
+    if (ref.type === 'image') return images.get(ref.id);
     if (ref.type === 'version-notes') {
       const version = core.versionCatalog.get(ref.id);
       return {
@@ -121,5 +124,12 @@ export function createResearchInput({ core, research }) {
     if (message.researchInput?.materials.length || message.researchInput?.marks.length)
       change(message.meetingId, { op: 'restore', input: message.researchInput });
   });
-  return { draft, change, capture, close: unsubscribe };
+  async function attach(owner, { name, base64, projectId }) {
+    const bytes = Buffer.from(base64, 'base64');
+    const entry = imageMime(name)
+      ? await images.save(name, bytes)
+      : { type: 'source', ...(await research.importSource({ name, bytes, projectId })) };
+    return change(owner, { op: 'add', material: entry });
+  }
+  return { draft, change, capture, attach, image: images.content, close: unsubscribe };
 }

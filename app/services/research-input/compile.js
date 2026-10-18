@@ -21,11 +21,13 @@ const attributes = (values) =>
 export function compileResearchInput(input = {}) {
   const blocks = (input.materials ?? []).map((entry) => {
     const content =
-      entry.type === 'item'
-        ? `${entry.text}\n${JSON.stringify(entry.payload ?? {})}`
-        : entry.type === 'version-notes'
-          ? `${entry.text}\nReference ${JSON.stringify(entry.reference)}. Original paragraphs: workspace_read target=versions key=${entry.key}.`
-          : 'Read this source with research_read using its id and offset/limit; cite the returned page labels.';
+      entry.type === 'image'
+        ? 'Attached image content follows this transcript, in attachment order. Do not use research_read for this image.'
+        : entry.type === 'item'
+          ? `${entry.text}\n${JSON.stringify(entry.payload ?? {})}`
+          : entry.type === 'version-notes'
+            ? `${entry.text}\nReference ${JSON.stringify(entry.reference)}. Original paragraphs: workspace_read target=versions key=${entry.key}.`
+            : 'Read this source with research_read using its id and offset/limit; cite the returned page labels.';
     return `<material${attributes({ id: entry.id, title: entry.title, pages: entry.pages, label: entry.label, extracted: entry.type === 'item' })}>\n${body(content, 'material')}\n</material>`;
   });
   for (const mark of input.marks ?? []) {

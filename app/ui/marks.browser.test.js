@@ -95,7 +95,10 @@ test(
         await page.locator('.marks-toggle').waitFor({ state: 'detached' });
         assert.equal((inputs[0].match(/<quote /gu) ?? []).length, 3);
         assert.ok(inputs[0].includes('Edited exact note'));
-        assert.match(await page.locator('.research-receipt').innerText(), /标记 3 条/u);
+        assert.match(
+          await page.locator('.ss-msg--user [data-input-receipt]').innerText(),
+          /标记 3 条/u,
+        );
         await app.core.workspace.edit({
           resource: 'settings',
           key: 'app',

@@ -2346,6 +2346,32 @@ html[data-resizing] * {
   line-height: 22px;
   white-space: pre-wrap;
 }
+/* What a user message carried: image thumbnails, files and marks. */
+.ss-msg__files {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--sp-6);
+  max-width: 85%;
+}
+.ss-msg__thumb {
+  display: block;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--sunken);
+  cursor: zoom-in;
+}
+.ss-msg__thumb:hover {
+  border-color: var(--line-strong);
+}
+.ss-msg__thumb > img {
+  display: block;
+  max-width: 160px;
+  max-height: 120px;
+  object-fit: cover;
+}
 .ss-msg__head {
   display: flex;
   align-items: center;

@@ -125,8 +125,8 @@ export function Message({ message, author, roleNote, target, compact = false }) 
       data-target=${target || undefined}
       data-user
     >
-      <div class="ss-msg__bubble message-text">${message.text}</div>
       <${InputReceipt} message=${message} />
+      <div class="ss-msg__bubble message-text">${message.text}</div>
       <${MessageFoot} message=${message} answer=${false} compact=${compact} />
     </article>`;
   }

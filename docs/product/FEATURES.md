@@ -185,19 +185,21 @@ data/
 ### 2.7 研究输入（附件、标记、截图）
 
 **用户能做什么**
-- 输入框的加号：添加文件、从资料库选择资料或条目（右侧"项目材料与引用"面板，不会自动发送）、截图（提示用系统截图后粘贴进输入框）。文件也可拖入或粘贴。
-- 附件以标签显示在输入框上方；"本次上下文"显示这条消息实际附带的材料。
+- 输入框的加号：添加文件、从资料库选择资料或条目（右侧"项目材料与引用"面板，不会自动发送）、截图（桌面版调用 Windows 截图工具框选，完成后作为图片附件加入；默认先隐藏 ScienceScope 窗口，设置 → 个人资料与常规可关；浏览器开发环境里提示用系统截图后粘贴）。文件也可拖入或粘贴。
+- 附件以标签显示在输入框上方；发送后用户消息上方显示图片缩略图（点开看大图）、文件和标记标签；"本次上下文"显示这条消息实际附带的材料。
+- 图片（png、jpg、webp、gif）作为图片内容直接交给支持图片的模型；所选模型不支持图片时照常回答文字，状态行写明「这个模型不能读图片，换一个支持图片的模型再试」。
 - 在消息、文件预览和资料原文里选中文字可以"添加标记"，附可选备注；也可"引用至任务秘书"或"引用至全局助手"。标记列表可定位、改备注、移除或全部清除。
 - 发送后附件和标记随消息保存；发送失败时恢复，且不覆盖之后新加的标记。分支对话保留这些引用。
 
-**实现位置**：`app/services/research-input/`（`index.js` 草稿操作，`compile.js` 把材料和标记编进模型输入）、`app/core/research-input.js`；界面 `app/ui/components/research-input.js`、`materials-panel.js`、`mark-selection.js`、`marks-popover.js`、`app/ui/research-input-actions.js`。
+**实现位置**：`app/services/research-input/`（`index.js` 草稿操作，`compile.js` 把材料和标记编进模型输入）、`images.js` 图片原件与图片内容，`app/core/research-input.js`；运行时 `send()` 的第四个参数是图片（`app/runtime/port.js`）；原生截图 `src-tauri/src/screenshot.rs`；界面 `app/ui/components/research-input.js`、`materials-panel.js`、`mark-selection.js`、`marks-popover.js`、`app/ui/research-input-actions.js`。
 
-**关键数据**：表 `research_input_drafts`（每个输入框一份草稿，带版本号）、`message_research_input`（每条消息发送时的快照）、`meeting_outbox.input_json`。附件文件导入资料库（`rb_sources`，原件在 `library/originals/`）。
+**关键数据**：表 `research_input_drafts`（每个输入框一份草稿，带版本号）、`message_research_input`（每条消息发送时的快照）、`meeting_outbox.input_json`。普通附件导入资料库（`rb_sources`，原件在 `library/originals/`）；图片不进资料库，元数据在 `input_images`，原件同样在 `library/originals/`。消息里的图片字段：`researchInput.materials[]` 的 `type=image`、`id`、`name`、`mimeType`、`bytes`、`url`、`selectionId`。设置 `composer.hideWindowOnScreenshot`（默认 true）。
 
 **已知限制**
 - 文件内容不直接塞进提示词：模型拿到资料 id 和页数，用 `research_read` 分页读取。
-- 不能解析的格式（包括图片）保存为"不支持"，模型只看到标题和元数据。
-- 没有内置截图工具。
+- 不能解析的其他格式保存为"不支持"，模型只看到标题和元数据。
+- 每轮会把所选消息里的图片都发给模型，图片多时请求会变大。
+- 原生截图只在 Windows 上有。
 
 ### 2.8 资料库与检索
 
@@ -388,6 +390,8 @@ data/
 
 **研究输入与交付物**
 - `GET/PATCH /api/research-input/:owner` 读取、修改输入框草稿（附件与标记）。
+- `POST /api/research-input/:owner/attachments` 上传附件（图片存为图片附件，其他文件导入资料库），返回草稿。
+- `GET /api/research-input/images/:id` 读取图片原件。
 - `GET /api/deliverables/:id/content` 交付文件内容。
 - `POST /api/deliverables/:id/open` 用默认程序打开交付文件。
 
@@ -517,6 +521,7 @@ data/
 | 017 | `log_file_references` | 日志条目里文件链接的可重建投影 |
 | 018 | `turns.phase`、`tool_calls.kind` | 发言阶段、活动条目类型 |
 | 019 | `turns.error` | 发言失败原因（与部分回答分开保存） |
+| 020 | `input_images` | 输入框图片附件的元数据（原件在 `library/originals/`） |
 
 ### 4.2 文件资源
 

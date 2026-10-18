@@ -345,6 +345,12 @@
       "description": "Permission identifier",
       "oneOf": [
         {
+          "description": "Enables the capture_screenshot command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-capture-screenshot",
+          "markdownDescription": "Enables the capture_screenshot command without any pre-configured scope."
+        },
+        {
           "description": "Enables the get_assistant_mode command without any pre-configured scope.",
           "type": "string",
           "const": "allow-get-assistant-mode",
@@ -379,6 +385,12 @@
           "type": "string",
           "const": "allow-show-assistant-menu",
           "markdownDescription": "Enables the show_assistant_menu command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the capture_screenshot command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-capture-screenshot",
+          "markdownDescription": "Denies the capture_screenshot command without any pre-configured scope."
         },
         {
           "description": "Denies the get_assistant_mode command without any pre-configured scope.",

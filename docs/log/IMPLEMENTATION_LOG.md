@@ -3,6 +3,15 @@
 > 新核心（`app/`，重建 R0 起）的开发与验收日志，最新在最上面。每次交付一条，不超过 5 行；细节放 `.sciencescope-local/temp`。
 > 2026-10-05 之前旧原型时期的记录在 `archive/legacy/DESKTOP_IMPLEMENTATION_legacy.md`。
 
+## 2026-10-18 A2-1 review and merge (Claude)
+- Merged `codex/a2-1-images-prompt-screenshot-20261018` (4dbc56c). Review: the meeting-reading sentence was added both to the default prompts and by context assembly, so Main saw it twice; kept only the context-assembly copy (edited prompts keep it too).
+- Claude's UI: user messages show image thumbnails (open full size), file and mark chips above the bubble; Settings → 个人资料与常规 has 「截图时隐藏 ScienceScope 窗口」. Screenshots in the project folder `screenshots/a2-1/`.
+
+## 2026-10-18 A2-1 image input and native screenshot (Codex)
+- Image originals reuse library/originals with migration 020; message researchInput.materials exposes type/id/name/mimeType/bytes/url. Runtime send accepts images; unsupported models retain the text answer and record the readable reason in turns.error. Main/expert prompts discourage unsolicited meeting reads.
+- Windows Snipping Tool supplies selection; capture_screenshot restores windows after capture/cancel/error. Stored composer.hideWindowOnScreenshot defaults true.
+- Clean Windows checkout npm run check 250/250, zero skips; real flash 7 requests / 32,146 tokens. R6a-5 package overlaid on the user's preview in 321 s (9,697 files, data kept).
+
 ## 2026-10-18 Automation removed from the UI (Claude)
 - User decision: execution mode is 请求批准 or 常规 only. Removed the 自动化 option, goal rounds input, `GoalPanel`, goal actions (`goal-actions.js` → `activity-actions.js`, failures only), `goal.changed` subscription and the `automation.browser.test.js`. Backend removal is brief A2-2 for Sol.
 

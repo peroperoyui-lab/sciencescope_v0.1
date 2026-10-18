@@ -27,6 +27,7 @@ import * as versionNotes from './016-version-notes.js';
 import * as logFileReferences from './017-log-file-references.js';
 import * as turnActivities from './018-turn-activities.js';
 import * as turnError from './019-turn-error.js';
+import * as inputImages from './020-input-images.js';
 
 export const migrations = [
   core,
@@ -48,4 +49,5 @@ export const migrations = [
   logFileReferences,
   turnActivities,
   turnError,
+  inputImages,
 ];

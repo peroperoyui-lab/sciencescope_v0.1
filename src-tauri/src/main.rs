@@ -4,6 +4,7 @@
 #![windows_subsystem = "windows"]
 
 mod new_app;
+mod screenshot;
 
 use std::{
     fs,
@@ -598,7 +599,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![open_secondary_window, set_assistant_mode, get_assistant_mode, show_assistant_menu, hide_assistant, pick_folder])
+        .invoke_handler(tauri::generate_handler![open_secondary_window, set_assistant_mode, get_assistant_mode, show_assistant_menu, hide_assistant, pick_folder, screenshot::capture_screenshot])
         .on_menu_event(|app, event| {
             let id = event.id().as_ref();
             if id == "assistant-exit" {

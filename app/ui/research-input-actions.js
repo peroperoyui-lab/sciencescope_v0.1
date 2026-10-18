@@ -27,14 +27,16 @@ export function createResearchInputActions(api, store) {
         let binary = '';
         for (let i = 0; i < bytes.length; i += 16384)
           binary += String.fromCharCode(...bytes.subarray(i, i + 16384));
-        const source = await api.post('/api/research/sources', {
+        const value = await api.post(`${route(owner)}/attachments`, {
           name: file.name,
           base64: btoa(binary),
           projectId,
         });
-        await changeInput(owner, { op: 'add', material: { type: 'source', id: source.id } });
+        remember(owner, value);
       }
     },
+    /** An attached image's address with the launch token, for `<img src>`. @param {string} url */
+    inputImageUrl: (url) => `${url}?token=${encodeURIComponent(api.token)}`,
     showMaterials: (target) => store.update((state) => ({ ...state, materialsTarget: target })),
   };
 }

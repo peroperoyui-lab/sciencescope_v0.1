@@ -140,6 +140,7 @@ function PreferencesForm() {
   const settings = useAppState((state) => state.settings);
   const [look, setLook] = useState({ ...LOOK_DEFAULTS, ...settings?.appearance });
   const [sendKey, setSendKey] = useState(settings?.composer?.sendKey ?? 'enter');
+  const [hideWindow, setHideWindow] = useState(settings?.composer?.hideWindowOnScreenshot ?? true);
   const [fonts, setFonts] = useState(/** @type {string[]} */ ([]));
   const [fontStatus, setFontStatus] = useState('');
   const [feedback, setFeedback] = useState('');
@@ -164,7 +165,10 @@ function PreferencesForm() {
   async function submit(event) {
     event.preventDefault();
     const saved = await actions.attempt(() =>
-      actions.updateSettings({ appearance: look, composer: { sendKey } }),
+      actions.updateSettings({
+        appearance: look,
+        composer: { sendKey, hideWindowOnScreenshot: hideWindow },
+      }),
     );
     if (saved !== undefined) setFeedback(t('已保存并应用。'));
   }
@@ -245,6 +249,19 @@ function PreferencesForm() {
       <select value=${sendKey} onChange=${(event) => setSendKey(event.currentTarget.value)}>
         <option value="enter">${t('Enter 发送')}</option>
         <option value="ctrl-enter">${t('Ctrl + Enter 发送')}</option>
+      </select>
+    <//>
+    <${SettingRow}
+      title=${t('截图时隐藏 ScienceScope 窗口')}
+      tip=${t('输入框「添加 → 截图」开始前先隐藏所有 ScienceScope 窗口，截完恢复。只在桌面版生效。')}
+    >
+      <select
+        aria-label=${t('截图时隐藏 ScienceScope 窗口')}
+        value=${String(hideWindow)}
+        onChange=${(event) => setHideWindow(event.currentTarget.value === 'true')}
+      >
+        <option value="true">${t('开启')}</option>
+        <option value="false">${t('关闭')}</option>
       </select>
     <//>
     <${SettingRow} title=${t('减少过渡动画')} tip=${t('即时生效。')}>

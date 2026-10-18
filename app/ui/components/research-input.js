@@ -46,7 +46,28 @@ export function useResearchInput(owner, projectId) {
  */
 export function InputAdd({ owner, projectId = null }) {
   const actions = useActions();
+  const hideWindow = useAppState(
+    (state) => state.settings?.composer?.hideWindowOnScreenshot ?? true,
+  );
   const picker = useRef(null);
+  async function screenshot() {
+    const invoke = globalThis.__TAURI__?.core?.invoke;
+    if (!invoke) {
+      actions.openModal(
+        t('截图'),
+        html`<${InfoTip} text=${t('使用系统截图后，在输入框中粘贴。')} />`,
+      );
+      return;
+    }
+    await actions.attempt(async () => {
+      const base64 = await invoke('capture_screenshot', { hideWindow });
+      if (!base64) return;
+      const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+      await actions.attachInput(owner, projectId, [
+        new File([bytes], `Screenshot-${Date.now()}.png`, { type: 'image/png' }),
+      ]);
+    });
+  }
   return html`<span class="input-add">
     <input
       ref=${picker}
@@ -71,11 +92,7 @@ export function InputAdd({ owner, projectId = null }) {
           {
             text: t('截图'),
             icon: 'file',
-            run: () =>
-              actions.openModal(
-                t('截图'),
-                html`<${InfoTip} text=${t('使用系统截图后，在输入框中粘贴。')} />`,
-              ),
+            run: screenshot,
           },
           {
             text: t('引用'),
@@ -188,7 +205,56 @@ export function InputReceipt({ message }) {
   const actions = useActions();
   const input = message.researchInput ?? EMPTY;
   if (!input.materials.length && !input.marks.length) return null;
-  return html`<button class="research-receipt" onClick=${() => showInputContext(actions, input)}>
-    ${[t('标记 {count} 条', { count: input.marks.length }), t('材料 {count} 份', { count: input.materials.length })].join(' · ')}
-  </button>`;
+  const images = input.materials.filter((entry) => entry.type === 'image');
+  const files = input.materials.filter((entry) => entry.type !== 'image');
+  return html`<div class="ss-msg__files" data-input-receipt>
+    ${images.map(
+      (image) =>
+        html`<button
+          type="button"
+          class="ss-msg__thumb"
+          key=${image.selectionId ?? image.id}
+          aria-label=${t('查看图片 {name}', { name: image.name })}
+          data-tip=${image.name}
+          onClick=${() =>
+            actions.openModal(
+              image.name,
+              html`<img
+                class="input-image-full"
+                src=${actions.inputImageUrl(image.url)}
+                alt=${image.name}
+              />`,
+              'image-modal',
+            )}
+        >
+          <img src=${actions.inputImageUrl(image.url)} alt="" loading="lazy" />
+        </button>`,
+    )}
+    ${files.map(
+      (entry) =>
+        html`<span class="ss-file-chip" key=${entry.selectionId ?? entry.id}>
+          <${Lucide} name=${entry.type === 'source' ? 'book-open' : 'file-text'} />
+          <button
+            type="button"
+            class="ss-file-chip__open"
+            onClick=${() => showInputContext(actions, input)}
+          >
+            ${entry.title}
+          </button>
+        </span>`,
+    )}
+    ${
+      input.marks.length > 0 &&
+      html`<span class="ss-file-chip">
+        <${Lucide} name="sticky-note" />
+        <button
+          type="button"
+          class="ss-file-chip__open"
+          onClick=${() => showInputContext(actions, input)}
+        >
+          ${t('标记 {count} 条', { count: input.marks.length })}
+        </button>
+      </span>`
+    }
+  </div>`;
 }

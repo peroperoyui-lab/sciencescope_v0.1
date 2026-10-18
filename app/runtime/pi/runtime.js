@@ -63,9 +63,10 @@ export function createPiRuntime({
    * @param {string} id
    * @param {string} input
    * @param {(event:import('../port.js').RuntimeEvent)=>void} onEvent
+   * @param {import('../port.js').ImageContent[]} [images]
    * @returns {Promise<import('../port.js').TurnResult>}
    */
-  async function send(id, input, onEvent) {
+  async function send(id, input, onEvent, images = []) {
     const session = sessions.get(id);
     if (!session || closed) throw new Error('Session is not open');
     const { agent, selection, choice } = session;
@@ -132,19 +133,27 @@ export function createPiRuntime({
       } else if (event.type === 'turn_end') await store.write(id, agent.state.messages);
     });
     try {
-      await agent.prompt(input);
+      const supportsImages = selection.model.input?.includes('image');
+      const imageError =
+        images.length && !supportsImages ? '这个模型不能读图片，换一个支持图片的模型再试。' : null;
+      await agent.prompt(
+        imageError
+          ? `${input}\n\n[图片未发送：所选模型不支持图片。请说明此限制，不要推测图片内容。]`
+          : input,
+        supportsImages ? images : [],
+      );
       const last = agent.state.messages.findLast((message) => message.role === 'assistant');
       const reason = session.cancelled ? 'aborted' : last?.stopReason;
       return {
         stopReason:
           reason === 'aborted'
             ? 'cancelled'
-            : reason === 'error'
+            : reason === 'error' || imageError
               ? 'failed'
               : reason === 'length'
                 ? 'max_tokens'
                 : 'completed',
-        ...(last?.errorMessage ? { error: last.errorMessage } : {}),
+        ...(last?.errorMessage || imageError ? { error: last?.errorMessage || imageError } : {}),
         usage: aggregateUsage(requests, selection.model.contextWindow),
       };
     } finally {

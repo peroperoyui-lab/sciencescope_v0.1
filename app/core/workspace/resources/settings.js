@@ -29,7 +29,7 @@ export const DEFAULT_SETTINGS = {
     newChat: 'Ctrl+N',
     independentChat: 'Ctrl+Alt+N',
   },
-  composer: { sendKey: 'enter' },
+  composer: { sendKey: 'enter', hideWindowOnScreenshot: true },
   // Native launch visibility; ordinary browsers continue to use the panel.
   assistant: { startup: 'closed' },
   python: { defaultEnvironment: null, indexUrl: null, installMirror: null },
