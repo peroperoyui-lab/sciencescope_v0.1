@@ -32,20 +32,7 @@
 
 ### 3.1 模块位置
 
-```
-app/services/desk/
-  index.js          会话：打开、块更新、修改记录、撤回、保存、关闭
-  docx/read.js      解析 document.xml、comments.xml，得到块列表和字节范围
-  docx/write.js     只重写改过的 w:p，其余字节拼接原样输出
-  docx/comments.js  批注的读取与新增、修改、删除
-  tex.js            tex 的块切分与写回
-  compare.js        段落和句子两层对齐（调用 versions/comparison.js 的 compareText）
-  bindings.js       来源绑定与重新定位
-  compile.js        TeX 引擎检测、编译、Tectonic 下载
-app/server/routes/desk.js
-app/ui/components/desk-*.js      编辑台页面（Claude）
-app/ui/readers/editor-vendor.js  ProseMirror 和 CodeMirror 编辑相关的浏览器打包入口
-```
+后端在 `app/services/desk/`：`index.js`（会话）、`docx/read.js`、`docx/write.js`、`docx/comments.js`、`tex.js`、`compare.js`、`bindings.js`、`compile.js`；路由 `app/server/routes/desk.js`。界面在 `app/ui/components/desk-*.js`，编辑器依赖打进 `app/ui/readers/editor-vendor.js`。
 
 ### 3.2 文档模型
 
@@ -84,7 +71,7 @@ E0 是第一步，约 2–3 天，报告放 `.sciencescope-local/temp/desk-e0/`�
 
 ### 3.5 文件放在哪里
 
-用户的文件是项目文件夹里的 `thesis.docx`，ScienceScope 只在用户保存时写它，不在项目文件夹里放任何自己的东西（不写书签、隐藏标记或侧车文件）。ScienceScope 自己的数据都在 `data/`：
+用户的文件（如 `thesis.docx`）在项目文件夹里，只在用户保存时写入；ScienceScope 不在项目文件夹里放任何自己的东西（书签、隐藏标记、侧车文件都不写）。自有数据都在 `data/`：
 
 ```
 data/projects/<目录>/
@@ -96,15 +83,15 @@ data/tools/tectonic/<版本>/                              按需下载的 Tecto
 data/sciencescope.sqlite                                会话、修改记录、绑定、tex 批注（第 4.1 节）
 ```
 
-工作副本是真实的 docx 或 tex 文件，程序崩溃或不用 ScienceScope 时也能直接打开。会话关闭并生成版本后，工作副本目录删除。
+工作副本是真实的 docx 或 tex 文件，崩溃后或离开应用也能打开；会话关闭生成版本后删除。
 
-**外部修改：** 打开文档或保存前，服务端比较项目文件的内容哈希和该组最新版本的 `content_hash`。不同说明文件在 ScienceScope 之外被改过（Word 里改了，或某个工具用 `write_file` 改了），系统先把当前文件导入成新版本（`origin='external'`，父版本是最新版本），再继续；会话里还有未保存的修改时，提示用户选择「以外部版本为准重新打开」或「保留我的修改另存为分支」，不悄悄覆盖。
+**外部修改：** 打开和保存前比较项目文件的哈希与该组最新版本的 `content_hash`。不同就说明文件在外面被改过（Word，或 `write_file`），先把它导入成新版本（`origin='external'`）；会话里有未保存的修改时让用户选「以外部版本为准重新打开」或「保留我的修改另存为分支」，不悄悄覆盖。
 
 ## 4. 版本与分支
 
-### 4.1 数据模型（迁移 021）
+### 4.1 数据模型（迁移 023）
 
-写设计时 `app/core/db/migrations/` 的最高编号是 020（`020-input-images.js`），编辑台用 **021-editing-desk**。正式发布前不需要兼容旧数据，但现有版本组照样保留：迁移把 `parent_id` 设成现有的 `baseline_id`。
+写设计时迁移最高编号是 020（`020-input-images.js`），A2-2 占 021、知识库占 022，编辑台按现在的排队用 **023-editing-desk**，实现时取目录里实际最高号加一。发布前不需兼容旧数据，但现有版本组保留：`parent_id` 取现有 `baseline_id`。
 
 ```sql
 ALTER TABLE version_groups ADD COLUMN source_path TEXT;        -- 项目文件夹内的相对路径；只在 data/ 里的组为 NULL
@@ -141,7 +128,7 @@ CREATE TABLE manuscript_bindings (...);            -- 第 6 节
 CREATE TABLE manuscript_comments (...);            -- tex 批注，第 6.3 节
 ```
 
-层级名放在设置 `desk.tiers`，默认 `["草稿","内部审阅","投稿","修回","终稿"]`，用户可以改名和增删；版本里存的是名字，改名时同步更新。另加设置 `features.editingDesk`（默认 `false`），第 10 节标为 alpha 必需的任务全部验收后改为 `true`；在此之前左栏不显示入口。
+层级名在设置 `desk.tiers`，默认 `["草稿","内部审阅","投稿","修回","终稿"]`，可改名增删，改名时同步更新版本。另加设置 `features.editingDesk`（现在没有功能开关机制，这是第一个），默认 `false`，alpha 必需任务验收后改为 `true`，之前不显示入口。
 
 ### 4.2 版本什么时候生成
 
@@ -162,15 +149,15 @@ CREATE TABLE manuscript_comments (...);            -- tex 批注，第 6.3 节
 
 ### 4.4 比较算法
 
-现有 `compareText` 把两份全文按词粒度整体比较，一处插入段落就会让后文的配对错位。新增 `app/services/desk/compare.js` 的 `alignVersions(left, right)`，两版都先转成第 3.2 节的块列表（PDF 仍用现有的提取文字）：
+现有 `compareText` 把两份全文按词整体比较，插入一段就会让后文配对错位。新增 `desk/compare.js` 的 `alignVersions(left, right)`，两版先转成块列表（PDF 仍用提取文字）：
 
-1. **段落对齐。** 每块的 `text` 做归一化（NFKC 统一全半角、合并空白、原子节点用其原文哈希作占位），用 jsdiff 的 `diffArrays` 对齐块序列，相同的块直接配对。
-2. **句子对齐。** 两次配对之间剩下的块合在一起，用 `Intl.Segmenter('zh', { granularity: 'sentence' })` 切句，再用 `diffArrays` 按归一化后的句子对齐。这样拆段、合段也能对上。
-3. **相似配对。** 仍未配对的句子，在同一个空档里按字符二元组的 Dice 系数配对，阈值 0.5（E0 用真实稿件调）；配上的算"修改"，配不上的算"新增"或"删除"。
-4. **句内比较。** 配对的句子用现有 `compareText`（词粒度，中文按 Intl.Segmenter 分词）标出增删。
-5. **输出。** 按行返回 `{ type: 'same'|'changed'|'added'|'removed', left, right, parts, leftBlock, rightBlock }`，界面左旧右新一行一行画；同一个结果生成改动列表和新的 `changeSummary`（按句子配对生成，秘书读起来也更短）。
+1. **段落对齐**：块文字归一化（NFKC 统一全半角、合并空白、原子节点用原文哈希占位），jsdiff `diffArrays` 对齐块序列，相同的直接配对。
+2. **句子对齐**：两个配对之间剩下的块合并，用 `Intl.Segmenter('zh', { granularity: 'sentence' })` 切句，再用 `diffArrays` 按归一化句子对齐，拆段、合段也能对上。
+3. **相似配对**：仍未配对的句子在同一空档里按字符二元组 Dice 系数配对，阈值 0.5（E0 调）；配上算"修改"，否则算"新增"或"删除"。
+4. **句内比较**：配对句子用现有 `compareText`（词粒度）标出增删。
+5. **输出**：按行返回 `{ type: 'same'|'changed'|'added'|'removed', left, right, parts, leftBlock, rightBlock }`；改动列表和新的 `changeSummary` 都由它生成，秘书读起来更短。
 
-**中文处理：** 句粒度对"。！？"断句，E0 要专门测省略号"……"、引号内的句号和"；"；Intl.Segmenter 不断开的长句子保持一句，不另加规则，等测试结果再定。归一化只用于配对，显示的永远是原文。
+**中文：** 句粒度按"。！？"断句；E0 专门测"……"、引号内句号和"；"，结果出来前不加自定义规则。归一化只用于配对，显示的永远是原文。
 
 ## 5. AI 改写流程
 
@@ -181,12 +168,12 @@ CREATE TABLE manuscript_comments (...);            -- tex 批注，第 6.3 节
 
 **工具**（加进 `app/services/tools.js` 的现有工具，所有角色都有）：
 
-| 调用 | 参数与作用 |
-|---|---|
-| `workspace_read target="manuscript"` | `scope=<项目 id>` 列出文稿；`key=<项目 id>/<组 id>`，`offset`/`limit` 按块分页，可加 `version`；返回块 id、文字、原子节点占位、批注和绑定摘要、`remaining` |
+| 调用                                   | 参数与作用                                                                                                                                                                                                                                                                   |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `workspace_read target="manuscript"`   | `scope=<项目 id>` 列出文稿；`key=<项目 id>/<组 id>`，`offset`/`limit` 按块分页，可加 `version`；返回块 id、文字、原子节点占位、批注和绑定摘要、`remaining`                                                                                                                   |
 | `workspace_edit resource="manuscript"` | `replace {block, find, with}`（`find` 在块内须唯一，否则 `TEXT_NOT_FOUND`/`AMBIGUOUS`）；`insertBlock {after, text}`（继承 `after` 段的 `w:pPr`）；`removeBlock {block}`；`comment {block, quote, text}`；`bind`、`unbind`；`save {to: "project"\|"version", label?, tier?}` |
-| `workspace_undo` | `revisionId` 可以是 `chg_…` |
-| `desk_suggest`（新） | `{reason, document?}`，弹出进入编辑台的横条 |
+| `workspace_undo`                       | `revisionId` 可以是 `chg_…`                                                                                                                                                                                                                                                  |
+| `desk_suggest`（新）                   | `{reason, document?}`，弹出进入编辑台的横条                                                                                                                                                                                                                                  |
 
 没有打开的会话时，`workspace_edit manuscript` 为最新版本开一个后台会话，修改进工作副本，用户下次打开时看到标记。AI 修改只动 `data/` 里的工作副本，不触发批准；写项目文件只有 `save {to:"project"}`，"请求批准"模式下和 `write_file` 一样先问用户。
 
@@ -215,114 +202,108 @@ CREATE TABLE manuscript_bindings (
 
 ### 6.2 锚点
 
-锚点只放在 `data/`，不往用户文件里写书签或隐藏标记。定位顺序：先在 `block_id` 对应的块里找 `quote.exact`，用 `prefix`、`suffix` 消除歧义；块 id 失效时（新版本、外部修改）在全文里按同样的方式找；找到唯一位置就更新 `block_id` 和 `version_id`，找不到或不唯一就标为 `lost`，右侧栏显示"失去位置，请重新绑定"，不猜。新版本生成时对该组的所有绑定跑一遍重新定位。
+锚点只放 `data/`。定位：先在 `block_id` 的块里找 `quote.exact`，用 `prefix`、`suffix` 消歧；块 id 失效（新版本、外部修改）时在全文里同样查找；唯一命中就更新 `block_id`、`version_id`，否则标 `lost`，提示"失去位置，请重新绑定"，不猜。每生成一个新版本，对该组全部绑定重新定位一次。
 
 ### 6.3 界面与 tex 批注
 
-- 有绑定的文字下面一条细点线。右键 →「含义与来源」，二级菜单显示说明、来源列表（文件名、页码或行号）、生成脚本和记录者；点任一项在文件预览里打开，脚本和数据定位到行。
-- 用户划选后右键 →「绑定来源」，弹出选择框，可以选项目文件、资料库资料或条目、某条消息，写一句说明。
-- 右侧"来源"栏列出本文全部绑定，可按状态筛选，`lost` 的排在前面。
-- tex 批注存在 `manuscript_comments`（`id, group_id, version_id, block_id, quote_json, author_id, text, parent_id, resolved, created_at, updated_at`），锚点和重新定位规则与绑定相同；tex 批注支持回复和解决，因为只在应用内，不受 Word 格式限制。
+- 有绑定的文字下有细点线。右键 →「含义与来源」显示说明、来源（文件名、页码或行号）、生成脚本和记录者，点任一项在文件预览里打开并定位。
+- 划选后右键 →「绑定来源」，可选项目文件、资料库资料或条目、某条消息，写一句说明。右侧"来源"栏列出全部绑定，`lost` 排在前面。
+- tex 批注存 `manuscript_comments`（`id, group_id, version_id, block_id, quote_json, author_id, text, parent_id, resolved, created_at, updated_at`），锚点规则与绑定相同；因为只在应用内，支持回复和解决。
 
 ## 7. 界面
 
-细节由 Claude 在界面任务里按设计系统画，这里只定结构，保持紧凑。
+细节在界面任务里按设计系统定，这里只定结构。
 
 - **入口：** 左栏上部，与「工作站」同级的「编辑台」。工作站左下角的文件版本管理撤掉，导图向左拉伸占它的位置。
 - **布局：** 顶部一行可折叠功能区（保存、撤销重做、加粗斜体上下标、标题级别、批注、绑定、比较、版本图、tex 编译）。左栏上半是文件列表（项目文件夹里的 docx、tex、pdf，加只在 `data/` 里的版本组），下半是大纲和当前分支的版本列表。中间正文。右侧栏四个标签：批注、修改（本次会话的修改记录，逐条撤回或保留）、来源、对话（绑定会议）。底部信息栏：文件名、当前版本（"v7 · 期刊投稿 · 投稿"）、保存状态（"已写回项目文件"/"有修改未写回"）、字数。右上角悬浮秘书按钮，点开是这个会议的秘书对话。
 - **版本图窗口：** 原生二级窗口，沿用全局助手窗口的机制（`src-tauri/src/main.rs`）；浏览器开发环境里是应用内大浮层。左图、右信息栏、顶部搜索。
-- **比较视图：** 在中间展开，两栏同步滚动、按行对齐；旧版多出的淡暗红、新版多出的淡黄（比引用标记暗），作为两个新令牌加进 `tokens.json`。现有 `version-diff.js` 改用同一比较结果。
+- **比较视图：** 在中间展开，两栏同步滚动、按行对齐；旧版多出的淡暗红、新版多出的淡黄（比引用标记暗），作为两个新令牌进 `tokens.json`。现有 `version-diff.js` 改用同一比较结果。
 - **文字：** 状态只写结果和下一步（"项目文件在外部被修改：重新打开或另存为分支"），解释放 i 提示；新文字都要有英文条目。
 
 ## 8. 接口
 
-全部在 `app/server/routes/desk.js`，需要口令；版本相关的放在现有版本路由里。
+新路由在 `app/server/routes/desk.js`，版本相关的放现有版本路由，都需要口令。
 
-| 方法与路径 | 作用 |
-|---|---|
-| `GET /api/desk/documents?projectId=` | 编辑台文件列表：项目文件夹里可编辑和可预览的文件，加版本组 |
-| `POST /api/desk/documents` | `{ projectId, path }` 登记项目文件（建组和 v1），或 `{ versionId }` |
-| `POST /api/desk/enter` | `{ meetingId, mode: 'continue' \| 'branch' }`，返回编辑台要绑定的会议 |
-| `POST /api/desk/sessions` | `{ groupId, versionId?, meetingId }` 打开会话，返回块列表、修改、批注、绑定 |
-| `GET /api/desk/sessions/:id` | 读取会话（刷新或重连时用） |
-| `PATCH /api/desk/sessions/:id/blocks` | docx：`{ baseSeq, blocks, inserted, removed }` |
-| `PUT /api/desk/sessions/:id/text` | tex：`{ baseSeq, text }` |
-| `POST /api/desk/sessions/:id/rewrite` | 划选改写，第 5 节 |
-| `POST /api/desk/sessions/:id/save` | `{ to: 'project' \| 'version', label?, tier? }` |
-| `POST /api/desk/sessions/:id/close` | 关闭会话，按需生成版本 |
-| `POST /api/desk/changes/:id/undo`、`POST /api/desk/sessions/:id/settle` | 撤回一处；保留（`{ ids }` 或全部） |
-| `GET/POST /api/desk/sessions/:id/comments`、`PATCH/DELETE /api/desk/comments/:id` | 批注（docx 写进工作副本，tex 写进表） |
-| `GET/POST /api/desk/bindings?groupId=`、`PATCH/DELETE /api/desk/bindings/:id` | 来源绑定 |
-| `GET /api/desk/sessions/:id/media/:ref` | docx 里的图片字节 |
-| `GET /api/desk/tex/engines`、`POST /api/desk/tex/tectonic` | 检测引擎；下载 Tectonic |
-| `POST /api/desk/sessions/:id/compile`、`GET /api/desk/sessions/:id/pdf` | 编译、读取输出 PDF |
-| `GET /api/version-groups/:id/graph` | 版本图 |
-| `PATCH /api/versions/:id` | 改标题、层级、标签、分支名 |
-| `GET /api/versions/:id/compare?baseline=` | 现有接口，返回值改为第 4.4 节的对齐行；允许跨分支比较同组任意两版 |
+| 方法与路径                                                                                                     | 作用                                                                        |
+| -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `GET /api/desk/documents?projectId=`                                                                           | 编辑台文件列表：项目文件夹里可编辑和可预览的文件，加版本组                  |
+| `POST /api/desk/documents`                                                                                     | `{ projectId, path }` 登记项目文件（建组和 v1），或 `{ versionId }`         |
+| `POST /api/desk/enter`                                                                                         | `{ meetingId, mode: 'continue' \| 'branch' }`，返回编辑台要绑定的会议       |
+| `POST /api/desk/sessions`                                                                                      | `{ groupId, versionId?, meetingId }` 打开会话，返回块列表、修改、批注、绑定 |
+| `GET /api/desk/sessions/:id`                                                                                   | 重连时读取会话                                                              |
+| `PATCH /api/desk/sessions/:id/blocks`、`PUT …/text`                                                            | docx `{ baseSeq, blocks, inserted, removed }`；tex `{ baseSeq, text }`      |
+| `POST /api/desk/sessions/:id/rewrite`                                                                          | 划选改写，第 5 节                                                           |
+| `POST /api/desk/sessions/:id/save`                                                                             | `{ to: 'project' \| 'version', label?, tier? }`                             |
+| `POST /api/desk/sessions/:id/close`                                                                            | 关闭会话，按需生成版本                                                      |
+| `POST /api/desk/changes/:id/undo`、`POST /api/desk/sessions/:id/settle`                                        | 撤回一处；保留（`{ ids }` 或全部）                                          |
+| `GET/POST /api/desk/sessions/:id/comments`、`PATCH/DELETE /api/desk/comments/:id`                              | 批注（docx 写进工作副本，tex 写进表）                                       |
+| `GET/POST /api/desk/bindings?groupId=`、`PATCH/DELETE /api/desk/bindings/:id`                                  | 来源绑定                                                                    |
+| `GET /api/desk/sessions/:id/media/:ref`                                                                        | docx 里的图片字节                                                           |
+| `GET /api/desk/tex/engines`、`POST /api/desk/tex/tectonic`、`POST /api/desk/sessions/:id/compile`、`GET …/pdf` | 检测引擎、下载 Tectonic、编译、读输出 PDF                                   |
+| `GET /api/version-groups/:id/graph`、`PATCH /api/versions/:id`                                                 | 版本图（节点含说明前 200 字和修改指令）；改标题、层级、标签、分支名         |
+| `GET /api/versions/:id/compare?baseline=`                                                                      | 现有接口，返回值改为第 4.4 节的对齐行；允许跨分支比较同组任意两版           |
 
 事件：`desk.changed`（`sessionId, seq, blocks 或 text, changeIds`）、`desk.session`（opened、closed）、`desk.suggested`（横条）、现有的 `versions.changed`。
 
 ## 9. 依赖与许可证
 
-| 库 | 用途 | 许可证 | 体积 | 状态 |
-|---|---|---|---|---|
-| prosemirror-model、-state、-view、-transform、-commands、-keymap、-history | docx 正文编辑 | MIT | 合计压缩后约 150–200 KB（推断，E0 量） | 新增 |
-| `@codemirror/commands` | tex 编辑的撤销和按键 | MIT | 数十 KB（推断） | 新增；state、view、language、legacy-modes 已在依赖 |
-| saxes | 服务端 XML 流式解析，带位置 | ISC | 约 50 KB，依赖 xmlchars（MIT） | 新增 |
-| jszip | 解开和重新打包 docx | MIT 或 GPLv3 双许可，按 MIT 使用 | 已在依赖 | 已有 |
-| diff（jsdiff）、Intl.Segmenter | 对齐和词级比较 | BSD-3；内置 | 已有 | 已有 |
-| docx-preview、pdfjs-dist、mammoth | 版式视图、PDF 预览、文字提取 | Apache-2.0、Apache-2.0、BSD-2 | 已有 | 已有 |
-| omml2mathml | OMML 公式显示 | **许可证未写明，E0 核实**；不合适就不用，显示公式的线性文字 | 小 | 待定 |
-| eigenpal docx-editor | 只在通过第 3.3 节规则时替代自研编辑器 | 核心 Apache-2.0；`packages/pro` 为 EigenPal Pro 许可，**需核实** | 未知 | E0 试验 |
-| Tectonic | 可选的 tex 编译器 | MIT | 单个可执行文件，数十 MB（推断，E0 量） | 不随包，按需下载 |
+| 库                                                                         | 用途                                  | 许可证                                                           | 体积                                   | 状态                                               |
+| -------------------------------------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------- |
+| prosemirror-model、-state、-view、-transform、-commands、-keymap、-history | docx 正文编辑                         | MIT                                                              | 合计压缩后约 150–200 KB（推断，E0 量） | 新增                                               |
+| `@codemirror/commands`                                                     | tex 编辑的撤销和按键                  | MIT                                                              | 数十 KB（推断）                        | 新增；state、view、language、legacy-modes 已在依赖 |
+| saxes                                                                      | 服务端 XML 流式解析，带位置           | ISC                                                              | 约 50 KB，依赖 xmlchars（MIT）         | 新增                                               |
+| 已有：jszip、diff、docx-preview、pdfjs-dist、mammoth                       | 解包、比较、版式视图、PDF、文字提取   | MIT/GPLv3 双许可（按 MIT）、BSD-3、Apache-2.0、Apache-2.0、BSD-2 | 已随包                                 | 不变                                               |
+| omml2mathml                                                                | OMML 公式显示                         | **许可证未写明，E0 核实**；不合适就不用，显示公式的线性文字      | 小                                     | 待定                                               |
+| eigenpal docx-editor                                                       | 只在通过第 3.3 节规则时替代自研编辑器 | 核心 Apache-2.0；`packages/pro` 为 EigenPal Pro 许可，**需核实** | 未知                                   | E0 试验                                            |
+| Tectonic                                                                   | 可选的 tex 编译器                     | MIT                                                              | 单个可执行文件，数十 MB（推断，E0 量） | 不随包，按需下载                                   |
 
 **不用：** SuperDoc、ONLYOFFICE、Overleaf、SwiftLaTeX（AGPL）；lang-tex、texlab、latexdiff、BlockNote 的 `xl-` 包（GPL）；CKEditor、Tiptap 转换、Syncfusion、Univer Pro（商业或云）；pandoc 不做编辑往返。
 
-**Tectonic：** 优先用用户已装的 TeX Live 或 MiKTeX（在 PATH 和常见安装位置里找 `xelatex`、`lualatex`、`pdflatex`、`latexmk`）。用户选择下载时，可执行文件放 `data/tools/tectonic/<版本>/`，缓存通过环境变量 `TECTONIC_CACHE_DIR` 指向 `data/tools/tectonic/cache/`（E0 核实这个变量和 Windows 上的行为），这样缓存随 `data/` 走、卸载可删。可执行文件和 TeX 支持包默认都从海外下载，目前不知道国内镜像，用了就在报告里写明（AGENTS.md 下载规则），是否在 alpha 提供见第 12 节。编译命令形如 `tectonic --outdir <data/temp/desk-build/<会话>> main.tex`，工作目录是项目文件夹（`\input` 能找到章节），输出不进项目文件夹。
+**Tectonic：** 先找用户已装的 TeX Live 或 MiKTeX（PATH 和常见安装位置里的 `xelatex`、`lualatex`、`pdflatex`、`latexmk`）。下载的 Tectonic 放 `data/tools/tectonic/<版本>/`，缓存用环境变量 `TECTONIC_CACHE_DIR` 指向 `data/tools/tectonic/cache/`（E0 核实该变量在 Windows 上的行为），随 `data/` 走、卸载可删。程序和支持包默认从海外下载，暂无已知镜像，用到时在报告写明；alpha 是否提供见第 12 节。编译命令形如 `tectonic --outdir <data/temp/desk-build/<会话>> main.tex`，工作目录是项目文件夹（`\input` 能找到章节），输出不进项目文件夹。
 
 ## 10. 分阶段与任务拆分
 
 每个任务书约 1–2 小时，超时就停下报告。D 是 Sol（后端、原生），U 是 Claude（界面）。**A** 表示 alpha 必需。
 
-| 顺序 | 任务 | 谁 | 完成标准 |
-|---|---|---|---|
-| E0a | eigenpal 试验 | Claude；Sol 在 Windows 用 Word/WPS 打开 | 第 3.3 节四条逐条有结论 |
-| E0b | 自研回写原型、句子对齐试验 | Sol | 3 份稿件过第 11 节检查；对齐误标清单；报告定路线 |
-| D1 **A** | 迁移 021、版本图后端、`PATCH /api/versions/:id`、`graph` | Sol | 迁移测试；建分支、改层级、读图的功能测试 |
-| D2 **A** | `desk/docx/` 读、写、批注 | Sol | 合成样例覆盖公式、域、图片、表格、修订、批注；改一段其余字节相同；`w:eastAsia` 继承 |
-| D3 **A** | 会话服务：块更新、工作副本、修改记录、撤回、保存、外部修改、关闭生成版本、tex | Sol | 打开 → 改 → 撤回 → 保存 → 关闭，docx 和 tex 各一 |
-| U1 **A** | 页面骨架、入口、左栏、底部栏、`features.editingDesk`，撤掉工作站版本管理 | Claude | 100%、125% 截图；开关关闭时无入口 |
-| U2 **A** | ProseMirror 编辑器、原子节点、块同步、Ctrl+S | Claude | 浏览器测试：改字保存后重开一致 |
-| D4 **A** | 两层对齐，比较接口返回对齐行，`changeSummary` 按句 | Sol | 插段、删段、拆段、改句测试；一处改动只标一句 |
-| U3 **A** | 比较视图，`version-diff.js` 改用新结果，两个颜色令牌 | Claude | 截图；上一处、下一处可用 |
-| D5 **A** | `manuscript` 读写、`chg_` 撤回、`desk_suggest`、提示词 | Sol | 脚本运行时测试；`deepseek-v4.1-flash` 真跑一次，报请求数和 token |
-| U4 **A** | 指令框、右键菜单、修订标记、撤回和保留 | Claude | 场景 2 浏览器测试；全新安装加服务商后真跑一次 |
-| D6 **A** | 绑定和 tex 批注的表、服务、接口、重新定位 | Sol | 新版本后绑定仍定位；找不到标 `lost` |
-| U5 **A** | 批注栏、来源栏、含义与来源菜单、绑定选择框 | Claude | 场景 5、6 浏览器测试 |
-| U6 **A** | CodeMirror tex 编辑、PDF 预览、编译按钮 | Claude | 编辑保存 tex；无引擎时按钮停用有提示 |
-| D7 **A** | 引擎检测、编译，输出放 `data/temp/` | Sol | Windows 上 MiKTeX 编译 xeCJK 样例 |
-| D8 **A** | 版本图原生二级窗口 | Sol | 原生验收：开关、记住大小、主窗口不锁定 |
-| U7 **A** | 版本图内容：泳道图、信息栏、搜索、右键比较 | Claude | 场景 4 走通 |
-| U8 **A** | 进入横条（接续或分支）、秘书悬浮按钮 | Claude | 场景 1 走通，分支后原对话不变 |
-| D9 | Tectonic 按需下载 | Sol | 视第 12 节第 4 条 |
+| 顺序     | 任务                                                                          | 谁                                      | 完成标准                                                                            |
+| -------- | ----------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------- |
+| E0a      | eigenpal 试验                                                                 | Claude；Sol 在 Windows 用 Word/WPS 打开 | 第 3.3 节四条逐条有结论                                                             |
+| E0b      | 自研回写原型、句子对齐试验                                                    | Sol                                     | 3 份稿件过第 11 节检查；对齐误标清单；报告定路线                                    |
+| D1 **A** | 迁移 023、版本图后端、`PATCH /api/versions/:id`、`graph`                      | Sol                                     | 迁移测试；建分支、改层级、读图的功能测试                                            |
+| D2 **A** | `desk/docx/` 读、写、批注                                                     | Sol                                     | 合成样例覆盖公式、域、图片、表格、修订、批注；改一段其余字节相同；`w:eastAsia` 继承 |
+| D3 **A** | 会话服务：块更新、工作副本、修改记录、撤回、保存、外部修改、关闭生成版本、tex | Sol                                     | 打开 → 改 → 撤回 → 保存 → 关闭，docx 和 tex 各一                                    |
+| U1 **A** | 页面骨架、入口、左栏、底部栏、`features.editingDesk`，撤掉工作站版本管理      | Claude                                  | 100%、125% 截图；开关关闭时无入口                                                   |
+| U2 **A** | ProseMirror 编辑器、原子节点、块同步、Ctrl+S                                  | Claude                                  | 浏览器测试：改字保存后重开一致                                                      |
+| D4 **A** | 两层对齐，比较接口返回对齐行，`changeSummary` 按句                            | Sol                                     | 插段、删段、拆段、改句测试；一处改动只标一句                                        |
+| U3 **A** | 比较视图，`version-diff.js` 改用新结果，两个颜色令牌                          | Claude                                  | 截图；上一处、下一处可用                                                            |
+| D5 **A** | `manuscript` 读写、`chg_` 撤回、`desk_suggest`、提示词                        | Sol                                     | 脚本运行时测试；`deepseek-v4.1-flash` 真跑一次，报请求数和 token                    |
+| U4 **A** | 指令框、右键菜单、修订标记、撤回和保留                                        | Claude                                  | 场景 2 浏览器测试；全新安装加服务商后真跑一次                                       |
+| D6 **A** | 绑定和 tex 批注的表、服务、接口、重新定位                                     | Sol                                     | 新版本后绑定仍定位；找不到标 `lost`                                                 |
+| U5 **A** | 批注栏、来源栏、含义与来源菜单、绑定选择框                                    | Claude                                  | 场景 5、6 浏览器测试                                                                |
+| U6 **A** | CodeMirror tex 编辑、PDF 预览、编译按钮                                       | Claude                                  | 编辑保存 tex；无引擎时按钮停用有提示                                                |
+| D7 **A** | 引擎检测、编译，输出放 `data/temp/`                                           | Sol                                     | Windows 上 MiKTeX 编译 xeCJK 样例                                                   |
+| D8 **A** | 版本图原生二级窗口                                                            | Sol                                     | 原生验收：开关、记住大小、主窗口不锁定                                              |
+| U7 **A** | 版本图内容：泳道图、信息栏、搜索、右键比较                                    | Claude                                  | 场景 4 走通                                                                         |
+| U8 **A** | 进入横条（接续或分支）、秘书悬浮按钮                                          | Claude                                  | 场景 1 走通，分支后原对话不变                                                       |
+| D9       | Tectonic 按需下载                                                             | Sol                                     | 视第 12 节第 4 条                                                                   |
 
-A 任务全部完成后，在 Windows 候选安装包上用真实论文走一遍场景 1–7，再把 `features.editingDesk` 默认改为 `true`。`product/FEATURES.md` 随每个任务更新。
+A 任务完成后，在 Windows 候选安装包上用真实论文走完场景 1–7，再打开 `features.editingDesk`；`product/FEATURES.md` 随每个任务更新。
 
-**alpha 之后：** 公式编辑（LaTeX 输入，用 docx 包（dolanmiu，MIT）的 `latexToMath` 生成 OMML）；AI 修改导出成 Word 修订；分支合并（第二个父版本）；SyncTeX 双向跳转（synctex-js，MIT）；选中图表重跑脚本；移动段落检测；表格结构编辑；docx 批注回复和解决；写作时浮现相关资料片段（参考 Flowing）。
+**alpha 之后：** 公式编辑（LaTeX 输入，用 docx 包（dolanmiu，MIT）的 `latexToMath` 生成 OMML）；AI 修改导出成 Word 修订；分支合并（第二个父版本）；SyncTeX 双向跳转（synctex-js，MIT）；选中图表重跑脚本；移动段落检测；表格结构编辑；docx 批注回复和解决；写作时浮现相关资料片段。
 
 ## 11. 风险与验证
 
-| 风险 | 验证 |
-|---|---|
+| 风险                                                 | 验证                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 写回后 Word / WPS 出现修复提示，或改动段落丢中文字体 | 三份真实论文（中文学位论文、英文期刊稿、带 Zotero 引文和大量公式的稿件），各做打开 → 改一句 → 加批注 → 保存。解压比较：`document.xml` 除改动段落外字节相同，批注相关部件只多出批注内容，其余部件字节相同；改动段落的 `w:rFonts` 与相邻文字段一致。Word 和 WPS 各打开一次，**都不出现修复提示**。稿件放 `.sciencescope-local/temp/`，不进仓库。 |
-| 引文域和已有修订被破坏 | 改含引文的段落后用 Zotero 刷新，引文仍能识别；带修订的稿件往返后仍能接受、拒绝，批注不成孤儿。 |
-| 长稿件性能 | 8 GB 内存的 Windows 机器打开 100 页 docx，记录打开、输入延迟、保存和比较耗时。 |
-| 中文对齐误标 | 同一论文两版（改句、删段、插段、调换段落）人工检查；测"……"、引号内句号、"；"。 |
-| 用户和 AI 同时改一段 | 测试：用户有未发出的修改时 AI 改同一块，用户的字不丢，AI 重读后再改。 |
-| 绑定失效 | 绑 20 处数字，10 次 AI 改写加一次 Word 外部修改，统计仍能定位的比例；失效的标 `lost`，没有错绑。 |
-| 外部修改被覆盖 | 会话中在 Word 改文件再保存：先导入外部版本，两份都在版本图里。 |
-| 许可证不合适（eigenpal、omml2mathml） | E0 读许可证原文，不合适走第 3.3 节和第 3.4 节第 5 条的退路。 |
-| Tectonic 缓存和离线 | 确认缓存在 `data/`；断网后 `--only-cached` 再编译一次。 |
+| 引文域和已有修订被破坏                               | 改含引文的段落后用 Zotero 刷新，引文仍能识别；带修订的稿件往返后仍能接受、拒绝，批注不成孤儿。                                                                                                                                                                                                                                                 |
+| 长稿件性能                                           | 8 GB 内存的 Windows 机器打开 100 页 docx，记录打开、输入延迟、保存和比较耗时。                                                                                                                                                                                                                                                                 |
+| 中文对齐误标                                         | 同一论文两版（改句、删段、插段、调换段落）人工检查；测"……"、引号内句号、"；"。                                                                                                                                                                                                                                                                 |
+| 用户和 AI 同时改一段                                 | 测试：用户有未发出的修改时 AI 改同一块，用户的字不丢，AI 重读后再改。                                                                                                                                                                                                                                                                          |
+| 绑定失效                                             | 绑 20 处数字，10 次 AI 改写加一次 Word 外部修改，统计仍能定位的比例；失效的标 `lost`，没有错绑。                                                                                                                                                                                                                                               |
+| 外部修改被覆盖                                       | 会话中在 Word 改文件再保存：先导入外部版本，两份都在版本图里。                                                                                                                                                                                                                                                                                 |
+| 许可证不合适（eigenpal、omml2mathml）                | E0 读许可证原文，不合适走第 3.3 节和第 3.4 节第 5 条的退路。                                                                                                                                                                                                                                                                                   |
+| Tectonic 缓存和离线                                  | 确认缓存在 `data/`；断网后 `--only-cached` 再编译一次。                                                                                                                                                                                                                                                                                        |
 
 ## 12. 待用户决定
 

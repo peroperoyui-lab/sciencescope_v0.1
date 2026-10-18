@@ -6,15 +6,15 @@
 
 ## 0. 现状核对
 
-| 事实 | 位置 |
-|---|---|
-| 迁移最高编号 020；任务书 A2-2 还要占一个号（删目标表），所以知识库迁移按现在的排队是 **022**，实现时取目录里实际最高号加一 | `app/core/db/migrations/index.js`、`plans/tasks/A2-2_*.md` |
-| 资料 `rb_sources`（`project_id` 可空，11 种 `kind`，没有 `link`）；段落 `rb_chunks`（有 `reference` 类）；条目 `rb_items`（没有 `code` 类型）；条目修订 `rb_revisions` | 迁移 003、`research/store.js`、`items.js` |
-| 导入一律复制原件到 `data/library/originals/`；项目文件夹里的文件**目前不解析入库**，项目页只列文件 | `research/index.js`、`services/project-files.js` |
-| 混合检索 = 向量（权重 1.0）+ 关键词（0.5）的 RRF；向量阶段超过 300 毫秒整次退回关键词 | `search.js`、`semantic/hybrid.js` |
-| 向量文档来自资料、段落、条目三处，`rb_vec` 固定 384 维；`research.changed` 触发增量重建 | `semantic/documents.js`、`semantic/index.js` |
-| `revisions` 和 `resource_snapshots` 以**文件为正本**：恢复要写回资源文件；`captureTurnSnapshots` 会把一轮里所有 `revisions` 行做成历史版本 | `core/workspace/workspace.js`、`snapshots.js` |
-| 资料库工具只有 `research_search`、`research_read`，没有写入工具 | `services/tools.js` |
+| 事实                                                                                                                                                                   | 位置                                                       |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 迁移最高编号 020；任务书 A2-2 还要占一个号（删目标表），所以知识库迁移按现在的排队是 **022**，实现时取目录里实际最高号加一                                             | `app/core/db/migrations/index.js`、`plans/tasks/A2-2_*.md` |
+| 资料 `rb_sources`（`project_id` 可空，11 种 `kind`，没有 `link`）；段落 `rb_chunks`（有 `reference` 类）；条目 `rb_items`（没有 `code` 类型）；条目修订 `rb_revisions` | 迁移 003、`research/store.js`、`items.js`                  |
+| 导入一律复制原件到 `data/library/originals/`；项目文件夹里的文件**目前不解析入库**，项目页只列文件                                                                     | `research/index.js`、`services/project-files.js`           |
+| 混合检索 = 向量（权重 1.0）+ 关键词（0.5）的 RRF；向量阶段超过 300 毫秒整次退回关键词                                                                                  | `search.js`、`semantic/hybrid.js`                          |
+| 向量文档来自资料、段落、条目三处，`rb_vec` 固定 384 维；`research.changed` 触发增量重建                                                                                | `semantic/documents.js`、`semantic/index.js`               |
+| `revisions` 和 `resource_snapshots` 以**文件为正本**：恢复要写回资源文件；`captureTurnSnapshots` 会把一轮里所有 `revisions` 行做成历史版本                             | `core/workspace/workspace.js`、`snapshots.js`              |
+| 资料库工具只有 `research_search`、`research_read`，没有写入工具                                                                                                        | `services/tools.js`                                        |
 
 由此得出一个约束：图的修改**不能写进 `revisions`**，否则 AI 一轮结束时会为它建一个找不到资源处理器的历史版本。图用自己的修订表和版本表，形状照抄 `revisions` 和 `resource_snapshots`（§3.6）。
 
@@ -45,14 +45,14 @@
 
 已有记录本身就是节点，只新增实体表。端点统一写成引用 `类型:id`，与 `rb_vec_docs.ref_type/ref_id` 对齐。
 
-| 节点 | 存在哪里 | 引用 | 改动 |
-|---|---|---|---|
-| 文献、网页、数据集、软件等 | `rb_sources` | `source:<id>` | `kind` 加 `link`（只存网址和元数据） |
-| 项目文件夹里的文件 | `rb_sources`，`project_id` 非空 | `source:<id>` | 加列 `folder_path`，`original_path` 为空 |
-| 知识、模型与公式、主张、笔记 | `rb_items` | `item:<id>` | 无 |
-| 代码片段 | `rb_items` 类型 `code`（子类型 snippet / function / script） | `item:<id>` | `payload`：language、code、repo、path、lineStart、lineEnd、commit、license |
-| 实体：方法、变种、数据集、变量、指标、软件、概念、人物、机构 | 新表 `kb_entities` | `entity:<id>` | 新增 |
-| 段落 | `rb_chunks` | `chunk:<id>` | 只作证据端点，图上默认不画 |
+| 节点                                                         | 存在哪里                                                     | 引用          | 改动                                                                       |
+| ------------------------------------------------------------ | ------------------------------------------------------------ | ------------- | -------------------------------------------------------------------------- |
+| 文献、网页、数据集、软件等                                   | `rb_sources`                                                 | `source:<id>` | `kind` 加 `link`（只存网址和元数据）                                       |
+| 项目文件夹里的文件                                           | `rb_sources`，`project_id` 非空                              | `source:<id>` | 加列 `folder_path`，`original_path` 为空                                   |
+| 知识、模型与公式、主张、笔记                                 | `rb_items`                                                   | `item:<id>`   | 无                                                                         |
+| 代码片段                                                     | `rb_items` 类型 `code`（子类型 snippet / function / script） | `item:<id>`   | `payload`：language、code、repo、path、lineStart、lineEnd、commit、license |
+| 实体：方法、变种、数据集、变量、指标、软件、概念、人物、机构 | 新表 `kb_entities`                                           | `entity:<id>` | 新增                                                                       |
+| 段落                                                         | `rb_chunks`                                                  | `chunk:<id>`  | 只作证据端点，图上默认不画                                                 |
 
 记忆（类型 `memory`）不进图，仍走记忆收件箱和项目简报。
 
@@ -232,13 +232,13 @@ CREATE UNIQUE INDEX rb_sources_folder ON rb_sources(project_id, folder_path) WHE
 
 假设（同调研 §5.3，推断、未实测，误差可能在 2 倍以内）：200 篇论文，每篇正文约 1.5 万 token；DeepSeek V4.1 Flash：输入 0.30 美元 / 百万 token，缓存命中 0.006，输出 1.20。
 
-| 步骤 | 调用 | 费用 | 时间（并发 2，每次约 10 秒） |
-|---|---|---|---|
-| 派生层 | 0 | 0 | 每篇不到 1 秒，加本机嵌入时间 |
-| 论文卡片（每篇约 7 500 输入、1 000 输出） | 200 | 约 0.7 美元，缓存命中后更低 | 约 17 分钟 |
-| 一个主题深挖（约 20 篇、260 块，每块两次） | 约 520 | 约 0.8–1.2 美元 | 约 45 分钟 |
-| 全库深挖（不提供一键入口） | 约 5 200 | 约 8–12 美元 | 3–4 小时 |
-| 每次检索 | 0 | 不增加 | 图扩展在本机，目标 100 毫秒内 |
+| 步骤                                       | 调用     | 费用                        | 时间（并发 2，每次约 10 秒）  |
+| ------------------------------------------ | -------- | --------------------------- | ----------------------------- |
+| 派生层                                     | 0        | 0                           | 每篇不到 1 秒，加本机嵌入时间 |
+| 论文卡片（每篇约 7 500 输入、1 000 输出）  | 200      | 约 0.7 美元，缓存命中后更低 | 约 17 分钟                    |
+| 一个主题深挖（约 20 篇、260 块，每块两次） | 约 520   | 约 0.8–1.2 美元             | 约 45 分钟                    |
+| 全库深挖（不提供一键入口）                 | 约 5 200 | 约 8–12 美元                | 3–4 小时                      |
+| 每次检索                                   | 0        | 不增加                      | 图扩展在本机，目标 100 毫秒内 |
 
 KB-6 用 10 篇真实论文实测，按实测更新本表。
 
@@ -255,15 +255,15 @@ KB-6 用 10 篇真实论文实测，按实测更新本表。
 
 所有角色共用（原则 2），加在 `TOOL_SPECS`。修改直接生效，记修订、归入本轮版本，结果返回 `versionId` 和改了什么。参数不设上限，结果大时分页并写明剩余数（原则 4）。
 
-| 工具 | 参数 | 结果 |
-|---|---|---|
-| `research_search`（扩展） | 原参数 + `graph?` | 每条多 `via`、`origin`（search / graph） |
-| `research_read`（扩展） | `type` 加 `entity` | 实体字段、别名、标签、相连边（分页） |
-| `research_write`（新，DECISIONS 2026-10-18） | `op`: createItem / updateItem / supersedeItem / updateSource / importUrl；`args` | 记录与修订号；条目用现有 `rb_revisions` |
-| `kb_graph` | `ref?` 或 `query?`、`depth?`（默认 1）、`relations?`、`layers?`、`projectId?`、`mode?`（neighborhood / gaps）、`limit`、`offset` | `{nodes, edges, paths?, remaining}` |
-| `kb_write` | `ops[]`：createEntity、updateEntity、createEdge、updateEdge、remove {ref}、merge {into, from[]}、label {ref, add?, remove?}、member {projectId, ref, remove?} | 每项结果（新 id 或错误原因），整批一个 `versionId`；一项失败不影响其他项 |
-| `kb_build` | `action`: card {sourceIds} / topic {topic, sourceIds?} / status | 排队结果或汇总状态，不等待完成 |
-| `workspace_versions`（扩展） | `resource` 加 `knowledge` | 列出、读取知识库版本；restore 即撤回 |
+| 工具                                         | 参数                                                                                                                                                          | 结果                                                                     |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `research_search`（扩展）                    | 原参数 + `graph?`                                                                                                                                             | 每条多 `via`、`origin`（search / graph）                                 |
+| `research_read`（扩展）                      | `type` 加 `entity`                                                                                                                                            | 实体字段、别名、标签、相连边（分页）                                     |
+| `research_write`（新，DECISIONS 2026-10-18） | `op`: createItem / updateItem / supersedeItem / updateSource / importUrl；`args`                                                                              | 记录与修订号；条目用现有 `rb_revisions`                                  |
+| `kb_graph`                                   | `ref?` 或 `query?`、`depth?`（默认 1）、`relations?`、`layers?`、`projectId?`、`mode?`（neighborhood / gaps）、`limit`、`offset`                              | `{nodes, edges, paths?, remaining}`                                      |
+| `kb_write`                                   | `ops[]`：createEntity、updateEntity、createEdge、updateEdge、remove {ref}、merge {into, from[]}、label {ref, add?, remove?}、member {projectId, ref, remove?} | 每项结果（新 id 或错误原因），整批一个 `versionId`；一项失败不影响其他项 |
+| `kb_build`                                   | `action`: card {sourceIds} / topic {topic, sourceIds?} / status                                                                                               | 排队结果或汇总状态，不等待完成                                           |
+| `workspace_versions`（扩展）                 | `resource` 加 `knowledge`                                                                                                                                     | 列出、读取知识库版本；restore 即撤回                                     |
 
 **提示词指导**（写进共用工具说明）：用户没有明确要求整理或修改时不写图，回答问题时只读；写边附证据段落和原文引文，推断写进 `attrs.note` 并注明；新建实体前先查同名和别名，有就复用或合并；关系优先从内置列表选；写完在回答里一两句说清改了什么；`derived` 层是线索不是结论，引用必须是原文。
 
@@ -285,23 +285,23 @@ KB-6 用 10 篇真实论文实测，按实测更新本表。
 
 新文件 `app/server/routes/knowledge.js`，都要口令；界面和工具共用同一个知识库服务。
 
-| 方法与路径 | 作用 |
-|---|---|
-| `GET /api/knowledge/graph` | 子图（ref / query、depth、relations、layers、projectId、分页） |
-| `GET/POST /api/knowledge/entities` | 实体列表（projectId、kind、q、分页）、新建 |
-| `GET/PATCH/DELETE /api/knowledge/entities/:id` | 读取（含相连边和证据）、修改、删除 |
-| `POST /api/knowledge/entities/merge` | 合并 `{into, from[]}` |
-| `POST /api/knowledge/edges`；`PATCH/DELETE /api/knowledge/edges/:id` | 新建、修改、删除边 |
-| `POST /api/knowledge/labels`、`POST /api/knowledge/memberships` | 加减标签、项目归属 |
-| `POST /api/knowledge/session`、`POST /api/knowledge/session/:id/close` | 图视图编辑会话开关（形成 leave-page 版本） |
-| `GET /api/knowledge/versions`、`GET /api/knowledge/versions/:id` | 版本列表（projectId、meetingId、turnId）、变更明细 |
-| `POST /api/knowledge/versions/:id/restore` | 撤回一组修改 |
-| `GET /api/knowledge/history?ref=`、`POST /api/knowledge/revisions/:id/restore` | 单条记录历史、恢复到某一版 |
-| `GET/POST /api/knowledge/jobs` | 汇总状态与失败列表；`{action: card / topic / retry}` |
-| `GET /api/knowledge/gaps?projectId=` | 结构空缺（功能开关后） |
-| `POST /api/projects/:id/index` | 重新扫描项目文件夹 |
-| `GET /api/projects/:id/files`（扩展） | 每项多 `index` 字段（状态、资料 id、错误） |
-| `DELETE /api/research/sources/:id`（新） | 删除资料（§3.5） |
+| 方法与路径                                                                     | 作用                                                           |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| `GET /api/knowledge/graph`                                                     | 子图（ref / query、depth、relations、layers、projectId、分页） |
+| `GET/POST /api/knowledge/entities`                                             | 实体列表（projectId、kind、q、分页）、新建                     |
+| `GET/PATCH/DELETE /api/knowledge/entities/:id`                                 | 读取（含相连边和证据）、修改、删除                             |
+| `POST /api/knowledge/entities/merge`                                           | 合并 `{into, from[]}`                                          |
+| `POST /api/knowledge/edges`；`PATCH/DELETE /api/knowledge/edges/:id`           | 新建、修改、删除边                                             |
+| `POST /api/knowledge/labels`、`POST /api/knowledge/memberships`                | 加减标签、项目归属                                             |
+| `POST /api/knowledge/session`、`POST /api/knowledge/session/:id/close`         | 图视图编辑会话开关（形成 leave-page 版本）                     |
+| `GET /api/knowledge/versions`、`GET /api/knowledge/versions/:id`               | 版本列表（projectId、meetingId、turnId）、变更明细             |
+| `POST /api/knowledge/versions/:id/restore`                                     | 撤回一组修改                                                   |
+| `GET /api/knowledge/history?ref=`、`POST /api/knowledge/revisions/:id/restore` | 单条记录历史、恢复到某一版                                     |
+| `GET/POST /api/knowledge/jobs`                                                 | 汇总状态与失败列表；`{action: card / topic / retry}`           |
+| `GET /api/knowledge/gaps?projectId=`                                           | 结构空缺（功能开关后）                                         |
+| `POST /api/projects/:id/index`                                                 | 重新扫描项目文件夹                                             |
+| `GET /api/projects/:id/files`（扩展）                                          | 每项多 `index` 字段（状态、资料 id、错误）                     |
+| `DELETE /api/research/sources/:id`（新）                                       | 删除资料（§3.5）                                               |
 
 ## 9. 嵌入模型
 
@@ -314,37 +314,37 @@ KB-6 用 10 篇真实论文实测，按实测更新本表。
 
 每条一份任务书，约 1–2 小时，超出就停下报告；每条在同一提交里更新 `product/FEATURES.md` 和实施日志。
 
-| # | 执行 | 内容 | 完成标准 | alpha 必需 |
-|---|---|---|---|---|
-| KB-1 | Sol | 迁移 + `app/services/knowledge/store.js`：实体、边、标签、归属增删改；修订和版本（开、关、撤回、单条恢复） | 迁移测试；功能测试：建、改、删、撤回后回到原状，之后又被改的记录被跳过并列出 | 是 |
-| KB-2 | Sol | 项目文件夹原地索引：扫描、`folder_path`、按哈希重解析、移动和删除、`/index` 接口、文件列表带状态；删除资料接口 | 测试：放入、修改、移动、删除文件后索引正确；项目文件夹里没有应用写的文件 | 是 |
-| KB-3 | Sol | 派生层（引用、相似、文件夹）、`kb_jobs`、后台队列与让路、事件 | 5 篇互引样例测出 `cites`；关闭混合检索时相似为 skipped | 是 |
-| KB-4 | Sol | 工具 `kb_graph`、`kb_write`、`research_write`，`research_read` 支持实体，`workspace_versions` 支持知识库，发言结束关闭版本，工具说明 | 脚本运行时：专家写实体和边后有一个 ai-turn-end 版本；真实模型（deepseek-v4.1-flash）跑场景 4，报告请求数和 token | 是 |
-| KB-5 | Sol | `routes/knowledge.js` 与编辑会话 | 路由测试覆盖一次完整编辑会话 | 是 |
-| KB-6 | Sol | 论文卡片：章节挑选、提示、引文核对、实体对齐、build 版本、设置与模型回退、重做替换 | 10 篇真实论文（中英各半）实测请求、token、费用、合并前后实体数；失败篇状态正确 | 是 |
-| KB-7 | Sol | 检索扩展：CTE 子图、PPR、RRF、`via`、降级、设置 | 现有评测题加 10 道方法题比较前 3 命中；无提升则默认关闭并说明 | 是 |
-| KB-8 | Claude | 设计稿：知识库页（表格、图）、节点侧栏、编辑交互、项目文件夹树、空状态 | 用户认可；画廊加整页示例 | 是 |
-| KB-9 | Claude | 表格视图改造、节点详情侧栏、页面改名 | 100% / 125% 截图，中英文 | 是 |
-| KB-10 | Claude | Cytoscape 打包；图视图：局部图、深度、筛选、拖线、合并、删除、页内撤销、AI 标记 | 先在 Windows 验证原型帧率和高 DPI；功能测试：建边后刷新仍在 | 是 |
-| KB-11 | Claude | 项目页文件夹树整页（状态点、右键、重新扫描） | 截图；场景 5 走通 | 是 |
-| KB-12 | Claude | 对话侧：「本轮用到的资料」显示路径和在图中查看；「本轮修改了知识库」行与撤回 | 全新安装上场景 2、4 走通 | 是 |
-| KB-13 | Sol | 主题深挖（确认篇数、按版本跳过） | 一个主题 5 篇实测请求和 token | 否（可选） |
-| KB-14 | Sol + Claude | 结构空缺（Louvain 用 graphology，MIT）与「请专家提问题」，功能开关 | 场景 6 走通 | 否 |
+| #     | 执行         | 内容                                                                                                                                 | 完成标准                                                                                                         | alpha 必需 |
+| ----- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------- | ---------- |
+| KB-1  | Sol          | 迁移 + `app/services/knowledge/store.js`：实体、边、标签、归属增删改；修订和版本（开、关、撤回、单条恢复）                           | 迁移测试；功能测试：建、改、删、撤回后回到原状，之后又被改的记录被跳过并列出                                     | 是         |
+| KB-2  | Sol          | 项目文件夹原地索引：扫描、`folder_path`、按哈希重解析、移动和删除、`/index` 接口、文件列表带状态；删除资料接口                       | 测试：放入、修改、移动、删除文件后索引正确；项目文件夹里没有应用写的文件                                         | 是         |
+| KB-3  | Sol          | 派生层（引用、相似、文件夹）、`kb_jobs`、后台队列与让路、事件                                                                        | 5 篇互引样例测出 `cites`；关闭混合检索时相似为 skipped                                                           | 是         |
+| KB-4  | Sol          | 工具 `kb_graph`、`kb_write`、`research_write`，`research_read` 支持实体，`workspace_versions` 支持知识库，发言结束关闭版本，工具说明 | 脚本运行时：专家写实体和边后有一个 ai-turn-end 版本；真实模型（deepseek-v4.1-flash）跑场景 4，报告请求数和 token | 是         |
+| KB-5  | Sol          | `routes/knowledge.js` 与编辑会话                                                                                                     | 路由测试覆盖一次完整编辑会话                                                                                     | 是         |
+| KB-6  | Sol          | 论文卡片：章节挑选、提示、引文核对、实体对齐、build 版本、设置与模型回退、重做替换                                                   | 10 篇真实论文（中英各半）实测请求、token、费用、合并前后实体数；失败篇状态正确                                   | 是         |
+| KB-7  | Sol          | 检索扩展：CTE 子图、PPR、RRF、`via`、降级、设置                                                                                      | 现有评测题加 10 道方法题比较前 3 命中；无提升则默认关闭并说明                                                    | 是         |
+| KB-8  | Claude       | 设计稿：知识库页（表格、图）、节点侧栏、编辑交互、项目文件夹树、空状态                                                               | 用户认可；画廊加整页示例                                                                                         | 是         |
+| KB-9  | Claude       | 表格视图改造、节点详情侧栏、页面改名                                                                                                 | 100% / 125% 截图，中英文                                                                                         | 是         |
+| KB-10 | Claude       | Cytoscape 打包；图视图：局部图、深度、筛选、拖线、合并、删除、页内撤销、AI 标记                                                      | 先在 Windows 验证原型帧率和高 DPI；功能测试：建边后刷新仍在                                                      | 是         |
+| KB-11 | Claude       | 项目页文件夹树整页（状态点、右键、重新扫描）                                                                                         | 截图；场景 5 走通                                                                                                | 是         |
+| KB-12 | Claude       | 对话侧：「本轮用到的资料」显示路径和在图中查看；「本轮修改了知识库」行与撤回                                                         | 全新安装上场景 2、4 走通                                                                                         | 是         |
+| KB-13 | Sol          | 主题深挖（确认篇数、按版本跳过）                                                                                                     | 一个主题 5 篇实测请求和 token                                                                                    | 否（可选） |
+| KB-14 | Sol + Claude | 结构空缺（Louvain 用 graphology，MIT）与「请专家提问题」，功能开关                                                                   | 场景 6 走通                                                                                                      | 否         |
 
 顺序：KB-1 →（KB-2 ∥ KB-8）→ KB-3 → KB-4 → KB-5 → KB-9 → KB-6 → KB-10 → KB-11 → KB-7 → KB-12；KB-13、KB-14 视时间。
 
 ## 11. 风险与验证
 
-| 风险 | 验证或对策 |
-|---|---|
-| 便宜模型抽出的实体名不一致，图碎片化 | KB-6 统计合并前后实体数并调阈值；「实体」标签按名称排序便于人工合并 |
-| 引文核对丢弃太多，卡片空洞 | KB-6 报告丢弃比例；超过三成就改提示要求逐字引用，或改为段落内模糊匹配 |
-| 图扩展没有提升检索 | KB-7 对比；无提升就默认关闭，图只用于浏览和编辑 |
-| 智能体写错关系，用户难发现 | AI 标记、缺证据标记、每轮清单和撤回；KB-4 真实模型跑完人工抽查 20 条边 |
-| 项目文件夹很大 | KB-2 用 2 万文件合成目录测，超过 5 秒改后台扫描 |
-| 递归 CTE 随边数变慢 | KB-7 用 5 万实体、50 万边测 2 跳，超过 300 毫秒改内存邻接表 |
-| Cytoscape 扩展多年未发版，高 DPI 和帧率未知 | KB-10 先做原型并截图；不行就用 Cytoscape 事件自写拖线 |
-| 读取被占用的用户文件（Windows EBUSY） | 沿用现有重试节奏；仍失败标「暂时无法读取」，下次扫描再试 |
+| 风险                                        | 验证或对策                                                             |
+| ------------------------------------------- | ---------------------------------------------------------------------- |
+| 便宜模型抽出的实体名不一致，图碎片化        | KB-6 统计合并前后实体数并调阈值；「实体」标签按名称排序便于人工合并    |
+| 引文核对丢弃太多，卡片空洞                  | KB-6 报告丢弃比例；超过三成就改提示要求逐字引用，或改为段落内模糊匹配  |
+| 图扩展没有提升检索                          | KB-7 对比；无提升就默认关闭，图只用于浏览和编辑                        |
+| 智能体写错关系，用户难发现                  | AI 标记、缺证据标记、每轮清单和撤回；KB-4 真实模型跑完人工抽查 20 条边 |
+| 项目文件夹很大                              | KB-2 用 2 万文件合成目录测，超过 5 秒改后台扫描                        |
+| 递归 CTE 随边数变慢                         | KB-7 用 5 万实体、50 万边测 2 跳，超过 300 毫秒改内存邻接表            |
+| Cytoscape 扩展多年未发版，高 DPI 和帧率未知 | KB-10 先做原型并截图；不行就用 Cytoscape 事件自写拖线                  |
+| 读取被占用的用户文件（Windows EBUSY）       | 沿用现有重试节奏；仍失败标「暂时无法读取」，下次扫描再试               |
 
 ## 12. 待用户决定
 
