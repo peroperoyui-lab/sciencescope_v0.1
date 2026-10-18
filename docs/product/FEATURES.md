@@ -1,0 +1,550 @@
+# ScienceScope 现有功能
+
+本文描述新核心 `app/` 今天实际能做什么。它取代 `docs/SYSTEM_SPEC.md`（已归档为 `docs/archive/legacy/SYSTEM_SPEC_2026-10-18.md`），后者的 1–7 节描述的是旧原型。
+
+旧线 `desktop/`、`scripts/`、`adapters/` 已冻结（标签 `v0-prototype`），不在本文范围内，将在 R5 切换后删除。
+
+核对基线：`4ede4b1`（2026-10-18），逐项对照 `app/` 代码。
+
+---
+
+## 0. 怎么读、怎么维护
+
+- 本文只写"现在是怎样"，不规定"必须这样"。设计依据在 `docs/architecture/`（核心模型、运行时接口、数据与角色）和 `docs/design/`（设计系统、交互约定），方向和任务队列在 `docs/plans/ROADMAP.md`，按日期的过程记录在 `docs/log/IMPLEMENTATION_LOG.md`。
+- 行为改变时，在同一个提交里更新对应小节。只改实现、不改用户能看到的行为时不必改本文。
+- 第 2 节每个用户可见的功能区一节，每节固定四段：用户能做什么、实现位置、关键数据、已知限制。每节保持简短；细节写进设计文档，这里只放链接。
+- 第 3–5 节是索引：接口、数据表和测试。新增路由、迁移或测试类型时顺手补一行。
+- 验收数字不写在这里；无法在代码里核实的说法不要写进来。
+
+---
+
+## 1. 总览
+
+### 1.1 进程结构
+
+```
+原生外壳 src-tauri（Tauri 2，Windows）
+  └─ 启动 Node 宿主：node app/main.js --data <数据目录>
+       ├─ 核心 app/core        数据库、事件、工作区资源、项目/会议/消息/发言
+       ├─ 服务 app/services    发言调度、上下文组装、工具、秘书、记忆、资料库、Python、文献版本…
+       ├─ 运行时 app/runtime   模型与智能体循环（pi-ai + pi-agent-core），只有这里引用模型包
+       └─ 本地 HTTP 服务 app/server  只做解析、校验口令、调用核心与服务
+  └─ WebView 加载界面 app/ui（Preact + htm，由本地 HTTP 服务提供静态文件）
+```
+
+- `app/main.js` 生成一次性的 64 位十六进制口令，监听 `127.0.0.1` 的随机端口，然后向标准输出打印一行 JSON：`{ url, token, ui, dataRoot, shutdownPath, shutdownToken }`。原生外壳读这一行，把 `ui` 地址加载进主窗口。
+- `app/app.js` 装配核心、各项服务、运行时和 HTTP 服务。测试用同一个 `createApp`，只把运行时换成 `app/runtime/scripted.js`。
+- 所有 `/api/` 请求都要带口令（`Authorization: Bearer` 或 `?token=`），否则返回 401。请求体上限 64 MB，导入资料和文献版本的两个接口不设此上限。
+- 界面通过 `GET /api/events`（Server-Sent Events，可用 `since` 或 `Last-Event-ID` 续传）接收核心事件，不轮询。
+- 原生外壳（`src-tauri/src/main.rs`、`new_app.rs`）默认启动新核心；设置环境变量 `SCIENCESCOPE_APP=legacy` 才会启动冻结的旧宿主。外壳负责窗口、文件夹选择、用系统程序打开文件和网址、全局助手窗口与浮球；在 Windows 上用 Job 对象管理子进程树。
+
+### 1.2 数据目录 `data/`
+
+数据根由 `--data`、环境变量 `SCIENCESCOPE_DATA` 或默认值决定：安装版是 `<安装目录>/data`，开发版是 `.sciencescope-local/data`。所有位置由 `app/core/paths.js` 的 `dataPaths()` 统一给出。
+
+```
+data/
+  sciencescope.sqlite        唯一的 SQLite 数据库（WAL 模式），表见第 4 节
+  settings.json              全部设置，读取时与默认值合并
+  agents/<参与者id>.md        AI 参与者定义：YAML 头 + 提示词正文
+  plans.md                   全局计划
+  minutes/<会议id>.md         不属于项目的会议的纪要
+  projects/<名称>-<项目id>/   项目自带文件夹
+    workbench/plans.md  map.json  log.md
+    notes/<名称>.md
+    minutes/<会议id>.md
+    versions/<组id>/v<n>-<版本id>/<原文件>  以及同名 .notes.md 版本说明
+  workspaces/<随机id>/ 或 shared/   独立对话的工作文件夹
+  library/originals/          资料库原件（导入时复制，文件名为随机 id）
+  deliverables/<id>/          回答下方展示的交付文件副本
+  models/multilingual-e5-small/  本地语义检索模型（用户点击下载后才有）
+  python/                     uv 缓存、解释器、受管环境 envs/
+  runtime/pi/sessions/        每位参与者在每个会议里的模型会话
+  logs/                       model-requests.jsonl、startup.log、原生宿主日志
+  secret/credentials.yaml     API 密钥（按名称引用，不进数据库、不进环境变量）
+  backups/                    每次数据库迁移前的自动备份
+  temp/                       工具输出过长时保存的完整内容
+```
+
+- 用户选择的外部项目文件夹只被引用（`projects.folder`），会议在里面运行命令和读写文件；已知例外见 2.5 节"已知限制"。
+- 工作区文件可以在应用外直接编辑。下次读取时，宿主发现内容哈希与最后一次修订不同，会补记一条 `external` 修订，撤销历史保持真实。
+- 原子写入和项目文件夹改名遇到 Windows 的 `EPERM/EBUSY/EACCES` 会短暂重试（50/100/200/400 毫秒），仍失败时返回 `PATH_BUSY`（409），原文件和记录不变。
+
+### 1.3 启动与关闭
+
+- 启动顺序：打开数据库并执行迁移（有旧数据时先备份）→ 补齐默认参与者 → 初始化 Python 与语义检索 → 创建运行时与服务 → 启动后台工作（调度、纪要、记忆、版本说明）→ 开始监听。上一次异常退出留下的未结束发言改记为取消，挂起的批准卡片改记为已取消。
+- 各阶段时间点每次启动写一行到 `data/logs/startup.log`，首屏渲染时间由界面调用 `POST /api/startup/rendered` 补上。
+- 关闭：原生外壳调用 `POST /api/shutdown`，或进程收到 SIGINT/SIGTERM。宿主停止调度、等后台工作和已取消的发言收尾，再关闭运行时和数据库（WAL/SHM 文件随之清理）。
+
+---
+
+## 2. 功能模块
+
+### 2.1 项目与对话
+
+**用户能做什么**
+- 新建项目：填写名称和可选研究目标；工作目录可留空（在数据目录下自动新建），也可选已有文件夹，其中的文件不会被移动或覆盖。
+- 新建对话：项目内对话、独立对话（`Ctrl+Alt+N`）。独立对话创建时选工作文件夹（为这个对话新建、独立对话公共文件夹、选择已有文件夹）和 Python 环境。
+- 侧栏列出项目和对话，可置顶、重命名、归档；"浏览全部"按名称或项目搜索全部对话，可取消归档。
+- 从任意一条消息"从这里分支"出新对话；导出当前对话为 Markdown，导出项目快照为 zip（项目文件夹加全部会议记录）。
+- 项目文件夹页：浏览绑定的工作目录（未绑定时显示项目自带文件夹），新建文件夹、重命名、移到系统回收站、用资源管理器或默认程序打开；更换位置不会移动已有文件，已有会议继续用原工作目录。
+
+**实现位置**：`app/core/projects.js`、`app/core/meetings.js`、`app/services/project-files.js`、`app/services/export.js`、`app/server/routes/projects.js`、`app/server/routes/meetings.js`；界面 `app/ui/components/sidebar.js`、`all-chats.js`、`project-new.js`、`python-choice.js`、`project-folder.js`。
+
+**关键数据**：表 `projects`、`meetings`、`meeting_members`；会议的 `work_folder`、`temporary`、`parent_meeting_id`/`fork_message_id`；设置 `shortcuts`。
+
+**已知限制**
+- 项目和对话只能归档或把文件移到回收站，没有从数据库彻底删除的入口。
+- 侧栏和对话列表不显示临时会议（版本说明整理用的后台会议）。
+
+### 2.2 主对话与时间线
+
+**用户能做什么**
+- 和主专家对话：流式回答，Markdown、代码高亮和 KaTeX 公式；回答里引用资料（如 `[S3 p.4]`）可点开预览并高亮原文段落。
+- 行动时间线：每次工具调用、思考、自动重试、批准请求和上下文压缩各占一行，运行中展开、完成后收起。"视图 → 简洁执行记录"隐藏工具卡，等待批准的卡片仍显示。
+- 状态行显示当前阶段（连接模型、思考、重试、等待批准、压缩上下文）和结束情况（已停止、失败并附原因、达到单次输出上限）。
+- 发送与停止是同一个按钮，`Esc` 停止。回答进行中发送的消息进入待发队列，可编辑、取消、暂停和继续，重启后保留。
+- 消息菜单：复制、复制消息位置、引用到输入框、重新回答、继续、从这里分支；对话内查找；`Ctrl+K` 搜索项目、对话和消息。
+- 输入栏选择模型和思考强度；上下文环显示当前用量，达到压缩门槛时变为提醒色。
+- 回答下方的交付物：AI 用 `workspace_present` 展示的图片和文件以缩略图或卡片出现，可预览或用默认程序打开。
+
+**实现位置**：调度 `app/services/conductor.js`；单次发言 `app/services/turn-runner.js`、`turn-activity.js`；上下文 `app/services/context-assembly.js`、`app/core/context.js`；待发队列 `app/core/outbox.js`；交付物 `app/services/deliverables.js`；界面 `app/ui/components/` 下的 `meeting.js`、`chat-message.js`、`timeline.js`、`status-line.js`、`composer.js`。
+
+**关键数据**：表 `messages`（状态 `streaming/done/max_tokens/failed/cancelled`）、`turns`（`phase`、`error`、`usage_json`）、`tool_calls`（`kind`：`tool`、`thinking`、`retry`、`approval`、`compaction`；`preamble`）、`meeting_outbox`、`meeting_outbox_state`、`message_deliverables`；设置 `appearance.transcript`、`appearance.chatFontSize`、`composer.sendKey`。
+
+**已知限制**
+- 主对话输入栏的模型菜单改的是全局默认模型 `models.default`，还不能为单个对话选模型（秘书和全局助手面板可以单独选，见 2.5、2.6）。
+- 粘贴或附加的图片只作为资料保存，不作为图片发给模型（A2-1 处理中）。
+- 网页只能读取已知地址（`web_fetch`），没有网页搜索。
+
+### 2.3 执行方式与批准
+
+**用户能做什么**
+- 输入栏的"执行方式"有两档：**请求批准**（新对话默认）和**常规**。选择保存在会议规则里。
+- 请求批准时，运行命令（`shell`）、在数据目录之外写入或修改文件（`write_file`、`edit_file`）和安装 Python 包（`python_env_install`）之前，时间线出现批准卡片，状态行显示"等待你的批准"。用户允许或拒绝后，卡片收成"已允许 / 已拒绝 / 已取消"一行。拒绝或停止不记为发言失败。
+- 常规模式直接执行，随时可以停止。停止会中止模型请求、正在运行的命令（连同子进程树）和 uv。
+- 秘书和全局助手面板的回答里同样出现批准卡片。
+
+**实现位置**：`app/services/approvals.js`（批准挂在宿主工具边界，所有角色和运行时共用）、`app/services/builtin-tools/`、`app/server/routes/approvals.js`；界面 `app/ui/components/execution-mode.js`、`approval.js`。
+
+**关键数据**：会议 `policy_json.approval`（`ask` = 请求批准，`auto` = 常规；旧会议缺省按 `ask`）；`tool_calls` 中 `kind='approval'` 的条目，状态 `pending/approved/rejected/cancelled`。
+
+**已知限制**
+- 批准只在进程存活时有效；重启后挂起的批准一律记为已取消，不会重放。
+- 「自动化」执行方式和目标功能已于 2026-10-18 从界面删除；后端（`meeting_goals` 表、`/api/meetings/:id/goal` 接口、调度器的 `autonomous` 发言规则、对所有角色开放的 `goal_update` 工具）仍在，待 A2-2 删除。
+
+### 2.4 有序讨论与专家
+
+**用户能做什么**
+- 输入栏上方的"工作方式"：**工作**（主专家持续处理任务，用 `@专家名` 邀请专家回答，按提及顺序）和**有序讨论**（所选专家读取同一份前文，并行独立作答，按名册顺序展示）。
+- 有序讨论可指定一位独立审核人：所有专家结束后才运行，只审核不作答。审核结论默认不进入后续上下文，用户"采纳"后才进入；已被后续发言读取的采纳不能撤回（409）。
+- 讨论条显示每位专家的真实状态（等待、作答、工具、完成、未完成）；重试和继续只针对原作者；停止取消整轮及未开始的审核。
+- 上下文弹层显示主专家和本会议每位专家最近一次的实测用量。
+- 设置 → 专家角色：增删专家、改名称、职责标签、提示词和模型，启用或停用，调整顺序，添加独立审核；保存从下一轮生效，每次保存可撤销。名册人数不设上限。
+
+**实现位置**：`app/services/conductor.js`、`conductor-round.js`、`app/core/participants.js`、`app/core/agent-file.js`、`app/core/defaults.js`；界面 `app/ui/components/discussion-strip.js`、`discussion-menu.js`、`discussion-mention.js`、`discussion-message.js`、`discussion-usage.js`、`settings-roles.js`。
+
+**关键数据**：会议 `policy_json`（`mode`：`direct`/`round`，`order`，`reviewer`，`respondent`）；`messages.adopted`；`meeting_members`（专家第一次发言时加入）；参与者定义 `agents/<id>.md` 的 `role`、`panel`（`expert`/`reviewer`）、`enabled`、`position`、`model`。默认名册：方法学家、统计审稿人、魔鬼代言人，独立审核人默认停用。
+
+**已知限制**
+- 没有自由讨论（专家之间来回对话）。
+- 专家定义里的 `skills` 字段没有消费者；插件与技能在 alpha 之后。
+
+### 2.5 任务秘书与纪要
+
+**用户能做什么**
+- 每个主对话有一份纪要：秘书在后台按规则增量整理（研究目标、已定结论及出处、被否定方案、分歧、文稿与文件状态、待办）。用户可在"对话纪要"窗口直接编辑，用户的修改优先，之后秘书在其基础上继续；可查看历史版本、让秘书立即更新。
+- 自动总结的触发条件可在设置里开关和调整：有序讨论结束后、每 n 条主对话消息、每 n 个新 token、进入项目时、离开项目时。
+- 可选择随总结直接更新工作站的导图、计划、日志和文献版本（每项 关闭 / 直接更新）。
+- 打开主对话右侧的秘书面板和秘书单独对话：秘书读取主对话里它还没看过的部分（先等纪要，再补纪要之后的原文），可以修改工作站，也可以为主专家起草下一步指令。草稿以"秘书提案"卡片出现，可编辑、填入主对话输入框、忽略或撤销。
+- 秘书面板可单独选模型和执行方式，宽度可拖动并记住。
+
+**实现位置**：`app/services/secretary/`（`minutes.js` 纪要、`policy.js` 触发规则、`publish.js` 导出与更新工作站、`chat.js` 与 `catch-up.js` 秘书对话、`proposals.js` 提案）；界面 `app/ui/components/` 下的 `secretary-panel.js`、`secretary-proposal.js`、`minutes-dialog.js`、`settings-secretary.js`。
+
+**关键数据**：资源 `minutes`（键为会议 id）；表 `minutes_coverage`、`minutes_status`、`minutes_workbench_updates`、`secretary_pending_projects`、`secretary_chats`、`secretary_cursors`、`main_draft_proposals`、`main_draft_proposal_history`；设置 `summary.*`。
+
+**已知限制**
+- 纪要只是总结，从不截断会议原文；主专家和专家重建会话时读"纪要 + 纪要之后的原文"，需要时用工具回查。
+- 设置 `summary.saveMarkdown`（默认开）会把纪要另存一份到会议工作文件夹的 `minutes/<会议id>.md`；当工作文件夹是用户绑定的外部项目文件夹时，这会在外部文件夹里写文件。在那份文件里的修改不会读回。
+
+### 2.6 全局助手
+
+**用户能做什么**
+- 一场不属于任何项目的全局对话，可以查阅和修改所有项目的数据，帮用户在项目之间整理信息。
+- 浏览器里是右侧面板；原生客户端里是独立的助手窗口和桌面浮球，可展开、收起为浮球、隐藏（隐藏不清除历史，也不停止正在运行的任务）。
+- 设置 → 全局助手：改提示词；选择启动客户端时不打开助手、只显示浮球、或显示浮球与助手对话（下次启动生效）。
+- 面板可单独选模型和执行方式，附件、标记和批准卡片与主对话相同。
+
+**实现位置**：`app/services/assistant/`（`index.js` 确保唯一的助手会议，`overview.js` 跨项目概览）；`src-tauri/src/main.rs`（助手窗口与浮球）；界面 `app/ui/components/assistant-panel.js`、`assistant-surface.js`、`assistant-orb.js`、`assistant-window-settings.js`、`app/ui/assistant-window.js`。
+
+**关键数据**：表 `assistant_state`（唯一的会议 id 与概览哈希）；设置 `assistant.startup`（`closed`/`orb`/`expanded`）、`appearance.panels.assistant`。
+
+**已知限制**
+- 跨项目概览只来自正式的研究会议（项目纪要目标、计划、导图），不包括临时会议、秘书对话和助手自己的对话；细节靠工具查阅。
+
+### 2.7 研究输入（附件、标记、截图）
+
+**用户能做什么**
+- 输入框的加号：添加文件、从资料库选择资料或条目（右侧"项目材料与引用"面板，不会自动发送）、截图（提示用系统截图后粘贴进输入框）。文件也可拖入或粘贴。
+- 附件以标签显示在输入框上方；"本次上下文"显示这条消息实际附带的材料。
+- 在消息、文件预览和资料原文里选中文字可以"添加标记"，附可选备注；也可"引用至任务秘书"或"引用至全局助手"。标记列表可定位、改备注、移除或全部清除。
+- 发送后附件和标记随消息保存；发送失败时恢复，且不覆盖之后新加的标记。分支对话保留这些引用。
+
+**实现位置**：`app/services/research-input/`（`index.js` 草稿操作，`compile.js` 把材料和标记编进模型输入）、`app/core/research-input.js`；界面 `app/ui/components/research-input.js`、`materials-panel.js`、`mark-selection.js`、`marks-popover.js`、`app/ui/research-input-actions.js`。
+
+**关键数据**：表 `research_input_drafts`（每个输入框一份草稿，带版本号）、`message_research_input`（每条消息发送时的快照）、`meeting_outbox.input_json`。附件文件导入资料库（`rb_sources`，原件在 `library/originals/`）。
+
+**已知限制**
+- 文件内容不直接塞进提示词：模型拿到资料 id 和页数，用 `research_read` 分页读取。
+- 不能解析的格式（包括图片）保存为"不支持"，模型只看到标题和元数据。
+- 没有内置截图工具。
+
+### 2.8 资料库与检索
+
+**用户能做什么**
+- 导入 PDF、DOCX、Markdown（`.md`/`.qmd`/`.rmd`）、LaTeX（`.tex`/`.ltx`）和纯文本；原件按字节保存，解析为带页码（PDF）和章节的段落。解析失败或部分解析会标明，原件仍可打开；可重新解析。
+- 资料库页面（"数据库"）：筛选、排序、分页；编辑文献元数据；复制段落引用；打开原件或在应用内预览。
+- 条目：知识、模型（理论、公式、算法等）、主张、笔记、记忆。可新建、编辑（保存为新修订）、取代（旧条目保留并链接）、置顶、归档、查看修订历史；可设为"仅自己"，这类条目不进入 AI 候选。
+- 统一检索资料段落和条目：默认中英文关键词检索（SQLite FTS5）。开启"本地混合检索"后，加上本机向量检索；每次结果标明本次是关键词还是混合检索。
+- AI 用 `research_search` / `research_read` 检索和分页读取，读取结果报告剩余长度，不截断全文；引用格式兼容 `[S3 p.4]`、复合、中文和全角写法。
+- 文件预览：PDF（文字层、翻页、高亮）、DOCX（可读视图与版式视图）、Markdown、LaTeX、CSV、代码（只读）和图片。
+
+**实现位置**：`app/services/research/`（`store.js`、`items.js`、`search.js`、`citations.js`、`parsers/`、`semantic/`）、`app/services/preview/`；界面 `app/ui/components/research-*.js`、`file-preview.js`、`settings-semantic.js`、`app/ui/readers/`。
+
+**关键数据**：表 `rb_sources`、`rb_chunks`、`rb_items`、`rb_revisions`、`rb_fts`（可重建）、`rb_vec_docs`、`rb_vec`（384 维 sqlite-vec，可重建）；设置 `semantic.enabled`、`semantic.downloadSource`（`official`/`modelscope`/`hf-mirror`/`custom`）、`semantic.customDownloadUrl`；模型 `data/models/multilingual-e5-small/`。
+
+**已知限制**
+- 本地模型（multilingual-e5-small int8）需用户明确点击下载，每个文件校验 SHA-256，校验失败报错且不换源；"官方"源连接失败时会尝试 HF 镜像。需要 AVX2、8 GB 内存和 5 GB 可用空间，不满足时只用关键词检索。
+- 对话进行中暂停建立索引；索引缺失、版本不一致或向量阶段超过 300 毫秒时，整次退回关键词检索。
+- 扫描件没有 OCR；没有文献元数据在线查询和 BibTeX 互通。
+
+### 2.9 工作站（计划、导图、日志、文稿版本、历史版本）
+
+**用户能做什么**
+- 工作站页汇总一个项目的研究框架与进展（导图）、计划、日志、文件列表和文献版本；各区域也可单独打开。还有一份全局计划。
+- 计划：添加、编辑、删除、切换完成状态。
+- 日志：添加条目，查看详情；条目可带文件链接（资料、文献版本、项目文件），点击打开。
+- 导图编辑窗口：树形节点、游离节点、节点间有向连线；Markdown 大纲粘贴或拖入；可编辑 JSON；导出；窗口内撤销/重做（只在本次编辑期间有效）。
+- 文献版本：按组导入稿件，按导入顺序编号（删除后编号不复用）；原件和说明保存在数据目录。导入后任务秘书比较完整提取文字并按模板生成版本说明（实际文件变化、秘书解释、待用户决定的建议、相关导图节点与文件）；用户可补充、编辑、重新整理、引用到对话。版本比较有并排和统一两种视图，可跳到下一处变化，可把旧版复制为新版本。
+- 历史版本：AI 每轮发言结束、用户离开编辑页面、恢复之前，都会为改过的资源留一个历史版本；可只读预览、恢复或删除。工作区每次修改另有逐条修订，可撤销。
+
+**实现位置**：`app/core/workspace/`（`workspace.js` 读写与撤销，`snapshots.js` 历史版本，`resources/` 各资源格式）、`app/services/versions/`（`comparison.js` 比较、`organizer.js` 版本说明）、`app/services/journal-files.js`；界面 `app/ui/components/` 下的 `workbench.js`、`map-*.js`、`version*.js`、`resource-history.js`。
+
+**关键数据**：资源 `plans`、`map`、`log`、`notes`、`versions`；表 `revisions`、`resource_snapshots`、`log_file_references`（日志链接的可重建投影）、`version_groups`、`manuscript_versions`、`version_note_meetings`；`projects.auto_version_notes`；设置 `versionNotes.template`、`summary.workbench.versions`。
+
+**已知限制**
+- 版本说明每份仍要十几万到二十几万 token，未达到 10 万的目标；对表格和未改动上下文的解读偶有错误。
+- PDF 版本比较的是提取文字，排版和解析差异不一定代表正文修改。
+- 导图节点图片和附件在 alpha 之后（R4-10）。
+
+### 2.10 记忆
+
+**用户能做什么**
+- 空闲时（默认 10 分钟），秘书只读取纪要的变化和对应原文，提取并核对候选记忆（偏好、目标、决定、约定、未决问题、经验等）。
+- 记忆收件箱：逐条或批量接受、修改后接受、拒绝；可跳回出处；每次修改有历史，可撤销。
+- 只有接受的记忆进入"项目简报"，主专家在新开、恢复或重建会话时收到完整简报（置顶且有效的排在前面，不截断）。
+- 设置里可关闭空闲整理、改空闲时间、选整理模型（未设置时用秘书模型或对话模型）、设每次累计 token 预算；达到预算时在完整阶段之间停下，下次接着整理。
+
+**实现位置**：`app/services/memory/`、`app/services/secretary/project-brief.js`、`app/server/routes/memory.js`；界面 `app/ui/components/memory-*.js`、`settings-memory.js`。
+
+**关键数据**：记忆是 `rb_items` 中 `type='memory'` 的条目（候选为 `proposed`，接受后 `active`）；表 `memory_cursors`、`memory_checkpoints`、`memory_runs`、`memory_dedup`、`memory_item_history`；设置 `memory.enabled`、`memory.idleMinutes`、`memory.model`、`memory.tokenLimit`（默认 100000，`null` 为不限制）。
+
+**已知限制**
+- 只整理正式的研究会议，不整理临时会议。
+
+### 2.11 模型与服务商
+
+**用户能做什么**
+- 设置 → 模型与服务商：内置预设 OpenCode Go 和 DeepSeek，只填密钥即可"测试并保存"；也可添加其他兼容服务（接口地址、API 格式、模型 ID、可选请求头），可从服务商拉取模型列表。
+- 服务商卡片：测试连接，编辑地址与模型，重新获取模型列表，更新密钥，移除（确认后）。地址与预设一致的旧手动配置会提示"改用内置配置"，密钥和各处模型选择随之迁移。
+- 模型表列出上下文、最长输出、支持的思考强度和上限来源（目录 / 匹配 / 默认值）。选默认模型；用滑块调上下文压缩门槛（50–95%，默认 80%）。
+- 达到门槛时，同一模型把较早的对话整理成摘要，最近两轮用户消息及其后的工具结果保留原文；时间线显示"上下文已自动压缩"一行。摘要失败时保留原文继续。
+
+**实现位置**：运行时 `app/runtime/pi/`（`runtime.js`、`catalog.js` 模型目录、`requests.js` 超时与重试、`compaction.js`、`request-log.js`），接口 `app/runtime/port.js`；`app/services/providers.js`；界面 `app/ui/components/settings-models.js`、`model-picker.js`。
+
+**关键数据**：设置 `providers`（`id`、`preset`、`baseUrl`、`api`：`openai-completions`/`openai-responses`/`anthropic-messages`、`keyRef`、`headers`、`models`）、`models.default`、`context.compactPercent`；密钥在 `data/secret/credentials.yaml`；会话在 `data/runtime/pi/sessions/`；表 `runtime_sessions`；每次请求一行元数据写入 `data/logs/model-requests.jsonl`（不含密钥、请求和回答，超过 5 MB 轮换一份）。
+
+**已知限制**
+- 模型容量和思考强度只来自 pi-ai 的模型目录；查不到的自定义模型按 131,072 上下文、32,768 输出计算并标明"默认值"，不能手动覆盖。
+- 请求控制：首个事件 90 秒、流中两个事件之间 120 秒超时；尚未写出内容时，网络错误、超时、429 和 5xx 最多尝试 3 次（遵守 Retry-After），401/403/404/400 和上下文超长不重试。无响应超时不能在界面设置。
+
+### 2.12 Python 环境
+
+**用户能做什么**
+- 内置"科学分析"环境（固定 Python 版本和锁定的包清单，首次使用时下载安装）、系统 Python（只读使用，从不修改）和用户新建的受管环境。
+- 设置 → 运行环境：新建空环境、复制已有环境、导入/导出清单、按清单同步、查找已安装的包、重命名、删除（绑定的项目或对话改为跟随默认）、设新任务默认环境、清理未引用的缓存；显示独占空间和共享缓存大小。
+- Python 下载源（官方或自定义地址，只用于 uv 下载解释器）和软件包镜像源（官方、清华、阿里云、自定义）分开设置。
+- 项目和独立对话可选环境；更换在下一轮生效，保留会话历史。AI 用 `python_env_install` 安装包（请求批准模式下先问），命令行里的 Python 使用会议的环境。
+
+**实现位置**：`app/services/python/`（`index.js`、`uv.js`、`installer.js`、`files.js`）、`python/`（内置环境清单 `builtin.json`、`builtin.in`、`builtin.lock`）、`app/server/routes/python.js`；界面 `app/ui/components/settings-python.js`、`python-choice.js`。
+
+**关键数据**：表 `python_environments`、`python_bindings`（作用域 project/meeting）、`python_operations`（谁、为什么、结果）；设置 `python.defaultEnvironment`、`python.indexUrl`（传给 `UV_INDEX_URL`）、`python.installMirror`（传给 `UV_PYTHON_INSTALL_MIRROR`）；文件 `data/python/{cache,interpreters,envs}`；uv 路径来自 `SCIENCESCOPE_UV`。
+
+**已知限制**
+- 受管环境之间通过 uv 共享缓存（硬链接复用），未引用的缓存要在设置里手动清理。
+- 内置环境清单只针对 `win32-x64`。
+
+### 2.13 设置与外观
+
+**用户能做什么**
+- 个人资料与常规：显示名称和简介；界面语言、界面字体（内置思源黑体或本机字体）、主题（浅色、深色、跟随系统）、界面密度（标准、紧凑）、代码字号、聊天正文字号（默认 14）、发送快捷键、减少过渡动画、显示滚动条。
+- 快捷键：搜索 `Ctrl+K`、浏览全部 `Ctrl+Shift+K`、新对话 `Ctrl+N`、独立对话 `Ctrl+Alt+N`，可重新录制。
+- 主专家、任务秘书、全局助手各有一页改提示词，每次保存可撤销。
+- 数据库与文件 / 运行环境：显示各数据文件夹的路径并可打开，显示 Node 版本和平台。
+- 欢迎页的常用学术站点可增删、编辑和排序，用系统浏览器打开。
+- 关于：发布者 peroperoyui，MIT 许可证。
+
+**实现位置**：`app/core/workspace/resources/settings.js`（默认值与合并）、`app/services/system.js`；界面 `app/ui/components/settings.js`、`home.js`、`shell.js`、`app/ui/appearance.js`；样式令牌 `app/ui/styles/tokens.css` 与组件样式 `components.css`。
+
+**关键数据**：`data/settings.json`（`profile`、`appearance`、`shortcuts`、`composer`、`sites` 等）；设置本身也是工作区资源，修改留修订，AI 可读可改。
+
+**已知限制**
+- 界面正在按新设计系统逐页重做（P3）；尚未重做的页面仍使用 `app/ui/styles/legacy/`。
+- 不能更改数据目录。
+
+### 2.14 语言
+
+**用户能做什么**
+- 界面在中文和 English 之间切换，立即生效。对话内容、资料和用户输入的名称保持原样，模型回答的语言不受界面语言影响。
+- 时间格式跟随界面语言。
+
+**实现位置**：`app/ui/i18n/index.js`（`t()`，组件里直接写中文字符串）、`app/ui/i18n/en.js`（中文到英文的对照表）。
+
+**关键数据**：设置 `appearance.language`（`zh`/`en`）。
+
+**已知限制**
+- 服务端返回的错误信息多为中文，界面直接显示，英文界面下不翻译。
+- 原生客户端里中文输入法的完整候选提交尚未验证（组字时按 Enter 不会发送，这一点已验证）。
+
+### 2.15 预览安装包
+
+**用户能做什么**
+- `npm run package` 在 Windows 上生成未签名的 NSIS 安装包（`1.0.0-alpha.0`），按当前用户安装，位置可选。
+- 安装包自带 Node 22.22.2、uv 0.12.19、`app/`、生产依赖、Python 与模型清单、`LICENSE` 和自动生成的 `THIRD_PARTY_NOTICES`。
+- 覆盖安装前删除旧版本的程序文件，不动 `data\`；卸载默认保留数据，只有勾选"删除应用程序数据"才删除 `<安装目录>\data`。
+- 原生宿主保留上一次启动的日志（`desktop-host.previous.log`）。
+
+**实现位置**：`tools/package/`（`windows.js`、`build-options.js`、`prune.js` 打包裁剪、`notices.js`、`installer-hooks.nsh`、`build-native.ps1`）、`src-tauri/`；首测指南 `docs/handoff/PREVIEW_TEST.md`。
+
+**关键数据**：安装目录下的 `runtime/node.exe`、`runtime/uv.exe`、`app/`、`node_modules/`、`data/`。
+
+**已知限制**
+- 没有自动更新和升级通道（R6b）；没有代码签名。
+- 只打 Windows x64 包；Node 和 uv 下载时校验校验和，不换源。
+
+---
+
+## 3. 接口索引
+
+所有接口在 `app/server/routes/`，由 `app/server/server.js` 注册，都需要口令。
+
+**系统与事件**
+- `GET /api/system` 数据文件夹路径与运行时信息。
+- `POST /api/system/open` 用资源管理器打开某个数据文件夹。
+- `GET /api/events/head` 当前事件序号。
+- `GET /api/events` 事件流（SSE），`since` 续传。
+- `POST /api/startup/rendered` 记录首屏渲染时间。
+- `POST /api/shutdown` 请求宿主关闭。
+
+**项目**
+- `GET /api/projects` 列出项目（`archived=1` 含归档）。
+- `POST /api/projects` 新建项目。
+- `GET /api/projects/:id` 读取项目。
+- `PATCH /api/projects/:id` 改名、描述、文件夹、置顶、归档。
+- `GET /api/projects/:id/files` 列出项目文件夹内容。
+- `POST /api/projects/:id/files` 新建文件夹、重命名、移到回收站、打开。
+- `GET /api/projects/:id/export` 项目快照 zip。
+- `POST /api/projects/:id/log-file/open` 打开日志条目里链接的文件。
+- `POST /api/projects/:id/focus` 进入或离开项目（触发纪要规则）。
+
+**参与者**
+- `GET/POST /api/participants` 列出、新建。
+- `GET/PATCH /api/participants/:id` 读取、修改（含定义）。
+
+**会议与消息**
+- `GET /api/meetings` 列出会议（按项目、全局、附属、归档筛选）。
+- `POST /api/meetings` 新建会议（独立对话可带工作文件夹和环境）。
+- `GET/PATCH /api/meetings/:id` 读取、修改（标题、规则、置顶、归档、成员、工作文件夹）。
+- `POST /api/meetings/:id/fork` 从某条消息分支。
+- `GET /api/meetings/:id/contexts` 各参与者最近一次上下文用量。
+- `GET /api/meetings/:id/messages` 分页读取消息。
+- `POST /api/meetings/:id/messages` 发送消息（调度器随后开始回答）。
+- `POST /api/meetings/:id/interrupt` 停止。
+- `GET /api/meetings/:id/export` 导出 Markdown。
+- `POST /api/messages/:id/retry`、`POST /api/messages/:id/continue` 重新回答、继续。
+- `PATCH /api/messages/:id` 采纳或取消采纳审核。
+- `GET /api/messages/:id/citations` 回答中的资料引用。
+- `GET /api/turns/:id` 发言及其活动条目。
+- `POST /api/turns/:turnId/approvals/:activityId` 允许或拒绝。
+- `GET /api/search` 搜索消息。
+- `GET /api/activity` 正在运行的发言、待发队列（以及待删除的目标状态）。
+- `GET/POST/PATCH /api/meetings/:id/goal` 自动化目标（界面已不调用，待 A2-2 删除）。
+
+**待发队列**
+- `GET/POST /api/meetings/:id/outbox` 列出、加入。
+- `PATCH/DELETE /api/meetings/:id/outbox/:itemId` 编辑、取消一条。
+- `DELETE /api/meetings/:id/outbox` 全部取消。
+- `POST /api/meetings/:id/outbox/pause`、`POST /api/meetings/:id/outbox/resume` 暂停、继续。
+
+**研究输入与交付物**
+- `GET/PATCH /api/research-input/:owner` 读取、修改输入框草稿（附件与标记）。
+- `GET /api/deliverables/:id/content` 交付文件内容。
+- `POST /api/deliverables/:id/open` 用默认程序打开交付文件。
+
+**纪要、秘书与记忆**
+- `GET/POST /api/meetings/:id/minutes` 读取纪要状态、保存用户编辑。
+- `POST /api/meetings/:id/minutes/refresh` 让秘书立即更新。
+- `GET/POST /api/meetings/:id/secretary` 读取、确保秘书对话。
+- `GET /api/meetings/:id/secretary/proposals` 秘书提案列表。
+- `PATCH /api/secretary/proposals/:id` 编辑、填入、忽略提案。
+- `GET /api/secretary/proposals/:id/history`、`POST /api/secretary/proposal-revisions/:id/undo` 提案历史、撤销。
+- `GET /api/memory/inbox` 记忆收件箱。
+- `GET /api/memory/brief` 项目简报。
+- `PATCH /api/memory/items/:id` 修改记忆。
+- `POST /api/memory/decisions` 接受或拒绝（可批量）。
+- `GET /api/memory/history`、`GET /api/memory/items/:id/history` 记忆历史。
+- `POST /api/memory/revisions/:id/undo` 撤销记忆修改。
+- `GET /api/meetings/:id/memory/status`、`POST /api/meetings/:id/memory` 整理状态、立即整理。
+
+**全局助手**
+- `GET/POST /api/assistant` 确保并返回助手会议。
+
+**工作区、历史版本与设置**
+- `GET /api/resources` 资源类型列表。
+- `GET /api/resources/:resource` 读取资源（`key`）。
+- `GET /api/resources/:resource/keys` 列出键（`scope`）。
+- `POST /api/resources/:resource` 修改资源（操作与参数）。
+- `GET /api/revisions`、`GET /api/revisions/:id` 修订列表、单条修订。
+- `POST /api/revisions/:id/undo` 撤销修订。
+- `GET/POST /api/snapshots` 历史版本列表、留一个历史版本。
+- `GET/DELETE /api/snapshots/:id` 读取、删除历史版本。
+- `POST /api/snapshots/:id/restore` 恢复历史版本。
+- `GET/PATCH /api/settings` 读取、合并修改设置。
+
+**资料库与预览**
+- `GET/POST /api/research/sources` 资料列表（分页、筛选）、导入资料。
+- `GET/PATCH /api/research/sources/:id` 读取（含段落）、修改元数据。
+- `POST /api/research/sources/:id/reparse` 重新解析。
+- `POST /api/research/sources/:id/open` 用默认程序打开原件。
+- `GET /api/research/chunks/:id` 读取段落。
+- `GET /api/research/search` 检索资料与条目。
+- `GET/POST /api/research/items` 条目列表、新建或取代。
+- `PATCH /api/research/items` 修改条目（id 在请求体里）。
+- `GET/PATCH /api/research/items/:id` 读取（含修订）、修改。
+- `GET /api/research/semantic/status` 本地混合检索状态。
+- `POST /api/research/semantic/download`、`POST /api/research/semantic/rebuild` 下载模型、重建索引。
+- `GET /api/preview/document`、`GET /api/preview/content` 文件预览的结构与原始字节（资料、文献版本、项目文件、交付物）。
+
+**文献版本**
+- `GET /api/versions` 项目的版本组与版本。
+- `POST /api/versions/import` 导入版本。
+- `PATCH /api/version-groups/:id` 重命名版本组。
+- `GET/DELETE /api/versions/:id` 读取（分页文字）、移到回收站。
+- `POST /api/versions/:id/open`、`POST /api/versions/:id/open-notes` 打开原件、打开说明文件。
+- `PATCH /api/versions/:id/notes` 编辑版本说明。
+- `GET /api/versions/:id/compare` 与基线比较。
+- `PATCH /api/versions/:id/baseline` 更换比较基线。
+- `POST /api/versions/:id/save-as-new` 旧版另存为新版本。
+- `POST /api/versions/:id/organize` 重新整理说明。
+- `GET/PATCH /api/version-preferences/:projectId` 读取、开关项目的自动整理说明。
+
+**模型与服务商**
+- `GET /api/providers/keys` 已保存密钥的名称（不返回密钥）。
+- `POST /api/providers/keys/:keyRef` 保存密钥。
+- `POST /api/providers/discover` 向服务商查询模型列表。
+- `GET /api/providers/presets` 内置预设。
+- `POST /api/providers/presets/:presetId` 用预设快速添加。
+- `POST /api/providers/:providerId/adopt-preset` 旧配置改用内置预设。
+- `POST /api/providers/:providerId/test` 测试连接。
+- `GET /api/models` 模型目录（容量、思考强度、上限来源）。
+
+**Python**
+- `GET /api/python` 环境列表与空间。
+- `GET /api/python/system` 检测系统 Python。
+- `POST /api/python` 环境操作（新建、复制、同步、重命名、删除、设默认等）。
+- `POST /api/python/cache/prune` 清理缓存。
+- `GET /api/python/operations` 操作记录。
+- `GET/POST /api/python/binding/:scope/:id` 读取、设置项目或会议的环境。
+- `POST /api/python/:id/packages` 安装包。
+- `GET/POST /api/python/:id/manifest` 读取、写入清单。
+
+---
+
+## 4. 数据存储索引
+
+### 4.1 SQLite 表（`data/sciencescope.sqlite`）
+
+迁移在 `app/core/db/migrations/`，编号即 `PRAGMA user_version`；有旧数据时迁移前先备份到 `data/backups/`。
+
+| 迁移 | 表或改动 | 用途 |
+|---|---|---|
+| 001 | `projects` | 项目：名称、目录名、外部文件夹、置顶、归档 |
+| 001 | `participants` | 人和 AI；AI 的定义在 `agents/<id>.md` |
+| 001 | `meetings` | 会议：所属项目、规则 `policy_json`、分支来源、附属会议、工作文件夹、临时标记 |
+| 001 | `meeting_members` | 会议成员与顺序 |
+| 001 | `messages` | 消息：作者、正文、状态、所属发言、引用、采纳 |
+| 001 | `turns` | 发言：参与者、触发消息、状态、停止原因、用量 |
+| 001 | `tool_calls` | 发言里的活动条目（工具、思考、重试、批准、压缩） |
+| 001 | `runtime_sessions` | 每位参与者在每个会议的运行时会话 |
+| 001 | `revisions` | 工作区资源的逐条修订（前后全文、执行者、撤销） |
+| 001 | `events` | 事件日志，界面事件流的来源 |
+| 002 | `tool_calls.preamble`、`call_id` | 工具调用前的说明文字、调用 id |
+| 003 | `rb_sources` | 资料：编号、类型、元数据、原件路径、解析状态、页数 |
+| 003 | `rb_chunks` | 解析段落（页码、章节、字符范围），可重建 |
+| 003 | `rb_items` | 条目：知识、模型、记忆、主张、笔记；状态、可见性、取代关系 |
+| 003 | `rb_revisions` | 条目每次修改前的快照 |
+| 003 | `rb_fts` | FTS5 全文索引，可重建 |
+| 004 | `rb_vec_docs`、`rb_vec` | 向量检索文档表与 384 维向量（sqlite-vec），可重建 |
+| 005 | `minutes_coverage` | 每版纪要覆盖到哪条消息 |
+| 005 | `minutes_status` | 纪要错误、未完成输出、导出路径、工作站更新错误 |
+| 005 | `minutes_workbench_updates` | 随纪要更新工作站产生的修订 |
+| 005 | `secretary_pending_projects` | 待处理的进入/离开项目总结 |
+| 006 | `secretary_chats` | 主对话与其秘书对话的对应 |
+| 006 | `secretary_cursors` | 秘书已读到主对话的位置 |
+| 006 | `main_draft_proposals`、`main_draft_proposal_history` | 秘书提案及其可撤销历史 |
+| 007 | `memory_cursors`、`memory_checkpoints`、`memory_runs` | 记忆整理的游标、断点和运行状态 |
+| 007 | `memory_dedup` | 候选记忆去重 |
+| 007 | `memory_item_history` | 记忆修改的可撤销历史 |
+| 008 | `resource_snapshots`；`revisions.restored_from_revision_id` | 历史版本；恢复来源 |
+| 009 | `meeting_outbox_state`、`meeting_outbox` | 待发队列及其暂停状态 |
+| 010 | `message_deliverables` | 回答下方展示的交付文件 |
+| 011 | `assistant_state` | 唯一的全局助手会议与概览哈希 |
+| 012 | `research_input_drafts`、`message_research_input`；`meeting_outbox.input_json` | 输入框草稿、消息发送时的附件与标记快照 |
+| 013 | `python_environments`、`python_bindings`、`python_operations` | Python 环境、绑定和操作记录 |
+| 014 | `meeting_goals` | 自动化目标（界面已删除，待 A2-2 迁移移除） |
+| 015 | `version_groups`、`manuscript_versions` | 文献版本组与版本 |
+| 016 | `projects.auto_version_notes`、`manuscript_versions.notes_*`、`version_note_meetings` | 自动说明开关、说明引用、后台说明会议 |
+| 017 | `log_file_references` | 日志条目里文件链接的可重建投影 |
+| 018 | `turns.phase`、`tool_calls.kind` | 发言阶段、活动条目类型 |
+| 019 | `turns.error` | 发言失败原因（与部分回答分开保存） |
+
+### 4.2 文件资源
+
+工作区资源通过 `core.workspace` 的 `read` / `edit` / `undo` 统一读写，界面、AI 工具（`workspace_read`、`workspace_edit`、`workspace_undo`、`workspace_versions`）和外部编辑器共用同一套修订记录。
+
+| 资源 | 键 | 文件 |
+|---|---|---|
+| `plans` | `global` 或项目 id | `plans.md` 或 `projects/<目录>/workbench/plans.md` |
+| `map` | 项目 id | `projects/<目录>/workbench/map.json`（`{ nodes, edges }`） |
+| `log` | 项目 id | `projects/<目录>/workbench/log.md` |
+| `minutes` | 会议 id | 项目会议在 `projects/<目录>/minutes/`，其余在 `minutes/` |
+| `notes` | `<项目id>/<名称>` | `projects/<目录>/notes/<名称>.md` |
+| `versions` | `<项目id>/<版本id>` | 版本原件旁的 `.notes.md` |
+| `agent` | 参与者 id | `agents/<id>.md` |
+| `settings` | `app` | `settings.json` |
+
+其他文件：`library/originals/`（资料原件）、`deliverables/`、`workspaces/`、`models/`、`python/`、`runtime/pi/sessions/`、`logs/`、`secret/credentials.yaml`、`backups/`、`temp/`，见 1.2 节。
+
+---
+
+## 5. 测试索引
+
+- **入口**：`npm run check` = Prettier 格式检查 + ESLint + TypeScript 类型检查（`tsc -p app`）+ `node --test --test-concurrency=2 "app/**/*.test.js"`。只跑测试用 `npm run test:app`。`npm test` 跑的是冻结旧线的 `tests/*.test.mjs`，不覆盖新核心。
+- **组织**：测试文件与被测代码放在一起，命名 `*.test.js`（基线时 99 个），按用户路径写功能测试；多数迁移有测试检查旧数据升级。
+- **脚本化模型**：服务和接口测试用 `app/runtime/scripted.js` 代替真实模型；临时目录由 `app/testing.js` 建在 `.sciencescope-local/temp` 下。`app/ui/i18n/en.test.js` 检查每个界面中文字符串都有英文对照。
+- **运行时测试**：`*.runtime.test.js`（`app/app.runtime.test.js`、`app/main.runtime.test.js`、`app/runtime/pi/http.runtime.test.js`）启动真实宿主或本地 HTTP 假服务商，检查启动输出、关闭、超时和重试。
+- **浏览器测试**：`*.browser.test.js`（27 个）用 `playwright-core` 驱动真实宿主加脚本化模型，覆盖对话、讨论、秘书、面板、批准、资料库、预览、标记、工作站、导图、文献版本、Python、设置等页面。浏览器按顺序找 `SCIENCESCOPE_CHROMIUM`、`/opt/pw-browsers/chromium`、Windows 上的 Edge；都找不到时跳过。设置 `SCIENCESCOPE_SCREENSHOTS=<文件夹>` 保存截图。辅助代码在 `app/ui/browser-testing.js`。
+- **仅 Windows**：两个测试在非 Windows 上跳过，都用真实的无删除共享文件句柄检查占用时的重试与恢复：`app/core/workspace/workspace.test.js`（计划文件被占用）和 `app/core/projects.test.js`（项目文件夹改名被占用）。原生窗口和助手窗口的浏览器测试（`native-window.browser.test.js`、`assistant-window.browser.test.js`）在没有浏览器时跳过。
+- **打包**：`tools/package/*.test.js`（裁剪、许可说明、NSIS 钩子）不在 `npm run check` 里，需要单独运行 `node --test tools/package/`。
+- **原生**：Rust 启动测试在 `src-tauri/src/new_app.rs`，用 `cargo test` 运行。
+- **真实模型与安装包验收**：不属于自动测试。按 `AGENTS.md` 和 `docs/process/ACCEPTANCE.md`，涉及 AI 路径的改动用便宜的付费模型跑一次并报告请求数和 token；安装包从全新安装开始验收。已知不稳定：`app/ui/map.browser.test.js` 的导图历史测试偶发失败，留待导图重做。

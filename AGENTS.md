@@ -108,8 +108,8 @@ workflow, helping the user understand and advance their own research project
 - For complex features (parsers, editors, agent loop, mind map, file preview)
   look for a mature open-source library or reference implementation first; name
   it and its licence in the report.
-- Verification: related tests while working; the full suite (`npm test`, later
-  `npm run check`) once before delivery. When the user can see the change,
+- Verification: related tests while working; the full `npm run check` once before
+  delivery (`npm test` is the old line's suite). When the user can see the change,
   screenshots at 100% and 125% scaling. AI paths are accepted from a fresh
   install: add the provider in Settings, then run the task.
   Native acceptance only if native code changed.
