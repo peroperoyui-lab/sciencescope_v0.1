@@ -9,7 +9,9 @@ import {
   formatTranscript,
 } from '../core/context.js';
 import { AppError } from '../core/errors.js';
+import { MEETING_READING_GUIDANCE } from '../core/defaults.js';
 import { compileResearchInput } from './research-input/compile.js';
+import { compileImages } from './research-input/images.js';
 
 const withResearchInput = (messages) =>
   messages.map((message) => ({
@@ -33,10 +35,10 @@ function automationInput(goal) {
  * @typedef {import('../runtime/port.js').ModelChoice} ModelChoice
  * @typedef {{ text: string, commit: (result: {status: string, turnId: string}) => unknown }} FollowupPacket
  * @typedef {{rebuilding: boolean, model: ModelChoice, instructions: string, signal?: AbortSignal}} FollowupOptions
- * @typedef {{input: string, messages: import('../core/messages.js').Message[]}} AssembledInput
+ * @typedef {{input: string, messages: import('../core/messages.js').Message[], images: import('../runtime/port.js').ImageContent[]}} AssembledInput
  * @typedef {{model: ModelChoice, workFolder: string, instructions: string, environmentId?:string, env?:{PATH?:string,VIRTUAL_ENV?:string},
  *   followup: (rebuilding: boolean) => Promise<FollowupPacket | null>,
- *   resumedInput: (afterSeq: number) => (packet: FollowupPacket | null) => AssembledInput,
+ *   resumedInput: (afterSeq: number) => (packet: FollowupPacket | null) => Promise<AssembledInput>,
  *   seedInput: (packet: FollowupPacket | null) => Promise<AssembledInput>}} PreparedContext
  * @typedef {{meetingId: string, participantId: string,
  *   cutoffSeq?: number, reviewMessageIds?: string[], continuation?: boolean,
@@ -178,6 +180,9 @@ export function createContextAssembly({
         projectBrief:
           participant.id === 'agent_main' && project ? await projectBrief(project.id) : '',
       }) +
+      (!['agent_secretary', 'agent_assistant'].includes(participant.id)
+        ? `\n${MEETING_READING_GUIDANCE}`
+        : '') +
       (environment
         ? `\n\nPython 环境：${environment.name}（${environment.id}）。需要新包时调用 python_env_install，说明包名和原因，不要在终端直接 pip install。`
         : '');
@@ -211,6 +216,18 @@ export function createContextAssembly({
         ? '\n\n请继续完成你上一条未完成的回答：\n' + (ownContinuation?.text ?? '')
         : '');
 
+    function imagesFor(messages) {
+      const questionMessage =
+        retry && cutoffSeq != null
+          ? core.messages.since(meeting.id, 0).find((message) => message.seq === cutoffSeq)
+          : null;
+      return compileImages(
+        core,
+        questionMessage && !messages.some((message) => message.id === questionMessage.id)
+          ? [...messages, questionMessage]
+          : messages,
+      );
+    }
     function resumedInput(afterSeq) {
       const messages = selectedMessages(
         meeting.id,
@@ -219,12 +236,13 @@ export function createContextAssembly({
         participant.id,
         true,
       ).filter((message) => !reviewMessageIds?.includes(message.id));
-      return (packet) => ({
+      return async (packet) => ({
         input:
           (packet?.text ?? '') +
           buildFollowupInput({ messages: withResearchInput(messages), nameOf }) +
           suffix,
         messages: [...messages, ...review],
+        images: await imagesFor(messages),
       });
     }
     async function seedInput(packet) {
@@ -251,6 +269,7 @@ export function createContextAssembly({
           }) +
           suffix,
         messages: [...messages, ...review],
+        images: await imagesFor(messages),
       };
     }
     return {

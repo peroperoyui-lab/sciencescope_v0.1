@@ -3,7 +3,7 @@
 // turn ends, so conductor behaviour is testable without a model or DSH.
 
 /**
- * @typedef {{ sessionId: string, input: string, inputs: string[], instructions: string,
+ * @typedef {{ sessionId: string, input: string, inputs: string[], instructions: string, images: import('./port.js').ImageContent[],
  *   call: (name: string, args: any) => Promise<any>, signal: AbortSignal }} ScriptContext
  * @typedef {(context: ScriptContext) => AsyncIterable<
  *   string | { stop: 'max_tokens' | 'failed', error?: string } | import('./port.js').RuntimeEvent>} Script
@@ -36,7 +36,7 @@ export function createScriptedRuntime({ script }) {
       return id;
     },
 
-    async send(sessionId, input, onEvent) {
+    async send(sessionId, input, onEvent, images = []) {
       const session = sessions.get(sessionId);
       if (!session) throw new Error(`No scripted session ${sessionId}`);
       session.inputs.push(input);
@@ -50,6 +50,7 @@ export function createScriptedRuntime({ script }) {
         const steps = script({
           sessionId,
           input,
+          images,
           inputs: session.inputs,
           instructions: session.instructions,
           signal,

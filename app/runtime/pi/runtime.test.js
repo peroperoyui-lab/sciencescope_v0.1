@@ -13,13 +13,19 @@ import {
 } from '@earendil-works/pi-ai/providers/faux';
 import { createPiRuntime } from './runtime.js';
 import { tempDir } from '../../testing.js';
+import { sessionStore } from './sessions.js';
 
-async function fixture(work, limits = {}) {
+/**
+ * @param {(context:any)=>Promise<void>} work
+ * @param {any} [limits]
+ * @param {Array<'text'|'image'>} [input]
+ */
+async function fixture(work, limits = {}, input = ['text']) {
   const { dir, cleanup } = await tempDir('pi-runtime');
   const faux = fauxProvider({
     tokensPerSecond: 10000,
     tokenSize: { min: 1, max: 1 },
-    models: [{ id: 'test', reasoning: true, contextWindow: 20000, maxTokens: 2000 }],
+    models: [{ id: 'test', reasoning: true, contextWindow: 20000, maxTokens: 2000, input }],
   });
   const models = createModels();
   models.setProvider(faux.provider);
@@ -46,6 +52,43 @@ async function fixture(work, limits = {}) {
     await cleanup();
   }
 }
+
+test('vision receives ImageContent; text-only models still answer text and explain the missing image', async () => {
+  const image = { type: /** @type {const} */ ('image'), data: 'aW1hZ2U=', mimeType: 'image/png' };
+  for (const supportsImages of [true, false]) {
+    await fixture(
+      async ({ runtime, faux, options, dir }) => {
+        faux.setResponses([fauxAssistantMessage('The text answer is retained.')]);
+        const id = await runtime.startSession(options);
+        let text = '';
+        const result = await runtime.send(
+          id,
+          'Explain this',
+          (event) => {
+            if (event.type === 'text-delta') text += event.delta;
+          },
+          [image],
+        );
+        const messages = await sessionStore(path.join(dir, 'runtime')).read(id);
+        const user = messages.find((message) => message.role === 'user');
+        assert.equal(
+          user.content.filter((block) => block.type === 'image').length,
+          supportsImages ? 1 : 0,
+        );
+        assert.equal(text, 'The text answer is retained.');
+        assert.equal(result.stopReason, supportsImages ? 'completed' : 'failed');
+        if (supportsImages)
+          assert.deepEqual(
+            user.content.find((block) => block.type === 'image'),
+            image,
+          );
+        else assert.match(result.error, /这个模型不能读图片/u);
+      },
+      {},
+      supportsImages ? ['text', 'image'] : ['text'],
+    );
+  }
+});
 
 test('stream thinking and text, execute a host tool, then resume the complete transcript with new effort', async () => {
   await fixture(async ({ runtime, faux, options, dir }) => {

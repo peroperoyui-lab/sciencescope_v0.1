@@ -127,7 +127,7 @@ export function createTurnRunner({
         return {
           sessionId,
           packet,
-          ...input(packet),
+          ...(await input(packet)),
         };
       }
     }
@@ -244,7 +244,12 @@ export function createTurnRunner({
         prepared.messages.map((message) => message.id),
         turn.id,
       );
-      const result = await runtime.send(prepared.sessionId, prepared.input, onEvent);
+      const result = await runtime.send(
+        prepared.sessionId,
+        prepared.input,
+        onEvent,
+        prepared.images,
+      );
       const status = execution.cancelled
         ? 'cancelled'
         : (STATUS_BY_STOP[result.stopReason] ?? 'failed');
@@ -269,7 +274,7 @@ export function createTurnRunner({
         status,
         stopReason: execution.cancelled ? 'cancelled' : result.stopReason,
         usage: result.usage,
-        error: status === 'failed' ? (result.error ?? null) : null,
+        error: status === 'cancelled' ? null : (result.error ?? null),
       });
     } catch (error) {
       const status = execution.cancelled ? 'cancelled' : 'failed';

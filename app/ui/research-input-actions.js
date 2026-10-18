@@ -27,12 +27,12 @@ export function createResearchInputActions(api, store) {
         let binary = '';
         for (let i = 0; i < bytes.length; i += 16384)
           binary += String.fromCharCode(...bytes.subarray(i, i + 16384));
-        const source = await api.post('/api/research/sources', {
+        const value = await api.post(`${route(owner)}/attachments`, {
           name: file.name,
           base64: btoa(binary),
           projectId,
         });
-        await changeInput(owner, { op: 'add', material: { type: 'source', id: source.id } });
+        remember(owner, value);
       }
     },
     showMaterials: (target) => store.update((state) => ({ ...state, materialsTarget: target })),

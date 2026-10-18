@@ -150,7 +150,8 @@ export function createAppServer({
           ? {}
           : await readJson(
               request,
-              ['/api/research/sources', '/api/versions/import'].includes(url.pathname),
+              ['/api/research/sources', '/api/versions/import'].includes(url.pathname) ||
+                /^\/api\/research-input\/[^/]+\/attachments$/u.test(url.pathname),
             );
       const result = await route.handler({
         params: route.params,

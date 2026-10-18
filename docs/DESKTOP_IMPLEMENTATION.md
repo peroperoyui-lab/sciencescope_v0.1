@@ -1,5 +1,11 @@
 # Desktop implementation — first increment
 
+## 2026-10-18 A2-1 image input and native screenshot (Codex)
+- Image originals reuse library/originals with migration 020; message researchInput.materials exposes type/id/name/mimeType/bytes/url. Runtime send accepts images; unsupported models retain the text answer and record the readable reason in turns.error. Main/expert prompts discourage unsolicited meeting reads.
+- Windows Snipping Tool supplies selection; capture_screenshot restores windows after capture/cancel/error. Stored composer.hideWindowOnScreenshot defaults true; the settings toggle and message thumbnails remain with Claude by user instruction. No styles changed.
+- Native hide/show/Escape and real image/prompt checks pass: flash 7 requests / 32,146 tokens, plus preset connection probe 1 / 166. Screenshots use WebView 100%/125% viewport emulation; clean-checkout validation is recorded in the local report.
+- Existing R6a-5 package overlaid in 321.167 s: 9,697 program files, verified 49,979-file data backup, startup 8.795 s without log errors. Evidence: .sciencescope-local/temp/a2-1/REPORT.md; no A2 build installed in the user preview.
+
 ## 2026-10-18 Second-round test fixes (Claude)
 - Compact activity view keeps cards waiting for approval; preambles render as Markdown; chat/project menus show 置顶 as an item; source detail wraps long text; file preview and materials panels use `SidePanel`. Old `meeting-tool.js` removed. Check 245 pass, 2 Windows-only skipped (`map.browser.test.js` still flaky on the base branch).
 

@@ -1,5 +1,9 @@
 # ScienceScope 系统功能与技术说明
 
+A2-1（2026-10-18，待审阅）：输入框 PNG/JPEG/WebP/GIF 图片原件保存在 `library/originals/`，迁移 020 的 `input_images` 保存元数据，不登记成资料库来源。`POST /api/research-input/:owner/attachments` 返回草稿；消息 `researchInput.materials[]` 中图片字段为 `type=image`、`id`、`name`、`title`、`mimeType`、`bytes`、`url`、`selectionId`；`GET /api/research-input/images/:id` 按现有认证返回原件。运行时只向模型目录声明支持 image 的模型传图片；不支持时仍生成文字回答，回合记为 failed，`turns.error` 显示可读原因。重启、分支及重新回答保留图片输入。
+
+主专家和专家提示词加入「用户没有提到其他对话时，不查阅本对话以外的会议记录；需要时先说明再查」，工具权限不变。原生「添加 → 截图」调用 Windows Snipping Tool，完成后加入当前草稿；取消不加附件，结束恢复窗口。全局设置 `composer.hideWindowOnScreenshot` 默认 true，经现有 settings workspace read/edit 接口读写并实际生效；用户要求设置开关及消息缩略图由 Claude 接入，本轮未加这两项界面。浏览器保留系统截图后粘贴提示。
+
 P1b（2026-10-17，已合并）：共享宿主工具已恢复 shell、文件读写/精确编辑/搜索与网页读取。会议 `policy.approval` 默认为 `ask`；shell、数据目录外写入和 Python 包安装经批准接口等待，活动保存 `approval` 与 `pending/approved/rejected/cancelled`，拒绝及取消不写 `turns.error`。界面：输入栏执行方式三档（请求批准、常规、自动化），新对话默认请求批准，选择存在会议规则里；批准卡片出现在时间线里它发生的位置，状态行显示「等待你的批准」，处理后收成「已允许 / 已拒绝 / 已取消」一行；秘书和全局助手的回答里同样出现批准卡片。详细接口见 `02_INTERACTION_CONTRACTS.md` 2026-10-16 修订。
 
 P1b 上下文压缩：全局 `context.compactPercent` 默认 80，可设置 50–95。每次模型请求前按实际发送内容的 UTF-8 大小估算上下文；达到比例时，同模型单次请求整理较早消息，最近两轮用户消息及其后工具结果保留原文。成功后原子保存会话、发 `compaction` 活动（`result={beforeTokens,afterTokens}`，均为估算）；阶段为 `compacting`。摘要失败或达到输出上限时保留原文继续；请求日志 `purpose=compaction` 记录用量及失败。秘书纪要与会议原文保持独立。时间线显示「上下文已自动压缩 12 万 → 1.8 万 token」一行，状态行显示「正在压缩上下文」；门槛在「设置 → 模型与服务商」用滑块调整（50–95，松手保存），输入栏的上下文环到这个比例变成提醒色。

@@ -46,7 +46,28 @@ export function useResearchInput(owner, projectId) {
  */
 export function InputAdd({ owner, projectId = null }) {
   const actions = useActions();
+  const hideWindow = useAppState(
+    (state) => state.settings?.composer?.hideWindowOnScreenshot ?? true,
+  );
   const picker = useRef(null);
+  async function screenshot() {
+    const invoke = globalThis.__TAURI__?.core?.invoke;
+    if (!invoke) {
+      actions.openModal(
+        t('截图'),
+        html`<${InfoTip} text=${t('使用系统截图后，在输入框中粘贴。')} />`,
+      );
+      return;
+    }
+    await actions.attempt(async () => {
+      const base64 = await invoke('capture_screenshot', { hideWindow });
+      if (!base64) return;
+      const bytes = Uint8Array.from(atob(base64), (character) => character.charCodeAt(0));
+      await actions.attachInput(owner, projectId, [
+        new File([bytes], `Screenshot-${Date.now()}.png`, { type: 'image/png' }),
+      ]);
+    });
+  }
   return html`<span class="input-add">
     <input
       ref=${picker}
@@ -71,11 +92,7 @@ export function InputAdd({ owner, projectId = null }) {
           {
             text: t('截图'),
             icon: 'file',
-            run: () =>
-              actions.openModal(
-                t('截图'),
-                html`<${InfoTip} text=${t('使用系统截图后，在输入框中粘贴。')} />`,
-              ),
+            run: screenshot,
           },
           {
             text: t('引用'),

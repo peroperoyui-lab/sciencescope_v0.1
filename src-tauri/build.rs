@@ -8,6 +8,7 @@ fn main() {
                 "show_assistant_menu",
                 "hide_assistant",
                 "pick_folder",
+                "capture_screenshot",
             ]),
         ),
     ).expect("desktop build metadata failed")

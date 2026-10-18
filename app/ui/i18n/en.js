@@ -1,6 +1,14 @@
 // English for every Chinese interface string. A test checks that each
 // Chinese string literal in app/ui has an entry here.
 export const en = {
+  '截图时隐藏 ScienceScope 窗口': 'Hide ScienceScope windows while taking a screenshot',
+  '这个模型不能读图片，换一个支持图片的模型再试。':
+    'This model cannot read images. Choose a model that supports images and try again.',
+  '找不到这张图片，请重新添加。': 'This image could not be found. Attach it again.',
+  '无法启动系统截图，请使用系统截图后粘贴。':
+    'Could not start screen capture. Take a system screenshot and paste it here.',
+  '截图未完成，请重试或使用系统截图后粘贴。':
+    'Screen capture did not finish. Try again or paste a system screenshot.',
   'Python 下载源': 'Python download source',
   'Python 下载地址': 'Python download URL',
   '官方源下载 CPython。自定义地址须提供与官方一致的文件；仅用于 uv 下载，不改变软件包镜像源。':
