@@ -30,7 +30,7 @@ const withResearchInput = (messages) =>
  *   followup: (rebuilding: boolean) => Promise<FollowupPacket | null>,
  *   resumedInput: (afterSeq: number) => (packet: FollowupPacket | null) => Promise<AssembledInput>,
  *   seedInput: (packet: FollowupPacket | null) => Promise<AssembledInput>}} PreparedContext
- * @typedef {{meetingId: string, participantId: string, triggerMessageId?:string|null,
+ * @typedef {{meetingId: string, participantId: string, triggerMessageId?:string|null, triggerText?:string,
  *   cutoffSeq?: number, reviewMessageIds?: string[], continuation?: boolean,
  *   continuationMessageId?: string, retry?: boolean, signal?: AbortSignal,
  *   execution: {cancelled: boolean}}} ContextRequest
@@ -132,6 +132,7 @@ export function createContextAssembly({
     meetingId,
     participantId,
     triggerMessageId,
+    triggerText,
     cutoffSeq,
     reviewMessageIds,
     continuation,
@@ -193,6 +194,14 @@ export function createContextAssembly({
           .join('\n\n')
       : '';
     const ownContinuation = continuationMessageId ? core.messages.get(continuationMessageId) : null;
+    // Only this invocation projects a multi-mention question. The stored message
+    // and later participants' transcript always retain the original text.
+    const forThisTurn = (messages) =>
+      messages.map((message) =>
+        message.id === triggerMessageId && triggerText !== undefined
+          ? { ...message, text: triggerText }
+          : message,
+      );
     const transcript = core.messages.since(meeting.id, 0);
     const retryMessages =
       retry && cutoffSeq != null
@@ -209,7 +218,7 @@ export function createContextAssembly({
             );
           })
         : [];
-    const question = withResearchInput(retryMessages)
+    const question = withResearchInput(forThisTurn(retryMessages))
       .map((message) => message.text)
       .join('\n\n');
     const followupFor = async (rebuilding) =>
@@ -239,10 +248,26 @@ export function createContextAssembly({
         participant.id,
         true,
       ).filter((message) => !reviewMessageIds?.includes(message.id));
+      // A session that previously read just its segment now gets the original
+      // question once, so segmentation never becomes a permanent history filter.
+      const originalIds = new Set(
+        core.messages
+          .since(meeting.id, 0)
+          .filter(
+            (message) =>
+              message.authorId === participant.id &&
+              message.refs?.discussion?.kind === 'mention' &&
+              message.refs.discussion.cutoffSeq === afterSeq &&
+              message.refs.discussion.triggerMessageId !== triggerMessageId,
+          )
+          .map((message) => message.refs.discussion.triggerMessageId),
+      );
+      for (const id of originalIds)
+        if (!messages.some((message) => message.id === id)) messages.unshift(core.messages.get(id));
       return async (packet) => ({
         input:
           (packet?.text ?? '') +
-          buildFollowupInput({ messages: withResearchInput(messages), nameOf }) +
+          buildFollowupInput({ messages: withResearchInput(forThisTurn(messages)), nameOf }) +
           suffix,
         messages: [...messages, ...review],
         images: await imagesFor(messages),
@@ -253,7 +278,13 @@ export function createContextAssembly({
       const revisionId = minutes.revisionId;
       const throughSeq = await minutesCoverage(meeting.id, revisionId);
       // A queued earlier question must not see a summary of future questions.
-      const usableMinutes = cutoffSeq == null || throughSeq <= cutoffSeq;
+      const usableMinutes =
+        (cutoffSeq == null || throughSeq <= cutoffSeq) &&
+        !(
+          triggerText !== undefined &&
+          triggerMessageId &&
+          throughSeq >= core.messages.get(triggerMessageId).seq
+        );
       const coveredIds = new Set(minutesCoveredMessageIds(meeting.id, revisionId));
       const messages = selectedMessages(meeting.id, 0, cutoffSeq, participant.id, false).filter(
         (message) =>
@@ -267,7 +298,7 @@ export function createContextAssembly({
           (packet?.text ?? '') +
           buildSeedInput({
             minutes: usableMinutes ? minutes.text : null,
-            messages: withResearchInput(messages),
+            messages: withResearchInput(forThisTurn(messages)),
             nameOf,
           }) +
           suffix,

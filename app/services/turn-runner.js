@@ -146,6 +146,7 @@ export function createTurnRunner({
    *   triggerMessageId?: string | null,
    *   reserved?: ReturnType<typeof reserve>,
    *   cutoffSeq?: number,
+   *   triggerText?: string,
    *   reviewMessageIds?: string[],
    *   continuation?: boolean,
    *   continuationMessageId?: string,

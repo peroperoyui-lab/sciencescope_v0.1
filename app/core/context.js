@@ -140,9 +140,9 @@ export function buildFollowupInput({ messages, nameOf }) {
  * Participants addressed with @name in a message, in order of appearance.
  * @param {string} text
  * @param {Array<{ id: string, name: string }>} candidates
- * @returns {string[]}
+ * @returns {Array<{id:string,index:number,end:number}>}
  */
-export function mentionedParticipants(text, candidates) {
+function participantMentions(text, candidates) {
   const found = [];
   const claimed = [];
   const overlaps = (start, end) => claimed.some(([from, to]) => start < to && end > from);
@@ -152,9 +152,43 @@ export function mentionedParticipants(text, candidates) {
     for (let index = text.indexOf(needle); index >= 0; index = text.indexOf(needle, index + 1)) {
       if (overlaps(index, index + needle.length)) continue;
       claimed.push([index, index + needle.length]);
-      found.push({ id: candidate.id, index });
-      break;
+      found.push({ id: candidate.id, index, end: index + needle.length });
     }
   }
-  return found.sort((a, b) => a.index - b.index).map((entry) => entry.id);
+  return found.sort((a, b) => a.index - b.index);
+}
+
+/**
+ * Participants addressed with @name, preserving first appearance order.
+ * @param {string} text
+ * @param {Array<{id:string,name:string}>} candidates
+ * @returns {string[]}
+ */
+export function mentionedParticipants(text, candidates) {
+  return [...new Set(participantMentions(text, candidates).map((entry) => entry.id))];
+}
+
+/**
+ * Multiple addressees get a shared preface and their own verbatim segments.
+ * Consecutive mentions with only whitespace between them share the next segment.
+ * @param {string} text
+ * @param {Array<{id:string,name:string}>} candidates
+ * @returns {Map<string,string>}
+ */
+export function mentionedInputs(text, candidates) {
+  const mentions = participantMentions(text, candidates);
+  const ids = [...new Set(mentions.map((entry) => entry.id))];
+  if (ids.length < 2) return new Map(ids.map((id) => [id, text]));
+  const prefix = text.slice(0, mentions[0].index).trim();
+  const parts = new Map(ids.map((id) => [id, []]));
+  let group = [];
+  for (let index = 0; index < mentions.length; index++) {
+    const mention = mentions[index];
+    group.push(mention.id);
+    const body = text.slice(mention.end, mentions[index + 1]?.index ?? text.length).trim();
+    if (!body && index + 1 < mentions.length) continue;
+    for (const id of new Set(group)) if (body) parts.get(id).push(body);
+    group = [];
+  }
+  return new Map(ids.map((id) => [id, [prefix, ...parts.get(id)].filter(Boolean).join('\n\n')]));
 }
