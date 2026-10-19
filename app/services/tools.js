@@ -35,7 +35,7 @@ export const TOOL_SPECS = [
   {
     name: 'workspace_present',
     description:
-      'Present generated files under your answer as image thumbnails or document cards. Files are copied into durable ScienceScope data. Relative paths resolve against the current meeting work folder. Provide a description for each file. Other participants receive the saved paths and descriptions, never file bytes.',
+      'Present generated files under your answer as image thumbnails or document cards. Files are copied into durable ScienceScope data. Relative paths resolve against the current meeting work folder. Provide a description for each file. To also show a presented file inside your answer text, write Markdown with the same path: ![description](path) for an image, [name](path) for a document. Other participants receive the saved paths and descriptions, never file bytes.',
     parameters: {
       files: {
         type: 'array',

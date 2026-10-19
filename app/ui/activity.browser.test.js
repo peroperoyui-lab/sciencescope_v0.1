@@ -123,8 +123,12 @@ test(
         await answer.locator('.ss-status--wait', { hasText: '等待你的批准' }).waitFor();
         await shot('p1b-approval');
         await card.getByRole('button', { name: '拒绝', exact: true }).click();
-        await answer.locator('[data-activity="approval"][data-status="rejected"]').waitFor();
+        // Two commands in a row share one row; the second waits under it.
         await card.getByText('echo second').waitFor();
+        assert.match(
+          await answer.locator('[data-activity="group"]').textContent(),
+          /正在运行命令|等待批准/,
+        );
         await card.getByRole('button', { name: '允许', exact: true }).click();
 
         await answer.getByText('处理完了').waitFor();
@@ -136,7 +140,14 @@ test(
           await activity.locator('[data-activity="compaction"]').textContent(),
           /上下文已自动压缩.*12 万 → 1\.8 万 token/,
         );
-        assert.match(await activity.locator('[data-tool-call]').first().textContent(), /已拒绝/);
+        const group = activity.locator('[data-activity="group"][data-count="2"]');
+        assert.match(await group.textContent(), /运行了 2 条命令.*1 个已拒绝/);
+        await group.click();
+        const first = activity.locator('[data-tool-call]').first();
+        assert.equal(await first.getAttribute('data-approval'), 'rejected');
+        assert.match(await first.textContent(), /已拒绝/);
+        // The decision is the step's status, not a row of its own.
+        assert.equal(await activity.locator('[data-activity="approval"]').count(), 0);
         await shot('p1b-decided');
 
         await mode.click();

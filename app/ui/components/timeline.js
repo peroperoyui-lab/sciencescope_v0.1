@@ -1,14 +1,17 @@
 // Activity timeline of one answer (design system ActivityTimeline): the
 // model's words between calls, its thinking, retries of a failed request and
-// one row per tool call, each opening to its details. Open while the answer
-// runs; afterwards it folds into one summary line. Every call stays visible,
-// failed ones with their reason.
+// one row per tool call, each opening to its details. Consecutive calls of one
+// kind share a row (运行了 6 条命令), and an approval is the status of the call
+// it held, not a row of its own. Open while the answer runs; afterwards it
+// folds into one summary line. Every call stays reachable, failed ones with
+// their reason.
+import { Fragment } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
 import { renderMarkdown } from '../markdown.js';
-import { ApprovalRow } from './approval.js';
+import { ApprovalCard, ApprovalRow } from './approval.js';
 import { tokenAmount } from './discussion-usage.js';
 
 const RESOURCE_NAMES = {
@@ -33,20 +36,23 @@ const text = (value) => (value == null ? '' : String(value));
 
 /**
  * How each tool reads in the timeline: icon, verb (done and running), what
- * it acted on, and whether that is a path or command (mono) or plain words.
- * @type {Record<string, (args: any) => { icon: string, verb: string, running: string, target?: string, mono?: boolean }>}
+ * it acted on, whether that is a path or command (mono) or plain words, and
+ * how a run of such calls is summed up (group).
+ * @type {Record<string, (args: any) => { icon: string, verb: string, running: string, group?: string, target?: string, mono?: boolean }>}
  */
 const TOOLS = {
   workspace_read: (args) => ({
     icon: 'file-search',
     verb: '读取',
     running: '正在读取',
+    group: '读取了 {n} 项',
     target: resource(args?.target),
   }),
   workspace_edit: (args) => ({
     icon: 'file-pen',
     verb: '修改',
     running: '正在修改',
+    group: '修改了 {n} 处',
     target: resource(args?.resource),
   }),
   workspace_undo: () => ({ icon: 'undo-2', verb: '撤销改动', running: '正在撤销改动' }),
@@ -64,12 +70,14 @@ const TOOLS = {
   research_search: (args) => ({
     icon: 'text-search',
     verb: '搜索资料库',
+    group: '搜索了 {n} 次资料库',
     running: '正在搜索资料库',
     target: text(args?.query),
   }),
   research_read: (args) => ({
     icon: 'book-open',
     verb: '读取资料',
+    group: '读取了 {n} 份资料',
     running: '正在读取资料',
     target: text(args?.label ?? args?.id),
   }),
@@ -89,6 +97,7 @@ const TOOLS = {
   bash: (args) => ({
     icon: 'square-terminal',
     verb: '运行命令',
+    group: '运行了 {n} 条命令',
     running: '正在运行命令',
     target: text(args?.command),
     mono: true,
@@ -96,6 +105,7 @@ const TOOLS = {
   read: (args) => ({
     icon: 'file-search',
     verb: '读取文件',
+    group: '读取了 {n} 个文件',
     running: '正在读取文件',
     target: text(args?.path ?? args?.file_path),
     mono: true,
@@ -103,6 +113,7 @@ const TOOLS = {
   write: (args) => ({
     icon: 'file-pen',
     verb: '写入文件',
+    group: '写入了 {n} 个文件',
     running: '正在写入文件',
     target: text(args?.path ?? args?.file_path),
     mono: true,
@@ -110,6 +121,7 @@ const TOOLS = {
   edit: (args) => ({
     icon: 'file-diff',
     verb: '修改文件',
+    group: '修改了 {n} 个文件',
     running: '正在修改文件',
     target: text(args?.path ?? args?.file_path),
     mono: true,
@@ -117,6 +129,7 @@ const TOOLS = {
   grep: (args) => ({
     icon: 'text-search',
     verb: '搜索内容',
+    group: '搜索了 {n} 次内容',
     running: '正在搜索内容',
     target: text(args?.pattern),
     mono: true,
@@ -124,6 +137,7 @@ const TOOLS = {
   web_fetch: (args) => ({
     icon: 'globe',
     verb: '读取网页',
+    group: '读取了 {n} 个网页',
     running: '正在读取网页',
     target: text(args?.url),
     mono: true,
@@ -132,6 +146,7 @@ const TOOLS = {
 TOOLS.list_files = (args) => ({
   icon: 'folder-open',
   verb: '列出文件',
+  group: '列出了 {n} 次文件',
   running: '正在列出文件',
   target: text(args?.pattern ?? args?.path),
   mono: true,
@@ -229,22 +244,46 @@ function CompactionRow({ call }) {
   </div>`;
 }
 
-/** @param {{ call: any, running: boolean, waiting: boolean }} props */
-function ActivityRow({ call, running, waiting }) {
+const pad = (n) => String(n).padStart(2, '0');
+/** "16:27". @param {string} [iso] */
+function clock(iso) {
+  if (!iso) return '';
+  const date = new Date(iso);
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** @param {{ call: any }} props */
+function Narration({ call }) {
+  return html`<div
+    class="ss-act__narr ss-prose"
+    dangerouslySetInnerHTML=${{ __html: renderMarkdown(call.preamble) }}
+  ></div>`;
+}
+
+/** @param {{ call: any, running: boolean, approval?: any, narrate?: boolean }} props */
+function ActivityRow({ call, running, approval, narrate = true }) {
   if (call.kind === 'thinking') return html`<${ThinkingRow} call=${call} running=${running} />`;
   if (call.kind === 'retry') return html`<${RetryRow} call=${call} />`;
   if (call.kind === 'approval') return html`<${ApprovalRow} call=${call} />`;
   if (call.kind === 'compaction') return html`<${CompactionRow} call=${call} />`;
-  return html`<${CallRow} call=${call} running=${running} waiting=${waiting} />`;
+  return html`<${CallRow}
+    call=${call}
+    running=${running}
+    approval=${approval}
+    narrate=${narrate}
+  />`;
 }
 
-/** @param {{ call: any, running: boolean, waiting?: boolean }} props */
-function CallRow({ call, running, waiting = false }) {
+/**
+ * One tool call. An approval it waited for is part of the row: 等待批准 at
+ * the end while the card below waits, and who decided when in the details.
+ * @param {{ call: any, running: boolean, approval?: any, narrate?: boolean }} props
+ */
+function CallRow({ call, running, approval, narrate = true }) {
   const [open, setOpen] = useState(false);
   const shown = describeCall(call);
-  // A call held for approval is not running yet; its card follows it.
-  const held = call.status === 'running' && running && waiting;
-  const active = call.status === 'running' && running && !waiting;
+  const held = approval?.status === 'pending';
+  const active = call.status === 'running' && running && !held;
   const failed = call.status === 'failed';
   const unfinished = call.status === 'running' && !running;
   const end = failed
@@ -260,19 +299,20 @@ function CallRow({ call, running, waiting = false }) {
             : call.result?.cancelled
               ? t('已取消')
               : outcome(call.result);
+  const decided =
+    approval?.status === 'approved'
+      ? t('你在 {time} 允许了这一步', { time: clock(approval.endedAt) })
+      : approval?.status === 'rejected'
+        ? t('你在 {time} 拒绝了这一步', { time: clock(approval.endedAt) })
+        : '';
   const tone = failed ? 'ss-act__row--fail' : unfinished ? 'ss-act__row--muted' : '';
-  return html`${
-      call.preamble &&
-      html`<div
-        class="ss-act__narr ss-prose"
-        dangerouslySetInnerHTML=${{ __html: renderMarkdown(call.preamble) }}
-      ></div>`
-    }
+  return html`${narrate && call.preamble && html`<${Narration} call=${call} />`}
     <button
       type="button"
       class=${`ss-act__row ${tone}`}
       data-tool-call=${call.id}
       data-status=${call.status}
+      data-approval=${approval?.status}
       aria-expanded=${open}
       onClick=${() => setOpen(!open)}
     >
@@ -289,16 +329,152 @@ function CallRow({ call, running, waiting = false }) {
     </button>
     ${
       open &&
-      html`<div class="ss-act__detail">
-        <div class="ss-act__detail-head"><span class="ss-mono">${call.name}</span></div>
-        <pre>${pretty(call.args)}</pre>
-        ${
-          call.result != null &&
-          html`<div class="ss-act__detail-head"><span>${failed ? t('错误') : t('结果')}</span></div>
-            <pre>${pretty(call.result)}</pre>`
-        }
+      (commandRan(call)
+        ? html`<div class="ss-act__detail">
+            <div class="ss-act__detail-head"><span>$ ${call.args?.command}</span></div>
+            <pre>${call.result.output || t('（没有输出）')}</pre>
+            <div class="ss-act__detail-foot">
+              ${[
+                t('退出码 {code}', { code: call.result.exitCode ?? '—' }),
+                call.result.timedOut && t('已超时'),
+                decided,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </div>
+          </div>`
+        : html`<div class="ss-act__detail">
+            <div class="ss-act__detail-head"><span class="ss-mono">${call.name}</span></div>
+            <pre>${pretty(call.args)}</pre>
+            ${
+              call.result != null &&
+              html`<div class="ss-act__detail-head">
+                  <span>${failed ? t('错误') : t('结果')}</span>
+                </div>
+                <pre>${pretty(call.result)}</pre>`
+            }
+            ${decided && html`<div class="ss-act__detail-foot">${decided}</div>`}
+          </div>`)
+    }`;
+}
+
+/** A finished shell command reads as its output, like a terminal. @param {any} call */
+const commandRan = (call) =>
+  TOOLS[call.name] === TOOLS.bash &&
+  typeof call.result?.output === 'string' &&
+  !call.result.rejected &&
+  !call.result.cancelled;
+
+/**
+ * Consecutive calls of one kind, as one row that opens to each of them:
+ * 运行了 6 条命令. While the last one runs the row says what it is doing.
+ * @param {{ run: { group?: string, calls: any[] }, running: boolean, approvals: Map<string, any> }} props
+ */
+function GroupRow({ run, running, approvals }) {
+  const [open, setOpen] = useState(false);
+  const tools = run.calls.filter(isToolCall);
+  const last = tools.at(-1);
+  const shown = describeCall(last);
+  const held = tools.some((call) => approvals.get(call.id)?.status === 'pending');
+  const active = running && !held && last.status === 'running';
+  // A call waiting for approval has not run yet.
+  const done = held ? tools.length - 1 : tools.length;
+  const failed = tools.filter((call) => call.status === 'failed').length;
+  const rejected = tools.filter((call) => call.result?.rejected).length;
+  return html`${run.calls[0].preamble && html`<${Narration} call=${run.calls[0]} />`}
+    <button
+      type="button"
+      class="ss-act__row"
+      data-activity="group"
+      data-count=${tools.length}
+      aria-expanded=${open}
+      onClick=${() => setOpen(!open)}
+    >
+      ${active ? html`<span class="ss-spin"></span>` : html`<${Lucide} name=${shown.icon} />`}
+      <span class="ss-act__verb">${active ? t(shown.running) : t(run.group, { n: done })}</span>
+      ${
+        active &&
+        shown.target &&
+        html`<span class=${`ss-act__target ${shown.mono ? '' : 'ss-act__target--text'}`}
+          >${shown.target}</span
+        >`
+      }
+      ${held && html`<span class="ss-act__end">${t('等待批准')}</span>`}
+      ${!held && failed > 0 && html`<span class="ss-act__end ss-act__end--fail">${t('{n} 个失败', { n: failed })}</span>`}
+      ${!held && rejected > 0 && html`<span class="ss-act__end">${t('{n} 个已拒绝', { n: rejected })}</span>`}
+      <${Lucide} name="chevron-right" class="ss-act__chev" />
+    </button>
+    ${
+      open &&
+      html`<div class="ss-act__nest">
+        ${run.calls.map(
+          (call, index) =>
+            html`<${ActivityRow}
+              key=${call.id}
+              call=${call}
+              running=${running}
+              approval=${approvals.get(call.id)}
+              narrate=${index > 0}
+            />`,
+        )}
       </div>`
     }`;
+}
+
+/**
+ * Each approval belongs to the tool call it held (args.callId; older
+ * requests: the nearest call before it). One without a call keeps its row.
+ * @param {any[]} calls
+ */
+function approvalsByCall(calls) {
+  /** @type {Map<string, any>} */
+  const byCall = new Map();
+  const loose = new Set();
+  calls.forEach((call, index) => {
+    if (call.kind !== 'approval') return;
+    const callId = call.args?.callId;
+    const owner =
+      (callId && calls.find((item) => isToolCall(item) && item.callId === callId)) ||
+      calls.slice(0, index).findLast(isToolCall);
+    if (owner) byCall.set(owner.id, call);
+    else loose.add(call);
+  });
+  return { byCall, loose };
+}
+
+/**
+ * Rows of the timeline: consecutive calls of one kind (with the thinking
+ * between them) form a group; narration or a different step starts anew.
+ * @param {any[]} calls
+ * @returns {{ group?: string, calls: any[] }[]} a single step has no group
+ */
+function rowsOf(calls) {
+  /** @type {{ group?: string, calls: any[] }[]} */
+  const rows = [];
+  /** @type {{ group: string, calls: any[] } | null} */
+  let run = null;
+  const close = () => {
+    if (!run) return;
+    // Thinking after the run's last call belongs to whatever comes next.
+    const tail = [];
+    while (!isToolCall(run.calls.at(-1))) tail.unshift(run.calls.pop());
+    if (run.calls.filter(isToolCall).length > 1) rows.push(run);
+    else rows.push(...run.calls.map((call) => ({ calls: [call] })));
+    rows.push(...tail.map((call) => ({ calls: [call] })));
+    run = null;
+  };
+  for (const call of calls) {
+    const group = isToolCall(call) ? describeCall(call).group : undefined;
+    if (call.kind === 'thinking' && run) run.calls.push(call);
+    else if (group && run?.group === group && !call.preamble) run.calls.push(call);
+    else {
+      close();
+      if (group) run = { group, calls: [call] };
+      else rows.push({ calls: [call] });
+    }
+  }
+  close();
+  return rows;
 }
 
 /**
@@ -316,7 +492,8 @@ export function ActivityTimeline({ calls, running, turn }) {
   const tools = calls.filter(isToolCall);
   const failed = tools.filter((call) => call.status === 'failed').length;
   const retries = calls.filter((call) => call.kind === 'retry').length;
-  const waiting = calls.some((call) => call.kind === 'approval' && call.status === 'pending');
+  const { byCall, loose } = approvalsByCall(calls);
+  const rows = rowsOf(calls.filter((call) => call.kind !== 'approval' || loose.has(call)));
   const started = turn?.startedAt ?? calls[0].startedAt;
   const ended = turn?.endedAt ?? calls.at(-1).endedAt;
   const parts = [];
@@ -341,7 +518,25 @@ export function ActivityTimeline({ calls, running, turn }) {
     ${
       open &&
       html`<div class="ss-act__list">
-        ${calls.map((call) => html`<${ActivityRow} key=${call.id} call=${call} running=${running} waiting=${waiting} />`)}
+        ${rows.map((row) => {
+          const [first] = row.calls;
+          // The card waiting for a decision sits right under its step, never folded away.
+          const card = row.calls
+            .map((call) => byCall.get(call.id))
+            .find((approval) => approval?.status === 'pending');
+          return html`<${Fragment} key=${first.id}>
+            ${
+              row.group
+                ? html`<${GroupRow} run=${row} running=${running} approvals=${byCall} />`
+                : html`<${ActivityRow}
+                    call=${first}
+                    running=${running}
+                    approval=${byCall.get(first.id)}
+                  />`
+            }
+            ${card && html`<${ApprovalCard} call=${card} />`}
+          <//>`;
+        })}
       </div>`
     }
   </div>`;

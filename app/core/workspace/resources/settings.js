@@ -14,7 +14,11 @@ export const DEFAULT_SETTINGS = {
     density: 'standard',
     font: '',
     codeFontSize: 14,
+    // Main chat text; side panels and the left sidebar use sideFontSize.
     chatFontSize: 14,
+    // Line height of chat text as a multiple of its size; paragraphs follow it.
+    chatLineHeight: 1.6,
+    sideFontSize: 14,
     reduceMotion: false,
     scrollbars: false,
     // 'compact' hides tool activity cards in meetings (视图 → 简洁执行记录).

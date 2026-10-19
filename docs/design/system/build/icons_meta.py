@@ -2,7 +2,7 @@
 GROUPS = [
   ('导航与对象', [
     ('house','首页'),('square-pen','新对话'),('message-square','对话'),('book-open','资料库'),('box','工作站'),
-    ('folder','项目'),('folder-open','展开的项目'),('folder-plus','新建项目'),('file-text','文档'),('file','文件'),
+    ('folder','项目'),('folder-open','展开的项目'),('folder-plus','新建项目'),('file-text','文档'),('file','文件'),('files','多个文件'),
     ('network','导图'),('list-checks','计划'),('notebook-pen','日志'),('scroll-text','纪要'),('sticky-note','笔记'),
     ('history','历史版本'),('brain','记忆'),('inbox','收件箱'),('clipboard-list','秘书'),('sparkle','助手'),
     ('users','专家'),('circle-user','用户'),('book-marked','知识'),('sigma','模型与公式'),('scale','主张与证据'),

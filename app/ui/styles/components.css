@@ -2668,6 +2668,9 @@ button.ss-act__row:hover {
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
+.ss-act__end--fail {
+  color: var(--danger);
+}
 .ss-act__row > .ss-act__end:last-child {
   margin-right: 22px;
 }
@@ -2855,6 +2858,139 @@ button.ss-act__row:hover {
   justify-content: flex-end;
   gap: var(--sp-8);
   padding: 10px 12px;
+}
+
+/* ---------- Files presented with an answer ---------- */
+.ss-files {
+  display: grid;
+  margin: 8px 0 2px 28px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+}
+.ss-files__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px 0 12px;
+  border: 0;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 13px;
+  text-align: left;
+}
+.ss-files__head:hover {
+  background: var(--hover);
+}
+.ss-files__head > .ss-i {
+  flex: none;
+  color: var(--muted);
+}
+.ss-files__count {
+  flex: none;
+  color: var(--ink);
+}
+.ss-files__names {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ss-files__chev {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  margin-left: auto;
+  transition: transform var(--t-fast) var(--ease);
+}
+.ss-files__head[aria-expanded='true'] .ss-files__chev {
+  transform: rotate(180deg);
+}
+.ss-files__list {
+  display: grid;
+  padding: 4px;
+  border-top: 1px solid var(--line);
+}
+.ss-files__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  min-width: 0;
+  min-height: 40px;
+  padding: 4px 8px 4px 4px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+}
+.ss-files__row:hover {
+  background: var(--hover);
+}
+.ss-files__thumb,
+.ss-files__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 32px;
+  overflow: hidden;
+  border-radius: var(--r-xs);
+  background: var(--sunken);
+  color: var(--muted);
+}
+.ss-files__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.ss-files__name {
+  flex: none;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ss-files__desc {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Presented files the answer shows inline: a figure, or a link that opens the file */
+.ss-inline-figure {
+  display: block;
+  max-width: min(100%, 560px);
+  max-height: 320px;
+  margin: 8px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+  object-fit: contain;
+  cursor: zoom-in;
+}
+.ss-inline-file {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 0 6px;
+  border-radius: var(--r-xs);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+.ss-inline-file:hover {
+  text-decoration: underline;
 }
 
 /* ---------- Secretary proposal (an instruction drafted for Main) ---------- */

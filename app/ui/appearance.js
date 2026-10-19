@@ -29,6 +29,8 @@ export function applyAppearance(settings) {
     root.style.removeProperty('--font-sans');
   }
   root.style.setProperty('--chat-font-size', `${look.chatFontSize ?? 14}px`);
+  root.style.setProperty('--chat-line-height', String(look.chatLineHeight ?? 1.6));
+  root.style.setProperty('--side-font-size', `${look.sideFontSize ?? 14}px`);
   root.style.setProperty('--code-font-size', `${look.codeFontSize ?? 14}px`);
 }
 

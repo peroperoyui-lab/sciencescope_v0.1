@@ -63,10 +63,48 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
-/* Settings → chat font size (default 14px, the design's t-body 14/22). */
-.ss-thread .message-text {
-  font-size: var(--chat-font-size, 14px);
-  line-height: calc(var(--chat-font-size, 14px) + 8px);
+/* Settings → 对话字号 / 对话行距 / 侧栏字号. Chat text has one line height
+   and one paragraph gap, both tied to the text size (default 14px x 1.6, the
+   design's t-body); the side panels read at the sidebar size. */
+.ss-thread {
+  --prose-size: var(--chat-font-size, 14px);
+}
+.ss-thread--panel {
+  --prose-size: var(--side-font-size, 14px);
+}
+.ss-thread .message-text,
+.ss-thread .ss-act__narr {
+  font-size: var(--prose-size);
+  line-height: var(--chat-line-height, 1.6);
+}
+.ss-thread .rendered-markdown :is(p, ul, ol, blockquote, pre, .markdown-table) {
+  margin: 0 0 calc(var(--chat-line-height, 1.6) * 0.4em);
+}
+.ss-thread .rendered-markdown li,
+.ss-thread .rendered-markdown li > p {
+  margin: 0;
+}
+.ss-thread .rendered-markdown li + li {
+  margin-top: 0.2em;
+}
+.ss-thread .rendered-markdown :is(h1, h2, h3, h4) {
+  margin: 1em 0 0.4em;
+  line-height: 1.4;
+}
+.ss-thread .rendered-markdown > :first-child {
+  margin-top: 0;
+}
+.ss-thread .rendered-markdown > :last-child {
+  margin-bottom: 0;
+}
+.sidebar :is(.nav, .tree-row, .browse-all) {
+  font-size: var(--side-font-size, 14px);
+}
+.sidebar .navsection {
+  font-size: calc(var(--side-font-size, 14px) - 2.5px);
+}
+.sidebar .side-search {
+  font-size: calc(var(--side-font-size, 14px) - 1px);
 }
 /* 视图 → 简洁执行记录 hides the activity timeline; a card waiting for
    approval stays, or the answer would wait unseen. The status line still

@@ -420,9 +420,15 @@ export const en = {
   代码字号: 'Code font size',
   '仅调整消息里的代码块，不改变正文。': 'Only code blocks in messages change; body text does not.',
   恢复阅读与操作默认设置: 'Restore reading and interaction defaults',
-  聊天正文字号: 'Chat font size',
-  '主对话、任务秘书及全局助手统一生效。':
-    'Applies to the main chat, the secretary and the global assistant.',
+  对话字号: 'Chat font size',
+  '主对话的正文和你的消息。': 'Text of the main chat and your messages.',
+  对话行距: 'Chat line spacing',
+  '主对话和侧栏对话的行高；段落间距随行距一起变。':
+    'Line height in the main chat and side panels; paragraph spacing follows it.',
+  宽松: 'Relaxed',
+  侧栏字号: 'Sidebar font size',
+  '左侧导航，以及右侧任务秘书和全局助手的对话。':
+    'The left navigation, and the secretary and global assistant chats on the right.',
   发送快捷键: 'Send key',
   'Shift + Enter 始终换行；不改变导图编辑键位。':
     'Shift + Enter always adds a line; map editing keys are unchanged.',
@@ -1241,4 +1247,21 @@ export const en = {
   数据位置: 'Data location',
   '所有内容都在安装目录的 data 文件夹里，卸载时默认保留':
     'Everything lives in the data folder of the install directory and is kept on uninstall by default',
+  '读取了 {n} 项': 'Read {n} items',
+  '修改了 {n} 处': 'Made {n} edits',
+  '搜索了 {n} 次资料库': 'Searched the library {n} times',
+  '读取了 {n} 份资料': 'Read {n} sources',
+  '运行了 {n} 条命令': 'Ran {n} commands',
+  '读取了 {n} 个文件': 'Read {n} files',
+  '写入了 {n} 个文件': 'Wrote {n} files',
+  '修改了 {n} 个文件': 'Edited {n} files',
+  '搜索了 {n} 次内容': 'Searched {n} times',
+  '读取了 {n} 个网页': 'Read {n} web pages',
+  '列出了 {n} 次文件': 'Listed files {n} times',
+  '{n} 个已拒绝': '{n} rejected',
+  '你在 {time} 允许了这一步': 'You allowed this step at {time}',
+  '你在 {time} 拒绝了这一步': 'You rejected this step at {time}',
+  '（没有输出）': '(no output)',
+  '退出码 {code}': 'Exit code {code}',
+  已超时: 'Timed out',
 };

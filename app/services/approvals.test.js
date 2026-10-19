@@ -84,6 +84,7 @@ test(
         assert.deepEqual(denied.args, {
           tool: 'write_file',
           summary: path.join(outside.dir, 'analysis.py'),
+          callId: 'call-1',
         });
         await assert.rejects(readFile(path.join(outside.dir, 'analysis.py')), { code: 'ENOENT' });
         const second = nextApproval(core);

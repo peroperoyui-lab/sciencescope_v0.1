@@ -94,7 +94,8 @@ export function createApprovals(core) {
           name: tool,
           kind: 'approval',
           status: 'pending',
-          args: { tool, summary },
+          // callId ties the request to its tool call, so the timeline shows one row.
+          args: { tool, summary, callId: context.callId },
         });
         const abort = () => finish('cancelled');
         function finish(status) {

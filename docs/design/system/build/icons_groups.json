@@ -12,6 +12,7 @@
       ["folder-plus", "新建项目"],
       ["file-text", "文档"],
       ["file", "文件"],
+      ["files", "多个文件"],
       ["network", "导图"],
       ["list-checks", "计划"],
       ["notebook-pen", "日志"],

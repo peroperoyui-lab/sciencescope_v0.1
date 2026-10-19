@@ -92,9 +92,23 @@ test(
 
       await page.locator('.settingsnav').getByRole('button', { name: '个人资料与常规' }).click();
       await page.locator('.settingrow', { hasText: '主题' }).locator('select').selectOption('dark');
+      await page.getByRole('combobox', { name: '对话字号' }).selectOption('16');
+      await page.getByRole('combobox', { name: '对话行距' }).selectOption({ label: '宽松' });
+      await page.getByRole('combobox', { name: '侧栏字号' }).selectOption('13');
       await page.getByRole('button', { name: '保存并应用' }).click();
       await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
-      assert.equal((await settings()).appearance.theme, 'dark');
+      const look = (await settings()).appearance;
+      assert.deepEqual(
+        [look.theme, look.chatFontSize, look.chatLineHeight, look.sideFontSize],
+        ['dark', 16, 1.75, 13],
+      );
+      assert.equal(
+        await page
+          .locator('.sidebar .nav')
+          .first()
+          .evaluate((node) => getComputedStyle(node).fontSize),
+        '13px',
+      );
 
       await page.locator('.settingsnav').getByRole('button', { name: '专家角色' }).click();
       const first = page.locator('.expert-card').first();

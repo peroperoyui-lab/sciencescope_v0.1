@@ -125,9 +125,18 @@ const LOOK_DEFAULTS = {
   density: 'standard',
   codeFontSize: 14,
   chatFontSize: 14,
+  chatLineHeight: 1.6,
+  sideFontSize: 14,
   reduceMotion: false,
   scrollbars: false,
 };
+
+/** Chat line heights (multiples of the text size) and their names. */
+const LINE_HEIGHTS = [
+  { value: 1.45, label: '紧凑' },
+  { value: 1.6, label: '标准' },
+  { value: 1.75, label: '宽松' },
+];
 
 /** Fonts installed on this computer (Local Font Access), names only. */
 async function installedFonts() {
@@ -232,6 +241,36 @@ function PreferencesForm() {
         ${[12, 13, 14, 15, 16, 18].map((size) => html`<option key=${size} value=${size}>${size}px</option>`)}
       </select>
     <//>
+    <${SettingRow} title=${t('对话字号')} tip=${t('主对话的正文和你的消息。')}>
+      <select
+        aria-label=${t('对话字号')}
+        value=${String(look.chatFontSize)}
+        onChange=${setNumber('chatFontSize')}
+      >
+        ${[13, 14, 15, 16, 18, 20].map((size) => html`<option key=${size} value=${size}>${size}px</option>`)}
+      </select>
+    <//>
+    <${SettingRow}
+      title=${t('对话行距')}
+      tip=${t('主对话和侧栏对话的行高；段落间距随行距一起变。')}
+    >
+      <select
+        aria-label=${t('对话行距')}
+        value=${String(look.chatLineHeight)}
+        onChange=${setNumber('chatLineHeight')}
+      >
+        ${LINE_HEIGHTS.map(({ value, label }) => html`<option key=${value} value=${value}>${t(label)}</option>`)}
+      </select>
+    <//>
+    <${SettingRow} title=${t('侧栏字号')} tip=${t('左侧导航，以及右侧任务秘书和全局助手的对话。')}>
+      <select
+        aria-label=${t('侧栏字号')}
+        value=${String(look.sideFontSize)}
+        onChange=${setNumber('sideFontSize')}
+      >
+        ${[12, 13, 14, 15, 16].map((size) => html`<option key=${size} value=${size}>${size}px</option>`)}
+      </select>
+    <//>
     <button
       class="btn tiny"
       type="button"
@@ -239,11 +278,6 @@ function PreferencesForm() {
     >
       ${t('恢复阅读与操作默认设置')}
     </button>
-    <${SettingRow} title=${t('聊天正文字号')} tip=${t('主对话、任务秘书及全局助手统一生效。')}>
-      <select value=${String(look.chatFontSize)} onChange=${setNumber('chatFontSize')}>
-        ${[14, 15, 16, 18, 20].map((size) => html`<option key=${size} value=${size}>${size}px</option>`)}
-      </select>
-    <//>
     <${SettingRow}
       title=${t('发送快捷键')}
       tip=${t('Shift + Enter 始终换行；不改变导图编辑键位。')}

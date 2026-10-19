@@ -9,7 +9,7 @@ const image = Buffer.from(
 );
 
 test(
-  'presented image thumbnail and document card survive reload and open through host',
+  'presented files fold into one line, show inline where the answer names them, survive reload and open through host',
   { skip: browserSkip },
   () =>
     withBrowserApp(
@@ -21,7 +21,7 @@ test(
             { path: '报告.txt', description: '方法报告' },
           ],
         });
-        yield '结果文件已保存。';
+        yield '结果文件已保存。\n\n![效应图](图.svg)\n\n方法见[报告](./报告.txt)。';
       },
       async ({ page, app, shot }) => {
         await app.core.workspace.edit({
@@ -47,26 +47,31 @@ test(
           text: '展示文件',
         });
         await app.conductor.idle();
-        const cards = page.locator('.deliverables .deliverable');
-        await page.locator('.deliverables .is-image img').waitFor();
-        assert.equal(await cards.count(), 2);
+        const files = page.locator('[data-deliverables]');
+        await files.locator('.ss-files__head', { hasText: '交付了 2 个文件' }).waitFor();
+        assert.match(await files.locator('.ss-files__names').textContent(), /图\.svg、报告\.txt/);
+        // The answer shows the figure it named, from ScienceScope's copy.
+        const figure = page.locator('.message-text img.ss-inline-figure');
         await page.waitForFunction(() => {
-          const img = /** @type {HTMLImageElement} */ (document.querySelector('.deliverables img'));
-          return img?.complete && /** @type {HTMLImageElement} */ (img).naturalWidth > 0;
+          const img = /** @type {HTMLImageElement} */ (document.querySelector('.ss-inline-figure'));
+          return img?.complete && img.naturalWidth > 0;
         });
-        await page.locator('.deliverables .is-document').waitFor();
+        assert.match(await figure.getAttribute('src'), /\/api\/deliverables\/file_.+\/content/);
+        assert.equal(await page.locator('.message-text .ss-inline-file').textContent(), '报告');
+        await files.locator('.ss-files__head').click();
+        assert.equal(await files.locator('.ss-files__row').count(), 2);
         assert.equal(
-          await page.locator('.deliverable-text').last().innerText(),
+          await files.locator('[data-kind="document"]').innerText(),
           '报告.txt\n方法报告',
         );
         await rm(path.join(folder, '图.svg'));
         await rm(path.join(folder, '报告.txt'));
         await page.reload();
-        await page.locator('.deliverables .is-image img').waitFor();
+        await page.locator('[data-deliverables] .ss-files__head').click();
         await page.waitForFunction(
           () =>
-            /** @type {HTMLImageElement} */ (document.querySelector('.deliverables img'))
-              .naturalWidth > 0,
+            /** @type {HTMLImageElement} */ (document.querySelector('.ss-files__thumb img'))
+              ?.naturalWidth > 0,
         );
         let opened;
         await page.route('**/api/deliverables/*/open', async (route) => {
@@ -77,7 +82,7 @@ test(
           (response) =>
             response.url().includes('/api/deliverables/') && response.url().endsWith('/open'),
         );
-        await page.locator('.deliverables .is-document').click();
+        await page.locator('[data-deliverables] [data-kind="document"]').click();
         await didOpen;
         assert.match(opened, /\/api\/deliverables\/file_.+\/open$/);
         await shot('deliverables');
