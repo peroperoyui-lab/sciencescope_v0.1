@@ -20,7 +20,7 @@ import { ModelPicker } from './model-picker.js';
 const LAYERS = '.ss-menu, .ss-pop, .ss-dialog, #v-menu, .modalback, .command-palette';
 
 /**
- * @param {{ onSend: (text: string, input?:any, approval?:'ask' | 'auto') => Promise<any>, running?: boolean,
+ * @param {{ onSend: (text: string, input?:any, approval?:'ask' | 'auto', model?:any) => Promise<any>, running?: boolean,
  *   onStop?: () => void, inputRef?: any, meetingId?: string, projectId?:string|null }} props
  */
 export function Composer({
@@ -46,6 +46,17 @@ export function Composer({
   // choice waits here and is passed when the first message creates it.
   const [draftApproval, setDraftApproval] = useState('ask');
   const approval = meetingId ? (discussion.policy.approval ?? 'ask') : draftApproval;
+  // The model also belongs to the meeting; the default model in settings is
+  // what a meeting without its own choice (and Main's definition) follows.
+  const [draftModel, setDraftModel] = useState(/** @type {any} */ (null));
+  const definitions = useAppState((state) => state.participantDefinitions);
+  const defaultModel = useAppState((state) => state.settings?.models?.default);
+  const ownModel = meetingId ? (discussion.policy.model ?? null) : draftModel;
+  const inheritedModel = definitions?.agent_main?.definition.model ?? defaultModel;
+  const chooseModel = (model) => {
+    if (!meetingId) setDraftModel(model);
+    else discussion.save({ model });
+  };
   const chooseMode = (mode) => {
     const next = mode === 'approval' ? 'ask' : 'auto';
     if (!meetingId) setDraftApproval(next);
@@ -118,7 +129,7 @@ export function Composer({
     setSending(true);
     // Keep the draft until the host accepts the message.
     const snapshot = researchInput.value;
-    const sent = await actions.attempt(() => onSend(value, snapshot, approval));
+    const sent = await actions.attempt(() => onSend(value, snapshot, approval, ownModel));
     setSending(false);
     if (sent !== undefined) {
       setText((current) => (current === text ? '' : current));
@@ -173,7 +184,12 @@ export function Composer({
         />
         <span class="ss-composer__spacer"></span>
         <${DiscussionUsageRing} meetingId=${meetingId} />
-        <${ModelPicker} />
+        <${ModelPicker}
+          own=${ownModel}
+          inherited=${inheritedModel}
+          label="本对话的模型和思考强度"
+          onChange=${chooseModel}
+        />
         ${
           stops
             ? html`<button

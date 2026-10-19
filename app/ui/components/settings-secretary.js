@@ -16,7 +16,6 @@ const DEFAULT_SUMMARY = {
   everyTokens: { enabled: true, n: 30000 },
   onEnterProject: true,
   onLeaveProject: true,
-  saveMarkdown: true,
   workbench: { map: 'off', plans: 'off', log: 'off', versions: 'off' },
 };
 const TARGETS = [
@@ -54,7 +53,6 @@ export function SecretarySettings() {
       everyTokens: { enabled: fields.tokensEnabled.checked, n: Number(fields.tokensN.value) },
       onEnterProject: fields.onEnterProject.checked,
       onLeaveProject: fields.onLeaveProject.checked,
-      saveMarkdown: fields.saveMarkdown.checked,
       workbench: Object.fromEntries(TARGETS.map(([key]) => [key, fields[key].value])),
     };
     setSaved(summary);
@@ -132,13 +130,6 @@ export function SecretarySettings() {
           ><input type="checkbox" name="onLeaveProject" checked=${saved.onLeaveProject} />
           ${t('离开项目时')}</label
         >
-        <label
-          ><input type="checkbox" name="saveMarkdown" checked=${saved.saveMarkdown} />
-          ${t('同时保存为工作文件夹中的 Markdown 文件')}
-          <${InfoTip}
-            text=${t('保存在工作文件夹的 minutes/ 下；在文件里的修改不会读回，请在对话纪要窗口中编辑。')}
-          />
-        </label>
         <h3>${t('随总结更新工作站')}<${InfoTip} text=${t(WORKBENCH_HELP)} /></h3>
         ${TARGETS.map(
           ([key, label]) =>

@@ -136,8 +136,8 @@ export function MinutesDialog({ meetingId }) {
     <p class="minutes-meta" data-minutes-next>
       ${next.length ? t('下次自动总结：{remaining}', { remaining: next.join(t(' 或 ')) }) : ''}
     </p>
-    <p role="status" data-minutes-export>
-      ${[error, data?.error, data?.exportError, data?.workbenchError].filter(Boolean).join(' · ')}
+    <p role="status" data-minutes-status>
+      ${[error, data?.error, data?.workbenchError].filter(Boolean).join(' · ')}
     </p>
     <div class="minutes-body rendered-markdown" data-minutes-body>
       ${

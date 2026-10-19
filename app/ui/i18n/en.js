@@ -446,10 +446,9 @@ export const en = {
   应用数据库与设置: 'App database and settings',
   默认项目目录: 'Default project folder',
   资料库原件: 'Library originals',
-  'DSH 运行历史与配置': 'DSH history and configuration',
-  本地技能目录: 'Local skills folder',
-  '以下是此客户端实际使用的位置。\nSQLite 保存应用记录，DSH 保存运行历史；原始材料保存在资料库。此处不提供清空历史或索引的一键操作。':
-    'These are the locations this client actually uses.\nSQLite keeps app records, DSH keeps runtime history, and originals are in the library. There is no one-click clearing of history or indexes here.',
+  智能体运行会话: 'Agent runtime sessions',
+  '以下是此客户端实际使用的位置。\nSQLite 保存应用记录，运行会话是智能体的工作记忆；原始材料保存在资料库。此处不提供清空历史或索引的一键操作。':
+    "These are the locations this client actually uses.\nSQLite keeps app records, runtime sessions are the agents' working memory, and originals are in the library. There is no one-click clearing of history or indexes here.",
   打开文件夹: 'Open folder',
   运行时: 'Runtime',
   主专家设置: 'Main expert settings',
@@ -793,8 +792,6 @@ export const en = {
     'The task secretary updates conversation minutes at the times below. Less frequent summaries mean longer original transcripts after the minutes for experts and the secretary. Every n new tokens triggers a summary without silently truncating the transcript.',
   '导图、计划、日志有大量你的参与，非必要不开启。直接更新只追加或标记，不改写你的内容，可撤销。':
     'The map, plans and journal include substantial work from you; enable updates only when needed. Direct updates only append or mark content, preserve your writing, and can be undone.',
-  '保存在工作文件夹的 minutes/ 下；在文件里的修改不会读回，请在对话纪要窗口中编辑。':
-    'Saved under minutes/ in the working folder. Changes made to exported files are not read back; edit in the conversation minutes dialog.',
   '纪要已保存；秘书之后会在此基础上继续整理。':
     'Minutes saved; the secretary will build on this revision.',
   '再 {count} 条消息': '{count} more messages',
@@ -824,7 +821,6 @@ export const en = {
   '个新 token': 'new tokens',
   进入项目时: 'When entering a project',
   离开项目时: 'When leaving a project',
-  '同时保存为工作文件夹中的 Markdown 文件': 'Also save a Markdown file in the working folder',
   随总结更新工作站: 'Update the workbench with each summary',
   '{name}自动更新': '{name} automatic updates',
   关闭自动更新: 'Off',
@@ -1168,6 +1164,7 @@ export const en = {
   最高: 'Maximum',
   '思考 {levels}': 'Reasoning {levels}',
   模型和思考强度: 'Model and reasoning',
+  本对话的模型和思考强度: 'Model and reasoning for this chat',
   添加文件或资料: 'Add files or sources',
   '{n} 秒': '{n} s',
   '你停止了这次回答，已保留到目前的内容。':

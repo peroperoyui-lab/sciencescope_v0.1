@@ -375,8 +375,7 @@ const FOLDERS = [
   ['database', '应用数据库与设置'],
   ['projects', '默认项目目录'],
   ['library', '资料库原件'],
-  ['runtime', 'DSH 运行历史与配置'],
-  ['skills', '本地技能目录'],
+  ['runtime', '智能体运行会话'],
 ];
 
 /** Where this installation keeps its data (数据库与文件 / 运行环境). @param {{ title: string }} props */
@@ -389,7 +388,7 @@ function FoldersPage({ title }) {
   return html`<div>
     <h2>
       ${title}<${InfoTip}
-        text=${t('以下是此客户端实际使用的位置。\nSQLite 保存应用记录，DSH 保存运行历史；原始材料保存在资料库。此处不提供清空历史或索引的一键操作。')}
+        text=${t('以下是此客户端实际使用的位置。\nSQLite 保存应用记录，运行会话是智能体的工作记忆；原始材料保存在资料库。此处不提供清空历史或索引的一键操作。')}
       />
     </h2>
     ${

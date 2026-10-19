@@ -200,15 +200,16 @@ export function createActions(api, store) {
    * Start a meeting from the welcome page with its first message; until then
    * the draft is not a meeting.
    * @param {string} text @param {string | null} [projectId] @param {any} [researchInput]
-   * @param {'ask' | 'auto'} [approval]
+   * @param {'ask' | 'auto'} [approval] @param {any} [model] the meeting's own model, if chosen
    */
-  async function startMeeting(text, projectId = null, researchInput, approval) {
+  async function startMeeting(text, projectId = null, researchInput, approval, model) {
     const meeting = await createMeeting({
       projectId,
       title: text.slice(0, 40),
       navigateAfter: false,
       creation: projectId ? undefined : store.get().creationDetails,
-      policy: approval ? { approval } : undefined,
+      policy:
+        approval || model ? { ...(approval && { approval }), ...(model && { model }) } : undefined,
     });
     await openMeeting(meeting.id);
     const result = await postMessage(meeting.id, text, researchInput);

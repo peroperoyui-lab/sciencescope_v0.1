@@ -3,6 +3,9 @@
 > 新核心（`app/`，重建 R0 起）的开发与验收日志，最新在最上面。每次交付一条，不超过 5 行；细节放 `.sciencescope-local/temp`。
 > 2026-10-05 之前旧原型时期的记录在 `archive/legacy/DESKTOP_IMPLEMENTATION_legacy.md`。
 
+## 2026-10-19 A3 界面部分（Claude）
+- 主输入框的模型菜单改为只选当前对话的模型（欢迎页选的随第一条消息存进新对话），新增 `model-choice.browser.test.js`；脚本运行时把模型传给测试脚本。删掉纪要设置里「同时保存为工作文件夹中的 Markdown 文件」和纪要窗口的导出错误；设置里「DSH 运行历史」改为「智能体运行会话」，去掉没有功能的「本地技能目录」。后端部分见 `plans/tasks/A3_doc_code_mismatches.md`。
+
 ## 2026-10-18 A2-1 review and merge (Claude)
 - Merged `codex/a2-1-images-prompt-screenshot-20261018` (4dbc56c). Review: the meeting-reading sentence was added both to the default prompts and by context assembly, so Main saw it twice; kept only the context-assembly copy (edited prompts keep it too).
 - Claude's UI: user messages show image thumbnails (open full size), file and mark chips above the bubble; Settings → 个人资料与常规 has 「截图时隐藏 ScienceScope 窗口」. Screenshots in the project folder `screenshots/a2-1/`.

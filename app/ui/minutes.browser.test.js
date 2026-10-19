@@ -107,20 +107,21 @@ test(
         await form.getByLabel('新 token 间隔').press('Tab');
         await form.getByLabel('进入项目时', { exact: true }).check();
         await form.getByLabel('离开项目时', { exact: true }).check();
-        await form.getByLabel('同时保存为工作文件夹中的 Markdown 文件', { exact: false }).check();
         await form.getByLabel('导图自动更新').selectOption('apply');
         await form.getByLabel('计划自动更新').selectOption('apply');
         await form.getByLabel('日志自动更新').selectOption('apply');
         await form.getByText('自动总结设置已保存。', { exact: true }).waitFor();
-        const rules = (await app.core.workspace.read({ resource: 'settings', key: 'app' })).value
-          .summary;
+        // The Markdown export setting leaves with task A3; the form no longer touches it.
+        const rules = {
+          ...(await app.core.workspace.read({ resource: 'settings', key: 'app' })).value.summary,
+        };
+        delete rules.saveMarkdown;
         assert.deepEqual(rules, {
           afterDiscussion: true,
           everyMessages: { enabled: true, n: 7 },
           everyTokens: { enabled: true, n: 8000 },
           onEnterProject: true,
           onLeaveProject: true,
-          saveMarkdown: true,
           workbench: { map: 'apply', plans: 'apply', log: 'apply', versions: 'off' },
         });
         await page.reload();
