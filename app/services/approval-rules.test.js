@@ -73,9 +73,9 @@ test(
         const automatic = run(second, 'shell', { command: 'echo second' });
         assert.equal((await automatic.done).result.approvedBy.ruleId, ruleId);
         assert.equal(core.turns.toolCalls(automatic.turn.id).length, 1);
-        for (const [meeting, command] of [
-          [second, 'echo third && echo fourth'],
-          [third, 'echo other'],
+        for (const { meeting, command } of [
+          { meeting: second, command: 'echo third && echo fourth' },
+          { meeting: third, command: 'echo other' },
         ]) {
           const pending = nextApproval(core);
           const attempt = run(meeting, 'shell', { command });
