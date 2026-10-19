@@ -1,0 +1,23 @@
+<!-- @dsCard group="对话" height=400 subtitle="回答交付的文件收成一行，点开是带缩略图的清单；回答正文可以直接插入其中的图和文件链接" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>FileList</title></head>
+<body>
+<div class="ds" style="max-width:720px;gap:16px">
+  <div class="ss-files">
+    <button class="ss-files__head" type="button" aria-expanded="false"><i data-i="files"></i><span class="ss-files__count">交付了 5 个文件</span><span class="ss-files__names">图A_分部门贡献分解.png、图B_影响力感应度散点.png、图C_区域外完全依赖.png、分析说明.md、explore_digital_io.py</span><i data-i="chevron-down" class="ss-files__chev"></i></button>
+  </div>
+  <div class="ss-files">
+    <button class="ss-files__head" type="button" aria-expanded="true"><i data-i="files"></i><span class="ss-files__count">交付了 3 个文件</span><i data-i="chevron-down" class="ss-files__chev"></i></button>
+    <div class="ss-files__list">
+      <button class="ss-files__row" type="button"><span class="ss-files__thumb"><svg viewBox="0 0 44 32" width="44" height="32"><rect width="44" height="32" fill="var(--raised)"/><g fill="var(--accent)"><rect x="6" y="18" width="4" height="10"/><rect x="12" y="10" width="4" height="18"/><rect x="18" y="14" width="4" height="14"/><rect x="24" y="6" width="4" height="22"/><rect x="30" y="16" width="4" height="12"/></g></svg></span><span class="ss-files__name">图A_分部门贡献分解.png</span><span class="ss-files__desc">17 个数字部门对 q 变动的贡献</span></button>
+      <button class="ss-files__row" type="button"><span class="ss-files__icon"><i data-i="file-text"></i></span><span class="ss-files__name">分析说明.md</span><span class="ss-files__desc">口径、四项分析的结论</span></button>
+      <button class="ss-files__row" type="button"><span class="ss-files__icon"><i data-i="file-text"></i></span><span class="ss-files__name">explore_digital_io.py</span><span class="ss-files__desc">可复现分析脚本</span></button>
+    </div>
+  </div>
+  <p style="margin:0;color:var(--ink);font-size:14px;line-height:22px">口径和每一步的结论写在 <a class="ss-inline-file">分析说明</a> 里，脚本可以直接复现。</p>
+  <p class="ds-note">清单默认收起，只写数量和文件名；点开后图片有缩略图，文档用图标。单击用系统默认程序打开，右键在应用内预览。回答正文用同一路径写 Markdown 图片或链接时，图片直接显示在正文里（ss-inline-figure，最高 320px，点开预览），链接变成 ss-inline-file。</p>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

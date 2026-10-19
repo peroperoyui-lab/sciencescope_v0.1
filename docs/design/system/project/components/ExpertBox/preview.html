@@ -1,0 +1,30 @@
+<!-- @dsCard group="对话" height=420 subtitle="有序讨论时，正在发言的专家只占一个固定高度的框：现在在做什么，加上最后几行；说完自动换成完整回答" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>ExpertBox</title></head>
+<body>
+<div class="ss-thread" style="padding:16px 24px">
+  <div class="ss-msg">
+    <div class="ss-msg__head"><span class="ss-avatar">方</span><span class="ss-msg__name">方法学家</span><span class="ss-msg__role">研究设计</span></div>
+    <div class="ss-expert-box">
+      <div class="ss-expert-box__head"><span class="ss-spin"></span><span>正在作答</span><span class="ss-status__time">18 秒</span></div>
+      <div class="ss-expert-box__tail"><div>两篇的识别策略都依赖政策时点，但 S1 没有讨论预期效应。
+如果试点名单在公布前已经被市场预期，双重差分的估计会偏小。
+建议先做事件研究图，看政策前两年的系数是否显著为零，再决定</div></div>
+    </div>
+  </div>
+  <div class="ss-msg">
+    <div class="ss-msg__head"><span class="ss-avatar">统</span><span class="ss-msg__name">统计审稿人</span><span class="ss-msg__role">统计与数据</span></div>
+    <div class="ss-expert-box">
+      <div class="ss-expert-box__head"><span class="ss-spin"></span><span>正在读取资料</span><span class="ss-expert-box__target">S4 · 表 2</span><span class="ss-status__time">3 秒</span></div>
+      <div class="ss-expert-box__tail"><div>先核对 S4 的样本量和缺失值处理。</div></div>
+    </div>
+  </div>
+  <div class="ss-msg">
+    <div class="ss-msg__head"><span class="ss-avatar">审</span><span class="ss-msg__name">独立审核人</span><span class="ss-msg__role">审核</span></div>
+    <div class="ss-expert-box"><div class="ss-expert-box__head"><i data-i="clock"></i><span>等前面的专家说完</span></div></div>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

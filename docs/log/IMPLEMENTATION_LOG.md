@@ -4,6 +4,11 @@
 > 2026-10-05 之前旧原型时期的记录在 `archive/legacy/DESKTOP_IMPLEMENTATION_legacy.md`。
 
 
+## 2026-10-19 对话页 B 组（Claude）
+- 时间线：连续同类步骤合成一行（「运行了 6 条命令」），批准成为该步骤的状态（批准请求记录所属 `callId`），命令细节像终端。交付文件收成一行、点开是清单，正文按路径插图和文件链接（`workspace_present` 说明已补）。
+- 设置加「对话行距」「侧栏字号」，对话正文统一行高和段距。有序讨论中发言的专家只占固定高度的状态框。日志详情点一下直接改纯文本，删掉「简述」页。
+- 画廊新增 FileList、ExpertBox 卡片，更新 ActivityTimeline、ApprovalCard。检查 249 通过、2 个 Windows 专属跳过。截图在项目共享文件夹 `screenshots/group-b/`。
+
 ## 2026-10-19 美术资产（Claude）
 - 用户认可设计画廊「品牌」组（图标用绿底）。`tools/brand/` 是图标和安装图的源文件，`render.mjs` 生成 `tools/package/brand/` 的 icon.ico（8 个尺寸）和两张 NSIS 位图；画廊卡片由 `docs/design/system/build/art.mjs` 从同一来源生成。
 - 接进应用：欢迎页插画、设置里的「关于 ScienceScope」页（版本、署名、第三方声明、数据位置），新增 `about.browser.test.js`。截图在项目共享文件夹 `screenshots/brand/`。打包接入写成 B1 交给 Sol。

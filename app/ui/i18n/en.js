@@ -1269,4 +1269,5 @@ export const en = {
   点击编辑: 'Click to edit',
   '没有详细内容，点击添加。': 'No details yet; click to add some.',
   放弃修改: 'Discard changes',
+  '交付了 {n} 个文件': 'Delivered {n} files',
 };

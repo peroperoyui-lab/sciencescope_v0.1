@@ -1,4 +1,4 @@
-<!-- @dsCard group="对话" height=440 subtitle="请求批准模式下，命令、文件改动和安装包先停在这里；说清要做什么、会改哪里" -->
+<!-- @dsCard group="对话" height=600 subtitle="请求批准模式下，命令、文件改动和安装包先停在这里；说清要做什么、会改哪里" -->
 <!doctype html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><title>ApprovalCard</title></head>
@@ -27,8 +27,13 @@
     </div>
   </div>
   <div class="ss-act">
-    <div class="ss-act__row"><i data-i="circle-check" style="color:var(--ok)"></i><span class="ss-act__verb">已允许</span><span class="ss-act__target">python scripts/match_indicators.py</span><span class="ss-act__end">你 · 16:27</span></div>
-    <div class="ss-act__row"><i data-i="circle-x"></i><span class="ss-act__verb">已拒绝</span><span class="ss-act__target">安装 seaborn 0.13</span><span class="ss-act__end">你 · 16:28</span></div>
+    <button class="ss-act__row" type="button"><i data-i="square-terminal"></i><span class="ss-act__verb">运行了 2 条命令</span><span class="ss-act__end">等待批准</span><i data-i="chevron-right" class="ss-act__chev"></i></button>
+    <div class="ss-approve" role="group" aria-label="需要你的批准">
+      <div class="ss-approve__head"><i data-i="shield-question-mark"></i><span class="ss-approve__title">需要你的批准</span><span class="ss-approve__tool">运行命令</span></div>
+      <div class="ss-approve__body"><pre class="ss-approve__cmd">wc -l data/indicators.csv</pre></div>
+      <div class="ss-approve__foot"><button class="ss-btn" type="button">拒绝</button><button class="ss-btn ss-btn--primary" type="button">允许</button></div>
+    </div>
+    <button class="ss-act__row" type="button"><i data-i="package"></i><span class="ss-act__verb">安装 Python 包</span><span class="ss-act__target">seaborn 0.13</span><span class="ss-act__end">已拒绝</span><i data-i="chevron-right" class="ss-act__chev"></i></button>
   </div>
 </div>
 <script>window.SS && SS.mount(document.body)</script>
