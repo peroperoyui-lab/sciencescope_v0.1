@@ -1,6 +1,7 @@
 // One event subscriber maintains each meeting's minutes independently of its
 // foreground sessions. Fresh summary sessions receive only prior minutes and
 // uncovered raw messages; revision ancestry carries coverage through edits/undo.
+import { closeKnowledgeTurn } from '../knowledge/versions.js';
 import { AppError } from '../../core/errors.js';
 import { createBackgroundRunner } from './background.js';
 import {
@@ -204,6 +205,7 @@ export function createMinutesService({
         const throughSeq = Math.max(previous.throughSeq, ...batch.map((message) => message.seq));
         store.save(meetingId, saved.revisionId, throughSeq, ids);
         core.workspace.captureTurnSnapshots(response.turnId);
+        closeKnowledgeTurn(core, response.turnId);
         core.messages.recordConsumption(
           batch.filter((message) => message.adopted).map((message) => message.id),
           response.turnId,

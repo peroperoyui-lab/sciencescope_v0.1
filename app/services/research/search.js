@@ -1,3 +1,4 @@
+import { publicRow } from '../knowledge/records.js';
 import { AppError } from '../../core/errors.js';
 import { citationFor, parseCitationLabel } from './citations.js';
 import { matchExpression } from './text-index.js';
@@ -25,12 +26,18 @@ export function createResearchSearch(store) {
     const offset = Math.max(0, Math.floor(options.offset ?? 0));
     const selected = scope(options.projectId, options.includePersonal !== false);
     const clauses = [
-      `coalesce(project_id,'') IN (${selected.map(() => '?').join(',')})`,
+      `(coalesce(project_id,'') IN (${selected.map(() => '?').join(',')}) OR (doc_type='entity' AND EXISTS (SELECT 1 FROM kb_memberships m WHERE m.ref='entity:'||doc_id AND m.project_id=?)))`,
       "(doc_type<>'item' OR EXISTS (SELECT 1 FROM rb_items i WHERE i.id=doc_id AND i.status NOT IN ('proposed','rejected')",
     ];
     if (!options.includeSuperseded) clauses[1] += " AND i.status='active'";
     if (options.audience === 'agent') clauses[1] += " AND i.visibility<>'private'";
     clauses[1] += '))';
+    clauses.push(
+      "(doc_type<>'entity' OR EXISTS (SELECT 1 FROM kb_entities e WHERE e.id=doc_id AND e.status='active'" +
+        (options.audience === 'agent' ? " AND e.visibility<>'private'" : '') +
+        '))',
+    );
+    const parameters = [...selected, options.projectId ?? null];
     const where = clauses.join(' AND ');
     let expression = matchExpression(query);
     if (!expression) return { query, hits: [], total: 0, remaining: 0, offset, limit };
@@ -38,7 +45,7 @@ export function createResearchSearch(store) {
       Number(
         store.db
           .prepare(`SELECT count(*) AS n FROM rb_fts WHERE rb_fts MATCH ? AND ${where}`)
-          .get(expression, ...selected).n,
+          .get(expression, ...parameters).n,
       );
     let total = count();
     if (!total) {
@@ -49,10 +56,22 @@ export function createResearchSearch(store) {
       .prepare(
         `SELECT doc_type, doc_id, bm25(rb_fts,0,0,0,2,1) AS score FROM rb_fts WHERE rb_fts MATCH ? AND ${where} ORDER BY score, doc_id LIMIT ? OFFSET ?`,
       )
-      .all(expression, ...selected, limit, offset);
+      .all(expression, ...parameters, limit, offset);
     const hits = rows.map((row) => {
       const id = String(row.doc_id);
       const type = String(row.doc_type);
+      if (type === 'entity') {
+        const entity = publicRow(store.db.prepare('SELECT * FROM kb_entities WHERE id=?').get(id));
+        return {
+          type,
+          id,
+          projectId: null,
+          title: entity.name,
+          text: entity.description,
+          citation: null,
+          score: Number(row.score),
+        };
+      }
       if (type === 'item') {
         const item = store.getItem(id);
         return {

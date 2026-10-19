@@ -1,3 +1,4 @@
+import { closeKnowledgeTurn } from '../knowledge/versions.js';
 import path from 'node:path';
 import { AppError } from '../../core/errors.js';
 import { writeTextAtomic } from '../../core/workspace/files.js';
@@ -209,6 +210,7 @@ Preserve user text: only add nodes/tasks/log entries or mark node status/tasks c
     }
   } finally {
     core.workspace.captureTurnSnapshots(response.turnId);
+    closeKnowledgeTurn(core, response.turnId);
   }
   store.patchStatus(meetingId, { workbenchError: null });
 }

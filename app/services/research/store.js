@@ -17,6 +17,7 @@ const sourceKinds = [
   'software',
   'file',
   'note',
+  'link',
 ];
 const contentStatuses = ['none', 'queued', 'parsed', 'partial', 'failed', 'unsupported'];
 const chunkKinds = [

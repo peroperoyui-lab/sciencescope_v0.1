@@ -38,9 +38,20 @@
 | `runtime_sessions` | meeting_id, participant_id, runtime, session_id, last_seq | AI 在某会议中的工作记忆指针；`last_seq` = 它已看到的最后一条消息 |
 | `revisions` | id, resource, resource_key（`资源:键`）, op, before_text, after_text, after_hash, actor_id, meeting_id, turn_id, undone_by, created_at | 每次修改保存前后全文；撤销 = 写一条反向修订；程序外的修改记为 `external` |
 | `resource_snapshots` | id, resource, resource_key, content_text/hash, actor_id, source, revision_id, created_at | 编辑边界的可恢复内容快照；revisions 继续存内部细粒度历史 |
+| `kb_entities` | id, kind, name/name_en, aliases_json, description, attrs_json, layer, origin, created_by, meeting_id/turn_id, visibility, status, merged_into, revision | 全局实体正本；项目视图通过归属关联 |
+| `kb_edges` | id, from_ref/to_ref, relation, attrs_json/evidence_json, layer/origin, created_by, meeting_id/turn_id, status, revision | 四种节点引用；派生层按端点与关系覆盖，不留版本 |
+| `kb_labels`、`kb_memberships` | ref + label / project_id, created_by / added_by, created_at | 标签和项目归属，来源通过修订和版本回溯 |
+| `kb_versions` | source, project_id, actor_id, meeting_id/turn_id, summary_json, restored_by, closed_at | 一组修改；ai-turn-end / leave-page / build / before-restore |
+| `kb_revisions` | version_id, ref, op, before_json/after_json, actor_id, origin, created_at | 图的独立修订；origin 同时标记标签/归属修改来源 |
+| `kb_jobs` | source_id, layer, topic, state, content_version, error, attempts | 后续整理服务的持久任务状态；本任务仅建表 |
 | `events` | seq, type, project_id, meeting_id, actor_id, payload_json, created_at | 变更流，给界面与后台参与者订阅 |
 
 资料库 `rb_*` 表已在 R4-1a 纳入迁移 `003-research-base.js`（见 §11）；设置不进数据库。
+
+知识库存储迁移为 021（本分支基线最高 020；与尚未合并的 A2-2 编号需在集成时协调）。rb_sources 新增 folder_path 与项目/路径唯一索引。
+服务 app.knowledge 提供 create/update/removeEntity、mergePreview/mergeEntities、create/update/removeEdge、label、membership、getEntity(ref)、listEntities、neighbors(ref)；页返回 rows/total/offset/limit/remaining。
+versions 提供 open/close/closeTurn、list/get/changes/history、restore(versionId)、restoreRevision(revisionId)；restore 返回 version/skipped/refs，记录使用 camelCase 字段和已解码 JSON。
+写入 actor 可传 origin、actorId、projectId、meetingId、turnId、versionId；AI 首次写入按 turnId 自动开版本，所有修订独立于 workspace.revisions。标签引用为 label:<ref>#<编码标签>，归属为 membership:<project>#<ref>。
 
 ## 3. 事件
 
@@ -59,6 +70,7 @@
 | `tool.started/ended` | toolCall |
 | `resource.changed` | resource, resourceId, revisionId |
 | `revision.undone` | revisionId |
+| `knowledge.changed` | refs（受影响引用列表），事务提交后通知；同时发 research.changed action=knowledge.changed |
 | `research.changed` | action（source.imported、item.created/updated/superseded）, sourceId 或 itemId；事件上下文带 projectId、actorId |
 
 ## 4. 工作区资源

@@ -1,5 +1,6 @@
 // Background work uses disposable runtime sessions. Each invocation records a
 // turn and usage, but creates neither a main-thread message nor a session cursor.
+import { closeKnowledgeTurn } from '../knowledge/versions.js';
 import { AppError } from '../../core/errors.js';
 import { createTurnActivity } from '../turn-activity.js';
 
@@ -141,7 +142,10 @@ export function createBackgroundRunner({ core, runtime, defaultModel, tools, mod
       throw error;
     } finally {
       activity.finish();
-      if (tools) core.workspace.captureTurnSnapshots(turn.id);
+      if (tools) {
+        core.workspace.captureTurnSnapshots(turn.id);
+        closeKnowledgeTurn(core, turn.id);
+      }
       if (sessionId) {
         sessions.delete(sessionId);
         await runtime.release(sessionId).catch(() => {});

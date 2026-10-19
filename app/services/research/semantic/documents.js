@@ -51,6 +51,21 @@ export function createSemanticDocuments(core) {
         text,
       });
     }
+    for (const row of core.db
+      .prepare("SELECT * FROM kb_entities WHERE status='active' ORDER BY id")
+      .all()) {
+      const text = [row.name, row.name_en, ...JSON.parse(String(row.aliases_json)), row.description]
+        .filter(Boolean)
+        .join('\n');
+      result.push({
+        ref: { type: 'entity', id: String(row.id) },
+        projectId: null,
+        visibility: String(row.visibility),
+        status: String(row.status),
+        version: versionOf(text),
+        text,
+      });
+    }
     return result;
   }
 
@@ -59,11 +74,18 @@ export function createSemanticDocuments(core) {
     const projectId = options.projectId ?? null;
     return documents().filter((document) => {
       if (
+        !(
+          document.ref.type === 'entity' &&
+          projectId &&
+          core.db
+            .prepare('SELECT 1 FROM kb_memberships WHERE project_id=? AND ref=?')
+            .get(projectId, 'entity:' + document.ref.id)
+        ) &&
         document.projectId !== projectId &&
         !(projectId && options.includePersonal !== false && document.projectId === null)
       )
         return false;
-      if (document.ref.type !== 'item') return true;
+      if (!['item', 'entity'].includes(document.ref.type)) return true;
       if (options.audience === 'agent' && document.visibility === 'private') return false;
       return options.includeSuperseded || document.status === 'active';
     });
@@ -71,6 +93,18 @@ export function createSemanticDocuments(core) {
 
   /** @param {{type:string,id:string}} ref @param {number} score */
   function hit(ref, score) {
+    if (ref.type === 'entity') {
+      const row = core.db.prepare('SELECT * FROM kb_entities WHERE id=?').get(ref.id);
+      return {
+        type: ref.type,
+        id: ref.id,
+        projectId: null,
+        title: String(row.name),
+        text: String(row.description),
+        citation: null,
+        score,
+      };
+    }
     if (ref.type === 'item') {
       const item = store.getItem(ref.id);
       return {
