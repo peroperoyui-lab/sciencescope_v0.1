@@ -1264,4 +1264,9 @@ export const en = {
   '（没有输出）': '(no output)',
   '退出码 {code}': 'Exit code {code}',
   已超时: 'Timed out',
+  正在作答: 'Answering',
+  等前面的专家说完: 'Waiting for the experts before',
+  点击编辑: 'Click to edit',
+  '没有详细内容，点击添加。': 'No details yet; click to add some.',
+  放弃修改: 'Discard changes',
 };

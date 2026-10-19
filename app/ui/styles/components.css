@@ -2860,6 +2860,63 @@ button.ss-act__row:hover {
   padding: 10px 12px;
 }
 
+/* ---------- Expert speaking in an ordered discussion ---------- */
+.ss-expert-box {
+  display: grid;
+  margin: 2px 0 0 28px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+}
+.ss-expert-box__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-width: 0;
+  height: 32px;
+  padding: 0 12px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.ss-expert-box__head > .ss-i {
+  flex: none;
+  color: var(--muted);
+}
+.ss-expert-box__head--wait,
+.ss-expert-box__head--wait > .ss-i {
+  color: var(--warn);
+}
+.ss-expert-box__target {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font: 12px/18px var(--font-mono);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ss-expert-box__head .ss-status__time {
+  margin-left: auto;
+}
+/* The last three lines, anchored to the bottom and fading out at the top. */
+.ss-expert-box__tail {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 60px;
+  margin: 0 12px 10px;
+  overflow: hidden;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  mask-image: linear-gradient(to bottom, transparent, var(--ink) 45%);
+}
+.ss-expert-box__tail--thought {
+  color: var(--muted);
+}
+
 /* ---------- Files presented with an answer ---------- */
 .ss-files {
   display: grid;

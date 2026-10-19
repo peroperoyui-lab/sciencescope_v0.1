@@ -1,7 +1,8 @@
 // One message in a conversation (design system Message): the user's own
 // messages as bubbles on the right; Main, experts and other AI participants
 // with an avatar, name and model, their activity timeline, the answer, its
-// files, one status line and actions that appear on hover.
+// files, one status line and actions that appear on hover. An expert still
+// speaking in an ordered discussion shows one fixed-height status box.
 import { useState } from 'preact/hooks';
 import { LOCAL_USER_ID } from '../actions.js';
 import { useActions, useAppState } from '../context.js';
@@ -11,7 +12,7 @@ import { Lucide } from '../icons.js';
 import { routeHref } from '../route.js';
 import { CitedMarkdown } from './cited-markdown.js';
 import { Deliverables } from './deliverables.js';
-import { ExpertState, ReviewAdoption } from './discussion-message.js';
+import { ExpertBox, ExpertState, ReviewAdoption } from './discussion-message.js';
 import { InputReceipt, showInputContext } from './research-input.js';
 import { StatusLine } from './status-line.js';
 import { ActivityTimeline } from './timeline.js';
@@ -159,10 +160,20 @@ export function Message({ message, author, roleNote, target, compact = false }) 
       ${review && html`<span class="ss-tag">${t('审核')}</span>`}
       ${expert && html`<${ExpertState} message=${message} calls=${calls} />`}
     </div>
-    <${ActivityTimeline} calls=${calls} running=${streaming} turn=${turn} />
-    ${body && html`<div class="ss-msg__body"><${CitedMarkdown} message=${message} text=${text} /></div>`}
-    <${Deliverables} files=${message.deliverables} />
-    <${StatusLine} message=${message} turn=${turn} calls=${calls} text=${text} reason=${reason} />
+    ${
+      streaming && message.refs?.discussion
+        ? html`<${ExpertBox} message=${message} turn=${turn} calls=${calls} text=${text} />`
+        : html`<${ActivityTimeline} calls=${calls} running=${streaming} turn=${turn} />
+            ${body && html`<div class="ss-msg__body"><${CitedMarkdown} message=${message} text=${text} /></div>`}
+            <${Deliverables} files=${message.deliverables} />
+            <${StatusLine}
+              message=${message}
+              turn=${turn}
+              calls=${calls}
+              text=${text}
+              reason=${reason}
+            />`
+    }
     ${review && html`<${ReviewAdoption} message=${message} />`}
     ${!streaming && html`<${MessageFoot} message=${message} answer=${true} compact=${compact} />`}
   </article>`;

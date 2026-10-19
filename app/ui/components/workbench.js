@@ -20,6 +20,7 @@ import {
   removeLogEntry,
   replacePlan,
 } from '../workbench-text.js';
+import { JOURNAL_TABS } from './journal-entry.js';
 import { MainHead } from './mainhead.js';
 import { MapCanvas } from './map-canvas.js';
 import { ProjectFolder } from './project-folder.js';
@@ -232,7 +233,7 @@ export function JournalStrip({ project, full = false }) {
   const details = (entry, initial = '日志详情') =>
     navigate({
       view: 'journal-entry',
-      id: `${project.id}/${entry.start}/${['简述', '文件列表', '日志详情'].indexOf(initial)}`,
+      id: `${project.id}/${entry.start}/${JOURNAL_TABS.indexOf(initial)}`,
     });
   const menu = (event, entry) =>
     actions.openMenu(
@@ -257,7 +258,6 @@ export function JournalStrip({ project, full = false }) {
     );
 
   const add = () => actions.openModal(t('添加日志'), html`<${LogForm} projectId=${project.id} />`);
-  const brief = (entry) => details(entry, '简述');
 
   if (full) {
     return html`<div class="content">
@@ -330,7 +330,6 @@ export function JournalStrip({ project, full = false }) {
               <${Icon} name="more" />
             </button>
             <h3>${entry.title}</h3>
-            <button onClick=${() => brief(entry)}>${t('简述')} ›</button>
             <button onClick=${() => details(entry, '文件列表')}>${t('文件列表')} ›</button>
             <button onClick=${() => details(entry)}>${t('日志详情')} ›</button>
             <span class="stamp">${entry.date}</span>

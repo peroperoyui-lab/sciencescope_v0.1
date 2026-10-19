@@ -21,7 +21,7 @@ import { Sidebar } from './sidebar.js';
 import { Workbench } from './workbench.js';
 import { Versions } from './versions.js';
 import { VersionNotes } from './version-notes.js';
-import { JournalEntryPage } from './journal-entry.js';
+import { JOURNAL_TABS, JournalEntryPage } from './journal-entry.js';
 import { VersionDiff } from './version-diff.js';
 import { WorkbenchPage } from './workbench-pages.js';
 
@@ -120,7 +120,7 @@ export function App() {
       key=${route.id}
       projectId=${projectId}
       line=${Number(route.id.split('/')[1])}
-      initial=${['简述', '文件列表', '日志详情'][Number(route.id.split('/')[2])] ?? '日志详情'}
+      initial=${JOURNAL_TABS[Number(route.id.split('/')[2])] ?? '日志详情'}
     />`;
   else if (route.view === 'version-diff')
     page = html`<${VersionDiff}

@@ -89,18 +89,27 @@ test(
         await page.getByRole('button', { name: '关联版本', exact: true }).click();
         await page.getByLabel('项目文件路径').fill('分析/中文脚本.py');
         await page.getByRole('button', { name: '关联项目文件', exact: true }).click();
-        await page
-          .locator('[data-journal-entry]')
-          .getByRole('button', { name: '保存', exact: true })
-          .click();
-        await page.locator('.journalcard').waitFor();
+        const entryPage = page.locator('[data-journal-entry]');
+        await entryPage.getByRole('button', { name: '保存', exact: true }).click();
+        await entryPage.locator('.journal-savebar').waitFor({ state: 'detached' });
         const log = await app.core.workspace.read({ resource: 'log', key: project.id });
         assert.equal(parseLog(log.text)[0].references.length, 2);
         assert.match(parseLog(log.text)[0].body, /正文保留/u);
-        await page
-          .locator('.journalcard')
-          .getByRole('button', { name: '文件列表', exact: false })
-          .click();
+        // The details turn into plain text where they are shown, and back after saving.
+        await entryPage.getByRole('button', { name: '日志详情', exact: true }).click();
+        await entryPage.locator('.journal-details').click();
+        const editor = entryPage.getByRole('textbox', { name: '编辑日志详情' });
+        assert.equal(await editor.inputValue(), '正文保留。');
+        await editor.fill('正文保留。\n\n**补充**：核查完成。');
+        await entryPage.getByRole('button', { name: '保存', exact: true }).click();
+        await entryPage.locator('.journal-savebar').waitFor({ state: 'detached' });
+        await entryPage.locator('.journal-details strong', { hasText: '补充' }).waitFor();
+        assert.match(
+          parseLog((await app.core.workspace.read({ resource: 'log', key: project.id })).text)[0]
+            .body,
+          /\*\*补充\*\*：核查完成/u,
+        );
+        await entryPage.getByRole('button', { name: '文件列表', exact: true }).click();
         await page
           .locator('[data-journal-entry]')
           .getByRole('button', { name: '修订稿.md', exact: true })
@@ -128,7 +137,7 @@ test(
           .locator('[data-journal-entry]')
           .getByRole('button', { name: 'Save', exact: true })
           .click();
-        await page.locator('.journalcard').waitFor();
+        await page.locator('.journal-savebar').waitFor({ state: 'detached' });
         assert.equal(
           parseLog((await app.core.workspace.read({ resource: 'log', key: project.id })).text)[0]
             .references.length,

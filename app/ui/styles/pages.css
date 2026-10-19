@@ -276,3 +276,40 @@
 .about-page {
   max-width: 680px;
 }
+
+/* ---------- Project log entry: details edited in place ---------- */
+.journal-details {
+  min-height: 120px;
+  margin: -6px;
+  padding: 6px;
+  border-radius: var(--r-sm);
+  cursor: text;
+}
+.journal-details:hover {
+  background: var(--hover);
+}
+.journal-editor {
+  display: block;
+  width: 100%;
+  min-height: 160px;
+  padding: 6px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-sm);
+  background: var(--raised);
+  color: var(--ink);
+  font: 14px/22px var(--font-sans);
+  resize: vertical;
+}
+.journal-savebar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+.journal-savebar > span {
+  margin-right: auto;
+}

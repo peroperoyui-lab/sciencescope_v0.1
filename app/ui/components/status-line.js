@@ -21,7 +21,7 @@ function useSeconds(since) {
 }
 
 /** @param {{ since?: string }} props */
-function Elapsed({ since }) {
+export function Elapsed({ since }) {
   const seconds = useSeconds(since);
   return since ? html`<span class="ss-status__time">${t('{n} 秒', { n: seconds })}</span>` : null;
 }

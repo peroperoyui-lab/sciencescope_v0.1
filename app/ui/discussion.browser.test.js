@@ -123,6 +123,10 @@ test(
             await page.getByRole('button', { name: '发送', exact: true }).click();
             await waitingStarted.promise;
             await page.locator('.expert-state[data-state="waiting"]').waitFor();
+            await page
+              .locator('[data-expert-box="waiting"]', { hasText: '等前面的专家说完' })
+              .first()
+              .waitFor();
             releaseWaiting.resolve();
             await twoStarted.promise;
             await page.locator('.expert-state[data-state="running"]').first().waitFor();
@@ -134,11 +138,15 @@ test(
             releaseAnswers.resolve();
             await toolStarted.promise;
             await page.locator('.expert-state[data-state="tool"]').waitFor();
-            // While the answer runs its tool activity stays open.
-            const activity = page.locator('[data-expert] [data-turn-activity]').first();
-            await activity.locator('.ss-act__row .ss-spin').waitFor();
-            assert.equal(await activity.locator('.ss-act__summary').count(), 0);
+            // While an expert speaks it shows one fixed-height box: what it is doing and its last lines.
+            const box = page.locator('[data-expert] [data-expert-box="answering"]').first();
+            await box.getByText('正在读取').waitFor();
+            assert.match(await box.textContent(), /先查看项目与会议/u);
+            const height = await box.evaluate((node) => node.getBoundingClientRect().height);
+            assert.ok(height < 110, `box height ${height}`);
+            await shot('ordered-discussion-box');
             releaseTool.resolve();
+            const activity = page.locator('[data-expert] [data-turn-activity]').first();
             await page.locator('[data-review] .expert-state[data-state="done"]').waitFor();
             // When it ends the card folds into one line.
             await page
