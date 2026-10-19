@@ -359,6 +359,8 @@ data/
 
 **实现位置**：`tools/package/`（`windows.js`、`build-options.js`、`prune.js` 打包裁剪、`notices.js`、`installer-hooks.nsh`、`build-native.ps1`）、`src-tauri/`；首测指南 `docs/handoff/PREVIEW_TEST.md`。
 
+**品牌素材**：原生应用和安装程序使用 `tools/package/brand/` 的绿底图标、欢迎页侧图和步骤页头图，由 `tools/brand/render.mjs` 从同目录源稿生成。
+
 **关键数据**：安装目录下的 `runtime/node.exe`、`runtime/uv.exe`、`app/`、`node_modules/`、`data/`。
 
 **已知限制**

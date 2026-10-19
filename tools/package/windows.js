@@ -236,6 +236,18 @@ const resources = {};
 for (const folder of folders) resources[path.join(release, folder) + '/'] = folder + '/';
 for (const file of files) resources[path.join(release, file)] = file;
 const config = path.join(local, 'package/tauri-package.json');
+const installerHooks = path.join(local, 'package/brand-installer-hooks.nsh');
+// NSIS otherwise puts the header on the left and stretches art to dialog units.
+await writeFile(
+  installerHooks,
+  [
+    '!define MUI_HEADERIMAGE_RIGHT',
+    '!define MUI_HEADERIMAGE_BITMAP_STRETCH AspectFitHeight',
+    '!define MUI_WELCOMEFINISHPAGE_BITMAP_STRETCH AspectFitHeight',
+    `!include "${path.join(root, 'tools/package/installer-hooks.nsh')}"`,
+    '',
+  ].join('\n'),
+);
 await mkdir(path.join(local, 'package/frontend'), { recursive: true });
 await writeFile(
   path.join(local, 'package/frontend/index.html'),
@@ -254,10 +266,14 @@ await writeFile(
         useLocalToolsDir: true,
         targets: ['nsis'],
         publisher: 'peroperoyui',
+        icon: [path.join(root, 'tools/package/brand/icon.ico')],
         resources,
         windows: {
           nsis: {
-            installerHooks: path.join(root, 'tools/package/installer-hooks.nsh'),
+            installerIcon: path.join(root, 'tools/package/brand/icon.ico'),
+            headerImage: path.join(root, 'tools/package/brand/installer-header.bmp'),
+            sidebarImage: path.join(root, 'tools/package/brand/installer-sidebar.bmp'),
+            installerHooks,
             installMode: 'currentUser',
             displayLanguageSelector: true,
             languages: ['SimpChinese', 'English'],
