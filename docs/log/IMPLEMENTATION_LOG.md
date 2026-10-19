@@ -5,7 +5,7 @@
 
 
 ## 2026-10-19 A3 后端规则对齐（Codex）
-- 纪要只存应用数据目录，旧导出列保留且停止读写；语义下载默认 ModelScope，已存来源不变；打包测试加入格式、lint 和统一检查。相关测试 16/16；隔离原生纪要生成/编辑通过，真实 flash 1 次加服务商探测 1 次，共 948 tokens；完整验收记录见 `.sciencescope-local/temp/a3/`。
+- 纪要只存应用数据目录，旧导出列保留且停止读写；语义下载默认 ModelScope，已存来源不变；打包测试加入格式、lint 和统一检查。相关测试 16/16、干净检出 npm run check 255/255（零跳过，含 Windows 与 NSIS）；隔离原生纪要生成/编辑通过，真实 flash 1 次加服务商探测 1 次，共 948 tokens；完整验收记录见 `.sciencescope-local/temp/a3/`。
 
 ## 2026-10-19 美术资产（Claude）
 - 用户认可设计画廊「品牌」组（图标用绿底）。`tools/brand/` 是图标和安装图的源文件，`render.mjs` 生成 `tools/package/brand/` 的 icon.ico（8 个尺寸）和两张 NSIS 位图；画廊卡片由 `docs/design/system/build/art.mjs` 从同一来源生成。
