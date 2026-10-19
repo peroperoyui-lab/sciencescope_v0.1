@@ -85,6 +85,20 @@ test(
           tool: 'write_file',
           summary: path.join(outside.dir, 'analysis.py'),
           callId: 'call-1',
+          scopes: [
+            {
+              kind: 'exact',
+              value: path.join(outside.dir, 'analysis.py'),
+              label: '这个文件',
+              values: {},
+            },
+            {
+              kind: 'folder',
+              value: outside.dir,
+              label: '这个文件夹里的文件（含子文件夹）',
+              values: {},
+            },
+          ],
         });
         await assert.rejects(readFile(path.join(outside.dir, 'analysis.py')), { code: 'ENOENT' });
         const second = nextApproval(core);

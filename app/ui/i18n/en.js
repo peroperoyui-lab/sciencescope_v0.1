@@ -1270,4 +1270,12 @@ export const en = {
   '没有详细内容，点击添加。': 'No details yet; click to add some.',
   放弃修改: 'Discard changes',
   '交付了 {n} 个文件': 'Delivered {n} files',
+  '这条命令（完全一致）': 'This exact command',
+  '以 {prefix} 开头的命令': 'Commands starting with {prefix}',
+  这个文件: 'This file',
+  '这个文件夹里的文件（含子文件夹）': 'Files in this folder and its subfolders',
+  '安装 {package}': 'Install {package}',
+  所有安装包: 'All package installs',
+  按规则自动允许: 'Automatically allowed by a saved rule',
+  '请选择这次操作提供的允许范围。': 'Select an allowed scope offered for this operation.',
 };
