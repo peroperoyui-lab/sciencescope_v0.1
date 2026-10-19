@@ -13,6 +13,7 @@ import { AppError } from '../core/errors.js';
 import { MEETING_READING_GUIDANCE } from '../core/defaults.js';
 import { compileResearchInput } from './research-input/compile.js';
 import { compileImages } from './research-input/images.js';
+import { createSkills } from './skills/index.js';
 
 const withResearchInput = (messages) =>
   messages.map((message) => ({
@@ -40,6 +41,7 @@ const withResearchInput = (messages) =>
  * @param {{
  *   core: Core,
  *   python?: ReturnType<typeof import('./python/index.js').createPython>,
+ *   skills?: ReturnType<typeof createSkills>,
  *   defaultModel: () => Promise<ModelChoice | null>,
  *   minutesCoverage?: (meetingId: string, revisionId: string | null) => Promise<number>,
  *   minutesCoveredMessageIds?: (meetingId: string, revisionId: string | null) => string[],
@@ -52,6 +54,7 @@ const withResearchInput = (messages) =>
 export function createContextAssembly({
   core,
   python,
+  skills = createSkills(core),
   defaultModel,
   minutesCoverage = async () => 0,
   minutesCoveredMessageIds = () => [],
@@ -181,7 +184,8 @@ export function createContextAssembly({
         : '') +
       (environment
         ? `\n\nPython 环境：${environment.name}（${environment.id}）。需要新包时调用 python_env_install，说明包名和原因，不要在终端直接 pip install。`
-        : '');
+        : '') +
+      (await skills.prompt(participant.definition?.skills));
     if (execution.cancelled) throw new AppError('TURN_CANCELLED', 'Turn was cancelled.');
     const review = reviewMessageIds?.map((id) => core.messages.get(id)) ?? [];
     const reviewText = review.length

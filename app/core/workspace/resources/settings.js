@@ -51,6 +51,7 @@ export const DEFAULT_SETTINGS = {
   models: { default: null },
   context: { compactPercent: 80 },
   approvals: { rules: [] },
+  skills: { disabled: [] },
   semantic: DEFAULT_SEMANTIC_SETTINGS,
   // A cumulative input/output cost budget; null turns the budget off.
   memory: { enabled: true, idleMinutes: 10, model: null, tokenLimit: 100000 },

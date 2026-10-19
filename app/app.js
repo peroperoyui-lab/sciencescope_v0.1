@@ -13,6 +13,7 @@ import { projectBrief } from './services/secretary/project-brief.js';
 import { createMemoryService } from './services/memory/index.js';
 import { createProviderService } from './services/providers.js';
 import { createTools } from './services/tools.js';
+import { createSkills } from './services/skills/index.js';
 import { createAssistant } from './services/assistant/index.js';
 import { createContextAssembly } from './services/context-assembly.js';
 import { createTurnRunner } from './services/turn-runner.js';
@@ -76,7 +77,8 @@ export async function createApp({
     modelCatalog: catalog,
   });
   const secretary = createSecretaryChat({ core, minutes, modelCatalog: catalog });
-  const tools = createTools(core, research, { secretary, python, versions });
+  const skills = createSkills(core);
+  const tools = createTools(core, research, { secretary, python, versions, skills });
   const versionNotes = createVersionOrganizer({
     core,
     versions,
@@ -95,6 +97,7 @@ export async function createApp({
   const assistant = createAssistant({ core });
   const contextAssembly = createContextAssembly({
     core,
+    skills,
     python,
     defaultModel: async () => (await settings()).models.default,
     minutesCoverage: async (meetingId, revisionId) => minutes.coverage(meetingId, revisionId),
@@ -118,6 +121,8 @@ export async function createApp({
   versionNotes.start();
   const server = createAppServer({
     core,
+    skills,
+    tools,
     versions,
     versionNotes,
     python,
@@ -138,6 +143,7 @@ export async function createApp({
 
   return {
     core,
+    skills,
     knowledge,
     versions,
     versionNotes,

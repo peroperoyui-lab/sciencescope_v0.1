@@ -161,7 +161,7 @@ data/
 **已知限制**
 
 - 没有自由讨论（专家之间来回对话）。
-- 专家定义里的 `skills` 字段没有消费者；技能和 MCP 按 `plans/X_TOOLS_SKILLS_MCP.md` 在阶段 2 做，插件包在 alpha 之后。
+- MCP 按 `plans/X_TOOLS_SKILLS_MCP.md` 在阶段 2 接入，插件包在 alpha 之后。
 
 ### 2.5 任务秘书与纪要
 
@@ -603,6 +603,14 @@ data/
 其他文件：`library/originals/`（资料原件）、`deliverables/`、`workspaces/`、`models/`、`python/`、`runtime/pi/sessions/`、`logs/`、`secret/credentials.yaml`、`backups/`、`temp/`，见 1.2 节。
 
 ---
+
+## 技能与工具目录（X1，2026-10-19）
+
+- `services/skills/` 读取 `data/skills/<name>/` 和随包的 `app/resources/skills/<name>/`；同名用户技能优先。SKILL.md 保留 YAML 元数据和原始 Markdown 正文；文件夹或 ZIP 导入不覆盖已有用户技能，内置只能复制或停用，删除用户副本后恢复内置。手工损坏的技能在列表显示 error，不进入模型目录。
+- 主专家、专家、秘书聊天、全局助手每轮系统提示词列出启用技能；`use_skill {name}` 返回 `{name,body,directory}`（绝对路径），不存在或停用返回 `{message}`，不申请批准。绑定的启用技能正文预载到角色提示词，失效绑定跳过。后台纪要/记忆只预载绑定正文并保持无工具；已有工具的后台版本说明也收到目录（用户2026-10-19确认）。
+- `GET /api/skills` 返回数组，每项 `{name,description,metadata,source:'builtin'|'user',directory,enabled,boundRoles:[{id,name}],error?}`；`GET /api/skills/:name` 返回同一技能及 `body`（无 boundRoles）；`POST /api/skills/import` 接受 `{path}`（文件夹/ZIP）或 `{dataBase64}`（ZIP）；`POST /api/skills/:name/copy` 复制内置；`DELETE /api/skills/:name` 删除用户技能。
+- 启停使用 `PATCH /api/settings {skills:{disabled:[名称]}}`，默认空数组。角色绑定沿用 `PATCH /api/participants/:id {skills:[名称]}`。文件和设置是正本，无新增数据库迁移。
+- `GET /api/tools` 返回数组 `{name,source:'builtin'|'sciencescope'|'skill'|'mcp',server?,description,needsApproval,enabled}`；本步前三类，技能每个一项。needsApproval 表示该工具在请求批准模式下可能需要询问，实际仍依照项目位置及已保存批准规则判断。技能页/工具页及时间线展示由 Claude 接入；包内目前仅有格式示例，正式技能正文由 X0 提供。
 
 ## 5. 测试索引
 

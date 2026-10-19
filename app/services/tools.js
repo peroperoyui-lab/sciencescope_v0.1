@@ -6,6 +6,7 @@ import { createDeliverables } from './deliverables.js';
 import { BUILTIN_SPECS, createBuiltinTools } from './builtin-tools/index.js';
 import { createApprovals } from './approvals.js';
 import { createViewImage, VIEW_IMAGE_SPEC } from './builtin-tools/view-image.js';
+import { createSkills, USE_SKILL_SPEC } from './skills/index.js';
 
 /** @typedef {{ participantId: string, meetingId: string, turnId: string, callId?: string, environmentId?:string, signal?:AbortSignal, workFolder?:string, env?:{PATH?:string,VIRTUAL_ENV?:string} }} ToolContext */
 
@@ -15,6 +16,7 @@ const RESOURCES = ['map', 'plans', 'log', 'minutes', 'notes', 'agent', 'settings
 export const TOOL_SPECS = [
   ...BUILTIN_SPECS,
   VIEW_IMAGE_SPEC,
+  USE_SKILL_SPEC,
   {
     name: 'python_env_install',
     description:
@@ -157,12 +159,12 @@ export const TOOL_SPECS = [
 /**
  * @param {import('../core/index.js').Core} core
  * @param {ReturnType<typeof createResearch>} [research]
- * @param {{secretary?: ReturnType<typeof import('./secretary/chat.js').createSecretaryChat>,python?:ReturnType<typeof import('./python/index.js').createPython>,versions?:ReturnType<typeof import('./versions/index.js').createVersions>}} [services]
+ * @param {{skills?:ReturnType<typeof createSkills>,secretary?: ReturnType<typeof import('./secretary/chat.js').createSecretaryChat>,python?:ReturnType<typeof import('./python/index.js').createPython>,versions?:ReturnType<typeof import('./versions/index.js').createVersions>}} [services]
  */
 export function createTools(
   core,
   research = createResearch(core),
-  { secretary, python, versions } = {},
+  { secretary, python, versions, skills = createSkills(core) } = {},
 ) {
   const deliverables = createDeliverables(core);
   const builtins = createBuiltinTools(core, python);
@@ -229,6 +231,7 @@ export function createTools(
    * @param {ToolContext} context
    */
   async function run(name, args, context) {
+    if (name === 'use_skill') return skills.use(args?.name);
     const decision = await approvals.request(name, args, context);
     if (decision) return decision;
     if (name === 'view_image') return viewImage(args ?? {}, context);
@@ -299,5 +302,27 @@ export function createTools(
     throw new Error(`Unknown tool: ${name}`);
   }
 
-  return { specs: TOOL_SPECS, run, approvals };
+  async function list() {
+    const builtinNames = new Set([...BUILTIN_SPECS, VIEW_IMAGE_SPEC].map((spec) => spec.name));
+    return [
+      ...TOOL_SPECS.map((spec) => ({
+        name: spec.name,
+        source: builtinNames.has(spec.name) ? 'builtin' : 'sciencescope',
+        description: spec.description,
+        needsApproval: ['shell', 'write_file', 'edit_file', 'python_env_install'].includes(
+          spec.name,
+        ),
+        enabled: true,
+      })),
+      ...(await skills.list()).map((skill) => ({
+        name: skill.name,
+        source: 'skill',
+        description: skill.description,
+        needsApproval: false,
+        enabled: skill.enabled,
+      })),
+    ];
+  }
+
+  return { specs: TOOL_SPECS, run, approvals, list };
 }

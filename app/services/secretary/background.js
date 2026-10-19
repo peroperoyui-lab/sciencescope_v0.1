@@ -4,6 +4,7 @@ import { closeKnowledgeTurn } from '../knowledge/versions.js';
 import { AppError } from '../../core/errors.js';
 import { createTurnActivity } from '../turn-activity.js';
 import { recordedToolResult } from '../../runtime/port.js';
+import { createSkills } from '../skills/index.js';
 
 /**
  * @param {{core:import('../../core/index.js').Core,runtime:import('../../runtime/port.js').Runtime,
@@ -11,6 +12,7 @@ import { recordedToolResult } from '../../runtime/port.js';
  * @returns {{run:(meetingId:string,instructions:string,input:string,prepared?:any)=>Promise<{text:string,turnId:string,usage:any}>,close:()=>Promise<void>,prepare:(meetingId:string,options?:{model?:any})=>Promise<any>}}
  */
 export function createBackgroundRunner({ core, runtime, defaultModel, tools, modelCatalog }) {
+  const skills = createSkills(core);
   const sessions = new Set();
   let closed = false;
 
@@ -40,7 +42,11 @@ export function createBackgroundRunner({ core, runtime, defaultModel, tools, mod
     return {
       meeting,
       model,
-      prompt: secretary.definition?.prompt ?? '',
+      // Summary/memory turns keep their existing no-tool contract; only bound
+      // skills are preloaded. Tool-enabled version notes also get the catalog.
+      prompt:
+        (secretary.definition?.prompt ?? '') +
+        (await skills.prompt(secretary.definition?.skills, { catalog: Boolean(tools) })),
       contextWindow:
         descriptor?.contextWindow ??
         (modelCatalog ? null : /** @type {any} */ (model).contextWindow) ??
