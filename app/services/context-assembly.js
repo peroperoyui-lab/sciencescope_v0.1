@@ -7,6 +7,7 @@ import {
   buildSeedInput,
   visibleMessages,
   formatTranscript,
+  steeringBoundaries,
 } from '../core/context.js';
 import { AppError } from '../core/errors.js';
 import { MEETING_READING_GUIDANCE } from '../core/defaults.js';
@@ -29,7 +30,7 @@ const withResearchInput = (messages) =>
  *   followup: (rebuilding: boolean) => Promise<FollowupPacket | null>,
  *   resumedInput: (afterSeq: number) => (packet: FollowupPacket | null) => Promise<AssembledInput>,
  *   seedInput: (packet: FollowupPacket | null) => Promise<AssembledInput>}} PreparedContext
- * @typedef {{meetingId: string, participantId: string,
+ * @typedef {{meetingId: string, participantId: string, triggerMessageId?:string|null,
  *   cutoffSeq?: number, reviewMessageIds?: string[], continuation?: boolean,
  *   continuationMessageId?: string, retry?: boolean, signal?: AbortSignal,
  *   execution: {cancelled: boolean}}} ContextRequest
@@ -46,7 +47,7 @@ const withResearchInput = (messages) =>
  *   assistantOverview?: (meetingId: string, rebuilding: boolean) => Promise<FollowupPacket | null>,
  *   projectBrief?: (projectId: string) => Promise<string>
  * }} dependencies
- * @returns {{describe: (request: ContextRequest) => Promise<PreparedContext>}}
+ * @returns {{describe: (request: ContextRequest) => Promise<PreparedContext>, steeringInput: typeof steeringInput}}
  */
 export function createContextAssembly({
   core,
@@ -93,9 +94,13 @@ export function createContextAssembly({
   function selectedMessages(meetingId, afterSeq, cutoffSeq, participantId, resumed) {
     const all = core.messages.since(meetingId, 0);
     const byId = new Map(all.map((message) => [message.id, message]));
+    const steeredThrough = steeringBoundaries(all);
     const boundaryOf = (message) =>
       message.turnId && message.replyTo
-        ? (byId.get(message.replyTo)?.seq ?? message.seq)
+        ? Math.max(
+            byId.get(message.replyTo)?.seq ?? message.seq,
+            steeredThrough.get(message.replyTo) ?? 0,
+          )
         : message.seq;
     const bounded = all.filter(
       (message) =>
@@ -126,6 +131,7 @@ export function createContextAssembly({
   async function describe({
     meetingId,
     participantId,
+    triggerMessageId,
     cutoffSeq,
     reviewMessageIds,
     continuation,
@@ -187,12 +193,25 @@ export function createContextAssembly({
           .join('\n\n')
       : '';
     const ownContinuation = continuationMessageId ? core.messages.get(continuationMessageId) : null;
-    const question =
+    const transcript = core.messages.since(meeting.id, 0);
+    const retryMessages =
       retry && cutoffSeq != null
-        ? withResearchInput(core.messages.since(meeting.id, 0)).find(
-            (message) => message.seq === cutoffSeq,
-          )?.text
-        : null;
+        ? transcript.filter((message) => {
+            if (!triggerMessageId) return message.seq === cutoffSeq;
+            if (message.id === triggerMessageId) return true;
+            return (
+              message.refs?.steered &&
+              message.seq <= cutoffSeq &&
+              transcript.some(
+                (answer) =>
+                  answer.turnId === message.refs.turnId && answer.replyTo === triggerMessageId,
+              )
+            );
+          })
+        : [];
+    const question = withResearchInput(retryMessages)
+      .map((message) => message.text)
+      .join('\n\n');
     const followupFor = async (rebuilding) =>
       participant.id === 'agent_assistant'
         ? assistantOverview(meeting.id, rebuilding)
@@ -205,16 +224,12 @@ export function createContextAssembly({
         : '');
 
     function imagesFor(messages) {
-      const questionMessage =
-        retry && cutoffSeq != null
-          ? core.messages.since(meeting.id, 0).find((message) => message.seq === cutoffSeq)
-          : null;
-      return compileImages(
-        core,
-        questionMessage && !messages.some((message) => message.id === questionMessage.id)
-          ? [...messages, questionMessage]
-          : messages,
-      );
+      return compileImages(core, [
+        ...messages,
+        ...retryMessages.filter(
+          (questionMessage) => !messages.some((message) => message.id === questionMessage.id),
+        ),
+      ]);
     }
     function resumedInput(afterSeq) {
       const messages = selectedMessages(
@@ -273,5 +288,16 @@ export function createContextAssembly({
       seedInput,
     };
   }
-  return { describe };
+  /**
+   * Use the same research-material and image compiler for mid-turn input.
+   * @param {any} message
+   */
+  async function steeringInput(message) {
+    const author = core.participants.list().find((entry) => entry.id === message.authorId);
+    return {
+      input: formatTranscript(withResearchInput([message]), () => author?.name ?? message.authorId),
+      images: await compileImages(core, [message]),
+    };
+  }
+  return { describe, steeringInput };
 }

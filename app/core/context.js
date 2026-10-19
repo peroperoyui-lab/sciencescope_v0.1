@@ -10,6 +10,24 @@
 const VISIBLE_STATUSES = new Set(['done', 'max_tokens']);
 
 /**
+ * Retries of a question keep the input inserted into its earlier answer.
+ * @param {import('./messages.js').Message[]} messages
+ * @returns {Map<string,number>}
+ */
+export function steeringBoundaries(messages) {
+  const answers = new Map(
+    messages.filter((message) => message.turnId).map((message) => [message.turnId, message]),
+  );
+  const boundaries = new Map();
+  for (const message of messages) {
+    if (!message.refs?.steered) continue;
+    const question = answers.get(message.refs.turnId)?.replyTo;
+    if (question) boundaries.set(question, Math.max(boundaries.get(question) ?? 0, message.seq));
+  }
+  return boundaries;
+}
+
+/**
  * Messages other participants may see.
  * @param {import('./messages.js').Message[]} messages
  */

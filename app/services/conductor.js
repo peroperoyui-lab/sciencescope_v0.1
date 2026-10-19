@@ -8,7 +8,7 @@
 //   cut off at the same person's message; their answers are created up front in
 //   that order. The reviewer runs after every expert has ended, and its answer
 //   stays out of later context until the person adopts it.
-import { mentionedParticipants } from '../core/context.js';
+import { mentionedParticipants, steeringBoundaries } from '../core/context.js';
 import { AppError } from '../core/errors.js';
 import { runRound } from './conductor-round.js';
 import { closeKnowledgeTurn } from './knowledge/versions.js';
@@ -121,6 +121,7 @@ export function createConductor({ core, runner }) {
       .list()
       .find((participant) => participant.id === message.authorId);
     if (author?.kind !== 'human') return;
+    if (message.refs?.steered) return;
     const meeting = core.meetings.get(message.meetingId);
     enqueue(meeting.id, (signal) =>
       meeting.policy.mode === 'round'
@@ -152,6 +153,12 @@ export function createConductor({ core, runner }) {
     if (!message.turnId) throw new AppError('NOT_AN_ANSWER', '只能继续或重试 AI 的回答。');
     const turn = core.turns.get(message.turnId);
     const discussion = message.refs?.discussion;
+    const steeredSeq = steeringBoundaries(core.messages.since(message.meetingId, 0)).get(
+      turn.triggerMessageId,
+    );
+    const retryCutoff =
+      discussion?.cutoffSeq ??
+      (turn.triggerMessageId ? core.messages.get(turn.triggerMessageId).seq : undefined);
     return enqueue(message.meetingId, async (signal) => {
       const reserved = runner.reserve({
         meetingId: message.meetingId,
@@ -178,8 +185,9 @@ export function createConductor({ core, runner }) {
         reserved,
         cutoffSeq: continuation
           ? message.seq
-          : (discussion?.cutoffSeq ??
-            (turn.triggerMessageId ? core.messages.get(turn.triggerMessageId).seq : undefined)),
+          : steeredSeq != null
+            ? Math.max(retryCutoff ?? 0, steeredSeq)
+            : retryCutoff,
         reviewMessageIds: peers,
         continuation,
         retry: !continuation,
@@ -211,6 +219,36 @@ export function createConductor({ core, runner }) {
     retry: (messageId) => targeted(messageId, false),
     /** @param {string} messageId */
     continue: (messageId) => targeted(messageId, true),
+    /**
+     * Insert one selected draft; no await between runtime acceptance and storage.
+     * @param {string} meetingId
+     * @param {string} itemId
+     */
+    async steer(meetingId, itemId) {
+      const meeting = core.meetings.get(meetingId);
+      if (meeting.policy.mode === 'round' && isBusy(meetingId))
+        throw new AppError(
+          'ROUND_STEER_UNAVAILABLE',
+          '有序讨论进行中不能插入，这条会在这一轮结束后发出',
+          409,
+        );
+      const item = core.outbox.list(meetingId).items.find((entry) => entry.id === itemId);
+      if (!item) throw new AppError('OUTBOX_ITEM_NOT_FOUND', '找不到这条待发送消息。', 404);
+      const packet = await runner.steeringInput(item);
+      const current = core.outbox.list(meetingId).items.find((entry) => entry.id === itemId);
+      // The answer may have ended while images were read, sending the item normally.
+      if (!current) throw new AppError('OUTBOX_ITEM_GONE', '这条已发出或已取消。', 409);
+      if (JSON.stringify(current) !== JSON.stringify(item))
+        throw new AppError('OUTBOX_ITEM_CHANGED', '这条待发送消息已更改，请重新插入。', 409);
+      const turn = meeting.policy.mode === 'direct' ? runner.steer(meetingId, packet) : null;
+      const answer =
+        turn && core.messages.since(meetingId, 0).find((entry) => entry.turnId === turn.id);
+      return core.outbox.dispatch(meetingId, {
+        id: itemId,
+        refs: turn ? { steered: true, turnId: turn.id } : undefined,
+        beforeAnswer: answer?.id,
+      });
+    },
     /** @param {string} meetingId */
     async interrupt(meetingId) {
       if (core.meetings.get(meetingId).policy.mode === 'round') {

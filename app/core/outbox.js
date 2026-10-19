@@ -136,21 +136,27 @@ export function createOutbox({ db, events, meetings, messages, now, newId }) {
     });
   }
 
-  /** @param {string} meetingId @returns {import('./messages.js').Message|null} */
-  function dispatch(meetingId) {
+  /**
+   * An explicit item bypasses queue pause; automatic draining respects it.
+   * @param {string} meetingId
+   * @param {{id?:string,refs?:any,beforeAnswer?:string}} [options]
+   * @returns {import('./messages.js').Message|null}
+   */
+  function dispatch(meetingId, { id, refs, beforeAnswer } = {}) {
     return db.transaction(() => {
       const state = list(meetingId);
-      const first = state.items[0];
-      if (state.paused || !first) return null;
+      const first = id ? toItem(rowOf(meetingId, id)) : state.items[0];
+      if ((!id && state.paused) || !first) return null;
       const message = messages.post({
         meetingId,
         authorId: first.authorId,
         text: first.text,
-        refs: first.refs,
+        refs: { ...first.refs, ...refs },
         researchInput: first.researchInput,
         replyTo: first.replyTo,
       });
       db.prepare('DELETE FROM meeting_outbox WHERE id = ?').run(first.id);
+      if (beforeAnswer) messages.moveStreamingToEnd(beforeAnswer);
       changed(meetingId, first.authorId);
       return message;
     });

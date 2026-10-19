@@ -41,6 +41,7 @@
  *     instructions: string, tools: ToolSpec[], onToolCall: ToolHandler, noTools?: boolean,
  *     env?: {PATH?:string,VIRTUAL_ENV?:string} }): Promise<string>,
  *   send(sessionId: string, input: string, onEvent: (event: RuntimeEvent) => void, images?: ImageContent[]): Promise<TurnResult>,
+ *   steer(sessionId: string, input: string, images?: ImageContent[]): boolean,
  *   interrupt(sessionId: string): Promise<void>,
  *   setInstructions(sessionId: string, instructions: string): Promise<void>,
  *   release(sessionId: string): Promise<void>,
@@ -49,6 +50,8 @@
  *   `startSession` with an existing `sessionId` resumes it (its working memory
  *   survives a restart when the runtime persists it). `release` frees the
  *   process but keeps what can be resumed.
+ *   `steer` synchronously accepts input for an active send, or returns false
+ *   when it has already ended. The caller can then send it as an ordinary message.
  */
 
 /**

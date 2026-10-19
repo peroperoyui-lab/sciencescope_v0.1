@@ -21,12 +21,13 @@ function optionalNumber(value) {
  * @param {import('../../core/index.js').Core} core
  * @param {{ interrupt: (meetingId: string) => Promise<void>,
  *   retry: (messageId: string) => Promise<unknown>, continue?: (messageId: string) => Promise<unknown>,
- *   submit?: (input:any)=>any }} [conductor]
+ *   submit?: (input:any)=>any,
+ *   steer?: (meetingId:string,itemId:string)=>Promise<any> }} [conductor]
  * @param {ReturnType<typeof import('../../services/research-input/index.js').createResearchInput>} [researchInput]
  * @param {ReturnType<typeof import('../../services/python/index.js').createPython>} [python]
  */
 export function registerMeetingRoutes(router, core, conductor, researchInput, python) {
-  registerOutboxRoutes(router, core);
+  registerOutboxRoutes(router, core, conductor);
   router.get('/api/activity', () => ({
     running: core.turns.running(),
     outboxes: core.meetings.list().map((meeting) => core.outbox.list(meeting.id)),

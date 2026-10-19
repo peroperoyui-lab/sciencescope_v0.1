@@ -168,6 +168,21 @@ export function createPiRuntime({
   return {
     startSession,
     send,
+    steer(id, input, images = []) {
+      const session = sessions.get(id);
+      if (closed || session?.cancelled || !session?.agent.state.isStreaming) return false;
+      const supportsImages = session.selection.model.input?.includes('image') ?? false;
+      const text =
+        images.length && !supportsImages
+          ? `${input}\n\n[图片未发送：所选模型不支持图片。请说明此限制，不要推测图片内容。]`
+          : input;
+      session.agent.steer({
+        role: 'user',
+        content: [{ type: 'text', text }, ...(supportsImages ? images : [])],
+        timestamp: Date.now(),
+      });
+      return true;
+    },
     async interrupt(id) {
       const session = sessions.get(id);
       if (session) {
