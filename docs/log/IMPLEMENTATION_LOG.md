@@ -4,6 +4,9 @@
 > 2026-10-05 之前旧原型时期的记录在 `archive/legacy/DESKTOP_IMPLEMENTATION_legacy.md`。
 
 
+## 2026-10-19 C2 看图工具（Codex）
+- 新增共享 view_image：PDF 页与局部区域、图片裁切后发送 PNG；模型能力由运行时判断，记录只存预览路径。复用 pdfjs-dist（Apache-2.0）和 @napi-rs/canvas（MIT）；原文解析与界面未改，验收材料见 `.sciencescope-local/temp/c2/`。
+
 ## 2026-10-19 对话页 B 组（Claude）
 - 时间线：连续同类步骤合成一行（「运行了 6 条命令」），批准成为该步骤的状态（批准请求记录所属 `callId`），命令细节像终端。交付文件收成一行、点开是清单，正文按路径插图和文件链接（`workspace_present` 说明已补）。
 - 设置加「对话行距」「侧栏字号」，对话正文统一行高和段距。有序讨论中发言的专家只占固定高度的状态框。日志详情点一下直接改纯文本，删掉「简述」页。

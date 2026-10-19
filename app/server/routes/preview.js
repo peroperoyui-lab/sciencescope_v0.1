@@ -13,12 +13,13 @@ export function registerPreviewRoutes(router, core, research) {
     id: query.get('id'),
     projectId: query.get('projectId'),
     path: query.get('path'),
+    turnId: query.get('turnId'),
   });
   router.get('/api/preview/document', ({ query }) => preview.document(target(query)));
   router.get('/api/preview/content', async ({ query, response }) => {
     const file = await preview.content(target(query));
     response.writeHead(200, {
-      'content-type': 'application/octet-stream',
+      'content-type': file.mimeType ?? 'application/octet-stream',
       'content-length': file.bytes.length,
     });
     response.end(file.bytes);

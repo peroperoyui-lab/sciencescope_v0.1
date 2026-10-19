@@ -1,6 +1,7 @@
 // A runtime for tests: each reply comes from a script function instead of a
 // model. Scripts can stream text, call ScienceScope tools and choose how the
 // turn ends, so conductor behaviour is testable without a model or DSH.
+import { recordedToolResult } from './port.js';
 
 /**
  * @typedef {{ sessionId: string, input: string, inputs: string[], instructions: string, images: import('./port.js').ImageContent[], model: any,
@@ -63,7 +64,12 @@ export function createScriptedRuntime({ script }) {
             onEvent({ type: 'tool-call', callId, name, args });
             try {
               const result = await session.onToolCall({ name, args, callId, signal });
-              onEvent({ type: 'tool-result', callId, isError: false, result });
+              onEvent({
+                type: 'tool-result',
+                callId,
+                isError: false,
+                result: recordedToolResult(result),
+              });
               return result;
             } catch (error) {
               onEvent({

@@ -4,6 +4,7 @@ import path from 'node:path';
 import mammoth from 'mammoth';
 import { createProjectFiles } from '../project-files.js';
 import { extractCitationLabels } from '../research/citations.js';
+import { AppError } from '../../core/errors.js';
 
 /**
  * @param {import('../../core/index.js').Core} core
@@ -12,6 +13,17 @@ import { extractCitationLabels } from '../research/citations.js';
 export function createPreview(core, research) {
   const files = createProjectFiles(core);
   function locate(target) {
+    if (target.kind === 'tool') {
+      const preview = core.turns.toolCalls(target.turnId).find((call) => call.callId === target.id)
+        ?.result?.preview;
+      if (!preview) throw new AppError('PREVIEW_NOT_FOUND', 'Image preview is unavailable.', 404);
+      return {
+        path: preview.path,
+        name: path.basename(preview.path),
+        mimeType: preview.mimeType,
+        projectId: core.meetings.get(core.turns.get(target.turnId).meetingId).projectId,
+      };
+    }
     if (target.kind === 'version') {
       const version = core.versionCatalog.get(target.id);
       return {
