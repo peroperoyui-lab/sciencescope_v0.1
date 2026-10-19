@@ -65,12 +65,14 @@ export function createMinutesStore(core) {
   }
 
   function status(meetingId) {
-    const row = db.prepare('SELECT * FROM minutes_status WHERE meeting_id = ?').get(meetingId);
+    const row = db
+      .prepare(
+        'SELECT error, incomplete_output, workbench_error FROM minutes_status WHERE meeting_id = ?',
+      )
+      .get(meetingId);
     return {
       error: row?.error == null ? null : String(row.error),
       incompleteOutput: row?.incomplete_output == null ? null : String(row.incomplete_output),
-      exportPath: row?.export_path == null ? null : String(row.export_path),
-      exportError: row?.export_error == null ? null : String(row.export_error),
       workbenchError: row?.workbench_error == null ? null : String(row.workbench_error),
     };
   }
@@ -78,16 +80,14 @@ export function createMinutesStore(core) {
   function patchStatus(meetingId, changes) {
     const value = { ...status(meetingId), ...changes };
     db.prepare(
-      `INSERT INTO minutes_status (meeting_id, error, incomplete_output, export_path, export_error, workbench_error, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(meeting_id) DO UPDATE SET error = excluded.error,
-      incomplete_output = excluded.incomplete_output, export_path = excluded.export_path, export_error = excluded.export_error,
+      `INSERT INTO minutes_status (meeting_id, error, incomplete_output, workbench_error, updated_at)
+      VALUES (?, ?, ?, ?, ?) ON CONFLICT(meeting_id) DO UPDATE SET error = excluded.error,
+      incomplete_output = excluded.incomplete_output,
       workbench_error = excluded.workbench_error, updated_at = excluded.updated_at`,
     ).run(
       meetingId,
       value.error,
       value.incompleteOutput,
-      value.exportPath,
-      value.exportError,
       value.workbenchError,
       new Date().toISOString(),
     );

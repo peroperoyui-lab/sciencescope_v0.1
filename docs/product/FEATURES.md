@@ -66,7 +66,7 @@ data/
   temp/                       工具输出过长时保存的完整内容
 ```
 
-- 用户选择的外部项目文件夹只被引用（`projects.folder`），会议在里面运行命令和读写文件；已知例外见 2.5 节"已知限制"。
+- 用户选择的外部项目文件夹只被引用（`projects.folder`），会议在里面运行命令和读写文件；应用纪要只保存在 ScienceScope 数据目录。
 - 工作区文件可以在应用外直接编辑。下次读取时，宿主发现内容哈希与最后一次修订不同，会补记一条 `external` 修订，撤销历史保持真实。
 - 原子写入和项目文件夹改名遇到 Windows 的 `EPERM/EBUSY/EACCES` 会短暂重试（50/100/200/400 毫秒），仍失败时返回 `PATH_BUSY`（409），原文件和记录不变。
 
@@ -169,14 +169,14 @@ data/
 - 打开主对话右侧的秘书面板和秘书单独对话：秘书读取主对话里它还没看过的部分（先等纪要，再补纪要之后的原文），可以修改工作站，也可以为主专家起草下一步指令。草稿以"秘书提案"卡片出现，可编辑、填入主对话输入框、忽略或撤销。
 - 秘书面板可单独选模型和执行方式，宽度可拖动并记住。
 
-**实现位置**：`app/services/secretary/`（`minutes.js` 纪要、`policy.js` 触发规则、`publish.js` 导出与更新工作站、`chat.js` 与 `catch-up.js` 秘书对话、`proposals.js` 提案）；界面 `app/ui/components/` 下的 `secretary-panel.js`、`secretary-proposal.js`、`minutes-dialog.js`、`settings-secretary.js`。
+**实现位置**：`app/services/secretary/`（`minutes.js` 纪要、`policy.js` 触发规则、`publish.js` 更新工作站、`chat.js` 与 `catch-up.js` 秘书对话、`proposals.js` 提案）；界面 `app/ui/components/` 下的 `secretary-panel.js`、`secretary-proposal.js`、`minutes-dialog.js`、`settings-secretary.js`。
 
 **关键数据**：资源 `minutes`（键为会议 id）；表 `minutes_coverage`、`minutes_status`、`minutes_workbench_updates`、`secretary_pending_projects`、`secretary_chats`、`secretary_cursors`、`main_draft_proposals`、`main_draft_proposal_history`；设置 `summary.*`。
 
 **已知限制**
 
 - 纪要只是总结，从不截断会议原文；主专家和专家重建会话时读"纪要 + 纪要之后的原文"，需要时用工具回查。
-- 设置 `summary.saveMarkdown`（默认开）会把纪要另存一份到会议工作文件夹的 `minutes/<会议id>.md`；当工作文件夹是用户绑定的外部项目文件夹时，这会在外部文件夹里写文件。界面上的勾选项已删（2026-10-19），后端导出由任务 A3 删除。
+- 纪要只保存在 ScienceScope 数据目录，生成和编辑均不写入外部项目文件夹；已有外部纪要文件保持原样。旧导出状态列保留但不再读写，状态接口不返回导出字段。
 
 ### 2.6 全局助手
 
@@ -229,7 +229,7 @@ data/
 
 **实现位置**：`app/services/research/`（`store.js`、`items.js`、`search.js`、`citations.js`、`parsers/`、`semantic/`）、`app/services/preview/`；界面 `app/ui/components/research-*.js`、`file-preview.js`、`settings-semantic.js`、`app/ui/readers/`。
 
-**关键数据**：表 `rb_sources`、`rb_chunks`、`rb_items`、`rb_revisions`、`rb_fts`（可重建）、`rb_vec_docs`、`rb_vec`（384 维 sqlite-vec，可重建）；设置 `semantic.enabled`、`semantic.downloadSource`（`official`/`modelscope`/`hf-mirror`/`custom`）、`semantic.customDownloadUrl`；模型 `data/models/multilingual-e5-small/`。
+**关键数据**：表 `rb_sources`、`rb_chunks`、`rb_items`、`rb_revisions`、`rb_fts`（可重建）、`rb_vec_docs`、`rb_vec`（384 维 sqlite-vec，可重建）；设置 `semantic.enabled`、`semantic.downloadSource`（默认 `modelscope`；可选 `official`/`modelscope`/`hf-mirror`/`custom`，已保存的选择不变）、`semantic.customDownloadUrl`；模型 `data/models/multilingual-e5-small/`。
 
 **已知限制**
 
@@ -544,7 +544,7 @@ data/
 | 003  | `rb_fts`                                                                              | FTS5 全文索引，可重建                                                        |
 | 004  | `rb_vec_docs`、`rb_vec`                                                               | 向量检索文档表与 384 维向量（sqlite-vec），可重建                            |
 | 005  | `minutes_coverage`                                                                    | 每版纪要覆盖到哪条消息                                                       |
-| 005  | `minutes_status`                                                                      | 纪要错误、未完成输出、导出路径、工作站更新错误                               |
+| 005  | `minutes_status`                                                                      | 纪要错误、未完成输出、工作站更新错误；旧导出列不再使用                       |
 | 005  | `minutes_workbench_updates`                                                           | 随纪要更新工作站产生的修订                                                   |
 | 005  | `secretary_pending_projects`                                                          | 待处理的进入/离开项目总结                                                    |
 | 006  | `secretary_chats`                                                                     | 主对话与其秘书对话的对应                                                     |
@@ -588,12 +588,12 @@ data/
 
 ## 5. 测试索引
 
-- **入口**：`npm run check` = Prettier 格式检查 + ESLint + TypeScript 类型检查（`tsc -p app`）+ `node --test --test-concurrency=2 "app/**/*.test.js"`。只跑测试用 `npm run test:app`。`npm test` 跑的是冻结旧线的 `tests/*.test.mjs`，不覆盖新核心。
+- **入口**：`npm run check` = Prettier 格式检查 + ESLint + TypeScript 类型检查（`tsc -p app`）+ `node --test --test-concurrency=2 "app/**/*.test.js" "tools/package/*.test.js"`。只跑测试用 `npm run test:app`。`npm test` 跑的是冻结旧线的 `tests/*.test.mjs`，不覆盖新核心。
 - **组织**：测试文件与被测代码放在一起，命名 `*.test.js`（基线时 99 个），按用户路径写功能测试；多数迁移有测试检查旧数据升级。
 - **脚本化模型**：服务和接口测试用 `app/runtime/scripted.js` 代替真实模型；临时目录由 `app/testing.js` 建在 `.sciencescope-local/temp` 下。`app/ui/i18n/en.test.js` 检查每个界面中文字符串都有英文对照。
 - **运行时测试**：`*.runtime.test.js`（`app/app.runtime.test.js`、`app/main.runtime.test.js`、`app/runtime/pi/http.runtime.test.js`）启动真实宿主或本地 HTTP 假服务商，检查启动输出、关闭、超时和重试。
 - **浏览器测试**：`*.browser.test.js`（27 个）用 `playwright-core` 驱动真实宿主加脚本化模型，覆盖对话、讨论、秘书、面板、批准、资料库、预览、标记、工作站、导图、文献版本、Python、设置等页面。浏览器按顺序找 `SCIENCESCOPE_CHROMIUM`、`/opt/pw-browsers/chromium`、Windows 上的 Edge；都找不到时跳过。设置 `SCIENCESCOPE_SCREENSHOTS=<文件夹>` 保存截图。辅助代码在 `app/ui/browser-testing.js`。
 - **仅 Windows**：两个测试在非 Windows 上跳过，都用真实的无删除共享文件句柄检查占用时的重试与恢复：`app/core/workspace/workspace.test.js`（计划文件被占用）和 `app/core/projects.test.js`（项目文件夹改名被占用）。原生窗口和助手窗口的浏览器测试（`native-window.browser.test.js`、`assistant-window.browser.test.js`）在没有浏览器时跳过。
-- **打包**：`tools/package/*.test.js`（裁剪、许可说明、NSIS 钩子）不在 `npm run check` 里，需要单独运行 `node --test tools/package/`。
+- **打包**：`tools/package/*.test.js`（裁剪、许可说明、NSIS 钩子）纳入 `npm run check` 的格式、ESLint 和测试检查；Windows 专用测试按平台和编译器可用性运行。
 - **原生**：Rust 启动测试在 `src-tauri/src/new_app.rs`，用 `cargo test` 运行。
 - **真实模型与安装包验收**：不属于自动测试。按 `AGENTS.md` 和 `docs/process/ACCEPTANCE.md`，涉及 AI 路径的改动用便宜的付费模型跑一次并报告请求数和 token；安装包从全新安装开始验收。已知不稳定：`app/ui/map.browser.test.js` 的导图历史测试偶发失败，留待导图重做。

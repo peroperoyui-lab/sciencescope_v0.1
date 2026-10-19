@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { withCore } from '../../testing.js';
 import { createScriptedRuntime } from '../../runtime/scripted.js';
@@ -289,24 +289,26 @@ test('workbench direct updates append or mark user data, retain provenance and c
     },
   ));
 
-test('Markdown exports are one-way, save errors stay visible without reverting minutes', () =>
-  withMinutes(async ({ core, meeting, minutes, say, workFolder, dir }) => {
-    say('导出事实');
+test('minutes stay in application data and leave existing external copies untouched', () =>
+  withMinutes(async ({ meeting, minutes, say, workFolder, configure }) => {
+    // A legacy saved setting must not re-enable exports.
+    await configure({ saveMarkdown: true });
+    say('研究决定');
     const first = await minutes.refresh(meeting.id);
-    const file = path.join(workFolder, 'minutes', `${meeting.id}.md`);
-    assert.match(await readFile(file, 'utf8'), /ScienceScope minutes/);
-    await writeFile(file, '外部副本不能污染纪要');
-    const edit = await minutes.edit(meeting.id, '# 用户编辑后也导出', first.revision);
-    assert.match(await readFile(file, 'utf8'), /用户编辑后也导出/);
-    const blocked = path.join(dir, 'blocked-file');
-    await writeFile(blocked, 'not a directory');
-    core.meetings.update(meeting.id, { workFolder: blocked });
-    say('随后仍然更新');
-    const state = await minutes.refresh(meeting.id);
-    assert.ok(state.exportError);
-    assert.equal(state.error, null);
-    assert.equal(state.throughSeq, 2);
-    assert.equal(state.revisionNumber, edit.revisionNumber + 1);
+    assert.match(first.text, /研究目标/);
+    assert.deepEqual(await readdir(workFolder), []);
+    assert.equal(Object.hasOwn(first, 'exportPath'), false);
+    assert.equal(Object.hasOwn(first, 'exportError'), false);
+    await mkdir(path.join(workFolder, 'minutes'));
+    const file = path.join(workFolder, 'minutes', meeting.id + '.md');
+    await writeFile(file, '用户保留的旧纪要');
+    const edited = await minutes.edit(meeting.id, '# 用户编辑的纪要', first.revision);
+    assert.equal((await minutes.status(meeting.id)).text, '# 用户编辑的纪要');
+    say('后续研究进展');
+    const refreshed = await minutes.refresh(meeting.id);
+    assert.equal(refreshed.revisionNumber, edited.revisionNumber + 1);
+    assert.equal(refreshed.throughSeq, 2);
+    assert.equal(await readFile(file, 'utf8'), '用户保留的旧纪要');
   }));
 
 test('incomplete, failed and empty output preserve prior minutes and coverage until manual retry', async () => {
@@ -382,7 +384,6 @@ test('disabled automatic rules make no calls; manual summary uses the saved secr
       everyTokens: { enabled: false },
       onEnterProject: false,
       onLeaveProject: false,
-      saveMarkdown: false,
     });
     minutes.start();
     say('需要整理');
@@ -397,7 +398,7 @@ test('disabled automatic rules make no calls; manual summary uses the saved secr
     assert.equal(session.model.model, 'secretary-model');
     assert.equal(session.model.effort, 'high');
     assert.match(session.instructions, /用户保存的秘书说明/);
-    assert.equal(status.exportPath, null);
+    assert.equal(Object.hasOwn(status, 'exportPath'), false);
     assert.equal(status.messagesRemaining, null);
     assert.equal(status.tokensRemaining, null);
   }));
@@ -490,7 +491,7 @@ test('a meeting bound to its internal project folder keeps canonical minutes fre
       assert.equal(state.text, '# 内置纪要\n原始决定');
       assert.equal(state.revisionNumber, 1);
       assert.equal(state.throughSeq, 1);
-      assert.equal(state.exportPath, null);
+      assert.equal(Object.hasOwn(state, 'exportPath'), false);
       const history = core.workspace.history({ resource: 'minutes', key: meeting.id });
       assert.deepEqual(
         history.map((revision) => revision.op),

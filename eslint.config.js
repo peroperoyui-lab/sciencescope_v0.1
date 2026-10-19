@@ -4,7 +4,7 @@ import globals from 'globals';
 // Only rules that catch real problems; formatting belongs to Prettier.
 export default [
   {
-    files: ['app/**/*.js'],
+    files: ['app/**/*.js', 'tools/package/*.test.js'],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'module',

@@ -1,39 +1,5 @@
-import path from 'node:path';
 import { AppError } from '../../core/errors.js';
-import { writeTextAtomic } from '../../core/workspace/files.js';
 import { logEntryText, parseLog } from '../../shared/journal.js';
-
-/**
- * @param {import('../../core/index.js').Core} core
- * @param {any} store
- * @param {string} meetingId
- * @param {{text:string,revision:string|null,throughSeq:number}} minutes
- * @param {any} settings
- * @returns {Promise<void>}
- */
-export async function exportMinutes(core, store, meetingId, minutes, settings) {
-  if (!settings.saveMarkdown) return;
-  const meeting = core.meetings.get(meetingId);
-  const project = meeting.projectId ? core.projects.get(meeting.projectId) : null;
-  const folder = meeting.workFolder ?? project?.folder;
-  if (!folder) return;
-  const file = path.join(folder, 'minutes', `${meetingId}.md`);
-  const canonicalFile = path.join(
-    core.workspace.locate.meetingBase(meetingId),
-    'minutes',
-    `${meetingId}.md`,
-  );
-  // An internal work folder already contains the canonical minutes. Exporting
-  // there would overwrite them with the export header and create a false edit.
-  if (path.relative(canonicalFile, file) === '') return;
-  try {
-    const header = `<!-- ScienceScope minutes; revision ${minutes.revision}; covers through #${minutes.throughSeq}. -->\n\n`;
-    await writeTextAtomic(file, `${header}${minutes.text}\n`);
-    store.patchStatus(meetingId, { exportPath: file, exportError: null });
-  } catch (error) {
-    store.patchStatus(meetingId, { exportPath: file, exportError: String(error.message ?? error) });
-  }
-}
 
 /**
  * @param {{core:import('../../core/index.js').Core,runner:any,store:any,meetingId:string,
