@@ -60,7 +60,7 @@ workflow, helping the user understand and advance their own research project
 
 ## Engineering rules
 
-- **Rebuild in progress** (`docs/architecture/ARCHITECTURE.md` §5, stages R0–R6). New
+- **Rebuild in progress** (`docs/architecture/ARCHITECTURE.md` §6; alpha order in `docs/plans/ROADMAP.md`). New
   code goes into `app/` following `docs/architecture/CORE_MODEL.md`. The old line
   (`desktop/`, `scripts/`, `adapters/`) is frozen as reference (tag
   `v0-prototype`): no new features there, only fixes needed to keep it running.
