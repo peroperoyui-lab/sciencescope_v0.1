@@ -1,6 +1,7 @@
 // Version notes use the secretary's disposable background turn, not the Main
 // session. A per-project queue preserves import order and optimistic revision
 // checks keep a user's concurrent edits authoritative.
+import { closeKnowledgeTurn } from '../knowledge/versions.js';
 import { AppError } from '../../core/errors.js';
 import { nowIso } from '../../core/ids.js';
 import { createBackgroundRunner } from '../secretary/background.js';
@@ -229,7 +230,10 @@ export function createVersionOrganizer({
       status(id, 'failed', error.message);
       throw error;
     } finally {
-      if (response) core.workspace.captureTurnSnapshots(response.turnId);
+      if (response) {
+        core.workspace.captureTurnSnapshots(response.turnId);
+        closeKnowledgeTurn(core, response.turnId);
+      }
     }
   }
   function refresh(id) {

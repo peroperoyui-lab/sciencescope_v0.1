@@ -2,6 +2,7 @@ import { AppError } from '../../core/errors.js';
 import { filterProject, oneOf, payloadText, recordObject, requiredText } from './records.js';
 
 const subtypes = {
+  code: ['snippet', 'function', 'script'],
   knowledge: ['finding', 'definition', 'method', 'fact', 'dataset-note', 'other'],
   model: ['theory', 'formula', 'algorithm', 'statistical-model', 'protocol'],
   memory: [

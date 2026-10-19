@@ -26,21 +26,32 @@
 
 迁移注册表 `app/core/db/migrations/NNN-name.js`：每个文件导出 `up(db)`，按编号执行，版本记在 `PRAGMA user_version`。迁移前用 SQLite backup API 备份到 `backups/`。数据库版本高于程序时拒绝打开。
 
-| 表 | 主要列 | 说明 |
-|---|---|---|
-| `projects` | id, name, description, dir_name, folder（外部文件夹，可空）, pinned, archived, created_at, updated_at | 项目；文件目录 `projects/<dir_name>/`，`dir_name` = 名称-id，改名时目录一起改名 |
-| `participants` | id, kind(`human`/`ai`), name, created_at | 人与 AI 的登记；AI 的定义在 `agents/<id>.md`，名称以文件为准。预置：`person_user`（本地用户）、`agent_main`、`agent_secretary`、`agent_assistant` |
-| `meetings` | id, project_id（可空 = 全局）, title, policy_json, parent_meeting_id, fork_message_id, attached_to_meeting_id, work_folder, pinned, archived, temporary, created_at, updated_at | 会议；`policy_json` 是发言规则（§6） |
-| `meeting_members` | meeting_id, participant_id, role_note | 谁在场；`role_note` 是在本会议中的说明（如"审核"） |
-| `messages` | id, meeting_id, seq, author_id, text, status(`streaming`/`done`/`max_tokens`/`failed`/`cancelled`), turn_id, reply_to, refs_json（标记、附件、引用）, adopted（审核结论是否采纳）, created_at | 会议记录正本；`seq` 在会议内递增 |
-| `turns` | id, meeting_id, participant_id, trigger_message_id, status, stop_reason, usage_json, started_at, ended_at | AI 的一次发言 |
-| `tool_calls` | id, turn_id, seq, name, args_json, result_json, status, presented（是否展示给用户）, started_at, ended_at | 工具调用，完整保存，不截断 |
-| `runtime_sessions` | meeting_id, participant_id, runtime, session_id, last_seq | AI 在某会议中的工作记忆指针；`last_seq` = 它已看到的最后一条消息 |
-| `revisions` | id, resource, resource_key（`资源:键`）, op, before_text, after_text, after_hash, actor_id, meeting_id, turn_id, undone_by, created_at | 每次修改保存前后全文；撤销 = 写一条反向修订；程序外的修改记为 `external` |
-| `resource_snapshots` | id, resource, resource_key, content_text/hash, actor_id, source, revision_id, created_at | 编辑边界的可恢复内容快照；revisions 继续存内部细粒度历史 |
-| `events` | seq, type, project_id, meeting_id, actor_id, payload_json, created_at | 变更流，给界面与后台参与者订阅 |
+| 表                            | 主要列                                                                                                                                                                                        | 说明                                                                                                                                              |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `projects`                    | id, name, description, dir_name, folder（外部文件夹，可空）, pinned, archived, created_at, updated_at                                                                                         | 项目；文件目录 `projects/<dir_name>/`，`dir_name` = 名称-id，改名时目录一起改名                                                                   |
+| `participants`                | id, kind(`human`/`ai`), name, created_at                                                                                                                                                      | 人与 AI 的登记；AI 的定义在 `agents/<id>.md`，名称以文件为准。预置：`person_user`（本地用户）、`agent_main`、`agent_secretary`、`agent_assistant` |
+| `meetings`                    | id, project_id（可空 = 全局）, title, policy_json, parent_meeting_id, fork_message_id, attached_to_meeting_id, work_folder, pinned, archived, temporary, created_at, updated_at               | 会议；`policy_json` 是发言规则（§6）                                                                                                              |
+| `meeting_members`             | meeting_id, participant_id, role_note                                                                                                                                                         | 谁在场；`role_note` 是在本会议中的说明（如"审核"）                                                                                                |
+| `messages`                    | id, meeting_id, seq, author_id, text, status(`streaming`/`done`/`max_tokens`/`failed`/`cancelled`), turn_id, reply_to, refs_json（标记、附件、引用）, adopted（审核结论是否采纳）, created_at | 会议记录正本；`seq` 在会议内递增                                                                                                                  |
+| `turns`                       | id, meeting_id, participant_id, trigger_message_id, status, stop_reason, usage_json, started_at, ended_at                                                                                     | AI 的一次发言                                                                                                                                     |
+| `tool_calls`                  | id, turn_id, seq, name, args_json, result_json, status, presented（是否展示给用户）, started_at, ended_at                                                                                     | 工具调用，完整保存，不截断                                                                                                                        |
+| `runtime_sessions`            | meeting_id, participant_id, runtime, session_id, last_seq                                                                                                                                     | AI 在某会议中的工作记忆指针；`last_seq` = 它已看到的最后一条消息                                                                                  |
+| `revisions`                   | id, resource, resource_key（`资源:键`）, op, before_text, after_text, after_hash, actor_id, meeting_id, turn_id, undone_by, created_at                                                        | 每次修改保存前后全文；撤销 = 写一条反向修订；程序外的修改记为 `external`                                                                          |
+| `resource_snapshots`          | id, resource, resource_key, content_text/hash, actor_id, source, revision_id, created_at                                                                                                      | 编辑边界的可恢复内容快照；revisions 继续存内部细粒度历史                                                                                          |
+| `kb_entities`                 | id, kind, name/name_en, aliases_json, description, attrs_json, layer, origin, created_by, meeting_id/turn_id, visibility, status, merged_into, revision                                       | 全局实体正本；项目视图通过归属关联                                                                                                                |
+| `kb_edges`                    | id, from_ref/to_ref, relation, attrs_json/evidence_json, layer/origin, created_by, meeting_id/turn_id, status, revision                                                                       | 四种节点引用；派生层按端点与关系覆盖，不留版本                                                                                                    |
+| `kb_labels`、`kb_memberships` | ref + label / project_id, created_by / added_by, created_at                                                                                                                                   | 标签和项目归属，来源通过修订和版本回溯                                                                                                            |
+| `kb_versions`                 | source, project_id, actor_id, meeting_id/turn_id, summary_json, restored_by, closed_at                                                                                                        | 一组修改；ai-turn-end / leave-page / build / before-restore                                                                                       |
+| `kb_revisions`                | version_id, ref, op, before_json/after_json, actor_id, origin, created_at                                                                                                                     | 图的独立修订；origin 同时标记标签/归属修改来源                                                                                                    |
+| `kb_jobs`                     | source_id, layer, topic, state, content_version, error, attempts                                                                                                                              | 后续整理服务的持久任务状态；本任务仅建表                                                                                                          |
+| `events`                      | seq, type, project_id, meeting_id, actor_id, payload_json, created_at                                                                                                                         | 变更流，给界面与后台参与者订阅                                                                                                                    |
 
 资料库 `rb_*` 表已在 R4-1a 纳入迁移 `003-research-base.js`（见 §11）；设置不进数据库。
+
+知识库存储迁移为 022（021 是 A2-2 删除自动化）。rb_sources 新增 folder_path 与项目/路径唯一索引。
+服务 app.knowledge 提供 create/update/removeEntity、mergePreview/mergeEntities、create/update/removeEdge、label、membership、getEntity(ref)、listEntities、neighbors(ref)；页返回 rows/total/offset/limit/remaining。
+versions 提供 open/close/closeTurn、list/get/changes/history、restore(versionId)、restoreRevision(revisionId)；restore 返回 version/skipped/refs，记录使用 camelCase 字段和已解码 JSON。
+写入 actor 可传 origin、actorId、projectId、meetingId、turnId、versionId；AI 首次写入按 turnId 自动开版本，所有修订独立于 workspace.revisions。标签引用为 label:<ref>#<编码标签>，归属为 membership:<project>#<ref>。
 
 ## 3. 事件
 
@@ -48,34 +59,35 @@
 - 界面通过 `GET /api/events?since=<seq>`（SSE）订阅：先补发 `since` 之后的事件，再实时推送。
 - 后台参与者用同样的订阅方式。
 
-| 类型 | payload |
-|---|---|
-| `project.created/updated/archived` | project |
-| `meeting.created/updated` | meeting |
-| `message.created` | message |
-| `message.delta` | messageId, text（增量；不写数据库，只推送） |
-| `message.updated` | message（结束、状态变化、采纳） |
-| `turn.started/ended` | turn |
-| `tool.started/ended` | toolCall |
-| `resource.changed` | resource, resourceId, revisionId |
-| `revision.undone` | revisionId |
-| `research.changed` | action（source.imported、item.created/updated/superseded）, sourceId 或 itemId；事件上下文带 projectId、actorId |
+| 类型                               | payload                                                                                                         |
+| ---------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `project.created/updated/archived` | project                                                                                                         |
+| `meeting.created/updated`          | meeting                                                                                                         |
+| `message.created`                  | message                                                                                                         |
+| `message.delta`                    | messageId, text（增量；不写数据库，只推送）                                                                     |
+| `message.updated`                  | message（结束、状态变化、采纳）                                                                                 |
+| `turn.started/ended`               | turn                                                                                                            |
+| `tool.started/ended`               | toolCall                                                                                                        |
+| `resource.changed`                 | resource, resourceId, revisionId                                                                                |
+| `revision.undone`                  | revisionId                                                                                                      |
+| `knowledge.changed`                | refs（受影响引用列表），事务提交后通知；同时发 research.changed action=knowledge.changed                        |
+| `research.changed`                 | action（source.imported、item.created/updated/superseded）, sourceId 或 itemId；事件上下文带 projectId、actorId |
 
 ## 4. 工作区资源
 
 资源注册表 `app/core/workspace/resources/*.js`：每类资源导出 `{ name, read(ctx, id), list(ctx, query), apply(ctx, op) → { before, after } }`。`apply` 由工作区统一包装：写文件或表 → 记修订 → 发事件。
 
-| 资源 | 存放 | 格式 |
-|---|---|---|
-| `map` | `projects/<p>/workbench/map.json` | `{ nodes, edges }`（沿用旧格式） |
-| `plans` | `projects/<p>/workbench/plans.md`；全局计划在 `plans.md` | Markdown 任务列表 |
-| `log` | `projects/<p>/workbench/log.md` | Markdown，每条一个二级标题（日期 + 标题） |
-| `versions` | `projects/<p>/versions/<组 id>/v<号>-<版本 id>/` | 原件 + `<原件名>.notes.md`；读取原文由解析器分页，编辑只修改说明 |
-| `minutes` | `projects/<p>/minutes/<会议 id>.md`；不属于项目的会议在 `minutes/<会议 id>.md` | Markdown；历史版本在 `resource_snapshots`，细粒度修订在 `revisions` |
-| `notes` | `projects/<p>/notes/*.md` | Markdown |
-| `agent` | `agents/<id>.md` | YAML 头（name、model、effort、tools、skills）+ 正文（人设） |
-| `skill` | `skills/<name>/SKILL.md` | 运行时的技能格式 |
-| `settings` | `settings.json`（键固定为 `app`） | JSON；读取时与默认值合并；操作 `patch` / `write` |
+| 资源       | 存放                                                                           | 格式                                                                |
+| ---------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `map`      | `projects/<p>/workbench/map.json`                                              | `{ nodes, edges }`（沿用旧格式）                                    |
+| `plans`    | `projects/<p>/workbench/plans.md`；全局计划在 `plans.md`                       | Markdown 任务列表                                                   |
+| `log`      | `projects/<p>/workbench/log.md`                                                | Markdown，每条一个二级标题（日期 + 标题）                           |
+| `versions` | `projects/<p>/versions/<组 id>/v<号>-<版本 id>/`                               | 原件 + `<原件名>.notes.md`；读取原文由解析器分页，编辑只修改说明    |
+| `minutes`  | `projects/<p>/minutes/<会议 id>.md`；不属于项目的会议在 `minutes/<会议 id>.md` | Markdown；历史版本在 `resource_snapshots`，细粒度修订在 `revisions` |
+| `notes`    | `projects/<p>/notes/*.md`                                                      | Markdown                                                            |
+| `agent`    | `agents/<id>.md`                                                               | YAML 头（name、model、effort、tools、skills）+ 正文（人设）         |
+| `skill`    | `skills/<name>/SKILL.md`                                                       | 运行时的技能格式                                                    |
+| `settings` | `settings.json`（键固定为 `app`）                                              | JSON；读取时与默认值合并；操作 `patch` / `write`                    |
 
 键：`map`、`log` 为项目 id；`plans` 为项目 id 或 `global`；`minutes` 为会议 id；`notes` 为 `项目 id/名称`；`agent` 为参与者 id。文本资源的操作：`write`、`append`、`replace`（`find` → `with`）、`delete`；导图另有 `addNode`、`updateNode`、`removeNode`（连同子树与相关连线）、`addEdge`、`removeEdge`。撤销时如果之后还有修改，返回 `REVISION_CONFLICT`。
 
@@ -87,14 +99,14 @@
 `location` 可含 `page`、`paragraph`、`characters: {start,end}`、`lines: {start,end}` 和 `quote: {exact,prefix?,suffix?}`。
 页、段落和行从 1 起算，字符从 0 起算、右端不包含；未知页码不填，不猜测。`label` 仅用于显示，不作身份。
 
-| kind | 稳定目标 |
-|---|---|
-| `version` | 版本 id + projectId；可带页、段落、字符范围 |
-| `project-file` / `script` | projectId + 相对路径；可带行、字符范围；script 是项目代码文件 |
-| `source` / `chunk` | 来源 id，或段落 id + sourceId；可带页、引用原文；原件与来源记录仍是正本 |
-| `item` | 资料库条目 id |
-| `message` | 消息 id + meetingId |
-| `map-node` | 节点 id + projectId；用于版本说明关联导图节点 |
+| kind                      | 稳定目标                                                                |
+| ------------------------- | ----------------------------------------------------------------------- |
+| `version`                 | 版本 id + projectId；可带页、段落、字符范围                             |
+| `project-file` / `script` | projectId + 相对路径；可带行、字符范围；script 是项目代码文件           |
+| `source` / `chunk`        | 来源 id，或段落 id + sourceId；可带页、引用原文；原件与来源记录仍是正本 |
+| `item`                    | 资料库条目 id                                                           |
+| `message`                 | 消息 id + meetingId                                                     |
+| `map-node`                | 节点 id + projectId；用于版本说明关联导图节点                           |
 
 版本说明的关联链接和日志关联文件使用此对象。后续写作工作台直接复用，不增加存储框架。
 R4-2 标记不改存储：`target.kind/id/projectId/path` 对应上述目标；消息标记的 `messageId/meetingId` 对应 message；
@@ -129,6 +141,7 @@ model: { provider: deepseek, model: deepseek-v4.1-flash, effort: high }
 skills: [statistics-review]
 tools: { prefer: [research_search], avoid: [] }
 ---
+
 你是……（人设与工作方式）
 ```
 
@@ -137,11 +150,11 @@ tools: { prefer: [research_search], avoid: [] }
 
 ## 6. 发言规则（`meetings.policy_json`）
 
-| mode | 行为 |
-|---|---|
-| `direct`（默认） | 人发消息后，被 @ 的参与者回应；没有 @ 时由会议的默认回应者（通常是主专家）回应 |
-| `round` | 选定的参与者并行回应同一上下文，按固定顺序展示；可选审核者在全部结束后回应；审核结论在用户采纳（`messages.adopted`）后才进入其他参与者的上下文 |
-| `autonomous` | 一位参与者朝目标连续发言，直到完成、失败或被叫停 |
+| mode             | 行为                                                                                                                                           |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `direct`（默认） | 人发消息后，被 @ 的参与者回应；没有 @ 时由会议的默认回应者（通常是主专家）回应                                                                 |
+| `round`          | 选定的参与者并行回应同一上下文，按固定顺序展示；可选审核者在全部结束后回应；审核结论在用户采纳（`messages.adopted`）后才进入其他参与者的上下文 |
+| `autonomous`     | 一位参与者朝目标连续发言，直到完成、失败或被叫停                                                                                               |
 
 R4-6a：迁移014的meeting_goals保存当前会议目标、状态、轮数/用户最多轮数（默认30）、原因和时间。conductor逐轮调用共同runner，上下文组装附目标及继续指令；新用户消息经outbox在下一轮前入会，不额外派发回答。共享goal_update complete/blocked分别完成或等待用户，用户回复自动继续。暂停等当前轮完成，结束中断；失败/达到轮数暂停，重启running转paused且不自动续跑。附属会话及assistant_state中的助手不提供自动化，round与未结束目标互斥。每轮保留既有turn.ended秘书总结事件。
 
@@ -209,11 +222,11 @@ R4-2c（待审阅）：research_input_drafts/message_research_input的marks数�
 
 R4-2b（待审阅）：GET /api/preview/document与/content按来源、交付物或项目文件定位原件；独立阅读投影不受模型输入大小影响。GET /api/messages/:id/citations复用资料库解析器，把已识别标签解析为来源/page/highlight，优先本轮所附来源；未知写法原样返回。PDF.js/CodeMirror/docx-preview等从本机依赖提供，浏览器阅读器不调用模型。
 
-| 工具 | 参数 | 作用 |
-|---|---|---|
+| 工具             | 参数                        | 作用                                                 |
+| ---------------- | --------------------------- | ---------------------------------------------------- |
 | `workspace_read` | `resource`, `id?`, `query?` | 读或列出任意资源；包括会议与消息（可跨会议、跨项目） |
-| `workspace_edit` | `resource`, `op`, `args` | 修改资源，记修订，返回修订 id |
-| `workspace_undo` | `revisionId` | 撤销一条修订 |
+| `workspace_edit` | `resource`, `op`, `args`    | 修改资源，记修订，返回修订 id                        |
+| `workspace_undo` | `revisionId`                | 撤销一条修订                                         |
 
 `workspace_read` 的 `target` 另有 `overview`（全部项目与会议）、`project`、`meeting`（分页读记录）、`changes`（更改记录）。
 | `research_search` / `research_read` | 见 §11 | R4-1a 已实现；所有角色共用，资料库写入工具属后续任务 |

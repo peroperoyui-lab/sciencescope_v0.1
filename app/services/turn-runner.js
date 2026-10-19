@@ -4,6 +4,7 @@
 // the turn with a status. See docs/architecture/CORE_MODEL.md §6–§7.
 // Ordered rounds reserve their answers before starting, so the order in which
 // experts finish never changes the order in which they are shown.
+import { closeKnowledgeTurn } from './knowledge/versions.js';
 import { AppError } from '../core/errors.js';
 import { createTurnActivity } from './turn-activity.js';
 
@@ -219,6 +220,7 @@ export function createTurnRunner({
     const endTurn = (result) => {
       activity.finish();
       core.workspace.captureTurnSnapshots(turn.id);
+      closeKnowledgeTurn(core, turn.id);
       return core.turns.end(turn.id, result);
     };
 

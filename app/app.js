@@ -1,5 +1,6 @@
 // Assembles the whole host: core, runtime, tools, conductor and the HTTP
 // server. `main.js` starts it for real; tests start it with a fixture model.
+import { createKnowledgeStore } from './services/knowledge/store.js';
 import { createCore } from './core/index.js';
 import { createPiRuntime } from './runtime/pi/runtime.js';
 import { createModelCatalog } from './runtime/pi/catalog.js';
@@ -42,6 +43,7 @@ export async function createApp({
   const core = await createCore({ dataRoot });
   startup?.mark('createCoreEnd');
   const versions = createVersions(core);
+  const knowledge = createKnowledgeStore(core);
   const semantic = createSemantic(core);
   const research = createResearch(core, { semantic });
   const researchInput = createResearchInput({ core, research });
@@ -136,6 +138,7 @@ export async function createApp({
 
   return {
     core,
+    knowledge,
     versions,
     versionNotes,
     python,

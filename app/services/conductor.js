@@ -11,6 +11,7 @@
 import { mentionedParticipants } from '../core/context.js';
 import { AppError } from '../core/errors.js';
 import { runRound } from './conductor-round.js';
+import { closeKnowledgeTurn } from './knowledge/versions.js';
 
 /**
  * @param {{ core: import('../core/index.js').Core,
@@ -136,6 +137,8 @@ export function createConductor({ core, runner }) {
           core.messages.update(message.id, { status: 'cancelled' });
       }
       core.turns.end(turn.id, { status: 'cancelled', stopReason: 'restart' });
+      // Its knowledge edits become one closed version that can still be withdrawn.
+      closeKnowledgeTurn(core, turn.id);
     }
   }
 

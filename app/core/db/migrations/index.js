@@ -29,6 +29,7 @@ import * as turnActivities from './018-turn-activities.js';
 import * as turnError from './019-turn-error.js';
 import * as inputImages from './020-input-images.js';
 import * as removeAutomation from './021-remove-automation.js';
+import * as knowledgeBase from './022-knowledge-base.js';
 
 export const migrations = [
   core,
@@ -52,4 +53,5 @@ export const migrations = [
   turnError,
   inputImages,
   removeAutomation,
+  knowledgeBase,
 ];

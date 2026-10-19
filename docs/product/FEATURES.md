@@ -239,6 +239,15 @@ data/
 - 对话进行中暂停建立索引；索引缺失、版本不一致或向量阶段超过 300 毫秒时，整次退回关键词检索。
 - 扫描件没有 OCR；没有文献元数据在线查询和 BibTeX 互通。
 
+### 2.8a 知识库存储（无界面）
+
+- 实体、带原文/消息证据的关系、标签和项目归属共用知识库存储；实体合并先返回改挂关系数，写入立即生效。删除保留 removed 记录，合并保留 merged 与目标引用。
+- 每次事实修改与修订、knowledge.changed/research.changed 事件同事务保存；AI 的参与者、会议、发言和证据可追溯。标签/归属的来源通过修订 origin 与所属版本的会议、发言追溯。
+- 一轮 AI 修改归入一个 ai-turn-end 版本，五处现有发言结束位置关闭版本；用户编辑会话可显式开关，空版本丢弃。整组撤回跳过后来改过的记录并返回引用；单条恢复和整组撤回都先存 before-restore，可再次撤回。
+- 撤回新建实体/边保留 removed 身份，后续用户改过的边仍能找到端点；派生关系不留修订，节点恢复时清除相关派生缓存。图修改不进入文件工作区 revisions。
+- 实体名称、英文名、别名、描述加入 FTS 和现有 384 维向量索引；支持重建，私有实体不进 AI 候选。资料种类新增 link，条目类型新增 code（snippet/function/script）。
+- 当前只提供 app/services/knowledge/ 服务与 app.knowledge；没有新增界面、HTTP 路由、模型工具或自动构图。节点邻接一跳按关系/层分页，返回 remaining。
+
 ### 2.9 工作站（计划、导图、日志、文稿版本、历史版本）
 
 **用户能做什么**
@@ -528,48 +537,49 @@ data/
 
 迁移在 `app/core/db/migrations/`，编号即 `PRAGMA user_version`；有旧数据时迁移前先备份到 `data/backups/`。
 
-| 迁移 | 表或改动                                                                              | 用途                                                                         |
-| ---- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| 001  | `projects`                                                                            | 项目：名称、目录名、外部文件夹、置顶、归档                                   |
-| 001  | `participants`                                                                        | 人和 AI；AI 的定义在 `agents/<id>.md`                                        |
-| 001  | `meetings`                                                                            | 会议：所属项目、规则 `policy_json`、分支来源、附属会议、工作文件夹、临时标记 |
-| 001  | `meeting_members`                                                                     | 会议成员与顺序                                                               |
-| 001  | `messages`                                                                            | 消息：作者、正文、状态、所属发言、引用、采纳                                 |
-| 001  | `turns`                                                                               | 发言：参与者、触发消息、状态、停止原因、用量                                 |
-| 001  | `tool_calls`                                                                          | 发言里的活动条目（工具、思考、重试、批准、压缩）                             |
-| 001  | `runtime_sessions`                                                                    | 每位参与者在每个会议的运行时会话                                             |
-| 001  | `revisions`                                                                           | 工作区资源的逐条修订（前后全文、执行者、撤销）                               |
-| 001  | `events`                                                                              | 事件日志，界面事件流的来源                                                   |
-| 002  | `tool_calls.preamble`、`call_id`                                                      | 工具调用前的说明文字、调用 id                                                |
-| 003  | `rb_sources`                                                                          | 资料：编号、类型、元数据、原件路径、解析状态、页数                           |
-| 003  | `rb_chunks`                                                                           | 解析段落（页码、章节、字符范围），可重建                                     |
-| 003  | `rb_items`                                                                            | 条目：知识、模型、记忆、主张、笔记；状态、可见性、取代关系                   |
-| 003  | `rb_revisions`                                                                        | 条目每次修改前的快照                                                         |
-| 003  | `rb_fts`                                                                              | FTS5 全文索引，可重建                                                        |
-| 004  | `rb_vec_docs`、`rb_vec`                                                               | 向量检索文档表与 384 维向量（sqlite-vec），可重建                            |
-| 005  | `minutes_coverage`                                                                    | 每版纪要覆盖到哪条消息                                                       |
-| 005  | `minutes_status`                                                                      | 纪要错误、未完成输出、工作站更新错误；旧导出列不再使用                       |
-| 005  | `minutes_workbench_updates`                                                           | 随纪要更新工作站产生的修订                                                   |
-| 005  | `secretary_pending_projects`                                                          | 待处理的进入/离开项目总结                                                    |
-| 006  | `secretary_chats`                                                                     | 主对话与其秘书对话的对应                                                     |
-| 006  | `secretary_cursors`                                                                   | 秘书已读到主对话的位置                                                       |
-| 006  | `main_draft_proposals`、`main_draft_proposal_history`                                 | 秘书提案及其可撤销历史                                                       |
-| 007  | `memory_cursors`、`memory_checkpoints`、`memory_runs`                                 | 记忆整理的游标、断点和运行状态                                               |
-| 007  | `memory_dedup`                                                                        | 候选记忆去重                                                                 |
-| 007  | `memory_item_history`                                                                 | 记忆修改的可撤销历史                                                         |
-| 008  | `resource_snapshots`；`revisions.restored_from_revision_id`                           | 历史版本；恢复来源                                                           |
-| 009  | `meeting_outbox_state`、`meeting_outbox`                                              | 待发队列及其暂停状态                                                         |
-| 010  | `message_deliverables`                                                                | 回答下方展示的交付文件                                                       |
-| 011  | `assistant_state`                                                                     | 唯一的全局助手会议与概览哈希                                                 |
-| 012  | `research_input_drafts`、`message_research_input`；`meeting_outbox.input_json`        | 输入框草稿、消息发送时的附件与标记快照                                       |
-| 013  | `python_environments`、`python_bindings`、`python_operations`                         | Python 环境、绑定和操作记录                                                  |
-| 015  | `version_groups`、`manuscript_versions`                                               | 文献版本组与版本                                                             |
-| 016  | `projects.auto_version_notes`、`manuscript_versions.notes_*`、`version_note_meetings` | 自动说明开关、说明引用、后台说明会议                                         |
-| 017  | `log_file_references`                                                                 | 日志条目里文件链接的可重建投影                                               |
-| 018  | `turns.phase`、`tool_calls.kind`                                                      | 发言阶段、活动条目类型                                                       |
-| 019  | `turns.error`                                                                         | 发言失败原因（与部分回答分开保存）                                           |
-| 020  | `input_images`                                                                        | 输入框图片附件的元数据（原件在 `library/originals/`）                        |
-| 021  | 移除 `meeting_goals`                                                                  | 旧自动化会议改为 `direct`，移除 `policy.goal`，保留消息及其他规则            |
+| 迁移 | 表或改动                                                                                                                     | 用途                                                                           |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| 001  | `projects`                                                                                                                   | 项目：名称、目录名、外部文件夹、置顶、归档                                     |
+| 001  | `participants`                                                                                                               | 人和 AI；AI 的定义在 `agents/<id>.md`                                          |
+| 001  | `meetings`                                                                                                                   | 会议：所属项目、规则 `policy_json`、分支来源、附属会议、工作文件夹、临时标记   |
+| 001  | `meeting_members`                                                                                                            | 会议成员与顺序                                                                 |
+| 001  | `messages`                                                                                                                   | 消息：作者、正文、状态、所属发言、引用、采纳                                   |
+| 001  | `turns`                                                                                                                      | 发言：参与者、触发消息、状态、停止原因、用量                                   |
+| 001  | `tool_calls`                                                                                                                 | 发言里的活动条目（工具、思考、重试、批准、压缩）                               |
+| 001  | `runtime_sessions`                                                                                                           | 每位参与者在每个会议的运行时会话                                               |
+| 001  | `revisions`                                                                                                                  | 工作区资源的逐条修订（前后全文、执行者、撤销）                                 |
+| 001  | `events`                                                                                                                     | 事件日志，界面事件流的来源                                                     |
+| 002  | `tool_calls.preamble`、`call_id`                                                                                             | 工具调用前的说明文字、调用 id                                                  |
+| 003  | `rb_sources`                                                                                                                 | 资料：编号、类型、元数据、原件路径、解析状态、页数                             |
+| 003  | `rb_chunks`                                                                                                                  | 解析段落（页码、章节、字符范围），可重建                                       |
+| 003  | `rb_items`                                                                                                                   | 条目：知识、模型、记忆、主张、笔记；状态、可见性、取代关系                     |
+| 003  | `rb_revisions`                                                                                                               | 条目每次修改前的快照                                                           |
+| 003  | `rb_fts`                                                                                                                     | FTS5 全文索引，可重建                                                          |
+| 004  | `rb_vec_docs`、`rb_vec`                                                                                                      | 向量检索文档表与 384 维向量（sqlite-vec），可重建                              |
+| 005  | `minutes_coverage`                                                                                                           | 每版纪要覆盖到哪条消息                                                         |
+| 005  | `minutes_status`                                                                                                             | 纪要错误、未完成输出、工作站更新错误；旧导出列不再使用                         |
+| 005  | `minutes_workbench_updates`                                                                                                  | 随纪要更新工作站产生的修订                                                     |
+| 005  | `secretary_pending_projects`                                                                                                 | 待处理的进入/离开项目总结                                                      |
+| 006  | `secretary_chats`                                                                                                            | 主对话与其秘书对话的对应                                                       |
+| 006  | `secretary_cursors`                                                                                                          | 秘书已读到主对话的位置                                                         |
+| 006  | `main_draft_proposals`、`main_draft_proposal_history`                                                                        | 秘书提案及其可撤销历史                                                         |
+| 007  | `memory_cursors`、`memory_checkpoints`、`memory_runs`                                                                        | 记忆整理的游标、断点和运行状态                                                 |
+| 007  | `memory_dedup`                                                                                                               | 候选记忆去重                                                                   |
+| 007  | `memory_item_history`                                                                                                        | 记忆修改的可撤销历史                                                           |
+| 008  | `resource_snapshots`；`revisions.restored_from_revision_id`                                                                  | 历史版本；恢复来源                                                             |
+| 009  | `meeting_outbox_state`、`meeting_outbox`                                                                                     | 待发队列及其暂停状态                                                           |
+| 010  | `message_deliverables`                                                                                                       | 回答下方展示的交付文件                                                         |
+| 011  | `assistant_state`                                                                                                            | 唯一的全局助手会议与概览哈希                                                   |
+| 012  | `research_input_drafts`、`message_research_input`；`meeting_outbox.input_json`                                               | 输入框草稿、消息发送时的附件与标记快照                                         |
+| 013  | `python_environments`、`python_bindings`、`python_operations`                                                                | Python 环境、绑定和操作记录                                                    |
+| 015  | `version_groups`、`manuscript_versions`                                                                                      | 文献版本组与版本                                                               |
+| 016  | `projects.auto_version_notes`、`manuscript_versions.notes_*`、`version_note_meetings`                                        | 自动说明开关、说明引用、后台说明会议                                           |
+| 017  | `log_file_references`                                                                                                        | 日志条目里文件链接的可重建投影                                                 |
+| 018  | `turns.phase`、`tool_calls.kind`                                                                                             | 发言阶段、活动条目类型                                                         |
+| 019  | `turns.error`                                                                                                                | 发言失败原因（与部分回答分开保存）                                             |
+| 020  | `input_images`                                                                                                               | 输入框图片附件的元数据（原件在 `library/originals/`）                          |
+| 021  | 移除 `meeting_goals`                                                                                                         | 旧自动化会议改为 `direct`，移除 `policy.goal`，保留消息及其他规则              |
+| 022  | `kb_entities`、`kb_edges`、`kb_labels`、`kb_memberships`、`kb_versions`、`kb_revisions`、`kb_jobs`；`rb_sources.folder_path` | 知识库实体、关系、标签、项目归属、修订与历史版本、后台任务（还没有界面和工具） |
 
 ### 4.2 文件资源
 
