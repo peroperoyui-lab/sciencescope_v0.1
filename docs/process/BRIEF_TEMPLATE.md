@@ -1,6 +1,6 @@
 # 任务书模板
 
-> 复制下面的结构，放到 `plans/tasks/<任务号>_<主题>.md`。例子见 `plans/tasks/A2-1_images_prompt_screenshot.md`，以及 `plans/tasks/done/` 下已完成的任务书。
+> 复制下面的结构，放到 `plans/tasks/<任务号>_<主题>.md`。例子见 `plans/tasks/done/A2-1_images_prompt_screenshot.md`，以及 `plans/tasks/done/` 下已完成的任务书。
 > 写法：一个任务约一到两小时；每句话都是要交付的要求，不写用户和记忆里没有的附加项；用户的原话尽量照引。
 
 ```markdown

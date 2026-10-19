@@ -1,7 +1,7 @@
 # C 组方案：权限与运行时
 
 - 起草：Claude，2026-10-19；用户 2026-10-19 定了第 7 节四个问题，已按答复改好。依据：`reviews/REVIEW_2026-10-18.md` §1C（用户测试第 5、11、12、13、15、16 条）；核对的代码基线 `e3ed9ae`。
-- 任务书：`plans/tasks/C1_always_allow.md`、`C2_view_image.md`、`C3_steer.md`、`C4_parallel_mentions.md`，界面部分 Claude 做。
+- 任务书：`plans/tasks/done/C1_always_allow.md`、`C2_view_image.md`、`C3_steer.md`、`C4_parallel_mentions.md`，界面部分 Claude 做。
 
 ## 0. 现状（核对代码）
 
