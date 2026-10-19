@@ -4,11 +4,11 @@
 
 ## 桌面修订：2026-10-18 删掉自动化
 
-用户决定删掉「自动化」执行方式和目标功能。执行方式只有请求批准（`approval: ask`）和常规（`approval: auto`）两档，覆盖下一节的三项和 2026-10-07 第 7 条。界面已删；后端目标接口与 `goal.changed` 由任务 A2-2 删除。
+用户决定删掉「自动化」执行方式和目标功能。执行方式只有请求批准（`approval: ask`）和常规（`approval: auto`）两档，覆盖 2026-10-07 第 7 条。界面和后端目标接口均已删除，不再发送目标变化事件；迁移 021 将旧自动化对话改为普通对话并移除旧目标。`GET /api/activity` 仅返回 `running`、`outboxes`。
 
 ## 桌面修订：2026-10-16 请求批准（P1b 后端于 2026-10-17 接入）
 
-会议发言规则增加 `approval: ask | auto`，新会议与未设置的旧会议默认 `ask`。请求批准时，每条 shell 命令、数据目录外的文件写入和编辑、Python 包安装先等待决定；读取和有历史版本的工作区编辑直接执行。`POST /api/turns/:turnId/approvals/:activityId` 接受 `decision: approve | reject`；活动 `kind=approval` 的 `args={tool,summary}` 展示完整命令、目标路径及编辑行数或包列表。状态为 `pending → approved/rejected/cancelled`，通过 `tool.ended` 通知；等待阶段为 `waiting-approval`，目标通过既有 `goal.changed` 刷新。拒绝和取消不记为发言失败；重启不会继续执行待批准操作。界面三项由 Claude 接入：请求批准（direct+ask）、常规（direct+auto）、自动化（autonomous+auto），覆盖下文 2026-10-07 第 7 条。
+会议发言规则增加 `approval: ask | auto`，新会议与未设置的旧会议默认 `ask`。请求批准时，每条 shell 命令、数据目录外的文件写入和编辑、Python 包安装先等待决定；读取和有历史版本的工作区编辑直接执行。`POST /api/turns/:turnId/approvals/:activityId` 接受 `decision: approve | reject`；活动 `kind=approval` 的 `args={tool,summary}` 展示完整命令、目标路径及编辑行数或包列表。状态为 `pending → approved/rejected/cancelled`，通过 `tool.ended` 通知；等待阶段为 `waiting-approval`，经 `turn.phase` 通知。拒绝和取消不记为发言失败；停止回答、关闭程序或发言结束会取消待批准操作，重启不会继续执行它们。界面执行方式只剩请求批准和常规，发言规则仍为普通或有序讨论。
 
 压缩接口补充（2026-10-17）：`GET/PATCH /api/settings` 的 `context.compactPercent` 为全局门槛，默认 80，范围 50–95。运行时阶段新增 `compacting`；完成事件 `compaction={beforeTokens,afterTokens}` 投影为 `kind=compaction` 的活动条目，`result` 保存两个估算值，并通过既有 `tool.started/tool.ended` 到达界面。摘要失败只记请求日志，仍使用原文继续回答；压缩期间停止会取消摘要请求。批准及压缩界面仍由 Claude 接入。
 

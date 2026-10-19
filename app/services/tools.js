@@ -14,15 +14,6 @@ const RESOURCES = ['map', 'plans', 'log', 'minutes', 'notes', 'agent', 'settings
 export const TOOL_SPECS = [
   ...BUILTIN_SPECS,
   {
-    name: 'goal_update',
-    description:
-      'Report the current meeting goal as complete or blocked. Supply a summary of the result or what the user must resolve. Applies only to this meeting goal; all participants share this tool.',
-    parameters: {
-      status: { type: 'string', required: true, enum: ['complete', 'blocked'] },
-      summary: { type: 'string', required: true },
-    },
-  },
-  {
     name: 'python_env_install',
     description:
       'Install named Python packages into the current meeting managed environment. Supply the reason. Use this instead of terminal pip install; system Python is never modified. Optional environment is a managed environment id.',
@@ -238,13 +229,6 @@ export function createTools(
     const decision = await approvals.request(name, args, context);
     if (decision) return decision;
     if (BUILTIN_SPECS.some((spec) => spec.name === name)) return builtins(name, args, context);
-    if (name === 'goal_update')
-      return core.goals.report(
-        context.meetingId,
-        args?.status,
-        args?.summary,
-        context.participantId,
-      );
     if (name === 'python_env_install') {
       if (!python) throw new Error('Python service unavailable');
       return python.install(context, args);

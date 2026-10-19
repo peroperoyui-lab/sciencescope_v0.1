@@ -5,8 +5,8 @@ import path from 'node:path';
 import { AppError } from './errors.js';
 
 /**
- * @typedef {{ mode: 'direct' | 'round' | 'autonomous', respondent?: string | null,
- *   order?: string[], reviewer?: string | null, goal?: string | null, approval?: 'ask' | 'auto',
+ * @typedef {{ mode: 'direct' | 'round', respondent?: string | null,
+ *   order?: string[], reviewer?: string | null, approval?: 'ask' | 'auto',
  *   model?: import('../runtime/port.js').ModelChoice | null }} Policy
  * @typedef {{ participantId: string, roleNote: string, position: number }} Member
  * @typedef {{ id: string, projectId: string | null, title: string, policy: Policy,
@@ -167,11 +167,6 @@ export function createMeetings({ db, events, now, newId, paths }) {
   function update(id, changes, actor = {}) {
     validateApproval(changes.policy);
     const meeting = get(id);
-    if (changes.policy?.mode === 'round') {
-      const goal = db.prepare('SELECT status FROM meeting_goals WHERE meeting_id=?').get(id);
-      if (goal && ['running', 'paused', 'blocked'].includes(String(goal.status)))
-        throw new AppError('GOAL_DISCUSSION_CONFLICT', '请先结束目标，再开始有序讨论。');
-    }
     return db.transaction(() => {
       db.prepare(
         `UPDATE meetings SET title = ?, policy_json = ?, pinned = ?, archived = ?, work_folder = ?,

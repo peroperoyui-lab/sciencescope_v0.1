@@ -8,10 +8,6 @@
 //   cut off at the same person's message; their answers are created up front in
 //   that order. The reviewer runs after every expert has ended, and its answer
 //   stays out of later context until the person adopts it.
-// - `autonomous` ("自动化"): the respondent keeps working toward the meeting's
-//   goal one turn after another, until it calls `goal_update`, the person pauses
-//   or ends it, the round limit is reached or a turn fails. Messages the person
-//   sends meanwhile wait in the outbox and join the next turn's input.
 import { mentionedParticipants } from '../core/context.js';
 import { AppError } from '../core/errors.js';
 import { runRound } from './conductor-round.js';
@@ -29,9 +25,6 @@ export function createConductor({ core, runner }) {
   const requests = new Map();
   /** @type {Map<string, AbortController>} */
   const activeRequests = new Map();
-  // Dispatching drafts during automation only appends input. It must not
-  // enqueue separate answers in addition to the next goal turn.
-  const collectingInputs = new Set();
   let isStarted = false;
 
   function isBusy(meetingId) {
@@ -40,88 +33,7 @@ export function createConductor({ core, runner }) {
 
   function drainOutbox(meetingId) {
     if (!isStarted || isBusy(meetingId)) return;
-    const goal = core.goals.get(meetingId);
-    if (goal && ['running', 'paused', 'blocked'].includes(goal.status)) return;
     core.outbox.dispatch(meetingId);
-  }
-
-  function collectInputs(meetingId) {
-    collectingInputs.add(meetingId);
-    try {
-      while (core.outbox.dispatch(meetingId)) {
-        /* all ready drafts enter this turn */
-      }
-    } finally {
-      collectingInputs.delete(meetingId);
-    }
-  }
-
-  async function runAutonomous(meetingId, signal) {
-    try {
-      while (isStarted && !signal.aborted) {
-        const goal = core.goals.get(meetingId);
-        if (goal?.status !== 'running') return;
-        if (goal.rounds >= goal.maxRounds) {
-          core.goals.update(meetingId, {
-            status: 'paused',
-            reason: '已达到设置的最多轮数，请调整轮数后继续。',
-          });
-          return;
-        }
-        collectInputs(meetingId);
-        const meeting = core.meetings.get(meetingId);
-        if (meeting.policy.mode !== 'autonomous') {
-          core.goals.update(meetingId, {
-            status: 'paused',
-            reason: '发言模式已更改，请确认后继续。',
-          });
-          return;
-        }
-        core.goals.update(meetingId, { rounds: goal.rounds + 1 });
-        const participantId = meeting.policy.respondent ?? 'agent_main';
-        await join(meetingId, participantId);
-        const latest = core.messages.since(meetingId, 0).at(-1);
-        const result = await runner.run({
-          meetingId,
-          participantId,
-          cutoffSeq: latest?.seq,
-          signal,
-        });
-        const current = core.goals.get(meetingId);
-        if (result?.status !== 'done' && ['running', 'paused'].includes(current.status)) {
-          const answer = core.messages
-            .since(meetingId, 0)
-            .find((message) => message.turnId === result?.id);
-          core.goals.update(meetingId, {
-            status: 'paused',
-            reason: answer?.text || '这轮回答未完成，请检查后继续。',
-          });
-          return;
-        }
-        if (current.status !== 'running') return;
-        // Yield to HTTP pause/end requests even when a scripted turn resolves
-        // immediately. Real model execution already yields while streaming.
-        await new Promise((resolve) => setImmediate(resolve));
-      }
-    } catch (error) {
-      if (core.goals.get(meetingId)?.status === 'running')
-        core.goals.update(meetingId, { status: 'paused', reason: error.message });
-    }
-  }
-
-  function scheduleGoal(meetingId) {
-    if (isStarted && !isBusy(meetingId))
-      void enqueue(meetingId, (signal) => runAutonomous(meetingId, signal));
-  }
-
-  function resumeGoal(meetingId) {
-    core.goals.ensureEligible(meetingId);
-    const goal = core.goals.get(meetingId);
-    if (!goal || !['paused', 'blocked'].includes(goal.status))
-      throw new AppError('GOAL_NOT_PAUSED', '请先暂停目标，再继续。');
-    const updated = core.goals.update(meetingId, { status: 'running', reason: '' });
-    scheduleGoal(meetingId);
-    return updated;
   }
 
   function enqueue(meetingId, work) {
@@ -147,7 +59,6 @@ export function createConductor({ core, runner }) {
       controllers.delete(controller);
       if (!controllers.size) requests.delete(meetingId);
       if (queues.get(meetingId) === settled) queues.delete(meetingId);
-      if (core.goals.get(meetingId)?.status === 'running') scheduleGoal(meetingId);
       drainOutbox(meetingId);
     });
     return next;
@@ -209,15 +120,7 @@ export function createConductor({ core, runner }) {
       .list()
       .find((participant) => participant.id === message.authorId);
     if (author?.kind !== 'human') return;
-    if (collectingInputs.has(message.meetingId)) return;
     const meeting = core.meetings.get(message.meetingId);
-    if (meeting.policy.mode === 'autonomous') {
-      let goal = core.goals.get(meeting.id);
-      if (!goal) goal = core.goals.start(meeting.id, meeting.policy.goal ?? message.text);
-      if (goal.status === 'blocked') resumeGoal(meeting.id);
-      else if (goal.status === 'running') scheduleGoal(meeting.id);
-      if (['running', 'paused', 'blocked'].includes(goal.status)) return;
-    }
     enqueue(meeting.id, (signal) =>
       meeting.policy.mode === 'round'
         ? runRound({ core, runner, join, meeting, message, signal })
@@ -307,8 +210,6 @@ export function createConductor({ core, runner }) {
     continue: (messageId) => targeted(messageId, true),
     /** @param {string} meetingId */
     async interrupt(meetingId) {
-      if (core.goals.get(meetingId)?.status === 'running')
-        core.goals.update(meetingId, { status: 'paused', reason: '当前回答已停止，请继续目标。' });
       if (core.meetings.get(meetingId).policy.mode === 'round') {
         for (const controller of requests.get(meetingId) ?? []) controller.abort();
       } else activeRequests.get(meetingId)?.abort();
@@ -319,47 +220,11 @@ export function createConductor({ core, runner }) {
      */
     submit(input) {
       const state = core.outbox.list(input.meetingId);
-      const goal = core.goals.get(input.meetingId);
-      if (
-        isBusy(input.meetingId) ||
-        state.items.length ||
-        state.paused ||
-        goal?.status === 'paused'
-      ) {
+      if (isBusy(input.meetingId) || state.items.length || state.paused) {
         const queued = core.outbox.enqueue(input);
-        if (goal?.status === 'blocked') resumeGoal(input.meetingId);
         return { queued: true, ...queued };
       }
       return core.messages.post(input);
-    },
-    /**
-     * @param {string} meetingId
-     * @param {{text:string,maxRounds?:number,researchInput?:any}} options
-     */
-    startGoal(meetingId, { text, maxRounds = 30, researchInput }) {
-      if (isBusy(meetingId)) throw new AppError('MEETING_BUSY', '请等当前回答结束，再设定目标。');
-      return core.db.transaction(() => {
-        const goal = core.goals.start(meetingId, text, maxRounds);
-        core.messages.post({ meetingId, authorId: 'person_user', text, researchInput });
-        return goal;
-      });
-    },
-    /**
-     * @param {string} meetingId
-     * @param {{action?:string,maxRounds?:number}} options
-     */
-    async controlGoal(meetingId, { action, maxRounds }) {
-      if (maxRounds !== undefined) core.goals.update(meetingId, { maxRounds });
-      if (action === 'resume') return resumeGoal(meetingId);
-      if (action === 'pause')
-        return core.goals.update(meetingId, { status: 'paused', reason: '用户已暂停目标。' });
-      if (action === 'end') {
-        const goal = core.goals.update(meetingId, { status: 'ended', reason: '用户已结束目标。' });
-        activeRequests.get(meetingId)?.abort();
-        await runner.interrupt(meetingId);
-        return goal;
-      }
-      return core.goals.get(meetingId);
     },
     /** Resolves when every queued turn has finished (tests, shutdown). */
     async idle() {

@@ -21,40 +21,16 @@ function optionalNumber(value) {
  * @param {import('../../core/index.js').Core} core
  * @param {{ interrupt: (meetingId: string) => Promise<void>,
  *   retry: (messageId: string) => Promise<unknown>, continue?: (messageId: string) => Promise<unknown>,
- *   submit?: (input:any)=>any,
- *   startGoal?:(meetingId:string,options:any)=>any,
- *   controlGoal?:(meetingId:string,options:any)=>Promise<any> }} [conductor]
+ *   submit?: (input:any)=>any }} [conductor]
  * @param {ReturnType<typeof import('../../services/research-input/index.js').createResearchInput>} [researchInput]
  * @param {ReturnType<typeof import('../../services/python/index.js').createPython>} [python]
  */
 export function registerMeetingRoutes(router, core, conductor, researchInput, python) {
   registerOutboxRoutes(router, core);
   router.get('/api/activity', () => ({
-    goals: core.meetings
-      .list()
-      .map((meeting) => core.goals.get(meeting.id))
-      .filter(Boolean),
     running: core.turns.running(),
     outboxes: core.meetings.list().map((meeting) => core.outbox.list(meeting.id)),
   }));
-  router.get('/api/meetings/:id/goal', ({ params }) => {
-    core.meetings.get(params.id);
-    return core.goals.get(params.id);
-  });
-  router.post('/api/meetings/:id/goal', ({ params, body }) =>
-    core.db.transaction(() => {
-      const goal = conductor?.startGoal?.(params.id, {
-        ...body,
-        researchInput: body.researchInput && researchInput?.capture(body.researchInput),
-      });
-      if (body.researchInput)
-        researchInput?.change(params.id, { op: 'consume', input: body.researchInput });
-      return goal;
-    }),
-  );
-  router.patch('/api/meetings/:id/goal', ({ params, body }) =>
-    conductor?.controlGoal?.(params.id, body),
-  );
   router.get('/api/meetings', ({ query }) => {
     const projectId = query.get('projectId');
     return core.meetings.list({

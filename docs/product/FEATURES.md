@@ -131,7 +131,7 @@ data/
 
 **已知限制**
 - 批准只在进程存活时有效；重启后挂起的批准一律记为已取消，不会重放。
-- 「自动化」执行方式和目标功能已于 2026-10-18 从界面删除；后端（`meeting_goals` 表、`/api/meetings/:id/goal` 接口、调度器的 `autonomous` 发言规则、对所有角色开放的 `goal_update` 工具）仍在，待 A2-2 删除。
+- 自动连续执行已移除。升级时旧自动化会议转为普通对话，历史消息与其他会议规则保留；旧目标文本和目标表删除，不再提供目标工具或接口。
 
 ### 2.4 有序讨论与专家
 
@@ -381,7 +381,7 @@ data/
 - `POST /api/turns/:turnId/approvals/:activityId` 允许或拒绝。
 - `GET /api/search` 搜索消息。
 - `GET /api/activity` 正在运行的发言、待发队列（以及待删除的目标状态）。
-- `GET/POST/PATCH /api/meetings/:id/goal` 自动化目标（界面已不调用，待 A2-2 删除）。
+- `GET /api/activity` 返回正在回答的发言和待发队列（`running`、`outboxes`）。
 
 **待发队列**
 - `GET/POST /api/meetings/:id/outbox` 列出、加入。
@@ -516,13 +516,13 @@ data/
 | 011 | `assistant_state` | 唯一的全局助手会议与概览哈希 |
 | 012 | `research_input_drafts`、`message_research_input`；`meeting_outbox.input_json` | 输入框草稿、消息发送时的附件与标记快照 |
 | 013 | `python_environments`、`python_bindings`、`python_operations` | Python 环境、绑定和操作记录 |
-| 014 | `meeting_goals` | 自动化目标（界面已删除，待 A2-2 迁移移除） |
 | 015 | `version_groups`、`manuscript_versions` | 文献版本组与版本 |
 | 016 | `projects.auto_version_notes`、`manuscript_versions.notes_*`、`version_note_meetings` | 自动说明开关、说明引用、后台说明会议 |
 | 017 | `log_file_references` | 日志条目里文件链接的可重建投影 |
 | 018 | `turns.phase`、`tool_calls.kind` | 发言阶段、活动条目类型 |
 | 019 | `turns.error` | 发言失败原因（与部分回答分开保存） |
 | 020 | `input_images` | 输入框图片附件的元数据（原件在 `library/originals/`） |
+| 021 | 移除 `meeting_goals` | 旧自动化会议改为 `direct`，移除 `policy.goal`，保留消息及其他规则 |
 
 ### 4.2 文件资源
 

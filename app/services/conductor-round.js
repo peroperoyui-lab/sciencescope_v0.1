@@ -1,4 +1,4 @@
-// Ordered discussion scheduling is kept separate from goal scheduling.
+// Ordered discussion scheduling is kept separate from direct answers.
 // Both use the same runner and per-meeting queue.
 
 /**
