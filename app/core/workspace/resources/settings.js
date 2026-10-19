@@ -56,7 +56,6 @@ export const DEFAULT_SETTINGS = {
     everyTokens: { enabled: true, n: 30000 },
     onEnterProject: true,
     onLeaveProject: true,
-    saveMarkdown: true,
     workbench: { map: 'off', plans: 'off', log: 'off', versions: 'off' },
   },
   versionNotes: {

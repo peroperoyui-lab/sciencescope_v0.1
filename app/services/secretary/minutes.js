@@ -12,7 +12,7 @@ import {
   summaryBatch,
   summarySettings,
 } from './policy.js';
-import { exportMinutes, updateWorkbench } from './publish.js';
+import { updateWorkbench } from './publish.js';
 import { createMinutesStore } from './store.js';
 
 export { DEFAULT_SUMMARY, estimateTokens };
@@ -209,13 +209,6 @@ export function createMinutesService({
           response.turnId,
         );
         const rule = await settings();
-        await exportMinutes(
-          core,
-          store,
-          meetingId,
-          { text: response.text, revision: saved.revisionId, throughSeq },
-          rule,
-        );
         core.events.record(
           'minutes.updated',
           { meetingId, revision: saved.revisionId, throughSeq },
@@ -344,7 +337,6 @@ export function createMinutesService({
       { actorId: 'person_user', meetingId },
     );
     const current = await status(meetingId);
-    await exportMinutes(core, store, meetingId, current, await settings());
     core.events.record(
       'minutes.updated',
       { meetingId, revision: saved.revisionId ?? current.revision, throughSeq: current.throughSeq },

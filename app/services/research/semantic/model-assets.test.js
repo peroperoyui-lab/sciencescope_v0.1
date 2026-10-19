@@ -111,6 +111,49 @@ test('chosen model origins are explicit and checksum mismatch never falls back',
   }
 });
 
+test('fresh semantic settings download from ModelScope and preserve explicitly saved origins', async () => {
+  await withCore('default-download-source', async (core) => {
+    const calls = [];
+    const semantic = createSemantic(core, {
+      hardware: async () => ({ supported: true }),
+      verifyFiles: async () => false,
+      downloadFiles: async (_root, manifest, options) => {
+        calls.push({
+          source: options.downloadSource,
+          urls: embeddingDownloadUrls(
+            manifest,
+            manifest.files[0].path,
+            options.downloadSource,
+            options.customDownloadUrl,
+          ),
+        });
+      },
+    });
+    try {
+      await semantic.start();
+      await semantic.download();
+      await semantic.idle();
+      assert.equal(calls[0].source, 'modelscope');
+      assert.ok(calls[0].urls.every((url) => new URL(url).hostname === 'modelscope.cn'));
+      await core.workspace.edit({
+        resource: 'settings',
+        key: 'app',
+        op: 'patch',
+        args: { changes: { semantic: { downloadSource: 'official' } } },
+      });
+      await semantic.download();
+      await semantic.idle();
+      assert.equal(calls[1].source, 'official');
+      assert.deepEqual(
+        calls[1].urls.map((url) => new URL(url).hostname),
+        ['huggingface.co', 'hf-mirror.com'],
+      );
+    } finally {
+      await semantic.close();
+    }
+  });
+});
+
 test('the stored download source reaches the actual semantic download consumer', async () => {
   await withCore('download-source-setting', async (core) => {
     await core.workspace.edit({
