@@ -4,6 +4,7 @@
 
 /**
  * @typedef {{ sessionId: string, input: string, inputs: string[], instructions: string, images: import('./port.js').ImageContent[], model: any,
+ *   steered: Array<{input:string,images:import('./port.js').ImageContent[]}>,
  *   call: (name: string, args: any) => Promise<any>, signal: AbortSignal }} ScriptContext
  * @typedef {(context: ScriptContext) => AsyncIterable<
  *   string | { stop: 'max_tokens' | 'failed', error?: string } | import('./port.js').RuntimeEvent>} Script
@@ -41,6 +42,7 @@ export function createScriptedRuntime({ script }) {
       if (!session) throw new Error(`No scripted session ${sessionId}`);
       session.inputs.push(input);
       session.controller = new AbortController();
+      session.steered = [];
       const { signal } = session.controller;
       let calls = 0;
       let text = '';
@@ -51,6 +53,7 @@ export function createScriptedRuntime({ script }) {
           sessionId,
           input,
           images,
+          steered: session.steered,
           inputs: session.inputs,
           instructions: session.instructions,
           model: session.model,
@@ -99,6 +102,13 @@ export function createScriptedRuntime({ script }) {
       }
     },
 
+    steer(sessionId, input, images = []) {
+      const session = sessions.get(sessionId);
+      if (!session?.controller || session.controller.signal.aborted) return false;
+      session.inputs.push(input);
+      session.steered.push({ input, images });
+      return true;
+    },
     async interrupt(sessionId) {
       sessions.get(sessionId)?.controller?.abort();
     },

@@ -148,6 +148,23 @@ export function createMessages({ db, events, meetings, now, newId, deliverables,
   }
 
   /**
+   * A still-running answer follows input inserted during that answer.
+   * @param {string} id
+   */
+  function moveStreamingToEnd(id) {
+    const message = get(id);
+    if (message.status !== 'streaming') return message;
+    return db.transaction(() => {
+      db.prepare(
+        'UPDATE messages SET seq = (SELECT MAX(seq) + 1 FROM messages WHERE meeting_id = ?), updated_at = ? WHERE id = ?',
+      ).run(message.meetingId, now(), id);
+      const updated = get(id);
+      events.record('message.updated', updated, scopeOf(updated, null));
+      return updated;
+    });
+  }
+
+  /**
    * Replace the streamed text shown so far (not stored): used when a failed
    * attempt is dropped or text before a tool call moves into the tool card.
    * @param {string} id
@@ -261,5 +278,16 @@ export function createMessages({ db, events, meetings, now, newId, deliverables,
     });
   }
 
-  return { get, post, update, recordConsumption, streamDelta, streamReplace, list, since, search };
+  return {
+    get,
+    post,
+    update,
+    moveStreamingToEnd,
+    recordConsumption,
+    streamDelta,
+    streamReplace,
+    list,
+    since,
+    search,
+  };
 }

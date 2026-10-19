@@ -26,7 +26,8 @@ const STATUS_BY_STOP = {
  * }} deps
  *   A session idle for `idleReleaseMs` is released (its process ends); the next
  *   turn resumes it. Historical meetings keep no process alive.
- * @returns {{reserve: typeof reserve, run: typeof run, interrupt: typeof interrupt}}
+ * @returns {{reserve: typeof reserve, run: typeof run, interrupt: typeof interrupt,
+ *   steer: typeof steer, steeringInput: ReturnType<typeof import('./context-assembly.js').createContextAssembly>['steeringInput']}}
  */
 export function createTurnRunner({
   core,
@@ -264,7 +265,14 @@ export function createTurnRunner({
       });
       // Only a completed answer acknowledges its main-meeting follow-up.
       if (status === 'done') await prepared.packet?.commit({ status, turnId: turn.id });
-      const lastSeq = cutoffSeq ?? answer.seq;
+      const steeredSeq =
+        status === 'done'
+          ? core.messages
+              .since(meetingId, 0)
+              .filter((message) => message.refs?.steered && message.refs.turnId === turn.id)
+              .map((message) => message.seq)
+          : [];
+      const lastSeq = Math.max(cutoffSeq ?? answer.seq, ...steeredSeq);
       core.turns.saveSession(meetingId, participantId, {
         runtime: runtimeName,
         sessionId: prepared.sessionId,
@@ -306,5 +314,18 @@ export function createTurnRunner({
     }
     await Promise.all(interruptions);
   }
-  return { reserve, run, interrupt };
+  /**
+   * Accept synchronously so a completed send falls back without losing input.
+   * @param {string} meetingId
+   * @param {{input:string,images:import('../runtime/port.js').ImageContent[]}} packet
+   */
+  function steer(meetingId, packet) {
+    const turns = core.turns.running().filter((turn) => turn.meetingId === meetingId);
+    if (turns.length !== 1) return null;
+    const turn = turns[0];
+    const execution = active.get(turn.id);
+    if (!execution?.sessionId || execution.cancelled) return null;
+    return runtime.steer(execution.sessionId, packet.input, packet.images) ? turn : null;
+  }
+  return { reserve, run, interrupt, steer, steeringInput: contextAssembly.steeringInput };
 }

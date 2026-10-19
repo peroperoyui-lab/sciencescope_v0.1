@@ -1,7 +1,16 @@
 import { LOCAL_USER_ID } from '../../core/defaults.js';
 
-/** @param {import('../router.js').Router} router @param {import('../../core/index.js').Core} core */
-export function registerOutboxRoutes(router, core) {
+/**
+ * @param {import('../router.js').Router} router
+ * @param {import('../../core/index.js').Core} core
+ * @param {{steer?:(meetingId:string,itemId:string)=>Promise<any>}} [conductor]
+ */
+export function registerOutboxRoutes(router, core, conductor) {
+  router.post('/api/meetings/:id/outbox/:itemId/steer', ({ params }) =>
+    conductor?.steer
+      ? conductor.steer(params.id, params.itemId)
+      : core.outbox.dispatch(params.id, { id: params.itemId }),
+  );
   router.get('/api/meetings/:id/outbox', ({ params }) => core.outbox.list(params.id));
   router.post('/api/meetings/:id/outbox', ({ params, body }) =>
     core.outbox.enqueue({

@@ -162,6 +162,29 @@ test('stream thinking and text, execute a host tool, then resume the complete tr
   });
 });
 
+test('steering reaches the next pi tool step and idle sessions refuse it', async () => {
+  await fixture(async ({ runtime, faux, options }) => {
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall('wait', {}, { id: 'wait-call' })]),
+      async (context) => {
+        assert.match(JSON.stringify(context.messages), /changed requirement/);
+        return fauxAssistantMessage('Adjusted.');
+      },
+    ]);
+    const id = await runtime.startSession({
+      ...options,
+      tools: [{ name: 'wait', description: 'wait', parameters: {} }],
+      onToolCall: async () => {
+        assert.equal(runtime.steer(id, 'changed requirement'), true);
+        return 'finished first step';
+      },
+    });
+    assert.equal(runtime.steer(id, 'idle input'), false);
+    assert.equal((await runtime.send(id, 'start', () => {})).stopReason, 'completed');
+    assert.equal(runtime.steer(id, 'finished input'), false);
+  });
+});
+
 test('temporary failures are visible retries; an invalid key fails once', async () => {
   await fixture(async ({ runtime, faux, options, dir }) => {
     const failure = (message) =>

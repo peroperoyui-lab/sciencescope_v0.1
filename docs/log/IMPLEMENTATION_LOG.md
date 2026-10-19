@@ -3,6 +3,9 @@
 > 新核心（`app/`，重建 R0 起）的开发与验收日志，最新在最上面。每次交付一条，不超过 5 行；细节放 `.sciencescope-local/temp`。
 > 2026-10-05 之前旧原型时期的记录在 `archive/legacy/DESKTOP_IMPLEMENTATION_legacy.md`。
 
+## 2026-10-19 C3 运行中插入消息（Codex）
+- 运行时通过 pi-agent-core 的 steer 接入当前发言；队列接口保留插入记录并调整未完成回答的顺序，重试与重建使用同一上下文顺序。已结束时普通发送，有序讨论保留排队；未改界面，材料见 `.sciencescope-local/temp/c3/`。
+
 
 ## 2026-10-19 对话页 B 组（Claude）
 - 时间线：连续同类步骤合成一行（「运行了 6 条命令」），批准成为该步骤的状态（批准请求记录所属 `callId`），命令细节像终端。交付文件收成一行、点开是清单，正文按路径插图和文件链接（`workspace_present` 说明已补）。

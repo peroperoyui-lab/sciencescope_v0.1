@@ -1,5 +1,7 @@
 # 运行时接口（Runtime Port）· 初稿
 
+> **C3（2026-10-19）**：新端口 `steer(sessionId,input,images?)` 同步返回 boolean；true 表示已交给正在运行的发言，在当前一步完成后读取，false 表示会话已结束或已取消，由宿主普通发送。pi 适配器使用 pi-agent-core 的 `agent.steer`（MIT），脚本运行时向脚本提供 `steered` 消息数组；持久消息与排序仍由宿主维护。
+
 > **A2-1（2026-10-18）新增兼容参数**：新核心端口 `send(sessionId, input, onEvent, images?)` 的第四参数为 `ImageContent[]`，每项 `{type:'image', data:base64, mimeType:string}`；省略时行为不变。宿主按实际选入的消息读取原件，重建与重新回答同样携带；pi 适配器按所选模型的 `input` 能力决定是否传给模型。不支持图片时仍发送文字，返回保留正文的 `stopReason:'failed'` 与可读 `error`，由宿主写入 `turns.error`；取消保持 cancelled。
 
 > **2026-10-16**：用户决定在 P1 用 `@earendil-works/pi-ai` + `@earendil-works/pi-agent-core` 替换 DSH（`reviews/REVIEW_2026-10-16.md` D2，§10 的决策时点提前）。新运行时在 `app/runtime/pi/`，端口新增的事件与选项见 `plans/tasks/done/P1a_runtime_providers.md`，合并后由 Claude 更新本文。
