@@ -125,14 +125,7 @@ export async function openConnection(server, settings, dataRoot) {
       } catch (error) {
         await close();
         if (![400, 404, 405].includes(error.code)) throw error;
-        await connect(
-          new SSEClientTransport(new URL(server.url), {
-            ...options,
-            eventSourceInit: {
-              fetch: (url, init) => fetch(url, { ...init, headers: server.headers }),
-            },
-          }),
-        );
+        await connect(new SSEClientTransport(new URL(server.url), options));
       }
     }
     const tools = [];

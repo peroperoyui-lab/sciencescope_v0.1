@@ -6,6 +6,7 @@ import { once } from 'node:events';
 import { createServer } from 'node:http';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createApp } from '../../app.js';
 import { createScriptedRuntime } from '../../runtime/scripted.js';
@@ -30,6 +31,52 @@ return {content:[{type:'text',text:JSON.stringify({name:req.params.name,question
 process.on('exit',()=>child.kill());
 await server.connect(new StdioServerTransport());
 `;
+
+test('legacy SSE uses the same stored HTTP headers and tool contract', async () =>
+  withCore('mcp-sse', async (core) => {
+    const server = new Server(
+      { name: 'sse-fixture', version: '1' },
+      { capabilities: { tools: {} } },
+    );
+    server.setRequestHandler(ListToolsRequestSchema, async () => ({
+      tools: [{ name: 'echo', inputSchema: { type: 'object' } }],
+    }));
+    server.setRequestHandler(CallToolRequestSchema, async () => ({
+      content: [{ type: 'text', text: 'SSE response' }],
+    }));
+    let transport;
+    const http = createServer(async (request, response) => {
+      if (request.headers.authorization !== 'fixture-header') {
+        response.writeHead(401).end();
+        return;
+      }
+      if (request.method === 'GET' && request.url === '/sse') {
+        assert.equal(request.headers.accept, 'text/event-stream');
+        transport = new SSEServerTransport('/messages', response);
+        await server.connect(transport);
+      } else if (request.method === 'POST' && request.url.startsWith('/messages')) {
+        await transport.handlePostMessage(request, response);
+      } else response.writeHead(405).end();
+    });
+    http.listen(0, '127.0.0.1');
+    await once(http, 'listening');
+    const mcp = createMcp(core);
+    try {
+      const port = /** @type {import('node:net').AddressInfo} */ (http.address()).port;
+      const [entry] = await mcp.import({
+        name: 'SSE',
+        url: `http://127.0.0.1:${port}/sse`,
+        headers: { Authorization: 'fixture-header' },
+      });
+      assert.equal(entry.status, 'connected', entry.error);
+      assert.equal((await mcp.call(mcp.catalog()[0].name, {})).text, 'SSE response');
+    } finally {
+      await mcp.close();
+      await server.close();
+      http.closeAllConnections();
+      await new Promise((resolve) => http.close(resolve));
+    }
+  }));
 
 test(
   'MCP import, model calls, project server approval, disable, reconnect and process cleanup',
