@@ -7,7 +7,8 @@ export function createPreviewActions(api, store) {
     new URLSearchParams(
       Object.entries(target)
         .filter(
-          ([key, value]) => ['kind', 'id', 'projectId', 'path'].includes(key) && value != null,
+          ([key, value]) =>
+            ['kind', 'id', 'turnId', 'projectId', 'path'].includes(key) && value != null,
         )
         .map(([key, value]) => [key, String(value)]),
     );
@@ -20,6 +21,9 @@ export function createPreviewActions(api, store) {
       api.get(`/api/research/sources?projectId=${encodeURIComponent(projectId ?? '')}`),
     previewContent: (target) =>
       `/api/preview/content?${query(target)}&token=${encodeURIComponent(api.token)}`,
+    /** A server-made preview URL (a tool's image), readable by an <img>. @param {string} url */
+    previewUrl: (url) =>
+      `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(api.token)}`,
     previewBytes: (target) => api.bytes(`/api/preview/content?${query(target)}`),
     messageCitations: (id) => api.get(`/api/messages/${id}/citations`),
     openPreviewOriginal: (target) =>

@@ -13,6 +13,7 @@
       ["file-text", "文档"],
       ["file", "文件"],
       ["files", "多个文件"],
+      ["image", "图片"],
       ["network", "导图"],
       ["list-checks", "计划"],
       ["notebook-pen", "日志"],

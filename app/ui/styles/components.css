@@ -2423,6 +2423,12 @@ html[data-resizing] * {
   line-height: 22px;
   white-space: pre-wrap;
 }
+/* A message handed to the running answer (现在插入). */
+.ss-msg__steered {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}
 /* What a user message carried: image thumbnails, files and marks. */
 .ss-msg__files {
   display: flex;
@@ -2753,6 +2759,31 @@ button.ss-act__row:hover {
   color: var(--muted);
   font-size: 11px;
   line-height: 16px;
+}
+/* view_image: the picture the model looked at, scaled to the row. */
+.ss-act__image {
+  display: block;
+  width: 100%;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+.ss-act__image > img {
+  display: block;
+  max-width: 100%;
+  max-height: 280px;
+  width: auto;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--raised);
+}
+.ss-act__detail-note {
+  padding: 6px 10px;
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 18px;
 }
 .ss-act__thinking {
   margin: 0 0 6px 22px;

@@ -4,7 +4,25 @@
 // partial answer stays visible next to the reason it stopped.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { browserSkip, withBrowserApp } from './browser-testing.js';
+
+let imageFolder = '';
+
+/** A small bar chart for the scripted model to look at. */
+async function figure() {
+  const { createCanvas } = await import('@napi-rs/canvas');
+  const canvas = createCanvas(480, 240);
+  const context = canvas.getContext('2d');
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, 480, 240);
+  context.fillStyle = '#3f7d5a';
+  [120, 180, 90, 150, 200].forEach((height, index) =>
+    context.fillRect(40 + index * 85, 220 - height, 50, height),
+  );
+  return canvas.encode('png');
+}
 
 /** A promise the test resolves to let the scripted model continue. */
 function gate() {
@@ -200,6 +218,78 @@ test(
         await card.getByRole('button', { name: '允许', exact: true }).click();
         await answer.getByText('好了').waitFor();
         assert.equal(await answer.locator('[data-turn-activity]').isVisible(), false);
+      },
+    );
+  },
+);
+
+test(
+  'a viewed image shows in its step, and a queued message can be inserted into the running answer',
+  { skip: browserSkip },
+  async () => {
+    const queued = gate();
+    let steered = [];
+    await withBrowserApp(
+      'view-image-steer',
+      async function* ({ call, steered: inserted }) {
+        await call('view_image', { path: path.join(imageFolder, 'figure.png') });
+        yield '先看了图。';
+        await queued.opened;
+        steered = inserted.map((entry) => entry.input);
+        yield '按新的要求继续。';
+      },
+      async ({ page, app, shot }) => {
+        imageFolder = app.core.paths.root;
+        await writeFile(path.join(imageFolder, 'figure.png'), await figure());
+        await app.core.workspace.edit({
+          resource: 'settings',
+          key: 'app',
+          op: 'patch',
+          args: { changes: { models: { default: { provider: 'scripted', model: 'scripted' } } } },
+        });
+        const meeting = app.core.meetings.create({
+          members: [{ participantId: 'person_user' }, { participantId: 'agent_main' }],
+          policy: { mode: 'direct', respondent: 'agent_main', approval: 'auto' },
+        });
+        await page.goto(new URL('/?token=ui-token#/meeting/' + meeting.id, page.url()).href);
+        const box = page.getByRole('textbox', { name: '主输入框' });
+        await box.fill('看看这张图');
+        await page.getByRole('button', { name: '发送', exact: true }).click();
+        const answer = page.locator('.ss-msg:not([data-user])').last();
+        await answer.getByText('先看了图。').waitFor();
+
+        const row = answer.locator('[data-tool-call]').filter({ hasText: '查看图片' });
+        assert.match(await row.textContent(), /查看图片.*figure\.png/);
+        await row.click();
+        const image = answer.locator('[data-viewed-image] img');
+        await image.waitFor();
+        await page.waitForFunction(
+          (element) => element.naturalWidth > 0,
+          await image.elementHandle(),
+        );
+        await shot('view-image');
+
+        await box.fill('只看 2020 年以后的样本');
+        await page.getByRole('button', { name: '发送', exact: true }).click();
+        const item = page.locator('[data-outbox-id]');
+        await item.waitFor();
+        await shot('steer-queued');
+        await item.getByRole('button', { name: '现在插入' }).click();
+        await item.waitFor({ state: 'detached' });
+        queued.open();
+        await answer.getByText('按新的要求继续。').waitFor();
+        assert.deepEqual(steered.length, 1);
+        assert.match(steered[0], /2020/);
+        // The inserted message sits before the answer that read it.
+        const users = page.locator('.ss-msg[data-user]');
+        assert.match(await users.last().textContent(), /回答进行中插入.*只看 2020 年以后的样本/);
+        const order = await page
+          .locator('.ss-msg')
+          .evaluateAll((messages) =>
+            messages.map((entry) => (entry.hasAttribute('data-user') ? 'user' : 'ai')),
+          );
+        assert.deepEqual(order, ['user', 'user', 'ai']);
+        await shot('steer-inserted');
       },
     );
   },

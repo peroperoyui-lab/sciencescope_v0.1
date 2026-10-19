@@ -230,8 +230,9 @@ export function createActions(api, store) {
    * Allow or reject one pending tool action.
    * @param {any} call @param {'approve' | 'reject'} decision
    */
-  const decideApproval = (call, decision) =>
-    api.post(`/api/turns/${call.turnId}/approvals/${call.id}`, { decision });
+  /** `always` also saves a rule for the chosen scope (one of `call.args.scopes`). */
+  const decideApproval = (call, decision, scope = undefined) =>
+    api.post(`/api/turns/${call.turnId}/approvals/${call.id}`, { decision, scope });
 
   /** Continue only the author of this answer. @param {string} messageId */
   const continueAnswer = (messageId) => api.post(`/api/messages/${messageId}/continue`);

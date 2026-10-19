@@ -1278,4 +1278,24 @@ export const en = {
   所有安装包: 'All package installs',
   按规则自动允许: 'Automatically allowed by a saved rule',
   '请选择这次操作提供的允许范围。': 'Select an allowed scope offered for this operation.',
+  总是允许: 'Always allow',
+  '你在 {time} 总是允许了这类操作': 'You always allowed this kind of step at {time}',
+  查看图片: 'Viewed image',
+  '查看了 {n} 张图片': 'Viewed {n} images',
+  正在查看图片: 'Viewing image',
+  '第 {n} 页': 'page {n}',
+  局部: 'detail',
+  '当前模型不能看图，请换支持图片的模型':
+    'This model cannot see images; switch to a model that supports images.',
+  现在插入: 'Insert now',
+  '当前一步做完后交给正在进行的回答，不打断它':
+    'Hand it to the running answer after its current step, without interrupting it',
+  回答进行中插入: 'Inserted while answering',
+  总是允许的操作: 'Always-allowed operations',
+  '在批准卡片上选「总是允许」后记在这里。规则只在定下它的项目里生效；不属于项目的对话，只管那个对话。删掉后，同类操作会重新询问。':
+    'Rules appear here when you choose Always allow on an approval card. A rule applies only in the project where you made it; for a chat outside any project, only in that chat. After you delete one, ScienceScope asks again.',
+  已删除的项目: 'Deleted project',
+  '单独对话 · {title}': 'Chat · {title}',
+  删除这条规则: 'Delete this rule',
+  '还没有规则。': 'No rules yet.',
 };

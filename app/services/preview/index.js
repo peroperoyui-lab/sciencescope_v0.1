@@ -19,7 +19,7 @@ export function createPreview(core, research) {
       if (!preview) throw new AppError('PREVIEW_NOT_FOUND', 'Image preview is unavailable.', 404);
       return {
         path: preview.path,
-        name: path.basename(preview.path),
+        name: preview.name ?? path.basename(preview.path),
         mimeType: preview.mimeType,
         projectId: core.meetings.get(core.turns.get(target.turnId).meetingId).projectId,
       };

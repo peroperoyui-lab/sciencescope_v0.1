@@ -42,7 +42,11 @@ export async function withBrowserApp(name, script, work, options = {}) {
   try {
     // An explicit context also permits secondary assistant pages to share
     // storage and BroadcastChannel with Main during browser acceptance.
-    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    // SCIENCESCOPE_SCREENSHOT_SCALE=1.25 takes the screenshots at 125% display scaling.
+    const context = await browser.newContext({
+      viewport: { width: 1440, height: 900 },
+      deviceScaleFactor: Number(process.env.SCIENCESCOPE_SCREENSHOT_SCALE ?? 1),
+    });
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', (error) => errors.push(error.message));

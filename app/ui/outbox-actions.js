@@ -33,6 +33,13 @@ export function createOutboxActions(api, store) {
     async resumeOutbox(meetingId) {
       return apply(await api.post('/api/meetings/' + meetingId + '/outbox/resume'));
     },
+    /**
+     * Hand a queued message to the running answer after its current step.
+     * @param {string} meetingId @param {string} itemId
+     */
+    steerOutbox(meetingId, itemId) {
+      return api.post('/api/meetings/' + meetingId + '/outbox/' + itemId + '/steer');
+    },
     /** @param {string} meetingId */
     async pauseOutbox(meetingId) {
       return apply(await api.post('/api/meetings/' + meetingId + '/outbox/pause'));

@@ -7,6 +7,7 @@
 // their reason.
 import { Fragment } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
+import { useActions } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
@@ -38,7 +39,7 @@ const text = (value) => (value == null ? '' : String(value));
  * How each tool reads in the timeline: icon, verb (done and running), what
  * it acted on, whether that is a path or command (mono) or plain words, and
  * how a run of such calls is summed up (group).
- * @type {Record<string, (args: any) => { icon: string, verb: string, running: string, group?: string, target?: string, mono?: boolean }>}
+ * @type {Record<string, (args: any, call: any) => { icon: string, verb: string, running: string, group?: string, target?: string, mono?: boolean }>}
  */
 const TOOLS = {
   workspace_read: (args) => ({
@@ -80,6 +81,13 @@ const TOOLS = {
     group: '读取了 {n} 份资料',
     running: '正在读取资料',
     target: text(args?.label ?? args?.id),
+  }),
+  view_image: (args, call) => ({
+    icon: 'image',
+    verb: '查看图片',
+    group: '查看了 {n} 张图片',
+    running: '正在查看图片',
+    target: viewed(args, call.result?.preview),
   }),
   python_env_install: (args) => ({
     icon: 'package',
@@ -158,12 +166,28 @@ TOOLS.write_file = TOOLS.write;
 TOOLS.edit_file = TOOLS.edit;
 TOOLS.fetch = TOOLS.web_fetch;
 
+/** "S3 · 第 4 页 · 局部": what view_image looked at. @param {any} args @param {any} [preview] */
+function viewed(args, preview) {
+  const name =
+    preview?.name ??
+    String(args?.path ?? '')
+      .split(/[\\/]/)
+      .pop();
+  const page = preview?.page ?? args?.page;
+  return [name, page && t('第 {n} 页', { n: page }), (preview?.region ?? args?.region) && t('局部')]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+// The model could not see the image (pi/tools.js); the preview was made anyway.
+const UNSEEN = '当前模型不能看图，请换支持图片的模型';
+
 /** Tool calls proper; thinking and retries share the same activity list. @param {any} call */
 export const isToolCall = (call) => (call.kind ?? 'tool') === 'tool';
 
 /** @param {any} call */
 export function describeCall(call) {
-  const known = TOOLS[call.name]?.(call.args);
+  const known = TOOLS[call.name]?.(call.args, call);
   return known ?? { icon: 'wrench', verb: '使用工具', running: '正在使用工具', target: '' };
 }
 
@@ -301,10 +325,14 @@ function CallRow({ call, running, approval, narrate = true }) {
               : outcome(call.result);
   const decided =
     approval?.status === 'approved'
-      ? t('你在 {time} 允许了这一步', { time: clock(approval.endedAt) })
+      ? approval.result?.approvedBy
+        ? t('你在 {time} 总是允许了这类操作', { time: clock(approval.endedAt) })
+        : t('你在 {time} 允许了这一步', { time: clock(approval.endedAt) })
       : approval?.status === 'rejected'
         ? t('你在 {time} 拒绝了这一步', { time: clock(approval.endedAt) })
-        : '';
+        : call.result?.approvedBy
+          ? t('按规则自动允许')
+          : '';
   const tone = failed ? 'ss-act__row--fail' : unfinished ? 'ss-act__row--muted' : '';
   return html`${narrate && call.preamble && html`<${Narration} call=${call} />`}
     <button
@@ -343,19 +371,56 @@ function CallRow({ call, running, approval, narrate = true }) {
                 .join(' · ')}
             </div>
           </div>`
-        : html`<div class="ss-act__detail">
-            <div class="ss-act__detail-head"><span class="ss-mono">${call.name}</span></div>
-            <pre>${pretty(call.args)}</pre>
-            ${
-              call.result != null &&
-              html`<div class="ss-act__detail-head">
-                  <span>${failed ? t('错误') : t('结果')}</span>
-                </div>
-                <pre>${pretty(call.result)}</pre>`
-            }
-            ${decided && html`<div class="ss-act__detail-foot">${decided}</div>`}
-          </div>`)
+        : imageViewed(call)
+          ? html`<${ImageDetail} call=${call} decided=${decided} />`
+          : html`<div class="ss-act__detail">
+              <div class="ss-act__detail-head"><span class="ss-mono">${call.name}</span></div>
+              <pre>${pretty(call.args)}</pre>
+              ${
+                call.result != null &&
+                html`<div class="ss-act__detail-head">
+                    <span>${failed ? t('错误') : t('结果')}</span>
+                  </div>
+                  <pre>${pretty(call.result)}</pre>`
+              }
+              ${decided && html`<div class="ss-act__detail-foot">${decided}</div>`}
+            </div>`)
     }`;
+}
+
+/** @param {any} call */
+const imageViewed = (call) => call.name === 'view_image' && call.result?.preview;
+
+/**
+ * The picture the model looked at; opens in the preview pane. When the model
+ * could not see it, the row says so instead of showing it.
+ * @param {{ call: any, decided: string }} props
+ */
+function ImageDetail({ call, decided }) {
+  const actions = useActions();
+  const { preview } = call.result;
+  const unseen = call.result.text === UNSEEN;
+  return html`<div class="ss-act__detail" data-viewed-image>
+    ${
+      unseen
+        ? html`<div class="ss-act__detail-note">${t(UNSEEN)}</div>`
+        : html`<button
+            type="button"
+            class="ss-act__image"
+            title=${t('预览')}
+            onClick=${() =>
+              actions.openPreview({ kind: 'tool', turnId: call.turnId, id: call.callId })}
+          >
+            <img
+              src=${actions.previewUrl(preview.url)}
+              alt=${viewed(call.args, preview)}
+              width=${preview.width}
+              height=${preview.height}
+            />
+          </button>`
+    }
+    ${decided && html`<div class="ss-act__detail-foot">${decided}</div>`}
+  </div>`;
 }
 
 /** A finished shell command reads as its output, like a terminal. @param {any} call */

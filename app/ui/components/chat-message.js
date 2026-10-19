@@ -127,6 +127,7 @@ export function Message({ message, author, roleNote, target, compact = false }) 
       data-user
     >
       <${InputReceipt} message=${message} />
+      ${message.refs?.steered && html`<div class="ss-msg__steered">${t('回答进行中插入')}</div>`}
       <div class="ss-msg__bubble message-text">${message.text}</div>
       <${MessageFoot} message=${message} answer=${false} compact=${compact} />
     </article>`;

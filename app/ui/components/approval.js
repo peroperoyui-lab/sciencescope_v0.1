@@ -1,6 +1,8 @@
 // The approval card (design system ApprovalCard): in 「请求批准」 mode a shell
 // command, a file write outside the data folder or a package install waits
-// here for 允许 or 拒绝. Once decided it folds into one timeline row.
+// here for 允许 or 拒绝. 总是允许 picks a scope the server offered (this
+// command, commands starting with python, this folder…) and saves it as a rule
+// for the project. Once decided it folds into one timeline row.
 import { useState } from 'preact/hooks';
 import { useActions } from '../context.js';
 import { html } from '../html.js';
@@ -39,11 +41,21 @@ export function ApprovalCard({ call }) {
   const actions = useActions();
   const [busy, setBusy] = useState(false);
   const { target, meta } = described(call.args);
-  const decide = async (decision) => {
+  const scopes = call.args?.scopes ?? [];
+  const decide = async (decision, scope = undefined) => {
     setBusy(true);
-    await actions.attempt(() => actions.decideApproval(call, decision));
+    await actions.attempt(() => actions.decideApproval(call, decision, scope));
     setBusy(false);
   };
+  const always = (event) =>
+    actions.openMenu(
+      event,
+      scopes.map((scope) => ({
+        text: t(scope.label, scope.values),
+        run: () => decide('always', { kind: scope.kind, value: scope.value }),
+      })),
+      t('总是允许'),
+    );
   return html`<div
     class="ss-approve"
     role="group"
@@ -63,6 +75,18 @@ export function ApprovalCard({ call }) {
       <button type="button" class="ss-btn" disabled=${busy} onClick=${() => decide('reject')}>
         ${t('拒绝')}
       </button>
+      ${
+        scopes.length > 0 &&
+        html`<button
+          type="button"
+          class="ss-btn"
+          aria-haspopup="menu"
+          disabled=${busy}
+          onClick=${always}
+        >
+          ${t('总是允许')}<${Lucide} name="chevron-down" />
+        </button>`
+      }
       <button
         type="button"
         class="ss-btn ss-btn--primary"

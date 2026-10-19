@@ -396,3 +396,48 @@ test(
     );
   },
 );
+
+test(
+  'two experts @-mentioned in one message answer side by side, each with its own segment',
+  { skip: browserSkip },
+  async () => {
+    const release = gate();
+    const inputs = {};
+    let started = 0;
+    const bothStarted = gate();
+    await withBrowserApp(
+      'mention-parallel',
+      async function* ({ instructions, input }) {
+        const who = instructions.includes('research design validity') ? 'method' : 'stats';
+        inputs[who] = input;
+        if (++started === 2) bothStarted.resolve();
+        await release.promise;
+        yield who === 'method' ? '识别策略没问题。' : '标准误需要聚类。';
+      },
+      async ({ page, app, shot }) => {
+        const meeting = await prepare(page, app);
+        const textarea = page.locator('.ss-composer textarea');
+        await textarea.fill('关于第三章，@方法学家 看识别策略 @统计审稿人 看标准误');
+        await page.getByRole('button', { name: '发送', exact: true }).click();
+        await bothStarted.promise;
+        // Both answers run at once, each in its own status box, in mention order.
+        await page.locator('[data-expert-box]').nth(1).waitFor();
+        const authors = await page
+          .locator('[data-expert] .ss-msg__name')
+          .evaluateAll((items) => items.map((item) => item.textContent?.trim()));
+        assert.deepEqual(authors, ['方法学家', '统计审稿人']);
+        await shot('mention-parallel');
+        release.resolve();
+        await page.getByText('标准误需要聚类。').waitFor();
+        await page.getByText('识别策略没问题。').waitFor();
+        assert.equal(await page.locator('[data-expert-box]').count(), 0);
+        assert.match(inputs.method, /关于第三章/);
+        assert.match(inputs.method, /看识别策略/);
+        assert.doesNotMatch(inputs.method, /看标准误/);
+        assert.match(inputs.stats, /看标准误/);
+        assert.doesNotMatch(inputs.stats, /看识别策略/);
+        assert.equal(app.core.meetings.get(meeting.id).members.length, 4);
+      },
+    );
+  },
+);

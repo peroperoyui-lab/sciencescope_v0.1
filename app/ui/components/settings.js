@@ -5,6 +5,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { comboOf } from '../appearance.js';
 import { useActions, useAppState } from '../context.js';
 import { PythonSettings } from './settings-python.js';
+import { ApprovalRulesSettings } from './settings-approvals.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Icon } from '../icons.js';
@@ -491,7 +492,7 @@ export function SettingsView({ page, projectName }) {
   else if (page === 'environment')
     content = html`<${FoldersPage}
         title=${t('运行环境')}
-      /><${PythonSettings} /><${SemanticSettings} />`;
+      /><${ApprovalRulesSettings} /><${PythonSettings} /><${SemanticSettings} />`;
   else if (page === 'about') content = html`<${AboutPage} />`;
   else content = html`<div class="empty">${t('没有这个设置页。')}</div>`;
   const active = page.startsWith('provider') ? 'models' : page;

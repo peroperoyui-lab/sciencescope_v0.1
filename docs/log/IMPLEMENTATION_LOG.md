@@ -7,6 +7,10 @@
 > 新核心（`app/`，重建 R0 起）的开发与验收日志，最新在最上面。每次交付一条，不超过 5 行；细节放 `.sciencescope-local/temp`。
 > 2026-10-05 之前旧原型时期的记录在 `archive/legacy/DESKTOP_IMPLEMENTATION_legacy.md`。
 
+## 2026-10-19 C 组界面（Claude）
+
+- 批准卡片「总是允许」菜单、步骤里的规则说明、设置 → 运行环境的规则列表；看图步骤显示图片并可在预览打开；队列「现在插入」与插入标记；@ 多位并行的状态框测试。新增 `settings-approvals.js`、三个浏览器测试；截图在项目文件 `screenshots/group-c/`。
+
 ## 2026-10-19 B1 品牌打包（Codex）
 
 - 打包与开发配置接入已批准的绿底ICO、NSIS右侧页头与等比侧图，停止调用旧线图标生成脚本；干净检出251/251及打包3/3通过，独立测试产品完成Windows实际100%/125%图标验收，窗口无需额外设置。材料见 `.sciencescope-local/temp/b1/`。
