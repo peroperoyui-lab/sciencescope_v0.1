@@ -1,5 +1,7 @@
 # 运行时接口（Runtime Port）· 初稿
 
+> **C2（2026-10-19）工具图片结果**：工具可返回 `{text,images:[{data:base64,mimeType}],preview?}`。pi 适配器按模型 `input` 是否含 `image` 转成文字与图片块；不支持时正常返回「当前模型不能看图，请换支持图片的模型」。`tool-result` 事件只携带文字及预览元数据，图片内容不进入宿主数据库；其他 JSON 工具结果保持原样。
+
 > **A2-1（2026-10-18）新增兼容参数**：新核心端口 `send(sessionId, input, onEvent, images?)` 的第四参数为 `ImageContent[]`，每项 `{type:'image', data:base64, mimeType:string}`；省略时行为不变。宿主按实际选入的消息读取原件，重建与重新回答同样携带；pi 适配器按所选模型的 `input` 能力决定是否传给模型。不支持图片时仍发送文字，返回保留正文的 `stopReason:'failed'` 与可读 `error`，由宿主写入 `turns.error`；取消保持 cancelled。
 
 > **2026-10-16**：用户决定在 P1 用 `@earendil-works/pi-ai` + `@earendil-works/pi-agent-core` 替换 DSH（`reviews/REVIEW_2026-10-16.md` D2，§10 的决策时点提前）。新运行时在 `app/runtime/pi/`，端口新增的事件与选项见 `plans/tasks/done/P1a_runtime_providers.md`，合并后由 Claude 更新本文。

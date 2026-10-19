@@ -36,7 +36,10 @@ export function createPiRuntime({
     const previousMessages =
       previous?.agent.state.messages ?? (options.sessionId ? await store.read(id) : []);
     const selection = await catalog.resolve(options.model);
-    const tools = options.noTools ? [] : agentTools(options.tools, options.onToolCall);
+    const supportsImages = selection.model.input?.includes('image') ?? false;
+    const tools = options.noTools
+      ? []
+      : agentTools(options.tools, options.onToolCall, supportsImages);
     const initial = createInitialSystemMessage(options.instructions, tools.map(toToolDeclaration));
     const history = previousMessages.filter((message) => message.role !== 'system');
     const messages = initial ? [initial, ...history] : history;
@@ -53,6 +56,7 @@ export function createPiRuntime({
       choice: options.model,
       selection,
       noTools: Boolean(options.noTools),
+      supportsImages,
       requests: [],
     });
     await store.write(id, agent.state.messages);
@@ -133,7 +137,7 @@ export function createPiRuntime({
       } else if (event.type === 'turn_end') await store.write(id, agent.state.messages);
     });
     try {
-      const supportsImages = selection.model.input?.includes('image');
+      const { supportsImages } = session;
       const imageError =
         images.length && !supportsImages ? '这个模型不能读图片，换一个支持图片的模型再试。' : null;
       await agent.prompt(

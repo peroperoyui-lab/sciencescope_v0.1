@@ -5,6 +5,7 @@ import { AppError } from '../core/errors.js';
 import { createDeliverables } from './deliverables.js';
 import { BUILTIN_SPECS, createBuiltinTools } from './builtin-tools/index.js';
 import { createApprovals } from './approvals.js';
+import { createViewImage, VIEW_IMAGE_SPEC } from './builtin-tools/view-image.js';
 
 /** @typedef {{ participantId: string, meetingId: string, turnId: string, callId?: string, environmentId?:string, signal?:AbortSignal, workFolder?:string, env?:{PATH?:string,VIRTUAL_ENV?:string} }} ToolContext */
 
@@ -13,6 +14,7 @@ const RESOURCES = ['map', 'plans', 'log', 'minutes', 'notes', 'agent', 'settings
 /** @type {import('../runtime/port.js').ToolSpec[]} */
 export const TOOL_SPECS = [
   ...BUILTIN_SPECS,
+  VIEW_IMAGE_SPEC,
   {
     name: 'python_env_install',
     description:
@@ -164,6 +166,7 @@ export function createTools(
 ) {
   const deliverables = createDeliverables(core);
   const builtins = createBuiltinTools(core, python);
+  const viewImage = createViewImage(core, research);
   const approvals = createApprovals(core);
   async function nameOf(id) {
     try {
@@ -228,6 +231,7 @@ export function createTools(
   async function run(name, args, context) {
     const decision = await approvals.request(name, args, context);
     if (decision) return decision;
+    if (name === 'view_image') return viewImage(args ?? {}, context);
     if (BUILTIN_SPECS.some((spec) => spec.name === name)) return builtins(name, args, context);
     if (name === 'python_env_install') {
       if (!python) throw new Error('Python service unavailable');

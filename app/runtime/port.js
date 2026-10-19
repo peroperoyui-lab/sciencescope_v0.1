@@ -9,13 +9,15 @@
 /**
  * @typedef {{ provider: string, model: string, effort?: string, maxTokens?: number }} ModelChoice
  * @typedef {{ type: 'image', data: string, mimeType: string }} ImageContent
+ * @typedef {{text:string, images:Array<{data:string,mimeType:string}>, preview?:any}} ImageToolResult
  *
  * @typedef {{ name: string, description: string, parameters: Record<string, any> }} ToolSpec
  *   `parameters` uses the field map DSL: `{ field: { type, required?, enum?, items?,
  *   properties?, additionalProperties?, description? } }`.
  *
  * @typedef {(call: { name: string, args: any, callId: string, signal: AbortSignal }) => Promise<any>} ToolHandler
- *   Runs a ScienceScope tool on behalf of the session and returns its JSON result.
+ *   Runs a ScienceScope tool and returns JSON or ImageToolResult. Image bytes go
+ *   to model working memory; tool-result events contain only preview metadata.
  *
  * @typedef {{ type: 'text-delta', delta: string }
  *   | { type: 'phase', phase: 'connecting' | 'thinking' | 'answering' | 'tool' | 'retrying' | 'waiting-approval' | 'compacting' }
@@ -49,4 +51,13 @@
  *   process but keeps what can be resumed.
  */
 
-export {};
+/**
+ * Keep image bytes out of the durable transcript and event log.
+ * @param {any} result
+ */
+export function recordedToolResult(result) {
+  if (!Array.isArray(result?.images)) return result;
+  const record = { ...result };
+  delete record.images;
+  return record;
+}

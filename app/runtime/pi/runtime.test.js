@@ -90,6 +90,48 @@ test('vision receives ImageContent; text-only models still answer text and expla
   }
 });
 
+test('image tool output reaches vision models and text-only models receive a normal readable result', async () => {
+  for (const supportsImages of [true, false]) {
+    await fixture(
+      async ({ runtime, faux, options, dir }) => {
+        faux.setResponses([
+          fauxAssistantMessage([fauxToolCall('view_image', {})], { stopReason: 'toolUse' }),
+          fauxAssistantMessage('Finished inspecting the tool result.'),
+        ]);
+        const image = { data: 'aW1hZ2U=', mimeType: 'image/png' };
+        const id = await runtime.startSession({
+          ...options,
+          tools: [{ name: 'view_image', description: 'View', parameters: {} }],
+          onToolCall: async () => ({
+            text: 'Page 1',
+            images: [image],
+            preview: { path: 'preview.png' },
+          }),
+        });
+        const events = [];
+        const result = await runtime.send(id, 'Inspect the page.', (event) => events.push(event));
+        assert.equal(result.stopReason, 'completed');
+        assert.equal(result.error, undefined);
+        const messages = await sessionStore(path.join(dir, 'runtime')).read(id);
+        const tool = messages.find((message) => message.role === 'toolResult');
+        assert.equal(
+          tool.content.filter((block) => block.type === 'image').length,
+          supportsImages ? 1 : 0,
+        );
+        assert.equal(
+          tool.content[0].text,
+          supportsImages ? 'Page 1' : '当前模型不能看图，请换支持图片的模型',
+        );
+        const record = events.find((event) => event.type === 'tool-result').result;
+        assert.equal(record.images, undefined);
+        assert.equal(record.preview.path, 'preview.png');
+      },
+      {},
+      supportsImages ? ['text', 'image'] : ['text'],
+    );
+  }
+});
+
 test('stream thinking and text, execute a host tool, then resume the complete transcript with new effort', async () => {
   await fixture(async ({ runtime, faux, options, dir }) => {
     let called = false;
