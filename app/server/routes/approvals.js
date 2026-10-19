@@ -5,6 +5,6 @@
 export function registerApprovalRoutes(router, approvals) {
   if (!approvals) return;
   router.post('/api/turns/:turnId/approvals/:activityId', ({ params, body }) =>
-    approvals.decide(params.turnId, params.activityId, body.decision),
+    approvals.decide(params.turnId, params.activityId, body.decision, body.scope),
   );
 }

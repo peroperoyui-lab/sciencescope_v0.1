@@ -50,6 +50,7 @@ export const DEFAULT_SETTINGS = {
   // The model AIs use unless their own definition names one.
   models: { default: null },
   context: { compactPercent: 80 },
+  approvals: { rules: [] },
   semantic: DEFAULT_SEMANTIC_SETTINGS,
   // A cumulative input/output cost budget; null turns the budget off.
   memory: { enabled: true, idleMinutes: 10, model: null, tokenLimit: 100000 },
@@ -100,7 +101,7 @@ function format(value) {
 
 export const settings = {
   name: 'settings',
-  ops: ['write', 'patch'],
+  ops: ['write', 'patch', 'add-approval-rule'],
   /** @param {import('../workspace.js').Locate} locate */
   file: (locate) => locate.paths.settings,
   /**
@@ -109,6 +110,22 @@ export const settings = {
    * @param {any} args
    */
   apply(text, op, args) {
+    if (op === 'add-approval-rule') {
+      const current = parse(text);
+      const rule = args.rule;
+      if (
+        !current.approvals.rules.some(
+          (saved) =>
+            saved.projectId === rule.projectId &&
+            saved.meetingId === rule.meetingId &&
+            saved.tool === rule.tool &&
+            saved.kind === rule.kind &&
+            saved.value === rule.value,
+        )
+      )
+        current.approvals = { ...current.approvals, rules: [...current.approvals.rules, rule] };
+      return format(current);
+    }
     if (op === 'write') return format(mergeSettings(DEFAULT_SETTINGS, args.settings));
     if (op === 'patch') return format(mergeSettings(parse(text), args.changes));
     throw new AppError('UNKNOWN_OP', `不支持的操作：${op}`);

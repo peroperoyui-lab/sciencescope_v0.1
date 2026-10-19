@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { AppError } from '../core/errors.js';
 import { filePath } from './builtin-tools/files.js';
 import { toolWorkFolder } from './builtin-tools/index.js';
+import { createApprovalRules } from './approval-rules.js';
 
 const cancelled = { cancelled: true, message: '操作已取消' };
 const rejected = { rejected: true, message: '用户拒绝了这次操作' };
@@ -14,8 +15,9 @@ const rejected = { rejected: true, message: '用户拒绝了这次操作' };
  * @param {import('../core/index.js').Core} core
  */
 export function createApprovals(core) {
-  /** @type {Map<string, {row:any, finish:(status:string)=>any}>} */
+  /** @type {Map<string, {row:any, context:any, finish:(status:string, rule?:any)=>any, saving?:Promise<any>}>} */
   const pending = new Map();
+  const rules = createApprovalRules(core);
   let closed = false;
 
   function background(turn) {
@@ -86,6 +88,14 @@ export function createApprovals(core) {
     if (summary === null) return null;
     const turn = core.turns.get(context.turnId);
     if (turn.status !== 'running') return cancelled;
+    const matches = await rules.matching(tool, args ?? {}, context);
+    const scopes = matches.length ? [] : await rules.scopes(tool, args ?? {}, context);
+    if (closed || context.signal?.aborted || core.turns.get(turn.id).status !== 'running')
+      return cancelled;
+    if (matches.length) {
+      rules.mark(context, matches);
+      return null;
+    }
     return new Promise((resolve) => {
       core.db.transaction(() => {
         const row = core.turns.startToolCall({
@@ -95,16 +105,17 @@ export function createApprovals(core) {
           kind: 'approval',
           status: 'pending',
           // callId ties the request to its tool call, so the timeline shows one row.
-          args: { tool, summary, callId: context.callId },
+          args: { tool, summary, callId: context.callId, scopes },
         });
         const abort = () => finish('cancelled');
-        function finish(status) {
+        function finish(status, rule) {
           if (!pending.delete(row.id)) return;
           context.signal?.removeEventListener('abort', abort);
           const result =
             status === 'approved' ? null : status === 'rejected' ? rejected : cancelled;
+          if (rule && status === 'approved') rules.mark(context, [rule]);
           const ended = core.turns.endToolCall(turn.id, row.callId, {
-            result,
+            result: rule && status === 'approved' ? { approvedBy: { ruleId: rule.id } } : result,
             isError: false,
             status,
           });
@@ -117,7 +128,7 @@ export function createApprovals(core) {
           resolve(result);
           return ended;
         }
-        pending.set(row.id, { row, finish });
+        pending.set(row.id, { row, context, finish });
         context.signal?.addEventListener('abort', abort, { once: true });
         core.turns.setPhase(turn.id, 'waiting-approval');
         background(turn);
@@ -125,17 +136,35 @@ export function createApprovals(core) {
     });
   }
 
-  function decide(turnId, activityId, decision) {
-    if (!['approve', 'reject'].includes(decision))
-      throw new AppError('INVALID_DECISION', 'decision must be approve or reject.');
+  function decide(turnId, activityId, decision, selected = null) {
+    if (!['approve', 'reject', 'always'].includes(decision))
+      throw new AppError('INVALID_DECISION', 'decision must be approve, reject or always.');
     const row = core.turns
       .toolCalls(turnId)
       .find((item) => item.id === activityId && item.kind === 'approval');
     if (!row) throw new AppError('APPROVAL_NOT_FOUND', '找不到这次批准请求。', 404);
-    const status = decision === 'approve' ? 'approved' : 'rejected';
+    const status = decision === 'reject' ? 'rejected' : 'approved';
     if (row.status === status) return row;
     const entry = pending.get(activityId);
     if (!entry) throw new AppError('APPROVAL_ENDED', '这次批准请求已结束。', 409);
+    if (decision === 'always') {
+      const choice = row.args.scopes.find(
+        (item) => item.kind === selected?.kind && item.value === selected?.value,
+      );
+      if (!choice) throw new AppError('INVALID_APPROVAL_SCOPE', '请选择这次操作提供的允许范围。');
+      if (!entry.saving)
+        entry.saving = rules
+          .remember(row.name, choice, entry.context.meetingId)
+          .then(
+            (rule) =>
+              entry.finish('approved', rule) ??
+              core.turns.toolCalls(turnId).find((item) => item.id === activityId),
+          )
+          .finally(() => {
+            entry.saving = null;
+          });
+      return entry.saving;
+    }
     return entry.finish(status);
   }
 

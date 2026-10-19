@@ -148,7 +148,7 @@ export function createTurns({ db, events, meetings, now, newId }) {
   }
 
   /**
-   * A throttled projection update while a thinking segment is still running.
+   * A live projection update for thinking or approval metadata during execution.
    * @param {string} turnId
    * @param {string} callId
    * @param {any} result
@@ -182,6 +182,14 @@ export function createTurns({ db, events, meetings, now, newId }) {
       .prepare('SELECT * FROM tool_calls WHERE turn_id = ? AND call_id = ?')
       .get(turnId, callId);
     if (!row) return null;
+    // Approval metadata is recorded before execution and survives its outcome,
+    // including a later tool error. Ordinary results retain their existing shape.
+    const approvedBy = JSON.parse(String(row.result_json ?? 'null'))?.approvedBy;
+    if (approvedBy)
+      result = {
+        ...(result && typeof result === 'object' ? result : { value: result }),
+        approvedBy,
+      };
     return db.transaction(() => {
       db.prepare(
         'UPDATE tool_calls SET result_json = ?, status = ?, ended_at = ? WHERE id = ?',

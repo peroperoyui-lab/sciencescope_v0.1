@@ -126,6 +126,8 @@ data/
 **用户能做什么**
 
 - 输入栏的"执行方式"有两档：**请求批准**（新对话默认）和**常规**。选择保存在会议规则里。
+- 后端支持「总是允许」：规则存在设置 `approvals.rules`，项目内的对话共用，独立对话只在本对话生效；可按完整命令、命令前缀、文件、含子目录的文件夹、包名或全部包授权，删除规则后重新询问。复合命令不匹配前缀规则。卡片菜单和设置规则列表由 C1-UI 接入。
+- 批准请求 `args.scopes` 为 `{kind,value,label,values}` 数组，说明用 `t(label, values)` 显示；接口接受 `decision: 'always', scope`。自动允许记录在工具调用 `result.approvedBy: {ruleId}`，多条包名规则共同覆盖时另有 `ruleIds`，通过 `tool.updated` 和 `tool.ended` 送到界面，执行失败也保留。
 - 请求批准时，运行命令（`shell`）、在数据目录之外写入或修改文件（`write_file`、`edit_file`）和安装 Python 包（`python_env_install`）之前，时间线出现批准卡片，状态行显示"等待你的批准"。卡片紧跟在等待它的那一步（或其所在的合组行）下面，那一步行尾写"等待批准"。处理后卡片消失，批准成为那一步的状态：拒绝的行尾写"已拒绝"，谁在何时处理写在细节底部。批准请求记录它所属工具调用的 `callId`。拒绝或停止不记为发言失败。
 - 常规模式直接执行，随时可以停止。停止会中止模型请求、正在运行的命令（连同子进程树）和 uv。
 - 秘书和全局助手面板的回答里同样出现批准卡片。
@@ -413,7 +415,7 @@ data/
 - `PATCH /api/messages/:id` 采纳或取消采纳审核。
 - `GET /api/messages/:id/citations` 回答中的资料引用。
 - `GET /api/turns/:id` 发言及其活动条目。
-- `POST /api/turns/:turnId/approvals/:activityId` 允许或拒绝。
+- `POST /api/turns/:turnId/approvals/:activityId` 允许、拒绝或 `always` 加 `scope` 保存允许范围。
 - `GET /api/search` 搜索消息。
 - `GET /api/activity` 正在运行的发言、待发队列（以及待删除的目标状态）。
 - `GET/POST/PATCH /api/meetings/:id/goal` 自动化目标（界面已不调用，待 A2-2 删除）。
