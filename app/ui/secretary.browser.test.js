@@ -59,7 +59,6 @@ test(
                     everyTokens: { enabled: false, n: 30000 },
                     onEnterProject: false,
                     onLeaveProject: false,
-                    saveMarkdown: false,
                     workbench: { map: 'off', plans: 'off', log: 'off' },
                   },
                 },

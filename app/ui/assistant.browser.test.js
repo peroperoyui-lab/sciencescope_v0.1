@@ -50,7 +50,6 @@ test(
                   everyTokens: { enabled: false, n: 30000 },
                   onEnterProject: false,
                   onLeaveProject: false,
-                  saveMarkdown: false,
                 },
               },
             },

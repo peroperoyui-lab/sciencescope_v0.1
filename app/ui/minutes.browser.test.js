@@ -29,7 +29,6 @@ test(
                 everyTokens: { enabled: false, n: 30000 },
                 onEnterProject: false,
                 onLeaveProject: false,
-                saveMarkdown: false,
                 workbench: { map: 'off', plans: 'off', log: 'off' },
               },
             },
@@ -111,11 +110,8 @@ test(
         await form.getByLabel('计划自动更新').selectOption('apply');
         await form.getByLabel('日志自动更新').selectOption('apply');
         await form.getByText('自动总结设置已保存。', { exact: true }).waitFor();
-        // The Markdown export setting leaves with task A3; the form no longer touches it.
-        const rules = {
-          ...(await app.core.workspace.read({ resource: 'settings', key: 'app' })).value.summary,
-        };
-        delete rules.saveMarkdown;
+        const rules = (await app.core.workspace.read({ resource: 'settings', key: 'app' })).value
+          .summary;
         assert.deepEqual(rules, {
           afterDiscussion: true,
           everyMessages: { enabled: true, n: 7 },
@@ -195,7 +191,6 @@ test(
                   everyTokens: { enabled: false, n: 30000 },
                   onEnterProject: false,
                   onLeaveProject: false,
-                  saveMarkdown: false,
                   workbench: { map: 'off', plans: 'off', log: 'off' },
                 },
               },
