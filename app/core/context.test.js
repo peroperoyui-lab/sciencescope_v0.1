@@ -5,6 +5,7 @@ import {
   buildInstructions,
   buildSeedInput,
   mentionedParticipants,
+  mentionedInputs,
   visibleMessages,
 } from './context.js';
 
@@ -85,4 +86,45 @@ test('mentions are found in order, longest names first', () => {
     'agent_review',
     'agent_main',
   ]);
+});
+
+test('multi-mention inputs split individual, adjacent, prefaced and repeated mentions', () => {
+  const candidates = [
+    { id: 'method', name: '方法学家' },
+    { id: 'stats', name: '统计审稿人' },
+    { id: 'short', name: '统计' },
+  ];
+  assert.deepEqual(
+    [...mentionedInputs('@方法学家 看识别策略 @统计审稿人 看标准误', candidates)],
+    [
+      ['method', '看识别策略'],
+      ['stats', '看标准误'],
+    ],
+  );
+  assert.deepEqual(
+    [...mentionedInputs('@方法学家 @统计审稿人 帮我看看这个回归', candidates)],
+    [
+      ['method', '帮我看看这个回归'],
+      ['stats', '帮我看看这个回归'],
+    ],
+  );
+  assert.deepEqual(
+    [...mentionedInputs('关于第三章，@方法学家 看结构 @统计审稿人 看数据', candidates)],
+    [
+      ['method', '关于第三章，\n\n看结构'],
+      ['stats', '关于第三章，\n\n看数据'],
+    ],
+  );
+  assert.deepEqual(
+    [...mentionedInputs('@方法学家 先看结构 @统计审稿人 看数据 @方法学家 再看识别', candidates)],
+    [
+      ['method', '先看结构\n\n再看识别'],
+      ['stats', '看数据'],
+    ],
+  );
+  assert.deepEqual(
+    [...mentionedInputs('前提 @统计审稿人 看数据', candidates)],
+    [['stats', '前提 @统计审稿人 看数据']],
+  );
+  assert.equal(mentionedInputs('普通问题', candidates).size, 0);
 });

@@ -1,7 +1,7 @@
 // The conductor decides who speaks after a person posts in a meeting, by the
 // meeting's speaking policy (docs/architecture/CORE_MODEL.md §6), and runs those turns.
 // Each meeting has one queue of requests, so requests never interleave.
-// - `direct` ("工作"): @-mentioned AIs answer in order of mention, otherwise the
+// - `direct` ("工作"): @-mentioned AIs answer concurrently, displayed in mention order, otherwise the
 //   default respondent. Enabled panel experts can be @-mentioned without being
 //   members; they join the meeting when they first speak.
 // - `round` ("有序讨论"): the experts in `policy.order` answer in parallel, all
@@ -12,7 +12,7 @@
 //   goal one turn after another, until it calls `goal_update`, the person pauses
 //   or ends it, the round limit is reached or a turn fails. Messages the person
 //   sends meanwhile wait in the outbox and join the next turn's input.
-import { mentionedParticipants } from '../core/context.js';
+import { mentionedParticipants, mentionedInputs } from '../core/context.js';
 import { AppError } from '../core/errors.js';
 import { runRound } from './conductor-round.js';
 
@@ -191,6 +191,41 @@ export function createConductor({ core, runner }) {
       : members.length
         ? [members.find((participant) => participant.id === preferred)?.id ?? members[0].id]
         : [];
+    if (selected.length > 1) {
+      const inputs = mentionedInputs(message.text, available);
+      for (const participantId of selected) {
+        if (signal.aborted) return;
+        await join(meeting.id, participantId);
+      }
+      if (signal.aborted) return;
+      const reserved = selected.map((participantId) =>
+        runner.reserve({
+          meetingId: meeting.id,
+          participantId,
+          triggerMessageId: message.id,
+          discussion: {
+            kind: 'mention',
+            triggerMessageId: message.id,
+            cutoffSeq: message.seq,
+            input: inputs.get(participantId),
+          },
+        }),
+      );
+      await Promise.all(
+        reserved.map((entry) =>
+          runner.run({
+            meetingId: meeting.id,
+            participantId: entry.turn.participantId,
+            triggerMessageId: message.id,
+            cutoffSeq: message.seq,
+            triggerText: entry.answer.refs.discussion.input,
+            reserved: entry,
+            signal,
+          }),
+        ),
+      );
+      return;
+    }
     for (const participantId of selected) {
       if (signal.aborted) return;
       await join(meeting.id, participantId);
@@ -270,6 +305,7 @@ export function createConductor({ core, runner }) {
         participantId: turn.participantId,
         triggerMessageId: turn.triggerMessageId,
         reserved,
+        triggerText: discussion?.kind === 'mention' ? discussion.input : undefined,
         cutoffSeq: continuation
           ? message.seq
           : (discussion?.cutoffSeq ??
