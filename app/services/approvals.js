@@ -18,16 +18,6 @@ export function createApprovals(core) {
   const pending = new Map();
   let closed = false;
 
-  function background(turn) {
-    const goal = core.goals.get(turn.meetingId);
-    if (goal)
-      core.events.record('goal.changed', goal, {
-        meetingId: turn.meetingId,
-        projectId: core.meetings.get(turn.meetingId).projectId,
-        actorId: turn.participantId,
-      });
-  }
-
   // A crash can leave persisted cards without a live promise. Close those cards
   // before exposing the server; conductor recovery closes their turns as well.
   for (const row of core.db
@@ -43,14 +33,6 @@ export function createApprovals(core) {
     if (event.type === 'turn.ended') {
       for (const entry of pending.values())
         if (entry.row.turnId === event.payload.id) entry.finish('cancelled');
-    }
-    if (
-      event.type === 'goal.changed' &&
-      ['completed', 'ended', 'blocked'].includes(event.payload.status)
-    ) {
-      for (const entry of pending.values())
-        if (core.turns.get(entry.row.turnId).meetingId === event.payload.meetingId)
-          entry.finish('cancelled');
     }
   });
 
@@ -113,14 +95,12 @@ export function createApprovals(core) {
             ![...pending.values()].some((item) => item.row.turnId === turn.id)
           )
             core.turns.setPhase(turn.id, 'tool');
-          background(turn);
           resolve(result);
           return ended;
         }
         pending.set(row.id, { row, finish });
         context.signal?.addEventListener('abort', abort, { once: true });
         core.turns.setPhase(turn.id, 'waiting-approval');
-        background(turn);
       });
     });
   }

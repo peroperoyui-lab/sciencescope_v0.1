@@ -108,7 +108,7 @@ test(
 );
 
 test(
-  'stopping, ending a goal, shutdown and restart cancel pending approvals without failure',
+  'stopping, ending a turn, shutdown and restart cancel pending approvals without failure',
   { timeout: 15000 },
   () =>
     withCore('approval-cancel', async (core) => {
@@ -117,9 +117,8 @@ test(
       const events = [];
       const unsubscribe = core.events.subscribe((event) => events.push(event));
       try {
-        for (const mode of ['abort', 'goal', 'turn', 'close']) {
+        for (const mode of ['abort', 'turn', 'close']) {
           const turn = core.turns.start({ meetingId: meeting.id, participantId: 'agent_main' });
-          if (mode === 'goal') core.goals.start(meeting.id, 'Wait for approval');
           const controller = new AbortController();
           const ready = nextApproval(core);
           const result = tools.run(
@@ -134,7 +133,6 @@ test(
           );
           const row = await ready;
           if (mode === 'abort') controller.abort();
-          if (mode === 'goal') core.goals.update(meeting.id, { status: 'ended' });
           if (mode === 'turn') core.turns.end(turn.id, { status: 'cancelled' });
           if (mode === 'close') tools.approvals.close();
           assert.equal((await result).cancelled, true);
@@ -144,12 +142,11 @@ test(
           );
           assert.equal(core.turns.get(turn.id).error, null);
         }
-        assert.ok(events.some((event) => event.type === 'goal.changed'));
         assert.equal(
           events.filter(
             (event) => event.type === 'tool.ended' && event.payload.status === 'cancelled',
           ).length,
-          4,
+          3,
         );
         const turn = core.turns.start({ meetingId: meeting.id, participantId: 'agent_main' });
         core.turns.startToolCall({

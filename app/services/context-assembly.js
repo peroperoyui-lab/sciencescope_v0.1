@@ -20,17 +20,6 @@ const withResearchInput = (messages) =>
   }));
 
 /**
- * A continuation is an application task, not a fabricated user message.
- * New user messages are included by the normal transcript selection below.
- * @param {ReturnType<ReturnType<typeof import('../core/goals.js').createGoals>['get']>} goal
- * @returns {string}
- */
-function automationInput(goal) {
-  if (!goal || !['running', 'paused'].includes(goal.status)) return '';
-  return `\n\n自动化目标：${goal.text}\n当前为第 ${goal.rounds} 轮，最多 ${goal.maxRounds} 轮。继续朝目标工作；完成或无法继续时调用 goal_update，提供总结或需要用户处理的原因。每轮汇报进展，未完成时下一轮会继续。`;
-}
-
-/**
  * @typedef {import('../core/index.js').Core} Core
  * @typedef {import('../runtime/port.js').ModelChoice} ModelChoice
  * @typedef {{ text: string, commit: (result: {status: string, turnId: string}) => unknown }} FollowupPacket
@@ -209,7 +198,6 @@ export function createContextAssembly({
         ? assistantOverview(meeting.id, rebuilding)
         : followup(meeting.id, { rebuilding, model, instructions, signal });
     const suffix =
-      automationInput(core.goals.get(meeting.id)) +
       reviewText +
       (question ? '\n\n请重新回答以下用户问题：\n' + question : '') +
       (continuation

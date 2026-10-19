@@ -28,6 +28,7 @@ import * as logFileReferences from './017-log-file-references.js';
 import * as turnActivities from './018-turn-activities.js';
 import * as turnError from './019-turn-error.js';
 import * as inputImages from './020-input-images.js';
+import * as removeAutomation from './021-remove-automation.js';
 
 export const migrations = [
   core,
@@ -50,4 +51,5 @@ export const migrations = [
   turnActivities,
   turnError,
   inputImages,
+  removeAutomation,
 ];
