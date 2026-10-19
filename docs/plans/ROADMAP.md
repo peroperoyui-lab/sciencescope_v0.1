@@ -53,6 +53,10 @@ E0a eigenpal 试验 ∥ E0b 自研回写原型 → 定路线 → D1 版本图后
 
 D 是 Sol，U 是 Claude；E0a 由 Claude 做，Sol 在 Windows 上用 Word、WPS 打开结果。D9 Tectonic 下载 alpha 不做（用户 2026-10-19）。
 
+**工具、技能和 MCP**（`plans/X_TOOLS_SKILLS_MCP.md`，用户 2026-10-19 放进 alpha）
+
+Sol：X1 技能（`plans/tasks/X1_skills.md`）、X2 MCP（`plans/tasks/X2_mcp.md`，在 C1 之后），排在 C1–C4 之后，和知识库任务交替；Claude：X0 内置基础技能正文（X1 之后）、X-UI 设置三页与时间线显示。
+
 **P3 其余页面**（Claude，每页：设计稿 → 用户审 → 实现 → Sol 截图验收）
 
 侧栏与会话 → 工作站（撤掉左下角版本管理，导图拉宽；导图缩略图滚轮缩放）→ 设置与关于 → 导图 → 记忆收件箱、专家角色。知识库页和编辑台页在上面两条线里做。完成标准：`app/ui/styles/legacy/` 全部删除。
@@ -77,7 +81,7 @@ Windows 应用图标全套尺寸（16–256 px、`.ico`）、安装程序图（N
 ## alpha 之后（用户决定是否以及何时做）
 
 - CLI 与 MCP 联动：同一套工具对外开放，第一版只读和提案两档权限。
-- 网页搜索服务（供应方由用户定）、插件与技能、导图节点图片、内置浏览器、临时对话、用量分析、文献元数据与 BibTeX、主张台账、扫描件 OCR、更换数据目录。
+- 网页搜索服务（供应方由用户定）、插件包、MCP 资源和提示词、科研方法类内置技能、导图节点图片、内置浏览器、临时对话、用量分析、文献元数据与 BibTeX、主张台账、扫描件 OCR、更换数据目录。
 - 知识库：全库语义地图、引用时间轴、主题社区摘要、换嵌入模型（Qwen3-Embedding 或多模态，只从 ModelScope 下载）。
 - 编辑台：公式编辑、导出 Word 修订、分支合并、SyncTeX、选中图表重跑脚本、Tectonic 下载。
 - WorkTeam 在线协作（远期），其他想法见 `plans/IDEAS.md`。
