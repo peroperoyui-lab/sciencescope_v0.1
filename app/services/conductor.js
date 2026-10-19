@@ -306,10 +306,11 @@ export function createConductor({ core, runner }) {
         triggerMessageId: turn.triggerMessageId,
         reserved,
         triggerText: discussion?.kind === 'mention' ? discussion.input : undefined,
-        cutoffSeq: continuation
-          ? message.seq
-          : (discussion?.cutoffSeq ??
-            (turn.triggerMessageId ? core.messages.get(turn.triggerMessageId).seq : undefined)),
+        cutoffSeq:
+          continuation && discussion?.kind !== 'mention'
+            ? message.seq
+            : (discussion?.cutoffSeq ??
+              (turn.triggerMessageId ? core.messages.get(turn.triggerMessageId).seq : undefined)),
         reviewMessageIds: peers,
         continuation,
         retry: !continuation,

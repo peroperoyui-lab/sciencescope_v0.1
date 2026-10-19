@@ -58,9 +58,9 @@ test('mentioned experts start together, read only their segment, retry it and la
         if (inputs.length === 2) both.open();
         await finish.promise;
         yield method ? '方法结果' : '统计结果';
-      } else if (inputs.length === 3) {
+      } else if (inputs.length === 3 || inputs.length === 4) {
         assert.equal(method, true);
-        assert.match(input, /识别策略/);
+        assert.match(input, inputs.length === 3 ? /识别策略/ : /请继续完成/);
         assert.doesNotMatch(input, /标准误|统计结果/);
         yield '方法重试结果';
       } else {
@@ -117,13 +117,22 @@ test('mentioned experts start together, read only their segment, retry it and la
         assert.doesNotMatch(segmented.input, /标准误|统计结果/);
         await conductor.retry(answers[0].id);
         await conductor.idle();
+        await conductor.continue(core.messages.since(meeting.id, 0).at(-1).id);
+        await conductor.idle();
         conductor.submit({
           meetingId: meeting.id,
           authorId: 'person_user',
           text: '@方法学家 后续追问',
         });
         await conductor.idle();
-        assert.equal(inputs.length, 4);
+        assert.equal(inputs.length, 5);
+        assert.deepEqual(
+          core.messages
+            .since(meeting.id, 0)
+            .filter((message) => message.turnId)
+            .map((message) => message.status),
+          ['done', 'done', 'done', 'done', 'done'],
+        );
         const rebuilt = await (
           await assembly.describe({
             meetingId: meeting.id,
