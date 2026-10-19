@@ -3,6 +3,7 @@
 import { closeKnowledgeTurn } from '../knowledge/versions.js';
 import { AppError } from '../../core/errors.js';
 import { createTurnActivity } from '../turn-activity.js';
+import { recordedToolResult } from '../../runtime/port.js';
 
 /**
  * @param {{core:import('../../core/index.js').Core,runtime:import('../../runtime/port.js').Runtime,
@@ -84,7 +85,11 @@ export function createBackgroundRunner({ core, runtime, defaultModel, tools, mod
               callId: call.callId,
               signal: call.signal,
             });
-            core.turns.endToolCall(turn.id, call.callId, { result: value, isError: false });
+            // Images go to the model only; the record keeps the preview path.
+            core.turns.endToolCall(turn.id, call.callId, {
+              result: recordedToolResult(value),
+              isError: false,
+            });
             return value;
           } catch (error) {
             core.turns.endToolCall(turn.id, call.callId, {
