@@ -27,6 +27,6 @@
   },
   "bundle": {
     "active": false,
-    "icon": ["../.sciencescope-local/desktop-assets/icon.ico"]
+    "icon": ["../tools/package/brand/icon.ico"]
   }
 }

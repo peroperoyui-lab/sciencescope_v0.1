@@ -15,8 +15,6 @@ $taskNode = (Get-Command node.exe).Source
 $taskCli = Join-Path $taskRoot 'node_modules/@tauri-apps/cli/tauri.js'
 Push-Location $taskRoot
 try {
-    # Reuse the approved logo conversion without changing the frozen old line.
-    & (Join-Path $taskRoot 'scripts/windows/prepare-icon.ps1')
     cmd.exe /d /s /c "call `"$taskDev`" -arch=x64 && `"$taskNode`" `"$taskCli`" build --config `"$Config`""
     if ($LASTEXITCODE -ne 0) { throw "Native packaging failed ($LASTEXITCODE)." }
 } finally { Pop-Location }

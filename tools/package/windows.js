@@ -254,9 +254,13 @@ await writeFile(
         useLocalToolsDir: true,
         targets: ['nsis'],
         publisher: 'peroperoyui',
+        icon: [path.join(root, 'tools/package/brand/icon.ico')],
         resources,
         windows: {
           nsis: {
+            installerIcon: path.join(root, 'tools/package/brand/icon.ico'),
+            headerImage: path.join(root, 'tools/package/brand/installer-header.bmp'),
+            sidebarImage: path.join(root, 'tools/package/brand/installer-sidebar.bmp'),
             installerHooks: path.join(root, 'tools/package/installer-hooks.nsh'),
             installMode: 'currentUser',
             displayLanguageSelector: true,
