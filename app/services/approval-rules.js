@@ -27,6 +27,7 @@ const inside = (folder, target) => {
  */
 export function createApprovalRules(core) {
   async function operation(tool, args, context) {
+    if (context.mcp) return { server: context.mcp.id };
     if (tool === 'shell') return { command: String(args.command ?? '') };
     if (tool === 'python_env_install')
       return { packages: [...new Set(validatePackages(args.packages ?? []).map(packageName))] };
@@ -39,6 +40,7 @@ export function createApprovalRules(core) {
 
   async function scopes(tool, args, context) {
     const value = await operation(tool, args, context);
+    if (value.server) return [scope('server', value.server, '这个服务器的所有工具')];
     if (tool === 'shell') {
       const result = [scope('exact', value.command, '这条命令（完全一致）')];
       const words = value.command.trim().match(/"[^"]*"|'[^']*'|\S+/gu) ?? [];
@@ -69,7 +71,8 @@ export function createApprovalRules(core) {
     const settings = await core.workspace.read({ resource: 'settings', key: 'app' });
     const rules = settings.value.approvals.rules.filter(
       (rule) =>
-        rule.tool === tool &&
+        (rule.tool === tool ||
+          (context.mcp && rule.kind === 'server' && rule.value === context.mcp.id)) &&
         (meeting.projectId
           ? rule.projectId === meeting.projectId && rule.meetingId == null
           : rule.projectId == null && rule.meetingId === meeting.id),
@@ -85,6 +88,7 @@ export function createApprovalRules(core) {
       return matches.length && matches.every(Boolean) ? [...new Set(matches)] : [];
     }
     for (const rule of rules) {
+      if (value.server && rule.kind === 'server' && rule.value === value.server) return [rule];
       if (tool === 'shell') {
         if (rule.kind === 'exact' && value.command === rule.value) return [rule];
         if (

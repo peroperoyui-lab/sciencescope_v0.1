@@ -73,6 +73,7 @@ export function createBackgroundRunner({ core, runtime, defaultModel, tools, mod
     let text = '';
     try {
       if (closed) throw new AppError('MINUTES_CLOSED', '纪要服务已关闭。', 409);
+      await tools?.ready?.();
       sessionId = await runtime.startSession({
         model: /** @type {import('../../runtime/port.js').ModelChoice} */ (model),
         workFolder:

@@ -41,6 +41,7 @@ export function createApprovals(core) {
   async function summaryFor(tool, args, context) {
     const meeting = core.meetings.get(context.meetingId);
     if (meeting.policy.approval === 'auto') return null;
+    if (context.mcp) return `${context.mcp.name} · ${context.mcp.tool}\n${JSON.stringify(args)}`;
     if (tool === 'shell') return String(args.command ?? '');
     if (tool === 'python_env_install') return JSON.stringify(args.packages ?? []);
     if (!['write_file', 'edit_file'].includes(tool)) return null;

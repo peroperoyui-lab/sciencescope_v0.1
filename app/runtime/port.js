@@ -11,7 +11,7 @@
  * @typedef {{ type: 'image', data: string, mimeType: string }} ImageContent
  * @typedef {{text:string, images:Array<{data:string,mimeType:string}>, preview?:any}} ImageToolResult
  *
- * @typedef {{ name: string, description: string, parameters: Record<string, any> }} ToolSpec
+ * @typedef {{ name: string, description: string, parameters: Record<string, any>, inputSchema?:Record<string,any> }} ToolSpec
  *   `parameters` uses the field map DSL: `{ field: { type, required?, enum?, items?,
  *   properties?, additionalProperties?, description? } }`.
  *

@@ -77,11 +77,32 @@ export async function discoverModels(paths, { baseUrl, api, keyRef, key, headers
  * @param {string} key
  */
 export async function saveKey(paths, keyRef, key) {
+  await saveKeys(paths, { [keyRef]: key });
+}
+
+const credentialWrites = new Map();
+
+/**
+ * Serialize read/merge/write across provider and MCP configuration changes.
+ * @param {ReturnType<typeof import('../core/paths.js').dataPaths>} paths
+ * @param {Record<string, string>} refs
+ */
+export async function saveKeys(paths, refs) {
+  if (!Object.keys(refs).length) return;
   const file = credentialsFile(paths);
-  const document = await readCredentials(paths);
-  document.refs = { ...document.refs, [keyRef]: key };
-  await mkdir(path.dirname(file), { recursive: true });
-  await writeFile(file, YAML.stringify(document), { encoding: 'utf8', mode: 0o600 });
+  const operation = (credentialWrites.get(file) ?? Promise.resolve()).then(async () => {
+    const document = await readCredentials(paths);
+    document.refs = { ...document.refs, ...refs };
+    await mkdir(path.dirname(file), { recursive: true });
+    await writeFile(file, YAML.stringify(document), { encoding: 'utf8', mode: 0o600 });
+  });
+  const settled = operation.catch(() => {});
+  credentialWrites.set(file, settled);
+  try {
+    await operation;
+  } finally {
+    if (credentialWrites.get(file) === settled) credentialWrites.delete(file);
+  }
 }
 
 /**

@@ -8,7 +8,7 @@ import { createApprovals } from './approvals.js';
 import { createViewImage, VIEW_IMAGE_SPEC } from './builtin-tools/view-image.js';
 import { createSkills, USE_SKILL_SPEC } from './skills/index.js';
 
-/** @typedef {{ participantId: string, meetingId: string, turnId: string, callId?: string, environmentId?:string, signal?:AbortSignal, workFolder?:string, env?:{PATH?:string,VIRTUAL_ENV?:string} }} ToolContext */
+/** @typedef {{ participantId: string, meetingId: string, turnId: string, callId?: string, environmentId?:string, signal?:AbortSignal, workFolder?:string, env?:{PATH?:string,VIRTUAL_ENV?:string}, mcp?:{id:string,name:string,tool:string} }} ToolContext */
 
 const RESOURCES = ['map', 'plans', 'log', 'minutes', 'notes', 'agent', 'settings', 'versions'];
 
@@ -159,12 +159,12 @@ export const TOOL_SPECS = [
 /**
  * @param {import('../core/index.js').Core} core
  * @param {ReturnType<typeof createResearch>} [research]
- * @param {{skills?:ReturnType<typeof createSkills>,secretary?: ReturnType<typeof import('./secretary/chat.js').createSecretaryChat>,python?:ReturnType<typeof import('./python/index.js').createPython>,versions?:ReturnType<typeof import('./versions/index.js').createVersions>}} [services]
+ * @param {{mcp?:ReturnType<typeof import('./mcp/index.js').createMcp>,skills?:ReturnType<typeof createSkills>,secretary?: ReturnType<typeof import('./secretary/chat.js').createSecretaryChat>,python?:ReturnType<typeof import('./python/index.js').createPython>,versions?:ReturnType<typeof import('./versions/index.js').createVersions>}} [services]
  */
 export function createTools(
   core,
   research = createResearch(core),
-  { secretary, python, versions, skills = createSkills(core) } = {},
+  { secretary, python, versions, skills = createSkills(core), mcp } = {},
 ) {
   const deliverables = createDeliverables(core);
   const builtins = createBuiltinTools(core, python);
@@ -232,6 +232,16 @@ export function createTools(
    */
   async function run(name, args, context) {
     if (name === 'use_skill') return skills.use(args?.name);
+    if (name.startsWith('mcp__') && mcp) {
+      await mcp.ready();
+      const spec = mcp.catalog().find((item) => item.name === name && item.enabled);
+      if (!spec) throw new AppError('MCP_TOOL_UNAVAILABLE', '这个 MCP 工具已停用或不可用。');
+      const decision = await approvals.request(name, args, {
+        ...context,
+        mcp: { id: spec.server, name: spec.serverName, tool: spec.tool },
+      });
+      return decision ?? mcp.call(name, args, context.signal);
+    }
     const decision = await approvals.request(name, args, context);
     if (decision) return decision;
     if (name === 'view_image') return viewImage(args ?? {}, context);
@@ -303,6 +313,7 @@ export function createTools(
   }
 
   async function list() {
+    await mcp?.ready();
     const builtinNames = new Set([...BUILTIN_SPECS, VIEW_IMAGE_SPEC].map((spec) => spec.name));
     return [
       ...TOOL_SPECS.map((spec) => ({
@@ -321,8 +332,28 @@ export function createTools(
         needsApproval: false,
         enabled: skill.enabled,
       })),
+      ...(mcp?.catalog() ?? []).map(
+        ({ name, source, server, description, needsApproval, enabled }) => ({
+          name,
+          source,
+          server,
+          description,
+          needsApproval,
+          enabled,
+        }),
+      ),
     ];
   }
 
-  return { specs: TOOL_SPECS, run, approvals, list };
+  return {
+    get specs() {
+      return [...TOOL_SPECS, ...(mcp?.catalog() ?? []).filter((item) => item.enabled)];
+    },
+    ready: async () => {
+      await mcp?.ready();
+    },
+    run,
+    approvals,
+    list,
+  };
 }

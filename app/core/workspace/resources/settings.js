@@ -52,6 +52,7 @@ export const DEFAULT_SETTINGS = {
   context: { compactPercent: 80 },
   approvals: { rules: [] },
   skills: { disabled: [] },
+  mcp: { servers: [], npmRegistry: null },
   semantic: DEFAULT_SEMANTIC_SETTINGS,
   // A cumulative input/output cost budget; null turns the budget off.
   memory: { enabled: true, idleMinutes: 10, model: null, tokenLimit: 100000 },
@@ -90,6 +91,10 @@ function parse(text) {
 }
 
 function format(value) {
+  for (const server of value.mcp.servers)
+    for (const field of ['env', 'headers'])
+      if (Object.values(server[field] ?? {}).some((entry) => !entry?.keyRef))
+        throw new AppError('MCP_CREDENTIAL', '请通过 MCP 服务器接口保存凭据。');
   const percent = value.context?.compactPercent;
   if (typeof percent !== 'number' || !Number.isFinite(percent) || percent < 50 || percent > 95)
     throw new AppError(
@@ -101,7 +106,7 @@ function format(value) {
 
 export const settings = {
   name: 'settings',
-  ops: ['write', 'patch', 'add-approval-rule'],
+  ops: ['write', 'patch', 'add-approval-rule', 'put-mcp-server', 'remove-mcp-server'],
   /** @param {import('../workspace.js').Locate} locate */
   file: (locate) => locate.paths.settings,
   /**
@@ -110,6 +115,14 @@ export const settings = {
    * @param {any} args
    */
   apply(text, op, args) {
+    if (op === 'put-mcp-server' || op === 'remove-mcp-server') {
+      const current = parse(text);
+      current.mcp.servers = current.mcp.servers.filter(
+        (entry) => entry.id !== (args.server?.id ?? args.id),
+      );
+      if (op === 'put-mcp-server') current.mcp.servers.push(args.server);
+      return format(current);
+    }
     if (op === 'add-approval-rule') {
       const current = parse(text);
       const rule = args.rule;
