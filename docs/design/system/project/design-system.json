@@ -42,9 +42,9 @@
     "sections": []
   },
   "lastChange": {
-    "by": "Yui",
-    "at": "2026-10-16T15:26:00Z",
+    "by": "Claude",
+    "at": "2026-10-19T05:40:00Z",
     "via": "Claude Code",
-    "note": "样式改由应用的 components.css 生成；加入「从这里分支」图标"
+    "note": "新增「品牌」组：应用图标、安装程序图、插画、关于页（待 Yui 审）"
   }
 }

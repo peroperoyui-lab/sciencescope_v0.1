@@ -1,0 +1,42 @@
+<!-- @dsCard group="品牌" height=540 subtitle="安装程序：欢迎页和完成页的左侧图 164×314，各步骤页头右侧图 150×57" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Installer</title></head>
+<body>
+<div class="ds ds-row" style="gap:24px;align-items:flex-start">
+  <div class="ds-col">
+    <div style="display:flex;width:497px;height:314px;border:1px solid var(--line-strong);background:#fff">
+      <!-- NSIS welcome and finish page sidebar, 164 x 314. Brand green panel,
+     paper mark and name; a large faint ring sits off the bottom edge. -->
+<div style="position:relative;width:164px;height:314px;overflow:hidden;background:#3f6049;color:#fbfbf9">
+  <svg viewBox="20 20 474 474" width="250" height="250" style="position:absolute;left:24px;top:168px;opacity:.09" fill="#fbfbf9"><path d="M357.4 45.9A232 232 0 1 0 377.2 453.2L344.3 420.1A186.9 186.9 0 1 1 334.6 84.9A70.6 70.6 0 0 1 357.4 45.9Z"/><path d="M446.4 388.5A232 232 0 0 0 459.6 142.3A70.6 70.6 0 0 1 422 167.4A186.9 186.9 0 0 1 414 356Z"/><circle cx="403.7" cy="99.2" r="48.4"/><path d="M397.5 372.2L472.2 447.3A24.2 24.2 0 0 1 437.9 481.4L363.2 406.3Z"/><path d="M256.5 136.5C270 227.5 285.5 243 376.5 256.5C285.5 270 270 285.5 256.5 376.5C243 285.5 227.5 270 136.5 256.5C227.5 243 243 227.5 256.5 136.5Z"/></svg>
+  <svg viewBox="20 20 474 474" width="34" height="34" style="position:absolute;left:20px;top:28px" fill="#fbfbf9"><path d="M357.4 45.9A232 232 0 1 0 377.2 453.2L344.3 420.1A186.9 186.9 0 1 1 334.6 84.9A70.6 70.6 0 0 1 357.4 45.9Z"/><path d="M446.4 388.5A232 232 0 0 0 459.6 142.3A70.6 70.6 0 0 1 422 167.4A186.9 186.9 0 0 1 414 356Z"/><circle cx="403.7" cy="99.2" r="48.4"/><path d="M397.5 372.2L472.2 447.3A24.2 24.2 0 0 1 437.9 481.4L363.2 406.3Z"/><path d="M256.5 136.5C270 227.5 285.5 243 376.5 256.5C285.5 270 270 285.5 256.5 376.5C243 285.5 227.5 270 136.5 256.5C227.5 243 243 227.5 256.5 136.5Z"/></svg>
+  <div style="position:absolute;left:20px;top:76px;font-size:17px;line-height:22px;font-weight:600;letter-spacing:.1px">ScienceScope</div>
+  <div style="position:absolute;left:20px;top:102px;font-size:12px;line-height:18px;opacity:.86">本地学术研究助手</div>
+  <div style="position:absolute;left:20px;top:120px;font-size:11px;line-height:16px;opacity:.7">Local research assistant</div>
+</div>
+
+      <div style="padding:16px 20px;color:#1f2420;font-size:13px;line-height:20px">
+        <div style="font-size:15px;font-weight:600;margin-bottom:12px">欢迎使用 ScienceScope 安装程序</div>
+        <div>安装程序将指导你完成 ScienceScope 的安装。</div>
+        <div style="margin-top:8px">点击「下一步」继续。</div>
+      </div>
+    </div>
+    <span class="ds-label">欢迎页（左侧图 164×314）</span>
+  </div>
+  <div class="ds-col">
+    <div style="display:flex;justify-content:space-between;align-items:center;width:497px;height:57px;border:1px solid var(--line-strong);background:#fff;color:#1f2420">
+      <div style="padding-left:16px;font-size:13px;line-height:18px"><b>选择安装位置</b><br><span style="font-size:12px">选择 ScienceScope 的安装文件夹。</span></div>
+      <!-- NSIS page header image, 150 x 57, shown at the right of a white header. -->
+<div style="position:relative;width:150px;height:57px;background:#ffffff">
+  <svg viewBox="20 20 474 474" width="34" height="34" style="position:absolute;right:14px;top:11.5px" fill="#1f2420"><path d="M357.4 45.9A232 232 0 1 0 377.2 453.2L344.3 420.1A186.9 186.9 0 1 1 334.6 84.9A70.6 70.6 0 0 1 357.4 45.9Z"/><path d="M446.4 388.5A232 232 0 0 0 459.6 142.3A70.6 70.6 0 0 1 422 167.4A186.9 186.9 0 0 1 414 356Z"/><circle cx="403.7" cy="99.2" r="48.4"/><path d="M397.5 372.2L472.2 447.3A24.2 24.2 0 0 1 437.9 481.4L363.2 406.3Z"/><path d="M256.5 136.5C270 227.5 285.5 243 376.5 256.5C285.5 270 270 285.5 256.5 376.5C243 285.5 227.5 270 136.5 256.5C227.5 243 243 227.5 256.5 136.5Z"/></svg>
+</div>
+
+    </div>
+    <span class="ds-label">步骤页头（右侧图 150×57）</span>
+  </div>
+</div>
+<p class="ds-note" style="padding:0 16px">两张图都生成为 24 位 BMP（tools/package/brand/），由打包配置的 sidebarImage 和 headerImage 引用。左侧图的文字中英各一行，安装程序的语言选择不影响它。</p>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

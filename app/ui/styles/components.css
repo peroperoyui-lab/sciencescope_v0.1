@@ -1992,6 +1992,83 @@ html[data-resizing] * {
   gap: var(--sp-8);
   margin-top: 12px;
 }
+/* A spot illustration takes the icon's place on the welcome page and the
+   larger empty states (Illustrations). */
+.ss-empty__art {
+  display: block;
+  margin-bottom: 8px;
+}
+
+/* ---------- About ---------- */
+.ss-about__head {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-4);
+  padding: 24px 16px 20px;
+  text-align: center;
+}
+.ss-about__head [data-logo],
+.ss-about__mark {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 8px;
+  color: var(--accent);
+}
+.ss-about__name {
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 28px;
+}
+.ss-about__version {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+.ss-about__text {
+  max-width: 440px;
+  margin-top: 4px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+/* ---------- Illustrations ---------- */
+.ss-art {
+  display: block;
+  width: 160px;
+  height: 120px;
+  overflow: visible;
+}
+.ss-art__line,
+.ss-art__dash,
+.ss-art__accent-line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+}
+.ss-art__line {
+  stroke: var(--ink-2);
+}
+.ss-art__dash {
+  stroke: var(--faint);
+  stroke-dasharray: 3 4;
+}
+.ss-art__accent-line {
+  stroke: var(--accent);
+}
+.ss-art__paper {
+  fill: var(--raised);
+}
+.ss-art__soft {
+  fill: var(--accent-soft);
+}
+.ss-art__accent {
+  fill: var(--accent);
+}
+.ss-art__ground {
+  fill: var(--sunken);
+}
 
 /* ---------- Object list ---------- */
 .ss-list {
