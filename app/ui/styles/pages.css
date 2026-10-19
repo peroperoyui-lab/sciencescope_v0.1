@@ -228,3 +228,13 @@
   border-radius: var(--r-md);
   object-fit: contain;
 }
+
+/* Welcome page: the spot illustration replaces the faded bitmap logo. */
+.homehero .ss-empty__art {
+  margin: 0 0 12px -8px;
+}
+
+/* Settings → 关于 */
+.about-page {
+  max-width: 680px;
+}

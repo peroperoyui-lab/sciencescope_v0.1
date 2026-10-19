@@ -259,7 +259,6 @@ export const en = {
   打开: 'open',
   浏览全部对话: 'Browse all chats',
   本地学术研究助手: 'local academic research assistant',
-  '发布者 peroperoyui · MIT 许可证': 'Published by peroperoyui · MIT License',
   创建: 'Create',
   显示滚动条: 'Show scrollbars',
   键盘快捷键: 'Keyboard shortcuts',
@@ -1229,4 +1228,17 @@ export const en = {
   调整宽度: 'Resize',
   '拖动调整宽度，双击恢复默认': 'Drag to resize, double-click to reset',
   '问秘书，或让它整理纪要…': 'Ask the secretary, or have it update the minutes…',
+  '本地学术研究助手：几位 AI 专家和你一起读文献、做分析、写论文。':
+    'A local research assistant: several AI experts read, analyse and write with you.',
+  发布者: 'Publisher',
+  参与开发: 'Contributors',
+  'Codex（AI 辅助开发）、Claude（Anthropic，AI 辅助审阅与开发）':
+    'Codex (AI-assisted development), Claude (Anthropic, AI-assisted review and development)',
+  许可证: 'Licence',
+  'MIT；随附的第三方软件各有自己的许可证':
+    'MIT; bundled third-party software keeps its own licences',
+  第三方声明: 'Third-party notices',
+  数据位置: 'Data location',
+  '所有内容都在安装目录的 data 文件夹里，卸载时默认保留':
+    'Everything lives in the data folder of the install directory and is kept on uninstall by default',
 };

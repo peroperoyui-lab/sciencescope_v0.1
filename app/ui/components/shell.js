@@ -14,13 +14,6 @@ function nativeWindow() {
   return globalThis.__TAURI__?.window?.getCurrentWindow?.() ?? null;
 }
 
-function About() {
-  return html`<div>
-    <p>ScienceScope · ${t('本地学术研究助手')}</p>
-    <p class="muted">${t('发布者 peroperoyui · MIT 许可证')}</p>
-  </div>`;
-}
-
 /** @param {{ projectName?: string, projectId?: string | null }} props */
 export function Topbar({ projectName, projectId }) {
   const actions = useActions();
@@ -130,7 +123,7 @@ export function Topbar({ projectName, projectId }) {
       {
         text: t('关于 ScienceScope'),
         icon: 'help',
-        run: () => actions.openModal(t('关于 ScienceScope'), html`<${About} />`),
+        run: () => navigate({ view: 'settings', id: 'about' }),
       },
     ],
   ];

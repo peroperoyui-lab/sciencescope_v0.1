@@ -3,6 +3,10 @@
 > 新核心（`app/`，重建 R0 起）的开发与验收日志，最新在最上面。每次交付一条，不超过 5 行；细节放 `.sciencescope-local/temp`。
 > 2026-10-05 之前旧原型时期的记录在 `archive/legacy/DESKTOP_IMPLEMENTATION_legacy.md`。
 
+
+## 2026-10-19 美术资产（Claude）
+- 用户认可设计画廊「品牌」组（图标用绿底）。`tools/brand/` 是图标和安装图的源文件，`render.mjs` 生成 `tools/package/brand/` 的 icon.ico（8 个尺寸）和两张 NSIS 位图；画廊卡片由 `docs/design/system/build/art.mjs` 从同一来源生成。
+- 接进应用：欢迎页插画、设置里的「关于 ScienceScope」页（版本、署名、第三方声明、数据位置），新增 `about.browser.test.js`。截图在项目共享文件夹 `screenshots/brand/`。打包接入写成 B1 交给 Sol。
 ## 2026-10-19 A3 界面部分（Claude）
 - 主输入框的模型菜单改为只选当前对话的模型（欢迎页选的随第一条消息存进新对话），新增 `model-choice.browser.test.js`；脚本运行时把模型传给测试脚本。删掉纪要设置里「同时保存为工作文件夹中的 Markdown 文件」和纪要窗口的导出错误；设置里「DSH 运行历史」改为「智能体运行会话」，去掉没有功能的「本地技能目录」。后端部分见 `plans/tasks/A3_doc_code_mismatches.md`。
 

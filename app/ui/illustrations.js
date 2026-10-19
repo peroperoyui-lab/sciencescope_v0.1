@@ -1,5 +1,6 @@
-// Spot illustrations for the welcome page and empty states (design system
-// Illustrations). Line drawings on a 160 x 120 grid in the Lucide stroke
+// Brand art in the interface: the vector mark and the spot illustrations for
+// the welcome page and empty states (design system Logo, Illustrations).
+// Illustrations are line drawings on a 160 x 120 grid in the Lucide stroke
 // style; every colour is a class styled from tokens in components.css, so the
 // drawings follow the light and dark themes. The gallery card is generated
 // from these strings (docs/design/system/build/art.mjs).
@@ -63,6 +64,14 @@ export const ART = {
     <path class="ss-art__soft ss-art__line" d="M30 58a4 4 0 0 1 4-4h92a4 4 0 0 1 4 4l-4 40H34Z"/>
     <path class="ss-art__accent" d="${STAR(80, 76, 7)}"/>`),
 };
+
+// The vector mark (docs/design/system/logo/sciencescope-mark.svg); it takes the text colour.
+const MARK = `<svg viewBox="20 20 474 474" fill="currentColor" aria-hidden="true" focusable="false"><path d="M357.4 45.9A232 232 0 1 0 377.2 453.2L344.3 420.1A186.9 186.9 0 1 1 334.6 84.9A70.6 70.6 0 0 1 357.4 45.9Z"/><path d="M446.4 388.5A232 232 0 0 0 459.6 142.3A70.6 70.6 0 0 1 422 167.4A186.9 186.9 0 0 1 414 356Z"/><circle cx="403.7" cy="99.2" r="48.4"/><path d="M397.5 372.2L472.2 447.3A24.2 24.2 0 0 1 437.9 481.4L363.2 406.3Z"/><path d="M256.5 136.5C270 227.5 285.5 243 376.5 256.5C285.5 270 270 285.5 256.5 376.5C243 285.5 227.5 270 136.5 256.5C227.5 243 243 227.5 256.5 136.5Z"/></svg>`;
+
+/** @param {{ className?: string }} props */
+export function LogoMark({ className = '' }) {
+  return html`<span class=${className} dangerouslySetInnerHTML=${{ __html: MARK }}></span>`;
+}
 
 /** @param {{ name: keyof typeof ART }} props */
 export function Illustration({ name }) {

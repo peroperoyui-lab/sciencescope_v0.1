@@ -294,7 +294,8 @@ data/
 - 主专家、任务秘书、全局助手各有一页改提示词，每次保存可撤销。
 - 数据库与文件 / 运行环境：显示各数据文件夹的路径并可打开（客户端目录、数据库与设置、默认项目目录、资料库原件、智能体运行会话），显示 Node 版本和平台。
 - 欢迎页的常用学术站点可增删、编辑和排序，用系统浏览器打开。
-- 关于：发布者 peroperoyui，MIT 许可证。
+- 关于（设置 → 帮助 → 关于 ScienceScope，菜单「帮助 → 关于 ScienceScope」也打开这里）：矢量标志、名称、版本（读安装目录的 `package.json`）、一句介绍；发布者、参与开发署名、MIT 许可证和「第三方声明」（只在安装版有 `THIRD_PARTY_NOTICES` 时显示，用默认程序打开）、数据位置和「打开文件夹」。接口 `GET /api/system` 多了 `version`、`files`，`POST /api/system/open-file`。
+- 欢迎页顶部是线描插画（`app/ui/illustrations.js`，颜色来自令牌，跟随深浅主题），取代原来半透明的位图标志。
 
 **实现位置**：`app/core/workspace/resources/settings.js`（默认值与合并）、`app/services/system.js`；界面 `app/ui/components/settings.js`、`home.js`、`shell.js`、`app/ui/appearance.js`；样式令牌 `app/ui/styles/tokens.css` 与组件样式 `components.css`。
 

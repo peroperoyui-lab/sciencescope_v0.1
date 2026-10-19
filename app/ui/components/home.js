@@ -9,6 +9,7 @@ import { Icon } from '../icons.js';
 import { navigate } from '../route.js';
 import { Composer } from './composer.js';
 import { MainHead } from './mainhead.js';
+import { Illustration } from '../illustrations.js';
 
 /** "09-17 10:42" @param {string} iso */
 function shortStamp(iso) {
@@ -154,7 +155,7 @@ export function Welcome({ projectId = null }) {
         <div class="chatcol new-chat-home">
           <div class="home">
             <div class="homehero">
-              <img src="/assets/logo.png" alt="" />
+              <${Illustration} name="welcome" />
               <h1>${t('今天想研究什么？')}</h1>
               <p class="profile-greeting">
                 ${t('{name}，从一个问题开始，和你的研究小组一起推进。', { name: userName })}

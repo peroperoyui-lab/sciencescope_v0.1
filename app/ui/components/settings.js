@@ -17,6 +17,7 @@ import { SecretarySettings } from './settings-secretary.js';
 import { ModelsPage, ProviderPage } from './settings-models.js';
 import { ExpertsPage, RolePage } from './settings-roles.js';
 import { AssistantWindowSettings } from './assistant-window-settings.js';
+import { AboutPage } from './settings-about.js';
 
 /**
  * Settings pages, grouped as in the old navigation: [group, [[id, nav label, page title]]].
@@ -47,6 +48,7 @@ const GROUPS = [
       ['environment', '运行环境', '环境配置 · 便携目录'],
     ],
   ],
+  ['帮助', [['about', '关于 ScienceScope', '关于 ScienceScope']]],
 ];
 
 /** @param {string} page */
@@ -456,6 +458,7 @@ export function SettingsView({ page, projectName }) {
     content = html`<${FoldersPage}
         title=${t('运行环境')}
       /><${PythonSettings} /><${SemanticSettings} />`;
+  else if (page === 'about') content = html`<${AboutPage} />`;
   else content = html`<div class="empty">${t('没有这个设置页。')}</div>`;
   const active = page.startsWith('provider') ? 'models' : page;
 

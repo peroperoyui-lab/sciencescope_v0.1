@@ -1,13 +1,26 @@
 // Facts about this installation for the settings pages, and opening a folder
 // in the system file manager.
 import { spawn } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import trash from 'trash';
+
+// The install (or checkout) root holds package.json, and in installed builds
+// the third-party notices written by tools/package/notices.js.
+const installRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const version = String(
+  JSON.parse(readFileSync(path.join(installRoot, 'package.json'), 'utf8')).version,
+);
+const notices = path.join(installRoot, 'THIRD_PARTY_NOTICES');
 
 /** @param {ReturnType<typeof import('../core/paths.js').dataPaths>} paths */
 export function systemInfo(paths) {
   return {
+    version,
+    // Only installed builds carry the notices file; the About page hides its button otherwise.
+    files: existsSync(notices) ? { notices } : {},
     folders: {
       root: paths.root,
       database: path.dirname(paths.database),

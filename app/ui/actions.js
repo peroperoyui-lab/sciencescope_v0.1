@@ -430,6 +430,8 @@ export function createActions(api, store) {
   const systemInfo = () => api.get('/api/system');
   /** @param {string} folder A name from systemInfo().folders, or `project:<id>`. @param {string} [path] */
   const openFolder = (folder, path) => api.post('/api/system/open', { folder, path });
+  /** @param {string} file A name from systemInfo().files. */
+  const openSystemFile = (file) => api.post('/api/system/open-file', { file });
   const keyRefs = async () => (await api.get('/api/providers/keys')).refs;
   /** @param {string} keyRef @param {string} key */
   const saveKey = (keyRef, key) =>
@@ -569,6 +571,7 @@ export function createActions(api, store) {
     projectFiles,
     systemInfo,
     openFolder,
+    openSystemFile,
     fileOp,
     download,
     keyRefs,
