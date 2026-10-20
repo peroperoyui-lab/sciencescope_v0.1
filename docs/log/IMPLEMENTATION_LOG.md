@@ -1,5 +1,8 @@
 # 实施记录
 
+## 2026-10-20 知识库规模方案并入设计（Claude）
+- 用户采纳：检索枢纽降权、扇出截取、单次访问、路径去重；工具结果轻量、详情按需；图视图按视野加载（用户提出）、位置存库、后台 ForceAtlas2、拖动钉住、删除不补位。改 `KNOWLEDGE_BASE.md` §5、§6、§7a、§8、§10（新增 KB-10a）、§11，DECISIONS 一条。
+
 ## 2026-10-20 X0 内置基础技能（Claude）
 - `app/resources/skills/` 换成四个技能：cite-sources、edit-workspace、deliver-files、python-analysis，删掉格式示例；技能测试改用 cite-sources，停用时停掉全部技能。真实模型验收放进 R6a-6。
 
