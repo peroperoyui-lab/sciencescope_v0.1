@@ -1,5 +1,10 @@
 # 实施记录
 
+## 2026-10-20 E0b-1 docx 原位回写试验（Codex）
+
+- 新增 desk/docx SAX 字符位置索引、局部段落回写和追加批注；saxes 精确锁定 6.0.0（ISC），沿用 JSZip，两项合成测试通过。合入 Claude 的侧栏等待修复，补回 KB-4 独立标题夹具以隔离合法引用回填；业务代码不变，Windows 干净检出 `npm run check` 281/281、零跳过。
+- 三份本地中文稿在 Word/WPS 正常打开；目录、REF 和已有修订因原稿缺失，另用带 188 个公式的受控副本验证 F9、目录更新、接受/拒绝修订及批注锚点；英文稿和学位论文样本缺失。材料与截图在 `.sciencescope-local/temp/desk-e0/`，未接 UI/路由，0 模型请求。
+
 ## 2026-10-20 E0a eigenpal 试验与 E0b 任务书（Claude）
 
 - eigenpal docx-editor 不采用：修订、批注和服务端编辑 API 在 EigenPal Pro 评估许可的包里（禁止生产使用和分发），按编辑台设计第 3.3 节规则走自研方案。报告 `.sciencescope-local/temp/desk-e0/E0a_eigenpal.md`。写了 E0b-1（docx 原位回写原型）和 E0b-2（句子对齐试验）任务书给 Sol，两份都需要用户提供真实稿件副本。
