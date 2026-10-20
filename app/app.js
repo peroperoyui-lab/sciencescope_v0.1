@@ -1,6 +1,8 @@
 // Assembles the whole host: core, runtime, tools, conductor and the HTTP
 // server. `main.js` starts it for real; tests start it with a fixture model.
 import { createKnowledgeStore } from './services/knowledge/store.js';
+import { createProjectIndex } from './services/knowledge/project-index.js';
+import { createProjectFiles } from './services/project-files.js';
 import { createCore } from './core/index.js';
 import { createPiRuntime } from './runtime/pi/runtime.js';
 import { createModelCatalog } from './runtime/pi/catalog.js';
@@ -48,6 +50,11 @@ export async function createApp({
   const knowledge = createKnowledgeStore(core);
   const semantic = createSemantic(core);
   const research = createResearch(core, { semantic });
+  const projectFiles = createProjectFiles(core, {
+    requestIndex: (id) => projectIndex.request(id),
+    indexEntry: (id, relative) => projectIndex.entry(id, relative),
+  });
+  const projectIndex = createProjectIndex({ core, research, files: projectFiles });
   const researchInput = createResearchInput({ core, research });
   startup?.mark('pythonStart');
   const python = createPython(core, pythonOptions);
@@ -123,6 +130,8 @@ export async function createApp({
   versionNotes.start();
   const server = createAppServer({
     core,
+    projectFiles,
+    projectIndex,
     mcp,
     skills,
     tools,
@@ -146,6 +155,8 @@ export async function createApp({
 
   return {
     core,
+    projectFiles,
+    projectIndex,
     mcp,
     skills,
     knowledge,
@@ -175,6 +186,7 @@ export async function createApp({
       await minutes.close();
       await server.close();
       await conductor.idle();
+      await projectIndex.close();
       await activeRuntime.close();
       researchInput.close();
       await semantic.close();

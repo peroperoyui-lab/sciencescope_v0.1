@@ -74,6 +74,8 @@ function tokenMatches(given, expected) {
  *   memory?: any, researchInput?:ReturnType<typeof import('../services/research-input/index.js').createResearchInput>,
  *   python?:ReturnType<typeof import('../services/python/index.js').createPython>,
  *   research?: ReturnType<typeof import('../services/research/index.js').createResearch>, semantic?:any,
+ *   projectFiles?:ReturnType<typeof import('../services/project-files.js').createProjectFiles>,
+ *   projectIndex?:ReturnType<typeof import('../services/knowledge/project-index.js').createProjectIndex>,
  *   conductor?: ReturnType<typeof import('../services/conductor.js').createConductor> }} options
  *   Without a conductor (core-only tests) posting a message triggers no answers.
  */
@@ -99,6 +101,8 @@ export function createAppServer({
   skills,
   tools,
   mcp,
+  projectFiles,
+  projectIndex,
 }) {
   const router = createRouter();
   registerSkillRoutes(router, skills);
@@ -108,7 +112,7 @@ export function createAppServer({
   registerVersionRoutes(router, versions, versionNotes);
   registerPythonRoutes(router, python);
   registerDeliverableRoutes(router, core, deliverables);
-  registerProjectRoutes(router, core, python);
+  registerProjectRoutes(router, core, python, projectFiles, projectIndex);
   registerParticipantRoutes(router, core);
   registerMeetingRoutes(router, core, conductor, researchInput, python);
   registerResearchInputRoutes(router, researchInput);

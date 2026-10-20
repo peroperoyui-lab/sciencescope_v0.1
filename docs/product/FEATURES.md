@@ -56,6 +56,7 @@ data/
     versions/<组id>/v<n>-<版本id>/<原文件>  以及同名 .notes.md 版本说明
   workspaces/<随机id>/ 或 shared/   独立对话的工作文件夹
   library/originals/          资料库原件（导入时复制，文件名为随机 id）
+  library/project-files/<项目id>/<内容哈希>  项目文件的去重副本，旧内容暂保留
   deliverables/<id>/          回答下方展示的交付文件副本
   models/multilingual-e5-small/  本地语义检索模型（用户点击下载后才有）
   python/                     uv 缓存、解释器、受管环境 envs/
@@ -232,6 +233,9 @@ data/
 - 统一检索资料段落和条目：默认中英文关键词检索（SQLite FTS5）。开启"本地混合检索"后，加上本机向量检索；每次结果标明本次是关键词还是混合检索。
 - AI 用 `research_search` / `research_read` 检索和分页读取，读取结果报告剩余长度，不截断全文；引用格式兼容 `[S3 p.4]`、复合、中文和全角写法。
 - 文件预览：PDF（文字层、翻页、高亮）、DOCX（可读视图与版式视图）、Markdown、LaTeX、CSV、代码（只读）和图片。
+- 打开项目文件夹根目录或在应用内新建、改名、添加文件后，后台扫描文件；可用项目索引接口立即扫描。先比较修改时间和大小，变化后才算哈希，内容变化才复制和重解析。同一项目并发请求合为当前扫描及一次补扫。
+- 每个项目文件都有资料记录、相对路径及数据目录内的哈希副本；同内容去重，修改后的旧副本暂保留。无法解析或超过 200 MB 的文件只索引文件名和路径并保留原因，关键词和语义文档均可找到；复制或读取失败标为失败，下次扫描重试。
+- 原件打开、重解析、预览和看图优先读项目现文件，路径不存在时读取副本；`research_read` 继续分页读取已索引的段落，项目文件夹移走后仍可查阅。扫描不向用户文件夹写文件，不抽实体或整理卡片。
 
 **实现位置**：`app/services/research/`（`store.js`、`items.js`、`search.js`、`citations.js`、`parsers/`、`semantic/`）、`app/services/preview/`；界面 `app/ui/components/research-*.js`、`file-preview.js`、`settings-semantic.js`、`app/ui/readers/`。
 
@@ -242,6 +246,7 @@ data/
 - 本地模型（multilingual-e5-small int8）需用户明确点击下载，每个文件校验 SHA-256，校验失败报错且不换源；"官方"源连接失败时会尝试 HF 镜像。需要 AVX2、8 GB 内存和 5 GB 可用空间，不满足时只用关键词检索。
 - 对话进行中暂停建立索引；索引缺失、版本不一致或向量阶段超过 300 毫秒时，整次退回关键词检索。
 - 扫描件没有 OCR；没有文献元数据在线查询和 BibTeX 互通。
+- 项目扫描跳过隐藏目录、`node_modules`、`__pycache__`、`.venv`、`renv`；尚未处理移动、删除及旧副本清理（KB-2b）。
 
 ### 2.8a 知识库存储（无界面）
 
@@ -404,7 +409,8 @@ data/
 - `POST /api/projects` 新建项目。
 - `GET /api/projects/:id` 读取项目。
 - `PATCH /api/projects/:id` 改名、描述、文件夹、置顶、归档。
-- `GET /api/projects/:id/files` 列出项目文件夹内容。
+- `GET /api/projects/:id/files` 列出项目文件夹内容；根目录请求触发后台扫描，文件条目带 `index:{status,sourceId,error}`，状态为 `parsed/parsing/name-only/failed/unindexed`。
+- `POST /api/projects/:id/index` 等待扫描，返回 `{added,updated,unchanged,nameOnly,failed}`；`nameOnly` 是扫描到的仅文件名记录数，`failed` 是本次读取/复制等错误数。
 - `POST /api/projects/:id/files` 新建文件夹、重命名、移到回收站、打开。
 - `GET /api/projects/:id/export` 项目快照 zip。
 - `POST /api/projects/:id/log-file/open` 打开日志条目里链接的文件。
@@ -540,6 +546,8 @@ data/
 ### 4.1 SQLite 表（`data/sciencescope.sqlite`）
 
 迁移在 `app/core/db/migrations/`，编号即 `PRAGMA user_version`；有旧数据时迁移前先备份到 `data/backups/`。
+
+023 为 `rb_sources` 增加 `file_size`、`file_mtime_ms`、`content_hash`，与 022 的 `folder_path` 一起记录项目文件身份和扫描版本。
 
 | 迁移 | 表或改动                                                                                                                     | 用途                                                                           |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |

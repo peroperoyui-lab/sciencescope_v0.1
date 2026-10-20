@@ -15,7 +15,13 @@ export function createSemanticDocuments(core) {
     const result = [];
     for (const row of core.db.prepare('SELECT * FROM rb_sources ORDER BY id').all()) {
       const metadata = JSON.parse(String(row.metadata_json));
-      const text = [row.title, payloadText(metadata)].filter(Boolean).join('\n');
+      const text = [
+        row.title,
+        ...(row.folder_path ? [row.name, row.folder_path] : []),
+        payloadText(metadata),
+      ]
+        .filter(Boolean)
+        .join('\n');
       result.push({
         ref: { type: 'source', id: String(row.id) },
         projectId: row.project_id == null ? null : String(row.project_id),
@@ -123,6 +129,7 @@ export function createSemanticDocuments(core) {
       type: ref.type,
       id: ref.id,
       sourceId: source.id,
+      folderPath: source.folderPath,
       projectId: source.projectId,
       title: source.title,
       text: chunk?.text ?? source.metadata?.abstract ?? source.title,

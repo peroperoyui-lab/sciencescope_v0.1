@@ -1,18 +1,59 @@
 // Original bytes are durable; parsed passages and keyword indexes are derived.
 // This service owns imports. Storage/retrieval are usable without the parser.
-import { mkdir, writeFile, unlink, readFile } from 'node:fs/promises';
+import { mkdir, writeFile, unlink, readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { createResearchStore } from './store.js';
 import { createResearchSearch } from './search.js';
-import { parseDocument } from './parsers/index.js';
+import { parseDocument, parserFor } from './parsers/index.js';
 import { chunkBlocks } from './chunks.js';
 import { openPath } from '../system.js';
+import { createProjectFiles } from '../project-files.js';
 
 /** @param {import('../../core/index.js').Core} core @param {{semantic?:any,open?:typeof openPath}} [options] */
 export function createResearch(core, options = {}) {
   const store = createResearchStore({ db: core.db, events: core.events });
   const search = createResearchSearch(store);
+  const projectFiles = createProjectFiles(core);
+
+  /**
+   * Resolve original bytes independently of the parser projection. Project files
+   * remain the first choice; the catalog's durable copy survives a moved folder.
+   * @param {string} id
+   * @returns {Promise<string>}
+   */
+  async function sourcePath(id) {
+    const source = store.getSource(id);
+    if (source.projectId && source.folderPath) {
+      const file = projectFiles.locate(source.projectId, source.folderPath);
+      try {
+        if ((await stat(file)).isFile()) return file;
+      } catch (error) {
+        if (!['ENOENT', 'ENOTDIR'].includes(error.code)) throw error;
+      }
+    }
+    return path.join(core.paths.library, source.originalPath);
+  }
+
+  /**
+   * Project copies use a hash filename, so parsing uses the catalog display name.
+   * Unsupported/empty/broken documents still have searchable file identity.
+   * @param {string} id
+   * @param {{actorId?:string,meetingId?:string}} [actor]
+   */
+  async function parseProjectSource(id, actor = {}) {
+    const source = store.getSource(id);
+    let reason;
+    if (source.fileSize > 200 * 1024 * 1024)
+      reason = `File is ${source.fileSize} bytes; content parsing is limited to 200 MB.`;
+    else if (!parserFor(source.name)) reason = `Unsupported document format: ${source.name}`;
+    if (reason)
+      return store.addChunks(id, [], { contentStatus: 'name-only', parseError: reason }, actor);
+    const parsed = await parseSource(source, await readFile(await sourcePath(id)), actor);
+    return ['failed', 'unsupported'].includes(parsed.contentStatus)
+      ? store.updateSource(id, { contentStatus: 'name-only' }, actor)
+      : parsed;
+  }
 
   /**
    * @param {{name:string,bytes:Uint8Array,projectId?:string|null,title?:string,kind?:string,metadata?:any,mime?:string}} input
@@ -73,14 +114,14 @@ export function createResearch(core, options = {}) {
   /** @param {string} id @param {{actorId?:string,meetingId?:string}} [actor] */
   async function reparseSource(id, actor = {}) {
     const source = store.getSource(id);
-    const bytes = await readFile(path.join(core.paths.library, source.originalPath));
+    if (source.folderPath) return parseProjectSource(id, actor);
+    const bytes = await readFile(await sourcePath(id));
     return parseSource(source, bytes, actor);
   }
 
   /** @param {string} id */
   async function openSource(id) {
-    const source = store.getSource(id);
-    await (options.open ?? openPath)(path.join(core.paths.library, source.originalPath));
+    await (options.open ?? openPath)(await sourcePath(id));
     return { opened: true };
   }
 
@@ -88,6 +129,8 @@ export function createResearch(core, options = {}) {
     store,
     importSource,
     reparseSource,
+    parseProjectSource,
+    sourcePath,
     openSource,
     read: search.read,
     search: (query, input = {}) =>
