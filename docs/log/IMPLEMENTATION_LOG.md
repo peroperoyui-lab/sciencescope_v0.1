@@ -2,7 +2,7 @@
 
 ## 2026-10-20 E0b-2 两版论文句子对齐试验（Codex）
 
-- 新增 desk/compare 的段落锚点、中文切句和局部 Dice 配对，保留原文与块引用；复用 jsdiff 和 compareText，无新依赖，未接 UI/现有比较接口。五项测试通过；合入 Claude 侧栏测试修复，补回 KB-4 的独立标题夹具，避免合法引用回填干扰相似边断言。
+- 新增 desk/compare 的段落锚点、中文切句和局部 Dice 配对，保留原文与块引用；复用 jsdiff 和 compareText，无新依赖，未接 UI/现有比较接口。五项测试通过；合入 Claude 侧栏修复、补回 KB-4 独立标题夹具，Windows 干净检出 `npm run check` 284/284、零跳过。
 - 真实稿件的受控修订逐行核验：阈值 0.4/0.5/0.6 分别漏配 0/1/1 处（涉及 0/2/2 行），均无错配和后文连带标红；建议 D4 从 0.4 继续验证，原型默认仍为任务书的 0.5。断句观察及清单在 `.sciencescope-local/temp/desk-e0/E0b-2.md`，0 模型请求。
 
 ## 2026-10-20 E0a eigenpal 试验与 E0b 任务书（Claude）
