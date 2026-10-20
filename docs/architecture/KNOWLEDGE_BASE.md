@@ -2,7 +2,7 @@
 
 - 起草：Claude，2026-10-18。状态：**已定稿**（2026-10-19 所有者认可 §12 全部推荐，并补充四条原则，见 §1a）。
 - 依据：`research/KNOWLEDGE_BASE_RESEARCH.md`（本文照它的推荐落地，外部事实和来源见该文 §8）；`decisions/DECISIONS.md`（2026-10-18：alpha 包含知识库；项目页按文件夹树显示，文件照样解析和建索引；正式发布前不要求数据兼容；各角色补上数据库写入工具）；`product/FEATURES.md` §2.8–2.9、§4。核对的代码基线 `74ae483`。
-- 取代：`KNOWLEDGE_GRAPH.md` 的「智能体整理先进收件箱」和「用 sigma.js 画图」（前者已被 DECISIONS 2026-10-05「修改直接生效并可撤销」取代）。`RESEARCH_BASE.md` 里的 `rb_links`、`rb_proposals` 只在旧线存在，本文不沿用。
+- 取代：`archive/KNOWLEDGE_GRAPH_2026-09-27.md` 的「智能体整理先进收件箱」和「用 sigma.js 画图」（前者已被 DECISIONS 2026-10-05「修改直接生效并可撤销」取代）。`RESEARCH_BASE.md` 里的 `rb_links`、`rb_proposals` 只在旧线存在，本文不沿用。
 
 ## 0. 现状核对
 
