@@ -1,5 +1,10 @@
 # 实施记录
 
+## 2026-10-20 E0b-2 两版论文句子对齐试验（Codex）
+
+- 新增 desk/compare 的段落锚点、中文切句和局部 Dice 配对，保留原文与块引用；复用 jsdiff 和 compareText，无新依赖，未接 UI/现有比较接口。改句、插段、删段、拆段、调换段落五项测试通过。
+- 真实稿件的受控修订逐行核验：阈值 0.4/0.5/0.6 分别漏配 0/1/1 处（涉及 0/2/2 行），均无错配和后文连带标红；建议 D4 从 0.4 继续验证，原型默认仍为任务书的 0.5。断句观察及清单在 `.sciencescope-local/temp/desk-e0/E0b-2.md`，0 模型请求。
+
 ## 2026-10-20 E0a eigenpal 试验与 E0b 任务书（Claude）
 
 - eigenpal docx-editor 不采用：修订、批注和服务端编辑 API 在 EigenPal Pro 评估许可的包里（禁止生产使用和分发），按编辑台设计第 3.3 节规则走自研方案。报告 `.sciencescope-local/temp/desk-e0/E0a_eigenpal.md`。写了 E0b-1（docx 原位回写原型）和 E0b-2（句子对齐试验）任务书给 Sol，两份都需要用户提供真实稿件副本。
