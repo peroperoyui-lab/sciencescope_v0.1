@@ -317,5 +317,10 @@ export function createSemantic(core, options = {}) {
     await engine?.close?.();
   }
 
-  return { start, status, configure, download, rebuild, search, idle, close };
+  async function sourceNeighbors(ids, neighborOptions = {}) {
+    if (!enabled || progress.state !== 'ready' || !vector) return null;
+    return vector.sourceNeighbors(ids, { ...neighborOptions, pause: busy });
+  }
+
+  return { start, status, configure, download, rebuild, search, sourceNeighbors, idle, close };
 }

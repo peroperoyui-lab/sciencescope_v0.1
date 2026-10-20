@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import * as sqliteVec from 'sqlite-vec';
 import { AppError } from '../../../core/errors.js';
+import { createSourceNeighbors } from './source-neighbors.js';
 
 const candidateKey = (ref, version) =>
   createHash('sha256').update(`${ref.type}\0${ref.id}\0${version}`).digest('hex');
@@ -223,5 +224,6 @@ export async function createVectorStore({
   async function close() {
     closed = true;
   }
-  return { upsertDocuments, search, removeMissing, status, close };
+  const sourceNeighbors = createSourceNeighbors(db, modelId, modelVersion);
+  return { upsertDocuments, search, sourceNeighbors, removeMissing, status, close };
 }

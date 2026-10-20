@@ -1,6 +1,7 @@
 // Assembles the whole host: core, runtime, tools, conductor and the HTTP
 // server. `main.js` starts it for real; tests start it with a fixture model.
 import { createKnowledgeStore } from './services/knowledge/store.js';
+import { createKnowledgeJobs } from './services/knowledge/jobs.js';
 import { createProjectIndex } from './services/knowledge/project-index.js';
 import { createProjectFiles } from './services/project-files.js';
 import { createCore } from './core/index.js';
@@ -50,6 +51,7 @@ export async function createApp({
   const knowledge = createKnowledgeStore(core);
   const semantic = createSemantic(core);
   const research = createResearch(core, { semantic });
+  const knowledgeJobs = createKnowledgeJobs({ core, research, semantic });
   const projectFiles = createProjectFiles(core, {
     requestIndex: (id) => projectIndex.request(id),
     indexEntry: (id, relative) => projectIndex.entry(id, relative),
@@ -61,6 +63,7 @@ export async function createApp({
   startup?.mark('pythonEnd');
   startup?.mark('semanticStart');
   await semantic.start();
+  await knowledgeJobs.start();
   startup?.mark('semanticEnd');
   const settings = async () =>
     (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
@@ -160,6 +163,7 @@ export async function createApp({
     mcp,
     skills,
     knowledge,
+    knowledgeJobs,
     versions,
     versionNotes,
     python,
@@ -187,6 +191,7 @@ export async function createApp({
       await server.close();
       await conductor.idle();
       await projectIndex.close();
+      await knowledgeJobs.close();
       await activeRuntime.close();
       researchInput.close();
       await semantic.close();
