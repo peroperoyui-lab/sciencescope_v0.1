@@ -32,8 +32,12 @@ function readBlocks(xml, spans) {
     children.get(span.parent).push(span);
   }
   const raw = (span) => xml.slice(span.start, span.end);
-  const inside = (span) =>
-    spans.filter((child) => child.start >= span.start && child.end <= span.end);
+  // Spans are in document order, so a span's descendants follow it contiguously.
+  const inside = (span) => {
+    let end = span.index + 1;
+    while (end < spans.length && spans[end].start < span.end) end++;
+    return spans.slice(span.index, end);
+  };
   const runs = spans
     .filter((span) => span.tag === 'w:r')
     .map((span) => ({
@@ -56,9 +60,17 @@ function readBlocks(xml, spans) {
       atoms.push({ ...first, end: (run ?? span).end, atom: 'field' });
     }
   }
+  const atomAt = new Map(atoms.map((atom, ref) => [`${atom.start}:${atom.end}`, ref]));
+  const fields = atoms.filter((atom) => atom.atom === 'field');
+  const fieldAt = new Map();
+  for (const field of fields) if (!fieldAt.has(field.start)) fieldAt.set(field.start, field);
   const addAtom = (span, type) => {
-    let ref = atoms.findIndex((atom) => atom.start === span.start && atom.end === span.end);
-    if (ref < 0) ref = atoms.push({ ...span, atom: type }) - 1;
+    const key = `${span.start}:${span.end}`;
+    let ref = atomAt.get(key);
+    if (ref == null) {
+      ref = atoms.push({ ...span, atom: type }) - 1;
+      atomAt.set(key, ref);
+    }
     return { atom: type, ref };
   };
   const paragraphs = spans.filter(
@@ -73,9 +85,8 @@ function readBlocks(xml, spans) {
     const style = properties.find((span) => span.tag === 'w:pStyle')?.attrs['w:val'] ?? null;
     const level = properties.find((span) => span.tag === 'w:outlineLvl')?.attrs['w:val'];
     const table = ancestors(paragraph, spans).some((span) => span.tag === 'w:tc');
-    const crossing = atoms.some(
+    const crossing = fields.some(
       (atom) =>
-        atom.atom === 'field' &&
         atom.start < paragraph.end &&
         atom.end > paragraph.start &&
         (atom.start < paragraph.start || atom.end > paragraph.end),
@@ -86,7 +97,7 @@ function readBlocks(xml, spans) {
     for (const span of direct) {
       if (span.tag === 'w:pPr' || span.start < cursor) continue;
       if (span.start > cursor) inlines.push(addAtom({ start: cursor, end: span.start }, 'opaque'));
-      const field = atoms.find((atom) => atom.atom === 'field' && atom.start === span.start);
+      const field = fieldAt.get(span.start);
       if (field && field.end <= paragraph.closeStart) {
         inlines.push(addAtom(field, 'field'));
         cursor = field.end;
