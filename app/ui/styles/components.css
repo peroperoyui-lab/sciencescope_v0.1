@@ -1133,6 +1133,51 @@ button {
 .ss-tree-row--leaf {
   padding-left: 8px;
 }
+.ss-tree-row__state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.ss-tree-row__state--warn {
+  color: var(--warn-ink);
+}
+.ss-tree-row__state--danger {
+  color: var(--danger);
+}
+.ss-tree-more {
+  height: var(--h-sm);
+  padding: 0 8px 0 28px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: left;
+}
+.ss-tree-more:hover {
+  color: var(--ink);
+}
+.ss-side-all {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  width: 100%;
+  height: var(--h-md);
+  margin-top: 12px;
+  padding: 0 4px 0 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: left;
+}
+.ss-side-all:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.ss-side-all > span:first-of-type {
+  flex: 1;
+}
 .ss-tree-row[data-dragging] {
   opacity: 0.5;
 }
