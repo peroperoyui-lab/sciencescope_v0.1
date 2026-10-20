@@ -1,0 +1,234 @@
+<!-- @dsCard group="整页示例" page height=900 width=1536 subtitle="设置 → MCP 服务器：填表或粘贴配置添加，添加后立即连接；状态写明工具数或失败原因" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>PageSettingsMcp</title></head>
+<body>
+<div class="ss-shell">
+  <header class="ss-titlebar">
+    <span class="ss-titlebar__brand"><i data-logo></i>ScienceScope</span>
+    <button class="ss-titlebar__menu" type="button">文件</button>
+    <button class="ss-titlebar__menu" type="button">编辑</button>
+    <button class="ss-titlebar__menu" type="button">视图</button>
+    <button class="ss-titlebar__menu" type="button">帮助</button>
+    <span class="ss-titlebar__spacer"></span>
+    <button class="ss-winctl" type="button" aria-label="最小化"><i data-i="minus"></i></button>
+    <button class="ss-winctl" type="button" aria-label="最大化"><i data-i="square"></i></button>
+    <button class="ss-winctl ss-winctl--close" type="button" aria-label="关闭"><i data-i="x"></i></button>
+  </header>
+  <div class="ss-shell__body">
+    <aside class="ss-sidebar">
+      <div class="ss-sidebar__top">
+        <button class="ss-nav-item" type="button"><i data-i="square-pen"></i><span class="ss-nav-item__label">新对话</span></button>
+        <button class="ss-nav-item" type="button" aria-current="page"><i data-i="book-open"></i><span class="ss-nav-item__label">资料库</span><span class="ss-nav-item__end">8</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="box"></i><span class="ss-nav-item__label">工作站</span></button>
+        <button class="ss-search-trigger" type="button"><i data-i="search"></i><span class="ss-search-trigger__label">搜索与命令</span><span class="ss-kbd">Ctrl K</span></button>
+      </div>
+      <div class="ss-sidebar__scroll">
+        <div class="ss-side-section" style="margin-top:4px">
+          <div class="ss-side-section__head"><span>项目</span><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="新建项目" data-tip="新建项目"><i data-i="plus"></i></button></div>
+          <div class="ss-tree">
+            <div class="ss-tree-row" aria-expanded="true">
+              <button class="ss-tree-row__twisty" type="button" aria-label="收起"><i data-i="chevron-down"></i></button>
+              <i data-i="folder-open"></i><span class="ss-tree-row__label">城市韧性研究</span><span class="ss-tree-row__end"></span>
+            </div>
+            <div class="ss-tree">
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">文献综述框架讨论</span><span class="ss-tree-row__end"><span class="ss-spin"></span></span></div>
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">指标体系初稿</span><span class="ss-tree-row__end">2 天</span></div>
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">面板数据清洗</span><span class="ss-tree-row__end">5 天</span></div>
+            </div>
+            <div class="ss-tree-row" aria-expanded="false">
+              <button class="ss-tree-row__twisty" type="button" aria-label="展开"><i data-i="chevron-down"></i></button>
+              <i data-i="folder"></i><span class="ss-tree-row__label">劳动保障政策演化</span><span class="ss-tree-row__end"></span>
+            </div>
+          </div>
+        </div>
+        <div class="ss-side-section">
+          <div class="ss-side-section__head"><span>独立对话</span></div>
+          <div class="ss-tree">
+            <div class="ss-tree-row ss-tree-row--leaf"><span class="ss-tree-row__label">参考文献格式整理</span><span class="ss-tree-row__end">昨天</span></div>
+            <div class="ss-tree-row ss-tree-row--leaf"><span class="ss-tree-row__label">Zipf 定律推导</span><span class="ss-tree-row__end">3 天</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="ss-sidebar__foot">
+        <button class="ss-user" type="button"><span class="ss-avatar ss-avatar--lg ss-avatar--user">Y</span><span class="ss-truncate">Yui</span></button>
+        <button class="ss-icon-btn" type="button" aria-label="专家" data-tip="专家"><i data-i="users"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="设置" data-tip="设置"><i data-i="settings"></i></button>
+      </div>
+      <div class="ss-splitter ss-splitter--end" data-min="200" data-max="360" data-default="248"></div>
+    </aside>
+
+    <main class="ss-main">
+      <div class="ss-header">
+        <div class="ss-header__title"><span>资料库</span></div>
+        <button class="ss-select ss-select--ghost" type="button" aria-haspopup="menu" data-menu="#m-scope"><i data-i="folder-open"></i><span class="ss-select__value" data-slot="value">城市韧性研究</span><i data-i="chevron-down"></i></button>
+        <span class="ss-header__sep"></span>
+        <nav class="ss-tabs" role="tablist" aria-label="资料类型">
+          <button class="ss-tab" role="tab" aria-selected="true" type="button">文献与资料<span class="ss-tab__count">8</span></button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">知识</button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">模型与公式</button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">主张与证据</button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">记忆</button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">收件箱<span class="ss-tab__count">3</span></button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">项目简报</button>
+        </nav>
+        <div class="ss-header__actions">
+          <button class="ss-btn" type="button"><i data-i="import"></i>导入材料</button>
+        </div>
+      </div>
+      <div class="ss-content"></div>
+    </main>
+  </div>
+  <footer class="ss-statusbar">
+    <span class="ss-statusbar__item"><span class="ss-dot ss-dot--ok"></span>已连接</span>
+    <span class="ss-statusbar__item">项目文件夹 D:\研究\城市韧性</span>
+    <span class="ss-statusbar__spacer"></span>
+    <span class="ss-statusbar__item"><span class="ss-spin"></span>正在解析 1 篇</span>
+  </footer>
+</div>
+
+<div class="ss-scrim" id="dlg-settings">
+  <div class="ss-dialog ss-dialog--settings" role="dialog" aria-modal="true" aria-label="设置">
+    <button class="ss-icon-btn ss-settings__close" type="button" aria-label="关闭" data-tip="关闭" data-kbd="Esc" data-close><i data-i="x"></i></button>
+    <div class="ss-settings">
+      <nav class="ss-settings__nav" aria-label="设置分类">
+        <div class="ss-settings__navtitle">设置</div>
+        <button class="ss-nav-item" type="button"><i data-i="settings"></i><span class="ss-nav-item__label">通用</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="palette"></i><span class="ss-nav-item__label">外观</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="plug"></i><span class="ss-nav-item__label">模型与服务商</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="shield-check"></i><span class="ss-nav-item__label">执行与批准</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="users"></i><span class="ss-nav-item__label">专家</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="wrench"></i><span class="ss-nav-item__label">工具</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="graduation-cap"></i><span class="ss-nav-item__label">技能</span></button>
+        <button class="ss-nav-item" type="button" aria-current="page"><i data-i="server"></i><span class="ss-nav-item__label">MCP 服务器</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="database"></i><span class="ss-nav-item__label">数据与运行环境</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="keyboard"></i><span class="ss-nav-item__label">快捷键</span></button>
+        <div class="ss-settings__navsep"></div>
+        <button class="ss-nav-item" type="button"><i data-i="info"></i><span class="ss-nav-item__label">关于</span><span class="ss-nav-item__end">1.0.0-alpha</span></button>
+      </nav>
+      <div class="ss-settings__content">
+        <div class="ss-settings__inner">
+          <h2 class="ss-settings__title">MCP 服务器 <button class="ss-info" type="button" aria-label="说明" data-tip="MCP 是让 AI 使用外部程序的通用接口，例如 Zotero、数据库、网页抓取。添加后它的工具出现在「工具」页，所有角色都能用。在「请求批准」下每次调用前先问你，可以在批准卡片上选「总是允许 → 这个服务器的所有工具」。"><i data-i="info"></i></button></h2>
+          <p class="ss-settings__desc">3 个已连接，共 13 个工具；1 个连接失败。</p>
+          <section class="ss-setting-section">
+            <div class="ss-setting-section__head"><h3 class="ss-setting-section__title">服务器<span class="ss-count">4</span></h3>
+              <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" data-dialog="#dlg-paste"><i data-i="clipboard-paste"></i>粘贴配置</button>
+              <button class="ss-btn ss-btn--sm" type="button" data-dialog="#dlg-server"><i data-i="plus"></i>添加服务器</button></div>
+            <div class="ss-provider">
+              <div class="ss-provider__head">
+                <span class="ss-preset__mark ss-preset__mark--sm">Zo</span>
+                <div class="ss-provider__main"><span class="ss-provider__name">Zotero</span><span class="ss-provider__meta">本地命令 · <span class="ss-mono">npx -y zotero-mcp</span></span></div>
+                <span class="ss-provider__status"><span class="ss-dot ss-dot--ok"></span>已连接 · 8 个工具</span>
+                <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">查看工具</button>
+                <input class="ss-switch" type="checkbox" role="switch" aria-label="启用 Zotero" checked />
+                <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-server"><i data-i="ellipsis"></i></button>
+              </div>
+            </div>
+            <div class="ss-provider">
+              <div class="ss-provider__head">
+                <span class="ss-preset__mark ss-preset__mark--sm">Ti</span>
+                <div class="ss-provider__main"><span class="ss-provider__name">Time</span><span class="ss-provider__meta">本地命令 · <span class="ss-mono">uvx mcp-server-time</span></span></div>
+                <span class="ss-provider__status"><span class="ss-dot ss-dot--ok"></span>已连接 · 2 个工具</span>
+                <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">查看工具</button>
+                <input class="ss-switch" type="checkbox" role="switch" aria-label="启用 Time" checked />
+                <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-server"><i data-i="ellipsis"></i></button>
+              </div>
+            </div>
+            <div class="ss-provider">
+              <div class="ss-provider__head">
+                <span class="ss-preset__mark ss-preset__mark--sm">Fe</span>
+                <div class="ss-provider__main"><span class="ss-provider__name">网页抓取</span><span class="ss-provider__meta">网址 · <span class="ss-mono">https://mcp.example.org/mcp</span></span></div>
+                <span class="ss-provider__status ss-provider__status--danger"><span class="ss-dot ss-dot--danger"></span>连接失败</span>
+                <button class="ss-btn ss-btn--sm" type="button" data-dialog="#dlg-server">编辑</button><button class="ss-btn ss-btn--sm" type="button">重新连接</button>
+                <input class="ss-switch" type="checkbox" role="switch" aria-label="启用 网页抓取" checked />
+                <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-server"><i data-i="ellipsis"></i></button>
+              </div><div class="ss-provider__error"><i data-i="circle-alert" class="ss-i--sm"></i>服务器要求登录（401）。请在「编辑」里检查请求头 Authorization 的密钥。</div>
+            </div>
+            <div class="ss-provider">
+              <div class="ss-provider__head">
+                <span class="ss-preset__mark ss-preset__mark--sm">Pu</span>
+                <div class="ss-provider__main"><span class="ss-provider__name">PubMed</span><span class="ss-provider__meta">本地命令 · <span class="ss-mono">uvx pubmed-mcp</span></span></div>
+                <span class="ss-provider__status"><span class="ss-dot ss-dot--ring"></span>已停用</span>
+                
+                <input class="ss-switch" type="checkbox" role="switch" aria-label="启用 PubMed" />
+                <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-server"><i data-i="ellipsis"></i></button>
+              </div>
+            </div>
+          </section>
+          <section class="ss-setting-section">
+            <div class="ss-setting-section__head"><h3 class="ss-setting-section__title">下载源</h3></div>
+            <div class="ss-setting-row">
+              <div class="ss-setting-row__text"><span class="ss-setting-row__label">npx 下载源</span><span class="ss-setting-row__desc">用 npx 启动的服务器从这里下载；uvx 用「数据与运行环境」里的 Python 下载源</span></div>
+              <div class="ss-setting-row__control"><button class="ss-select" type="button" aria-haspopup="menu" data-menu="#m-registry" style="width:240px"><span class="ss-select__value" data-slot="value">npmmirror（国内镜像）</span><i data-i="chevron-down"></i></button></div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ss-menu" id="m-server" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>编辑</button>
+  <button class="ss-menu__item" type="button"><i data-i="refresh-cw"></i>重新连接</button>
+  <button class="ss-menu__item" type="button"><i data-i="wrench"></i>查看工具</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>删除服务器</button>
+</div>
+<div class="ss-menu" id="m-registry" hidden>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="true" data-label="npmmirror（国内镜像）" type="button">npmmirror（国内镜像）<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="npm 官方" type="button">npm 官方<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="自定义…" type="button">自定义…<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+
+<div class="ss-scrim" id="dlg-server" hidden>
+  <div class="ss-dialog ss-dialog--lg" role="dialog" aria-modal="true" aria-labelledby="dlg-server-title">
+    <div class="ss-dialog__head"><h2 class="ss-dialog__title" id="dlg-server-title">编辑 MCP 服务器</h2><button class="ss-icon-btn" type="button" aria-label="关闭" data-close><i data-i="x"></i></button></div>
+    <div class="ss-dialog__body" style="display:grid;gap:12px">
+      <label class="ss-field"><span class="ss-field__label">名称</span><span class="ss-input"><input value="网页抓取" /></span></label>
+      <div class="ss-field">
+        <span class="ss-field__label">连接方式</span>
+        <div class="ss-seg ss-seg--sm" role="group" aria-label="连接方式" style="justify-self:start"><button type="button" aria-pressed="false">本地命令</button><button type="button" aria-pressed="true">网址</button></div>
+      </div>
+      <label class="ss-field"><span class="ss-field__label">网址</span><span class="ss-input"><input class="ss-mono" value="https://mcp.example.org/mcp" /></span><span class="ss-field__hint">支持 Streamable HTTP 和 SSE，会自动识别。本地命令填写如 <span class="ss-mono">npx -y zotero-mcp</span>。</span></label>
+      <div class="ss-field">
+        <span class="ss-field__label">请求头</span>
+        <div class="ss-kv">
+          <span class="ss-input ss-input--sm"><input class="ss-mono" value="Authorization" /></span>
+          <span class="ss-kv__saved"><i data-i="key-round" class="ss-i--sm"></i>已保存在密钥文件<button class="ss-linkbtn" type="button">更换</button></span>
+          <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="删除这一行" data-tip="删除"><i data-i="x"></i></button>
+          <span class="ss-input ss-input--sm"><input class="ss-mono" value="X-Region" /></span>
+          <span class="ss-input ss-input--sm"><input class="ss-mono" value="cn" /></span>
+          <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="删除这一行" data-tip="删除"><i data-i="x"></i></button>
+        </div>
+        <span class="ss-field__error"><i data-i="circle-alert" class="ss-i--sm"></i>上次连接失败：服务器要求登录（401）。点「更换」粘贴新的密钥。</span>
+        <div><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="plus"></i>添加一行</button></div>
+      </div>
+      <span class="ss-field__hint">Authorization 请求头，以及名称里带 KEY、TOKEN、SECRET、PASSWORD 的值，只存在本机的密钥文件里，不写进配置。选「本地命令」时这里换成「环境变量」，规则相同。</span>
+    </div>
+    <div class="ss-dialog__foot"><button class="ss-btn" type="button" data-close>取消</button><button class="ss-btn ss-btn--primary" type="button">连接并保存</button></div>
+  </div>
+</div>
+<div class="ss-scrim" id="dlg-paste" hidden>
+  <div class="ss-dialog ss-dialog--lg" role="dialog" aria-modal="true" aria-labelledby="dlg-paste-title">
+    <div class="ss-dialog__head"><h2 class="ss-dialog__title" id="dlg-paste-title">粘贴 MCP 配置</h2><button class="ss-icon-btn" type="button" aria-label="关闭" data-close><i data-i="x"></i></button></div>
+    <div class="ss-dialog__body" style="display:grid;gap:12px">
+      <label class="ss-field"><span class="ss-field__label">配置 JSON</span>
+        <textarea class="ss-textarea ss-mono" style="min-height:180px">{
+  "mcpServers": {
+    "zotero": { "command": "npx", "args": ["-y", "zotero-mcp"],
+                "env": { "ZOTERO_API_KEY": "••••••" } },
+    "time": { "command": "uvx", "args": ["mcp-server-time"] }
+  }
+}</textarea>
+        <span class="ss-field__hint">Claude Desktop、Cursor、Codex 等软件说明里的 <span class="ss-mono">mcpServers</span> 配置都可以直接粘贴。</span>
+      </label>
+      <div class="ss-callout ss-callout--ok"><i data-i="circle-check"></i><div>识别到 2 个服务器：<b>zotero</b>（本地命令，1 个密钥会存进密钥文件）、<b>time</b>（本地命令）。</div></div>
+    </div>
+    <div class="ss-dialog__foot"><button class="ss-btn" type="button" data-close>取消</button><button class="ss-btn ss-btn--primary" type="button">添加 2 个并连接</button></div>
+  </div>
+</div>
+
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

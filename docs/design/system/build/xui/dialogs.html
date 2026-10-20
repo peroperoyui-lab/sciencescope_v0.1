@@ -1,0 +1,48 @@
+
+<div class="ss-scrim" id="dlg-server" hidden>
+  <div class="ss-dialog ss-dialog--lg" role="dialog" aria-modal="true" aria-labelledby="dlg-server-title">
+    <div class="ss-dialog__head"><h2 class="ss-dialog__title" id="dlg-server-title">编辑 MCP 服务器</h2><button class="ss-icon-btn" type="button" aria-label="关闭" data-close><i data-i="x"></i></button></div>
+    <div class="ss-dialog__body" style="display:grid;gap:12px">
+      <label class="ss-field"><span class="ss-field__label">名称</span><span class="ss-input"><input value="网页抓取" /></span></label>
+      <div class="ss-field">
+        <span class="ss-field__label">连接方式</span>
+        <div class="ss-seg ss-seg--sm" role="group" aria-label="连接方式" style="justify-self:start"><button type="button" aria-pressed="false">本地命令</button><button type="button" aria-pressed="true">网址</button></div>
+      </div>
+      <label class="ss-field"><span class="ss-field__label">网址</span><span class="ss-input"><input class="ss-mono" value="https://mcp.example.org/mcp" /></span><span class="ss-field__hint">支持 Streamable HTTP 和 SSE，会自动识别。本地命令填写如 <span class="ss-mono">npx -y zotero-mcp</span>。</span></label>
+      <div class="ss-field">
+        <span class="ss-field__label">请求头</span>
+        <div class="ss-kv">
+          <span class="ss-input ss-input--sm"><input class="ss-mono" value="Authorization" /></span>
+          <span class="ss-kv__saved"><i data-i="key-round" class="ss-i--sm"></i>已保存在密钥文件<button class="ss-linkbtn" type="button">更换</button></span>
+          <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="删除这一行" data-tip="删除"><i data-i="x"></i></button>
+          <span class="ss-input ss-input--sm"><input class="ss-mono" value="X-Region" /></span>
+          <span class="ss-input ss-input--sm"><input class="ss-mono" value="cn" /></span>
+          <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="删除这一行" data-tip="删除"><i data-i="x"></i></button>
+        </div>
+        <span class="ss-field__error"><i data-i="circle-alert" class="ss-i--sm"></i>上次连接失败：服务器要求登录（401）。点「更换」粘贴新的密钥。</span>
+        <div><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="plus"></i>添加一行</button></div>
+      </div>
+      <span class="ss-field__hint">Authorization 请求头，以及名称里带 KEY、TOKEN、SECRET、PASSWORD 的值，只存在本机的密钥文件里，不写进配置。选「本地命令」时这里换成「环境变量」，规则相同。</span>
+    </div>
+    <div class="ss-dialog__foot"><button class="ss-btn" type="button" data-close>取消</button><button class="ss-btn ss-btn--primary" type="button">连接并保存</button></div>
+  </div>
+</div>
+<div class="ss-scrim" id="dlg-paste" hidden>
+  <div class="ss-dialog ss-dialog--lg" role="dialog" aria-modal="true" aria-labelledby="dlg-paste-title">
+    <div class="ss-dialog__head"><h2 class="ss-dialog__title" id="dlg-paste-title">粘贴 MCP 配置</h2><button class="ss-icon-btn" type="button" aria-label="关闭" data-close><i data-i="x"></i></button></div>
+    <div class="ss-dialog__body" style="display:grid;gap:12px">
+      <label class="ss-field"><span class="ss-field__label">配置 JSON</span>
+        <textarea class="ss-textarea ss-mono" style="min-height:180px">{
+  "mcpServers": {
+    "zotero": { "command": "npx", "args": ["-y", "zotero-mcp"],
+                "env": { "ZOTERO_API_KEY": "••••••" } },
+    "time": { "command": "uvx", "args": ["mcp-server-time"] }
+  }
+}</textarea>
+        <span class="ss-field__hint">Claude Desktop、Cursor、Codex 等软件说明里的 <span class="ss-mono">mcpServers</span> 配置都可以直接粘贴。</span>
+      </label>
+      <div class="ss-callout ss-callout--ok"><i data-i="circle-check"></i><div>识别到 2 个服务器：<b>zotero</b>（本地命令，1 个密钥会存进密钥文件）、<b>time</b>（本地命令）。</div></div>
+    </div>
+    <div class="ss-dialog__foot"><button class="ss-btn" type="button" data-close>取消</button><button class="ss-btn ss-btn--primary" type="button">添加 2 个并连接</button></div>
+  </div>
+</div>

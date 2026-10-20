@@ -1,0 +1,71 @@
+<!-- @dsCard group="对话" height=640 subtitle="技能与 MCP 在别处的样子：专家绑定技能、时间线里的技能和 MCP 步骤、MCP 工具的批准卡片、没有服务器时的空状态" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>Extensions</title></head>
+<body>
+<div class="ds" style="grid-template-columns:1fr 1fr;align-items:start;gap:24px">
+  <div class="ds-col" style="gap:16px">
+    <span class="ds-label">设置 → 专家 → 编辑某位专家：绑定技能</span>
+    <div class="ss-field">
+      <span class="ss-field__label">绑定的技能 <button class="ss-info" type="button" aria-label="说明" data-tip="绑定的技能在这位专家每次发言前就读进来，不用它自己去找。没绑定的技能它也能按需使用。"><i data-i="info"></i></button></span>
+      <div class="ss-chips" style="padding:0">
+        <span class="ss-chip"><i data-i="graduation-cap" class="ss-i--sm"></i><b>统计审稿清单</b><button type="button" aria-label="取消绑定"><i data-i="x"></i></button></span>
+        <span class="ss-chip"><i data-i="graduation-cap" class="ss-i--sm"></i><b>查资料并引用原文</b><button type="button" aria-label="取消绑定"><i data-i="x"></i></button></span>
+        <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" data-pop="#p-bind"><i data-i="plus"></i>添加</button>
+      </div>
+    </div>
+    <div class="ss-pop" data-static style="width:300px">
+      <div class="ss-pop__body">
+        <span class="ss-input ss-input--sm"><i data-i="search" class="ss-i--sm"></i><input placeholder="搜索技能" /></span>
+        <div class="ss-pop__section">
+          <label class="ss-check"><input type="checkbox" checked /><span>统计审稿清单</span></label>
+          <label class="ss-check"><input type="checkbox" checked /><span>查资料并引用原文</span></label>
+          <label class="ss-check"><input type="checkbox" /><span>修改工作区并留版本</span></label>
+          <label class="ss-check"><input type="checkbox" /><span>交付文件</span></label>
+          <label class="ss-check"><input type="checkbox" disabled /><span>用 Python 分析数据（已停用）</span></label>
+        </div>
+      </div>
+      <div class="ss-pop__foot"><span class="ss-muted" style="font-size:12px">勾选立即生效</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">管理技能</button></div>
+    </div>
+    <span class="ds-label">MCP 服务器页：还没有服务器</span>
+    <div class="ds-box">
+      <div class="ss-empty">
+        <div class="ss-empty__icon"><i data-i="server"></i></div>
+        <div class="ss-empty__title">还没有 MCP 服务器</div>
+        <div class="ss-empty__text">接上 Zotero、数据库、网页抓取等外部程序，专家就能用它们的工具。</div>
+        <div class="ss-empty__actions"><button class="ss-btn" type="button"><i data-i="clipboard-paste"></i>粘贴配置</button><button class="ss-btn ss-btn--primary" type="button"><i data-i="plus"></i>添加服务器</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="ds-col" style="gap:16px">
+    <span class="ds-label">时间线：技能和 MCP 工具的步骤</span>
+    <div class="ss-act">
+      <button class="ss-act__row" type="button" aria-expanded="false" data-toggle="next"><i data-i="graduation-cap"></i><span class="ss-act__verb">使用技能</span><span class="ss-act__target ss-act__target--text">查资料并引用原文</span><i data-i="chevron-right" class="ss-act__chev"></i></button>
+      <div class="ss-act__detail" hidden><div class="ss-act__detail-note">读了技能正文（cite-sources，1.8 千字）。点开可看全文。</div></div>
+      <button class="ss-act__row" type="button" aria-expanded="false" data-toggle="next"><i data-i="server"></i><span class="ss-act__verb">调用 Zotero</span><span class="ss-act__target">search_items</span><i data-i="chevron-right" class="ss-act__chev"></i></button>
+      <div class="ss-act__detail" hidden><pre class="ss-approve__cmd">{"query": "urban resilience", "limit": 10}</pre></div>
+      <div class="ss-act__row ss-act__row--fail"><i data-i="server"></i><span class="ss-act__verb">调用 网页抓取</span><span class="ss-act__target">fetch_page</span><span class="ss-act__end ss-act__end--fail">服务器未连接</span></div>
+      <div class="ss-act__row"><span class="ss-spin" aria-hidden="true"></span><span class="ss-act__verb">正在调用 Zotero</span><span class="ss-act__target">get_item_fulltext</span></div>
+    </div>
+    <span class="ds-label">请求批准下的 MCP 工具：总是允许按服务器</span>
+    <div class="ss-approve" role="group" aria-label="需要你的批准">
+      <div class="ss-approve__head"><i data-i="shield-question-mark"></i><span class="ss-approve__title">需要你的批准</span><span class="ss-approve__tool">Zotero · search_items</span></div>
+      <div class="ss-approve__body">
+        <pre class="ss-approve__cmd">{"query": "urban resilience", "limit": 10}</pre>
+        <div class="ss-approve__meta">MCP 服务器 Zotero（本地命令）· Search your Zotero library by title, author or tag</div>
+      </div>
+      <div class="ss-approve__foot">
+        <button class="ss-btn" type="button">拒绝</button>
+        <button class="ss-btn" type="button" aria-haspopup="menu" aria-expanded="true">总是允许<i data-i="chevron-down"></i></button>
+        <button class="ss-btn ss-btn--primary" type="button">允许</button>
+      </div>
+    </div>
+    <div class="ss-menu" data-static role="menu" aria-label="总是允许" style="margin-left:auto;margin-right:72px;margin-top:-8px">
+      <button class="ss-menu__item" type="button" role="menuitem"><i data-i="server"></i>这个服务器的所有工具</button>
+    </div>
+    <p class="ds-note">绑定的技能直接读进提示词，时间线上不出现步骤；专家临时用到其他技能时才显示「使用技能」。MCP 步骤用服务器的名字，不显示内部工具名 mcp__s…。</p>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

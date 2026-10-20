@@ -475,6 +475,23 @@ button {
   line-height: 18px;
 }
 
+/* Name / value rows (request headers, environment variables); a saved secret shows as a line instead of its value. */
+.ss-kv {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto;
+  gap: var(--sp-6);
+  align-items: center;
+}
+.ss-kv__saved {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  min-width: 0;
+  height: var(--h-sm);
+  color: var(--muted);
+  font-size: 12px;
+}
+
 /* ---------- Select (custom trigger + menu, never the native control) ---------- */
 .ss-select {
   display: inline-flex;
@@ -3539,6 +3556,15 @@ button.ss-act__row:hover {
 }
 .ss-provider__status--danger {
   color: var(--danger);
+}
+.ss-provider__error {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 0 12px 10px 52px;
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 18px;
 }
 .ss-provider__body {
   border-top: 1px solid var(--line);

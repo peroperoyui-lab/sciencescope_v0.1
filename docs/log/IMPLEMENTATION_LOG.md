@@ -1,5 +1,9 @@
 # 实施记录
 
+## 2026-10-20 X-UI 设计稿（Claude）
+
+- 画廊新增设置 → 工具、技能、MCP 服务器三张整页示例（含添加服务器、粘贴配置对话框）和 Extensions 部件卡（专家绑定技能、时间线技能与 MCP 步骤、MCP 批准卡片、空状态）。新增图标 graduation-cap、server、clipboard-paste，样式 `.ss-kv`、`.ss-provider__error`。生成脚本 `docs/design/system/build/xui/`。等用户审。
+
 ## 2026-10-20 复盘整理文档（Claude）
 
 - 路线图开头加 11 个板块的现状、设计和下一步；架构总纲、愿景、设计系统、首测指南、协作方式、想法清单、文档索引按现状更新。X1、X2 任务书移入 `done/`，`KNOWLEDGE_GRAPH.md` 归档。

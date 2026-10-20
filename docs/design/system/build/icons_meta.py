@@ -15,6 +15,8 @@ GROUPS = [
   ('知识库', [
     ('waypoints','图视图'),('flask-conical','方法'),('variable','变量与指标'),('boxes','软件'),('file-code','代码'),('atom','概念'),
     ('user','人物'),('building-2','机构'),('git-merge','合并'),('spline','建关系'),('zoom-in','放大'),('zoom-out','缩小'),('scan','适应窗口'),('folder-tree','项目文件夹')]),
+  ('扩展', [
+    ('graduation-cap','技能'),('server','MCP 服务器'),('clipboard-paste','粘贴配置')]),
   ('操作', [
     ('plus','添加'),('x','关闭'),('check','确认'),('copy','复制'),('pencil','编辑'),('trash-2','删除'),('archive','归档'),
     ('pin','置顶'),('import','导入'),('download','导出'),('external-link','打开原件'),('eye','预览'),('eye-off','隐藏'),

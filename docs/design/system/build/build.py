@@ -23,7 +23,7 @@ ORDER = [
     'Badge', 'Spinner', 'Callout', 'EmptyState',
     'List', 'Table', 'FilterBar',
     'Splitter', 'Panel',
-    'Message', 'ActivityTimeline', 'StatusLine', 'ApprovalCard', 'FileList', 'ExpertBox', 'Composer', 'ModelPicker', 'ModeMenu',
+    'Message', 'ActivityTimeline', 'StatusLine', 'ApprovalCard', 'FileList', 'ExpertBox', 'Composer', 'ModelPicker', 'ModeMenu', 'Extensions',
     'SettingRow', 'ProviderCard',
     'KnowledgeGraph', 'KnowledgeChange',
 ]
