@@ -1,6 +1,17 @@
 // English for every Chinese interface string. A test checks that each
 // Chinese string literal in app/ui has an entry here.
 export const en = {
+  'SKILL.md 的 YAML 头格式不正确。': 'The YAML header in SKILL.md is invalid.',
+  'SKILL.md 的 YAML 头需要 name 和 description。':
+    'The YAML header in SKILL.md needs name and description.',
+  '技能名称不能用作文件夹名。': 'The skill name cannot be used as a folder name.',
+  '这个文件夹里没有 SKILL.md。': 'This folder does not contain SKILL.md.',
+  '无法读取技能 ZIP 文件。': 'Could not read the skill ZIP file.',
+  '找不到这个技能。': 'This skill could not be found.',
+  '这个技能已停用。': 'This skill is disabled.',
+  '已有同名用户技能，请先改名。': 'A user skill with this name already exists. Rename it first.',
+  '内置技能不能删除，请先复制为用户技能。':
+    'Built-in skills cannot be deleted. Make a user copy first.',
   '截图时隐藏 ScienceScope 窗口': 'Hide ScienceScope windows while taking a screenshot',
   '查看图片 {name}': 'View image {name}',
   '输入框「添加 → 截图」开始前先隐藏所有 ScienceScope 窗口，截完恢复。只在桌面版生效。':

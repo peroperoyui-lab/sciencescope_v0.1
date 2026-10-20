@@ -33,7 +33,7 @@ export function agentTools(specs, handler, supportsImages = true) {
     name: spec.name,
     label: spec.name,
     description: spec.description,
-    parameters: Type.Unsafe(objectSchema(spec.parameters)),
+    parameters: Type.Unsafe(spec.inputSchema ?? objectSchema(spec.parameters)),
     async execute(callId, args, signal) {
       const result = await abortable(handler({ name: spec.name, args, callId, signal }), signal);
       if (Array.isArray(result?.images)) {

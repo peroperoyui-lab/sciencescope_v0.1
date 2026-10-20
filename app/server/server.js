@@ -23,6 +23,9 @@ import { registerSystemRoutes } from './routes/system.js';
 import { registerWorkspaceRoutes } from './routes/workspace.js';
 import { registerVersionRoutes } from './routes/versions.js';
 import { serveStatic } from './static.js';
+import { registerSkillRoutes } from './routes/skills.js';
+import { registerToolRoutes } from './routes/tools.js';
+import { registerMcpRoutes } from './routes/mcp.js';
 
 // Generous resource bound for request bodies (attachments travel separately).
 const MAX_BODY_BYTES = 64 * 1024 * 1024;
@@ -65,6 +68,9 @@ function tokenMatches(given, expected) {
  *   assistant?: ReturnType<typeof import('../services/assistant/index.js').createAssistant>,
  *   providers?:ReturnType<typeof import('../services/providers.js').createProviderService>,
  *   approvals?:ReturnType<typeof import('../services/approvals.js').createApprovals>,
+ *   skills?:ReturnType<typeof import('../services/skills/index.js').createSkills>,
+ *   tools?:ReturnType<typeof import('../services/tools.js').createTools>,
+ *   mcp?:ReturnType<typeof import('../services/mcp/index.js').createMcp>,
  *   memory?: any, researchInput?:ReturnType<typeof import('../services/research-input/index.js').createResearchInput>,
  *   python?:ReturnType<typeof import('../services/python/index.js').createPython>,
  *   research?: ReturnType<typeof import('../services/research/index.js').createResearch>, semantic?:any,
@@ -90,8 +96,14 @@ export function createAppServer({
   startup,
   providers,
   approvals,
+  skills,
+  tools,
+  mcp,
 }) {
   const router = createRouter();
+  registerSkillRoutes(router, skills);
+  registerMcpRoutes(router, mcp);
+  registerToolRoutes(router, tools);
   registerApprovalRoutes(router, approvals);
   registerVersionRoutes(router, versions, versionNotes);
   registerPythonRoutes(router, python);

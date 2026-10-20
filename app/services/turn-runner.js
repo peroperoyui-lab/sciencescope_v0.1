@@ -89,6 +89,7 @@ export function createTurnRunner({
   async function prepareSession(request) {
     const { meetingId, participantId, turnId, cutoffSeq, execution } = request;
     const context = await contextAssembly.describe(request);
+    await tools.ready();
     const options = {
       model: context.model,
       workFolder: context.workFolder,
