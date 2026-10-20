@@ -30,7 +30,7 @@ async function write(name, html) {
 
 const icon = await brand('icon.svg');
 const small = await brand('icon-small.svg');
-const light = await brand('icon-light.svg');
+const green = await brand('icon-green.svg');
 const strip = (background) =>
   `<div class="ds-row" style="gap:20px;align-items:flex-end;padding:16px;border-radius:var(--r-md);background:${background}">
     ${[256, 64, 48, 32, 24, 16]
@@ -44,14 +44,14 @@ await write(
   'AppIcon',
   card(
     'AppIcon',
-    'group="品牌" height=540 subtitle="Windows 应用图标：品牌绿底板，纸色标志；32px 以下用加粗的小尺寸画法"',
+    'group="品牌" height=540 subtitle="Windows 应用图标：纸色底板、细描边，墨色标志；32px 以下用加粗的小尺寸画法"',
     `<div class="ds" style="display:grid;gap:16px">
   ${strip('#fbfbf9')}
   ${strip('#202020')}
   <div class="ds-row" style="gap:20px;align-items:center">
-    <div class="ds-col" style="justify-items:center">${sized(light, 64)}${label('备选：纸色底板、墨色标志（现在预览版用的）')}</div>
+    <div class="ds-col" style="justify-items:center">${sized(green, 64)}${label('备选：品牌绿底板、纸色标志（2026-10-20 换下，留作参考）')}</div>
   </div>
-  <p class="ds-note">一个 .ico 里放 16、20、24、32、40、48、64、256 八个尺寸。底板只用 accent 一种颜色，不加渐变和阴影；标志用 paper 色。源文件在 tools/brand/，运行 node tools/brand/render.mjs 生成 tools/package/brand/icon.ico。</p>
+  <p class="ds-note">一个 .ico 里放 16、20、24、32、40、48、64、256 八个尺寸。底板用 paper 色加一圈细描边，深色任务栏上也有边界；标志用 ink 色，不加渐变和阴影。源文件在 tools/brand/，运行 node tools/brand/render.mjs 生成 tools/package/brand/icon.ico。</p>
 </div>`,
   ),
 );

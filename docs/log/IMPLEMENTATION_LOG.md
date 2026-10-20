@@ -1,5 +1,8 @@
 # 实施记录
 
+## 2026-10-20 应用图标换回纸色底板（Claude）
+- 按用户意见，`tools/brand/icon.svg` / `icon-small.svg` 改为纸色底板、细描边、墨色标志，重新生成 `tools/package/brand/icon.ico`；绿底稿改名 `icon-green*.svg`，画廊 AppIcon 卡片作备选保留。安装程序侧图未改。
+
 ## 2026-10-20 X1、X2 审查合并（Claude）
 - 合并 X1 技能、X2 MCP。修三处：服务器 id 改为 `s`+8 位、工具名只留 `[A-Za-z0-9_-]` 并截到 64 字符（模型接口限制，SSE 测试覆盖带点的工具名）；npx 默认镜像改 npmmirror；Linux/macOS 关闭时结束整棵子进程树（原来孙进程会留下，测试在 Linux 失败）。check 264 通过 / 3 跳过。
 

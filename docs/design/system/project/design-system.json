@@ -43,8 +43,8 @@
   },
   "lastChange": {
     "by": "Claude",
-    "at": "2026-10-20T06:00:00Z",
+    "at": "2026-10-20T07:00:00Z",
     "via": "Claude Code",
-    "note": "知识库设计稿 KB-8：知识库表格页与图页、项目资料页、知识库零件（KnowledgeGraph）、本轮修改了知识库（KnowledgeChange）；节点种类色 kg- 令牌；批准卡片加「总是允许」"
+    "note": "应用图标换回纸色底板、墨色标志；绿底版留在 AppIcon 卡片作备选"
   }
 }
