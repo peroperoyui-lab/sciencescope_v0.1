@@ -5,12 +5,18 @@ import path from 'node:path';
 import { fileHash, copyProjectFile, createProjectCopies } from './project-copies.js';
 
 const excluded = new Set(['node_modules', '__pycache__', 'renv']);
+/** ScienceScope's own workspace in a project's built-in folder: plans, notes,
+ * minutes and editing-desk versions are not project files. */
+const ownFolders = new Set(['workbench', 'notes', 'minutes', 'versions']);
 
-async function* walk(root, folder = '') {
+/** @param {string} root @param {Set<string>} skip Top-level folders to leave out. */
+async function* walk(root, skip, folder = '') {
   for (const entry of await readdir(path.join(root, folder), { withFileTypes: true })) {
     const relative = folder ? `${folder}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
-      if (!entry.name.startsWith('.') && !excluded.has(entry.name)) yield* walk(root, relative);
+      if (entry.name.startsWith('.') || excluded.has(entry.name)) continue;
+      if (!folder && skip.has(entry.name)) continue;
+      yield* walk(root, skip, relative);
     } else if (entry.isFile()) yield relative;
   }
 }
@@ -36,8 +42,9 @@ export function createProjectIndex({ core, research, files }) {
     );
     // Finish enumeration first. An unavailable root is not an empty project,
     // and moves must be detected independently of directory traversal order.
+    const skip = core.projects.get(projectId).folder == null ? ownFolders : new Set();
     const paths = [];
-    for await (const relative of walk(root)) paths.push(relative);
+    for await (const relative of walk(root, skip)) paths.push(relative);
     const present = new Set(paths);
     const missing = [...previous.values()].filter((source) => !present.has(source.folderPath));
     const byHash = new Map();

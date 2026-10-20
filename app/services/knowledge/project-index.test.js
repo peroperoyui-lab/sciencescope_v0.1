@@ -65,7 +65,9 @@ test('project files are indexed, changed once and readable after their folder mo
       const paper = sources.find((source) => source.name === '研究.pdf');
       const data = sources.find((source) => source.name === 'panel_2020.dta');
       assert.equal(paper.contentStatus, 'parsed');
+      assert.equal(paper.kind, 'paper', 'a PDF with a DOI counts as a paper');
       assert.equal(data.contentStatus, 'name-only');
+      assert.equal(data.kind, 'file');
       assert.match(data.parseError, /Unsupported/);
       assert.ok(
         research
@@ -177,5 +179,30 @@ test('project files are indexed, changed once and readable after their folder mo
       unsubscribe();
       await index.close();
       await server.close();
+    }
+  }));
+
+test("a project's built-in folder leaves ScienceScope's own workspace out of the index", () =>
+  withCore('project-index-own', async (core) => {
+    const project = await core.projects.create({ name: '自带文件夹' });
+    const research = createResearch(core);
+    const files = createProjectFiles(core);
+    const index = createProjectIndex({ core, research, files });
+    const root = files.rootOf(project.id);
+    try {
+      for (const folder of ['workbench', 'notes', 'minutes', 'versions/g1', 'papers/notes'])
+        await mkdir(path.join(root, folder), { recursive: true });
+      await writeFile(path.join(root, 'workbench/plans.md'), '# 计划');
+      await writeFile(path.join(root, 'notes/想法.md'), '笔记');
+      await writeFile(path.join(root, 'minutes/m1.md'), '纪要');
+      await writeFile(path.join(root, 'versions/g1/v1.md'), '稿子');
+      await writeFile(path.join(root, 'papers/notes/读书.md'), '用户放进来的');
+      await index.scan(project.id);
+      assert.deepEqual(
+        research.store.listSources({ projectId: project.id }).map((source) => source.folderPath),
+        ['papers/notes/读书.md'],
+      );
+    } finally {
+      await index.close();
     }
   }));

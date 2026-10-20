@@ -96,10 +96,17 @@ export function createResearch(core, options = {}) {
       );
     }
     const chunks = chunkBlocks(parsed.blocks);
+    // A fresh untyped file with a reference list or a DOI is a paper, so it gets
+    // similarity edges and a paper card; a kind the user chose is kept.
+    const paper =
+      source.kind === 'file' &&
+      source.contentStatus === 'queued' &&
+      (Boolean(parsed.metadata?.doi) || chunks.some((chunk) => chunk.kind === 'reference'));
     return store.addChunks(
       source.id,
       chunks,
       {
+        ...(paper ? { kind: 'paper' } : {}),
         parser: parsed.parser,
         pages: parsed.pages ?? null,
         metadata: { ...parsed.metadata, ...metadata },

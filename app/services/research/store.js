@@ -48,7 +48,7 @@ const chunkKinds = [
  *   contentStatus?: string, readStatus?:string, tag?:string, sort?:string, direction?:string,
  *   limit?: number, offset?: number }} SourceQuery
  * @typedef {{ parser?: string, pages?: number | null, contentStatus?: string,
- *   parseError?: string | null, metadata?: any }} ParseResult
+ *   parseError?: string | null, metadata?: any, kind?: string }} ParseResult
  * @typedef {ReturnType<typeof createResearchItems> & {
  *   db: import('../../core/db/database.js').Db,
  *   createSource: (input: any, actor?: Actor) => ResearchSource,
@@ -311,9 +311,10 @@ export function createResearchStore({
         putIndex('chunk', id, source.projectId, passage.section ?? '', text);
       }
       db.prepare(
-        `UPDATE rb_sources SET content_status = ?, parser = ?, parse_error = ?,
+        `UPDATE rb_sources SET kind = ?, content_status = ?, parser = ?, parse_error = ?,
         pages = ?, metadata_json = ?, updated_at = ? WHERE id = ?`,
       ).run(
+        oneOf(parseResult.kind ?? source.kind, sourceKinds, 'source kind'),
         contentStatus,
         parseResult.parser ?? null,
         parseResult.parseError ?? null,

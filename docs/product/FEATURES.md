@@ -250,7 +250,8 @@ data/
 - 本地模型（multilingual-e5-small int8）需用户明确点击下载，每个文件校验 SHA-256，校验失败报错且不换源；"官方"源连接失败时会尝试 HF 镜像。需要 AVX2、8 GB 内存和 5 GB 可用空间，不满足时只用关键词检索。
 - 对话进行中暂停建立索引；索引缺失、版本不一致或向量阶段超过 300 毫秒时，整次退回关键词检索。
 - 扫描件没有 OCR；没有文献元数据在线查询和 BibTeX 互通。
-- 项目扫描跳过隐藏目录、`node_modules`、`__pycache__`、`.venv`、`renv`。
+- 项目扫描跳过隐藏目录、`node_modules`、`__pycache__`、`.venv`、`renv`；项目自带文件夹里 ScienceScope 自己的 `workbench/`、`notes/`、`minutes/`、`versions/` 不算项目文件。
+- 新导入或新扫描到的文件（类型为「文件」）解析出参考文献段落或 DOI 时，自动标为论文，参与相似边和论文卡片；用户选过的类型不改。两万个小文件首次扫描约 35 分钟（Windows 机械硬盘，逐文件事务），之后未变重扫不到 1 秒。
 
 ### 2.8a 知识库存储（无界面）
 
@@ -557,8 +558,6 @@ data/
 
 迁移在 `app/core/db/migrations/`，编号即 `PRAGMA user_version`；有旧数据时迁移前先备份到 `data/backups/`。
 
-023 为 `rb_sources` 增加 `file_size`、`file_mtime_ms`、`content_hash`，与 022 的 `folder_path` 一起记录项目文件身份和扫描版本。
-
 | 迁移 | 表或改动                                                                                                                     | 用途                                                                           |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | 001  | `projects`                                                                                                                   | 项目：名称、目录名、外部文件夹、置顶、归档                                     |
@@ -602,6 +601,7 @@ data/
 | 020  | `input_images`                                                                                                               | 输入框图片附件的元数据（原件在 `library/originals/`）                          |
 | 021  | 移除 `meeting_goals`                                                                                                         | 旧自动化会议改为 `direct`，移除 `policy.goal`，保留消息及其他规则              |
 | 022  | `kb_entities`、`kb_edges`、`kb_labels`、`kb_memberships`、`kb_versions`、`kb_revisions`、`kb_jobs`；`rb_sources.folder_path` | 知识库实体、关系、标签、项目归属、修订与历史版本、后台任务（还没有界面和工具） |
+| 023  | `rb_sources.file_size`、`file_mtime_ms`、`content_hash`                                                                      | 项目文件的大小、修改时间和内容哈希，扫描时判断是否变化                         |
 
 ### 4.2 文件资源
 

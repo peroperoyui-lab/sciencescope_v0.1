@@ -17,9 +17,13 @@ export function createPreview(core, research) {
       const preview = core.turns.toolCalls(target.turnId).find((call) => call.callId === target.id)
         ?.result?.preview;
       if (!preview) throw new AppError('PREVIEW_NOT_FOUND', 'Image preview is unavailable.', 404);
+      // The picture is always a PNG, even of a PDF page; readers go by extension.
+      const base = (preview.name ?? '').replace(/\.[^.]+$/u, '');
       return {
         path: preview.path,
-        name: preview.name ?? path.basename(preview.path),
+        name: base
+          ? `${base}${preview.page ? ` p.${preview.page}` : ''}.png`
+          : path.basename(preview.path),
         mimeType: preview.mimeType,
         projectId: core.meetings.get(core.turns.get(target.turnId).meetingId).projectId,
       };

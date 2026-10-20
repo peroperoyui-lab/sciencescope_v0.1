@@ -5,6 +5,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { PDFDocument, rgb } from 'pdf-lib';
 import { createCanvas, loadImage } from '@napi-rs/canvas';
 import { createApp } from '../../app.js';
+import { createPreview } from '../preview/index.js';
 import { tempDir } from '../../testing.js';
 import { createScriptedRuntime } from '../../runtime/scripted.js';
 
@@ -88,6 +89,13 @@ test('view_image sends PDF pages, magnified regions and raster images to the run
         await readFile(received[index].preview.path),
       );
     }
+    // A PDF page opens in the image reader, not the PDF one.
+    const shown = await createPreview(app.core, app.research).content({
+      kind: 'tool',
+      turnId: answer.turnId,
+      id: records[0].callId,
+    });
+    assert.equal(shown.name, '公式 p.1.png');
     const events = app.core.db.prepare('SELECT payload_json FROM events').all();
     assert.ok(!JSON.stringify(events).includes(received[0].images[0].data));
   } finally {
