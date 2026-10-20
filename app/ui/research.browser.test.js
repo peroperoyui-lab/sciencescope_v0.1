@@ -17,8 +17,8 @@ async function request(page, route, body) {
 }
 async function openProject(page, app) {
   const project = await app.core.projects.create({ name: '城市就业研究' });
-  await page.locator('.tree-name', { hasText: project.name }).waitFor();
-  await page.locator('.sidebar [data-route="database"]').click();
+  await page.locator('.ss-sidebar .ss-tree-row__open', { hasText: project.name }).waitFor();
+  await page.locator('.ss-sidebar [data-route="database"]').click();
   await page.locator('.research-base').waitFor();
   return project;
 }

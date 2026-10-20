@@ -294,6 +294,11 @@ export function createActions(api, store) {
     apply('meeting.updated', await api.patch(`/api/meetings/${meetingId}`, changes));
   }
 
+  /** Into a project, or out of one with `null`. @param {string} meetingId @param {string | null} projectId */
+  async function moveMeeting(meetingId, projectId) {
+    apply('meeting.updated', await api.post(`/api/meetings/${meetingId}/move`, { projectId }));
+  }
+
   /** @param {string} meetingId @param {string} atMessageId */
   async function forkMeeting(meetingId, atMessageId) {
     const meeting = await api.post(`/api/meetings/${meetingId}/fork`, { atMessageId });
@@ -478,7 +483,7 @@ export function createActions(api, store) {
 
   /**
    * Open a menu under its trigger (or at the pointer for context menus).
-   * Items: `{ text, icon?, key?, check?, danger?, run }` or `{ sep: true }`.
+   * Items: `{ text, icon?, key?, check?, danger?, disabled?, run }` or `{ sep: true }`.
    * @param {Event} event @param {any[]} items @param {string} [label]
    */
   function openMenu(event, items, label = '') {
@@ -505,11 +510,16 @@ export function createActions(api, store) {
   const openModal = (title, body, className = '') =>
     setOverlay({ modal: { title, body, className }, menu: null });
 
-  /** @param {string} text */
-  function toast(text) {
-    setOverlay({ toast: text });
+  /** @param {string} text @param {{ label: string, run: () => any }} [action] A button such as 撤销. */
+  function toast(text, action) {
+    setOverlay({ toast: action ? { text, action } : text });
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => setOverlay({ toast: null }), 4600);
+  }
+
+  function dismissToast() {
+    clearTimeout(toastTimer);
+    setOverlay({ toast: null });
   }
 
   /** Run an action and show its error, if any, as a toast. @param {() => Promise<any>} work */
@@ -548,6 +558,7 @@ export function createActions(api, store) {
     postMessage,
     interrupt,
     updateMeeting,
+    moveMeeting,
     loadArchived,
     retry,
     decideApproval,
@@ -592,6 +603,7 @@ export function createActions(api, store) {
     closeMenu: () => setOverlay({ menu: null }),
     openModal,
     closeModal: () => setOverlay({ modal: null }),
+    dismissToast,
     openPalette: () => setOverlay({ palette: true, menu: null }),
     closePalette: () => setOverlay({ palette: false }),
     toast,

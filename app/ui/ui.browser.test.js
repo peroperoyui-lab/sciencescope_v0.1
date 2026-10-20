@@ -54,7 +54,7 @@ test(
       await page.getByText('今天想研究什么？').waitFor();
       await shot('home');
 
-      await page.locator('.navsection').getByRole('button', { name: '新建项目' }).click();
+      await page.locator('.ss-sidebar').getByRole('button', { name: '新建项目' }).click();
       await page.getByLabel('项目名称').fill('城市就业韧性');
       await page.getByRole('button', { name: '创建项目' }).click();
       await page.getByText('本项目日志').waitFor();
@@ -81,7 +81,7 @@ test(
       await row.click();
       assert.match(await activity.locator('.ss-act__detail').textContent(), /workspace_edit/);
       assert.equal(await answer.locator('.message-text strong').textContent(), '清洗面板数据');
-      assert.equal(await page.locator('.tree-row.child.active').count(), 1);
+      assert.equal(await page.locator('.ss-tree-row--child[aria-selected="true"]').count(), 1);
       await shot('meeting');
 
       await page.locator('[data-usage="main"][data-context-known="true"]').waitFor();
@@ -106,7 +106,10 @@ test(
       await page.locator('.command-results button', { hasText: '清洗面板数据' }).first().waitFor();
       await page.keyboard.press('Escape');
 
-      await page.locator('.sidebar').getByRole('button', { name: '工作站', exact: true }).click();
+      await page
+        .locator('.ss-sidebar')
+        .getByRole('button', { name: '工作站', exact: true })
+        .click();
       await page.locator('.plancard', { hasText: '清洗面板数据' }).waitFor();
       await shot('workbench');
       await page

@@ -1,6 +1,8 @@
 // Meetings: a shared thread, who is present, and the speaking policy.
 // Main chats, ordered discussions, secretary chats and the global assistant are
 // all meetings; they differ only in members, policy and attachment.
+import { randomUUID } from 'node:crypto';
+import { mkdir, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { AppError } from './errors.js';
 
@@ -309,5 +311,72 @@ export function createMeetings({ db, events, now, newId, paths }) {
     });
   }
 
-  return { get, list, create, update, addMember, contexts, touch, fork };
+  /** A project's own folder under the data directory. @param {string} projectId */
+  function projectDir(projectId) {
+    const row = db.prepare('SELECT dir_name FROM projects WHERE id = ?').get(projectId);
+    if (!row) throw new AppError('PROJECT_NOT_FOUND', '找不到这个项目。', 404);
+    return path.join(paths.projects, String(row.dir_name));
+  }
+
+  /** The work folder a new chat gets in a project. @param {string} projectId */
+  function projectFolder(projectId) {
+    const row = db.prepare('SELECT folder FROM projects WHERE id = ?').get(projectId);
+    return row?.folder == null ? projectDir(projectId) : String(row.folder);
+  }
+
+  /**
+   * Move a chat, with the chats attached to it, into a project or out of one
+   * (`projectId: null`). A default work folder follows the chat; a folder the
+   * user chose stays. Minutes files move with their chats.
+   * @param {string} id
+   * @param {string | null} projectId
+   * @param {import('./workspace/workspace.js').Actor} [actor]
+   * @returns {Promise<Meeting>}
+   */
+  async function move(id, projectId, actor = {}) {
+    const meeting = get(id);
+    if (meeting.projectId === projectId) return meeting;
+    if (meeting.attachedToMeetingId)
+      throw new AppError('MEETING_ATTACHED', '附属对话跟随主对话移动。', 409);
+    const oldDefault = meeting.projectId ? projectFolder(meeting.projectId) : null;
+    const scratch = path.join(paths.root, 'workspaces') + path.sep;
+    let workFolder = meeting.workFolder;
+    if (projectId && (!workFolder || workFolder === oldDefault || workFolder.startsWith(scratch)))
+      workFolder = projectFolder(projectId);
+    else if (!projectId && workFolder === oldDefault) {
+      workFolder = path.join(paths.root, 'workspaces', randomUUID());
+      await mkdir(workFolder, { recursive: true });
+    }
+    const family = [
+      id,
+      ...db
+        .prepare('SELECT id FROM meetings WHERE attached_to_meeting_id = ?')
+        .all(id)
+        .map((row) => String(row.id)),
+    ];
+    const minutes = (owner) => path.join(owner ? projectDir(owner) : paths.root, 'minutes');
+    await mkdir(minutes(projectId), { recursive: true });
+    for (const member of family)
+      await rename(
+        path.join(minutes(meeting.projectId), `${member}.md`),
+        path.join(minutes(projectId), `${member}.md`),
+      ).catch((error) => {
+        if (error.code !== 'ENOENT') throw error;
+      });
+    return db.transaction(() => {
+      const write = db.prepare(
+        'UPDATE meetings SET project_id = ?, work_folder = ?, updated_at = ? WHERE id = ?',
+      );
+      for (const member of family) write.run(projectId, workFolder, now(), member);
+      const updated = get(id);
+      events.record('meeting.updated', updated, {
+        projectId: updated.projectId,
+        meetingId: id,
+        actorId: actor.actorId,
+      });
+      return updated;
+    });
+  }
+
+  return { get, list, create, update, move, addMember, contexts, touch, fork };
 }

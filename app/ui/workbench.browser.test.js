@@ -11,7 +11,7 @@ async function* silent() {}
 
 test('a person organises a project on the workbench', { skip: browserSkip }, () =>
   withBrowserApp('ui-workbench', silent, async ({ page, app, shot }) => {
-    await page.locator('.navsection').getByRole('button', { name: '新建项目' }).click();
+    await page.locator('.ss-sidebar').getByRole('button', { name: '新建项目' }).click();
     await page.getByLabel('项目名称').fill('城市就业韧性');
     await page.getByLabel('研究目标（可选）').fill('解释城市就业的恢复差异');
     await page.getByRole('button', { name: '创建项目' }).click();

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { isNative, toggleAssistantWindow } from '../assistant-window.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
+import { LogoMark } from '../illustrations.js';
 
 /** @returns {import('preact').VNode} */
 export function AssistantOrb() {
@@ -80,7 +81,7 @@ export function AssistantOrb() {
         if (isNative()) void attempt(() => globalThis.__TAURI__.core.invoke('show_assistant_menu'));
       }}
     >
-      <img src="/assets/logo.png" alt="" />
+      <${LogoMark} className="ss-logo assistant-orb__mark" />
     </button>
   </div>`;
 }

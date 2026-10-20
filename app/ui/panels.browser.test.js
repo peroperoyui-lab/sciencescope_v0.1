@@ -25,7 +25,7 @@ test(
         });
         await page.goto(new URL('/?token=ui-token#/', page.url()).href);
         await page
-          .locator('.userbar')
+          .locator('.ss-sidebar__foot')
           .getByRole('button', { name: '全局助手', exact: true })
           .click();
         const panel = page.locator('.global-assistant-panel');
@@ -73,7 +73,7 @@ test(
         });
         await page.reload();
         await page
-          .locator('.userbar')
+          .locator('.ss-sidebar__foot')
           .getByRole('button', { name: '全局助手', exact: true })
           .click();
         await input.waitFor();

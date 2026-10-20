@@ -66,7 +66,9 @@ function MenuLayer() {
             role=${item.check === undefined ? 'menuitem' : 'menuitemcheckbox'}
             aria-checked=${item.check === undefined ? undefined : String(item.check)}
             class=${`ss-menu__item ${item.danger ? 'ss-menu__item--danger' : ''}`}
+            aria-disabled=${item.disabled ? 'true' : undefined}
             onClick=${() => {
+              if (item.disabled) return;
               actions.closeMenu();
               item.run();
             }}
@@ -150,8 +152,36 @@ export function FieldForm({ label, value = '', submitText, onSubmit }) {
 }
 
 function ToastLayer() {
+  const actions = useActions();
   const toast = useAppState((state) => state.overlay.toast);
-  return toast ? html`<div class="toast" role="status">${toast}</div>` : null;
+  if (!toast) return null;
+  const { text, action } = typeof toast === 'string' ? { text: toast, action: null } : toast;
+  return html`<div class="ss-toasts">
+    <div class="ss-toast" role="status">
+      <span class="ss-toast__msg">${text}</span>
+      ${
+        action &&
+        html`<button
+          type="button"
+          class="ss-btn ss-btn--ghost ss-btn--sm"
+          onClick=${() => {
+            actions.dismissToast();
+            action.run();
+          }}
+        >
+          ${action.label}
+        </button>`
+      }
+      <button
+        type="button"
+        class="ss-icon-btn ss-icon-btn--sm"
+        aria-label=${t('关闭')}
+        onClick=${actions.dismissToast}
+      >
+        <${Lucide} name="x" />
+      </button>
+    </div>
+  </div>`;
 }
 
 /** Search projects, meetings and message text; Enter opens the selection. */

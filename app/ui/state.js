@@ -66,7 +66,8 @@ export const initialState = {
   overlay: {
     /** @type {null | { items: any[], label: string, x: number, y: number }} */ menu: null,
     /** @type {null | { title: string, body: any, className?: string }} */ modal: null,
-    /** @type {null | string} */ toast: null,
+    /** @type {null | string | { text: string, action: { label: string, run: () => any } }} */ toast:
+      null,
     palette: false,
   },
 };
@@ -125,8 +126,15 @@ export function applyEvent(state, { type, payload }) {
     case 'meeting.created':
     case 'meeting.updated':
       return { ...state, meetings: upsert(state.meetings, payload) };
-    case 'message.created':
-      return { ...state, messages: upsertMessage(state, payload) };
+    case 'message.created': {
+      // A new message is activity: the sidebar sorts and dates chats by it.
+      const meetings = state.meetings.map((meeting) =>
+        meeting.id === payload.meetingId && payload.createdAt > meeting.updatedAt
+          ? { ...meeting, updatedAt: payload.createdAt }
+          : meeting,
+      );
+      return { ...state, meetings, messages: upsertMessage(state, payload) };
+    }
     case 'message.updated': {
       const drafts =
         payload.status === 'streaming' ? state.drafts : without(state.drafts, payload.id);

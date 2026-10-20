@@ -72,6 +72,15 @@ export function registerMeetingRoutes(router, core, conductor, researchInput, py
   router.patch('/api/meetings/:id', ({ params, body }) =>
     core.meetings.update(params.id, body, user),
   );
+  router.post('/api/meetings/:id/move', ({ params, body }) => {
+    const family = new Set([
+      params.id,
+      ...core.meetings.list({ attachedTo: params.id }).map((meeting) => meeting.id),
+    ]);
+    if (core.turns.running().some((turn) => family.has(turn.meetingId)))
+      throw new AppError('MEETING_RUNNING', '对话运行中，结束后再移动。', 409);
+    return core.meetings.move(params.id, body.projectId ?? null, user);
+  });
   router.post('/api/meetings/:id/fork', ({ params, body }) =>
     core.meetings.fork(params.id, body, user),
   );

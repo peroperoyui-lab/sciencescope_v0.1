@@ -69,7 +69,7 @@ test(
           const mainInput = page.getByLabel('主输入框');
           await mainInput.fill('Main draft stays here.');
           await page
-            .locator('.userbar')
+            .locator('.ss-sidebar__foot')
             .getByRole('button', { name: '全局助手', exact: true })
             .click();
           const panel = page.locator('.global-assistant-panel');
@@ -100,7 +100,7 @@ test(
           await input.fill('Draft survives hiding.');
           await panel.getByRole('button', { name: '关闭助手', exact: true }).click();
           await page
-            .locator('.userbar')
+            .locator('.ss-sidebar__foot')
             .getByRole('button', { name: '全局助手', exact: true })
             .click();
           assert.equal(await input.inputValue(), 'Draft survives hiding.');

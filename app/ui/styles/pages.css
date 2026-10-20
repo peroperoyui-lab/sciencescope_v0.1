@@ -97,14 +97,12 @@
 .ss-thread .rendered-markdown > :last-child {
   margin-bottom: 0;
 }
-.sidebar :is(.nav, .tree-row, .browse-all) {
-  font-size: var(--side-font-size, 14px);
+/* 侧栏字号 (appearance.sideFontSize) sizes the sidebar's rows. */
+.ss-sidebar :is(.ss-nav-item, .ss-tree-row, .ss-side-all, .ss-user) {
+  font-size: var(--side-font-size, 13px);
 }
-.sidebar .navsection {
-  font-size: calc(var(--side-font-size, 14px) - 2.5px);
-}
-.sidebar .side-search {
-  font-size: calc(var(--side-font-size, 14px) - 1px);
+.ss-sidebar :is(.ss-search-trigger, .ss-side-section__head, .ss-tree-more) {
+  font-size: calc(var(--side-font-size, 13px) - 1px);
 }
 /* 视图 → 简洁执行记录 hides the activity timeline; a card waiting for
    approval stays, or the answer would wait unseen. The status line still

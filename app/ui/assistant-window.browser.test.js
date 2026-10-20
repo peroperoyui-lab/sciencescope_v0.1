@@ -112,7 +112,7 @@ test(
           assert.equal(opens[0][1].request.collapsed, startup === 'orb');
         }
         await page
-          .locator('.userbar')
+          .locator('.ss-sidebar__foot')
           .getByRole('button', { name: '全局助手', exact: true })
           .click();
         assert.equal(await page.locator('.global-assistant-panel').count(), 0);
@@ -122,7 +122,7 @@ test(
         try {
           await child.goto(new URL('/?surface=assistant', page.url()).href);
           await child.getByLabel('全局助手输入').waitFor();
-          assert.equal(await child.locator('.topbar,.sidebar,.foot').count(), 0);
+          assert.equal(await child.locator('.topbar,.ss-sidebar,.foot').count(), 0);
           assert.equal(await child.locator('.detached-shell').count(), 1);
           assert.equal(
             (await calls(child)).filter(([command]) => command === 'open_secondary_window').length,

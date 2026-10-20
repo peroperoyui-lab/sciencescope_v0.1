@@ -16,7 +16,7 @@ test(
       const settings = async () =>
         (await app.core.workspace.read({ resource: 'settings', key: 'app' })).value;
 
-      await page.locator('.userbar').getByRole('button', { name: '设置' }).click();
+      await page.locator('.ss-sidebar__foot').getByRole('button', { name: '设置' }).click();
       const keyRefs = async () =>
         (
           await (
@@ -104,7 +104,7 @@ test(
       );
       assert.equal(
         await page
-          .locator('.sidebar .nav')
+          .locator('.ss-sidebar .ss-nav-item')
           .first()
           .evaluate((node) => getComputedStyle(node).fontSize),
         '13px',

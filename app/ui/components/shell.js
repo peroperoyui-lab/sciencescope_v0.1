@@ -5,6 +5,7 @@ import { html } from '../html.js';
 import { currentLanguage, t } from '../i18n/index.js';
 import { navigate } from '../route.js';
 import { FieldForm } from './overlays.js';
+import { LogoMark } from '../illustrations.js';
 
 /**
  * The Tauri window, when running inside the native shell (`withGlobalTauri`).
@@ -131,7 +132,7 @@ export function Topbar({ projectName, projectId }) {
 
   return html`<div class="topbar" data-tauri-drag-region>
     <button class="brand" onClick=${() => navigate({ view: 'home' })}>
-      <img src="/assets/logo.png" alt="ScienceScope" /><span>ScienceScope</span>
+      <${LogoMark} className="ss-logo" /><span>ScienceScope</span>
     </button>
     ${titles.map(
       (title, index) =>

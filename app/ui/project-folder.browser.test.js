@@ -14,7 +14,7 @@ test(
       const chosen = path.join(app.core.paths.root, '中文外部文件夹');
       await mkdir(chosen);
       const project = await app.core.projects.create({ name: '文件夹验收' });
-      await page.locator('.tree-name', { hasText: project.name }).click();
+      await page.locator('.ss-sidebar .ss-tree-row__open', { hasText: project.name }).click();
       await page.getByRole('button', { name: '展开文件视图' }).click();
       await page.getByRole('button', { name: '新建文件夹', exact: true }).click();
       await page.locator('#modal input').fill('回收站验收');

@@ -9,7 +9,12 @@ export function meetingActivity(state, meetingId) {
   const running = Object.values(state.running).find(
     (turn) => turn.meetingId === meetingId && turn.participantId !== 'agent_secretary',
   );
-  if (running) return { status: 'running', updatedAt: running.startedAt };
+  if (running) {
+    const asking = (state.toolCalls[running.id] ?? []).some(
+      (call) => call.kind === 'approval' && call.status === 'pending',
+    );
+    return { status: asking ? 'approval' : 'running', updatedAt: running.startedAt };
+  }
   const outbox = state.outboxes[meetingId];
   if (outbox?.items.length)
     return { status: outbox.paused ? 'paused' : 'queued', updatedAt: outbox.items[0].updatedAt };
@@ -23,6 +28,7 @@ export function meetingActivity(state, meetingId) {
 
 export const ACTIVITY_LABELS = {
   running: '运行中',
+  approval: '待批准',
   queued: '排队中',
   paused: '已暂停',
   failed: '失败',

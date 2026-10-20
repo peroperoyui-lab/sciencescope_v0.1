@@ -133,3 +133,14 @@
   height: var(--icon);
   stroke-width: 1.75;
 }
+
+/* The floating assistant orb shows the vector mark in the accent colour. */
+.assistant-orb .assistant-orb__mark {
+  width: 28px;
+  height: 28px;
+  color: var(--accent);
+}
+.native-orb .assistant-orb .assistant-orb__mark {
+  width: 34px;
+  height: 34px;
+}
