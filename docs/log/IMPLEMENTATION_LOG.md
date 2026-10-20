@@ -1,8 +1,9 @@
 # 实施记录
 
-## 2026-10-19 X2 MCP 接入（Codex）
+## 2026-10-20 X2 MCP 接入（Codex）
 - 基于未合并的 X1；官方 SDK 接通 stdio/HTTP/SSE、导入和凭据引用、动态工具、原始 Schema、图片与 C1 按服务器批准。随包 npm 补 npx，uvx 复用 uv；未改界面和用户预览。验证材料在 `.sciencescope-local/temp/x2/`。
-- Windows 功能验证覆盖导入、脚本模型调用、跨会议共享服务器批准、停用、失败原因、断线重连及子进程树退出；干净检出和真实 flash 验收结果交付前补记。
+- Windows 功能验证覆盖导入、脚本模型调用、跨会议共享服务器批准、停用、失败原因、断线重连及子进程树退出；干净检出 `npm run check` 264/264 通过、0 失败/跳过，含 Windows/NSIS。
+- 全新隔离安装从设置添加 Go，flash 调用官方 Time MCP 成功：3 请求 / 8,295 tokens（连接测试 1 / 48），全部 HTTP 200；WebView2 100%/125% 截图已留，Node/uv/MCP/Python 退出无残留，随包 npx 11.6.2 可运行；测试产品及数据已卸载清理。
 
 ## 2026-10-19 X1 技能接入（Codex）
 - 文件夹/ZIP 导入、内置复制、启停、技能目录、use_skill 与角色预载正文接入；新增技能及工具目录接口。后台纪要/记忆保持无工具，只预载绑定正文；界面只补英文。验证材料在 .sciencescope-local/temp/x1/。
