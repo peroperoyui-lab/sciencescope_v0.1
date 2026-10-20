@@ -120,21 +120,22 @@ test('skills import, appear for every role, load on demand, bind, disable and pr
         .boundRoles.map((item) => item.id),
       ['agent_secretary'],
     );
-    await request('PATCH', '/api/settings', { skills: { disabled: ['review-format', 'example'] } });
+    const everySkill = (await request('GET', '/api/skills')).map((item) => item.name);
+    await request('PATCH', '/api/settings', { skills: { disabled: everySkill } });
     await request('POST', `/api/meetings/${secretary.id}/messages`, { text: '技能停用了' });
     await app.conductor.idle();
     assert.equal(app.core.messages.since(secretary.id, 0).at(-1).text, '停用已生效');
     assert.doesNotMatch(seen.at(-1), /## 可用技能|## 已绑定技能/);
-    await request('DELETE', '/api/skills/example', undefined, 400);
-    const copy = await request('POST', '/api/skills/example/copy');
+    await request('DELETE', '/api/skills/cite-sources', undefined, 400);
+    const copy = await request('POST', '/api/skills/cite-sources/copy');
     assert.equal(copy.source, 'user');
     await writeFile(
       path.join(copy.directory, 'SKILL.md'),
-      '---\nname: example\ndescription: 用户修改\n---\n我的副本',
+      '---\nname: cite-sources\ndescription: 用户修改\n---\n我的副本',
     );
-    assert.equal((await request('GET', '/api/skills/example')).body, '我的副本');
-    await request('DELETE', '/api/skills/example');
-    assert.equal((await request('GET', '/api/skills/example')).source, 'builtin');
+    assert.equal((await request('GET', '/api/skills/cite-sources')).body, '我的副本');
+    await request('DELETE', '/api/skills/cite-sources');
+    assert.equal((await request('GET', '/api/skills/cite-sources')).source, 'builtin');
     const zip = new JSZip();
     zip.file('打包技能/SKILL.md', skillText.replaceAll('review-format', 'zip-review'));
     zip.file('打包技能/reference.txt', 'ZIP参考');

@@ -30,7 +30,7 @@ R0–R3、L1、R4 的 alpha 必需功能、R6a 预览安装包、P1 运行时与
 | B     | 对话页 B 组            | 连续命令合成一组、批准不单独占行；交付物收成一行；对话字号和行距可调；有序讨论固定高度状态框；日志详情直接编辑（`reviews/REVIEW_2026-10-18.md` §1B） | Claude | ✅ 2026-10-19                                            |
 | C0    | C 组方案               | 「总是允许」规则、各角色工具一致（含 `research_write`）、看图工具、运行中插入消息、并行专家：先写方案和用户对一遍                                    | Claude | ✅ 2026-10-19 用户已定：`plans/C_PERMISSIONS_RUNTIME.md` |
 | C1–C4 | C 组后端               | 总是允许、看图、运行中插入、@ 多位并行：`plans/tasks/done/C1`–`C4`                                                                                   | Sol    | ✅ 2026-10-19（后端 Sol，界面 Claude）                   |
-| R6a-6 | 第三个预览包           | 带上阶段 1 的全部改动和 X1、X2，测试产品验收后覆盖安装到用户预览目录（`plans/tasks/R6a-6_third_preview.md`）                                         | Sol    | 任务书已写，排在 X2 之后                                 |
+| R6a-6 | 第三个预览包           | 带上阶段 1 的全部改动和 X1、X2，测试产品验收后覆盖安装到用户预览目录（`plans/tasks/R6a-6_third_preview.md`）                                         | Sol    | 任务书已写；X1、X2、X0 已合并，可以开始                  |
 
 ## 阶段 2：知识库、编辑台、其余页面、美术资产（并行）
 
@@ -55,7 +55,7 @@ D 是 Sol，U 是 Claude；E0a 由 Claude 做，Sol 在 Windows 上用 Word、WP
 
 **工具、技能和 MCP**（`plans/X_TOOLS_SKILLS_MCP.md`，用户 2026-10-19 放进 alpha）
 
-Sol：X1 技能（`plans/tasks/X1_skills.md`）、X2 MCP（`plans/tasks/X2_mcp.md`，在 C1 之后），排在 C1–C4 之后，和知识库任务交替；Claude：X0 内置基础技能正文（X1 之后）、X-UI 设置三页与时间线显示。
+Sol：X1 技能（`plans/tasks/X1_skills.md`）、X2 MCP（`plans/tasks/X2_mcp.md`，在 C1 之后），排在 C1–C4 之后，和知识库任务交替；Claude：X0 内置基础技能正文 ✅ 2026-10-20、X-UI 设置三页与时间线显示。
 
 **P3 其余页面**（Claude，每页：设计稿 → 用户审 → 实现 → Sol 截图验收）
 

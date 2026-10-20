@@ -610,7 +610,7 @@ data/
 - 主专家、专家、秘书聊天、全局助手每轮系统提示词列出启用技能；`use_skill {name}` 返回 `{name,body,directory}`（绝对路径），不存在或停用返回 `{message}`，不申请批准。绑定的启用技能正文预载到角色提示词，失效绑定跳过。后台纪要/记忆只预载绑定正文并保持无工具；已有工具的后台版本说明也收到目录（用户2026-10-19确认）。
 - `GET /api/skills` 返回数组，每项 `{name,description,metadata,source:'builtin'|'user',directory,enabled,boundRoles:[{id,name}],error?}`；`GET /api/skills/:name` 返回同一技能及 `body`（无 boundRoles）；`POST /api/skills/import` 接受 `{path}`（文件夹/ZIP）或 `{dataBase64}`（ZIP）；`POST /api/skills/:name/copy` 复制内置；`DELETE /api/skills/:name` 删除用户技能。
 - 启停使用 `PATCH /api/settings {skills:{disabled:[名称]}}`，默认空数组。角色绑定沿用 `PATCH /api/participants/:id {skills:[名称]}`。文件和设置是正本，无新增数据库迁移。
-- `GET /api/tools` 返回数组 `{name,source:'builtin'|'sciencescope'|'skill'|'mcp',server?,description,needsApproval,enabled}`；本步前三类，技能每个一项。needsApproval 表示该工具在请求批准模式下可能需要询问，实际仍依照项目位置及已保存批准规则判断。技能页/工具页及时间线展示由 Claude 接入；包内目前仅有格式示例，正式技能正文由 X0 提供。
+- `GET /api/tools` 返回数组 `{name,source:'builtin'|'sciencescope'|'skill'|'mcp',server?,description,needsApproval,enabled}`；本步前三类，技能每个一项。needsApproval 表示该工具在请求批准模式下可能需要询问，实际仍依照项目位置及已保存批准规则判断。技能页/工具页及时间线展示由 Claude 接入；包内有四个内置基础技能（X0，Claude 2026-10-20）：`cite-sources` 查资料并引用原文、`edit-workspace` 修改工作区并留版本、`deliver-files` 交付文件、`python-analysis` 用 Python 分析数据，讲几样工具怎么配合用。
 
 ## MCP 服务器与工具（X2，2026-10-19）
 

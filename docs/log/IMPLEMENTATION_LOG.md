@@ -1,5 +1,8 @@
 # 实施记录
 
+## 2026-10-20 X0 内置基础技能（Claude）
+- `app/resources/skills/` 换成四个技能：cite-sources、edit-workspace、deliver-files、python-analysis，删掉格式示例；技能测试改用 cite-sources，停用时停掉全部技能。真实模型验收放进 R6a-6。
+
 ## 2026-10-20 应用图标换回纸色底板（Claude）
 - 按用户意见，`tools/brand/icon.svg` / `icon-small.svg` 改为纸色底板、细描边、墨色标志，重新生成 `tools/package/brand/icon.ico`；绿底稿改名 `icon-green*.svg`，画廊 AppIcon 卡片作备选保留。安装程序侧图未改。
 
