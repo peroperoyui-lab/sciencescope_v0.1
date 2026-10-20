@@ -12,7 +12,7 @@ import { AppError } from '../../core/errors.js';
  */
 export function createPreview(core, research) {
   const files = createProjectFiles(core);
-  function locate(target) {
+  async function locate(target) {
     if (target.kind === 'tool') {
       const preview = core.turns.toolCalls(target.turnId).find((call) => call.callId === target.id)
         ?.result?.preview;
@@ -50,14 +50,14 @@ export function createPreview(core, research) {
     }
     const source = research.store.getSource(target.id);
     return {
-      path: path.join(core.paths.library, source.originalPath),
+      path: await research.sourcePath(source.id),
       name: source.name,
       projectId: source.projectId,
       source,
     };
   }
   async function content(target) {
-    const file = locate(target);
+    const file = await locate(target);
     return { ...file, bytes: await readFile(file.path) };
   }
   async function document(target) {

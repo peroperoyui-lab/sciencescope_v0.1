@@ -19,7 +19,15 @@ const sourceKinds = [
   'note',
   'link',
 ];
-const contentStatuses = ['none', 'queued', 'parsed', 'partial', 'failed', 'unsupported'];
+const contentStatuses = [
+  'none',
+  'queued',
+  'parsed',
+  'partial',
+  'failed',
+  'unsupported',
+  'name-only',
+];
 const chunkKinds = [
   'paragraph',
   'heading',
@@ -48,6 +56,7 @@ const chunkKinds = [
  *   listSources: (options?: SourceQuery) => ResearchSource[],
  *   countSources: (options?: SourceQuery) => number,
  *   updateSource: (id:string,patch:any,actor?:Actor) => ResearchSource,
+ *   deleteSource: (id:string,actor?:Actor) => ResearchSource,
  *   findSource: (label: string, projectId?: string | null) => ResearchSource | null,
  *   addChunks: (sourceId: string, passages: any[], parseResult?: ParseResult, actor?: Actor) => ResearchSource,
  *   getChunk: (id: string) => ResearchChunk,
@@ -65,6 +74,10 @@ function sourceRow(row) {
     title: String(row.title),
     metadata: JSON.parse(String(row.metadata_json)),
     originalPath: row.original_path == null ? null : String(row.original_path),
+    folderPath: row.folder_path == null ? null : String(row.folder_path),
+    fileSize: row.file_size == null ? null : Number(row.file_size),
+    fileMtimeMs: row.file_mtime_ms == null ? null : Number(row.file_mtime_ms),
+    contentHash: row.content_hash == null ? null : String(row.content_hash),
     name: row.name == null ? null : String(row.name),
     mime: row.mime == null ? null : String(row.mime),
     contentStatus: String(row.content_status),
@@ -115,6 +128,20 @@ export function createResearchStore({
     ).run(type, id, projectId, indexText(title), indexText(body));
   }
 
+  function indexSource(source) {
+    // Keep both the literal path and its words: "panel 2020" must find panel_2020.dta.
+    const file = source.folderPath
+      ? [source.name, source.folderPath].filter(Boolean).join('\n')
+      : '';
+    putIndex(
+      'source',
+      source.id,
+      source.projectId,
+      source.title,
+      [payloadText(source.metadata), file, file.replace(/[_.\\/–-]/gu, ' ')].join('\n'),
+    );
+  }
+
   function changed(action, record, actor) {
     const key = action.startsWith('source.') ? 'sourceId' : 'itemId';
     events.record(
@@ -156,8 +183,9 @@ export function createResearchStore({
       db.prepare(
         `
         INSERT INTO rb_sources (id, project_id, number, kind, title, metadata_json,
-          original_path, name, mime, content_status, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          original_path, name, mime, content_status, created_at, updated_at,
+          folder_path, file_size, file_mtime_ms, content_hash, parse_error)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       ).run(
         id,
@@ -172,8 +200,13 @@ export function createResearchStore({
         contentStatus,
         time,
         time,
+        input.folderPath ?? null,
+        input.fileSize ?? null,
+        input.fileMtimeMs ?? null,
+        input.contentHash ?? null,
+        input.parseError ?? null,
       );
-      putIndex('source', id, projectId, title, payloadText(metadata));
+      indexSource(getSource(id));
       // Imports publish their single change event after parser results are saved.
       if (contentStatus !== 'queued') changed('source.created', getSource(id), actor);
       return getSource(id);
@@ -197,11 +230,30 @@ export function createResearchStore({
       const title = requiredText(patch.title ?? current.title, 'title');
       const kind = oneOf(patch.kind ?? current.kind, sourceKinds, 'source kind');
       const metadata = recordObject({ ...current.metadata, ...patch.metadata });
+      const contentStatus = oneOf(
+        patch.contentStatus ?? current.contentStatus,
+        contentStatuses,
+        'content status',
+      );
+      const fields = [
+        'originalPath',
+        'folderPath',
+        'name',
+        'fileSize',
+        'fileMtimeMs',
+        'contentHash',
+        'parseError',
+      ];
+      const values = fields.map((field) =>
+        patch[field] === undefined ? current[field] : patch[field],
+      );
       db.prepare(
-        'UPDATE rb_sources SET title=?, kind=?, metadata_json=?, updated_at=? WHERE id=?',
-      ).run(title, kind, JSON.stringify(metadata), now(), id);
-      putIndex('source', id, current.projectId, title, payloadText(metadata));
+        `UPDATE rb_sources SET title=?, kind=?, metadata_json=?, updated_at=?, content_status=?,
+         original_path=?, folder_path=?, name=?, file_size=?, file_mtime_ms=?, content_hash=?,
+         parse_error=? WHERE id=?`,
+      ).run(title, kind, JSON.stringify(metadata), now(), contentStatus, ...values, id);
       const result = getSource(id);
+      indexSource(result);
       changed('source.updated', result, actor);
       return result;
     });
@@ -270,8 +322,8 @@ export function createResearchStore({
         now(),
         sourceId,
       );
-      putIndex('source', sourceId, source.projectId, source.title, payloadText(metadata));
       const result = getSource(sourceId);
+      indexSource(result);
       changed('source.imported', result, actor);
       return result;
     });
@@ -292,6 +344,23 @@ export function createResearchStore({
       .map(chunkRow);
   }
 
+  /**
+   * Catalog deletion is called by the shared service after original-file handling.
+   * @param {string} id
+   * @param {Actor} [actor]
+   * @returns {ResearchSource}
+   */
+  function deleteSource(id, actor = {}) {
+    return db.transaction(() => {
+      const source = getSource(id);
+      for (const chunk of chunks(id)) deleteIndex('chunk', chunk.id);
+      deleteIndex('source', id);
+      db.prepare('DELETE FROM rb_sources WHERE id=?').run(id);
+      changed('source.deleted', source, actor);
+      return source;
+    });
+  }
+
   return {
     db,
     createSource,
@@ -299,6 +368,7 @@ export function createResearchStore({
     listSources,
     countSources,
     updateSource,
+    deleteSource,
     findSource,
     addChunks,
     getChunk,

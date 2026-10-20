@@ -12,9 +12,16 @@ const user = { actorId: LOCAL_USER_ID };
  * @param {import('../router.js').Router} router
  * @param {import('../../core/index.js').Core} core
  * @param {ReturnType<typeof import('../../services/python/index.js').createPython>} [python]
+ * @param {ReturnType<typeof createProjectFiles>} [files]
+ * @param {ReturnType<typeof import('../../services/knowledge/project-index.js').createProjectIndex>} [index]
  */
-export function registerProjectRoutes(router, core, python) {
-  const files = createProjectFiles(core);
+export function registerProjectRoutes(
+  router,
+  core,
+  python,
+  files = createProjectFiles(core),
+  index,
+) {
   const journalFiles = createJournalFiles(core);
   router.post('/api/projects/:id/log-file/open', ({ params, body }) =>
     journalFiles.open(params.id, body.reference),
@@ -28,6 +35,11 @@ export function registerProjectRoutes(router, core, python) {
     return project;
   });
   router.get('/api/projects/:id', ({ params }) => core.projects.get(params.id));
+  if (index) {
+    router.post('/api/projects/:id/index', ({ params }) => index.scan(params.id));
+    router.get('/api/projects/storage/copies', () => index.copyUsage());
+    router.post('/api/projects/:id/copies/cleanup', ({ params }) => index.cleanupCopies(params.id));
+  }
   router.get('/api/projects/:id/files', ({ params, query }) =>
     files.list(params.id, query.get('path') ?? ''),
   );

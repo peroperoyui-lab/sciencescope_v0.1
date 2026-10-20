@@ -9,9 +9,10 @@ import { recyclePath } from './system.js';
 
 /**
  * @param {import('../core/index.js').Core} core
- * @param {{recycle?: typeof recyclePath}} [options]
+ * @param {{recycle?: typeof recyclePath, requestIndex?:(projectId:string)=>void,
+ * indexEntry?:(projectId:string,relative:string)=>any}} [options]
  */
-export function createProjectFiles(core, { recycle = recyclePath } = {}) {
+export function createProjectFiles(core, { recycle = recyclePath, requestIndex, indexEntry } = {}) {
   /** The folder shown for a project. @param {string} projectId */
   function rootOf(projectId) {
     const project = core.projects.get(projectId);
@@ -38,6 +39,7 @@ export function createProjectFiles(core, { recycle = recyclePath } = {}) {
     /** Entries of a folder, folders first. @param {string} projectId @param {string} [folder] */
     async list(projectId, folder = '') {
       const { root, target } = inside(projectId, folder);
+      if (!folder) requestIndex?.(projectId);
       let entries = [];
       try {
         entries = await readdir(target, { withFileTypes: true });
@@ -51,6 +53,9 @@ export function createProjectFiles(core, { recycle = recyclePath } = {}) {
             name: entry.name,
             path: toRelative(root, path.join(target, entry.name)),
             kind: entry.isDirectory() ? 'folder' : 'file',
+            ...(entry.isFile() && indexEntry
+              ? { index: indexEntry(projectId, toRelative(root, path.join(target, entry.name))) }
+              : {}),
           }))
           .sort((a, b) =>
             a.kind === b.kind ? a.name.localeCompare(b.name) : a.kind === 'folder' ? -1 : 1,
@@ -61,12 +66,14 @@ export function createProjectFiles(core, { recycle = recyclePath } = {}) {
     /** @param {string} projectId @param {string} folder New folder's relative path. */
     async makeFolder(projectId, folder) {
       await mkdir(inside(projectId, folder).target, { recursive: true });
+      requestIndex?.(projectId);
     },
 
     /** @param {string} projectId @param {string} from @param {string} to Relative paths. */
     async rename(projectId, from, to) {
       try {
         await rename(inside(projectId, from).target, inside(projectId, to).target);
+        requestIndex?.(projectId);
       } catch (error) {
         if (error.code === 'ENOENT') throw new AppError('FILE_NOT_FOUND', '找不到这个文件。', 404);
         throw error;
@@ -83,6 +90,7 @@ export function createProjectFiles(core, { recycle = recyclePath } = {}) {
       const { root, target } = inside(projectId, relative);
       if (target === root) throw new AppError('ENTRY_REQUIRED', '请选择要删除的文件或文件夹。');
       await recycle(target);
+      requestIndex?.(projectId);
     },
 
     /**
@@ -98,6 +106,7 @@ export function createProjectFiles(core, { recycle = recyclePath } = {}) {
         }
         throw error;
       });
+      requestIndex?.(projectId);
     },
   };
 }

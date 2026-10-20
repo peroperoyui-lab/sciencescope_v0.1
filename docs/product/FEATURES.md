@@ -56,6 +56,7 @@ data/
     versions/<组id>/v<n>-<版本id>/<原文件>  以及同名 .notes.md 版本说明
   workspaces/<随机id>/ 或 shared/   独立对话的工作文件夹
   library/originals/          资料库原件（导入时复制，文件名为随机 id）
+  library/project-files/<项目id>/<内容哈希>  项目文件的去重副本，旧内容暂保留
   deliverables/<id>/          回答下方展示的交付文件副本
   models/multilingual-e5-small/  本地语义检索模型（用户点击下载后才有）
   python/                     uv 缓存、解释器、受管环境 envs/
@@ -232,6 +233,13 @@ data/
 - 统一检索资料段落和条目：默认中英文关键词检索（SQLite FTS5）。开启"本地混合检索"后，加上本机向量检索；每次结果标明本次是关键词还是混合检索。
 - AI 用 `research_search` / `research_read` 检索和分页读取，读取结果报告剩余长度，不截断全文；引用格式兼容 `[S3 p.4]`、复合、中文和全角写法。
 - 文件预览：PDF（文字层、翻页、高亮）、DOCX（可读视图与版式视图）、Markdown、LaTeX、CSV、代码（只读）和图片。
+- 打开项目文件夹根目录或在应用内新建、改名、添加、回收文件后，后台扫描文件；可用项目索引接口立即扫描。先比较修改时间和大小，变化后才算哈希，内容变化才复制和重解析。同一项目并发请求合为当前扫描及一次补扫。
+- 大目录首次扫描仍逐文件复制并提交索引事务：Windows H 盘两万个小型文件首扫 34 分 42 秒，未改动重扫 0.832 秒；根目录列表请求不等待首扫完成。分批事务优化待审阅。
+- 每个项目文件都有资料记录、相对路径及数据目录内的哈希副本；同内容去重，修改后的旧副本暂保留。无法解析或超过 200 MB 的文件只索引文件名和路径并保留原因，关键词和语义文档均可找到；复制或读取失败标为失败，下次扫描重试。
+- 原件打开、重解析、预览和看图优先读项目现文件，路径不存在时读取副本；`research_read` 继续分页读取已索引的段落，项目文件夹移走后仍可查阅。扫描不向用户文件夹写文件，不抽实体或整理卡片。
+- 扫描先枚举目录，再按内容哈希识别移动：保留资料 ID、段落和边，只更新路径与文件名；确实消失的文件删除资料。根目录不可访问时保留索引，遇到读取失败时暂缓本轮删除，等下次成功扫描。
+- 删除资料共用一个服务：清理资料、段落、全文与向量索引、派生边及该资料产生的 extracted 边；人工关系标 removed 并进入可撤回的知识库版本，实体保留。全局导入原件进系统回收站；撤回关系版本恢复边，不恢复资料原件。
+- 项目副本不随删除资料自动清理；接口报告每个项目的总占用与无人引用占用，用户显式清理后释放旧副本。清理与该项目扫描串行，同一哈希仍被其他资料引用时保留。
 
 **实现位置**：`app/services/research/`（`store.js`、`items.js`、`search.js`、`citations.js`、`parsers/`、`semantic/`）、`app/services/preview/`；界面 `app/ui/components/research-*.js`、`file-preview.js`、`settings-semantic.js`、`app/ui/readers/`。
 
@@ -242,9 +250,13 @@ data/
 - 本地模型（multilingual-e5-small int8）需用户明确点击下载，每个文件校验 SHA-256，校验失败报错且不换源；"官方"源连接失败时会尝试 HF 镜像。需要 AVX2、8 GB 内存和 5 GB 可用空间，不满足时只用关键词检索。
 - 对话进行中暂停建立索引；索引缺失、版本不一致或向量阶段超过 300 毫秒时，整次退回关键词检索。
 - 扫描件没有 OCR；没有文献元数据在线查询和 BibTeX 互通。
+- 项目扫描跳过隐藏目录、`node_modules`、`__pycache__`、`.venv`、`renv`。
 
 ### 2.8a 知识库存储（无界面）
 
+- 解析完成后按段落哈希增量生成派生关系：参考文献的 DOI 或归一化标题精确匹配库内资料，后导入被引文献会补边；重新解析内容变化时移除该资料端点的旧派生关系再生成。
+- 文献类资料使用已有资料级向量生成 `similar-to`，按余弦相似度从高到低连边，两端均计入上限。同一对仅一条，新导入只使用空余名额，不挤掉已有关系；无向量时跳过，建好后补做。`settings.knowledge.similarity` 默认 `{threshold:0.85,maxPerPaper:3}`，上限 0 不建相似边；修改设置排队全量重算，仅处理 `method='similar'`，引用边不动。不调用语言模型、不进修订或历史版本。
+- `kb_jobs` 保存派生任务与内容哈希：重启恢复未完成任务，发言时暂停，失败自动尝试至三次后保留错误并支持手动重试。服务汇总各状态数量、全量相似重算状态及失败原文；任务变更发临时 `knowledge.jobs.changed`，关系变更发 `knowledge.changed`。设置页、接口和图工具由后续任务接入。
 - 实体、带原文/消息证据的关系、标签和项目归属共用知识库存储；实体合并先返回改挂关系数，写入立即生效。删除保留 removed 记录，合并保留 merged 与目标引用。
 - 每次事实修改与修订、knowledge.changed/research.changed 事件同事务保存；AI 的参与者、会议、发言和证据可追溯。标签/归属的来源通过修订 origin 与所属版本的会议、发言追溯。
 - 一轮 AI 修改归入一个 ai-turn-end 版本，五处现有发言结束位置关闭版本；用户编辑会话可显式开关，空版本丢弃。整组撤回跳过后来改过的记录并返回引用；单条恢复和整组撤回都先存 before-restore，可再次撤回。
@@ -404,7 +416,11 @@ data/
 - `POST /api/projects` 新建项目。
 - `GET /api/projects/:id` 读取项目。
 - `PATCH /api/projects/:id` 改名、描述、文件夹、置顶、归档。
-- `GET /api/projects/:id/files` 列出项目文件夹内容。
+- `GET /api/projects/:id/files` 列出项目文件夹内容；根目录请求触发后台扫描，文件条目带 `index:{status,sourceId,error}`，状态为 `parsed/parsing/name-only/failed/unindexed`。
+- `POST /api/projects/:id/index` 等待扫描，返回 `{added,updated,unchanged,nameOnly,failed,moved,deleted}`；`nameOnly` 是扫描到的仅文件名记录数，`failed` 是本次读取/复制等错误数。
+- `GET /api/projects/storage/copies` 返回 `{projects:[{projectId,totalBytes,unreferencedBytes,totalFiles,unreferencedFiles}]}`。
+- `POST /api/projects/:id/copies/cleanup` 返回 `{projectId,releasedBytes,removedFiles}`，只删除没有资料引用的项目副本。
+- `DELETE /api/research/sources/:id` 删除资料及投影，返回 `{deleted,vectors,versionId}`；`versionId` 对应人工关系的撤回版本（没有关系修改时为 null）。
 - `POST /api/projects/:id/files` 新建文件夹、重命名、移到回收站、打开。
 - `GET /api/projects/:id/export` 项目快照 zip。
 - `POST /api/projects/:id/log-file/open` 打开日志条目里链接的文件。
@@ -540,6 +556,8 @@ data/
 ### 4.1 SQLite 表（`data/sciencescope.sqlite`）
 
 迁移在 `app/core/db/migrations/`，编号即 `PRAGMA user_version`；有旧数据时迁移前先备份到 `data/backups/`。
+
+023 为 `rb_sources` 增加 `file_size`、`file_mtime_ms`、`content_hash`，与 022 的 `folder_path` 一起记录项目文件身份和扫描版本。
 
 | 迁移 | 表或改动                                                                                                                     | 用途                                                                           |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |

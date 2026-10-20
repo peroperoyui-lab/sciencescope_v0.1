@@ -110,10 +110,10 @@ export function createViewImage(core, research) {
     const source = args.sourceId ? research.store.getSource(args.sourceId) : null;
     const file = await filePath(
       toolWorkFolder(core, context),
-      source ? path.join(core.paths.library, source.originalPath) : args.path,
+      source ? await research.sourcePath(source.id) : args.path,
       core.paths.secret,
     );
-    const extension = path.extname(file).toLowerCase();
+    const extension = path.extname(source?.name ?? file).toLowerCase();
     if (!['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.gif'].includes(extension))
       throw new AppError('IMAGE_FORMAT', 'view_image supports PDF, PNG, JPEG, WebP and GIF.');
     const region = cropRegion(args.region);

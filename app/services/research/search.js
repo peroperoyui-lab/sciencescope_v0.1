@@ -90,6 +90,7 @@ export function createResearchSearch(store) {
         type,
         id,
         sourceId: source.id,
+        folderPath: source.folderPath,
         projectId: source.projectId,
         title: source.title,
         text: chunk?.text ?? source.metadata?.abstract ?? source.title,
