@@ -35,6 +35,9 @@ export function registerResearchRoutes(router, core, service, semantic) {
   router.patch('/api/research/sources/:id', ({ params, body }) =>
     research.store.updateSource(params.id, body, actor),
   );
+  router.delete('/api/research/sources/:id', ({ params }) =>
+    research.deleteSource(params.id, actor),
+  );
   router.post('/api/research/sources/:id/reparse', ({ params }) =>
     research.reparseSource(params.id, actor),
   );

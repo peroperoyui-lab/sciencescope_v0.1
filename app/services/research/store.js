@@ -56,6 +56,7 @@ const chunkKinds = [
  *   listSources: (options?: SourceQuery) => ResearchSource[],
  *   countSources: (options?: SourceQuery) => number,
  *   updateSource: (id:string,patch:any,actor?:Actor) => ResearchSource,
+ *   deleteSource: (id:string,actor?:Actor) => ResearchSource,
  *   findSource: (label: string, projectId?: string | null) => ResearchSource | null,
  *   addChunks: (sourceId: string, passages: any[], parseResult?: ParseResult, actor?: Actor) => ResearchSource,
  *   getChunk: (id: string) => ResearchChunk,
@@ -343,6 +344,23 @@ export function createResearchStore({
       .map(chunkRow);
   }
 
+  /**
+   * Catalog deletion is called by the shared service after original-file handling.
+   * @param {string} id
+   * @param {Actor} [actor]
+   * @returns {ResearchSource}
+   */
+  function deleteSource(id, actor = {}) {
+    return db.transaction(() => {
+      const source = getSource(id);
+      for (const chunk of chunks(id)) deleteIndex('chunk', chunk.id);
+      deleteIndex('source', id);
+      db.prepare('DELETE FROM rb_sources WHERE id=?').run(id);
+      changed('source.deleted', source, actor);
+      return source;
+    });
+  }
+
   return {
     db,
     createSource,
@@ -350,6 +368,7 @@ export function createResearchStore({
     listSources,
     countSources,
     updateSource,
+    deleteSource,
     findSource,
     addChunks,
     getChunk,

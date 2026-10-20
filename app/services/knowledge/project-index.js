@@ -2,7 +2,7 @@
 // copies outlive folder moves; parsing/search remain research-service projections.
 import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
-import { fileHash, copyProjectFile } from './project-copies.js';
+import { fileHash, copyProjectFile, createProjectCopies } from './project-copies.js';
 
 const excluded = new Set(['node_modules', '__pycache__', 'renv']);
 
@@ -22,6 +22,8 @@ async function* walk(root, folder = '') {
  */
 export function createProjectIndex({ core, research, files }) {
   const running = new Map();
+  const maintenance = new Map();
+  const copies = createProjectCopies(core, research.store);
   let closed = false;
 
   async function scanOnce(projectId) {
@@ -32,8 +34,30 @@ export function createProjectIndex({ core, research, files }) {
         .filter((source) => source.folderPath)
         .map((source) => [source.folderPath, source]),
     );
-    const result = { added: 0, updated: 0, unchanged: 0, nameOnly: 0, failed: 0 };
-    for await (const relative of walk(root)) {
+    // Finish enumeration first. An unavailable root is not an empty project,
+    // and moves must be detected independently of directory traversal order.
+    const paths = [];
+    for await (const relative of walk(root)) paths.push(relative);
+    const present = new Set(paths);
+    const missing = [...previous.values()].filter((source) => !present.has(source.folderPath));
+    const byHash = new Map();
+    for (const source of missing) {
+      if (!source.contentHash) continue;
+      const matches = byHash.get(source.contentHash) ?? [];
+      matches.push(source);
+      byHash.set(source.contentHash, matches);
+    }
+    const moved = new Set();
+    const result = {
+      added: 0,
+      updated: 0,
+      unchanged: 0,
+      nameOnly: 0,
+      failed: 0,
+      moved: 0,
+      deleted: 0,
+    };
+    for (const relative of paths) {
       if (closed) break;
       let source = previous.get(relative);
       const file = path.join(root, relative);
@@ -49,7 +73,17 @@ export function createProjectIndex({ core, research, files }) {
           result.unchanged++;
         } else {
           const hash = await fileHash(file);
-          if (
+          const relocated = !source && byHash.get(hash)?.shift();
+          if (relocated) {
+            source = research.store.updateSource(relocated.id, {
+              ...stamp,
+              folderPath: relative,
+              name: path.basename(relative),
+              ...(relocated.title === relocated.name ? { title: path.basename(relative) } : {}),
+            });
+            moved.add(source.id);
+            result.moved++;
+          } else if (
             source?.contentHash === hash &&
             !['queued', 'failed'].includes(source.contentStatus)
           ) {
@@ -97,16 +131,26 @@ export function createProjectIndex({ core, research, files }) {
           });
       }
     }
+    // A failed read may be the missing file at its new path. Retry the scan
+    // before deleting its catalog identity or acting on a cancelled scan.
+    if (!closed && !result.failed) {
+      for (const source of missing) {
+        if (moved.has(source.id)) continue;
+        await research.deleteSource(source.id, { actorId: 'system', origin: 'system' });
+        result.deleted++;
+      }
+    }
     return result;
   }
 
   /**
    * Every caller waits for the coalesced follow-up as well.
    * @param {string} projectId
-   * @returns {Promise<{added:number,updated:number,unchanged:number,nameOnly:number,failed:number}>}
+   * @returns {Promise<{added:number,updated:number,unchanged:number,nameOnly:number,failed:number,moved:number,deleted:number}>}
    */
   function scan(projectId) {
     if (closed) return Promise.reject(new Error('Project index is closed.'));
+    if (maintenance.has(projectId)) return maintenance.get(projectId).then(() => scan(projectId));
     const existing = running.get(projectId);
     if (existing) {
       existing.again = true;
@@ -123,6 +167,18 @@ export function createProjectIndex({ core, research, files }) {
     })().finally(() => running.delete(projectId));
     running.set(projectId, state);
     return state.promise;
+  }
+
+  /** @param {string} projectId */
+  function cleanupCopies(projectId) {
+    if (closed) return Promise.reject(new Error('Project index is closed.'));
+    if (maintenance.has(projectId)) return maintenance.get(projectId);
+    const operation = (async () => {
+      await running.get(projectId)?.promise;
+      return copies.cleanup(projectId);
+    })().finally(() => maintenance.delete(projectId));
+    maintenance.set(projectId, operation);
+    return operation;
   }
 
   /**
@@ -165,9 +221,12 @@ export function createProjectIndex({ core, research, files }) {
     scan,
     request,
     entry,
+    copyUsage: copies.all,
+    cleanupCopies,
     async close() {
       closed = true;
       await Promise.allSettled([...running.values()].map((state) => state.promise));
+      await Promise.allSettled([...maintenance.values()]);
     },
   };
 }

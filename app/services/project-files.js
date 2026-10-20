@@ -90,6 +90,7 @@ export function createProjectFiles(core, { recycle = recyclePath, requestIndex, 
       const { root, target } = inside(projectId, relative);
       if (target === root) throw new AppError('ENTRY_REQUIRED', '请选择要删除的文件或文件夹。');
       await recycle(target);
+      requestIndex?.(projectId);
     },
 
     /**

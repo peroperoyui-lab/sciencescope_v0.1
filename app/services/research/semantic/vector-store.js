@@ -6,6 +6,39 @@ const candidateKey = (ref, version) =>
   createHash('sha256').update(`${ref.type}\0${ref.id}\0${version}`).digest('hex');
 const refKey = (ref) => `${ref.type}:${ref.id}`;
 
+/** @param {import('../../../core/db/database.js').Db} db */
+function loadVectorExtension(db) {
+  db.raw.enableLoadExtension(true);
+  try {
+    sqliteVec.load(db.raw);
+  } finally {
+    db.raw.enableLoadExtension(false);
+  }
+}
+
+/**
+ * Deletion also works after reopening a database with semantic search disabled.
+ * @param {import('../../../core/db/database.js').Db} db
+ * @param {Array<{type:string,id:string}>} refs
+ * @returns {number}
+ */
+export function deleteVectorReferences(db, refs) {
+  const find = db.prepare('SELECT rowid FROM rb_vec_docs WHERE ref_type=? AND ref_id=?');
+  find.setReadBigInts(true);
+  const rows = refs.flatMap((ref) => find.all(ref.type, ref.id));
+  if (!rows.length) return 0;
+  loadVectorExtension(db);
+  return db.transaction(() => {
+    const removeVector = db.prepare('DELETE FROM rb_vec WHERE rowid=?');
+    const removeDocument = db.prepare('DELETE FROM rb_vec_docs WHERE rowid=?');
+    for (const row of rows) {
+      removeVector.run(row.rowid);
+      removeDocument.run(row.rowid);
+    }
+    return rows.length;
+  });
+}
+
 function vectorBlob(vector, dimensions) {
   const values = Float32Array.from(vector);
   const norm = values.reduce((sum, value) => sum + value * value, 0);
@@ -26,12 +59,7 @@ export async function createVectorStore({
   dimensions = 384,
   onRebuild = () => {},
 }) {
-  db.raw.enableLoadExtension(true);
-  try {
-    sqliteVec.load(db.raw);
-  } finally {
-    db.raw.enableLoadExtension(false);
-  }
+  loadVectorExtension(db);
   let closed = false;
   const current = db.prepare(
     'SELECT rowid FROM rb_vec_docs WHERE model_id=? AND model_version=? AND candidate_key=?',

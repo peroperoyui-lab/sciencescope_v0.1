@@ -58,6 +58,8 @@ test('project files are indexed, changed once and readable after their folder mo
         unchanged: 0,
         nameOnly: 1,
         failed: 0,
+        moved: 0,
+        deleted: 0,
       });
       const sources = research.store.listSources({ projectId: project.id });
       const paper = sources.find((source) => source.name === '研究.pdf');
@@ -150,6 +152,8 @@ test('project files are indexed, changed once and readable after their folder mo
       );
       const moved = path.join(dir, '项目移走');
       await rename(folder, moved);
+      await assert.rejects(index.scan(project.id), { code: 'ENOENT' });
+      assert.equal(research.store.getSource(paper.id).id, paper.id);
       assert.equal(
         await research.sourcePath(paper.id),
         path.join(core.paths.library, latest.originalPath),

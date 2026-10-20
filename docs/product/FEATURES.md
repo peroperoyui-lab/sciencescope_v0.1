@@ -233,10 +233,13 @@ data/
 - 统一检索资料段落和条目：默认中英文关键词检索（SQLite FTS5）。开启"本地混合检索"后，加上本机向量检索；每次结果标明本次是关键词还是混合检索。
 - AI 用 `research_search` / `research_read` 检索和分页读取，读取结果报告剩余长度，不截断全文；引用格式兼容 `[S3 p.4]`、复合、中文和全角写法。
 - 文件预览：PDF（文字层、翻页、高亮）、DOCX（可读视图与版式视图）、Markdown、LaTeX、CSV、代码（只读）和图片。
-- 打开项目文件夹根目录或在应用内新建、改名、添加文件后，后台扫描文件；可用项目索引接口立即扫描。先比较修改时间和大小，变化后才算哈希，内容变化才复制和重解析。同一项目并发请求合为当前扫描及一次补扫。
+- 打开项目文件夹根目录或在应用内新建、改名、添加、回收文件后，后台扫描文件；可用项目索引接口立即扫描。先比较修改时间和大小，变化后才算哈希，内容变化才复制和重解析。同一项目并发请求合为当前扫描及一次补扫。
 - 大目录首次扫描仍逐文件复制并提交索引事务：Windows H 盘两万个小型文件首扫 34 分 42 秒，未改动重扫 0.832 秒；根目录列表请求不等待首扫完成。分批事务优化待审阅。
 - 每个项目文件都有资料记录、相对路径及数据目录内的哈希副本；同内容去重，修改后的旧副本暂保留。无法解析或超过 200 MB 的文件只索引文件名和路径并保留原因，关键词和语义文档均可找到；复制或读取失败标为失败，下次扫描重试。
 - 原件打开、重解析、预览和看图优先读项目现文件，路径不存在时读取副本；`research_read` 继续分页读取已索引的段落，项目文件夹移走后仍可查阅。扫描不向用户文件夹写文件，不抽实体或整理卡片。
+- 扫描先枚举目录，再按内容哈希识别移动：保留资料 ID、段落和边，只更新路径与文件名；确实消失的文件删除资料。根目录不可访问时保留索引，遇到读取失败时暂缓本轮删除，等下次成功扫描。
+- 删除资料共用一个服务：清理资料、段落、全文与向量索引、派生边及该资料产生的 extracted 边；人工关系标 removed 并进入可撤回的知识库版本，实体保留。全局导入原件进系统回收站；撤回关系版本恢复边，不恢复资料原件。
+- 项目副本不随删除资料自动清理；接口报告每个项目的总占用与无人引用占用，用户显式清理后释放旧副本。清理与该项目扫描串行，同一哈希仍被其他资料引用时保留。
 
 **实现位置**：`app/services/research/`（`store.js`、`items.js`、`search.js`、`citations.js`、`parsers/`、`semantic/`）、`app/services/preview/`；界面 `app/ui/components/research-*.js`、`file-preview.js`、`settings-semantic.js`、`app/ui/readers/`。
 
@@ -411,7 +414,10 @@ data/
 - `GET /api/projects/:id` 读取项目。
 - `PATCH /api/projects/:id` 改名、描述、文件夹、置顶、归档。
 - `GET /api/projects/:id/files` 列出项目文件夹内容；根目录请求触发后台扫描，文件条目带 `index:{status,sourceId,error}`，状态为 `parsed/parsing/name-only/failed/unindexed`。
-- `POST /api/projects/:id/index` 等待扫描，返回 `{added,updated,unchanged,nameOnly,failed}`；`nameOnly` 是扫描到的仅文件名记录数，`failed` 是本次读取/复制等错误数。
+- `POST /api/projects/:id/index` 等待扫描，返回 `{added,updated,unchanged,nameOnly,failed,moved,deleted}`；`nameOnly` 是扫描到的仅文件名记录数，`failed` 是本次读取/复制等错误数。
+- `GET /api/projects/storage/copies` 返回 `{projects:[{projectId,totalBytes,unreferencedBytes,totalFiles,unreferencedFiles}]}`。
+- `POST /api/projects/:id/copies/cleanup` 返回 `{projectId,releasedBytes,removedFiles}`，只删除没有资料引用的项目副本。
+- `DELETE /api/research/sources/:id` 删除资料及投影，返回 `{deleted,vectors,versionId}`；`versionId` 对应人工关系的撤回版本（没有关系修改时为 null）。
 - `POST /api/projects/:id/files` 新建文件夹、重命名、移到回收站、打开。
 - `GET /api/projects/:id/export` 项目快照 zip。
 - `POST /api/projects/:id/log-file/open` 打开日志条目里链接的文件。

@@ -9,8 +9,9 @@ import { parseDocument, parserFor } from './parsers/index.js';
 import { chunkBlocks } from './chunks.js';
 import { openPath } from '../system.js';
 import { createProjectFiles } from '../project-files.js';
+import { createSourceRemoval } from '../knowledge/source-removal.js';
 
-/** @param {import('../../core/index.js').Core} core @param {{semantic?:any,open?:typeof openPath}} [options] */
+/** @param {import('../../core/index.js').Core} core @param {{semantic?:any,open?:typeof openPath,recycle?:typeof import('../system.js').recyclePath}} [options] */
 export function createResearch(core, options = {}) {
   const store = createResearchStore({ db: core.db, events: core.events });
   const search = createResearchSearch(store);
@@ -127,6 +128,7 @@ export function createResearch(core, options = {}) {
 
   return {
     store,
+    deleteSource: createSourceRemoval(core, store, { recycle: options.recycle }),
     importSource,
     reparseSource,
     parseProjectSource,
