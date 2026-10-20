@@ -58,11 +58,12 @@ await write(
 
 const sidebar = await brand('installer-sidebar.html');
 const header = await brand('installer-header.html');
+const sidebarGreen = await brand('installer-sidebar-green.html');
 await write(
   'Installer',
   card(
     'Installer',
-    'group="品牌" height=540 subtitle="安装程序：欢迎页和完成页的左侧图 164×314，各步骤页头右侧图 150×57"',
+    'group="品牌" height=640 subtitle="安装程序：欢迎页和完成页的左侧图 164×314，各步骤页头右侧图 150×57"',
     `<div class="ds ds-row" style="gap:24px;align-items:flex-start">
   <div class="ds-col">
     <div style="display:flex;width:497px;height:314px;border:1px solid var(--line-strong);background:#fff">
@@ -81,9 +82,10 @@ await write(
       ${header}
     </div>
     ${label('步骤页头（右侧图 150×57）')}
+    <div class="ds-row" style="gap:12px;align-items:flex-end;margin-top:16px">${sidebarGreen}${label('备选：品牌绿左侧图（2026-10-20 换成纸色，留作参考）')}</div>
   </div>
 </div>
-<p class="ds-note" style="padding:0 16px">两张图都生成为 24 位 BMP（tools/package/brand/），由打包配置的 sidebarImage 和 headerImage 引用。左侧图的文字中英各一行，安装程序的语言选择不影响它。</p>`,
+<p class="ds-note" style="padding:0 16px">两张图都生成为 24 位 BMP（tools/package/brand/），由打包配置的 sidebarImage 和 headerImage 引用。左侧图和应用图标一致：纸色底、墨色标志，右边一条细线和安装程序的白色内容区分开；文字中英各一行，安装程序的语言选择不影响它。</p>`,
   ),
 );
 

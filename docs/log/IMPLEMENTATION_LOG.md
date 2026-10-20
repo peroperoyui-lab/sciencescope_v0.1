@@ -1,26 +1,33 @@
 # 实施记录
 
 ## 2026-10-20 复盘整理文档（Claude）
+
 - 路线图开头加 11 个板块的现状、设计和下一步；架构总纲、愿景、设计系统、首测指南、协作方式、想法清单、文档索引按现状更新。X1、X2 任务书移入 `done/`，`KNOWLEDGE_GRAPH.md` 归档。
 
 ## 2026-10-20 知识库规模方案并入设计（Claude）
+
 - 用户采纳：检索枢纽降权、扇出截取、单次访问、路径去重；工具结果轻量、详情按需；图视图按视野加载（用户提出）、位置存库、后台 ForceAtlas2、拖动钉住、删除不补位。改 `KNOWLEDGE_BASE.md` §5、§6、§7a、§8、§10（新增 KB-10a）、§11，DECISIONS 一条。
 
 ## 2026-10-20 X0 内置基础技能（Claude）
+
 - `app/resources/skills/` 换成四个技能：cite-sources、edit-workspace、deliver-files、python-analysis，删掉格式示例；技能测试改用 cite-sources，停用时停掉全部技能。真实模型验收放进 R6a-6。
 
 ## 2026-10-20 应用图标换回纸色底板（Claude）
-- 按用户意见，`tools/brand/icon.svg` / `icon-small.svg` 改为纸色底板、细描边、墨色标志，重新生成 `tools/package/brand/icon.ico`；绿底稿改名 `icon-green*.svg`，画廊 AppIcon 卡片作备选保留。安装程序侧图未改。
+
+- 安装程序左侧图同样改成纸色（绿色版 `installer-sidebar-green.html` 留在画廊）。按用户意见，`tools/brand/icon.svg` / `icon-small.svg` 改为纸色底板、细描边、墨色标志，重新生成 `tools/package/brand/icon.ico`；绿底稿改名 `icon-green*.svg`，画廊 AppIcon 卡片作备选保留。安装程序侧图未改。
 
 ## 2026-10-20 X1、X2 审查合并（Claude）
+
 - 合并 X1 技能、X2 MCP。修三处：服务器 id 改为 `s`+8 位、工具名只留 `[A-Za-z0-9_-]` 并截到 64 字符（模型接口限制，SSE 测试覆盖带点的工具名）；npx 默认镜像改 npmmirror；Linux/macOS 关闭时结束整棵子进程树（原来孙进程会留下，测试在 Linux 失败）。check 264 通过 / 3 跳过。
 
 ## 2026-10-20 X2 MCP 接入（Codex）
+
 - 基于未合并的 X1；官方 SDK 接通 stdio/HTTP/SSE、导入和凭据引用、动态工具、原始 Schema、图片与 C1 按服务器批准。随包 npm 补 npx，uvx 复用 uv；未改界面和用户预览。验证材料在 `.sciencescope-local/temp/x2/`。
 - Windows 功能验证覆盖导入、脚本模型调用、跨会议共享服务器批准、停用、失败原因、断线重连及子进程树退出；干净检出 `npm run check` 264/264 通过、0 失败/跳过，含 Windows/NSIS。
 - 全新隔离安装从设置添加 Go，flash 调用官方 Time MCP 成功：3 请求 / 8,295 tokens（连接测试 1 / 48），全部 HTTP 200；WebView2 100%/125% 截图已留，Node/uv/MCP/Python 退出无残留，随包 npx 11.6.2 可运行；测试产品及数据已卸载清理。
 
 ## 2026-10-19 X1 技能接入（Codex）
+
 - 文件夹/ZIP 导入、内置复制、启停、技能目录、use_skill 与角色预载正文接入；新增技能及工具目录接口。后台纪要/记忆保持无工具，只预载绑定正文；界面只补英文。验证材料在 .sciencescope-local/temp/x1/。
 - 干净检出 `npm run check` 261 通过、0 失败/跳过（首轮 NSIS 因无编译器跳过，指定本机构建工具后完整复验）；相关 16 项通过。包内示例技能已核对。
 - 全新隔离安装 flash 验收：3 请求、7,562 tokens（连接测试 53），实际调用 use_skill 后按三行格式回答；WebView2 100%/125% 截图已留，退出无残留，测试产品及数据已卸载清理，用户预览未动。
