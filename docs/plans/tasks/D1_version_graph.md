@@ -24,7 +24,7 @@
 3. **接口**（加在现有 `app/server/routes/versions.js`）：
    - `GET /api/version-groups/:id/graph`：`{ group, nodes }`，每个节点 `{ id, number, parentId, branch, tier, label, title, displayTitle, origin, createdAt, notesExcerpt, instructions }`。`displayTitle` 是标题，空时用原文件名；`notesExcerpt` 是版本说明前 200 字；`instructions` 是这个版本的 `desk_changes` 里不为空的修改指令（去重，最多 10 条，D1 时为空数组）。已删除的版本不返回，但它的子版本的 `parentId` 改指向最近的未删除祖先。
    - `PATCH /api/versions/:id {title?, tier?, label?, branch?}`：改单个版本的标题、层级、标签。`branch` 改的是整条泳道的名字：这一组里所有同名分支的版本一起改；新名字和组里已有分支重名时返回可读错误。改完发 `versions.changed`。
-   - `POST /api/version-tiers/rename {from, to}`：在同一事务里改设置 `desk.tiers` 里的名字和所有用了这个层级的版本。层级被删掉时不动已标的版本（照原文字显示）。
+   - `POST /api/version-tiers/rename {from, to}`：改设置 `desk.tiers` 里的名字和所有用了这个层级的版本：先在一个 SQLite 事务里改版本，再照常用 `workspace.edit` 改设置；改设置失败时把版本改回去，返回可读错误。不改 `workspace.edit`，断电等中途失败不另做恢复（两边对不上时版本照原文字显示，不影响使用）。层级被删掉时不动已标的版本（照原文字显示）。
 4. **设置**：`desk.tiers`，默认 `["草稿","内部审阅","投稿","修回","终稿"]`，存进现有设置文件；`PATCH /api/versions/:id` 的 `tier` 只接受列表里的名字或空串。`features.editingDesk` 开关不在这次做（U1 由 Claude 加）。
 
 ## 可以改的
