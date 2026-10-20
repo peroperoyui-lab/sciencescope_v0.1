@@ -26,6 +26,7 @@ import { serveStatic } from './static.js';
 import { registerSkillRoutes } from './routes/skills.js';
 import { registerToolRoutes } from './routes/tools.js';
 import { registerMcpRoutes } from './routes/mcp.js';
+import { registerKnowledgeRoutes } from './routes/knowledge.js';
 
 // Generous resource bound for request bodies (attachments travel separately).
 const MAX_BODY_BYTES = 64 * 1024 * 1024;
@@ -76,6 +77,7 @@ function tokenMatches(given, expected) {
  *   research?: ReturnType<typeof import('../services/research/index.js').createResearch>, semantic?:any,
  *   projectFiles?:ReturnType<typeof import('../services/project-files.js').createProjectFiles>,
  *   projectIndex?:ReturnType<typeof import('../services/knowledge/project-index.js').createProjectIndex>,
+ *   knowledge?:any, knowledgeSessions?:any, knowledgeJobs?:any,
  *   conductor?: ReturnType<typeof import('../services/conductor.js').createConductor> }} options
  *   Without a conductor (core-only tests) posting a message triggers no answers.
  */
@@ -103,6 +105,9 @@ export function createAppServer({
   mcp,
   projectFiles,
   projectIndex,
+  knowledge,
+  knowledgeSessions,
+  knowledgeJobs,
 }) {
   const router = createRouter();
   registerSkillRoutes(router, skills);
@@ -126,6 +131,12 @@ export function createAppServer({
   registerEventRoutes(router, core);
   registerSystemRoutes(router, core);
   registerResearchRoutes(router, core, research, semantic);
+  registerKnowledgeRoutes(router, core, {
+    knowledge,
+    sessions: knowledgeSessions,
+    jobs: knowledgeJobs,
+    research,
+  });
   if (startup) {
     router.post('/api/startup/rendered', async ({ body }) => {
       await startup.finish({

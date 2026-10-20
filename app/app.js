@@ -2,6 +2,7 @@
 // server. `main.js` starts it for real; tests start it with a fixture model.
 import { createKnowledgeStore } from './services/knowledge/store.js';
 import { createKnowledgeJobs } from './services/knowledge/jobs.js';
+import { createKnowledgeSessions } from './services/knowledge/sessions.js';
 import { createProjectIndex } from './services/knowledge/project-index.js';
 import { createProjectFiles } from './services/project-files.js';
 import { createCore } from './core/index.js';
@@ -49,6 +50,8 @@ export async function createApp({
   startup?.mark('createCoreEnd');
   const versions = createVersions(core);
   const knowledge = createKnowledgeStore(core);
+  const knowledgeSessions = createKnowledgeSessions(core, knowledge);
+  knowledgeSessions.recover();
   const semantic = createSemantic(core);
   const research = createResearch(core, { semantic });
   const knowledgeJobs = createKnowledgeJobs({ core, research, semantic });
@@ -154,6 +157,9 @@ export async function createApp({
     startup,
     providers,
     approvals: tools.approvals,
+    knowledge,
+    knowledgeSessions,
+    knowledgeJobs,
   });
 
   return {
@@ -164,6 +170,7 @@ export async function createApp({
     skills,
     knowledge,
     knowledgeJobs,
+    knowledgeSessions,
     versions,
     versionNotes,
     python,

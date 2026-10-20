@@ -1,6 +1,16 @@
 import { AppError } from '../../core/errors.js';
 import { newId, nowIso } from '../../core/ids.js';
 import { createRecords, publicRow } from './records.js';
+import { isDeepStrictEqual } from 'node:util';
+
+// Ignore revision bookkeeping when counting a record's net change.
+function meaningful(row) {
+  if (!row || row.status === 'removed') return null;
+  const result = { ...row };
+  delete result.revision;
+  delete result.updated_at;
+  return result;
+}
 
 /**
  * A version groups reversible mutations, not file-backed workspace revisions.
@@ -70,9 +80,16 @@ export function createKnowledgeVersions(core) {
         return null;
       }
       const summary = { created: 0, updated: 0, removed: 0 };
-      for (const row of rows) {
+      const net = new Map();
+      for (const row of rows)
+        net.set(row.ref, {
+          before: net.has(row.ref) ? net.get(row.ref).before : meaningful(row.before),
+          after: meaningful(row.after),
+        });
+      for (const row of net.values()) {
+        if (isDeepStrictEqual(row.before, row.after)) continue;
         if (!row.before) summary.created++;
-        else if (!row.after || row.after.status === 'removed') summary.removed++;
+        else if (!row.after) summary.removed++;
         else summary.updated++;
       }
       db.prepare('UPDATE kb_versions SET closed_at=?,summary_json=? WHERE id=?').run(
@@ -144,6 +161,12 @@ export function createKnowledgeVersions(core) {
       "DELETE FROM kb_edges WHERE layer='derived' AND (from_ref=? OR to_ref=?)",
     );
     for (const ref of refs) statement.run(ref, ref);
+  }
+  function replayRecord(id, ref, desired, op, actor) {
+    const before = records.read(ref);
+    const after = restoredState(ref, before, desired);
+    records.write(ref, after);
+    return record(id, ref, op, before, after, actor);
   }
   function restore(id, actor = {}) {
     return db.transaction(() => {
@@ -250,6 +273,8 @@ export function createKnowledgeVersions(core) {
     changed,
     restore,
     restoreRevision,
+    replayRecord,
+    invalidateDerived,
   };
 }
 
