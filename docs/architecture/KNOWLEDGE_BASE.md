@@ -6,15 +6,15 @@
 
 ## 0. 现状核对
 
-| 事实                                                                                                                                                                   | 位置                                                       |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| 事实                                                                                                                                                                   | 位置                                                            |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
 | 迁移最高编号 020；任务书 A2-2 还要占一个号（删目标表），所以知识库迁移按现在的排队是 **022**，实现时取目录里实际最高号加一                                             | `app/core/db/migrations/index.js`、`plans/tasks/done/A2-2_*.md` |
-| 资料 `rb_sources`（`project_id` 可空，11 种 `kind`，没有 `link`）；段落 `rb_chunks`（有 `reference` 类）；条目 `rb_items`（没有 `code` 类型）；条目修订 `rb_revisions` | 迁移 003、`research/store.js`、`items.js`                  |
-| 导入一律复制原件到 `data/library/originals/`；项目文件夹里的文件**目前不解析入库**，项目页只列文件                                                                     | `research/index.js`、`services/project-files.js`           |
-| 混合检索 = 向量（权重 1.0）+ 关键词（0.5）的 RRF；向量阶段超过 300 毫秒整次退回关键词                                                                                  | `search.js`、`semantic/hybrid.js`                          |
-| 向量文档来自资料、段落、条目三处，`rb_vec` 固定 384 维；`research.changed` 触发增量重建                                                                                | `semantic/documents.js`、`semantic/index.js`               |
-| `revisions` 和 `resource_snapshots` 以**文件为正本**：恢复要写回资源文件；`captureTurnSnapshots` 会把一轮里所有 `revisions` 行做成历史版本                             | `core/workspace/workspace.js`、`snapshots.js`              |
-| 资料库工具只有 `research_search`、`research_read`，没有写入工具                                                                                                        | `services/tools.js`                                        |
+| 资料 `rb_sources`（`project_id` 可空，11 种 `kind`，没有 `link`）；段落 `rb_chunks`（有 `reference` 类）；条目 `rb_items`（没有 `code` 类型）；条目修订 `rb_revisions` | 迁移 003、`research/store.js`、`items.js`                       |
+| 导入一律复制原件到 `data/library/originals/`；项目文件夹里的文件**目前不解析入库**，项目页只列文件                                                                     | `research/index.js`、`services/project-files.js`                |
+| 混合检索 = 向量（权重 1.0）+ 关键词（0.5）的 RRF；向量阶段超过 300 毫秒整次退回关键词                                                                                  | `search.js`、`semantic/hybrid.js`                               |
+| 向量文档来自资料、段落、条目三处，`rb_vec` 固定 384 维；`research.changed` 触发增量重建                                                                                | `semantic/documents.js`、`semantic/index.js`                    |
+| `revisions` 和 `resource_snapshots` 以**文件为正本**：恢复要写回资源文件；`captureTurnSnapshots` 会把一轮里所有 `revisions` 行做成历史版本                             | `core/workspace/workspace.js`、`snapshots.js`                   |
+| 资料库工具只有 `research_search`、`research_read`，没有写入工具                                                                                                        | `services/tools.js`                                             |
 
 由此得出一个约束：图的修改**不能写进 `revisions`**，否则 AI 一轮结束时会为它建一个找不到资源处理器的历史版本。图用自己的修订表和版本表，形状照抄 `revisions` 和 `resource_snapshots`（§3.6）。
 
@@ -55,7 +55,7 @@
 | 节点                                                         | 存在哪里                                                     | 引用          | 改动                                                                       |
 | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------- | -------------------------------------------------------------------------- |
 | 文献、网页、数据集、软件等                                   | `rb_sources`                                                 | `source:<id>` | `kind` 加 `link`（只存网址和元数据）                                       |
-| 项目文件夹里的文件                                           | `rb_sources`，`project_id` 非空                              | `source:<id>` | 加列 `folder_path`，`original_path` 为空                                   |
+| 项目文件夹里的文件                                           | `rb_sources`，`project_id` 非空                              | `source:<id>` | 加列 `folder_path`，`original_path` 指向数据目录里的副本（§4.1）           |
 | 知识、模型与公式、主张、笔记                                 | `rb_items`                                                   | `item:<id>`   | 无                                                                         |
 | 代码片段                                                     | `rb_items` 类型 `code`（子类型 snippet / function / script） | `item:<id>`   | `payload`：language、code、repo、path、lineStart、lineEnd、commit、license |
 | 实体：方法、变种、数据集、变量、指标、软件、概念、人物、机构 | 新表 `kb_entities`                                           | `entity:<id>` | 新增                                                                       |
@@ -214,7 +214,7 @@ CREATE UNIQUE INDEX rb_sources_folder ON rb_sources(project_id, folder_path) WHE
 
 1. **引用**：从 `reference` 段落和参考文献部分提取 DOI 和标题，与库里资料的 `metadata.doi` 精确匹配，或与归一化标题（小写、去标点空白）精确匹配，写 `cites`。只连库里已有文献，不建占位节点。
 2. **相似**（保守，§1a 第 4 条）：每篇文献用资料级向量取最近 3 篇，余弦相似度 ≥ 0.85 才写 `similar-to`，`weight` 为相似度；只在文献之间建，不连数据文件和文稿。阈值是代码常量，KB-3 用样例库校准，宁缺不滥。没开本地混合检索时记 `skipped`，不报错。
-3. **文件夹**：项目文件写 `in-folder` 到虚拟节点 `folder:<项目>/<路径>`，由路径即时生成，只在项目视图显示。
+3. **文件夹**：项目文件写 `in-folder` 到虚拟节点 `folder:<项目>/<路径>`，由路径即时生成，只在项目视图显示；这类边不存表，由图接口（KB-5）按 `folder_path` 生成。
 
 ### 4.3 第 2 层：论文卡片
 
@@ -339,6 +339,8 @@ KB-6 用 10 篇真实论文实测，按实测更新本表。
 | KB-12 | Claude       | 对话侧：「本轮用到的资料」显示路径和在图中查看；「本轮修改了知识库」行与撤回                                                                         | 全新安装上场景 2、4 走通                                                                                                       | 是         |
 | KB-13 | Sol          | 主题深挖（确认篇数、按版本跳过）                                                                                                                     | 一个主题 5 篇实测请求和 token                                                                                                  | 否（可选） |
 | KB-14 | Sol + Claude | 结构空缺（Louvain 用 graphology，MIT）与「请专家提问题」，功能开关                                                                                   | 场景 6 走通                                                                                                                    | 否         |
+
+KB-2 按任务书拆成 KB-2a（扫描、副本、解析退路）和 KB-2b（移动、删除、删除资料、副本清理）。
 
 顺序：KB-1 →（KB-2 ∥ KB-8）→ KB-3 → KB-4 → KB-5 → KB-9 → KB-6 → KB-10 → KB-11 → KB-7 → KB-12；KB-13、KB-14 视时间。
 
