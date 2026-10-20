@@ -608,9 +608,9 @@ data/
 
 - `services/skills/` 读取 `data/skills/<name>/` 和随包的 `app/resources/skills/<name>/`；同名用户技能优先。SKILL.md 保留 YAML 元数据和原始 Markdown 正文；文件夹或 ZIP 导入不覆盖已有用户技能，内置只能复制或停用，删除用户副本后恢复内置。手工损坏的技能在列表显示 error，不进入模型目录。
 - 主专家、专家、秘书聊天、全局助手每轮系统提示词列出启用技能；`use_skill {name}` 返回 `{name,body,directory}`（绝对路径），不存在或停用返回 `{message}`，不申请批准。绑定的启用技能正文预载到角色提示词，失效绑定跳过。后台纪要/记忆只预载绑定正文并保持无工具；已有工具的后台版本说明也收到目录（用户2026-10-19确认）。
-- `GET /api/skills` 返回数组，每项 `{name,description,metadata,source:'builtin'|'user',directory,enabled,boundRoles:[{id,name}],error?}`；`GET /api/skills/:name` 返回同一技能及 `body`（无 boundRoles）；`POST /api/skills/import` 接受 `{path}`（文件夹/ZIP）或 `{dataBase64}`（ZIP）；`POST /api/skills/:name/copy` 复制内置；`DELETE /api/skills/:name` 删除用户技能。
+- `GET /api/skills` 返回数组，每项 `{name,title,description,metadata,source:'builtin'|'user',overrides,directory,enabled,boundRoles:[{id,name}],error?}`（`title` 取 SKILL.md 的 `metadata.title`，没有为 null；`overrides` 表示这是用户对同名内置技能的副本）；`GET /api/skills/:name` 返回同一技能及 `body`（无 boundRoles）；`POST /api/skills/import` 接受 `{path}`（文件夹/ZIP）或 `{dataBase64}`（ZIP）；`POST /api/skills/:name/copy` 复制内置；`DELETE /api/skills/:name` 删除用户技能；`POST /api/skills/:name/open` 在文件管理器里打开技能文件夹。
 - 启停使用 `PATCH /api/settings {skills:{disabled:[名称]}}`，默认空数组。角色绑定沿用 `PATCH /api/participants/:id {skills:[名称]}`。文件和设置是正本，无新增数据库迁移。
-- `GET /api/tools` 返回数组 `{name,source:'builtin'|'sciencescope'|'skill'|'mcp',server?,description,needsApproval,enabled}`；本步前三类，技能每个一项。needsApproval 表示该工具在请求批准模式下可能需要询问，实际仍依照项目位置及已保存批准规则判断。技能页/工具页及时间线展示由 Claude 接入；包内有四个内置基础技能（X0，Claude 2026-10-20）：`cite-sources` 查资料并引用原文、`edit-workspace` 修改工作区并留版本、`deliver-files` 交付文件、`python-analysis` 用 Python 分析数据，讲几样工具怎么配合用。
+- `GET /api/tools` 返回数组 `{name,source:'builtin'|'sciencescope'|'skill'|'mcp',server?,description,needsApproval,enabled}`；本步前三类，技能每个一项。needsApproval 表示该工具在请求批准模式下可能需要询问，实际仍依照项目位置及已保存批准规则判断。设置页和时间线见下方「设置里的工具、技能、MCP 服务器」；包内有四个内置基础技能（带 `metadata.title` 中文名）（X0，Claude 2026-10-20）：`cite-sources` 查资料并引用原文、`edit-workspace` 修改工作区并留版本、`deliver-files` 交付文件、`python-analysis` 用 Python 分析数据，讲几样工具怎么配合用。
 
 ## MCP 服务器与工具（X2，2026-10-19）
 
@@ -619,7 +619,17 @@ data/
 - `POST /api/mcp/import` 接受配置对象或 `{config:对象或JSON字符串}`；支持 `{mcpServers:{名称:{command,args,env}|{url,headers}}}`、内部名称映射和单个服务器对象，返回添加结果数组。`env` / `headers` 输入字符串保存至 `secret/credentials.yaml`，配置和响应只含 `{keyRef}`；编辑可原样回传引用，其他设置写入路径也要求引用。配置存 `settings.mcp.servers`，无数据库迁移。
 - Node/npx/npm/uv/uvx 使用随包 Node、npm（11.6.2，Artistic-2.0）和 uv；子进程 PATH 优先随包目录。`mcp.npmRegistry`（默认 null = npmmirror）控制 npx，pip 复用 `python.indexUrl`，解释器复用 `python.installMirror`；缓存位于 `data/mcp/`。开发验收走 npmmirror / 阿里云。
 - 所有原本具备工具的角色收到 `mcp__<服务器id>__<工具名>`（服务器 id 为 `s` 加 8 位；工具名里 `[A-Za-z0-9_-]` 以外的字符换成 `_`，超过 64 字符截断，以符合模型接口的工具名限制），原样传递 description 与 JSON Schema；文字及图片返回 `{text,images?:[{data,mimeType}],isError?}`。不接资源、提示词和采样。停用服务器从工具表移除；停用单个工具在 `/api/tools` 保留 `enabled:false`，模型工具表排除它。
-- `/api/tools` 的 MCP 项为 `{name,source:'mcp',server:服务器id,description,needsApproval:true,enabled}`。「请求批准」摘要为「服务器 · 工具」及参数，范围候选 `{kind:'server',value:服务器id,label:'这个服务器的所有工具',values:{}}`；按项目记住，同服务器其他工具共用，独立对话按会议记住。「常规」不问。界面及上述新文字的英文由 Claude 接入，本步未改 `app/ui/`。
+- `/api/tools` 的 MCP 项为 `{name,source:'mcp',server:服务器id,serverName,tool:原工具名,description,needsApproval:true,enabled}`。修改服务器保持它在列表里的位置；只改名称或停用工具不重连，改连接方式、命令、网址、开关或密钥才重连。「请求批准」摘要为「服务器 · 工具」及参数，范围候选 `{kind:'server',value:服务器id,label:'这个服务器的所有工具',values:{}}`；按项目记住，同服务器其他工具共用，独立对话按会议记住。「常规」不问。
+
+## 设置里的工具、技能、MCP 服务器（X-UI，2026-10-20）
+
+- 设置 → 工具与环境 下新增「工具」「技能」「MCP 服务器」三页（`settings-tools.js`、`settings-skills.js`、`settings-mcp.js`，设计稿见画廊 PageSettingsTools / Skills / Mcp）。
+- **工具**：按来源分组列出所有角色共用的工具（内置、ScienceScope、技能 `use_skill`、每个启用的 MCP 服务器），内置工具显示中文一句话说明（发给模型的英文说明不变），会询问的标「会先问」；可搜索，按全部 / 会先问 / 已停用筛选。只有 MCP 工具有开关，写服务器的 `disabledTools`；连接失败的服务器显示原因和「管理服务器」。
+- **技能**：「你导入的」和「内置」两组，显示中文名、英文名和说明，绑定的角色作为标签。开关写 `skills.disabled`；点名称看正文；「⋯」里内置技能可复制一份来改，副本标「用的是你的副本」，可打开或删除副本恢复内置；导入技能从文件夹（桌面版用系统选择框，浏览器里填路径）或 ZIP；损坏的技能显示原因和「打开文件夹」。删除需确认。
+- **MCP 服务器**：每个服务器一张卡片，写明已连接几个工具、连接失败原因（卡片下方一行）或已停用；开关、编辑、重新连接、查看工具、删除（需确认）。「添加服务器」表单填名称、本地命令或网址、环境变量或请求头；值只存密钥文件，编辑时已存的值显示「已保存在密钥文件 · 更换」。「粘贴配置」接受 `mcpServers` JSON，先显示识别到几个服务器。「npx 下载源」可选 npmmirror（默认）、npm 官方或自定义网址，写 `mcp.npmRegistry`。
+- **绑定技能**：主专家、秘书、全局助手和每位专家的设置里有「绑定的技能」，标签加勾选列表，保存写参与者的 `skills`。
+- **对话里**：`use_skill` 步骤显示「使用技能 名称」；MCP 工具显示「调用 服务器名 · 工具名」。批准卡片右上角显示「服务器名 · 工具名」、正文是参数；「总是允许」给出「这个服务器的所有工具」，规则在 设置 → 运行环境 → 总是允许的操作 里显示服务器名。
+- 测试：`app/ui/extensions.browser.test.js`（技能开关、复制、看正文、导入 ZIP、绑定专家；表单添加 MCP 服务器、停用工具、对话里批准并在时间线显示）。
 
 ## 5. 测试索引
 
@@ -627,7 +637,7 @@ data/
 - **组织**：测试文件与被测代码放在一起，命名 `*.test.js`（基线时 99 个），按用户路径写功能测试；多数迁移有测试检查旧数据升级。
 - **脚本化模型**：服务和接口测试用 `app/runtime/scripted.js` 代替真实模型；临时目录由 `app/testing.js` 建在 `.sciencescope-local/temp` 下。`app/ui/i18n/en.test.js` 检查每个界面中文字符串都有英文对照。
 - **运行时测试**：`*.runtime.test.js`（`app/app.runtime.test.js`、`app/main.runtime.test.js`、`app/runtime/pi/http.runtime.test.js`）启动真实宿主或本地 HTTP 假服务商，检查启动输出、关闭、超时和重试。
-- **浏览器测试**：`*.browser.test.js`（27 个）用 `playwright-core` 驱动真实宿主加脚本化模型，覆盖对话、讨论、秘书、面板、批准、资料库、预览、标记、工作站、导图、文献版本、Python、设置等页面。浏览器按顺序找 `SCIENCESCOPE_CHROMIUM`、`/opt/pw-browsers/chromium`、Windows 上的 Edge；都找不到时跳过。设置 `SCIENCESCOPE_SCREENSHOTS=<文件夹>` 保存截图。辅助代码在 `app/ui/browser-testing.js`。
+- **浏览器测试**：`*.browser.test.js`（32 个）用 `playwright-core` 驱动真实宿主加脚本化模型，覆盖对话、讨论、秘书、面板、批准、资料库、预览、标记、工作站、导图、文献版本、Python、设置等页面。浏览器按顺序找 `SCIENCESCOPE_CHROMIUM`、`/opt/pw-browsers/chromium`、Windows 上的 Edge；都找不到时跳过。设置 `SCIENCESCOPE_SCREENSHOTS=<文件夹>` 保存截图。辅助代码在 `app/ui/browser-testing.js`。
 - **仅 Windows**：两个测试在非 Windows 上跳过，都用真实的无删除共享文件句柄检查占用时的重试与恢复：`app/core/workspace/workspace.test.js`（计划文件被占用）和 `app/core/projects.test.js`（项目文件夹改名被占用）。原生窗口和助手窗口的浏览器测试（`native-window.browser.test.js`、`assistant-window.browser.test.js`）在没有浏览器时跳过。
 - **打包**：`tools/package/*.test.js`（裁剪、许可说明、NSIS 钩子）纳入 `npm run check` 的格式、ESLint 和测试检查；Windows 专用测试按平台和编译器可用性运行。
 - **原生**：Rust 启动测试在 `src-tauri/src/new_app.rs`，用 `cargo test` 运行。

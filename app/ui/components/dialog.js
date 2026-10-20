@@ -10,7 +10,7 @@ let dialogs = 0;
 
 /**
  * @param {{ title: string, onClose: () => void, children: any, foot: any,
- *   size?: 'sm' | 'md', onSubmit?: () => void }} props
+ *   size?: 'sm' | 'md' | 'lg', onSubmit?: () => void }} props
  */
 export function Dialog({ title, onClose, children, foot, size = 'md', onSubmit }) {
   const element = useRef(/** @type {HTMLElement | null} */ (null));
@@ -43,7 +43,7 @@ export function Dialog({ title, onClose, children, foot, size = 'md', onSubmit }
   >
     <form
       ref=${element}
-      class=${`ss-dialog ${size === 'sm' ? 'ss-dialog--sm' : ''}`}
+      class=${`ss-dialog ${size === 'md' ? '' : `ss-dialog--${size}`}`}
       role="dialog"
       aria-modal="true"
       aria-labelledby=${id}

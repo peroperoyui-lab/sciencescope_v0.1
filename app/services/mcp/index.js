@@ -2,6 +2,9 @@ import { AppError } from '../../core/errors.js';
 import { createMcpConfig, parseMcpImport } from './config.js';
 import { openConnection } from './connection.js';
 
+/** What a connection depends on: not the display name or the tools switched off. @param {any} server */
+const connectionOf = ({ name: _name, disabledTools: _disabled, ...rest }) => JSON.stringify(rest);
+
 /**
  * Discovery is asynchronous without delaying the window. Each turn awaits the
  * initial catalog and configuration changes before taking its tool snapshot.
@@ -53,7 +56,10 @@ export function createMcp(core) {
     await Promise.all(
       servers.map(async (server) => {
         const old = entries.get(server.id);
-        if (old && JSON.stringify(old.server) === JSON.stringify(server)) return;
+        if (old && connectionOf(old.server) === connectionOf(server)) {
+          old.server = server;
+          return;
+        }
         await old?.connection?.close();
         const entry = {
           server,
@@ -111,9 +117,10 @@ export function createMcp(core) {
       const server = await config.save(input, id);
       // A replacement secret keeps the same keyRef, so equality of the public
       // configuration alone cannot detect a changed credential.
-      const previous = entries.get(server.id);
-      await previous?.connection?.close();
-      entries.delete(server.id);
+      if (input.env || input.headers) {
+        await entries.get(server.id)?.connection?.close();
+        entries.delete(server.id);
+      }
       await sync();
       return row(entries.get(server.id));
     });

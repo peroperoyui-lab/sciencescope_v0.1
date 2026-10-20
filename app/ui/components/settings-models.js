@@ -43,7 +43,7 @@ const PROTOCOLS = [
 ];
 
 /** @param {{ text: string, label?: string }} props */
-function Info({ text, label }) {
+export function Info({ text, label }) {
   return html`<button
     type="button"
     class="ss-info"

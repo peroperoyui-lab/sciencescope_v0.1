@@ -1,6 +1,6 @@
 // The approval card (design system ApprovalCard): in 「请求批准」 mode a shell
-// command, a file write outside the data folder or a package install waits
-// here for 允许 or 拒绝. 总是允许 picks a scope the server offered (this
+// command, a file write outside the data folder, a package install or an MCP
+// tool call waits here for 允许 or 拒绝. 总是允许 picks a scope the server offered (this
 // command, commands starting with python, this folder…) and saves it as a rule
 // for the project. Once decided it folds into one timeline row.
 import { useState } from 'preact/hooks';
@@ -21,6 +21,11 @@ const pad = (n) => String(n).padStart(2, '0');
 /** What the action is, and the details under it. @param {any} args */
 function described(args) {
   const summary = String(args?.summary ?? '');
+  // MCP: "Zotero · search_items" then the arguments as JSON.
+  if (String(args?.tool).startsWith('mcp__')) {
+    const [tool, ...rest] = summary.split('\n');
+    return { tool, target: rest.join('\n'), meta: t('MCP 服务器的工具') };
+  }
   if (args?.tool === 'python_env_install') {
     try {
       return { target: JSON.parse(summary).join(' '), meta: '' };
@@ -40,7 +45,7 @@ function described(args) {
 export function ApprovalCard({ call }) {
   const actions = useActions();
   const [busy, setBusy] = useState(false);
-  const { target, meta } = described(call.args);
+  const { tool, target, meta } = described(call.args);
   const scopes = call.args?.scopes ?? [];
   const decide = async (decision, scope = undefined) => {
     setBusy(true);
@@ -65,7 +70,7 @@ export function ApprovalCard({ call }) {
     <div class="ss-approve__head">
       <${Lucide} name="shield-question-mark" /><span class="ss-approve__title"
         >${t('需要你的批准')}</span
-      ><span class="ss-approve__tool">${t(ACTIONS[call.args?.tool] ?? '使用工具')}</span>
+      ><span class="ss-approve__tool">${tool ?? t(ACTIONS[call.args?.tool] ?? '使用工具')}</span>
     </div>
     <div class="ss-approve__body">
       <pre class="ss-approve__cmd">${target}</pre>
@@ -102,7 +107,7 @@ export function ApprovalCard({ call }) {
 /** A decided approval as one timeline row. @param {{ call: any }} props */
 export function ApprovalRow({ call }) {
   if (call.status === 'pending') return html`<${ApprovalCard} call=${call} />`;
-  const { target } = described(call.args);
+  const { tool, target } = described(call.args);
   const ended = call.endedAt ? new Date(call.endedAt) : null;
   const time = ended ? `${pad(ended.getHours())}:${pad(ended.getMinutes())}` : '';
   const shown =
@@ -117,7 +122,7 @@ export function ApprovalRow({ call }) {
     data-status=${call.status}
   >
     <${Lucide} name=${shown.icon} /><span class="ss-act__verb">${t(shown.verb)}</span>
-    <span class="ss-act__target">${target}</span>
+    <span class="ss-act__target">${tool ?? target}</span>
     ${call.status !== 'cancelled' && time && html`<span class="ss-act__end">${t('你 · {time}', { time })}</span>`}
   </div>`;
 }

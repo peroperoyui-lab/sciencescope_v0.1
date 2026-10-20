@@ -1,6 +1,8 @@
 ---
 name: deliver-files
 description: 交付文件：生成图表、表格、文稿等文件，交给用户并在回答里直接显示图片和链接。产出用户要保存或查看的文件时使用。
+metadata:
+  title: 交付文件
 ---
 
 # 交付文件

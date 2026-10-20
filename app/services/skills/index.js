@@ -56,7 +56,14 @@ export function createSkills(core, { builtins = builtinDirectory } = {}) {
       ...(await scan(builtins, 'builtin')),
       ...(await scan(core.paths.skills, 'user')),
     ])
-      rows.set(skill.name, { ...skill, enabled: !skill.error && !disabled.has(skill.name) });
+      // A user skill with a built-in's name is the user's copy of it and replaces it.
+      rows.set(skill.name, {
+        ...skill,
+        // Optional display name from the standard `metadata` map of SKILL.md.
+        title: String(/** @type {any} */ (skill.metadata).metadata?.title ?? '').trim() || null,
+        overrides: skill.source === 'user' && rows.get(skill.name)?.source === 'builtin',
+        enabled: !skill.error && !disabled.has(skill.name),
+      });
     return [...rows.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 

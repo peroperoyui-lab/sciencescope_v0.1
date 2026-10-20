@@ -1,5 +1,11 @@
 # 实施记录
 
+## 2026-10-20 X-UI 工具、技能、MCP 设置页（Claude）
+
+- 设置 → 工具与环境 新增工具、技能、MCP 服务器三页；主专家、秘书、助手和专家设置可绑定技能；时间线显示「使用技能」「调用 服务器 · 工具」，批准卡片显示服务器和工具。
+- 后端小改：技能列表加 `title`（`metadata.title`）和 `overrides`，`POST /api/skills/:name/open`；`/api/tools` 的 MCP 项加 `serverName`、`tool`；编辑服务器保持顺序，只改名或停用工具不重连。旧样式的复选框规则不再覆盖开关。
+- 新测试 `app/ui/extensions.browser.test.js`；`npm run check` 266 过 / 3 跳过。
+
 ## 2026-10-20 X-UI 设计稿（Claude）
 
 - 画廊新增设置 → 工具、技能、MCP 服务器三张整页示例（含添加服务器、粘贴配置对话框）和 Extensions 部件卡（专家绑定技能、时间线技能与 MCP 步骤、MCP 批准卡片、空状态）。新增图标 graduation-cap、server、clipboard-paste，样式 `.ss-kv`、`.ss-provider__error`。生成脚本 `docs/design/system/build/xui/`。等用户审。

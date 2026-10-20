@@ -303,7 +303,7 @@ textarea:focus:not([class^='ss-'], [class*=' ss-'], [class^='ss-'] *, [class*=' 
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent);
 }
-input[type='checkbox'] {
+input[type='checkbox']:not(.ss-switch) {
   accent-color: var(--accent);
   width: 15px;
   height: 15px;

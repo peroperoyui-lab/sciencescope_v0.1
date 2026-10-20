@@ -1,6 +1,8 @@
 ---
 name: python-analysis
 description: 用 Python 分析数据：确认环境、安装缺的包、写脚本运行、看结果和图。需要统计、作图、处理表格或复现分析时使用。
+metadata:
+  title: 用 Python 分析数据
 ---
 
 # 用 Python 分析数据

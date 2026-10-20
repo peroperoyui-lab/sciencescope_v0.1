@@ -73,7 +73,7 @@ select:focus:not([class^='ss-'], [class*=' ss-'], [class^='ss-'] *, [class*=' ss
   border-color: #899883;
   box-shadow: 0 0 0 2px #89988312;
 }
-input[type='checkbox'] {
+input[type='checkbox']:not(.ss-switch) {
   width: auto;
   accent-color: var(--accent);
 }

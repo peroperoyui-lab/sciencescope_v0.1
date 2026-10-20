@@ -7,6 +7,7 @@ import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { formatTime, t } from '../i18n/index.js';
 import { thinkingChoices, useModelCatalog } from '../model-catalog.js';
+import { SkillBinding } from './settings-skills.js';
 import { InfoTip } from './info-tip.js';
 
 /** Model choices from the configured providers, plus the stored one if it disappeared. */
@@ -116,6 +117,7 @@ export function RolePage({ participantId, title, tip }) {
       actions.updateParticipant(participantId, {
         prompt: definition.prompt,
         model: definition.model,
+        skills: definition.skills ?? [],
       }),
     );
     if (result !== undefined) setFeedback(t('已保存，下一轮发言生效。'));
@@ -136,6 +138,10 @@ export function RolePage({ participantId, title, tip }) {
         model=${definition.model}
         emptyLabel=${t('由输入框选择')}
         onChange=${(model) => setDefinition({ ...definition, model })}
+      />
+      <${SkillBinding}
+        value=${definition.skills ?? []}
+        onChange=${(skills) => setDefinition({ ...definition, skills })}
       />
       <p>
         ${t('已保存版本 {n}', { n: saved })}<${InfoTip}
@@ -194,6 +200,10 @@ function ExpertCard({ expert, index, first, last, onChange, onMove, onRemove }) 
         onInput=${set('prompt')}
       ></textarea>
     </div>
+    <${SkillBinding}
+      value=${expert.skills ?? []}
+      onChange=${(skills) => onChange({ ...expert, skills })}
+    />
     <div class="row" style="gap:8px;align-items:center">
       <label style="display:flex;gap:6px;align-items:center">
         <input
@@ -255,6 +265,7 @@ export function ExpertsPage() {
           role: expert.role.trim(),
           prompt: expert.prompt,
           model: expert.model,
+          skills: expert.skills ?? [],
           panel: expert.panel,
           enabled: expert.enabled !== false,
           position,

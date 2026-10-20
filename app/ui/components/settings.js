@@ -19,6 +19,9 @@ import { ModelsPage, ProviderPage } from './settings-models.js';
 import { ExpertsPage, RolePage } from './settings-roles.js';
 import { AssistantWindowSettings } from './assistant-window-settings.js';
 import { AboutPage } from './settings-about.js';
+import { ToolsPage } from './settings-tools.js';
+import { SkillsPage } from './settings-skills.js';
+import { McpPage } from './settings-mcp.js';
 
 /**
  * Settings pages, grouped as in the old navigation: [group, [[id, nav label, page title]]].
@@ -45,6 +48,9 @@ const GROUPS = [
   [
     '工具与环境',
     [
+      ['tools', '工具', '工具'],
+      ['skills', '技能', '技能'],
+      ['mcp', 'MCP 服务器', 'MCP 服务器'],
       ['library-settings', '数据库与文件', '数据库设置'],
       ['environment', '运行环境', '环境配置 · 便携目录'],
     ],
@@ -493,6 +499,9 @@ export function SettingsView({ page, projectName }) {
     content = html`<${FoldersPage}
         title=${t('运行环境')}
       /><${ApprovalRulesSettings} /><${PythonSettings} /><${SemanticSettings} />`;
+  else if (page === 'tools') content = html`<${ToolsPage} />`;
+  else if (page === 'skills') content = html`<${SkillsPage} />`;
+  else if (page === 'mcp') content = html`<${McpPage} />`;
   else if (page === 'about') content = html`<${AboutPage} />`;
   else content = html`<div class="empty">${t('没有这个设置页。')}</div>`;
   const active = page.startsWith('provider') ? 'models' : page;

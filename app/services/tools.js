@@ -333,10 +333,12 @@ export function createTools(
         enabled: skill.enabled,
       })),
       ...(mcp?.catalog() ?? []).map(
-        ({ name, source, server, description, needsApproval, enabled }) => ({
+        ({ name, source, server, serverName, tool, description, needsApproval, enabled }) => ({
           name,
           source,
           server,
+          serverName,
+          tool,
           description,
           needsApproval,
           enabled,

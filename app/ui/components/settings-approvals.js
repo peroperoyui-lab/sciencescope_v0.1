@@ -19,6 +19,7 @@ function scopeOf(rule) {
   if (rule.kind === 'prefix') return { title: t('以 {prefix} 开头的命令', { prefix: rule.value }) };
   if (rule.kind === 'package') return { title: t('安装 {package}', { package: rule.value }) };
   if (rule.kind === 'any') return { title: t('所有安装包') };
+  if (rule.kind === 'server') return { title: t('这个服务器的所有工具') };
   if (rule.kind === 'folder')
     return { title: t('这个文件夹里的文件（含子文件夹）'), value: rule.value };
   return {
@@ -32,6 +33,7 @@ export function ApprovalRulesSettings() {
   const rules = useAppState((state) => state.settings?.approvals?.rules ?? []);
   const projects = useAppState((state) => state.projects);
   const meetings = useAppState((state) => state.meetings);
+  const servers = useAppState((state) => state.settings?.mcp?.servers ?? []);
   const groups = new Map();
   for (const rule of rules) {
     const key = rule.projectId ?? `meeting:${rule.meetingId}`;
@@ -65,7 +67,15 @@ export function ApprovalRulesSettings() {
               (group) =>
                 html`<div class="ss-list__group" key=${group.name}>${group.name}</div>
                   ${group.rules.map((rule) => {
-                    const tool = TOOLS[rule.tool] ?? { icon: 'wrench', name: rule.tool };
+                    const tool =
+                      rule.kind === 'server'
+                        ? {
+                            icon: 'server',
+                            name:
+                              servers.find((server) => server.id === rule.value)?.name ??
+                              t('已删除的 MCP 服务器'),
+                          }
+                        : (TOOLS[rule.tool] ?? { icon: 'wrench', name: rule.tool });
                     const scope = scopeOf(rule);
                     return html`<div
                       class=${`ss-list-row ${scope.value ? 'ss-list-row--2' : ''}`}

@@ -3601,6 +3601,61 @@ button.ss-act__row:hover {
   gap: var(--sp-8);
 }
 
+/* Settings → 工具, 技能, MCP 服务器 */
+.ss-settings__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin-top: 12px;
+}
+.ss-list-row__open {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ss-list-row__sub--danger {
+  color: var(--danger);
+  white-space: normal;
+}
+.ss-stack {
+  display: grid;
+  gap: var(--sp-12);
+}
+.ss-skill__body {
+  max-height: 320px;
+  overflow: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.ss-dialog__note {
+  margin-right: auto;
+  font-size: 12px;
+}
+.ss-chips--inline {
+  padding: 0;
+}
+.ss-pop--list .ss-pop__section {
+  max-height: 240px;
+  overflow-y: auto;
+}
+.ss-pop__foot > .ss-muted {
+  font-size: 12px;
+}
+.ss-seg--start {
+  justify-self: start;
+}
+.ss-textarea--tall {
+  min-height: 180px;
+}
+.ss-box {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+
 /* ---------- Motion ---------- */
 @keyframes ss-fade {
   from {

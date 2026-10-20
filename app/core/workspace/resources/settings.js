@@ -117,10 +117,12 @@ export const settings = {
   apply(text, op, args) {
     if (op === 'put-mcp-server' || op === 'remove-mcp-server') {
       const current = parse(text);
-      current.mcp.servers = current.mcp.servers.filter(
-        (entry) => entry.id !== (args.server?.id ?? args.id),
-      );
-      if (op === 'put-mcp-server') current.mcp.servers.push(args.server);
+      const id = args.server?.id ?? args.id;
+      const index = current.mcp.servers.findIndex((entry) => entry.id === id);
+      // An edited server keeps its place in the list; a new one goes last.
+      if (op === 'put-mcp-server' && index < 0) current.mcp.servers.push(args.server);
+      else if (op === 'put-mcp-server') current.mcp.servers[index] = args.server;
+      else if (index >= 0) current.mcp.servers.splice(index, 1);
       return format(current);
     }
     if (op === 'add-approval-rule') {

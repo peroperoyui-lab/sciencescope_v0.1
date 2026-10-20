@@ -2,7 +2,7 @@
 // discussion, and the review adoption control.
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
-import { useActions } from '../context.js';
+import { useActions, useAppState } from '../context.js';
 import { Lucide } from '../icons.js';
 import { ApprovalCard } from './approval.js';
 import { InfoTip } from './info-tip.js';
@@ -30,8 +30,11 @@ export function ExpertState({ message, calls }) {
   return html`<span class="expert-state" data-state=${state}>${t(labels[state])}</span>`;
 }
 
-/** What an expert is doing right now, for the head of its box. @param {any} turn @param {any[]} calls @param {string} text */
-function currentStep(turn, calls, text) {
+/**
+ * What an expert is doing right now, for the head of its box.
+ * @param {any} turn @param {any[]} calls @param {string} text @param {any[]} servers
+ */
+function currentStep(turn, calls, text, servers) {
   const phase = turn?.phase ?? '';
   if (phase === 'waiting-approval') {
     const card = calls.findLast((call) => call.kind === 'approval' && call.status === 'pending');
@@ -44,7 +47,7 @@ function currentStep(turn, calls, text) {
   }
   const active = calls.findLast((call) => call.status === 'running' && isToolCall(call));
   if (active) {
-    const shown = describeCall(active);
+    const shown = describeCall(active, servers);
     return { spin: true, label: t(shown.running), target: shown.target, since: active.startedAt };
   }
   if (phase === 'compacting') return { spin: true, label: t('正在压缩上下文') };
@@ -63,13 +66,14 @@ function currentStep(turn, calls, text) {
  * @param {{ message: any, turn?: any, calls: any[], text: string }} props
  */
 export function ExpertBox({ message, turn, calls, text }) {
+  const servers = useAppState((state) => state.settings?.mcp?.servers ?? []);
   if (message.refs?.discussion?.phase === 'waiting')
     return html`<div class="ss-expert-box" data-expert-box="waiting">
       <div class="ss-expert-box__head">
         <${Lucide} name="clock" /><span>${t('等前面的专家说完')}</span>
       </div>
     </div>`;
-  const step = currentStep(turn, calls, text);
+  const step = currentStep(turn, calls, text, servers);
   // The words it is writing, else its narration before the current step,
   // else what it is thinking.
   const thought = calls.findLast((call) => call.kind === 'thinking');

@@ -7,7 +7,7 @@
 // their reason.
 import { Fragment } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import { useActions } from '../context.js';
+import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
@@ -94,6 +94,13 @@ const TOOLS = {
     verb: '安装 Python 包',
     running: '正在安装 Python 包',
     target: (args?.packages ?? []).join(' '),
+    mono: true,
+  }),
+  use_skill: (args) => ({
+    icon: 'graduation-cap',
+    verb: '使用技能',
+    running: '正在读取技能',
+    target: text(args?.name),
     mono: true,
   }),
   propose_main_draft: () => ({
@@ -185,9 +192,30 @@ const UNSEEN = '当前模型不能看图，请换支持图片的模型';
 /** Tool calls proper; thinking and retries share the same activity list. @param {any} call */
 export const isToolCall = (call) => (call.kind ?? 'tool') === 'tool';
 
-/** @param {any} call */
-export function describeCall(call) {
-  const known = TOOLS[call.name]?.(call.args, call);
+/**
+ * An MCP tool reads as its server and tool: 调用 Zotero · search_items. The
+ * name is `mcp__<server id>__<tool>`; `servers` are settings.mcp.servers.
+ * @param {string} name @param {any[]} servers
+ * @returns {ReturnType<(typeof TOOLS)[string]> | undefined}
+ */
+function mcpCall(name, servers) {
+  const [, id, tool] = /^mcp__([^_]+)__(.+)$/u.exec(name) ?? [];
+  if (!id) return undefined;
+  const server = servers.find((entry) => entry.id === id)?.name ?? 'MCP';
+  return {
+    icon: 'server',
+    verb: '调用',
+    running: '正在调用 MCP 工具',
+    target: `${server} · ${tool}`,
+  };
+}
+
+/**
+ * @param {any} call @param {any[]} [servers] settings.mcp.servers, for MCP tools.
+ * @returns {ReturnType<(typeof TOOLS)[string]>}
+ */
+export function describeCall(call, servers = []) {
+  const known = TOOLS[call.name]?.(call.args, call) ?? mcpCall(call.name, servers);
   return known ?? { icon: 'wrench', verb: '使用工具', running: '正在使用工具', target: '' };
 }
 
@@ -305,7 +333,8 @@ function ActivityRow({ call, running, approval, narrate = true }) {
  */
 function CallRow({ call, running, approval, narrate = true }) {
   const [open, setOpen] = useState(false);
-  const shown = describeCall(call);
+  const servers = useAppState((state) => state.settings?.mcp?.servers ?? []);
+  const shown = describeCall(call, servers);
   const held = approval?.status === 'pending';
   const active = call.status === 'running' && running && !held;
   const failed = call.status === 'failed';
@@ -439,7 +468,8 @@ function GroupRow({ run, running, approvals }) {
   const [open, setOpen] = useState(false);
   const tools = run.calls.filter(isToolCall);
   const last = tools.at(-1);
-  const shown = describeCall(last);
+  const servers = useAppState((state) => state.settings?.mcp?.servers ?? []);
+  const shown = describeCall(last, servers);
   const held = tools.some((call) => approvals.get(call.id)?.status === 'pending');
   const active = running && !held && last.status === 'running';
   // A call waiting for approval has not run yet.

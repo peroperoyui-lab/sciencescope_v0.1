@@ -16,13 +16,13 @@
           <span class="ss-kv__saved"><i data-i="key-round" class="ss-i--sm"></i>已保存在密钥文件<button class="ss-linkbtn" type="button">更换</button></span>
           <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="删除这一行" data-tip="删除"><i data-i="x"></i></button>
           <span class="ss-input ss-input--sm"><input class="ss-mono" value="X-Region" /></span>
-          <span class="ss-input ss-input--sm"><input class="ss-mono" value="cn" /></span>
+          <span class="ss-input ss-input--sm"><i data-i="key-round" class="ss-i--sm"></i><input class="ss-mono" type="password" value="cn" /></span>
           <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="删除这一行" data-tip="删除"><i data-i="x"></i></button>
         </div>
         <span class="ss-field__error"><i data-i="circle-alert" class="ss-i--sm"></i>上次连接失败：服务器要求登录（401）。点「更换」粘贴新的密钥。</span>
         <div><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="plus"></i>添加一行</button></div>
       </div>
-      <span class="ss-field__hint">Authorization 请求头，以及名称里带 KEY、TOKEN、SECRET、PASSWORD 的值，只存在本机的密钥文件里，不写进配置。选「本地命令」时这里换成「环境变量」，规则相同。</span>
+      <span class="ss-field__hint">值只存在本机的密钥文件里，不写进配置，也不会再显示出来。选「本地命令」时这里换成「环境变量」。</span>
     </div>
     <div class="ss-dialog__foot"><button class="ss-btn" type="button" data-close>取消</button><button class="ss-btn ss-btn--primary" type="button">连接并保存</button></div>
   </div>
@@ -41,7 +41,7 @@
 }</textarea>
         <span class="ss-field__hint">Claude Desktop、Cursor、Codex 等软件说明里的 <span class="ss-mono">mcpServers</span> 配置都可以直接粘贴。</span>
       </label>
-      <div class="ss-callout ss-callout--ok"><i data-i="circle-check"></i><div>识别到 2 个服务器：<b>zotero</b>（本地命令，1 个密钥会存进密钥文件）、<b>time</b>（本地命令）。</div></div>
+      <div class="ss-callout ss-callout--ok"><i data-i="circle-check"></i><div>识别到 2 个服务器：zotero、time。其中 1 个环境变量或请求头的值会存进密钥文件。</div></div>
     </div>
     <div class="ss-dialog__foot"><button class="ss-btn" type="button" data-close>取消</button><button class="ss-btn ss-btn--primary" type="button">添加 2 个并连接</button></div>
   </div>
