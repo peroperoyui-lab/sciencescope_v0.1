@@ -26,14 +26,15 @@
    - 写 `derived` 层 `cites` 边，`origin='system'`、`method='citation'`；后导入的文献要能补上之前文献指向它的边（被引文献入库时，回查已有资料的参考文献）。
 3. **相似边**：
    - 只在文献类资料之间建（paper、preprint、thesis、report、chapter、book），不连数据文件和文稿。
-   - 用资料级向量找候选对，余弦相似度 ≥ 0.85 才写 `similar-to`，`weight` 为相似度，`method='similar'`；同一对文献只留一条。按相似度从高到低连边，两端都已有 3 条相似边的跳过，所以每篇文献连入和连出合计最多 3 条（2026-10-20 用户确认）。新文献入库时只连还有空位的文献，不挤掉已有的边；全量重算时按上面的顺序整体重排。阈值和上限写成代码常量。
+   - 用资料级向量找候选对，余弦相似度 ≥ 0.85 才写 `similar-to`，`weight` 为相似度，`method='similar'`；同一对文献只留一条。按相似度从高到低连边，两端都已有 3 条相似边的跳过，所以每篇文献连入和连出合计最多 3 条（2026-10-20 用户确认）。新文献入库时只连还有空位的文献，不挤掉已有的边；全量重算时按上面的顺序整体重排。
+   - 阈值和上限是用户可改的设置（2026-10-20 用户提出）：`settings.knowledge.similarity = { threshold: 0.85, maxPerPaper: 3 }`，在 `DEFAULT_SETTINGS` 里给默认值；`maxPerPaper` 为 0 表示不建相似边。设置改动后在后台排一次相似边全量重算（只重算 `method='similar'` 的边，引用边不动），发言时照常让路。设置页界面由 Claude 在知识库页面里做，本任务不改 `app/ui/`。
    - 没开本地语义检索（没有向量）时这一步记 `skipped`，不报错；开启并建好向量后能补做。
-   - 用 10 篇以上真实论文（中英文都有，不要从 `<预览安装目录>` 里取；手边没有就在报告里说，由用户提供）跑一次，在报告里列出相似度分布和最终连了几条边；0.85 明显不合适时写出建议值，由 Claude 和用户定，先不改。
+   - 用 10 篇以上真实论文（中英文都有，不要从 `<预览安装目录>` 里取；手边没有就在报告里说，由用户提供）跑一次，在报告里列出相似度分布和最终连了几条边；0.85 明显不合适时写出建议值，由 Claude 和用户定，先不改默认值。
 4. **重算**：资料重新解析时，先删它作为端点的 `derived` 边再重做；删除资料的处理已在 KB-2b。文件夹层的 `in-folder` 边不存表，由 KB-5 的图接口按 `folder_path` 即时生成。
 
 ## 可以改的
 
-`app/services/knowledge/`（新文件及测试）、`app/services/research/`（解析完成后排队的接线）、`app/app.js`（接线）、`docs/product/FEATURES.md`、`docs/log/IMPLEMENTATION_LOG.md`（不超过 5 行）。
+`app/services/knowledge/`（新文件及测试）、`app/services/research/`（解析完成后排队的接线）、`app/app.js`（接线）、`app/core/workspace/resources/settings.js`（只加 `knowledge.similarity` 默认值）、`docs/product/FEATURES.md`、`docs/log/IMPLEMENTATION_LOG.md`（不超过 5 行）。
 
 ## 不做的
 
