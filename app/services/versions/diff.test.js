@@ -51,7 +51,10 @@ test('complete word comparison and copy restoration preserve both DOCX originals
     assert.equal(joined('removed'), result.current.blocks.map((block) => block.text).join('\n\n'));
     const copy = (await versions.saveAsNew(old.id)).versions[0];
     assert.equal(copy.number, 3);
-    assert.equal(copy.baselineId, current.id);
+    assert.equal(copy.baselineId, old.id);
+    assert.equal(copy.parentId, old.id);
+    assert.equal(copy.origin, 'save-as-new');
+    assert.equal(copy.branch, '分支 1');
     assert.deepEqual(await readFile(versions.file(copy.id)), Buffer.from(fixtures.docx.bytes));
     assert.deepEqual(await readFile(versions.file(current.id)), revisedBytes);
     assert.equal((await versions.compare(copy.id, old.id)).status, 'unchanged');

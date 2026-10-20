@@ -152,6 +152,22 @@ test('secretary automatically organizes imported DOCX notes, changes baseline, k
       await readFile(app.versions.file(version.id)),
       Buffer.from(fixtures.docxUnknown.bytes),
     );
+    const desk = await app.versions.createVersion({
+      groupId: imported.group.id,
+      parentId: version.id,
+      bytes: Buffer.from('编辑台改稿。'),
+      name: '编辑稿.md',
+      origin: 'desk',
+    });
+    const beforeImport = inputs.length;
+    await app.versions.importFiles({
+      projectId: project.id,
+      groupId: imported.group.id,
+      files: [{ name: '后续导入.md', base64: Buffer.from('后续稿件。').toString('base64') }],
+    });
+    await app.versionNotes.idle();
+    assert.equal(inputs.length, beforeImport + 1);
+    assert.equal(app.versions.get(desk.id).notesStatus, 'pending');
     app.versionNotes.configure(project.id, false);
     const disabled = await app.versions.importFiles({
       projectId: project.id,

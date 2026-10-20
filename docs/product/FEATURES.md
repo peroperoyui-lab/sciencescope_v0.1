@@ -276,6 +276,9 @@ data/
 - 日志：添加条目，查看详情（"文件列表"和"日志详情"两页）。日志详情点一下变成纯文本直接修改，保存后回到渲染显示；条目可带文件链接（资料、文献版本、项目文件），点击打开。
 - 导图编辑窗口：树形节点、游离节点、节点间有向连线；Markdown 大纲粘贴或拖入；可编辑 JSON；导出；窗口内撤销/重做（只在本次编辑期间有效）。
 - 文献版本：按组导入稿件，按导入顺序编号（删除后编号不复用）；原件和说明保存在数据目录。导入后任务秘书比较完整提取文字并按模板生成版本说明（实际文件变化、秘书解释、待用户决定的建议、相关导图节点与文件）；用户可补充、编辑、重新整理、引用到对话。版本比较有并排和统一两种视图，可跳到下一处变化，可把旧版复制为新版本。
+- 版本图后端（D1，尚未接界面）：版本组增加 `sourcePath`、`format`；版本增加 `parentId`、`branch`、`tier`、`label`、`title`、`origin`、`contentHash`、`sessionId`。导入沿上一版接续，另存为以选中的版本为父版本；已有子版本时分出组内最小未用编号的「分支 n」，否则继承分支名。新原件计算 SHA-256，旧库父版本沿用原比较基准，旧哈希保持空。
+- 比较基准默认初始化为父版本；手工改基准（包括无基准）只影响比较，不改变父子关系。版本图省略已删除节点，子节点连接最近未删除祖先；标题为空时显示原文件名，说明摘要取前 200 字，修改指令去重后最多 10 条。整条分支可改名，不能与同组另一分支重名。
+- 层级设置 `desk.tiers` 默认「草稿、内部审阅、投稿、修回、终稿」；标记版本只接受设置内的名称或空串。改名先在 SQLite 事务中更新版本，再通过原有 `workspace.edit` 保存设置；保存失败恢复此次改过的版本并报错，不做断电恢复。直接删除设置中的层级不改已有标记，仍显示原文字。编辑台生成的版本不自动整理说明，手动整理仍可用；后续导入也不会带动这些版本自动整理。
 - 历史版本：AI 每轮发言结束、用户离开编辑页面、恢复之前，都会为改过的资源留一个历史版本；可只读预览、恢复或删除。工作区每次修改另有逐条修订，可撤销。
 
 **实现位置**：`app/core/workspace/`（`workspace.js` 读写与撤销，`snapshots.js` 历史版本，`resources/` 各资源格式）、`app/services/versions/`（`comparison.js` 比较、`organizer.js` 版本说明）、`app/services/journal-files.js`；界面 `app/ui/components/` 下的 `workbench.js`、`map-*.js`、`version*.js`、`resource-history.js`。
@@ -522,6 +525,9 @@ data/
 - `GET /api/versions` 项目的版本组与版本。
 - `POST /api/versions/import` 导入版本。
 - `PATCH /api/version-groups/:id` 重命名版本组。
+- `GET /api/version-groups/:id/graph` 返回 `{group,nodes}`；节点字段为 `id,number,parentId,branch,tier,label,title,displayTitle,origin,createdAt,notesExcerpt,instructions`。
+- `PATCH /api/versions/:id` 接受 `{title?,tier?,label?,branch?}`；前三项改单个版本，分支名改同组整条泳道；返回更新后的版本并发 `versions.changed`。
+- `POST /api/version-tiers/rename {from,to}` 同步改层级设置和已标版本，返回 `{tiers,updated}`（更新后的层级列表、修改版本数）；设置保存失败返回 `TIER_RENAME_FAILED` 并恢复版本层级。
 - `GET/DELETE /api/versions/:id` 读取（分页文字）、移到回收站。
 - `POST /api/versions/:id/open`、`POST /api/versions/:id/open-notes` 打开原件、打开说明文件。
 - `PATCH /api/versions/:id/notes` 编辑版本说明。
@@ -605,6 +611,7 @@ data/
 | 021  | 移除 `meeting_goals`                                                                                                         | 旧自动化会议改为 `direct`，移除 `policy.goal`，保留消息及其他规则              |
 | 022  | `kb_entities`、`kb_edges`、`kb_labels`、`kb_memberships`、`kb_versions`、`kb_revisions`、`kb_jobs`；`rb_sources.folder_path` | 知识库实体、关系、标签、项目归属、修订与历史版本、后台任务（还没有界面和工具） |
 | 023  | `rb_sources.file_size`、`file_mtime_ms`、`content_hash`                                                                      | 项目文件的大小、修改时间和内容哈希，扫描时判断是否变化                         |
+| 024  | `version_groups.source_path/format`；`manuscript_versions` 父版本、分支、层级、标签、标题、来源、哈希、会话；`desk_sessions`、`desk_changes` | 版本图与元数据；编辑会话表预建，尚无会话逻辑 |
 
 ### 4.2 文件资源
 

@@ -9,6 +9,9 @@ export function registerVersionRoutes(router, versions, organizer) {
   router.post('/api/versions/import', ({ body }) =>
     versions.importFiles(body, { actorId: 'person_user' }),
   );
+  router.get('/api/version-groups/:id/graph', ({ params }) => versions.graph(params.id));
+  router.patch('/api/versions/:id', ({ params, body }) => versions.updateMetadata(params.id, body));
+  router.post('/api/version-tiers/rename', ({ body }) => versions.renameTier(body.from, body.to));
   router.patch('/api/version-groups/:id', ({ params, body }) =>
     versions.renameGroup(params.id, body.name),
   );
@@ -27,7 +30,10 @@ export function registerVersionRoutes(router, versions, organizer) {
     versions.editNotes(params.id, body.text, body.revisionId),
   );
   router.get('/api/versions/:id/compare', ({ params, query }) =>
-    versions.compare(params.id, query.has('baseline') ? query.get('baseline') || null : undefined),
+    versions.compare(
+      params.id,
+      query.has('baseline') ? query.get('baseline') || null : versions.get(params.id).baselineId,
+    ),
   );
   router.post('/api/versions/:id/save-as-new', ({ params }) =>
     versions.saveAsNew(params.id, { actorId: 'person_user' }),

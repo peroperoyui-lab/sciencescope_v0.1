@@ -1,13 +1,14 @@
 // Bytes remain canonical. Parsing is a replaceable, on-demand projection;
 // a parse failure leaves the original available to its default application.
-import { mkdir, readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { newId, nowIso } from '../../core/ids.js';
-import { safeFileName } from '../../core/paths.js';
+import { nowIso } from '../../core/ids.js';
 import { AppError } from '../../core/errors.js';
 import { parseDocument } from '../research/parsers/index.js';
 import { openPath, recyclePath } from '../system.js';
 import { compareText } from './comparison.js';
+import { createVersionStorage } from './storage.js';
+import { createVersionGraph } from './graph.js';
 
 /**
  * @param {import('../../core/index.js').Core} core
@@ -15,91 +16,16 @@ import { compareText } from './comparison.js';
  */
 export function createVersions(core, { open = openPath, recycle = recyclePath } = {}) {
   const catalog = core.versionCatalog;
-  const queues = new Map();
-  function serial(projectId, work) {
-    const next = (queues.get(projectId) ?? Promise.resolve()).then(work, work);
-    queues.set(
-      projectId,
-      next.catch(() => {}),
-    );
+  // A tier rename spans projects; all version mutations share its queue so
+  // imports and metadata edits cannot race the settings-save compensation.
+  let pending = Promise.resolve();
+  function serial(work) {
+    const next = pending.then(work, work);
+    pending = next.catch(() => {});
     return next;
   }
-  /**
-   * Preserve user-selected batch order and monotonically increasing numbers,
-   * including gaps left by deleted versions.
-   * @param {{projectId:string,groupId?:string,groupName?:string,files:{name:string,base64:string}[]}} input
-   * @param {import('../../core/workspace/workspace.js').Actor} [actor]
-   */
-  function importFiles(input, actor = {}) {
-    return serial(input.projectId, async () => {
-      const { projectId, files } = input;
-      core.projects.get(projectId);
-      if (!files?.length) throw new AppError('FILES_REQUIRED', '请选择要导入的文件。');
-      const previous = input.groupId ? catalog.group(input.groupId) : null;
-      if (previous && previous.projectId !== projectId)
-        throw new AppError('VERSION_GROUP_NOT_FOUND', '找不到这个版本组。', 404);
-      const groupId = previous?.id ?? newId('vgroup');
-      const name = (input.groupName ?? files[0].name).trim();
-      if (!name) throw new AppError('NAME_REQUIRED', '请填写版本组名称。');
-      const directory = path.join(core.workspace.locate.projectDir(projectId), 'versions', groupId);
-      await mkdir(directory, { recursive: true });
-      const saved = [];
-      try {
-        let number = previous?.nextNumber ?? 1;
-        let baselineId = previous
-          ? (catalog.list(projectId).find((group) => group.id === groupId)?.versions[0]?.id ?? null)
-          : null;
-        for (const file of files) {
-          const id = newId('version');
-          const filename = safeFileName(file.name, file.name.length);
-          if (!filename) throw new AppError('INVALID_NAME', '文件名称无效。');
-          const relative = path.posix.join('versions', groupId, `v${number}-${id}`, filename);
-          const absolute = path.join(core.workspace.locate.projectDir(projectId), relative);
-          await mkdir(path.dirname(absolute), { recursive: true });
-          await writeFile(absolute, Buffer.from(file.base64, 'base64'), { flag: 'wx' });
-          saved.push({ id, number, name: file.name, relative, absolute, baselineId });
-          baselineId = id;
-          number += 1;
-        }
-        core.db.transaction(() => {
-          const time = nowIso();
-          if (!previous)
-            core.db
-              .prepare(
-                'INSERT INTO version_groups (id, project_id, name, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
-              )
-              .run(groupId, projectId, name, time, time);
-          for (const version of saved)
-            core.db
-              .prepare(
-                `INSERT INTO manuscript_versions (id, group_id, number, original_name, original_path, baseline_id, imported_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-              )
-              .run(
-                version.id,
-                groupId,
-                version.number,
-                version.name,
-                version.relative,
-                version.baselineId,
-                actor.actorId ?? null,
-                time,
-              );
-          core.db
-            .prepare('UPDATE version_groups SET next_number = ?, updated_at = ? WHERE id = ?')
-            .run(number, time, groupId);
-          catalog.changed(projectId, 'imported', groupId, actor.actorId);
-        });
-        return {
-          group: catalog.group(groupId),
-          versions: saved.map((entry) => catalog.get(entry.id)),
-        };
-      } catch (error) {
-        // Remove only unregistered copies from this failed import.
-        for (const entry of saved) await rm(entry.absolute, { force: true });
-        throw error;
-      }
-    });
-  }
+  const storage = createVersionStorage(core, serial);
+  const graph = createVersionGraph(core, serial);
   function renameGroup(id, name, actorId = 'person_user') {
     const group = catalog.group(id);
     const trimmed = name.trim();
@@ -114,7 +40,7 @@ export function createVersions(core, { open = openPath, recycle = recyclePath } 
   }
   async function remove(id, actorId = 'person_user') {
     const version = catalog.get(id);
-    return serial(version.projectId, async () => {
+    return serial(async () => {
       // One folder contains original plus notes: recycle both atomically as
       // a single selected directory, without a permanent-delete fallback.
       await recycle(path.dirname(catalog.file(id)));
@@ -182,7 +108,9 @@ export function createVersions(core, { open = openPath, recycle = recyclePath } 
     await core.workspace.captureSnapshot({ resource: 'versions', key }, { actorId: 'person_user' });
     return result;
   }
-  async function compare(id, baselineId = catalog.get(id).baselineId) {
+  async function compare(id, baselineId = catalog.get(id).parentId) {
+    // Callers may explicitly supply the saved comparison selection. Without
+    // one, the version graph's parent is the comparison baseline.
     const current = await read(id, { limit: Infinity });
     const previous = baselineId ? await read(baselineId, { limit: Infinity }) : null;
     if (previous && previous.version.groupId !== current.version.groupId)
@@ -204,22 +132,24 @@ export function createVersions(core, { open = openPath, recycle = recyclePath } 
   }
   async function saveAsNew(id, actor = {}) {
     const previous = catalog.get(id);
-    return importFiles(
+    const version = await storage.createVersion(
       {
-        projectId: previous.projectId,
         groupId: previous.groupId,
-        files: [
-          { name: previous.name, base64: (await readFile(catalog.file(id))).toString('base64') },
-        ],
+        parentId: id,
+        path: catalog.file(id),
+        name: previous.name,
+        origin: 'save-as-new',
       },
       actor,
     );
+    return { group: catalog.group(previous.groupId), versions: [version] };
   }
   return {
     list: catalog.list,
     get: catalog.get,
     file: catalog.file,
-    importFiles,
+    ...storage,
+    ...graph,
     renameGroup,
     remove,
     read,

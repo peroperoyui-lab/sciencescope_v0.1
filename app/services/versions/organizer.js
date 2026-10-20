@@ -257,7 +257,10 @@ export function createVersionOrganizer({
     if (!model?.model && !secretary.definition?.model?.model) return;
     const group = versions.list(projectId).find((entry) => entry.id === groupId);
     for (const version of [...(group?.versions ?? [])].reverse())
-      if (version.notesStatus === 'pending') void refresh(version.id).catch(() => {});
+      // Desk edits keep their own change instructions; a later import must
+      // not accidentally enqueue those pending notes for paid organization.
+      if (version.notesStatus === 'pending' && version.origin !== 'desk')
+        void refresh(version.id).catch(() => {});
   }
   function start() {
     core.db
