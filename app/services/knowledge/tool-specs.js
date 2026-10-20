@@ -46,18 +46,6 @@ export const KNOWLEDGE_TOOL_SPECS = [
         items: {
           type: 'object',
           properties: {
-            evidence: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  ref: { type: 'string', required: true },
-                  quote: { type: 'string', required: true },
-                  page: { type: 'integer' },
-                },
-                additionalProperties: true,
-              },
-            },
             op: {
               type: 'string',
               required: true,
