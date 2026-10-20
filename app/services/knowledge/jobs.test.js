@@ -257,7 +257,9 @@ test('enabling semantic indexing backfills cosine edges only between papers, wit
       const occupied = research.store.getSource(String(single[0].from_ref).slice(7));
       await research.importSource({
         name: 'new.md',
-        title: occupied.title,
+        // Preserve the fake embedding's Study N angle without duplicating a cited title.
+        // UUID ordering can select Study 1, which would legitimately add a citation.
+        title: `${occupied.title} newcomer`,
         kind: 'paper',
         bytes: Buffer.from('A newly imported paper.'),
       });
@@ -268,6 +270,7 @@ test('enabling semantic indexing backfills cosine edges only between papers, wit
           edges(core, 'similar-to').find((edge) => edge.id === previous.id),
           previous,
         );
+      assert.deepEqual(edges(core, 'cites'), citations);
       await setting({ threshold: 1, maxPerPaper: 2 });
       await semantic.idle();
       await jobs.idle();
