@@ -7,6 +7,8 @@ import { BUILTIN_SPECS, createBuiltinTools } from './builtin-tools/index.js';
 import { createApprovals } from './approvals.js';
 import { createViewImage, VIEW_IMAGE_SPEC } from './builtin-tools/view-image.js';
 import { createSkills, USE_SKILL_SPEC } from './skills/index.js';
+import { KNOWLEDGE_TOOL_SPECS } from './knowledge/tool-specs.js';
+import { createKnowledgeTools } from './knowledge/tools.js';
 
 /** @typedef {{ participantId: string, meetingId: string, turnId: string, callId?: string, environmentId?:string, signal?:AbortSignal, workFolder?:string, env?:{PATH?:string,VIRTUAL_ENV?:string}, mcp?:{id:string,name:string,tool:string} }} ToolContext */
 
@@ -17,6 +19,7 @@ export const TOOL_SPECS = [
   ...BUILTIN_SPECS,
   VIEW_IMAGE_SPEC,
   USE_SKILL_SPEC,
+  ...KNOWLEDGE_TOOL_SPECS,
   {
     name: 'python_env_install',
     description:
@@ -65,12 +68,14 @@ export const TOOL_SPECS = [
   {
     name: 'research_read',
     description:
-      'Read a research source, chunk or shared item, preserving full text and page/section anchors. ' +
+      'Read a research source, chunk, shared item or entity, preserving full text and page/section anchors. ' +
+      'Entities return fields, aliases, labels and paged lightweight edges; full:true reads the complete description. ' +
       'For sources use id or a citation label such as [S3 p.4] with projectId. ' +
       'Pass offset/limit to page passages; remaining states how many passages are left. ' +
       'An unknown page is null and must not be invented. Private items are unavailable.',
     parameters: {
-      type: { type: 'string', enum: ['source', 'chunk', 'item'] },
+      type: { type: 'string', enum: ['source', 'chunk', 'item', 'entity'] },
+      full: { type: 'boolean' },
       id: { type: 'string' },
       label: { type: 'string' },
       projectId: { type: 'string' },
@@ -131,15 +136,17 @@ export const TOOL_SPECS = [
       'List, read or restore saved workspace history versions. List defaults to the current project; ' +
       'use projectId, resource or key to select other data. Read and restore use a snapshot id from list. ' +
       'Restore preserves the current content as a history version before applying the selected version. ' +
+      'For resource knowledge, list returns knowledge versions; read returns their changes; restore withdraws that group of edits and lists records skipped because they were modified later. ' +
       'For corrections within the current turn, use workspace_undo.',
     parameters: {
       action: { type: 'string', required: true, enum: ['list', 'read', 'restore'] },
       id: { type: 'string', description: 'History snapshot id for read or restore.' },
-      resource: { type: 'string', enum: RESOURCES },
+      resource: { type: 'string', enum: [...RESOURCES, 'knowledge'] },
       key: { type: 'string' },
       projectId: { type: 'string' },
       meetingId: { type: 'string' },
       limit: { type: 'integer' },
+      offset: { type: 'integer' },
     },
   },
   {
@@ -170,6 +177,7 @@ export function createTools(
   const builtins = createBuiltinTools(core, python);
   const viewImage = createViewImage(core, research);
   const approvals = createApprovals(core);
+  const knowledge = createKnowledgeTools(core, research);
   async function nameOf(id) {
     try {
       return (await core.participants.get(id)).name;
@@ -254,7 +262,11 @@ export function createTools(
       actorId: context.participantId,
       meetingId: context.meetingId,
       turnId: context.turnId,
+      projectId: core.meetings.get(context.meetingId).projectId,
     };
+    if (name === 'kb_graph') return knowledge.graph({ projectId: actor.projectId, ...args });
+    if (name === 'kb_write') return knowledge.write(args.ops, actor);
+    if (name === 'research_write') return knowledge.writeResearch(args, actor);
     if (name === 'workspace_present') return deliverables.present(args?.files, context);
     if (name === 'propose_main_draft') {
       if (!secretary) throw new Error('Secretary draft service is unavailable.');
@@ -292,6 +304,7 @@ export function createTools(
       return { revisionId: result.revisionId, value: result.value };
     }
     if (name === 'workspace_versions') {
+      if (args?.resource === 'knowledge') return knowledge.versions(args, actor);
       if (args?.action === 'read') return core.workspace.getSnapshot(args.id);
       if (args?.action === 'restore') return core.workspace.restoreSnapshot(args.id, actor);
       if (args?.action !== 'list') throw new AppError('UNKNOWN_OP', '历史版本操作无效。');

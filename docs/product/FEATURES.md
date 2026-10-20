@@ -257,13 +257,16 @@ data/
 
 - 解析完成后按段落哈希增量生成派生关系：参考文献的 DOI 或归一化标题精确匹配库内资料，后导入被引文献会补边；重新解析内容变化时移除该资料端点的旧派生关系再生成。
 - 文献类资料使用已有资料级向量生成 `similar-to`，按余弦相似度从高到低连边，两端均计入上限。同一对仅一条，新导入只使用空余名额，不挤掉已有关系；无向量时跳过，建好后补做。`settings.knowledge.similarity` 默认 `{threshold:0.85,maxPerPaper:3}`，上限 0 不建相似边；修改设置排队全量重算，仅处理 `method='similar'`，引用边不动。不调用语言模型、不进修订或历史版本。
-- `kb_jobs` 保存派生任务与内容哈希：重启恢复未完成任务，发言时暂停，失败自动尝试至三次后保留错误并支持手动重试。服务汇总各状态数量、全量相似重算状态及失败原文；任务变更发临时 `knowledge.jobs.changed`，关系变更发 `knowledge.changed`。设置页、接口和图工具由后续任务接入。
+- `kb_jobs` 保存派生任务与内容哈希：重启恢复未完成任务，发言时暂停，失败自动尝试至三次后保留错误并支持手动重试。服务汇总各状态数量、全量相似重算状态及失败原文；任务变更发临时 `knowledge.jobs.changed`，关系变更发 `knowledge.changed`。设置页和接口由后续任务接入。
 - 实体、带原文/消息证据的关系、标签和项目归属共用知识库存储；实体合并先返回改挂关系数，写入立即生效。删除保留 removed 记录，合并保留 merged 与目标引用。
 - 每次事实修改与修订、knowledge.changed/research.changed 事件同事务保存；AI 的参与者、会议、发言和证据可追溯。标签/归属的来源通过修订 origin 与所属版本的会议、发言追溯。
 - 一轮 AI 修改归入一个 ai-turn-end 版本，五处现有发言结束位置关闭版本；用户编辑会话可显式开关，空版本丢弃。整组撤回跳过后来改过的记录并返回引用；单条恢复和整组撤回都先存 before-restore，可再次撤回。
 - 撤回新建实体/边保留 removed 身份，后续用户改过的边仍能找到端点；派生关系不留修订，节点恢复时清除相关派生缓存。图修改不进入文件工作区 revisions。
 - 实体名称、英文名、别名、描述加入 FTS 和现有 384 维向量索引；支持重建，私有实体不进 AI 候选。资料种类新增 link，条目类型新增 code（snippet/function/script）。
-- 当前只提供 app/services/knowledge/ 服务与 app.knowledge；没有新增界面、HTTP 路由、模型工具或自动构图。节点邻接一跳按关系/层分页，返回 remaining。
+- 所有角色共用 `kb_graph`、`kb_write`、`research_write`。图查询按名称/别名或资料检索定位，只返回节点 ref/name/kind/degree 与轻量边；多跳返回路径，按边分页并报告 remaining。项目文件夹边即时生成、不入库。
+- `kb_write` 的实体、关系、合并、标签和归属修改归入同一发言版本；每项独立事务，失败返回原因并继续，后续操作可用 `$key` 引用本批新记录。派生层不可直接写；原文依据、保守建边和先查重通过英文工具说明引导。
+- `research_read {type:'entity'}` 返回字段、别名、标签和分页相连边，描述默认首行并报告剩余字数，`full:true` 读全文。`research_write` 复用条目创建/修改/取代与资料元数据修改，私有条目不可读写，条目修订保留。
+- `workspace_versions {resource:'knowledge'}` 支持列出、读修订与整组撤回，明确列出后来修改而跳过的记录。这些工具不触发「请求批准」；没有新增界面、HTTP 路由、网页导入或模型自动构图。
 
 ### 2.9 工作站（计划、导图、日志、文稿版本、历史版本）
 
@@ -600,7 +603,7 @@ data/
 | 019  | `turns.error`                                                                                                                | 发言失败原因（与部分回答分开保存）                                             |
 | 020  | `input_images`                                                                                                               | 输入框图片附件的元数据（原件在 `library/originals/`）                          |
 | 021  | 移除 `meeting_goals`                                                                                                         | 旧自动化会议改为 `direct`，移除 `policy.goal`，保留消息及其他规则              |
-| 022  | `kb_entities`、`kb_edges`、`kb_labels`、`kb_memberships`、`kb_versions`、`kb_revisions`、`kb_jobs`；`rb_sources.folder_path` | 知识库实体、关系、标签、项目归属、修订与历史版本、后台任务（还没有界面和工具） |
+| 022  | `kb_entities`、`kb_edges`、`kb_labels`、`kb_memberships`、`kb_versions`、`kb_revisions`、`kb_jobs`；`rb_sources.folder_path` | 知识库实体、关系、标签、项目归属、修订与历史版本、后台任务（已有模型工具，尚无界面） |
 | 023  | `rb_sources.file_size`、`file_mtime_ms`、`content_hash`                                                                      | 项目文件的大小、修改时间和内容哈希，扫描时判断是否变化                         |
 
 ### 4.2 文件资源
