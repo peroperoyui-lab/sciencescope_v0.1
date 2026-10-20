@@ -617,8 +617,8 @@ data/
 - `services/mcp/` 用官方 `@modelcontextprotocol/sdk@1.32.1`（MIT）连接 stdio / Streamable HTTP；HTTP 初始化返回 400/404/405 时兼容旧 SSE。启动异步连接，新增/修改立即连接；单台失败返回原因，断线后的下一次工具调用先重连一次，已发送的调用不重放。退出关闭 Windows 子进程树。
 - `GET /api/mcp/servers` 返回数组；`POST /api/mcp/servers` 添加，`PATCH /api/mcp/servers/:id` 修改，`DELETE /api/mcp/servers/:id` 删除，`POST /api/mcp/servers/:id/reconnect` 重连。列表、添加、修改、重连均返回配置及 `{status:'connected'|'failed'|'disabled',toolCount,error?}`；配置为 `{id,name,transport:'stdio'|'http',command?,args?,url?,env?,headers?,enabled,disabledTools:[]}`。toolCount 是服务器发现的全部工具数。
 - `POST /api/mcp/import` 接受配置对象或 `{config:对象或JSON字符串}`；支持 `{mcpServers:{名称:{command,args,env}|{url,headers}}}`、内部名称映射和单个服务器对象，返回添加结果数组。`env` / `headers` 输入字符串保存至 `secret/credentials.yaml`，配置和响应只含 `{keyRef}`；编辑可原样回传引用，其他设置写入路径也要求引用。配置存 `settings.mcp.servers`，无数据库迁移。
-- Node/npx/npm/uv/uvx 使用随包 Node、npm（11.6.2，Artistic-2.0）和 uv；子进程 PATH 优先随包目录。`mcp.npmRegistry`（默认 null=官方）控制 npx，pip 复用 `python.indexUrl`，解释器复用 `python.installMirror`；缓存位于 `data/mcp/`。开发验收走 npmmirror / 阿里云。
-- 所有原本具备工具的角色收到 `mcp__<服务器id>__<工具名>`，原样传递 description 与 JSON Schema；文字及图片返回 `{text,images?:[{data,mimeType}],isError?}`。不接资源、提示词和采样。停用服务器从工具表移除；停用单个工具在 `/api/tools` 保留 `enabled:false`，模型工具表排除它。
+- Node/npx/npm/uv/uvx 使用随包 Node、npm（11.6.2，Artistic-2.0）和 uv；子进程 PATH 优先随包目录。`mcp.npmRegistry`（默认 null = npmmirror）控制 npx，pip 复用 `python.indexUrl`，解释器复用 `python.installMirror`；缓存位于 `data/mcp/`。开发验收走 npmmirror / 阿里云。
+- 所有原本具备工具的角色收到 `mcp__<服务器id>__<工具名>`（服务器 id 为 `s` 加 8 位；工具名里 `[A-Za-z0-9_-]` 以外的字符换成 `_`，超过 64 字符截断，以符合模型接口的工具名限制），原样传递 description 与 JSON Schema；文字及图片返回 `{text,images?:[{data,mimeType}],isError?}`。不接资源、提示词和采样。停用服务器从工具表移除；停用单个工具在 `/api/tools` 保留 `enabled:false`，模型工具表排除它。
 - `/api/tools` 的 MCP 项为 `{name,source:'mcp',server:服务器id,description,needsApproval:true,enabled}`。「请求批准」摘要为「服务器 · 工具」及参数，范围候选 `{kind:'server',value:服务器id,label:'这个服务器的所有工具',values:{}}`；按项目记住，同服务器其他工具共用，独立对话按会议记住。「常规」不问。界面及上述新文字的英文由 Claude 接入，本步未改 `app/ui/`。
 
 ## 5. 测试索引

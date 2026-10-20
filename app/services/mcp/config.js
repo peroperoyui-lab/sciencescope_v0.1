@@ -13,7 +13,8 @@ export function createMcpConfig(core) {
   async function list() {
     return (await settings()).mcp.servers;
   }
-  async function save(input, id = `s_${randomUUID().replaceAll('-', '')}`) {
+  // Short ids keep `mcp__<id>__<tool>` inside the 64-character tool-name limit.
+  async function save(input, id = `s${randomUUID().slice(0, 8)}`) {
     const current = (await list()).find((entry) => entry.id === id);
     const server = {
       name: id,

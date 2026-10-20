@@ -1,5 +1,8 @@
 # 实施记录
 
+## 2026-10-20 X1、X2 审查合并（Claude）
+- 合并 X1 技能、X2 MCP。修三处：服务器 id 改为 `s`+8 位、工具名只留 `[A-Za-z0-9_-]` 并截到 64 字符（模型接口限制，SSE 测试覆盖带点的工具名）；npx 默认镜像改 npmmirror；Linux/macOS 关闭时结束整棵子进程树（原来孙进程会留下，测试在 Linux 失败）。check 264 通过 / 3 跳过。
+
 ## 2026-10-20 X2 MCP 接入（Codex）
 - 基于未合并的 X1；官方 SDK 接通 stdio/HTTP/SSE、导入和凭据引用、动态工具、原始 Schema、图片与 C1 按服务器批准。随包 npm 补 npx，uvx 复用 uv；未改界面和用户预览。验证材料在 `.sciencescope-local/temp/x2/`。
 - Windows 功能验证覆盖导入、脚本模型调用、跨会议共享服务器批准、停用、失败原因、断线重连及子进程树退出；干净检出 `npm run check` 264/264 通过、0 失败/跳过，含 Windows/NSIS。

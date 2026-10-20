@@ -1,6 +1,6 @@
 // Uses the official MCP TypeScript SDK (MIT), including its documented
 // Streamable HTTP -> legacy SSE compatibility path. No protocol implementation
-// is copied. Windows closes the owned process tree before losing its root PID.
+// is copied. Closing ends the server's whole process tree on every platform.
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
@@ -42,7 +42,7 @@ export async function commandOptions(server, settings, dataRoot) {
   const cache = path.join(dataRoot, 'mcp');
   await mkdir(cache, { recursive: true });
   env.npm_config_cache = path.join(cache, 'npm-cache');
-  env.npm_config_registry = settings.mcp.npmRegistry ?? 'https://registry.npmjs.org';
+  env.npm_config_registry = settings.mcp.npmRegistry ?? 'https://registry.npmmirror.com';
   env.UV_CACHE_DIR = path.join(cache, 'uv-cache');
   env.UV_INDEX_URL = settings.python.indexUrl ?? 'https://pypi.org/simple';
   if (settings.python.installMirror) env.UV_PYTHON_INSTALL_MIRROR = settings.python.installMirror;
@@ -64,6 +64,45 @@ export async function commandOptions(server, settings, dataRoot) {
   } else if (basename === 'uv') command = uv;
   else if (basename === 'node') command = process.execPath;
   return { command, args, env, cwd: cache, stderr: /** @type {const} */ ('pipe') };
+}
+
+/**
+ * Process ids below `parentPid` on Linux and macOS, read from one `ps` listing.
+ * @param {number} parentPid
+ * @returns {Promise<number[]>}
+ */
+async function descendants(parentPid) {
+  const { stdout } = await execute('ps', ['-A', '-o', 'pid=,ppid=']).catch(() => ({ stdout: '' }));
+  const children = new Map();
+  for (const line of stdout.split('\n')) {
+    const [pid, parent] = line.trim().split(/\s+/u).map(Number);
+    if (pid) children.set(parent, [...(children.get(parent) ?? []), pid]);
+  }
+  const result = [];
+  const stack = [parentPid];
+  while (stack.length)
+    for (const pid of children.get(stack.pop()) ?? []) (result.push(pid), stack.push(pid));
+  return result;
+}
+
+/**
+ * Ask a process to end and wait for it; force it after two seconds.
+ * @param {number} pid
+ */
+async function stop(pid) {
+  const alive = () => {
+    try {
+      process.kill(pid, 0);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  if (!alive()) return;
+  process.kill(pid, 'SIGTERM');
+  for (let waited = 0; alive() && waited < 2000; waited += 20)
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  if (alive()) process.kill(pid, 'SIGKILL');
 }
 
 /**
@@ -92,6 +131,13 @@ export async function openConnection(server, settings, dataRoot) {
   async function close() {
     connected = false;
     const pid = transport instanceof StdioClientTransport ? transport.pid : null;
+    if (pid && process.platform !== 'win32') {
+      // Collect the tree first: once the root exits its children move to init.
+      const children = await descendants(pid);
+      await client?.close();
+      await Promise.all(children.map(stop));
+      return;
+    }
     if (pid && process.platform === 'win32')
       await execute(
         path.join(process.env.SystemRoot ?? 'C:/Windows', 'System32/taskkill.exe'),

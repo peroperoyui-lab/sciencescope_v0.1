@@ -84,7 +84,8 @@ export function createMcp(core) {
     return [...entries.values()].flatMap((entry) =>
       entry.server.enabled
         ? entry.tools.map((tool) => ({
-            name: `mcp__${entry.server.id}__${tool.name}`,
+            // Model APIs accept only [A-Za-z0-9_-]{1,64}; calls map back through `tool`.
+            name: `mcp__${entry.server.id}__${tool.name}`.replace(/[^\w-]/gu, '_').slice(0, 64),
             description: tool.description ?? tool.name,
             parameters: {},
             inputSchema: tool.inputSchema,

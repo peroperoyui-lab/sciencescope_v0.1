@@ -39,7 +39,7 @@ test('legacy SSE uses the same stored HTTP headers and tool contract', async () 
       { capabilities: { tools: {} } },
     );
     server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: [{ name: 'echo', inputSchema: { type: 'object' } }],
+      tools: [{ name: 'search.echo', inputSchema: { type: 'object' } }],
     }));
     server.setRequestHandler(CallToolRequestSchema, async () => ({
       content: [{ type: 'text', text: 'SSE response' }],
@@ -69,6 +69,9 @@ test('legacy SSE uses the same stored HTTP headers and tool contract', async () 
         headers: { Authorization: 'fixture-header' },
       });
       assert.equal(entry.status, 'connected', entry.error);
+      // Dots are not allowed in model tool names; the call still reaches `search.echo`.
+      assert.equal(mcp.catalog()[0].name, `mcp__${entry.id}__search_echo`);
+      assert.match(entry.id, /^s[0-9a-f]{8}$/u);
       assert.equal((await mcp.call(mcp.catalog()[0].name, {})).text, 'SSE response');
     } finally {
       await mcp.close();
