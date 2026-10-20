@@ -13,7 +13,7 @@
 | 工具、权限、技能、MCP | 所有角色共用一套工具；「请求批准」/「常规」、按项目「总是允许」；技能和 MCP 后端（X1、X2）、四个内置技能（X0）；设置里工具、技能、MCP 服务器三页，角色绑定技能，时间线和批准卡片显示（X-UI） | `plans/X_TOOLS_SKILLS_MCP.md`                                  | 第三轮首测；研究方法类技能（alpha 之后）                                                                           |
 | 工作站                | 计划、导图、日志、文献版本，人和 AI 都能改、留历史版本；还是旧样式                                                                                                                           | `architecture/DATA_AND_ROLES.md`                               | P3 重做：撤掉左下角版本管理（由编辑台版本图取代），导图拉宽                                                        |
 | 知识库                | 资料库（解析、混合检索、条目、记忆收件箱、项目简报）；KB-1 实体和边的存储；设计定稿、规模方案、KB-8 设计稿都已认可                                                                           | `architecture/KNOWLEDGE_BASE.md`                               | Sol：KB-2a → 2b → 3 → 4 → 5 → 6 → 10a → 7；Claude：KB-9 → 10 → 11 → 12                                             |
-| 编辑台                | 只有设计稿（第 12 节已定）                                                                                                                                                                   | `architecture/EDITING_DESK.md`                                 | E0a ✅ 不采用 eigenpal → E0b ✅ 自研可行 → D1–D8（Sol）、U1–U8（Claude）                                           |
+| 编辑台                | 只有设计稿（第 12 节已定）                                                                                                                                                                   | `architecture/EDITING_DESK.md`                                 | E0a ✅ 不采用 eigenpal → E0b ✅ 自研可行 → D1（任务书已写）–D8（Sol）、U1–U8（Claude）                             |
 | 项目与文件            | 项目文件夹绑定和预览（PDF、docx）；Python 受管环境                                                                                                                                           | `architecture/PYTHON_ENVIRONMENTS.md`                          | KB-2 给每个项目文件建索引和副本；KB-11 项目资料整页                                                                |
 | 后台整理              | 纪要、记忆整理、文献版本说明、向量索引，发言时让路                                                                                                                                           | `architecture/EXPERT_CONTEXT.md`                               | 知识库整理队列（KB-3、KB-6）；P4 用量体检                                                                          |
 | 界面与设计系统        | 画廊 v12（53 张卡片、124 个图标）；已重做对话页、侧栏、设置的模型与服务商、关于页；知识库三页的设计稿                                                                                        | `design/DESIGN_SYSTEM.md`                                      | P3：侧栏 ✅ → 工作站 → 设置其余 → 导图 → 收件箱和专家角色；删完 `app/ui/styles/legacy/`（12 个文件）；过渡动画另议 |
@@ -62,7 +62,7 @@ Sol：KB-1 到 KB-7、KB-10a；Claude：KB-8 到 KB-12。KB-2c（首次扫描提
 **编辑台**（`architecture/EDITING_DESK.md` §10，`features.editingDesk` 开关后）
 
 ```
-E0a eigenpal 试验（✅ 2026-10-20，许可证不合适，不采用）→ E0b 自研回写原型与句子对齐（✅ 2026-10-20，自研路线定稿）→ D1 版本图后端 → D2 docx 读写 → D3 会话服务 → U1 页面骨架 → U2 编辑器
+E0a eigenpal 试验（✅ 2026-10-20，许可证不合适，不采用）→ E0b 自研回写原型与句子对齐（✅ 2026-10-20，自研路线定稿）→ D1 版本图后端（任务书已写） → D2 docx 读写 → D3 会话服务 → U1 页面骨架 → U2 编辑器
 → D4 句子对齐 → U3 比较视图 → D5 AI 改写工具 → U4 改写交互 → D6 绑定与批注 → U5 批注与来源栏 → U6 tex 编辑
 → D7 编译 → D8 版本图窗口 → U7 版本图 → U8 从对话进入
 ```
