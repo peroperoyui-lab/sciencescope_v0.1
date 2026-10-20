@@ -91,3 +91,24 @@
   font-weight: 600;
   line-height: 16px;
 }
+
+/* Graph mocks: a static SVG standing in for the Cytoscape canvas (KB-10).
+   Same encoding the app will use: fill = kind mixed into raised, stroke = kind;
+   curated solid, extracted solid with a mid dot, derived dashed. */
+.ds-g text { fill: var(--ink); font-family: var(--font-sans); font-size: 12px; }
+.ds-g .ds-g-sub { fill: var(--muted); font-size: 11px; }
+.ds-g-edge { fill: none; stroke: var(--line-strong); stroke-width: 1.5; }
+.ds-g-edge--derived { stroke-dasharray: 4 4; stroke: var(--faint); }
+.ds-g-edge--on { stroke: var(--accent); stroke-width: 2; }
+.ds-g-mid { fill: var(--line-strong); }
+.ds-g-mid--on { fill: var(--accent); }
+.ds-g-elabel { fill: var(--muted); font-size: 11px; paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; }
+.ds-g-elabel--on { fill: var(--accent-ink); }
+.ds-g-node { fill: color-mix(in srgb, var(--kind) 14%, var(--raised)); stroke: var(--kind); stroke-width: 1.5; }
+.ds-g-halo { fill: none; stroke: var(--accent-line); stroke-width: 6; }
+.ds-g-center { fill: none; stroke: var(--kind); stroke-width: 1; stroke-dasharray: 2 3; }
+.ds-g-handle { fill: var(--raised); stroke: var(--accent); stroke-width: 1.5; }
+.ds-g-ai { fill: var(--accent-soft); stroke: var(--accent-line); }
+.ds-g-ai-t { fill: var(--accent-ink) !important; font-size: 9px !important; font-weight: 600; }
+.ds-g-icon { color: var(--kind); }
+.ds-g-icon .ss-i { width: 16px; height: 16px; }

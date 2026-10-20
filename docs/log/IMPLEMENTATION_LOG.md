@@ -7,6 +7,10 @@
 > 新核心（`app/`，重建 R0 起）的开发与验收日志，最新在最上面。每次交付一条，不超过 5 行；细节放 `.sciencescope-local/temp`。
 > 2026-10-05 之前旧原型时期的记录在 `archive/legacy/DESKTOP_IMPLEMENTATION_legacy.md`。
 
+## 2026-10-20 KB-8 知识库设计稿（Claude）
+
+- 画廊 v10 加三张整页（知识库表格、图、项目资料）和两张零件卡（KnowledgeGraph、KnowledgeChange）；新增 7 个节点种类色令牌 kg-、14 个图标和对应样式（ss-kind、ss-ai、ss-cite、ss-card、ss-rel、ss-graph、ss-tree-row--nested）。还没接进应用，等用户审。
+
 ## 2026-10-19 C 组界面（Claude）
 
 - 批准卡片「总是允许」菜单、步骤里的规则说明、设置 → 运行环境的规则列表；看图步骤显示图片并可在预览打开；队列「现在插入」与插入标记；@ 多位并行的状态框测试。新增 `settings-approvals.js`、三个浏览器测试；截图在项目文件 `screenshots/group-c/`。

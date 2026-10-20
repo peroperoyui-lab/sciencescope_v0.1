@@ -25,6 +25,7 @@ ORDER = [
     'Splitter', 'Panel',
     'Message', 'ActivityTimeline', 'StatusLine', 'ApprovalCard', 'FileList', 'ExpertBox', 'Composer', 'ModelPicker', 'ModeMenu',
     'SettingRow', 'ProviderCard',
+    'KnowledgeGraph', 'KnowledgeChange',
 ]
 
 def build_bundle():

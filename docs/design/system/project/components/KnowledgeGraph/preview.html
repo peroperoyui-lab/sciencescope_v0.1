@@ -1,0 +1,103 @@
+<!-- @dsCard group="知识库" height=780 subtitle="知识库的零件：节点种类、文件索引状态、三种关系线、AI 标记；拖线后选关系，合并前先说改挂几条" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>KnowledgeGraph</title></head>
+<body>
+<div class="ds" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;align-items:start">
+  <div class="ds-col" style="gap:16px">
+    <div class="ds-col">
+      <span class="ds-label">节点种类（ss-kind，颜色来自 kg- 令牌）</span>
+      <div class="ds-row" style="gap:6px 16px;flex-wrap:wrap">
+        <span class="ss-kind" data-node-kind="source"><i data-i="file-text"></i>文献</span>
+        <span class="ss-kind" data-node-kind="method"><i data-i="flask-conical"></i>方法</span>
+        <span class="ss-kind" data-node-kind="variant"><i data-i="flask-conical"></i>变种</span>
+        <span class="ss-kind" data-node-kind="dataset"><i data-i="database"></i>数据集</span>
+        <span class="ss-kind" data-node-kind="variable"><i data-i="variable"></i>变量</span>
+        <span class="ss-kind" data-node-kind="metric"><i data-i="variable"></i>指标</span>
+        <span class="ss-kind" data-node-kind="software"><i data-i="boxes"></i>软件</span>
+        <span class="ss-kind" data-node-kind="code"><i data-i="file-code"></i>代码</span>
+        <span class="ss-kind" data-node-kind="concept"><i data-i="atom"></i>概念</span>
+        <span class="ss-kind" data-node-kind="person"><i data-i="user"></i>人物</span>
+        <span class="ss-kind" data-node-kind="org"><i data-i="building-2"></i>机构</span>
+      </div>
+    </div>
+    <div class="ds-col">
+      <span class="ds-label">项目文件的索引状态（文件夹树里文件名前）</span>
+      <div class="ds-row" style="gap:16px">
+        <span class="ss-kind"><span class="ss-dot ss-dot--ok"></span>已解析</span>
+        <span class="ss-kind"><span class="ss-spin"></span>解析中</span>
+        <span class="ss-kind"><span class="ss-dot ss-dot--ring"></span>仅索引文件名</span>
+        <span class="ss-kind"><span class="ss-dot ss-dot--danger"></span>失败</span>
+      </div>
+    </div>
+    <div class="ds-col">
+      <span class="ds-label">三种关系线和标记</span>
+      <svg class="ds-g" width="420" height="96" viewBox="0 0 420 96" aria-hidden="true">
+        <path class="ds-g-edge" d="M10 16H120"/><text x="134" y="20">手动添加（用户或角色用工具写的）</text>
+        <path class="ds-g-edge" d="M10 48H120"/><circle class="ds-g-mid" cx="65" cy="48" r="2.5"/><text x="134" y="52">从原文整理（论文卡片、主题深挖）</text>
+        <path class="ds-g-edge ds-g-edge--derived" d="M10 80H120"/><text x="134" y="84">自动线索（引用、相似），只作参考</text>
+      </svg>
+      <div class="ds-row" style="gap:16px">
+        <span class="ss-kind"><span class="ss-ai">AI</span>AI 添加，之后没人改过</span>
+        <span class="ss-kind"><span class="ss-ai ss-ai--missing">缺证据</span>AI 写的但没有引文或消息依据</span>
+      </div>
+    </div>
+    <div class="ds-col">
+      <span class="ds-label">悬停一条关系</span>
+      <div class="ss-graph__float" style="max-width:300px;padding:8px 10px">
+        <div style="font-size:13px;color:var(--ink)">王晓 2023 <span class="ss-muted">使用</span> fsQCA</div>
+        <p class="ss-prov">由 方法学家 在《QCA 文献整理》中添加</p>
+        <p class="ss-prov">依据 p.6「本文采用模糊集定性比较分析（fsQCA）……」</p>
+      </div>
+    </div>
+    <div class="ds-col">
+      <span class="ds-label">图上还没有关系</span>
+      <div class="ds-box"><div class="ss-empty">
+        <div class="ss-empty__icon"><i data-i="waypoints"></i></div>
+        <div class="ss-empty__title">这里还没有关系</div>
+        <div class="ss-empty__text">论文整理完后会出现引用和方法关系；也可以从节点拖线手动添加。</div>
+      </div></div>
+    </div>
+    <div class="ds-col">
+      <span class="ds-label">删除立即生效，状态行给撤销</span>
+      <div class="ss-toast" data-static><i data-i="circle-check"></i><span class="ss-toast__msg">已删除关系「引用」</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">撤销</button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="关闭"><i data-i="x"></i></button></div>
+    </div>
+  </div>
+
+  <div class="ds-col" style="gap:16px">
+    <div class="ds-col">
+      <span class="ds-label">从节点手柄拖到另一个节点，松开选关系</span>
+      <div class="ds-row" style="align-items:flex-start;gap:12px">
+        <svg class="ds-g" width="186" height="150" viewBox="-16 0 186 150" aria-hidden="true">
+          <g data-node-kind="code"><circle class="ds-g-node" cx="34" cy="40" r="18"/><foreignObject x="26" y="32" width="16" height="16"><span class="ds-g-icon" xmlns="http://www.w3.org/1999/xhtml"><i data-i="file-code"></i></span></foreignObject><text x="34" y="74" text-anchor="middle">truth_table.R</text></g>
+          <path class="ds-g-edge ds-g-edge--on" d="M52 46L118 92" stroke-dasharray="3 3"/>
+          <g data-node-kind="method"><circle class="ds-g-halo" cx="136" cy="104" r="25"/><circle class="ds-g-node" cx="136" cy="104" r="20"/><foreignObject x="128" y="96" width="16" height="16"><span class="ds-g-icon" xmlns="http://www.w3.org/1999/xhtml"><i data-i="flask-conical"></i></span></foreignObject><text x="136" y="140" text-anchor="middle">fsQCA</text></g>
+        </svg>
+        <div class="ss-menu" data-static role="menu" aria-label="关系" style="width:204px">
+          <div style="padding:4px 4px 6px"><span class="ss-input ss-input--sm"><i data-i="search" class="ss-i--sm"></i><input placeholder="搜索或输入新关系" /></span></div>
+          <div class="ss-menu__label">truth_table.R → fsQCA</div>
+          <button class="ss-menu__item" type="button" role="menuitem">由…实现</button>
+          <button class="ss-menu__item" type="button" role="menuitem">使用</button>
+          <button class="ss-menu__item" type="button" role="menuitem">变种</button>
+          <button class="ss-menu__item" type="button" role="menuitem">组成部分</button>
+          <button class="ss-menu__item" type="button" role="menuitem">支持</button>
+          <button class="ss-menu__item" type="button" role="menuitem">反驳</button>
+          <div class="ss-menu__sep"></div>
+          <button class="ss-menu__item" type="button" role="menuitem"><i data-i="arrow-down-up"></i>反向：fsQCA → truth_table.R</button>
+        </div>
+      </div>
+    </div>
+    <div class="ds-col">
+      <span class="ds-label">合并前先说改挂几条</span>
+      <div class="ss-dialog" data-static role="dialog" aria-labelledby="kg-merge" style="width:420px">
+        <div class="ss-dialog__head"><h2 class="ss-dialog__title" id="kg-merge">把「模糊集 QCA」合并到「fsQCA」？</h2></div>
+        <div class="ss-dialog__body"><p>7 条关系会改挂到 fsQCA，「模糊集 QCA」成为它的别名。合并后可以撤销。</p></div>
+        <div class="ss-dialog__foot"><button class="ss-btn" type="button">取消</button><button class="ss-btn ss-btn--primary" type="button">合并</button></div>
+      </div>
+    </div>
+    <p class="ds-note">图视图用 Cytoscape.js（MIT）画，这里是静态示意。节点底色是种类色和 raised 的混合，描边是种类色；文献的大小按库内被引数。中心节点有虚线外圈，选中的节点有绿色光晕和一个拖线手柄。双击换中心，右键菜单：设为中心、从这里拉关系、合并到…、在对话中引用、删除。Ctrl+Z / Ctrl+Shift+Z 只撤销本页内的修改，离开页面后成为一个历史版本。</p>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

@@ -1,0 +1,331 @@
+<!-- @dsCard group="整页示例" page height=900 width=1536 subtitle="知识库（图）：围绕一个节点看一层关系，按种类配色；手动、整理、线索三种线；AI 添加的带标记" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>PageKnowledgeGraph</title></head>
+<body>
+<div class="ss-shell">
+  <header class="ss-titlebar">
+    <span class="ss-titlebar__brand"><i data-logo></i>ScienceScope</span>
+    <button class="ss-titlebar__menu" type="button">文件</button>
+    <button class="ss-titlebar__menu" type="button">编辑</button>
+    <button class="ss-titlebar__menu" type="button">视图</button>
+    <button class="ss-titlebar__menu" type="button">帮助</button>
+    <span class="ss-titlebar__spacer"></span>
+    <button class="ss-winctl" type="button" aria-label="最小化"><i data-i="minus"></i></button>
+    <button class="ss-winctl" type="button" aria-label="最大化"><i data-i="square"></i></button>
+    <button class="ss-winctl ss-winctl--close" type="button" aria-label="关闭"><i data-i="x"></i></button>
+  </header>
+  <div class="ss-shell__body">
+    <aside class="ss-sidebar">
+      <div class="ss-sidebar__top">
+        <button class="ss-nav-item" type="button"><i data-i="square-pen"></i><span class="ss-nav-item__label">新对话</span></button>
+        <button class="ss-nav-item" type="button" aria-current="page"><i data-i="book-open"></i><span class="ss-nav-item__label">知识库</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="box"></i><span class="ss-nav-item__label">工作站</span></button>
+        <button class="ss-search-trigger" type="button"><i data-i="search"></i><span class="ss-search-trigger__label">搜索与命令</span><span class="ss-kbd">Ctrl K</span></button>
+      </div>
+      <div class="ss-sidebar__scroll">
+        <div class="ss-side-section" style="margin-top:4px">
+          <div class="ss-side-section__head"><span>项目</span><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="新建项目" data-tip="新建项目"><i data-i="plus"></i></button></div>
+          <div class="ss-tree">
+            <div class="ss-tree-row" aria-expanded="true">
+              <button class="ss-tree-row__twisty" type="button" aria-label="收起"><i data-i="chevron-down"></i></button>
+              <i data-i="folder-open"></i><span class="ss-tree-row__label">城市韧性研究</span><span class="ss-tree-row__end"></span>
+            </div>
+            <div class="ss-tree">
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">文献综述框架讨论</span><span class="ss-tree-row__end"><span class="ss-spin"></span></span></div>
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">指标体系初稿</span><span class="ss-tree-row__end">2 天</span></div>
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">面板数据清洗</span><span class="ss-tree-row__end">5 天</span></div>
+            </div>
+            <div class="ss-tree-row" aria-expanded="false">
+              <button class="ss-tree-row__twisty" type="button" aria-label="展开"><i data-i="chevron-down"></i></button>
+              <i data-i="folder"></i><span class="ss-tree-row__label">劳动保障政策演化</span><span class="ss-tree-row__end"></span>
+            </div>
+          </div>
+        </div>
+        <div class="ss-side-section">
+          <div class="ss-side-section__head"><span>独立对话</span></div>
+          <div class="ss-tree">
+            <div class="ss-tree-row ss-tree-row--leaf"><span class="ss-tree-row__label">参考文献格式整理</span><span class="ss-tree-row__end">昨天</span></div>
+            <div class="ss-tree-row ss-tree-row--leaf"><span class="ss-tree-row__label">Zipf 定律推导</span><span class="ss-tree-row__end">3 天</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="ss-sidebar__foot">
+        <button class="ss-user" type="button"><span class="ss-avatar ss-avatar--lg ss-avatar--user">Y</span><span class="ss-truncate">Yui</span></button>
+        <button class="ss-icon-btn" type="button" aria-label="专家" data-tip="专家"><i data-i="users"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="设置" data-tip="设置"><i data-i="settings"></i></button>
+      </div>
+      <div class="ss-splitter ss-splitter--end" data-min="200" data-max="360" data-default="248"></div>
+    </aside>
+
+        <main class="ss-main">
+      <div class="ss-header">
+        <div class="ss-header__title"><span>知识库</span></div>
+        <button class="ss-select ss-select--ghost" type="button" aria-haspopup="menu" data-menu="#m-scope"><i data-i="folder-open"></i><span class="ss-select__value" data-slot="value">城市韧性研究</span><i data-i="chevron-down"></i></button>
+        <div class="ss-header__actions">
+          <button class="ss-btn" type="button"><i data-i="import"></i>导入</button>
+        </div>
+      </div>
+
+      <div class="ss-toolbar">
+        <span class="ss-input"><i data-i="search"></i><input placeholder="找一个节点设为中心" /></span>
+        <span class="ss-toolbar__spacer"></span>
+        <span class="ss-muted" style="font-size:12px">9 个节点 · 10 条关系</span>
+        <div class="ss-seg ss-seg--sm" role="group" aria-label="看法"><button type="button" aria-pressed="false"><i data-i="table-2"></i>表格</button><button type="button" aria-pressed="true"><i data-i="waypoints"></i>图</button></div>
+      </div>
+
+      <div class="ss-graph">
+        <div class="ss-graph__canvas"><svg class="ds-g" width="880" height="720" viewBox="0 0 880 720" aria-hidden="true">
+<defs><marker id="ah" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L8 4L0 8z" fill="var(--line-strong)"/></marker>
+<marker id="ahd" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L8 4L0 8z" fill="var(--faint)"/></marker>
+<marker id="aho" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L8 4L0 8z" fill="var(--accent)"/></marker></defs>
+<path class="ds-g-edge" d="M440 299L440 122" marker-end="url(#ah)"/>
+<circle class="ds-g-mid" cx="440" cy="210" r="2.5"/>
+<text class="ds-g-elabel" x="440" y="204" text-anchor="middle">变种</text>
+<path class="ds-g-edge" d="M218 223L409 315" marker-end="url(#ah)"/>
+<circle class="ds-g-mid" cx="314" cy="269" r="2.5"/>
+<text class="ds-g-elabel" x="314" y="263" text-anchor="middle">提出</text>
+<path class="ds-g-edge ds-g-edge--on" d="M679 210L470 315" marker-end="url(#aho)"/>
+<text class="ds-g-elabel ds-g-elabel--on" x="575" y="257" text-anchor="middle">使用</text>
+<g transform="translate(593 267)"><rect class="ds-g-ai" x="0" y="-9" width="18" height="13" rx="3"/><text class="ds-g-ai-t" x="9" y="1" text-anchor="middle">AI</text></g>
+<path class="ds-g-edge" d="M770 443L472 341" marker-end="url(#ah)"/>
+<circle class="ds-g-mid" cx="621" cy="392" r="2.5"/>
+<text class="ds-g-elabel" x="621" y="386" text-anchor="middle">使用</text>
+<path class="ds-g-edge" d="M189 441L409 344" marker-end="url(#ah)"/>
+<circle class="ds-g-mid" cx="299" cy="393" r="2.5"/>
+<text class="ds-g-elabel" x="299" y="387" text-anchor="middle">组成部分</text>
+<path class="ds-g-edge" d="M329 551L425 360" marker-end="url(#ah)"/>
+<text class="ds-g-elabel" x="377" y="450" text-anchor="middle">由…实现</text>
+<path class="ds-g-edge" d="M569 560L457 360" marker-end="url(#ah)"/>
+<circle class="ds-g-mid" cx="513" cy="460" r="2.5"/>
+<text class="ds-g-elabel" x="513" y="454" text-anchor="middle">由…实现</text>
+<path class="ds-g-edge ds-g-edge--derived" d="M708 222L782 427" marker-end="url(#ahd)"/>
+<text class="ds-g-elabel" x="745" y="319" text-anchor="middle">相似 0.88</text>
+<path class="ds-g-edge ds-g-edge--derived" d="M677 200Q450 171 224 209" marker-end="url(#ahd)"/>
+<text class="ds-g-elabel" x="550" y="183" text-anchor="middle">引用</text>
+<path class="ds-g-edge" d="M780 469L701 619" marker-end="url(#ah)"/>
+<circle class="ds-g-mid" cx="741" cy="544" r="2.5"/>
+<text class="ds-g-elabel" x="741" y="538" text-anchor="middle">使用</text>
+<g data-node-kind="method">
+<circle class="ds-g-halo" cx="440" cy="330" r="33"/>
+<circle class="ds-g-center" cx="440" cy="330" r="39"/>
+<circle class="ds-g-node" cx="440" cy="330" r="28"/>
+<foreignObject x="432" y="322" width="16" height="16"><span class="ds-g-icon" xmlns="http://www.w3.org/1999/xhtml"><i data-i="flask-conical"></i></span></foreignObject>
+<text x="440" y="385" text-anchor="middle" font-weight="600">fsQCA</text>
+<circle class="ds-g-handle" cx="479" cy="330" r="5"/>
+</g>
+<g data-node-kind="method">
+<circle class="ds-g-node" cx="440" cy="92" r="24"/>
+<foreignObject x="432" y="84" width="16" height="16"><span class="ds-g-icon" xmlns="http://www.w3.org/1999/xhtml"><i data-i="flask-conical"></i></span></foreignObject>
+<text x="440" y="132" text-anchor="middle">QCA</text>
+</g>
+<g data-node-kind="source">
+<circle class="ds-g-node" cx="190" cy="210" r="28"/>
+<foreignObject x="182" y="202" width="16" height="16"><span class="ds-g-icon" xmlns="http://www.w3.org/1999/xhtml"><i data-i="file-text"></i></span></foreignObject>
+<text x="190" y="254" text-anchor="middle">Ragin 2008</text>
+<text class="ds-g-sub" x="190" y="268" text-anchor="middle">Redesigning Social Inquiry</text>
+</g>
+<g data-node-kind="source">
+<circle class="ds-g-node" cx="700" cy="200" r="20"/>
+<foreignObject x="692" y="192" width="16" height="16"><span class="ds-g-icon" xmlns="http://www.w3.org/1999/xhtml"><i data-i="file-text"></i></span></foreignObject>
+<text x="700" y="236" text-anchor="middle">王晓 2023</text>
+<text class="ds-g-sub" x="700" y="250" text-anchor="middle">组态视角下城市韧性</text>
+</g>
+<g data-node-kind="source">
+<circle class="ds-g-node" cx="790" cy="450" r="18"/>
+<foreignObject x="782" y="442" width="16" height="16"><span class="ds-g-icon" xmlns="http://www.w3.org/1999/xhtml"><i data-i="file-text"></i></span></foreignObject>
+<text x="790" y="484" text-anchor="middle">Li 2022</text>
+<text class="ds-g-sub" x="790" y="498" text-anchor="middle">Urban resilience configurations</text>
+</g>
+<g data-node-kind="concept">
+<circle class="ds-g-node" cx="170" cy="450" r="18"/>
+<foreignObject x="162" y="442" width="16" height="16"><span class="ds-g-icon" xmlns="http://www.w3.org/1999/xhtml"><i data-i="atom"></i></span></foreignObject>
+<text x="170" y="484" text-anchor="middle">一致性阈值</text>
+</g>
+<g data-node-kind="code">
+<circle class="ds-g-node" cx="320" cy="570" r="18"/>
+<foreignObject x="312" y="562" width="16" height="16"><span class="ds-g-icon" xmlns="http://www.w3.org/1999/xhtml"><i data-i="file-code"></i></span></foreignObject>
+<text x="320" y="604" text-anchor="middle">qca_truth_table.R</text>
+</g>
+<g data-node-kind="software">
+<circle class="ds-g-node" cx="580" cy="580" r="20"/>
+<foreignObject x="572" y="572" width="16" height="16"><span class="ds-g-icon" xmlns="http://www.w3.org/1999/xhtml"><i data-i="boxes"></i></span></foreignObject>
+<text x="580" y="616" text-anchor="middle">R QCA 包</text>
+</g>
+<g data-node-kind="dataset">
+<circle class="ds-g-node" cx="690" cy="640" r="18"/>
+<foreignObject x="682" y="632" width="16" height="16"><span class="ds-g-icon" xmlns="http://www.w3.org/1999/xhtml"><i data-i="database"></i></span></foreignObject>
+<text x="690" y="674" text-anchor="middle">地级市面板 2010–2020</text>
+</g>
+</svg></div>
+        <div class="ss-graph__bar">
+          <span class="ss-graph__center" data-node-kind="method"><span class="ss-kind__dot"></span>fsQCA<button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="回到入口节点" data-tip="回到入口节点"><i data-i="x"></i></button></span>
+          <div class="ss-seg ss-seg--sm ss-graph__float" role="group" aria-label="深度"><button type="button" aria-pressed="true" data-tip="一层关系">1</button><button type="button" aria-pressed="false" data-tip="两层关系">2</button><button type="button" aria-pressed="false" data-tip="三层关系">3</button></div>
+          <span class="ss-toolbar__spacer"></span>
+          <span class="ss-graph__float" style="display:flex;padding:2px">
+            <button class="ss-icon-btn" type="button" aria-label="撤销" data-tip="撤销 Ctrl+Z"><i data-i="undo-2"></i></button>
+            <button class="ss-icon-btn" type="button" aria-label="重做" data-tip="重做 Ctrl+Shift+Z" disabled><i data-i="redo-2"></i></button>
+            <button class="ss-icon-btn" type="button" aria-label="筛选" data-tip="筛选" data-pop="#p-gfilter"><i data-i="funnel"></i></button>
+          </span>
+        </div>
+        <div class="ss-graph__legend ss-graph__float">
+          <span class="ss-kind" data-node-kind="source"><span class="ss-kind__dot"></span>文献</span>
+          <span class="ss-kind" data-node-kind="method"><span class="ss-kind__dot"></span>方法</span>
+          <span class="ss-kind" data-node-kind="dataset"><span class="ss-kind__dot"></span>数据集</span>
+          <span class="ss-kind" data-node-kind="variable"><span class="ss-kind__dot"></span>变量</span>
+          <span class="ss-kind" data-node-kind="code"><span class="ss-kind__dot"></span>软件与代码</span>
+          <span class="ss-kind" data-node-kind="concept"><span class="ss-kind__dot"></span>概念</span>
+          <span class="ss-kind" data-node-kind="person"><span class="ss-kind__dot"></span>人物与机构</span>
+          <button class="ss-info" type="button" aria-label="说明" data-tip="实线是手动添加的关系；带圆点的实线是从原文整理出来的，带页码证据；虚线是自动线索（引用、相似），只作参考。AI 添加且没人改过的关系带 AI 标记。"><i data-i="info"></i></button>
+        </div>
+        <div class="ss-graph__zoom ss-graph__float">
+          <button class="ss-icon-btn" type="button" aria-label="放大" data-tip="放大" data-tip-place="left"><i data-i="zoom-in"></i></button>
+          <button class="ss-icon-btn" type="button" aria-label="缩小" data-tip="缩小" data-tip-place="left"><i data-i="zoom-out"></i></button>
+          <button class="ss-icon-btn" type="button" aria-label="适应窗口" data-tip="适应窗口" data-tip-place="left"><i data-i="scan"></i></button>
+        </div>
+      </div>
+    </main>
+
+    <aside class="ss-panel" style="width:400px">
+      <div class="ss-splitter ss-splitter--start" data-min="280" data-max="640" data-default="400" data-key="page-preview"></div>
+      <div class="ss-panel__head">
+        <span class="ss-panel__title">fsQCA</span>
+        <button class="ss-icon-btn" type="button" aria-label="更多" data-menu="#m-node"><i data-i="ellipsis"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭"><i data-i="x"></i></button>
+      </div>
+      <div class="ss-panel__body" style="display:grid;gap:16px;align-content:start">
+        <div style="display:grid;gap:4px">
+          <dl class="ss-props">
+            <dt>种类</dt><dd><span class="ss-kind" data-node-kind="method"><i data-i="flask-conical"></i>方法</span></dd>
+            <dt>英文名</dt><dd>fuzzy-set Qualitative Comparative Analysis</dd>
+            <dt>别名</dt><dd>模糊集 QCA、fuzzy-set QCA</dd>
+            <dt>说明</dt><dd>用模糊集隶属度刻画条件和结果，比较哪些条件组合导致结果出现。</dd>
+            <dt>属性</dt><dd><span class="ss-mono">consistency ≥ 0.8</span></dd>
+            <dt>标签</dt><dd><span class="ss-tag">组态</span> <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="添加标签" data-tip="添加标签" style="vertical-align:middle"><i data-i="plus"></i></button></dd>
+          </dl>
+          <p class="ss-prov">由 方法学家 在《QCA 文献整理》中添加，你在 10-20 改过。点任一项直接修改。</p>
+        </div>
+        <div>
+          <h3 class="ss-section-title">相连<span class="ss-muted" style="font-weight:400"> 7</span></h3>
+          <div class="ss-rel">
+            <div class="ss-rel__head">变种 →</div>
+            <button class="ss-rel__row" type="button" data-node-kind="method"><span class="ss-kind__dot"></span><span class="ss-rel__label">QCA</span><span class="ss-rel__meta">方法</span></button>
+          </div>
+          <div class="ss-rel">
+            <div class="ss-rel__head">被使用 ←<span class="ss-rel__count">2</span></div>
+            <button class="ss-rel__row" type="button" data-node-kind="source" aria-selected="true"><span class="ss-kind__dot"></span><span class="ss-rel__label">组态视角下城市韧性的提升路径</span><span class="ss-ai">AI</span><span class="ss-rel__meta">王晓 2023</span></button>
+            <button class="ss-rel__row" type="button" data-node-kind="source"><span class="ss-kind__dot"></span><span class="ss-rel__label">Urban resilience configurations</span><span class="ss-rel__meta">Li 2022</span></button>
+          </div>
+          <div class="ss-rel">
+            <div class="ss-rel__head">被提出 ←</div>
+            <button class="ss-rel__row" type="button" data-node-kind="source"><span class="ss-kind__dot"></span><span class="ss-rel__label">Redesigning Social Inquiry</span><span class="ss-rel__meta">Ragin 2008</span></button>
+          </div>
+          <div class="ss-rel">
+            <div class="ss-rel__head">由…实现 ←<span class="ss-rel__count">2</span></div>
+            <button class="ss-rel__row" type="button" data-node-kind="code"><span class="ss-kind__dot"></span><span class="ss-rel__label">qca_truth_table.R</span><span class="ss-rel__meta">代码</span></button>
+            <button class="ss-rel__row" type="button" data-node-kind="software"><span class="ss-kind__dot"></span><span class="ss-rel__label">R QCA 包</span><span class="ss-rel__meta ss-mono">package: QCA</span></button>
+          </div>
+          <div class="ss-rel">
+            <div class="ss-rel__head">组成部分 ←</div>
+            <button class="ss-rel__row" type="button" data-node-kind="concept"><span class="ss-kind__dot"></span><span class="ss-rel__label">一致性阈值</span><span class="ss-rel__meta">概念</span></button>
+          </div>
+        </div>
+        <div>
+          <h3 class="ss-section-title">证据</h3>
+          <div style="display:grid;gap:8px">
+            <blockquote class="ss-quote">本文采用模糊集定性比较分析（fsQCA），将一致性阈值设为 0.8…… <button class="ss-cite" type="button">王晓 2023 p.6</button></blockquote>
+            <blockquote class="ss-quote">Fuzzy sets are especially powerful because they allow researchers to calibrate partial membership…… <button class="ss-cite" type="button">Ragin 2008 p.29</button></blockquote>
+          </div>
+        </div>
+        <div>
+          <h3 class="ss-section-title">历史</h3>
+          <div class="ss-list">
+            <div class="ss-list-row"><i data-i="pencil" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">你改了「说明」，合并了「模糊集 QCA」</span></div><span class="ss-list-row__meta ss-list-row__meta--time">10-20 09:20</span><span class="ss-list-row__actions"><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">恢复到这一版</button></span></div>
+            <div class="ss-list-row"><i data-i="sparkle" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">方法学家 新建</span></div><span class="ss-list-row__meta ss-list-row__meta--time">10-19 15:41</span><span class="ss-list-row__actions"><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">恢复到这一版</button></span></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+  <footer class="ss-statusbar">
+    <span class="ss-statusbar__item"><span class="ss-dot ss-dot--ok"></span>已连接</span>
+    <span class="ss-statusbar__item">项目文件夹 D:\研究\城市韧性</span>
+    <span class="ss-statusbar__spacer"></span>
+    <span class="ss-statusbar__item">修改立即保存，离开本页时留一个历史版本</span>
+  </footer>
+</div>
+
+<div class="ss-menu" id="m-item" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="eye"></i>预览<span class="ss-menu__end">Space</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="external-link"></i>打开原件</button>
+  <button class="ss-menu__item" type="button"><i data-i="waypoints"></i>在图中查看</button>
+  <button class="ss-menu__item" type="button"><i data-i="message-square"></i>在对话中引用</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>编辑信息</button>
+  <button class="ss-menu__item" type="button"><i data-i="refresh-cw"></i>重新解析</button>
+  <button class="ss-menu__item" type="button"><i data-i="sparkle"></i>重新整理卡片</button>
+  <button class="ss-menu__item" type="button"><i data-i="tag"></i>标签…</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>删除</button>
+</div>
+<div class="ss-menu" id="m-scope" hidden>
+  <div class="ss-menu__label">范围</div>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="true" data-label="城市韧性研究" type="button"><i data-i="folder-open"></i>当前项目：城市韧性研究<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="全局知识库" type="button"><i data-i="book-open"></i>全局知识库<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<div class="ss-menu" id="m-more" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="brain"></i>记忆</button>
+  <button class="ss-menu__item" type="button"><i data-i="inbox"></i>记忆收件箱<span class="ss-menu__end">3</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="newspaper"></i>项目简报</button>
+</div>
+<div class="ss-menu" id="m-sort" hidden>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="true" data-label="导入时间" type="button">导入时间<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="标题" type="button">标题<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="关系数" type="button">关系数<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<div class="ss-pop" id="p-filter" hidden style="width:280px">
+  <div class="ss-pop__body">
+    <div class="ss-pop__section"><span class="ss-pop__label">整理状态</span>
+      <label class="ss-check"><input type="checkbox" checked /><span>已整理</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>整理中或等待整理</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>仅索引文件名</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>失败</span></label>
+    </div>
+    <div class="ss-pop__section"><span class="ss-pop__label">关系</span>
+      <label class="ss-check"><input type="checkbox" /><span>只看有 AI 添加的</span></label>
+      <label class="ss-check"><input type="checkbox" /><span>只看缺证据的</span></label>
+    </div>
+    <div class="ss-pop__section"><span class="ss-pop__label">标签</span>
+      <span class="ss-input ss-input--sm"><i data-i="tag" class="ss-i--sm"></i><input placeholder="输入标签名" /></span>
+    </div>
+  </div>
+  <div class="ss-pop__foot"><span class="ss-muted" style="font-size:12px">筛选立即生效</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">清除</button></div>
+</div>
+<div class="ss-pop" id="p-gfilter" hidden style="width:280px">
+  <div class="ss-pop__body">
+    <div class="ss-pop__section"><span class="ss-pop__label">种类</span>
+      <label class="ss-check"><input type="checkbox" checked /><span>文献与资料</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>方法、数据集、变量</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>软件与代码</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>概念、人物、机构</span></label>
+    </div>
+    <div class="ss-pop__section"><span class="ss-pop__label">关系的来源</span>
+      <label class="ss-check"><input type="checkbox" checked /><span>手动添加</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>从原文整理</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>自动线索（引用、相似）</span></label>
+      <label class="ss-check"><input type="checkbox" /><span>只看 AI 添加的</span></label>
+    </div>
+  </div>
+  <div class="ss-pop__foot"><span class="ss-muted" style="font-size:12px">筛选立即生效</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">清除</button></div>
+</div>
+<div class="ss-menu" id="m-node" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="locate"></i>设为中心<span class="ss-menu__end">双击</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="spline"></i>从这里拉关系</button>
+  <button class="ss-menu__item" type="button"><i data-i="git-merge"></i>合并到…</button>
+  <button class="ss-menu__item" type="button"><i data-i="message-square"></i>在对话中引用</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>删除<span class="ss-menu__end">Del</span></button>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

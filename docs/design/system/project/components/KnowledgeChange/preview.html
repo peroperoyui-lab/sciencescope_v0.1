@@ -1,0 +1,32 @@
+<!-- @dsCard group="知识库" height=520 subtitle="回答下方一行「本轮修改了知识库」：默认收起，展开是清单；在图中查看，或整组撤回" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>KnowledgeChange</title></head>
+<body>
+<div class="ds" style="max-width:720px;gap:16px">
+  <div class="ss-files">
+    <button class="ss-files__head" type="button" aria-expanded="false"><i data-i="waypoints"></i><span class="ss-files__count">本轮修改了知识库</span><span class="ss-files__names">新增 3 个实体、9 条关系</span><i data-i="chevron-down" class="ss-files__chev"></i></button>
+  </div>
+  <div class="ss-files">
+    <button class="ss-files__head" type="button" aria-expanded="true"><i data-i="waypoints"></i><span class="ss-files__count">本轮修改了知识库</span><span class="ss-files__names">新增 3 个实体、9 条关系</span><i data-i="chevron-down" class="ss-files__chev"></i></button>
+    <div class="ss-files__list">
+      <button class="ss-rel__row" type="button" data-node-kind="method"><span class="ss-kind__dot"></span><span class="ss-rel__label">新增实体 csQCA</span><span class="ss-rel__meta">方法</span></button>
+      <button class="ss-rel__row" type="button" data-node-kind="method"><span class="ss-kind__dot"></span><span class="ss-rel__label">新增实体 mvQCA</span><span class="ss-rel__meta">方法</span></button>
+      <button class="ss-rel__row" type="button" data-node-kind="software"><span class="ss-kind__dot"></span><span class="ss-rel__label">新增实体 R QCA 包</span><span class="ss-rel__meta">软件</span></button>
+      <button class="ss-rel__row" type="button" data-node-kind="source"><span class="ss-kind__dot"></span><span class="ss-rel__label">王晓 2023 —使用→ fsQCA</span><span class="ss-rel__meta">依据 p.6</span></button>
+      <button class="ss-rel__row" type="button" data-node-kind="method"><span class="ss-kind__dot"></span><span class="ss-rel__label">csQCA —变种→ QCA</span><span class="ss-rel__meta">依据 Ragin 2008 p.12</span></button>
+      <button class="ss-rel__row" type="button" data-node-kind="software"><span class="ss-kind__dot"></span><span class="ss-rel__label">R QCA 包 —由…实现→ fsQCA</span><span class="ss-ai ss-ai--missing">缺证据</span><span class="ss-rel__meta"></span></button>
+      <button class="ss-linkbtn" type="button" style="justify-self:start;margin:2px 6px">还有 6 条</button>
+    </div>
+    <div class="ss-files__foot">
+      <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="waypoints"></i>在图中查看</button>
+      <span class="ss-toolbar__spacer"></span>
+      <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="undo-2"></i>撤回这组修改</button>
+    </div>
+  </div>
+  <div class="ss-callout"><i data-i="info"></i><div class="ss-callout__body">已撤回 7 条；2 条之后又被你改过，没有撤回。</div></div>
+  <p class="ds-note">和交付文件同一种收起行（ss-files）。一行写改了什么，展开逐条列出，点一条在图中定位；AI 写的边没有引文或消息依据时标「缺证据」，方便删掉。撤回先把当前状态存成一个版本，所以撤回也能再撤回；之后又被改过的记录跳过，并在提示里写明几条。</p>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

@@ -43,8 +43,8 @@
   },
   "lastChange": {
     "by": "Claude",
-    "at": "2026-10-19T08:00:00Z",
+    "at": "2026-10-20T06:00:00Z",
     "via": "Claude Code",
-    "note": "对话页 B 组：时间线合组与批准状态、交付文件清单（FileList）、专家状态框（ExpertBox）"
+    "note": "知识库设计稿 KB-8：知识库表格页与图页、项目资料页、知识库零件（KnowledgeGraph）、本轮修改了知识库（KnowledgeChange）；节点种类色 kg- 令牌；批准卡片加「总是允许」"
   }
 }

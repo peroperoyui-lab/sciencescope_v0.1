@@ -1,0 +1,242 @@
+<!-- @dsCard group="整页示例" page height=900 width=1536 subtitle="知识库（表格）：资料带整理状态和关系数，点一下在右侧看论文卡片、相连节点和历史" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>PageKnowledge</title></head>
+<body>
+<div class="ss-shell">
+  <header class="ss-titlebar">
+    <span class="ss-titlebar__brand"><i data-logo></i>ScienceScope</span>
+    <button class="ss-titlebar__menu" type="button">文件</button>
+    <button class="ss-titlebar__menu" type="button">编辑</button>
+    <button class="ss-titlebar__menu" type="button">视图</button>
+    <button class="ss-titlebar__menu" type="button">帮助</button>
+    <span class="ss-titlebar__spacer"></span>
+    <button class="ss-winctl" type="button" aria-label="最小化"><i data-i="minus"></i></button>
+    <button class="ss-winctl" type="button" aria-label="最大化"><i data-i="square"></i></button>
+    <button class="ss-winctl ss-winctl--close" type="button" aria-label="关闭"><i data-i="x"></i></button>
+  </header>
+  <div class="ss-shell__body">
+    <aside class="ss-sidebar">
+      <div class="ss-sidebar__top">
+        <button class="ss-nav-item" type="button"><i data-i="square-pen"></i><span class="ss-nav-item__label">新对话</span></button>
+        <button class="ss-nav-item" type="button" aria-current="page"><i data-i="book-open"></i><span class="ss-nav-item__label">知识库</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="box"></i><span class="ss-nav-item__label">工作站</span></button>
+        <button class="ss-search-trigger" type="button"><i data-i="search"></i><span class="ss-search-trigger__label">搜索与命令</span><span class="ss-kbd">Ctrl K</span></button>
+      </div>
+      <div class="ss-sidebar__scroll">
+        <div class="ss-side-section" style="margin-top:4px">
+          <div class="ss-side-section__head"><span>项目</span><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="新建项目" data-tip="新建项目"><i data-i="plus"></i></button></div>
+          <div class="ss-tree">
+            <div class="ss-tree-row" aria-expanded="true">
+              <button class="ss-tree-row__twisty" type="button" aria-label="收起"><i data-i="chevron-down"></i></button>
+              <i data-i="folder-open"></i><span class="ss-tree-row__label">城市韧性研究</span><span class="ss-tree-row__end"></span>
+            </div>
+            <div class="ss-tree">
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">文献综述框架讨论</span><span class="ss-tree-row__end"><span class="ss-spin"></span></span></div>
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">指标体系初稿</span><span class="ss-tree-row__end">2 天</span></div>
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">面板数据清洗</span><span class="ss-tree-row__end">5 天</span></div>
+            </div>
+            <div class="ss-tree-row" aria-expanded="false">
+              <button class="ss-tree-row__twisty" type="button" aria-label="展开"><i data-i="chevron-down"></i></button>
+              <i data-i="folder"></i><span class="ss-tree-row__label">劳动保障政策演化</span><span class="ss-tree-row__end"></span>
+            </div>
+          </div>
+        </div>
+        <div class="ss-side-section">
+          <div class="ss-side-section__head"><span>独立对话</span></div>
+          <div class="ss-tree">
+            <div class="ss-tree-row ss-tree-row--leaf"><span class="ss-tree-row__label">参考文献格式整理</span><span class="ss-tree-row__end">昨天</span></div>
+            <div class="ss-tree-row ss-tree-row--leaf"><span class="ss-tree-row__label">Zipf 定律推导</span><span class="ss-tree-row__end">3 天</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="ss-sidebar__foot">
+        <button class="ss-user" type="button"><span class="ss-avatar ss-avatar--lg ss-avatar--user">Y</span><span class="ss-truncate">Yui</span></button>
+        <button class="ss-icon-btn" type="button" aria-label="专家" data-tip="专家"><i data-i="users"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="设置" data-tip="设置"><i data-i="settings"></i></button>
+      </div>
+      <div class="ss-splitter ss-splitter--end" data-min="200" data-max="360" data-default="248"></div>
+    </aside>
+
+        <main class="ss-main">
+      <div class="ss-header">
+        <div class="ss-header__title"><span>知识库</span></div>
+        <button class="ss-select ss-select--ghost" type="button" aria-haspopup="menu" data-menu="#m-scope"><i data-i="folder-open"></i><span class="ss-select__value" data-slot="value">城市韧性研究</span><i data-i="chevron-down"></i></button>
+        <span class="ss-header__sep"></span>
+        <nav class="ss-tabs" role="tablist" aria-label="知识库内容">
+          <button class="ss-tab" role="tab" aria-selected="true" type="button">文献与资料<span class="ss-tab__count">9</span></button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">实体<span class="ss-tab__count">23</span></button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">知识</button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">模型与公式</button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">主张与证据</button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button">代码<span class="ss-tab__count">4</span></button>
+          <button class="ss-tab" role="tab" aria-selected="false" type="button" aria-haspopup="menu" data-menu="#m-more">记忆<span class="ss-tab__count">3</span><i data-i="chevron-down" class="ss-i--sm"></i></button>
+        </nav>
+        <div class="ss-header__actions">
+          <button class="ss-btn" type="button"><i data-i="import"></i>导入</button>
+        </div>
+      </div>
+
+      <div class="ss-toolbar">
+        <span class="ss-input"><i data-i="search"></i><input placeholder="搜索标题、实体或正文" /></span>
+        <button class="ss-icon-btn" type="button" aria-label="筛选" data-tip="筛选" data-pop="#p-filter"><i data-i="funnel"></i></button>
+        <button class="ss-select ss-select--ghost" type="button" aria-haspopup="menu" data-menu="#m-sort"><i data-i="arrow-down-up"></i><span class="ss-select__value" data-slot="value">导入时间</span><i data-i="chevron-down"></i></button>
+        <span class="ss-toolbar__spacer"></span>
+        <span class="ss-muted" style="font-size:12px">已整理 6 篇；1 篇是扫描件，没有文字</span>
+        <div class="ss-seg ss-seg--sm" role="group" aria-label="看法"><button type="button" aria-pressed="true"><i data-i="table-2"></i>表格</button><button type="button" aria-pressed="false"><i data-i="waypoints"></i>图</button></div>
+      </div>
+
+      <div class="ss-content" style="padding:0 10px 12px">
+        <div class="ss-list" data-selectable role="listbox" aria-label="文献与资料">
+          <div class="ss-list-row ss-list-row--2" role="option" aria-selected="true" data-ctx="#m-item"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">组态视角下城市韧性的提升路径：基于 fsQCA 的分析</span><span class="ss-list-row__sub">王晓、陈立 · 2023 · papers/</span></div><span class="ss-tag ss-tag--ok">已整理</span><span class="ss-list-row__meta">14 条关系</span><span class="ss-list-row__meta ss-list-row__meta--time">10-19</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="在图中查看" data-tip="在图中查看"><i data-i="waypoints"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+          <div class="ss-list-row ss-list-row--2" role="option" aria-selected="false" data-ctx="#m-item"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">Redesigning Social Inquiry: Fuzzy Sets and Beyond</span><span class="ss-list-row__sub">Ragin · 2008 · 全局</span></div><span class="ss-tag ss-tag--ok">已整理</span><span class="ss-list-row__meta">21 条关系</span><span class="ss-list-row__meta ss-list-row__meta--time">10-12</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="在图中查看" data-tip="在图中查看"><i data-i="waypoints"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+          <div class="ss-list-row ss-list-row--2" role="option" aria-selected="false" data-ctx="#m-item"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">Urban resilience configurations across Chinese cities</span><span class="ss-list-row__sub">Li, Zhou · 2022 · papers/</span></div><span class="ss-tag ss-tag--ok">已整理</span><span class="ss-list-row__meta">9 条关系</span><span class="ss-list-row__meta ss-list-row__meta--time">10-19</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="在图中查看" data-tip="在图中查看"><i data-i="waypoints"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+          <div class="ss-list-row ss-list-row--2" role="option" aria-selected="false" data-ctx="#m-item"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">城市韧性评价指标体系构建</span><span class="ss-list-row__sub">赵敏 · 2021 · papers/</span></div><span class="ss-tag ss-tag--ok">已整理</span><span class="ss-list-row__meta">6 条关系</span><span class="ss-list-row__meta ss-list-row__meta--time">10-19</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="在图中查看" data-tip="在图中查看"><i data-i="waypoints"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+          <div class="ss-list-row ss-list-row--2" role="option" aria-selected="false" data-ctx="#m-item"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">基于熵权 TOPSIS 的城市韧性测度</span><span class="ss-list-row__sub">刘洋 · 2020 · papers/</span></div><span class="ss-tag ss-tag--ok">已整理</span><span class="ss-list-row__meta">5 条关系</span><span class="ss-list-row__meta ss-list-row__meta--time">10-19</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="在图中查看" data-tip="在图中查看"><i data-i="waypoints"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+          <div class="ss-list-row ss-list-row--2" role="option" aria-selected="false" data-ctx="#m-item"><span class="ss-spin"></span><div class="ss-list-row__main"><span class="ss-list-row__title">地级市面板数据下的城市韧性时空演化</span><span class="ss-list-row__sub">孙婷 · 2022 · papers/</span></div><span class="ss-tag">整理中</span><span class="ss-list-row__meta">2 条关系</span><span class="ss-list-row__meta ss-list-row__meta--time">刚刚</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="在图中查看" data-tip="在图中查看"><i data-i="waypoints"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+          <div class="ss-list-row ss-list-row--2" role="option" aria-selected="false" data-ctx="#m-item"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">气候冲击与城市经济韧性</span><span class="ss-list-row__sub">Martin · 2019 · 全局</span></div><span class="ss-tag">等待整理</span><span class="ss-list-row__meta">1 条关系</span><span class="ss-list-row__meta ss-list-row__meta--time">刚刚</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="在图中查看" data-tip="在图中查看"><i data-i="waypoints"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+          <div class="ss-list-row ss-list-row--2" role="option" aria-selected="false" data-ctx="#m-item"><i data-i="file-text" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">灾后恢复访谈扫描件.pdf</span><span class="ss-list-row__sub">papers/scans/</span></div><span class="ss-tag ss-tag--warn" data-tip="没有可提取的文字，可能是扫描件。仍然能按文件名找到。">扫描件，没有文字</span><span class="ss-list-row__meta">—</span><span class="ss-list-row__meta ss-list-row__meta--time">10-19</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+          <div class="ss-list-row ss-list-row--2" role="option" aria-selected="false" data-ctx="#m-item"><i data-i="database" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">panel_2010_2020.dta</span><span class="ss-list-row__sub">data/raw/ · 38.2 MB</span></div><span class="ss-tag" data-tip="这种格式不解析内容，专家能按文件名和位置找到它。">仅索引文件名</span><span class="ss-list-row__meta">—</span><span class="ss-list-row__meta ss-list-row__meta--time">10-19</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button></span></div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="ss-panel" style="width:400px">
+      <div class="ss-splitter ss-splitter--start" data-min="280" data-max="640" data-default="400" data-key="page-preview"></div>
+      <div class="ss-panel__head">
+        <span class="ss-panel__title">组态视角下城市韧性的提升路径：基于 fsQCA 的分析</span>
+        <button class="ss-icon-btn" type="button" aria-label="在图中查看" data-tip="在图中查看"><i data-i="waypoints"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="打开原件" data-tip="打开原件"><i data-i="external-link"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="更多" data-menu="#m-item"><i data-i="ellipsis"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭"><i data-i="x"></i></button>
+      </div>
+      <div class="ss-panel__body" style="display:grid;gap:16px;align-content:start">
+        <dl class="ss-props">
+          <dt>种类</dt><dd><span class="ss-kind" data-node-kind="source"><i data-i="file-text"></i>文献</span></dd>
+          <dt>作者</dt><dd>王晓、陈立 · 2023 · 《城市问题》</dd>
+          <dt>位置</dt><dd>papers/组态视角下城市韧性.pdf</dd>
+          <dt>引用编号</dt><dd>S3</dd>
+          <dt>标签</dt><dd><span class="ss-tag">组态</span> <span class="ss-tag">韧性路径</span> <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="添加标签" data-tip="添加标签" style="vertical-align:middle"><i data-i="plus"></i></button></dd>
+        </dl>
+        <div>
+          <h3 class="ss-section-title">论文卡片<button class="ss-info" type="button" aria-label="说明" data-tip="从原文整理，每项都带页码，点页码在预览里打开那一段。你改过的项，重新整理时不会被覆盖。"><i data-i="info"></i></button></h3>
+          <dl class="ss-card">
+            <dt>研究问题</dt><dd>哪些韧性要素的组合能带来高城市韧性？ <button class="ss-cite" type="button">p.2</button></dd>
+            <dt>方法</dt><dd>fsQCA，一致性阈值 0.8，PRI ≥ 0.7 <button class="ss-cite" type="button">p.6</button></dd>
+            <dt>数据</dt><dd>2010–2020 年 108 个地级市面板 <button class="ss-cite" type="button">p.5</button></dd>
+            <dt>变量</dt><dd>经济、社会、生态、基础设施四类条件；结果为综合韧性指数 <button class="ss-cite" type="button">p.6</button></dd>
+            <dt>软件</dt><dd>R 4.3，QCA 包 3.21 <button class="ss-cite" type="button">p.7</button></dd>
+            <dt>主要结论</dt><dd>三条组态路径都包含高经济韧性；基础设施只在东部样本中是核心条件。 <button class="ss-cite" type="button">p.12</button></dd>
+          </dl>
+        </div>
+        <div>
+          <h3 class="ss-section-title">相连<span class="ss-muted" style="font-weight:400"> 14</span></h3>
+          <div class="ss-rel">
+            <div class="ss-rel__head">使用<span class="ss-rel__count">3</span></div>
+            <button class="ss-rel__row" type="button" data-node-kind="method"><span class="ss-kind__dot"></span><span class="ss-rel__label">fsQCA</span><span class="ss-rel__meta">方法</span></button>
+            <button class="ss-rel__row" type="button" data-node-kind="method"><span class="ss-kind__dot"></span><span class="ss-rel__label">熵权法</span><span class="ss-ai" data-tip="由 方法学家 在《QCA 文献整理》中添加，依据 p.5">AI</span><span class="ss-rel__meta">方法</span></button>
+            <button class="ss-rel__row" type="button" data-node-kind="dataset"><span class="ss-kind__dot"></span><span class="ss-rel__label">地级市面板数据 2010–2020</span><span class="ss-rel__meta">数据集</span></button>
+          </div>
+          <div class="ss-rel">
+            <div class="ss-rel__head">引用<span class="ss-rel__count">2</span></div>
+            <button class="ss-rel__row" type="button" data-node-kind="source"><span class="ss-kind__dot"></span><span class="ss-rel__label">Redesigning Social Inquiry</span><span class="ss-rel__meta">Ragin 2008</span></button>
+            <button class="ss-rel__row" type="button" data-node-kind="source"><span class="ss-kind__dot"></span><span class="ss-rel__label">城市韧性评价指标体系构建</span><span class="ss-rel__meta">赵敏 2021</span></button>
+          </div>
+          <div class="ss-rel">
+            <div class="ss-rel__head">相似<button class="ss-info" type="button" aria-label="说明" data-tip="按全文向量算出的线索，不是结论；每篇最多 3 条，相似度 0.85 以上才连。"><i data-i="info"></i></button></div>
+            <button class="ss-rel__row" type="button" data-node-kind="source"><span class="ss-kind__dot"></span><span class="ss-rel__label">Urban resilience configurations across Chinese cities</span><span class="ss-rel__meta">0.88</span></button>
+          </div>
+          <button class="ss-linkbtn" type="button" style="margin-top:4px">还有 8 条，在图中查看</button>
+        </div>
+        <div>
+          <h3 class="ss-section-title">历史</h3>
+          <div class="ss-list">
+            <div class="ss-list-row"><i data-i="pencil" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">你改了「方法」</span></div><span class="ss-list-row__meta ss-list-row__meta--time">10-20 09:14</span><span class="ss-list-row__actions"><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">恢复到这一版</button></span></div>
+            <div class="ss-list-row"><i data-i="sparkle" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">整理了卡片和 9 条关系</span></div><span class="ss-list-row__meta ss-list-row__meta--time">10-19 16:02</span><span class="ss-list-row__actions"><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">恢复到这一版</button></span></div>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+  <footer class="ss-statusbar">
+    <span class="ss-statusbar__item"><span class="ss-dot ss-dot--ok"></span>已连接</span>
+    <span class="ss-statusbar__item">项目文件夹 D:\研究\城市韧性</span>
+    <span class="ss-statusbar__spacer"></span>
+    <span class="ss-statusbar__item"><span class="ss-spin"></span>正在整理 2 篇</span>
+  </footer>
+</div>
+
+<div class="ss-menu" id="m-item" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="eye"></i>预览<span class="ss-menu__end">Space</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="external-link"></i>打开原件</button>
+  <button class="ss-menu__item" type="button"><i data-i="waypoints"></i>在图中查看</button>
+  <button class="ss-menu__item" type="button"><i data-i="message-square"></i>在对话中引用</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>编辑信息</button>
+  <button class="ss-menu__item" type="button"><i data-i="refresh-cw"></i>重新解析</button>
+  <button class="ss-menu__item" type="button"><i data-i="sparkle"></i>重新整理卡片</button>
+  <button class="ss-menu__item" type="button"><i data-i="tag"></i>标签…</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>删除</button>
+</div>
+<div class="ss-menu" id="m-scope" hidden>
+  <div class="ss-menu__label">范围</div>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="true" data-label="城市韧性研究" type="button"><i data-i="folder-open"></i>当前项目：城市韧性研究<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="全局知识库" type="button"><i data-i="book-open"></i>全局知识库<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<div class="ss-menu" id="m-more" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="brain"></i>记忆</button>
+  <button class="ss-menu__item" type="button"><i data-i="inbox"></i>记忆收件箱<span class="ss-menu__end">3</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="newspaper"></i>项目简报</button>
+</div>
+<div class="ss-menu" id="m-sort" hidden>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="true" data-label="导入时间" type="button">导入时间<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="标题" type="button">标题<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="关系数" type="button">关系数<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<div class="ss-pop" id="p-filter" hidden style="width:280px">
+  <div class="ss-pop__body">
+    <div class="ss-pop__section"><span class="ss-pop__label">整理状态</span>
+      <label class="ss-check"><input type="checkbox" checked /><span>已整理</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>整理中或等待整理</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>仅索引文件名</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>失败</span></label>
+    </div>
+    <div class="ss-pop__section"><span class="ss-pop__label">关系</span>
+      <label class="ss-check"><input type="checkbox" /><span>只看有 AI 添加的</span></label>
+      <label class="ss-check"><input type="checkbox" /><span>只看缺证据的</span></label>
+    </div>
+    <div class="ss-pop__section"><span class="ss-pop__label">标签</span>
+      <span class="ss-input ss-input--sm"><i data-i="tag" class="ss-i--sm"></i><input placeholder="输入标签名" /></span>
+    </div>
+  </div>
+  <div class="ss-pop__foot"><span class="ss-muted" style="font-size:12px">筛选立即生效</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">清除</button></div>
+</div>
+<div class="ss-pop" id="p-gfilter" hidden style="width:280px">
+  <div class="ss-pop__body">
+    <div class="ss-pop__section"><span class="ss-pop__label">种类</span>
+      <label class="ss-check"><input type="checkbox" checked /><span>文献与资料</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>方法、数据集、变量</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>软件与代码</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>概念、人物、机构</span></label>
+    </div>
+    <div class="ss-pop__section"><span class="ss-pop__label">关系的来源</span>
+      <label class="ss-check"><input type="checkbox" checked /><span>手动添加</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>从原文整理</span></label>
+      <label class="ss-check"><input type="checkbox" checked /><span>自动线索（引用、相似）</span></label>
+      <label class="ss-check"><input type="checkbox" /><span>只看 AI 添加的</span></label>
+    </div>
+  </div>
+  <div class="ss-pop__foot"><span class="ss-muted" style="font-size:12px">筛选立即生效</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">清除</button></div>
+</div>
+<div class="ss-menu" id="m-node" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="locate"></i>设为中心<span class="ss-menu__end">双击</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="spline"></i>从这里拉关系</button>
+  <button class="ss-menu__item" type="button"><i data-i="git-merge"></i>合并到…</button>
+  <button class="ss-menu__item" type="button"><i data-i="message-square"></i>在对话中引用</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>删除<span class="ss-menu__end">Del</span></button>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

@@ -3638,3 +3638,243 @@ button.ss-act__row:hover {
 [data-reduce-motion] .ss-dot--live {
   animation: none;
 }
+
+/* ---------- Knowledge base ---------- */
+/* One colour per node kind; the graph view reads the same tokens. */
+[data-node-kind] {
+  --kind: var(--kg-concept);
+}
+[data-node-kind='source'] {
+  --kind: var(--kg-source);
+}
+[data-node-kind='method'],
+[data-node-kind='variant'] {
+  --kind: var(--kg-method);
+}
+[data-node-kind='dataset'] {
+  --kind: var(--kg-dataset);
+}
+[data-node-kind='variable'],
+[data-node-kind='metric'] {
+  --kind: var(--kg-variable);
+}
+[data-node-kind='software'],
+[data-node-kind='code'] {
+  --kind: var(--kg-software);
+}
+[data-node-kind='person'],
+[data-node-kind='org'] {
+  --kind: var(--kg-agent);
+}
+.ss-kind {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--sp-4);
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+}
+.ss-kind > .ss-i {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+  color: var(--kind);
+}
+.ss-kind__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--kind);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--kind) 18%, var(--raised));
+}
+/* Index state of a project file: parsed, parsing (ss-spin), name only, failed. */
+.ss-dot--ring {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--muted);
+}
+/* Something an AI wrote that nobody has edited since; --missing has no evidence. */
+.ss-ai {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  height: 16px;
+  padding: 0 4px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-xs);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
+}
+.ss-ai--missing {
+  border-color: var(--warn-line);
+  background: var(--warn-soft);
+  color: var(--warn-ink);
+}
+/* A page reference that opens the source passage in the preview. */
+.ss-cite {
+  display: inline;
+  padding: 0 3px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 16px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ss-cite:hover {
+  background: var(--accent-line);
+}
+/* Paper card in the node panel: one field per line, each with its page. */
+.ss-card {
+  display: grid;
+  gap: var(--sp-8);
+  margin: 0;
+}
+.ss-card > dt {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 16px;
+}
+.ss-card > dd {
+  margin: -6px 0 0;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 20px;
+}
+/* Connected nodes grouped by relation. */
+.ss-rel {
+  display: grid;
+}
+.ss-rel__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  height: 24px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.ss-rel__count {
+  color: var(--faint);
+}
+.ss-rel__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-width: 0;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+}
+.ss-rel__row:hover {
+  background: var(--hover);
+}
+.ss-rel__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ss-rel__meta {
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+/* Who added a record, in which conversation, from which passage. */
+.ss-prov {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+/* Graph view: the canvas fills the content area; controls float over it. */
+.ss-graph {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--paper);
+}
+.ss-graph__canvas {
+  position: absolute;
+  inset: 0;
+}
+.ss-graph__bar {
+  position: absolute;
+  top: var(--sp-12);
+  right: var(--sp-12);
+  left: var(--sp-12);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  pointer-events: none;
+}
+.ss-graph__bar > * {
+  pointer-events: auto;
+}
+.ss-graph__center {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8);
+  height: var(--h-md);
+  padding: 0 4px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+  box-shadow: var(--shadow-1);
+  color: var(--ink);
+  font-size: 13px;
+}
+.ss-graph__float {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+  box-shadow: var(--shadow-1);
+}
+.ss-graph__zoom {
+  position: absolute;
+  right: var(--sp-12);
+  bottom: var(--sp-12);
+  display: grid;
+  padding: 2px;
+}
+.ss-graph__legend {
+  position: absolute;
+  bottom: var(--sp-12);
+  left: var(--sp-12);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4) var(--sp-12);
+  max-width: 60%;
+  padding: 6px 10px;
+}
+.ss-graph__toast {
+  position: absolute;
+  bottom: var(--sp-12);
+  left: 50%;
+  transform: translateX(-50%);
+}
+/* Actions under a fold row (ss-files), e.g. 在图中查看 · 撤回这组修改. */
+.ss-files__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 4px 8px;
+  border-top: 1px solid var(--line);
+}
+/* File trees deeper than the sidebar's two levels: set --depth on the row. */
+.ss-tree-row--nested {
+  padding-left: calc(6px + var(--depth, 0) * 16px);
+}

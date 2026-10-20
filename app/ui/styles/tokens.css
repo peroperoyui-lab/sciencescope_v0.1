@@ -36,6 +36,13 @@
   --auto-ink: #8b302b;
   --auto-soft: #f6e7e5;
   --auto-line: #dcb0aa;
+  --kg-source: #5d655e;
+  --kg-method: #3f6049;
+  --kg-dataset: #3e6282;
+  --kg-variable: #2f6f6a;
+  --kg-software: #7d6420;
+  --kg-concept: #74527a;
+  --kg-agent: #9a5440;
   --tooltip: #262c28;
   --on-tooltip: #f4f4f0;
   --scrim: rgba(24, 28, 25, 0.32);
@@ -126,6 +133,13 @@
   --auto-ink: #eaa39a;
   --auto-soft: #3b2321;
   --auto-line: #6e322c;
+  --kg-source: #aab3a7;
+  --kg-method: #9cc3a4;
+  --kg-dataset: #8fb3d1;
+  --kg-variable: #86c2bb;
+  --kg-software: #d4b46a;
+  --kg-concept: #c4a3cb;
+  --kg-agent: #e0a28c;
   --tooltip: #3a423c;
   --on-tooltip: #e6eae4;
   --scrim: rgba(0, 0, 0, 0.56);

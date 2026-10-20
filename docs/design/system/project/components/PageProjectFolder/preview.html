@@ -1,0 +1,139 @@
+<!-- @dsCard group="整页示例" page height=900 width=1536 subtitle="项目资料：项目文件夹整页，左树右预览；每个文件前一个索引状态点，不做分类和筛选" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>PageProjectFolder</title></head>
+<body>
+<div class="ss-shell">
+  <header class="ss-titlebar">
+    <span class="ss-titlebar__brand"><i data-logo></i>ScienceScope</span>
+    <button class="ss-titlebar__menu" type="button">文件</button>
+    <button class="ss-titlebar__menu" type="button">编辑</button>
+    <button class="ss-titlebar__menu" type="button">视图</button>
+    <button class="ss-titlebar__menu" type="button">帮助</button>
+    <span class="ss-titlebar__spacer"></span>
+    <button class="ss-winctl" type="button" aria-label="最小化"><i data-i="minus"></i></button>
+    <button class="ss-winctl" type="button" aria-label="最大化"><i data-i="square"></i></button>
+    <button class="ss-winctl ss-winctl--close" type="button" aria-label="关闭"><i data-i="x"></i></button>
+  </header>
+  <div class="ss-shell__body">
+    <aside class="ss-sidebar">
+      <div class="ss-sidebar__top">
+        <button class="ss-nav-item" type="button"><i data-i="square-pen"></i><span class="ss-nav-item__label">新对话</span></button>
+        <button class="ss-nav-item" type="button" aria-current="page"><i data-i="book-open"></i><span class="ss-nav-item__label">知识库</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="box"></i><span class="ss-nav-item__label">工作站</span></button>
+        <button class="ss-search-trigger" type="button"><i data-i="search"></i><span class="ss-search-trigger__label">搜索与命令</span><span class="ss-kbd">Ctrl K</span></button>
+      </div>
+      <div class="ss-sidebar__scroll">
+        <div class="ss-side-section" style="margin-top:4px">
+          <div class="ss-side-section__head"><span>项目</span><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="新建项目" data-tip="新建项目"><i data-i="plus"></i></button></div>
+          <div class="ss-tree">
+            <div class="ss-tree-row" aria-expanded="true">
+              <button class="ss-tree-row__twisty" type="button" aria-label="收起"><i data-i="chevron-down"></i></button>
+              <i data-i="folder-open"></i><span class="ss-tree-row__label">城市韧性研究</span><span class="ss-tree-row__end"></span>
+            </div>
+            <div class="ss-tree">
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">文献综述框架讨论</span><span class="ss-tree-row__end"><span class="ss-spin"></span></span></div>
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">指标体系初稿</span><span class="ss-tree-row__end">2 天</span></div>
+              <div class="ss-tree-row ss-tree-row--child"><span class="ss-tree-row__label">面板数据清洗</span><span class="ss-tree-row__end">5 天</span></div>
+            </div>
+            <div class="ss-tree-row" aria-expanded="false">
+              <button class="ss-tree-row__twisty" type="button" aria-label="展开"><i data-i="chevron-down"></i></button>
+              <i data-i="folder"></i><span class="ss-tree-row__label">劳动保障政策演化</span><span class="ss-tree-row__end"></span>
+            </div>
+          </div>
+        </div>
+        <div class="ss-side-section">
+          <div class="ss-side-section__head"><span>独立对话</span></div>
+          <div class="ss-tree">
+            <div class="ss-tree-row ss-tree-row--leaf"><span class="ss-tree-row__label">参考文献格式整理</span><span class="ss-tree-row__end">昨天</span></div>
+            <div class="ss-tree-row ss-tree-row--leaf"><span class="ss-tree-row__label">Zipf 定律推导</span><span class="ss-tree-row__end">3 天</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="ss-sidebar__foot">
+        <button class="ss-user" type="button"><span class="ss-avatar ss-avatar--lg ss-avatar--user">Y</span><span class="ss-truncate">Yui</span></button>
+        <button class="ss-icon-btn" type="button" aria-label="专家" data-tip="专家"><i data-i="users"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="设置" data-tip="设置"><i data-i="settings"></i></button>
+      </div>
+      <div class="ss-splitter ss-splitter--end" data-min="200" data-max="360" data-default="248"></div>
+    </aside>
+
+        <main class="ss-main">
+      <div class="ss-header">
+        <div class="ss-header__title"><span>项目资料</span><button class="ss-info" type="button" aria-label="说明" data-tip="这里就是项目文件夹本身。每个文件都在 ScienceScope 的数据目录里留一份副本并建索引，能解析的解析，不能解析的按文件名和位置找到；项目文件夹里不会多出任何文件。" data-tip-place="bottom-start"><i data-i="info"></i></button></div>
+        <span class="ss-muted ss-mono" style="font-size:12px;align-self:center">D:\研究\城市韧性</span>
+        <div class="ss-header__actions">
+          <button class="ss-icon-btn" type="button" aria-label="重新扫描" data-tip="重新扫描"><i data-i="refresh-cw"></i></button>
+          <button class="ss-icon-btn" type="button" aria-label="新建文件夹" data-tip="新建文件夹"><i data-i="folder-plus"></i></button>
+          <button class="ss-btn" type="button"><i data-i="import"></i>导入到此文件夹</button>
+        </div>
+      </div>
+      <div style="display:flex;flex:1;min-height:0">
+        <div style="width:340px;flex:none;overflow:auto;padding:8px 8px 12px;border-right:1px solid var(--line)">
+          <div class="ss-tree" role="tree" aria-label="项目文件夹">
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:0" aria-expanded="true"><button class="ss-tree-row__twisty" type="button" aria-label="收起"><i data-i="chevron-down"></i></button><i data-i="folder-open"></i><span class="ss-tree-row__label">papers</span><span class="ss-tree-row__end"></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:1" aria-selected="true" data-ctx="#m-file"><span class="ss-tree-row__twisty" aria-hidden="true"></span><i data-i="file-text"></i><span class="ss-tree-row__label">组态视角下城市韧性.pdf</span><span data-tip="已解析 · 31 个文本块" style="display:inline-flex;padding:0 8px"><span class="ss-dot ss-dot--ok"></span></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:1" data-ctx="#m-file"><span class="ss-tree-row__twisty" aria-hidden="true"></span><i data-i="file-text"></i><span class="ss-tree-row__label">Urban_resilience_configurations.pdf</span><span data-tip="已解析 · 44 个文本块" style="display:inline-flex;padding:0 8px"><span class="ss-dot ss-dot--ok"></span></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:1" data-ctx="#m-file"><span class="ss-tree-row__twisty" aria-hidden="true"></span><i data-i="file-text"></i><span class="ss-tree-row__label">城市韧性评价指标体系.pdf</span><span data-tip="已解析 · 27 个文本块" style="display:inline-flex;padding:0 8px"><span class="ss-dot ss-dot--ok"></span></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:1" data-ctx="#m-file"><span class="ss-tree-row__twisty" aria-hidden="true"></span><i data-i="file-text"></i><span class="ss-tree-row__label">地级市面板韧性时空演化.pdf</span><span data-tip="解析中" style="display:inline-flex;padding:0 8px"><span class="ss-spin"></span></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:1" aria-expanded="true"><button class="ss-tree-row__twisty" type="button" aria-label="收起"><i data-i="chevron-down"></i></button><i data-i="folder-open"></i><span class="ss-tree-row__label">scans</span><span class="ss-tree-row__end"></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:2" data-ctx="#m-file"><span class="ss-tree-row__twisty" aria-hidden="true"></span><i data-i="file-text"></i><span class="ss-tree-row__label">灾后恢复访谈扫描件.pdf</span><span data-tip="没有可提取的文字，可能是扫描件。仍能按文件名找到。" style="display:inline-flex;padding:0 8px"><span class="ss-dot ss-dot--danger"></span></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:0" aria-expanded="true"><button class="ss-tree-row__twisty" type="button" aria-label="收起"><i data-i="chevron-down"></i></button><i data-i="folder-open"></i><span class="ss-tree-row__label">data</span><span class="ss-tree-row__end"></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:1" aria-expanded="true"><button class="ss-tree-row__twisty" type="button" aria-label="收起"><i data-i="chevron-down"></i></button><i data-i="folder-open"></i><span class="ss-tree-row__label">raw</span><span class="ss-tree-row__end"></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:2" data-ctx="#m-file"><span class="ss-tree-row__twisty" aria-hidden="true"></span><i data-i="database"></i><span class="ss-tree-row__label">panel_2010_2020.dta</span><span data-tip="这种格式不解析内容，按文件名和位置索引" style="display:inline-flex;padding:0 8px"><span class="ss-dot ss-dot--ring"></span></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:2" data-ctx="#m-file"><span class="ss-tree-row__twisty" aria-hidden="true"></span><i data-i="table-2"></i><span class="ss-tree-row__label">city_list.xlsx</span><span data-tip="这种格式不解析内容，按文件名和位置索引" style="display:inline-flex;padding:0 8px"><span class="ss-dot ss-dot--ring"></span></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:1" aria-expanded="false"><button class="ss-tree-row__twisty" type="button" aria-label="展开"><i data-i="chevron-down"></i></button><i data-i="folder"></i><span class="ss-tree-row__label">clean</span><span class="ss-tree-row__end"></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:0" aria-expanded="true"><button class="ss-tree-row__twisty" type="button" aria-label="收起"><i data-i="chevron-down"></i></button><i data-i="folder-open"></i><span class="ss-tree-row__label">code</span><span class="ss-tree-row__end"></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:1" data-ctx="#m-file"><span class="ss-tree-row__twisty" aria-hidden="true"></span><i data-i="file-code"></i><span class="ss-tree-row__label">qca_truth_table.R</span><span data-tip="已解析 · 6 个文本块" style="display:inline-flex;padding:0 8px"><span class="ss-dot ss-dot--ok"></span></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:1" data-ctx="#m-file"><span class="ss-tree-row__twisty" aria-hidden="true"></span><i data-i="file-code"></i><span class="ss-tree-row__label">clean_panel.py</span><span data-tip="已解析 · 9 个文本块" style="display:inline-flex;padding:0 8px"><span class="ss-dot ss-dot--ok"></span></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:0" aria-expanded="true"><button class="ss-tree-row__twisty" type="button" aria-label="收起"><i data-i="chevron-down"></i></button><i data-i="folder-open"></i><span class="ss-tree-row__label">drafts</span><span class="ss-tree-row__end"></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:1" data-ctx="#m-file"><span class="ss-tree-row__twisty" aria-hidden="true"></span><i data-i="file-text"></i><span class="ss-tree-row__label">论文初稿 v3.docx</span><span data-tip="已解析 · 58 个文本块（文稿只建文件级索引，不整理卡片）" style="display:inline-flex;padding:0 8px"><span class="ss-dot ss-dot--ok"></span></span></div>
+            <div class="ss-tree-row ss-tree-row--nested" style="--depth:0" data-ctx="#m-file"><span class="ss-tree-row__twisty" aria-hidden="true"></span><i data-i="file-text"></i><span class="ss-tree-row__label">README.md</span><span data-tip="已解析 · 3 个文本块" style="display:inline-flex;padding:0 8px"><span class="ss-dot ss-dot--ok"></span></span></div>
+          </div>
+        </div>
+        <div style="flex:1;min-width:0;overflow:auto;padding:16px 24px;display:grid;gap:16px;align-content:start">
+          <div style="display:flex;align-items:center;gap:8px">
+            <i data-i="file-text"></i><span style="font-size:15px;font-weight:600;color:var(--ink);flex:1;min-width:0" class="ss-truncate">组态视角下城市韧性.pdf</span>
+            <button class="ss-btn ss-btn--sm" type="button"><i data-i="waypoints"></i>在知识库中查看</button>
+            <button class="ss-icon-btn" type="button" aria-label="用默认程序打开" data-tip="用默认程序打开"><i data-i="external-link"></i></button>
+            <button class="ss-icon-btn" type="button" aria-label="更多" data-menu="#m-file"><i data-i="ellipsis"></i></button>
+          </div>
+          <dl class="ss-props">
+            <dt>位置</dt><dd>papers/组态视角下城市韧性.pdf</dd>
+            <dt>大小</dt><dd>2.4 MB · 10-18 修改</dd>
+            <dt>索引</dt><dd><span class="ss-kind"><span class="ss-dot ss-dot--ok"></span>已解析 · 31 个文本块</span></dd>
+            <dt>知识库</dt><dd>已整理卡片 · 14 条关系 · 引用编号 S3</dd>
+          </dl>
+          <div>
+            <h3 class="ss-section-title">正文预览</h3>
+            <div class="t-body" style="color:var(--ink);max-width:680px">
+              <p style="margin:0 0 8px">摘要</p>
+              <p style="margin:0 0 8px;color:var(--ink-2)">城市韧性是城市在冲击下维持功能并恢复发展的能力。本文基于 2010–2020 年 108 个地级市面板数据，运用模糊集定性比较分析（fsQCA）识别经济、社会、生态和基础设施四类条件的组态路径……</p>
+              <p style="margin:0 0 8px">1 引言</p>
+              <p style="margin:0;color:var(--ink-2)">近年来，极端气候事件和公共卫生事件频发，城市系统面临的不确定性显著上升……</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <footer class="ss-statusbar">
+    <span class="ss-statusbar__item"><span class="ss-dot ss-dot--ok"></span>已连接</span>
+    <span class="ss-statusbar__spacer"></span>
+    <span class="ss-statusbar__item"><span class="ss-spin"></span>已索引 12 个文件，正在解析 1 个；2 个只索引文件名，1 个失败</span>
+  </footer>
+</div>
+<div class="ss-menu" id="m-file" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="external-link"></i>用默认程序打开</button>
+  <button class="ss-menu__item" type="button"><i data-i="folder-open"></i>在资源管理器中显示</button>
+  <button class="ss-menu__item" type="button"><i data-i="waypoints"></i>在知识库图中查看</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="refresh-cw"></i>重新解析</button>
+  <button class="ss-menu__item" type="button"><i data-i="sparkle"></i>整理卡片</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>重命名<span class="ss-menu__end">F2</span></button>
+  <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>移到回收站</button>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>
