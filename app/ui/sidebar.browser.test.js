@@ -142,7 +142,8 @@ test(
       await looseRow.getByRole('button', { name: '对话菜单' }).click();
       await page.getByRole('menuitem', { name: '移到项目…' }).click();
       await page.getByRole('menuitem', { name: '劳动保障政策演化' }).click();
-      await sidebar.locator(`[data-object="project"][data-object-id="${other.id}"]`).waitFor();
+      // The project row already exists; the notice means the move has finished.
+      await page.getByText('已把「参考文献格式整理」移到「劳动保障政策演化」').waitFor();
       moved = core.meetings.get(loose.id);
       assert.equal(moved.projectId, other.id);
       await shot('sidebar');
