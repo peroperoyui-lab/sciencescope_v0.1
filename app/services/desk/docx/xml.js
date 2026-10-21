@@ -51,6 +51,7 @@ export function indexXml(xml) {
   parser.on('closetag', () => {
     const span = stack.pop();
     span.end = parser.position;
+    span.after = spans.length;
     span.closeStart = span.selfClosing ? span.openEnd : xml.lastIndexOf('</', span.end - 1);
   });
   parser.write(xml).close();
