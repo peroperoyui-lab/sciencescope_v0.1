@@ -6,14 +6,16 @@ import { CARD_INSTRUCTIONS } from './card-prompt.js';
 import { CARD_ACTOR_ID, createCardWriter } from './card-writer.js';
 
 export const CARD_KINDS = LITERATURE_KINDS;
-// Provisional uncached USD rates from the design's §4.6, to be calibrated in KB-6b.
+// KB-6b: ten real papers averaged 7,044 input and 11,445 output tokens,
+// including reasoning. Round to thousands; retain uncached peak USD rates.
+// Those rates already double the measured off-peak rate, so do not double again.
 export const CARD_COST = {
   currency: 'USD',
   inputPerMillion: 0.3,
   outputPerMillion: 1.2,
-  inputTokens: 7500,
-  outputTokens: 1000,
-  uncertainty: 2,
+  inputTokens: 7000,
+  outputTokens: 11000,
+  uncertainty: 1,
 };
 
 function usageOf(usage) {

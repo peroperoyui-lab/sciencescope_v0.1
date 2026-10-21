@@ -1,4 +1,6 @@
-export const ENTITY_ALIGNMENT_THRESHOLD = 0.92;
+// KB-6b's real papers put distinct provincial panels at cosine 0.921–0.925.
+// Prefer leaving name variants separate to merging different populations/years.
+export const ENTITY_ALIGNMENT_THRESHOLD = 0.94;
 
 /**
  * Canonical names remain unchanged; aliases bridge abbreviations and typography.

@@ -18,6 +18,14 @@ test('entity cosine alignment accepts same-kind nearest matches and preserves us
     const vector = (text) => {
       const result = new Float32Array(384);
       result[text.includes('dataset') ? 1 : 0] = 1;
+      if (text === 'Near match') {
+        result[0] = 0.96;
+        result[2] = Math.sqrt(1 - 0.96 ** 2);
+      }
+      if (text === 'Below threshold') {
+        result[0] = 0.925;
+        result[2] = Math.sqrt(1 - 0.925 ** 2);
+      }
       return result;
     };
     const semantic = createSemantic(core, {
@@ -39,6 +47,10 @@ test('entity cosine alignment accepts same-kind nearest matches and preserves us
       assert.equal(hits[0].ref.id, parent.id);
       assert.ok(Math.abs(hits[0].score - 1) < 1e-6);
       assert.equal(await alignment.nearest({ name: 'Set inference' }, 'method'), parent.id);
+      const similar = await semantic.entityNeighbors('Near match');
+      assert.ok(Math.abs(similar[0].score - 0.96) < 1e-5);
+      assert.equal(await alignment.nearest({ name: 'Near match' }, 'method'), parent.id);
+      assert.equal(await alignment.nearest({ name: 'Below threshold' }, 'method'), null);
       assert.equal(await alignment.nearest({ name: 'Set inference' }, 'dataset'), null);
       assert.equal(await alignment.nearest({ name: 'dataset detail' }, 'dataset'), other.id);
       const meeting = core.meetings.create({ title: 'Alignment' });

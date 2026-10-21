@@ -274,13 +274,13 @@ data/
 - `research_read {type:'entity'}` 返回字段、别名、标签和分页相连边，描述默认首行并报告剩余字数，`full:true` 读全文。`research_write` 复用条目创建/修改/取代与资料元数据修改，私有条目不可读写，条目修订保留。
 - `workspace_versions {resource:'knowledge'}` 支持列出、读修订与整组撤回，明确列出后来修改而跳过的记录。这些工具不触发「请求批准」。
 
-### 2.8b 论文卡片后台（KB-6a，界面由后续任务接入）
+### 2.8b 论文卡片后台（KB-6a/6b，界面由后续任务接入）
 
 - 文献类 `paper/preprint/thesis/report/chapter/book` 在派生层完成后自动排入同一知识库队列；其他资料可手动整理。设置 `knowledge.cards={enabled:true,model:null}`；关闭只停自动整理。模型依次选择 `knowledge.cards.model`、`memory.model`、秘书定义模型、`models.default`；均未配置时记 `skipped/no-model`，设置模型后继续。前台发言时不启动新任务，已有请求完成后保存；模型并发 2，连续失败三次后由 retry 重排。重启恢复 running 为 queued。
 - `services/knowledge/cards.js` 复用无工具后台运行器；按中英文章节优先挑方法、数据、结果、结论，连同元数据约 6000 token，整段保留，不发送 reference 段。每项证据先精确匹配，再容许空白、全半角标点差异；无效项整个丢弃并记录原因，研究问题无有效证据时为 null。
-- 卡片是全局 `rb_items` 的 `note/summary`，`payload.card` 含 `question:{text,evidence[]}|null`、methods/datasets/variables/metrics/software/code/findings；证据为 `{chunkId,quote,page}`，`payload.cardSource='source:<id>'`。项目资料给卡片及相关实体记 `kb_memberships`。实体按同种名称/别名归一化对齐，再查询可用实体向量的最近 3 个、余弦阈值 0.92；未开启混合检索时只按名称。复用实体只补别名，保留用户名称、说明；新实体说明直接使用核对过的原文。
+- 卡片是全局 `rb_items` 的 `note/summary`，`payload.card` 含 `question:{text,evidence[]}|null`、methods/datasets/variables/metrics/software/code/findings；证据为 `{chunkId,quote,page}`，`payload.cardSource='source:<id>'`。项目资料给卡片及相关实体记 `kb_memberships`。实体按同种名称/别名归一化对齐，再查询可用实体向量的最近 3 个、真实余弦阈值 0.94；未开启混合检索时只按名称。复用实体只补别名，保留用户名称、说明；新实体说明直接使用核对过的原文。`variantOf` 只接受单个非空名称，形状错误记入 dropped 并丢弃该项，其余卡片继续写入。提示区分本文实际采用的方法和综述介绍的他人指标，不把 Model 1/2 等局部编号当作方法名。
 - 固定后台参与者 `actor_card_builder`（不加入讨论专家名册）；卡片、实体及边带后台会议/发言来源，每篇一个标题命名的 `build` 版本。新增实体和边是 `extracted/ai`，记录 `produced_from` 和证据；方法变种、代码实现按原文的显式关系建边。内容哈希变化后，在同一个新 build 中替换旧卡片及本资料的 extracted 结果，保留 curated 和仍被其他边使用的实体。撤回同时恢复卡片、实体、边和归属；用户后来修改的条目通过条目修订号识别并列入 skipped，FTS 同步恢复。
-- `kb_jobs` 的 card 行保存内容哈希、后台会议、手动标记和结果；结果含 cardId/versionId、dropped/droppedCount、selection、usage。usage 累计当前内容版本各次尝试的 requests/inputTokens/outputTokens/totalTokens/unknownRequests；没有供应商用量时为 null 并标 unreported，部分报告标 partial。成本是设计稿 §4.6 的暂定估算，真实论文质量和成本验证安排在 KB-6b。
+- `kb_jobs` 的 card 行保存内容哈希、后台会议、手动标记和结果；结果含 cardId/versionId、dropped/droppedCount、selection、usage。usage 累计当前内容版本各次尝试的 requests/inputTokens/outputTokens/totalTokens/unknownRequests；没有供应商用量时为 null 并标 unreported，部分报告标 partial。KB-6b 的 10 篇实测校准成本：每篇估算输入 7,000、输出 11,000（含思考），未缓存峰时单价 0.30/1.20 USD/百万 token，不再额外乘 2；无正文扫描件不计入待整理费用。最终 10 篇估算 0.153 USD、已报告用量折算 0.07923540 USD，详情与残留漏合并见设计稿 §4.3、§4.6。
 
 ### 2.8c 知识库位置与后台布局（KB-10a，图界面由 KB-10 接入）
 

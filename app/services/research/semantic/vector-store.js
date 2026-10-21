@@ -129,8 +129,8 @@ export async function createVectorStore({
     return { indexed: pending.length, skipped: documents.length - pending.length };
   }
 
-  /** @param {{queries:string[],candidates:any[],limit?:number,signal?:AbortSignal}} input */
-  async function search({ queries, candidates, limit = 30, signal }) {
+  /** @param {{queries:string[],candidates:any[],limit?:number,signal?:AbortSignal,cosineScores?:boolean}} input */
+  async function search({ queries, candidates, limit = 30, signal, cosineScores = false }) {
     ensureOpen();
     const allowed = candidates.map((document) => ({
       ...document,
@@ -167,15 +167,24 @@ export async function createVectorStore({
       for (let offset = 0; offset < allowed.length; offset += 500) {
         if (signal?.aborted) return { fallbackReason: 'timeout' };
         const keys = allowed.slice(offset, offset + 500).map((document) => document.key);
+        // Retrieval keeps its existing L2 ranking. Entity alignment compares a
+        // cosine threshold, so request the actual cosine distance for that path.
+        const cosineColumn = cosineScores
+          ? ',vec_distance_cosine(embedding,?) AS cosine_distance'
+          : '';
         const statement = db.prepare(
-          `SELECT rowid,distance FROM rb_vec WHERE embedding MATCH ? AND k=? AND model_id=? AND model_version=? AND candidate_key IN (${keys.map(() => '?').join(',')}) ORDER BY distance`,
+          `SELECT rowid,distance${cosineColumn} FROM rb_vec WHERE embedding MATCH ? AND k=? AND model_id=? AND model_version=? AND candidate_key IN (${keys.map(() => '?').join(',')}) ORDER BY distance`,
         );
         statement.setReadBigInts(true);
-        for (const row of statement.all(blob, keys.length, modelId, modelVersion, ...keys)) {
+        const bindings = [blob, keys.length, modelId, modelVersion, ...keys];
+        if (cosineScores) bindings.unshift(blob);
+        for (const row of statement.all(...bindings)) {
           const document = vectorDocument.get(row.rowid, modelId, modelVersion);
           if (!document) continue;
           const ref = { type: String(document.ref_type), id: String(document.ref_id) };
-          const score = 1 - Number(row.distance);
+          const score = cosineScores
+            ? Math.max(-1, Math.min(1, 1 - Number(row.cosine_distance)))
+            : 1 - Number(row.distance);
           const prior = byReference.get(refKey(ref));
           if (!prior || score > prior.score) byReference.set(refKey(ref), { ref, score });
         }

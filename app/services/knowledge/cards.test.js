@@ -80,6 +80,58 @@ async function fixture(core, script, options = {}) {
   return { research, knowledge, runtime, cards, jobs };
 }
 
+test('a scan has no card charge estimate and manual organization skips it without a model call', () =>
+  withCore('cards-scan-estimate', async (core) => {
+    let calls = 0;
+    const f = await fixture(core, async function* ({ input }) {
+      calls++;
+      yield JSON.stringify(answer(input));
+    });
+    try {
+      source(core, f.research, 'Readable paper');
+      const scan = f.research.store.createSource({ title: 'Scan', kind: 'paper' });
+      assert.equal(f.jobs.estimateCards().count, 1);
+      await f.jobs.requestCards([scan.id]);
+      await f.jobs.idle();
+      const skipped = f.jobs.summary().cards.jobs.find((job) => job.sourceId === scan.id);
+      assert.equal(skipped.state, 'skipped');
+      assert.equal(skipped.error, 'no-text');
+      assert.equal(calls, 1);
+      assert.equal(f.jobs.estimateCards().count, 0);
+    } finally {
+      await f.jobs.close();
+    }
+  }));
+
+test('a malformed parent method drops that item without retrying or losing the rest of the card', () =>
+  withCore('cards-parent-shape', async (core) => {
+    const f = await fixture(core, async function* ({ input }) {
+      const card = answer(input);
+      card.methods.push({
+        name: 'Combined analysis',
+        variantOf: ['QCA', 'Regression'],
+        evidence: card.methods[0].evidence,
+      });
+      yield JSON.stringify(card);
+    });
+    try {
+      source(core, f.research, 'Malformed parent');
+      await f.jobs.idle();
+      const job = f.jobs.summary().cards.jobs[0];
+      assert.equal(job.state, 'done');
+      assert.equal(job.result.usage.requests, 1);
+      assert.equal(job.result.droppedCount, 1);
+      assert.equal(job.result.dropped[0].reason, 'invalid-variant-of');
+      const card = JSON.parse(items(core)[0].payload_json).card;
+      assert.equal(card.methods.length, 1);
+      assert.equal(card.datasets[0].name, 'Survey A');
+      assert.equal(entities(core).length, 2);
+      assert.equal(f.knowledge.versions.list().total, 1);
+    } finally {
+      await f.jobs.close();
+    }
+  }));
+
 test('a project paper produces one evidenced global card/build; invalid items are dropped and the build can be withdrawn', () =>
   withCore('cards-build', async (core) => {
     const events = [];
