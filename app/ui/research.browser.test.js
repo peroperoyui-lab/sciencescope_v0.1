@@ -15,11 +15,18 @@ async function request(page, route, body) {
   assert.equal(response.ok, true, await response.clone().text());
   return response.json();
 }
-async function openProject(page, app) {
+/** @param {any} page @param {any} app @param {'project'|'global'} [scope] */
+async function openProject(page, app, scope = 'project') {
   const project = await app.core.projects.create({ name: '城市就业研究' });
   await page.locator('.ss-sidebar .ss-tree-row__open', { hasText: project.name }).waitFor();
+  // The sidebar opens the global knowledge base first; the scope menu then
+  // switches to the project's own database.
   await page.locator('.ss-sidebar [data-route="database"]').click();
-  await page.locator('.research-base').waitFor();
+  await page.locator('.research-base .ss-header__title', { hasText: '知识库' }).waitFor();
+  if (scope === 'global') return project;
+  await page.getByRole('button', { name: '范围', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: /项目数据库/ }).click();
+  await page.locator('.research-base .ss-header__title', { hasText: '数据库' }).waitFor();
   return project;
 }
 async function pdfBytes() {
@@ -97,7 +104,7 @@ test(
   { skip: browserSkip },
   () =>
     run('item-revisions', async ({ page, app }) => {
-      await openProject(page, app);
+      await openProject(page, app, 'global');
       await page.locator('[data-rb-tab="knowledge"]').click();
       await page.getByRole('button', { name: '新建条目' }).click();
       await page.locator('#modal').getByLabel('标题').fill('城市就业韧性');
@@ -190,20 +197,41 @@ test(
   'personal library and external sites share navigation and English text',
   { skip: browserSkip },
   () =>
-    run('scopes-sites', async ({ page, app }) => {
+    run('scopes-sites', async ({ page, app, shot }) => {
       await openProject(page, app);
       await importPdf(page, 'project.pdf');
       // The global knowledge base shows every source; a project shows its own.
       await page.getByRole('button', { name: '范围', exact: true }).click();
-      await page.getByRole('menuitemradio', { name: '全局知识库', exact: true }).click();
+      await page.getByRole('menuitemradio', { name: /^知识库/ }).click();
       await page.locator('[data-rb-source]', { hasText: 'project.pdf' }).waitFor();
+      await page.locator('[data-rb-tab="entities"]').waitFor();
+      await shot('scope-global');
       await importPdf(page, 'personal.pdf');
       const sources = await request(page, '/api/research/sources?projectId=');
       assert.equal(sources[0].projectId, null);
       await page.getByRole('button', { name: '范围', exact: true }).click();
-      await page.getByRole('menuitemradio', { name: /当前项目/ }).click();
+      await page.getByRole('menuitemradio', { name: /项目数据库/ }).click();
       await page.locator('[data-rb-source]', { hasText: 'project.pdf' }).waitFor();
       assert.equal(await page.locator('[data-rb-source]', { hasText: 'personal.pdf' }).count(), 0);
+      // A project has a database, not a knowledge base: sources and memory only.
+      await page.locator('.research-base .ss-header__title', { hasText: '数据库' }).waitFor();
+      await shot('scope-database');
+      await page.getByRole('button', { name: '范围', exact: true }).click();
+      await page.waitForTimeout(300);
+      await shot('scope-menu');
+      await page.keyboard.press('Escape');
+      for (const key of ['entities', 'knowledge', 'claim'])
+        assert.equal(await page.locator(`[data-rb-tab="${key}"]`).count(), 0);
+      // The sidebar entry reopens the last scope.
+      await page.waitForFunction(async () => {
+        const response = await fetch('/api/settings', {
+          headers: { authorization: 'Bearer ui-token' },
+        });
+        return (await response.json()).appearance.knowledgeScope === 'project';
+      });
+      await page.evaluate(() => (location.hash = '#/'));
+      await page.locator('[data-route="database"]').click();
+      await page.locator('.research-base .ss-header__title', { hasText: '数据库' }).waitFor();
       await page.getByRole('button', { name: '范围', exact: true }).click();
       await page.getByRole('menuitemradio', { name: '外部资源', exact: true }).click();
       await page.getByRole('button', { name: '新增站点' }).click();
@@ -226,7 +254,7 @@ test(
       await page.getByRole('button', { name: 'Back to knowledge base', exact: true }).click();
       await page
         .locator('.research-base .ss-header__title')
-        .filter({ hasText: 'Knowledge base' })
+        .filter({ hasText: 'Database' })
         .waitFor();
       await page.getByRole('tab', { name: /Literature and materials/ }).waitFor();
       assert.equal(await page.getByRole('tab', { name: '记忆', exact: true }).count(), 0);
@@ -235,7 +263,7 @@ test(
 
 test('pin and archive filters preserve item history', { skip: browserSkip }, () =>
   run('item-status', async ({ page, app }) => {
-    const project = await openProject(page, app);
+    const project = await openProject(page, app, 'global');
     await request(page, '/api/research/items', {
       projectId: project.id,
       type: 'knowledge',
@@ -263,7 +291,7 @@ test('pin and archive filters preserve item history', { skip: browserSkip }, () 
 
 test('models render LaTeX and variables while claims show their state', { skip: browserSkip }, () =>
   run('structured-items', async ({ page, app }) => {
-    await openProject(page, app);
+    await openProject(page, app, 'global');
     await page.locator('[data-rb-tab="model"]').click();
     await page.getByRole('button', { name: '新建条目' }).click();
     await page.locator('#modal').getByLabel('标题').fill('就业恢复模型');

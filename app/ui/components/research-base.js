@@ -6,7 +6,7 @@ import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
-import { navigate } from '../route.js';
+import { knowledgeRoute, navigate } from '../route.js';
 import { Sites } from './home.js';
 import { ChoiceMenu } from './popover.js';
 import { ResearchCard, ResearchHistory } from './research-card.js';
@@ -26,6 +26,9 @@ import { ResearchSourceDetail } from './research-source-detail.js';
 
 const PAGE = 50;
 const MEMORY_TABS = ['memory', 'inbox', 'brief'];
+// A project has its own database, not its own knowledge base: only its
+// sources and its memory views (DECISIONS 2026-10-21).
+const PROJECT_TABS = ['sources', ...MEMORY_TABS];
 const ITEM_TABS = ['knowledge', 'model', 'claim', 'code'];
 const defaultFilters = {
   kind: '',
@@ -78,7 +81,8 @@ export function ResearchBase({ view, projectId = null }) {
   const project = projects.find((candidate) => candidate.id === projectId);
   const targetProject = projectId ?? projects.find((candidate) => !candidate.archived)?.id;
   const inboxRequest = useAppState((state) => state.memoryInboxRequest);
-  const [tab, setTab] = useState('sources');
+  const scope = useAppState((state) => state.settings?.appearance?.knowledgeScope);
+  const [chosenTab, setTab] = useState('sources');
   useEffect(() => {
     if (inboxRequest && inboxRequest.projectId === projectId) {
       setTab('inbox');
@@ -107,6 +111,14 @@ export function ResearchBase({ view, projectId = null }) {
   const fileInput = useRef(null);
   const reload = () => setRefresh((value) => value + 1);
   const scopeId = view === 'database' ? projectId : null;
+  const tab = scopeId && !PROJECT_TABS.includes(chosenTab) ? 'sources' : chosenTab;
+
+  useEffect(() => {
+    if (view === 'sources') return;
+    const next = view === 'database' ? 'project' : 'global';
+    if (scope !== undefined && (scope ?? 'global') !== next)
+      actions.updateSettings({ appearance: { knowledgeScope: next } }).catch(() => {});
+  }, [view, scope]);
 
   useEffect(() => {
     if (view === 'sources') return undefined;
@@ -117,7 +129,7 @@ export function ResearchBase({ view, projectId = null }) {
         pageSize: 1,
         offset: 0,
       }),
-      actions.knowledgeEntities({ projectId: scopeId ?? undefined, limit: 1 }),
+      scopeId ? Promise.resolve({ total: null }) : actions.knowledgeEntities({ limit: 1 }),
       scopeId ? actions.memoryInbox(scopeId) : Promise.resolve({ count: 0 }),
     ])
       .then(
@@ -378,8 +390,7 @@ export function ResearchBase({ view, projectId = null }) {
           class="ss-icon-btn kb-back"
           aria-label=${t('返回知识库')}
           data-tip=${t('返回知识库')}
-          onClick=${() =>
-            navigate(targetProject ? { view: 'database', id: targetProject } : { view: 'library' })}
+          onClick=${() => navigate(knowledgeRoute(scope, targetProject))}
         >
           <${Lucide} name="arrow-left" />
         </button>
@@ -458,7 +469,7 @@ export function ResearchBase({ view, projectId = null }) {
 
   return html`<main class="main ss-main research-base">
       <div class="ss-header">
-        <div class="ss-header__title"><span>${t('知识库')}</span></div>
+        <div class="ss-header__title"><span>${scopeId ? t('数据库') : t('知识库')}</span></div>
         <${ChoiceMenu}
           label=${t('范围')}
           triggerClass="ss-select ss-select--ghost"
@@ -466,10 +477,16 @@ export function ResearchBase({ view, projectId = null }) {
           attrs=${{ 'data-kb-scope': scopeId ? 'project' : 'global' }}
           items=${[
             { group: t('范围') },
+            {
+              text: t('知识库（所有项目共用）'),
+              icon: 'book-open',
+              selected: !scopeId,
+              run: () => navigate({ view: 'library' }),
+            },
             ...(targetProject
               ? [
                   {
-                    text: t('当前项目：{name}', {
+                    text: t('项目数据库：{name}', {
                       name:
                         (project ?? projects.find((row) => row.id === targetProject))?.name ?? '',
                     }),
@@ -479,24 +496,18 @@ export function ResearchBase({ view, projectId = null }) {
                   },
                 ]
               : []),
-            {
-              text: t('全局知识库'),
-              icon: 'book-open',
-              selected: !scopeId,
-              run: () => navigate({ view: 'library' }),
-            },
             { group: t('网上') },
             { text: t('外部资源'), icon: 'globe', run: () => navigate({ view: 'sources' }) },
           ]}
         >
           <${Lucide} name=${scopeId ? 'folder-open' : 'book-open'} /><span class="ss-select__value"
-            >${scopeId ? (project?.name ?? '') : t('全局知识库')}</span
+            >${scopeId ? (project?.name ?? '') : t('所有项目')}</span
           >
         <//>
         <span class="ss-header__sep"></span>
         <nav class="ss-tabs" role="tablist" aria-label=${t('知识库内容')}>
-          ${tabButton('sources', counts.sources)}${tabButton('entities', counts.entities)}
-          ${ITEM_TABS.map((key) => tabButton(key))}
+          ${tabButton('sources', counts.sources)}${!scopeId && tabButton('entities', counts.entities)}
+          ${!scopeId && ITEM_TABS.map((key) => tabButton(key))}
           <button
             type="button"
             class="ss-tab"
@@ -574,7 +585,7 @@ export function ResearchBase({ view, projectId = null }) {
                   ><${Lucide} name="search" /><input
                     value=${draft}
                     aria-label=${tab === 'entities' ? t('按名称或别名查找实体') : t('统一检索资料与条目')}
-                    placeholder=${tab === 'entities' ? t('按名称或别名查找') : t('搜索标题、实体或正文')}
+                    placeholder=${tab === 'entities' ? t('按名称或别名查找') : scopeId ? t('搜索标题或正文') : t('搜索标题、实体或正文')}
                     onInput=${(event) => setDraft(event.currentTarget.value)}
                   />${
                     query &&

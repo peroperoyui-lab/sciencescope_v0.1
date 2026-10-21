@@ -6,7 +6,7 @@ import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
-import { navigate } from '../route.js';
+import { knowledgeRoute, navigate } from '../route.js';
 import { ACTIVITY_LABELS, meetingActivity } from '../activity.js';
 import { FieldForm } from './overlays.js';
 import { ProjectSummary } from './project-summary.js';
@@ -438,7 +438,7 @@ export function Sidebar({ route, currentProjectId }) {
         data-tip=${inboxCount > 0 ? t('收件箱里有 {n} 条记忆等你确认', { n: inboxCount }) : undefined}
         data-tip-place="right"
         onClick=${() =>
-          navigate(inboxProject ? { view: 'database', id: inboxProject } : { view: 'library' })}
+          navigate(knowledgeRoute(settings?.appearance?.knowledgeScope, inboxProject))}
       >
         <${Lucide} name="book-open" /><span class="ss-nav-item__label">${t('知识库')}</span>
         ${inboxCount > 0 && html`<span class="ss-nav-item__end" data-rb-inbox-count>${inboxCount}</span>`}

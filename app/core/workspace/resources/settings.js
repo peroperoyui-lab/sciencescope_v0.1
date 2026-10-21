@@ -25,6 +25,9 @@ export const DEFAULT_SETTINGS = {
     transcript: 'full',
     // Widths of the right-side panels, set by dragging their edge.
     panels: { secretary: 360, assistant: 360 },
+    // Where the knowledge page opens: 'global' knowledge base or the current
+    // project's 'project' database; the last choice is kept.
+    knowledgeScope: 'global',
   },
   // Window shortcuts, recorded in Settings → 快捷键.
   shortcuts: {

@@ -53,6 +53,18 @@ export function navigate(route) {
   location.hash = routeHref(route);
 }
 
+/**
+ * The knowledge page opens where the user last was: the global knowledge base
+ * (the default) or a project's own database (`appearance.knowledgeScope`).
+ * @param {string|undefined} scope @param {string|null|undefined} projectId
+ * @returns {Route}
+ */
+export function knowledgeRoute(scope, projectId) {
+  return scope === 'project' && projectId
+    ? { view: 'database', id: projectId }
+    : { view: 'library' };
+}
+
 export function useRoute() {
   const [route, setRoute] = useState(parseRoute);
   useEffect(() => {

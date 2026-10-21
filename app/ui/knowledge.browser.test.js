@@ -191,7 +191,7 @@ test(
       await page.locator('[data-kb-entity]', { hasText: 'fsQCA' }).waitFor();
       await page.keyboard.press('Escape');
 
-      // A new entity joins the project; deleting it can be undone from the toast.
+      // A new entity is global; deleting it can be undone from the toast.
       await page.getByRole('button', { name: '新建实体' }).click();
       await page.locator('#modal').getByLabel('名称').fill('一致性阈值');
       await page.locator('#modal').getByLabel('种类').selectOption('metric');
@@ -199,7 +199,7 @@ test(
       const created = page.locator('[data-kb-entity]', { hasText: '一致性阈值' });
       await created.waitFor();
       await panel.locator('.ss-panel__title', { hasText: '一致性阈值' }).waitFor();
-      assert.match(await panel.locator('.ss-props').innerText(), /城市韧性研究/);
+      assert.doesNotMatch(await panel.locator('.ss-props').innerText(), /城市韧性研究/);
       await created.getByRole('button', { name: '更多' }).click();
       await page.getByRole('menuitem', { name: '删除' }).click();
       await created.waitFor({ state: 'detached' });
