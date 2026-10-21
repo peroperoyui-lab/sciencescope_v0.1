@@ -45,14 +45,16 @@
   kind: 'paragraph' | 'heading' | 'list-item' | 'table-cell' | 'opaque',
   level: 2, style: 'Heading2',  // 显示用
   inlines: [
-    { text: '结果表明', marks: ['b'], run: 12 },          // run 指回原文字段，用来继承 w:rPr
-    { atom: 'math', ref: 7, display: '<math>…</math>' },  // 原子节点：整体保留，不能拆开编辑
+    { text: '结果表明', marks: ['b'], run: 12, wrap: 2 }, // run 指回原文字段；wrap 可选，指回段内容器
+    { atom: 'tab', ref: 6, display: '\t', run: 12, wrap: 2 }, // 同一文字段里的原子字符保留 run
+    { atom: 'math', ref: 7, display: 'x2' },             // D2a 取 m:t 的线性文字，原 XML 整体保留
     { atom: 'field', ref: 8, display: '(Zhang, 2024)' },   // 域只显示缓存结果，含 Zotero/EndNote 引文
-    { atom: 'image' | 'footnote' | 'bookmark' | 'comment-start' | 'comment-end' | 'ins' | 'del', ref: 9 } ],
-  text: '结果表明…' }           // 纯文本投影：原子节点用一个占位符，供比较和检索
+    { atom: 'image' | 'footnote' | 'bookmark' | 'comment-start' | 'comment-end' | 'ins' | 'del', ref: 9, display: '\uFFFC' } ],
+  text: '结果表明…' }           // 纯文本投影逐项取 text ?? display，供比较和检索
 ```
 
 - **docx：** 块是 `w:body` 下的每个 `w:p`，含表格单元格和块级内容控件（`w:sdt`）里的段落。已有修订（`w:ins`/`w:del`）、公式（`m:oMath`）、图片（`w:drawing`/`w:pict`）、域（`w:fldSimple`、`w:fldChar … w:instrText`）、脚注引用、书签、批注范围标记、含文本框的对象都是原子节点：可以整体删除，不能拆开改。整段都不支持时块标为 `opaque`，只读。
+- **D2a 字段约定：** 文字的 `marks` 只含 `b/i/u/sup/sub`，只读直接格式、不展开字符样式；改字继承原 `w:rPr`，改标记才修改对应元素。混合文字段的文字和 `tab/break/symbol` 共享 `run`；`lastRenderedPageBreak` 不进入内联项，文字段改动时移除。`wrap` 指向超链接、smartTag、customXml 或普通行内内容控件，嵌套容器通过父引用保留；引文控件仍为 `field` 原子。原子 `display` 为域缓存、公式线性文字、制表符或换行，图片等其余类型用占位符，删除的修订文字不进入投影。完整未改的文字段和容器照抄 XML。
 - **浏览器编辑器：** docx 用 ProseMirror。schema 只有段落、标题、列表项、表格单元格四种块节点，五种标记（加粗、斜体、下划线、上标、下标），一个不可编辑的 `atom` 内联节点；块节点带 `id`。版式视图仍用现有 docx-preview。
 - **tex：** CodeMirror 6（state、view、language 和 `stex` 模式已在依赖，另加 `@codemirror/commands`）。块是空行分隔的段落，只用于比较、批注、绑定和修订标记定位；分隔空白原样保留，块拼回去就是原文。
 - **同步：** 服务端会话持有块列表和递增的 `seq`，是正本。浏览器停止输入 800 毫秒后，把改过的块（docx）或整份文本（tex）连同 `baseSeq` 发给服务端，服务端记修改、`seq` 加一、广播 `desk.changed`。AI 的修改走同一入口。冲突按块处理：用户在同一块有未发出的修改时先等它提交；之后 AI 的 `find` 找不到就返回 `TEXT_NOT_FOUND`，模型重读再改，用户的字不被覆盖。
@@ -258,7 +260,7 @@ CREATE TABLE manuscript_bindings (
 | `@codemirror/commands`                                                     | tex 编辑的撤销和按键                  | MIT                                                              | 数十 KB（推断）                        | 新增；state、view、language、legacy-modes 已在依赖 |
 | saxes                                                                      | 服务端 XML 流式解析，带位置           | ISC                                                              | 约 50 KB，依赖 xmlchars（MIT）         | 新增                                               |
 | 已有：jszip、diff、docx-preview、pdfjs-dist、mammoth                       | 解包、比较、版式视图、PDF、文字提取   | MIT/GPLv3 双许可（按 MIT）、BSD-3、Apache-2.0、Apache-2.0、BSD-2 | 已随包                                 | 不变                                               |
-| omml2mathml                                                                | OMML 公式显示                         | **许可证未写明，E0 核实**；不合适就不用，显示公式的线性文字      | 小                                     | 待定                                               |
+| omml2mathml 1.3.0（scienceai/npm）                                          | OMML 公式显示                         | Apache-2.0，2026-10-21 已读[仓库 LICENSE 全文](https://github.com/scienceai/omml2mathml/blob/master/LICENSE) | 小                                     | D2a 未引入；当前显示 `m:t` 拼接的线性文字             |
 | eigenpal docx-editor                                                       | 只在通过第 3.3 节规则时替代自研编辑器 | 核心 Apache-2.0；`packages/pro` 为 EigenPal Pro 许可，**需核实** | 未知                                   | E0 试验                                            |
 | Tectonic                                                                   | 可选的 tex 编译器                     | MIT                                                              | 单个可执行文件，数十 MB（推断，E0 量） | 不随包，按需下载                                   |
 

@@ -1,44 +1,6 @@
 import { readDocx } from './read.js';
 import { appendComments } from './comments.js';
-import { escapeXml } from './xml.js';
-
-function renderBlock(document, block, inlines, comments) {
-  if (block.kind === 'opaque') throw new Error(`Cannot rewrite opaque block ${block.id}`);
-  const raw = (span) => document.xml.slice(span.start, span.end);
-  const prefix = block.name.includes(':') ? block.name.split(':')[0] + ':' : '';
-  const originals = new Map(
-    block.inlines.filter((item) => item.run != null).map((item) => [item.run, item]),
-  );
-  const textRun = (inline, index) => {
-    const original = originals.get(inline.run);
-    if (original?.text === inline.text) return raw(document.runs[inline.run]);
-    // A new span inherits the run at its edit point; insertion at the start
-    // inherits the following run, so explicit East Asian fonts survive.
-    const neighbour =
-      original ??
-      [...inlines.slice(0, index)].reverse().find((item) => originals.has(item.run)) ??
-      inlines.slice(index + 1).find((item) => originals.has(item.run)) ??
-      block.inlines.find((item) => item.run != null);
-    const run = document.runs[inline.run ?? neighbour?.run];
-    const properties = run?.rPr ? raw(run.rPr) : '';
-    return `<${prefix}r>${properties}<${prefix}t xml:space="preserve">${escapeXml(inline.text)}</${prefix}t></${prefix}r>`;
-  };
-  const marker = (local, id) => `<${prefix}${local} ${prefix}id="${id}"/>`;
-  let body = block.pPr ? document.xml.slice(block.openEnd, block.pPr.end) : '';
-  for (let index = 0; index <= inlines.length; index++) {
-    for (const comment of comments.filter((entry) => entry.from === index))
-      body += marker('commentRangeStart', comment.id);
-    for (const comment of comments.filter((entry) => entry.to === index))
-      body +=
-        marker('commentRangeEnd', comment.id) +
-        `<${prefix}r>${marker('commentReference', comment.id)}</${prefix}r>`;
-    if (index === inlines.length) break;
-    const inline = inlines[index];
-    body += inline.atom ? raw(document.atoms[inline.ref]) : textRun(inline, index);
-  }
-  const opening = document.xml.slice(block.start, block.openEnd);
-  return (block.selfClosing ? opening.replace(/\/>$/u, '>') : opening) + body + `</${block.name}>`;
-}
+import { renderBlock } from './render.js';
 
 /**
  * Changes map block ids to new inlines. Comment ranges use inline boundaries in
