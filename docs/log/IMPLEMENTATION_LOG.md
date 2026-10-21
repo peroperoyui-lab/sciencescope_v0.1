@@ -1,5 +1,9 @@
 # 实施记录
 
+## 2026-10-21 KB-10a 审查合并（Claude）
+
+- 合并 KB-10a（迁移 026、graphology 0.26.0 / forceatlas2 0.10.1，MIT）。唯一超标项 `layout` 接口（Windows 2.96 秒）：节点度数原来每个节点两条子查询，改成按 `kb_edges_from`、`kb_edges_to` 两个索引各分组统计一次再合并（自环按图论算 2）；同一 5 万节点、50 万边合成数据在云端从 1.5 秒降到 0.3–0.6 秒，Windows 待 Sol 下次顺带复测。check 313 过 / 3 跳过。
+
 ## 2026-10-21 KB-10a 节点位置与后台布局（Codex）
 
 - 迁移 026；共享位置、worker 内 ForceAtlas2/Barnes-Hut、增量邻居布局、钉住与删除留空；接位置索引、viewport、拖动保存和异步重排四个接口，发言中暂停。全局范围复用 LITERATURE_KINDS 筛选项目文献，并含无项目资料及全部图条目/实体；未改 UI、检索和工具。

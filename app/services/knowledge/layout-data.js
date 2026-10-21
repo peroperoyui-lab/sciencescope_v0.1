@@ -37,19 +37,27 @@ export function scopedNodes(db, projectId) {
  * @returns {{nodes:any[],pending:number}}
  */
 export function layoutIndex(db, projectId = null) {
+  // Degrees are two grouped scans of the edge endpoint indexes (no table
+  // lookups); per-node subqueries took about 3 seconds for 50 000 nodes and
+  // 500 000 edges on Windows. A self-loop counts twice, as in graph theory.
+  const degree = new Map();
+  for (const column of ['from_ref', 'to_ref'])
+    for (const row of db
+      .prepare(
+        `SELECT ${column} AS ref, count(*) AS n FROM kb_edges WHERE status='active' GROUP BY ${column}`,
+      )
+      .all())
+      degree.set(row.ref, (degree.get(row.ref) ?? 0) + Number(row.n));
   const rows = db
     .prepare(
       `WITH nodes AS (${NODES_SQL})
-    SELECT n.ref,n.kind,p.x,p.y,
-      (SELECT count(*) FROM kb_edges e WHERE e.from_ref=n.ref AND e.status='active') +
-      (SELECT count(*) FROM kb_edges e WHERE e.to_ref=n.ref AND e.from_ref<>n.ref AND e.status='active') AS degree
-    FROM nodes n LEFT JOIN kb_positions p ON p.ref=n.ref WHERE ${scope}`,
+    SELECT n.ref,n.kind,p.x,p.y FROM nodes n LEFT JOIN kb_positions p ON p.ref=n.ref WHERE ${scope}`,
     )
     .all(...scopeValues(projectId));
   const nodes = [],
     missing = rows.filter((row) => row.x == null);
   for (const row of rows)
-    if (row.x != null) nodes.push([row.ref, row.x, row.y, row.kind, row.degree]);
+    if (row.x != null) nodes.push([row.ref, row.x, row.y, row.kind, degree.get(row.ref) ?? 0]);
   return { nodes, pending: missing.length };
 }
 
