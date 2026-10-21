@@ -510,7 +510,7 @@ data/
 
 **资料库与预览**
 
-- `GET/POST /api/research/sources` 资料列表（分页、筛选）、导入资料。
+- `GET/POST /api/research/sources` 资料列表（分页、筛选、每项 `relations` 为含派生层的 active 边数）、导入资料。
 - `GET/PATCH /api/research/sources/:id` 读取（含段落）、修改元数据。
 - `POST /api/research/sources/:id/reparse` 重新解析。
 - `POST /api/research/sources/:id/open` 用默认程序打开原件。
@@ -522,6 +522,19 @@ data/
 - `GET /api/research/semantic/status` 本地混合检索状态。
 - `POST /api/research/semantic/download`、`POST /api/research/semantic/rebuild` 下载模型、重建索引。
 - `GET /api/preview/document`、`GET /api/preview/content` 文件预览的结构与原始字节（资料、文献版本、项目文件、交付物）。
+
+**知识库接口与编辑会话（KB-5）**
+
+- `GET /api/knowledge/entities` 按 `projectId/kind/q/label/origin` 筛选；`offset/limit` 分页，返回 `{rows,total,remaining,offset,limit}`，每项含 `degree/updatedAt`。
+- `POST /api/knowledge/entities`；`GET/PATCH/DELETE /api/knowledge/entities/:id` 新建、读取、修改、删除。详情返回 `{entity,labels,memberships,edges}`；`edgesOffset/edgesLimit` 对全部相连边分页，`edges.groups` 将本页按 relation 分组，每条带 `peer:{ref,name,kind}`、layer、origin、evidence。
+- `GET /api/knowledge/entities/merge-preview?into=&from=`（from 可逗号分隔或重复）；`POST /api/knowledge/entities/merge {into,from[]}` 预览改挂数并合并。
+- `POST /api/knowledge/edges`；`PATCH/DELETE /api/knowledge/edges/:id` 新建、修改、删除关系；`POST /api/knowledge/labels {ref,add?,remove?}`（标签可单值或数组）、`POST /api/knowledge/memberships {projectId,ref,remove?}` 修改标签和项目归属。
+- `GET /api/knowledge/graph` 与工具 kb_graph 共用实现与轻量结果，支持 ref/query、depth、relations、layers、projectId 和分页。
+- `POST /api/knowledge/session {projectId?}` 返回 `{id}`；修改请求的 `sessionId` 对应该 leave-page 版本。`POST /api/knowledge/session/:id/close` 关闭（未编辑返回 null），`/undo`、`/redo` 撤销/重做一次接口操作并返回 `{refs,skipped,canUndo,canRedo}`。后来被其他操作修改的记录跳过；新修改清空重做；启动关闭遗留会话，内存撤销栈不跨重启。
+- `GET /api/knowledge/versions` 支持 projectId/meetingId/turnId 与分页；`GET /api/knowledge/versions/:id` 返回 `{version,changes}`（含 ref/name/kind/op/before/after）；`POST /api/knowledge/versions/:id/restore` 整组撤回，保留 skipped。
+- `GET /api/knowledge/history?ref=` 分页查修订；`POST /api/knowledge/revisions/:id/restore` 恢复单条。版本摘要按每条记录净变化计数，建后撤销不计，重复修改计一次；派生边继续不进入修订。
+- `GET /api/knowledge/jobs` 返回后台汇总与失败列表；`POST /api/knowledge/jobs {action:'retry'}` 重试失败项。
+- AI 实体与边详情的 `createdBy` 含 participantId/name/meetingId/meetingTitle/turnId/messageId；已删除对象只保留 ID。证据 chunk 引用解析为 sourceId/title/page/quote，message 引用解析为 meetingId/meetingTitle/messageId/excerpt；原文缺失返回 missing:true。HTTP 写入或恢复历史中的单个证据对象读取时按数组返回，空证据返回空数组，无法解析的条目标 missing:true。全部接口沿用宿主口令认证，用户写入身份为 person_user。
 
 **文献版本**
 

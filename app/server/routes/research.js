@@ -1,9 +1,15 @@
 import { LOCAL_USER_ID } from '../../core/defaults.js';
 import { createResearch } from '../../services/research/index.js';
+import { createKnowledgeStore } from '../../services/knowledge/store.js';
 
 /** @param {import('../router.js').Router} router @param {import('../../core/index.js').Core} core @param {ReturnType<typeof createResearch>} [service] @param {any} [semantic] */
 export function registerResearchRoutes(router, core, service, semantic) {
   const research = service ?? createResearch(core);
+  const knowledge = createKnowledgeStore(core);
+  const withRelations = (source) => ({
+    ...source,
+    relations: knowledge.degree('source:' + source.id),
+  });
   const actor = { actorId: LOCAL_USER_ID };
   const options = (query) => ({
     ...(query.has('projectId') ? { projectId: query.get('projectId') || null } : {}),
@@ -21,15 +27,17 @@ export function registerResearchRoutes(router, core, service, semantic) {
   });
   router.get('/api/research/sources', ({ query }) => {
     const selected = options(query);
-    if (!query.has('page')) return research.store.listSources(selected);
+    if (!query.has('page')) return research.store.listSources(selected).map(withRelations);
     const page = Math.max(1, Number(query.get('page')) || 1);
     const pageSize = Math.max(1, Number(query.get('pageSize')) || 50);
     const total = research.store.countSources(selected);
-    const sources = research.store.listSources({
-      ...selected,
-      limit: pageSize,
-      offset: (page - 1) * pageSize,
-    });
+    const sources = research.store
+      .listSources({
+        ...selected,
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+      })
+      .map(withRelations);
     return { sources, total, page, pageSize, remaining: Math.max(0, total - page * pageSize) };
   });
   router.patch('/api/research/sources/:id', ({ params, body }) =>
