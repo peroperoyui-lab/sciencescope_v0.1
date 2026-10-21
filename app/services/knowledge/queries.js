@@ -132,7 +132,7 @@ export function createKnowledgeQueries(core, records) {
     };
   }
   function evidence(input) {
-    const value = typeof input === 'string' ? { ref: input } : input;
+    const value = typeof input === 'string' ? { ref: input } : (input ?? {});
     const [type, id] = String(value.ref).split(':');
     if (type === 'chunk') {
       const row = db
@@ -170,7 +170,8 @@ export function createKnowledgeQueries(core, records) {
     return {
       ...row,
       createdBy: createdBy(row),
-      evidence: row.evidence.map(evidence),
+      // HTTP edits and preserved revisions may contain a single evidence object.
+      evidence: [].concat(row.evidence ?? []).map(evidence),
       ...(ref ? { peer: describe(row.fromRef === ref ? row.toRef : row.fromRef) } : {}),
     };
   }

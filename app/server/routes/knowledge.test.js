@@ -200,6 +200,43 @@ test('AI provenance and missing evidence survive reads; later AI corrections are
     assert.equal(knowledge.getEdge(edge.id).status, 'removed');
   }));
 
+test('HTTP evidence edits and restored single-object evidence remain readable', () =>
+  withApi(async ({ research, knowledge, call }) => {
+    const entity = await call('POST', 'knowledge/entities', { name: 'QCA', kind: 'method' });
+    const source = research.store.createSource({ title: 'Method evidence', kind: 'paper' });
+    research.store.addChunks(source.id, [{ text: 'The study uses QCA.', page: 3 }]);
+    const chunk = research.store.chunks(source.id)[0];
+    const edge = await call('POST', 'knowledge/edges', {
+      fromRef: 'entity:' + entity.id,
+      toRef: 'source:' + source.id,
+      relation: 'described-in',
+      evidence: { ref: 'chunk:' + chunk.id, quote: chunk.text },
+    });
+    const firstRevision = knowledge.versions.history('edge:' + edge.id).rows[0].id;
+    const readEvidence = async () =>
+      (await call('GET', 'knowledge/entities/' + entity.id)).edges.rows[0].evidence;
+    assert.deepEqual(await readEvidence(), [
+      {
+        ref: 'chunk:' + chunk.id,
+        quote: chunk.text,
+        sourceId: source.id,
+        title: source.title,
+        page: 3,
+      },
+    ]);
+    await call('PATCH', 'knowledge/edges/' + edge.id, { evidence: null });
+    assert.deepEqual(await readEvidence(), []);
+    await call('PATCH', 'knowledge/edges/' + edge.id, {
+      evidence: [null, { ref: 'chunk:missing', quote: 'Preserve the recorded quote.' }],
+    });
+    assert.deepEqual(await readEvidence(), [
+      { missing: true },
+      { ref: 'chunk:missing', quote: 'Preserve the recorded quote.', missing: true },
+    ]);
+    await call('POST', `knowledge/revisions/${firstRevision}/restore`);
+    assert.equal((await readEvidence())[0].page, 3);
+  }));
+
 test('session undo/redo follows its own steps, skips intervening edits and counts net changes', () =>
   withApi(async ({ knowledge, sessions, call }) => {
     const original = knowledge.createEntity({ name: 'original', kind: 'concept' });
