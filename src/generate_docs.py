@@ -31,7 +31,6 @@ for s in specs:
  (R/'docs/archive/legacy/pages'/f"{s['id']}_{s['route']}.md").write_text(text)
 # User-provided files, preserving original design/logo.
 shutil.copy('/mnt/data/d286c339-023f-47d4-a806-f15adf372eb4.pptx',R/'reference/ScienceScope_User_Design.pptx')
-shutil.copy('/mnt/data/67a08cba-b0b0-451e-a508-8fa1977ab38a.png',R/'reference/Codex_Overview_Reference.png')
 s=(R/'src/original-base.html').read_text();m=re.search(r"window.LOGO_SRC='data:image/png;base64,([^']+)'",s)
 if m:(R/'reference/ScienceScope_Logo.png').write_bytes(base64.b64decode(m.group(1)))
 # Update focused flow sheets to link latest interaction notes, avoiding contradictory earlier wording.

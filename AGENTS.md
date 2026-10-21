@@ -91,7 +91,7 @@ workflow, helping the user understand and advance their own research project
 
 ## Workflow
 
-- **Claude**: design, frontend, review and merge into the integration branch.
+- **Claude**: design, frontend, review and merge into `main`.
   All GUI work (design and implementation in `app/ui/`) is Claude's (user
   2026-10-16). **Sol** (GPT-6.1 Sol): backend, packaging and Windows acceptance;
   Sol does not design or restyle the UI, and touches `app/ui/` only where a
@@ -115,9 +115,10 @@ workflow, helping the user understand and advance their own research project
   Native acceptance only if native code changed.
 - Report in 15 lines or fewer: what changed, which files, test result, open
   issues. Long material stays in `.sciencescope-local/temp`.
-- Branches `codex/tNN-topic-YYYYMMDD` from the integration branch. Report the
-  remote branch and SHA. No PR or merge unless the user asks. Never commit
-  secrets, local state, logs or builds.
+- Branches `codex/tNN-topic-YYYYMMDD` from `main`. Report the remote branch
+  and SHA. No PR or merge unless the user asks. The repository is public: never
+  commit secrets, local state, logs, builds, personal paths or private
+  screenshots.
 - Docs: `docs/product/FEATURES.md` describes what exists now (update it in the
   same commit when behaviour changes); `docs/plans/ROADMAP.md` holds direction
   and the task queue; `docs/log/IMPLEMENTATION_LOG.md` is a short dated log;

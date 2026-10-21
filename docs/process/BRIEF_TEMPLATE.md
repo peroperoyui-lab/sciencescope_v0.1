@@ -41,7 +41,7 @@
 
 ## 交付
 
-- 分支：`codex/<任务号>-<主题>-YYYYMMDD`，从集成分支最新提交开始。报告不超过 15 行，给出远程分支与 SHA。不建 PR、不合并。
+- 分支：`codex/<任务号>-<主题>-YYYYMMDD`，从 `main` 最新提交开始。报告不超过 15 行，给出远程分支与 SHA。不建 PR、不合并。
 ```
 
 ## 给 Sol 的提示模板
@@ -49,7 +49,7 @@
 Claude 写完任务书后，给 Yui 一段可以直接粘贴的提示：
 
 ```text
-请读 docs/plans/tasks/<文件名>，从集成分支 claude/determined-pasteur-jxpzw8 最新提交（<SHA>）开始做。
+请读 docs/plans/tasks/<文件名>，从 main 最新提交（<SHA>）开始做。
 <一两句这次的重点或提醒，例如：界面已经做好，不要改 app/ui/。>
 不动 <预览安装目录> 及其数据。完成后报告不超过 15 行，给出远程分支和 SHA。
 ```

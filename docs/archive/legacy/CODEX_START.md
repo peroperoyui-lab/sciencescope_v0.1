@@ -22,7 +22,7 @@
 ## 先看什么
 
 1. `ScienceScope.html`：自包含原型，可直接用浏览器打开。保留 48 个原有页面状态，新增 P49 完整修改记录。底栏可切页面。
-2. `reference/ScienceScope_User_Design.pptx`：用户最新原图；`reference/Codex_Overview_Reference.png` 是摘要浮层参考截图。
+2. `reference/ScienceScope_User_Design.pptx`：用户最新原图。
 3. `docs/archive/legacy/00_MASTER_FUNCTIONS.md`：总功能与工作方式。
 4. `docs/design/INTERACTION_CONTRACTS.md`：本轮最重要的菜单/窗口/上下文/键盘规则。
 5. `docs/archive/legacy/04_FEEDBACK_MATRIX.md`：十条反馈的落实和正式版接线。
