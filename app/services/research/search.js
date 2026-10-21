@@ -2,6 +2,7 @@ import { publicRow } from '../knowledge/records.js';
 import { AppError } from '../../core/errors.js';
 import { citationFor, parseCitationLabel } from './citations.js';
 import { matchExpression } from './text-index.js';
+import { readKnowledgeEntity } from '../knowledge/graph.js';
 
 /** @param {ReturnType<typeof import('./store.js').createResearchStore>} store */
 export function createResearchSearch(store) {
@@ -112,10 +113,11 @@ export function createResearchSearch(store) {
   }
 
   /**
-   * @param {{type?:'source'|'chunk'|'item',id?:string,label?:string,projectId?:string|null,offset?:number,limit?:number,audience?:'user'|'agent',includeSuperseded?:boolean}} input
+   * @param {{type?:'source'|'chunk'|'item'|'entity',id?:string,label?:string,projectId?:string|null,offset?:number,limit?:number,audience?:'user'|'agent',includeSuperseded?:boolean,full?:boolean}} input
    */
   function read(input) {
     const type = input.type ?? 'source';
+    if (type === 'entity') return readKnowledgeEntity(store.db, input);
     if (type === 'item') {
       const item = store.getItem(input.id);
       if (!visible(item, input))
