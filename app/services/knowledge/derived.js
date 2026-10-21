@@ -1,7 +1,8 @@
 import { newId, nowIso } from '../../core/ids.js';
 import { citationEdges } from './citations.js';
+import { LITERATURE_KINDS } from '../research/records.js';
 
-const literature = new Set(['paper', 'preprint', 'thesis', 'report', 'chapter', 'book']);
+const literature = new Set(LITERATURE_KINDS);
 const edgeKey = (edge) => `${edge.fromRef}\0${edge.toRef}\0${edge.relation}`;
 
 /**

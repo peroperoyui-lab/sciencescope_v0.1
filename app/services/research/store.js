@@ -46,7 +46,7 @@ const chunkKinds = [
  * @typedef {import('../../core/workspace/workspace.js').Actor} Actor
  * @typedef {{ projectId?: string | null, includePersonal?: boolean, kind?: string,
  *   contentStatus?: string, readStatus?:string, tag?:string, sort?:string, direction?:string,
- *   limit?: number, offset?: number }} SourceQuery
+ *   limit?: number, offset?: number, knowledge?: boolean }} SourceQuery
  * @typedef {{ parser?: string, pages?: number | null, contentStatus?: string,
  *   parseError?: string | null, metadata?: any, kind?: string }} ParseResult
  * @typedef {ReturnType<typeof createResearchItems> & {

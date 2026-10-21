@@ -198,13 +198,26 @@ test(
   { skip: browserSkip },
   () =>
     run('scopes-sites', async ({ page, app, shot }) => {
-      await openProject(page, app);
+      const project = await openProject(page, app);
       await importPdf(page, 'project.pdf');
-      // The global knowledge base shows every source; a project shows its own.
+      // The knowledge base shows global sources and project literature; a project shows its own.
       await page.getByRole('button', { name: '范围', exact: true }).click();
       await page.getByRole('menuitemradio', { name: /^知识库/ }).click();
-      await page.locator('[data-rb-source]', { hasText: 'project.pdf' }).waitFor();
       await page.locator('[data-rb-tab="entities"]').waitFor();
+      // A plain project file stays in the project; once it is literature it is shown.
+      const [projectPdf] = await request(page, '/api/research/sources?projectId=' + project.id);
+      assert.equal(projectPdf.kind, 'file');
+      const listed = await request(page, '/api/research/sources?knowledge=1');
+      assert.equal(
+        listed.some((row) => row.id === projectPdf.id),
+        false,
+      );
+      await fetch(new URL('/api/research/sources/' + projectPdf.id, page.url()), {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ kind: 'paper' }),
+      });
+      await page.locator('[data-rb-source]', { hasText: 'project.pdf' }).waitFor();
       await shot('scope-global');
       await importPdf(page, 'personal.pdf');
       const sources = await request(page, '/api/research/sources?projectId=');

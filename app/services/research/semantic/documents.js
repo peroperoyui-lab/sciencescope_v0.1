@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { citationFor } from '../citations.js';
-import { payloadText } from '../records.js';
+import { LITERATURE_KINDS, payloadText } from '../records.js';
 import { createResearchStore } from '../store.js';
 
 const versionOf = (text) => createHash('sha256').update(text).digest('hex');
@@ -25,19 +25,21 @@ export function createSemanticDocuments(core) {
       result.push({
         ref: { type: 'source', id: String(row.id) },
         projectId: row.project_id == null ? null : String(row.project_id),
+        sourceKind: String(row.kind),
         version: versionOf(text),
         text,
       });
     }
     for (const row of core.db
       .prepare(
-        'SELECT c.*, s.project_id FROM rb_chunks c JOIN rb_sources s ON s.id=c.source_id ORDER BY c.id',
+        'SELECT c.*, s.project_id, s.kind AS source_kind FROM rb_chunks c JOIN rb_sources s ON s.id=c.source_id ORDER BY c.id',
       )
       .all()) {
       const text = String(row.text);
       result.push({
         ref: { type: 'chunk', id: String(row.id) },
         projectId: row.project_id == null ? null : String(row.project_id),
+        sourceKind: String(row.source_kind),
         version: versionOf(text),
         text,
       });
@@ -78,8 +80,17 @@ export function createSemanticDocuments(core) {
   /** @param {any} options */
   function candidates(options) {
     const projectId = options.projectId ?? null;
+    const global = options.knowledge && !projectId;
     return documents().filter((document) => {
       if (
+        global &&
+        ['source', 'chunk'].includes(document.ref.type) &&
+        document.projectId !== null &&
+        !LITERATURE_KINDS.includes(document.sourceKind)
+      )
+        return false;
+      if (
+        !global &&
         !(
           document.ref.type === 'entity' &&
           projectId &&

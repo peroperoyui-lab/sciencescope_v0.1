@@ -14,6 +14,8 @@ export function registerResearchRoutes(router, core, service, semantic) {
   const options = (query) => ({
     ...(query.has('projectId') ? { projectId: query.get('projectId') || null } : {}),
     includePersonal: query.get('includePersonal') !== '0',
+    // knowledge=1: the global knowledge base (global sources plus project literature).
+    ...(query.get('knowledge') === '1' ? { knowledge: true } : {}),
     includeSuperseded: query.get('includeSuperseded') === '1',
     ...(query.has('limit') ? { limit: Number(query.get('limit')) } : {}),
     ...(query.has('offset') ? { offset: Number(query.get('offset')) } : {}),

@@ -26,7 +26,7 @@
    - **删除**：节点改 `removed` 或被删除时删掉它的位置，其余位置不变，空位不补。
    - 事件：位置变化发 `knowledge.layout.changed`（带受影响的 ref，全图重排时只发一次带 `all: true`）。
 3. **接口**（加在 `app/server/routes/knowledge.js`，都要口令）：
-   - `GET /api/knowledge/layout?projectId=`：范围内全部有位置的节点，紧凑数组 `{nodes: [[ref, x, y, kind, degree], ...], pending}`。范围规则同 §3.3（不传 `projectId` 是全局）。`kind` 用界面的节点种类（source / method / dataset / variable / software / code / concept / person / org 等，和 KB-8 设计稿一致），`degree` 是 `active` 边数。`pending` 是还没排到位置的节点数。不含名称、说明和边。
+   - `GET /api/knowledge/layout?projectId=`：范围内全部有位置的节点，紧凑数组 `{nodes: [[ref, x, y, kind, degree], ...], pending}`。范围规则同 §3.3（不传 `projectId` 是全局：`project_id` 为空的资料加各项目的文献，即 `LITERATURE_KINDS`，加全部实体和条目；2026-10-21 所有者决定，见 DECISIONS）。`kind` 用界面的节点种类（source / method / dataset / variable / software / code / concept / person / org 等，和 KB-8 设计稿一致），`degree` 是 `active` 边数。`pending` 是还没排到位置的节点数。不含名称、说明和边。
    - `POST /api/knowledge/viewport {refs, projectId?}`：这些节点的 `{ref, name, kind}`，加上两端都在 `refs` 里的 `active` 边 `{id, from, to, relation, layer, origin, aiUntouched}`。`refs` 不设上限，界面一次大约 1 500 个。
    - `PATCH /api/knowledge/positions {positions: [{ref, x, y, pinned?}]}`：保存拖动后的位置；拖过的节点由界面传 `pinned: true`，取消钉住传 `false`。
    - `POST /api/knowledge/layout/rerun {projectId?}`：排队一次全图重排，立即返回，不等待。`projectId` 只决定参与重排的节点；坐标仍是同一套。

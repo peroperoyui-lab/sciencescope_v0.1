@@ -1,9 +1,10 @@
-import { filterProject } from './records.js';
+import { filterProject, knowledgeSource } from './records.js';
 
 function sourceFilters(options) {
   const where = [];
   const params = [];
   filterProject('project_id', options, where, params);
+  if (options.knowledge && !options.projectId) where.push(knowledgeSource('project_id', 'kind'));
   for (const [field, column] of [
     ['kind', 'kind'],
     ['contentStatus', 'content_status'],

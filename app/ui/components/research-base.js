@@ -61,7 +61,8 @@ const entitySorts = [
 function listOptions(tab, filters, offset, projectId) {
   const pick = (keys) =>
     Object.fromEntries(keys.filter((key) => filters[key] !== '').map((key) => [key, filters[key]]));
-  const scope = projectId ? { projectId, includePersonal: 0 } : {};
+  // Global: the knowledge base (global sources plus every project's literature).
+  const scope = projectId ? { projectId, includePersonal: 0 } : { knowledge: 1 };
   if (tab === 'sources')
     return {
       ...scope,
@@ -125,7 +126,7 @@ export function ResearchBase({ view, projectId = null }) {
     let current = true;
     Promise.all([
       actions.researchSources({
-        ...(scopeId ? { projectId: scopeId, includePersonal: 0 } : {}),
+        ...(scopeId ? { projectId: scopeId, includePersonal: 0 } : { knowledge: 1 }),
         pageSize: 1,
         offset: 0,
       }),

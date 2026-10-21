@@ -24,6 +24,19 @@ export function recordObject(value) {
   return value;
 }
 
+// Literature kinds: the global knowledge base shows these from every project,
+// and they get paper cards. A project's data, code and drafts stay in its own
+// database (DECISIONS 2026-10-21).
+export const LITERATURE_KINDS = ['paper', 'preprint', 'thesis', 'report', 'chapter', 'book'];
+const literatureList = LITERATURE_KINDS.map((kind) => `'${kind}'`).join(',');
+
+/**
+ * SQL condition for a source in the global knowledge base.
+ * @param {string} projectColumn @param {string} kindColumn @returns {string}
+ */
+export const knowledgeSource = (projectColumn, kindColumn) =>
+  `(${projectColumn} IS NULL OR ${kindColumn} IN (${literatureList}))`;
+
 /** @param {any} row @param {any} options @param {string[]} where @param {any[]} params */
 export function filterProject(row, options, where, params) {
   if (options.projectId === undefined) return;

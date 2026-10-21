@@ -78,7 +78,7 @@
 
 - 标签 `kb_labels(ref, label)`：节点和边（`edge:<id>`）都能打。资料原有的 `metadata.tags` 不动，界面合并显示；新标签一律写 `kb_labels`。
 - 项目归属 `kb_memberships(project_id, ref)`：全局节点「与某项目相关」时记一行，不复制（DECISIONS 2026-09-27「一个库，项目是视图」）。
-- **全局**：`project_id IS NULL` 的资料和条目，加全部实体。实体永远是全局的。
+- **全局**（知识库，2026-10-21 改）：`project_id IS NULL` 的资料，加各项目里的文献（`kind` 为 paper、preprint、thesis、report、chapter、book，即 `LITERATURE_KINDS`，和论文卡片同一组），加全部条目和实体。项目里的数据、代码、文稿只在项目范围（数据库）出现。实体永远是全局的。资料列表、检索和图接口都用 `knowledge=1` 选这个范围；专家检索不变（当前项目加全局资料）。
 - **项目**：`project_id = 该项目` 的资料、条目（主要是项目文件夹里的文件），加归属到该项目的节点。边不分项目，有一端在项目范围内就在项目视图显示。专家默认检索当前项目并带上全局资料（与现有 `includePersonal` 默认一致）。「把项目知识整理进总知识库」= 建实体和边并记归属。
 - 私有：`visibility='private'` 的条目和实体不给智能体。
 

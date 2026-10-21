@@ -7,6 +7,7 @@ import { migrations } from '../../core/db/migrations/index.js';
 import { createEvents } from '../../core/events.js';
 import { tempDir } from '../../testing.js';
 import { createResearchStore } from './store.js';
+import { createResearchSearch } from './search.js';
 
 async function withStore(work) {
   const { dir, cleanup } = await tempDir('research-store');
@@ -223,5 +224,39 @@ test('item edits keep immutable old versions and supersession retains provenance
     assert.equal(events.since(0).length, 3);
     assert.throws(() => store.getItem('missing'), { code: 'ITEM_NOT_FOUND' });
     assert.throws(() => store.getSource('missing'), { code: 'SOURCE_NOT_FOUND' });
+  });
+});
+
+test('the global knowledge base lists global sources and project literature, not project data', async () => {
+  await withStore((store, events, db) => {
+    db.prepare(
+      `INSERT INTO projects (id, name, dir_name, created_at, updated_at)
+      VALUES ('project', 'Project', 'project', 'now', 'now')`,
+    ).run();
+    const paper = store.createSource({
+      projectId: 'project',
+      title: 'Project paper',
+      kind: 'paper',
+    });
+    const data = store.createSource({
+      projectId: 'project',
+      title: 'Project table',
+      kind: 'dataset',
+    });
+    const own = store.createSource({ title: 'Global note' });
+    for (const source of [paper, data, own])
+      store.addChunks(source.id, [{ text: 'Regional resilience evidence' }], { parser: 'text' });
+    const ids = (rows) => rows.map((row) => row.id).sort();
+    assert.deepEqual(ids(store.listSources({ knowledge: true })), ids([paper, own]));
+    assert.equal(store.countSources({ knowledge: true }), 2);
+    assert.deepEqual(
+      ids(store.listSources({ projectId: 'project', includePersonal: false })),
+      ids([paper, data]),
+    );
+    const hits = createResearchSearch(store).search('resilience', {
+      knowledge: true,
+      limit: 20,
+    }).hits;
+    assert.deepEqual([...new Set(hits.map((hit) => hit.sourceId))].sort(), ids([paper, own]));
   });
 });

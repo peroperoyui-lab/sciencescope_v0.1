@@ -1,10 +1,11 @@
 import { AppError } from '../../core/errors.js';
+import { LITERATURE_KINDS } from '../research/records.js';
 import { createBackgroundRunner } from '../secretary/background.js';
 import { cardInput, paragraphHash, verifyCard } from './card-input.js';
 import { CARD_INSTRUCTIONS } from './card-prompt.js';
 import { CARD_ACTOR_ID, createCardWriter } from './card-writer.js';
 
-export const CARD_KINDS = ['paper', 'preprint', 'thesis', 'report', 'chapter', 'book'];
+export const CARD_KINDS = LITERATURE_KINDS;
 // Provisional uncached USD rates from the design's §4.6, to be calibrated in KB-6b.
 export const CARD_COST = {
   currency: 'USD',

@@ -1,6 +1,7 @@
 import { publicRow } from '../knowledge/records.js';
 import { AppError } from '../../core/errors.js';
 import { citationFor, parseCitationLabel } from './citations.js';
+import { knowledgeSource } from './records.js';
 import { matchExpression } from './text-index.js';
 import { readKnowledgeEntity } from '../knowledge/graph.js';
 
@@ -20,14 +21,19 @@ export function createResearchSearch(store) {
 
   /**
    * @param {string} query
-   * @param {{projectId?:string|null,includePersonal?:boolean,audience?:'user'|'agent',includeSuperseded?:boolean,limit?:number,offset?:number}} [options]
+   * @param {{projectId?:string|null,includePersonal?:boolean,knowledge?:boolean,audience?:'user'|'agent',includeSuperseded?:boolean,limit?:number,offset?:number}} [options]
    */
   function search(query, options = {}) {
     const limit = Math.max(1, Math.floor(options.limit ?? 10));
     const offset = Math.max(0, Math.floor(options.offset ?? 0));
     const selected = scope(options.projectId, options.includePersonal !== false);
+    // The global knowledge base: every item and entity, global sources and
+    // each project's literature.
+    const global = options.knowledge && !options.projectId;
     const clauses = [
-      `(coalesce(project_id,'') IN (${selected.map(() => '?').join(',')}) OR (doc_type='entity' AND EXISTS (SELECT 1 FROM kb_memberships m WHERE m.ref='entity:'||doc_id AND m.project_id=?)))`,
+      global
+        ? `(doc_type IN ('item','entity') OR EXISTS (SELECT 1 FROM rb_sources s WHERE s.id = (CASE WHEN doc_type='source' THEN doc_id ELSE (SELECT c.source_id FROM rb_chunks c WHERE c.id=doc_id) END) AND ${knowledgeSource('s.project_id', 's.kind')}))`
+        : `(coalesce(project_id,'') IN (${selected.map(() => '?').join(',')}) OR (doc_type='entity' AND EXISTS (SELECT 1 FROM kb_memberships m WHERE m.ref='entity:'||doc_id AND m.project_id=?)))`,
       "(doc_type<>'item' OR EXISTS (SELECT 1 FROM rb_items i WHERE i.id=doc_id AND i.status NOT IN ('proposed','rejected')",
     ];
     if (!options.includeSuperseded) clauses[1] += " AND i.status='active'";
@@ -38,7 +44,7 @@ export function createResearchSearch(store) {
         (options.audience === 'agent' ? " AND e.visibility<>'private'" : '') +
         '))',
     );
-    const parameters = [...selected, options.projectId ?? null];
+    const parameters = global ? [] : [...selected, options.projectId ?? null];
     const where = clauses.join(' AND ');
     let expression = matchExpression(query);
     if (!expression) return { query, hits: [], total: 0, remaining: 0, offset, limit };
