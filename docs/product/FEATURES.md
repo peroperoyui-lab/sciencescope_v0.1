@@ -665,8 +665,8 @@ data/
 | 022  | `kb_entities`、`kb_edges`、`kb_labels`、`kb_memberships`、`kb_versions`、`kb_revisions`、`kb_jobs`；`rb_sources.folder_path`                 | 知识库实体、关系、标签、项目归属、修订与历史版本、后台任务（模型工具；表格页和节点详情） |
 | 023  | `rb_sources.file_size`、`file_mtime_ms`、`content_hash`                                                                                      | 项目文件的大小、修改时间和内容哈希，扫描时判断是否变化                                   |
 | 024  | `version_groups.source_path/format`；`manuscript_versions` 父版本、分支、层级、标签、标题、来源、哈希、会话；`desk_sessions`、`desk_changes` | 版本图与元数据；编辑会话表预建，尚无会话逻辑                                             |
-| 025  | `kb_entities.produced_from/evidence_json`；`kb_jobs.result_json/meeting_id/manual`                                                           | 论文卡片来源、证据和持久任务结果；卡片条目加入知识库版本快照与恢复                       |
-| 026  | `kb_positions(ref,x,y,pinned,updated_at)`                                                                                                    | 跨项目共享的图位置投影、用户钉住状态；可重算，不进历史版本                               |
+| 025  | `kb_entities.produced_from/evidence_json`；`kb_jobs.result_json/meeting_id/manual` | 论文卡片来源、证据和持久任务结果；卡片条目加入知识库版本快照与恢复 |
+| 026  | `kb_positions(ref,x,y,pinned,updated_at)` | 跨项目共享的图位置投影、用户钉住状态；可重算，不进历史版本 |
 
 ### 4.2 文件资源
 
