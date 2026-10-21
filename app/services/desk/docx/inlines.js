@@ -202,7 +202,7 @@ export function createInlineReader(xml, spans) {
           else inlines.push(addAtom(span, 'opaque'));
         } else inlines.push(addAtom(span, 'opaque'));
       } else {
-        const nested = inside(span).find((part) => atomTypes[part.tag]);
+        const nested = inside(span).find((part) => atomTypes[part.tag] && !runParts.has(part.tag));
         const type = citation(span)
           ? 'field'
           : (atomTypes[span.tag] ?? atomTypes[nested?.tag] ?? 'opaque');

@@ -82,7 +82,7 @@ for (const [element, atom, display] of [
 
 test('page-break layout caches add no inline; unknown run children stay atomic', async (t) => {
   const unknown = [
-    '<w:object/>',
+    '<w:tab/><w:object/>',
     '<w:ruby><w:rt>' + run('注音') + '</w:rt></w:ruby>',
     '<mc:AlternateContent/>',
   ];
@@ -96,6 +96,7 @@ test('page-break layout caches add no inline; unknown run children stay atomic',
     ['可改', '末尾'],
   );
   assert.equal(before.blocks[0].inlines.filter((inline) => inline.atom).length, 3);
+  assert.equal(before.blocks[0].text, '可改末尾\uFFFC\uFFFC\uFFFC');
   const after = await changed(
     bytes,
     before,
