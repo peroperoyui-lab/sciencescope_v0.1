@@ -1,6 +1,7 @@
 // Assembles the whole host: core, runtime, tools, conductor and the HTTP
 // server. `main.js` starts it for real; tests start it with a fixture model.
 import { createKnowledgeStore } from './services/knowledge/store.js';
+import { createKnowledgeLayout } from './services/knowledge/layout.js';
 import { createKnowledgeJobs } from './services/knowledge/jobs.js';
 import { createPaperCards } from './services/knowledge/cards.js';
 import { createKnowledgeSessions } from './services/knowledge/sessions.js';
@@ -51,6 +52,7 @@ export async function createApp({
   startup?.mark('createCoreEnd');
   const versions = createVersions(core);
   const knowledge = createKnowledgeStore(core);
+  knowledge.layout = createKnowledgeLayout(core);
   const knowledgeSessions = createKnowledgeSessions(core, knowledge);
   knowledgeSessions.recover();
   const semantic = createSemantic(core);
@@ -207,6 +209,7 @@ export async function createApp({
       await conductor.idle();
       await projectIndex.close();
       await knowledgeJobs.close();
+      await knowledge.layout.close();
       await activeRuntime.close();
       researchInput.close();
       await semantic.close();

@@ -28,6 +28,37 @@ export function registerKnowledgeRoutes(router, core, services = {}) {
   const graph = createKnowledgeGraph(core, services.research ?? createResearch(core));
   const { versions } = knowledge;
   const edit = (body, work) => sessions.edit(body.sessionId, work);
+  if (knowledge.layout) {
+    router.get('/api/knowledge/layout', ({ query }) =>
+      knowledge.layout.index(query.get('projectId')),
+    );
+    router.post('/api/knowledge/viewport', ({ body }) => {
+      if (!Array.isArray(body.refs) || body.refs.some((ref) => typeof ref !== 'string'))
+        throw new AppError('KNOWLEDGE_LAYOUT_REFS', 'Choose node references to load.');
+      return knowledge.layout.viewport(body);
+    });
+    router.patch('/api/knowledge/positions', ({ body }) => {
+      if (
+        !Array.isArray(body.positions) ||
+        body.positions.some(
+          (position) =>
+            !position ||
+            typeof position.ref !== 'string' ||
+            !Number.isFinite(position.x) ||
+            !Number.isFinite(position.y) ||
+            (position.pinned != null && typeof position.pinned !== 'boolean'),
+        )
+      )
+        throw new AppError(
+          'KNOWLEDGE_LAYOUT_POSITION',
+          'Provide finite node coordinates and a pin state.',
+        );
+      return knowledge.layout.save(body.positions);
+    });
+    router.post('/api/knowledge/layout/rerun', ({ body }) =>
+      knowledge.layout.rerun(body.projectId),
+    );
+  }
   router.get('/api/knowledge/entities', ({ query }) => knowledge.listEntityDetails(options(query)));
   router.get('/api/knowledge/entities/merge-preview', ({ query }) =>
     knowledge.mergePreview({
