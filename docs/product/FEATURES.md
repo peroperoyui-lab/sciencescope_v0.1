@@ -557,7 +557,7 @@ data/
 - `GET /api/knowledge/versions` 支持 projectId/meetingId/turnId 与分页；`GET /api/knowledge/versions/:id` 返回 `{version,changes}`（含 ref/name/kind/op/before/after）；`POST /api/knowledge/versions/:id/restore` 整组撤回，保留 skipped。
 - `GET /api/knowledge/history?ref=` 分页查修订；`POST /api/knowledge/revisions/:id/restore` 恢复单条。版本摘要按每条记录净变化计数，建后撤销不计，重复修改计一次；派生边继续不进入修订。
 - `GET /api/knowledge/jobs` 保留派生层 counts/failed/similarity，增加 `cards:{counts,jobs}`；jobs 含 sourceId/state/error/attempts/contentVersion/result。`POST /api/knowledge/jobs {action:'retry'}` 同时重试派生层和卡片层失败项。
-- `POST /api/knowledge/cards {sourceIds}` 手动整理或重做（不受 enabled 限制），返回队列汇总；`GET /api/knowledge/cards/estimate?projectId=` 返回 `{count,currency:'USD',upperCost,assumptions,estimated:true}`，省略 projectId 统计全库。估算按每篇 7500 输入/1000 输出、每百万输入 $0.30/输出 $1.20 再乘 2 的暂定系数；所有接口沿用启动口令。
+- `POST /api/knowledge/cards {sourceIds}` 手动整理或重做（不受 enabled 限制），返回队列汇总；`GET /api/knowledge/cards/estimate?projectId=` 返回 `{count,currency:'USD',upperCost,assumptions,estimated:true}`，省略 projectId 统计全库。估算按每篇 7000 输入/11000 输出（含思考）、每百万输入 $0.30/输出 $1.20，额外系数 1；无可用正文的扫描件不计入估算，所有接口沿用启动口令。
 - AI 实体与边详情的 `createdBy` 含 participantId/name/meetingId/meetingTitle/turnId/messageId；已删除对象只保留 ID。证据 chunk 引用解析为 sourceId/title/page/quote，message 引用解析为 meetingId/meetingTitle/messageId/excerpt；原文缺失返回 missing:true。HTTP 写入或恢复历史中的单个证据对象读取时按数组返回，空证据返回空数组，无法解析的条目标 missing:true。全部接口沿用宿主口令认证，用户写入身份为 person_user。
 
 **文献版本**
