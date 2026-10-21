@@ -219,12 +219,12 @@ CREATE UNIQUE INDEX rb_sources_folder ON rb_sources(project_id, folder_path) WHE
 ### 4.3 第 2 层：论文卡片
 
 - **对象**：文献类资料（paper、preprint、thesis、report、chapter、book）和用户手动点「整理」的资料。数据文件、代码输出和编辑台文稿不整理卡片（§1a 第 3、4 条）。
-- **模型**：设置 `knowledgeBase.cardModel`，未设时依次用记忆整理模型、秘书模型、对话模型（同 `memory.model` 的回退）。调用方式照记忆整理：后台会议加运行器，经运行时接口，输出 JSON（参照 `app/services/memory/request.js`）。
+- **模型**：设置 `knowledge.cards.model`，未设时依次用记忆整理模型、秘书模型、对话模型（同 `memory.model` 的回退）。调用方式照记忆整理：后台会议加运行器，经运行时接口，输出 JSON（参照 `app/services/memory/request.js`）。
 - **输入**：标题、元数据、摘要，加按章节名挑出的方法、数据、结果、结论段落，约 6 000 token；没有这些章节时取正文前部。这是挑选顺序，不是硬上限，短论文全给。
 - **输出**：`{question, methods:[{name, variantOf?, parameters?, evidence}], datasets, variables, metrics, software, code, findings:[{text, evidence}]}`，每个 `evidence` 是原文引文。写入前核对引文确实在给出的段落里（记忆整理已有同样检查），对不上的项丢掉并记在任务结果里。
 - **实体对齐**：先按名称或别名完全相同（忽略大小写和空白）找；找不到再用实体向量取最近 3 个，相似度 ≥ 0.92 且种类相同就并入并补别名；否则新建。阈值是代码常量，KB-6 调。
 - **写入**：一份资料一个 `build` 版本。卡片存为 `rb_items`（`note` / `summary`，`payload.card`）；实体和边写 `extracted`、`origin='ai'`、`produced_from='source:<id>'`。方向：资料 →`proposes`/`uses`/`evaluates-on`→ 方法、数据集；变种 →`variant-of`→ 母方法；代码 →`implements`→ 方法。
-- **开关**：`knowledgeBase.cards.enabled`（默认值见 §12 第 1 条）。关闭后仍可对单篇手动整理。
+- **开关**：`knowledge.cards.enabled`（默认值见 §12 第 1 条）。关闭后仍可对单篇手动整理。
 
 ### 4.4 第 3 层：主题深挖（按需）
 

@@ -8,10 +8,17 @@ import { createSkills } from '../skills/index.js';
 
 /**
  * @param {{core:import('../../core/index.js').Core,runtime:import('../../runtime/port.js').Runtime,
- * defaultModel:(meeting?:any)=>Promise<import('../../runtime/port.js').ModelChoice|null>,tools?:any,modelCatalog?:any}} dependencies
+ * defaultModel:(meeting?:any)=>Promise<import('../../runtime/port.js').ModelChoice|null>,tools?:any,modelCatalog?:any,participantId?:string}} dependencies
  * @returns {{run:(meetingId:string,instructions:string,input:string,prepared?:any)=>Promise<{text:string,turnId:string,usage:any}>,close:()=>Promise<void>,prepare:(meetingId:string,options?:{model?:any})=>Promise<any>}}
  */
-export function createBackgroundRunner({ core, runtime, defaultModel, tools, modelCatalog }) {
+export function createBackgroundRunner({
+  core,
+  runtime,
+  defaultModel,
+  tools,
+  modelCatalog,
+  participantId = 'agent_secretary',
+}) {
   const skills = createSkills(core);
   const sessions = new Set();
   let closed = false;
@@ -23,7 +30,7 @@ export function createBackgroundRunner({ core, runtime, defaultModel, tools, mod
    */
   async function prepare(meetingId, { model: override } = {}) {
     const meeting = core.meetings.get(meetingId);
-    const secretary = await core.participants.get('agent_secretary');
+    const secretary = await core.participants.get(participantId);
     const main = await core.participants.get(meeting.policy.respondent ?? 'agent_main');
     const choices = [
       override,
@@ -66,7 +73,7 @@ export function createBackgroundRunner({ core, runtime, defaultModel, tools, mod
     const prepared = selection ?? (await prepare(meetingId));
     const { meeting, model } = prepared;
     const project = meeting.projectId ? core.projects.get(meeting.projectId) : null;
-    const turn = core.turns.start({ meetingId, participantId: 'agent_secretary' });
+    const turn = core.turns.start({ meetingId, participantId });
     const activity = createTurnActivity(core, turn.id);
     let sessionId;
     let result;
@@ -86,7 +93,7 @@ export function createBackgroundRunner({ core, runtime, defaultModel, tools, mod
           core.turns.startToolCall({ turnId: turn.id, ...call });
           try {
             const value = await tools.run(call.name, call.args, {
-              participantId: 'agent_secretary',
+              participantId,
               meetingId,
               turnId: turn.id,
               callId: call.callId,

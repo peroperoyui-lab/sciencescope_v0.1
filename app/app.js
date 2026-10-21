@@ -2,6 +2,7 @@
 // server. `main.js` starts it for real; tests start it with a fixture model.
 import { createKnowledgeStore } from './services/knowledge/store.js';
 import { createKnowledgeJobs } from './services/knowledge/jobs.js';
+import { createPaperCards } from './services/knowledge/cards.js';
 import { createKnowledgeSessions } from './services/knowledge/sessions.js';
 import { createProjectIndex } from './services/knowledge/project-index.js';
 import { createProjectFiles } from './services/project-files.js';
@@ -54,7 +55,6 @@ export async function createApp({
   knowledgeSessions.recover();
   const semantic = createSemantic(core);
   const research = createResearch(core, { semantic });
-  const knowledgeJobs = createKnowledgeJobs({ core, research, semantic });
   const projectFiles = createProjectFiles(core, {
     requestIndex: (id) => projectIndex.request(id),
     indexEntry: (id, relative) => projectIndex.entry(id, relative),
@@ -66,7 +66,6 @@ export async function createApp({
   startup?.mark('pythonEnd');
   startup?.mark('semanticStart');
   await semantic.start();
-  await knowledgeJobs.start();
   startup?.mark('semanticEnd');
   const settings = async () =>
     (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
@@ -84,6 +83,15 @@ export async function createApp({
       compactPercent: async () => (await settings()).context.compactPercent,
     });
   const providers = createProviderService({ core, catalog, runtime: activeRuntime });
+  const cards = createPaperCards({
+    core,
+    research,
+    semantic,
+    runtime: activeRuntime,
+    modelCatalog: catalog,
+  });
+  const knowledgeJobs = createKnowledgeJobs({ core, research, semantic, cards });
+  await knowledgeJobs.start();
   const minutes = createMinutesService({
     core,
     runtime: activeRuntime,

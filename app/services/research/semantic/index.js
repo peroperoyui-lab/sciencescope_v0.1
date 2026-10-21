@@ -322,5 +322,39 @@ export function createSemantic(core, options = {}) {
     return vector.sourceNeighbors(ids, { ...neighborOptions, pause: busy });
   }
 
-  return { start, status, configure, download, rebuild, search, sourceNeighbors, idle, close };
+  /**
+   * Alignment uses cosine scores directly, never the fused retrieval ranking.
+   * @param {string} query
+   * @returns {Promise<any[]>}
+   */
+  async function entityNeighbors(query) {
+    if (!enabled || !vector) return [];
+    // Another card may have queued a new entity while a model turn pauses
+    // indexing. Keep using current indexed entities instead of losing all
+    // neighbours because that one new document has no vector yet.
+    const indexed = core.db.prepare(`SELECT 1 FROM rb_vec_docs WHERE ref_type='entity'
+      AND ref_id=? AND doc_version=? AND model_id=? AND model_version=?`);
+    const candidates = projection
+      .candidates({ audience: 'agent' })
+      .filter(
+        (row) =>
+          row.ref.type === 'entity' &&
+          indexed.get(row.ref.id, row.version, manifest.modelId, manifest.revision),
+      );
+    const result = await vector.search({ queries: [query], candidates, limit: 3 });
+    return result.rankings?.[0] ?? [];
+  }
+
+  return {
+    start,
+    status,
+    configure,
+    download,
+    rebuild,
+    search,
+    sourceNeighbors,
+    entityNeighbors,
+    idle,
+    close,
+  };
 }

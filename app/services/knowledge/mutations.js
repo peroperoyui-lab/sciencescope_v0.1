@@ -56,6 +56,8 @@ export function createKnowledgeMutations(core, records, versions) {
         description: input.description ?? '',
         attrs_json: JSON.stringify(input.attrs ?? {}),
         layer: input.layer ?? 'curated',
+        produced_from: input.producedFrom ?? null,
+        evidence_json: JSON.stringify(input.evidence ?? []),
         ...provenance(actor),
         visibility: input.visibility ?? 'shared',
         status: 'active',

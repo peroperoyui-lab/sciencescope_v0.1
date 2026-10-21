@@ -32,6 +32,7 @@ import * as removeAutomation from './021-remove-automation.js';
 import * as knowledgeBase from './022-knowledge-base.js';
 import * as projectFileIndex from './023-project-file-index.js';
 import * as versionGraph from './024-version-graph.js';
+import * as paperCards from './025-paper-cards.js';
 
 export const migrations = [
   core,
@@ -58,4 +59,5 @@ export const migrations = [
   knowledgeBase,
   projectFileIndex,
   versionGraph,
+  paperCards,
 ];

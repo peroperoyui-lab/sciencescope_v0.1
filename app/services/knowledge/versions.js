@@ -5,7 +5,7 @@ import { isDeepStrictEqual } from 'node:util';
 
 // Ignore revision bookkeeping when counting a record's net change.
 function meaningful(row) {
-  if (!row || row.status === 'removed') return null;
+  if (!row || ['removed', 'archived'].includes(row.status)) return null;
   const result = { ...row };
   delete result.revision;
   delete result.updated_at;
@@ -144,12 +144,12 @@ export function createKnowledgeVersions(core) {
     events.record('research.changed', { action: 'knowledge.changed', refs: unique }, actor);
   }
   function restoredState(ref, current, desired) {
-    if (!/^(entity|edge):/.test(ref)) return desired;
+    if (!/^(entity|edge|item):/.test(ref)) return desired;
     if (!current && !desired) return null;
     // Keep identity tombstones for later preserved edges and monotonically
     // increasing revisions for subsequent edits, including undo of a restore.
     return {
-      ...(desired ?? { ...current, status: 'removed' }),
+      ...(desired ?? { ...current, status: ref.startsWith('item:') ? 'archived' : 'removed' }),
       revision: Number(current?.revision ?? desired.revision) + 1,
       updated_at: nowIso(),
     };
@@ -199,6 +199,13 @@ export function createKnowledgeVersions(core) {
           )
           .map((row) => row.ref),
       );
+      // Research edits keep rb_revisions, not kb_revisions. Compare the saved
+      // item revision too, so withdrawing a build cannot overwrite a user's edit.
+      const latestItems = new Map();
+      for (const row of rows)
+        if (row.ref.startsWith('item:') && !latestItems.has(row.ref)) latestItems.set(row.ref, row);
+      for (const row of latestItems.values())
+        if (records.read(row.ref)?.revision !== row.after?.revision) conflicts.add(row.ref);
       for (const row of rows) {
         if (conflicts.has(row.ref)) {
           skipped.push(row.ref);

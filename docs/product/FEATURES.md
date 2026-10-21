@@ -272,7 +272,15 @@ data/
 - 所有角色共用 `kb_graph`、`kb_write`、`research_write`。图查询按名称/别名或资料检索定位，只返回节点 ref/name/kind/degree 与轻量边；多跳返回路径，按边分页并报告 remaining。项目文件夹边即时生成、不入库。
 - `kb_write` 的实体、关系、合并、标签和归属修改归入同一发言版本；每项独立事务，失败返回原因并继续，后续操作可用 `$key` 引用本批新记录。派生层不可直接写；原文依据、保守建边和先查重通过英文工具说明引导。
 - `research_read {type:'entity'}` 返回字段、别名、标签和分页相连边，描述默认首行并报告剩余字数，`full:true` 读全文。`research_write` 复用条目创建/修改/取代与资料元数据修改，私有条目不可读写，条目修订保留。
-- `workspace_versions {resource:'knowledge'}` 支持列出、读修订与整组撤回，明确列出后来修改而跳过的记录。这些工具不触发「请求批准」；没有新增界面、HTTP 路由、网页导入或模型自动构图。
+- `workspace_versions {resource:'knowledge'}` 支持列出、读修订与整组撤回，明确列出后来修改而跳过的记录。这些工具不触发「请求批准」。
+
+### 2.8b 论文卡片后台（KB-6a，界面由后续任务接入）
+
+- 文献类 `paper/preprint/thesis/report/chapter/book` 在派生层完成后自动排入同一知识库队列；其他资料可手动整理。设置 `knowledge.cards={enabled:true,model:null}`；关闭只停自动整理。模型依次选择 `knowledge.cards.model`、`memory.model`、秘书定义模型、`models.default`；均未配置时记 `skipped/no-model`，设置模型后继续。前台发言时不启动新任务，已有请求完成后保存；模型并发 2，连续失败三次后由 retry 重排。重启恢复 running 为 queued。
+- `services/knowledge/cards.js` 复用无工具后台运行器；按中英文章节优先挑方法、数据、结果、结论，连同元数据约 6000 token，整段保留，不发送 reference 段。每项证据先精确匹配，再容许空白、全半角标点差异；无效项整个丢弃并记录原因，研究问题无有效证据时为 null。
+- 卡片是全局 `rb_items` 的 `note/summary`，`payload.card` 含 `question:{text,evidence[]}|null`、methods/datasets/variables/metrics/software/code/findings；证据为 `{chunkId,quote,page}`，`payload.cardSource='source:<id>'`。项目资料给卡片及相关实体记 `kb_memberships`。实体按同种名称/别名归一化对齐，再查询可用实体向量的最近 3 个、余弦阈值 0.92；未开启混合检索时只按名称。复用实体只补别名，保留用户名称、说明；新实体说明直接使用核对过的原文。
+- 固定后台参与者 `actor_card_builder`（不加入讨论专家名册）；卡片、实体及边带后台会议/发言来源，每篇一个标题命名的 `build` 版本。新增实体和边是 `extracted/ai`，记录 `produced_from` 和证据；方法变种、代码实现按原文的显式关系建边。内容哈希变化后，在同一个新 build 中替换旧卡片及本资料的 extracted 结果，保留 curated 和仍被其他边使用的实体。撤回同时恢复卡片、实体、边和归属；用户后来修改的条目通过条目修订号识别并列入 skipped，FTS 同步恢复。
+- `kb_jobs` 的 card 行保存内容哈希、后台会议、手动标记和结果；结果含 cardId/versionId、dropped/droppedCount、selection、usage。usage 累计当前内容版本各次尝试的 requests/inputTokens/outputTokens/totalTokens/unknownRequests；没有供应商用量时为 null 并标 unreported，部分报告标 partial。成本是设计稿 §4.6 的暂定估算，真实论文质量和成本验证安排在 KB-6b。
 
 ### 2.9 工作站（计划、导图、日志、文稿版本、历史版本）
 
@@ -538,7 +546,8 @@ data/
 - `POST /api/knowledge/session {projectId?}` 返回 `{id}`；修改请求的 `sessionId` 对应该 leave-page 版本。`POST /api/knowledge/session/:id/close` 关闭（未编辑返回 null），`/undo`、`/redo` 撤销/重做一次接口操作并返回 `{refs,skipped,canUndo,canRedo}`。后来被其他操作修改的记录跳过；新修改清空重做；启动关闭遗留会话，内存撤销栈不跨重启。
 - `GET /api/knowledge/versions` 支持 projectId/meetingId/turnId 与分页；`GET /api/knowledge/versions/:id` 返回 `{version,changes}`（含 ref/name/kind/op/before/after）；`POST /api/knowledge/versions/:id/restore` 整组撤回，保留 skipped。
 - `GET /api/knowledge/history?ref=` 分页查修订；`POST /api/knowledge/revisions/:id/restore` 恢复单条。版本摘要按每条记录净变化计数，建后撤销不计，重复修改计一次；派生边继续不进入修订。
-- `GET /api/knowledge/jobs` 返回后台汇总与失败列表；`POST /api/knowledge/jobs {action:'retry'}` 重试失败项。
+- `GET /api/knowledge/jobs` 保留派生层 counts/failed/similarity，增加 `cards:{counts,jobs}`；jobs 含 sourceId/state/error/attempts/contentVersion/result。`POST /api/knowledge/jobs {action:'retry'}` 同时重试派生层和卡片层失败项。
+- `POST /api/knowledge/cards {sourceIds}` 手动整理或重做（不受 enabled 限制），返回队列汇总；`GET /api/knowledge/cards/estimate?projectId=` 返回 `{count,currency:'USD',upperCost,assumptions,estimated:true}`，省略 projectId 统计全库。估算按每篇 7500 输入/1000 输出、每百万输入 $0.30/输出 $1.20 再乘 2 的暂定系数；所有接口沿用启动口令。
 - AI 实体与边详情的 `createdBy` 含 participantId/name/meetingId/meetingTitle/turnId/messageId；已删除对象只保留 ID。证据 chunk 引用解析为 sourceId/title/page/quote，message 引用解析为 meetingId/meetingTitle/messageId/excerpt；原文缺失返回 missing:true。HTTP 写入或恢复历史中的单个证据对象读取时按数组返回，空证据返回空数组，无法解析的条目标 missing:true。全部接口沿用宿主口令认证，用户写入身份为 person_user。
 
 **文献版本**
@@ -633,6 +642,7 @@ data/
 | 022  | `kb_entities`、`kb_edges`、`kb_labels`、`kb_memberships`、`kb_versions`、`kb_revisions`、`kb_jobs`；`rb_sources.folder_path`                 | 知识库实体、关系、标签、项目归属、修订与历史版本、后台任务（模型工具；表格页和节点详情） |
 | 023  | `rb_sources.file_size`、`file_mtime_ms`、`content_hash`                                                                                      | 项目文件的大小、修改时间和内容哈希，扫描时判断是否变化                                   |
 | 024  | `version_groups.source_path/format`；`manuscript_versions` 父版本、分支、层级、标签、标题、来源、哈希、会话；`desk_sessions`、`desk_changes` | 版本图与元数据；编辑会话表预建，尚无会话逻辑                                             |
+| 025  | `kb_entities.produced_from/evidence_json`；`kb_jobs.result_json/meeting_id/manual` | 论文卡片来源、证据和持久任务结果；卡片条目加入知识库版本快照与恢复 |
 
 ### 4.2 文件资源
 

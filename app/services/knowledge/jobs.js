@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
 import { nowIso } from '../../core/ids.js';
 import { createDerived } from './derived.js';
+import { createCardQueue } from './card-queue.js';
+import { paragraphHash } from './card-input.js';
+import { CARD_ACTOR_ID } from './card-writer.js';
 
 const digest = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
@@ -8,10 +11,10 @@ const digest = (value) => createHash('sha256').update(JSON.stringify(value)).dig
  * Persistent derived work yields to turns. The reserved 'similar' topic holds
  * one full-rebuild checkpoint, attached to a catalog source for the existing FK.
  * Its version hashes settings; ordinary source jobs hash parsed paragraphs.
- * @param {{core:import('../../core/index.js').Core,research:any,semantic:any,derived?:any}} deps
+ * @param {{core:import('../../core/index.js').Core,research:any,semantic:any,derived?:any,cards?:any}} deps
  * @returns {any}
  */
-export function createKnowledgeJobs({ core, research, semantic, derived }) {
+export function createKnowledgeJobs({ core, research, semantic, derived, cards }) {
   const worker = derived ?? createDerived({ core, research, semantic });
   const { db } = core;
   let closed = false,
@@ -24,7 +27,8 @@ export function createKnowledgeJobs({ core, research, semantic, derived }) {
     checkpoint = null;
   const reset = new Set(),
     refresh = new Set();
-  const busy = () => core.turns.running().length > 0;
+  const busy = () => core.turns.running().some((turn) => turn.participantId !== CARD_ACTOR_ID);
+  const cardLane = createCardQueue({ core, research, worker: cards, busy, notify, schedule });
   const rowFor = (id, topic = '') =>
     db
       .prepare("SELECT * FROM kb_jobs WHERE source_id=? AND layer='derived' AND topic=?")
@@ -54,6 +58,7 @@ export function createKnowledgeJobs({ core, research, semantic, derived }) {
     const full = fullJob();
     return {
       counts,
+      cards: cardLane.summary(),
       paused: busy(),
       similarity: full
         ? {
@@ -123,16 +128,15 @@ export function createKnowledgeJobs({ core, research, semantic, derived }) {
       if (closed || revision !== settingsRevision) return;
       similarity = value.knowledge.similarity;
       ensureSimilarityJob();
+      await cardLane.configure(value);
     })();
     return settingsRead;
   }
-  function enqueue(id) {
+  function enqueue(id, force = false) {
     const chunks = research.store.chunks(id);
-    const version = digest(
-      chunks.map((chunk) => [chunk.kind, chunk.section, chunk.page, chunk.text]),
-    );
+    const version = paragraphHash(chunks);
     const previous = rowFor(id);
-    if (previous?.content_version === version || (!chunks.length && !previous)) return;
+    if (previous?.content_version === version || (!force && !chunks.length && !previous)) return;
     reset.add(id);
     queue(id, '', version);
     ensureSimilarityJob();
@@ -150,7 +154,12 @@ export function createKnowledgeJobs({ core, research, semantic, derived }) {
     running = (async () => {
       while (!closed && !busy()) {
         const job = pending();
-        if (!job) break;
+        if (!job) {
+          cardLane.fill();
+          if (!cardLane.running()) break;
+          await cardLane.wait();
+          continue;
+        }
         const id = String(job.source_id);
         state(job, 'running');
         try {
@@ -165,6 +174,7 @@ export function createKnowledgeJobs({ core, research, semantic, derived }) {
           // Reparse/settings edits while a vector query yields keep newer work queued.
           if (rowFor(id, String(job.topic))?.content_version === job.content_version)
             state(job, refresh.delete(id + ':' + job.topic) ? 'queued' : result, null, 0);
+          if (job.topic === '' && ['done', 'skipped'].includes(result)) cardLane.enqueue(id);
           if (result === 'queued') break;
         } catch (error) {
           if (rowFor(id, String(job.topic))?.content_version === job.content_version)
@@ -174,13 +184,13 @@ export function createKnowledgeJobs({ core, research, semantic, derived }) {
       }
     })().finally(() => {
       running = null;
-      if (!closed && pending()) schedule();
+      if (!closed && (pending() || cardLane.pending().length)) schedule();
     });
     return running;
   }
   function retryFailed() {
     db.prepare(
-      "UPDATE kb_jobs SET state='queued',attempts=0,error=NULL,updated_at=? WHERE layer='derived' AND state='failed'",
+      "UPDATE kb_jobs SET state='queued',attempts=0,error=NULL,updated_at=? WHERE layer IN ('derived','card') AND state='failed'",
     ).run(nowIso());
     notify();
     schedule();
@@ -203,6 +213,7 @@ export function createKnowledgeJobs({ core, research, semantic, derived }) {
     schedule();
   }
   async function start() {
+    await cardLane.start();
     db.prepare("UPDATE kb_jobs SET state='queued' WHERE layer='derived' AND state='running'").run();
     for (const row of db
       .prepare(
@@ -217,7 +228,10 @@ export function createKnowledgeJobs({ core, research, semantic, derived }) {
         ensureSimilarityJob();
       if (event.type === 'research.semantic.changed' && event.payload.state === 'ready')
         vectorsReady();
-      if (event.type === 'resource.changed' && event.payload.resource === 'settings')
+      if (
+        event.type === 'resource.changed' &&
+        ['settings', 'agent'].includes(event.payload.resource)
+      )
         void loadSettings().catch((error) =>
           core.events.transient('knowledge.jobs.changed', {
             ...summary(),
@@ -243,8 +257,26 @@ export function createKnowledgeJobs({ core, research, semantic, derived }) {
     closed = true;
     unsubscribe?.();
     clearTimeout(timer);
+    await cardLane.close();
     await settingsRead;
     await running;
   }
-  return { start, summary, retryFailed, idle, close };
+  async function requestCards(sourceIds) {
+    await settingsRead;
+    for (const id of sourceIds) research.store.getSource(id);
+    for (const id of sourceIds) {
+      enqueue(id, true);
+      cardLane.enqueue(id, true);
+    }
+    return summary();
+  }
+  return {
+    start,
+    summary,
+    retryFailed,
+    idle,
+    close,
+    requestCards,
+    estimateCards: cardLane.estimate,
+  };
 }
