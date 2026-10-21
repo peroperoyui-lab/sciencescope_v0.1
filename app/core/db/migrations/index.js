@@ -31,6 +31,7 @@ import * as inputImages from './020-input-images.js';
 import * as removeAutomation from './021-remove-automation.js';
 import * as knowledgeBase from './022-knowledge-base.js';
 import * as projectFileIndex from './023-project-file-index.js';
+import * as versionGraph from './024-version-graph.js';
 
 export const migrations = [
   core,
@@ -56,4 +57,5 @@ export const migrations = [
   removeAutomation,
   knowledgeBase,
   projectFileIndex,
+  versionGraph,
 ];

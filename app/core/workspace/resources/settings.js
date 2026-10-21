@@ -55,6 +55,7 @@ export const DEFAULT_SETTINGS = {
   mcp: { servers: [], npmRegistry: null },
   semantic: DEFAULT_SEMANTIC_SETTINGS,
   knowledge: { similarity: { threshold: 0.85, maxPerPaper: 3 } },
+  desk: { tiers: ['草稿', '内部审阅', '投稿', '修回', '终稿'] },
   // A cumulative input/output cost budget; null turns the budget off.
   memory: { enabled: true, idleMinutes: 10, model: null, tokenLimit: 100000 },
   // Summary thresholds trigger work; they never truncate the meeting record.
