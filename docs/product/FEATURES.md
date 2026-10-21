@@ -282,6 +282,16 @@ data/
 - 固定后台参与者 `actor_card_builder`（不加入讨论专家名册）；卡片、实体及边带后台会议/发言来源，每篇一个标题命名的 `build` 版本。新增实体和边是 `extracted/ai`，记录 `produced_from` 和证据；方法变种、代码实现按原文的显式关系建边。内容哈希变化后，在同一个新 build 中替换旧卡片及本资料的 extracted 结果，保留 curated 和仍被其他边使用的实体。撤回同时恢复卡片、实体、边和归属；用户后来修改的条目通过条目修订号识别并列入 skipped，FTS 同步恢复。
 - `kb_jobs` 的 card 行保存内容哈希、后台会议、手动标记和结果；结果含 cardId/versionId、dropped/droppedCount、selection、usage。usage 累计当前内容版本各次尝试的 requests/inputTokens/outputTokens/totalTokens/unknownRequests；没有供应商用量时为 null 并标 unreported，部分报告标 partial。成本是设计稿 §4.6 的暂定估算，真实论文质量和成本验证安排在 KB-6b。
 
+### 2.8c 知识库位置与后台布局（KB-10a，图界面由 KB-10 接入）
+
+- 迁移 026 的 `kb_positions(ref,x,y,pinned,updated_at)` 存 source/item/entity 的共享坐标；记忆和段落不入图。位置是可重算索引，不写知识修订或历史版本。全局与项目取同一坐标；全局包含无项目资料、项目内 `LITERATURE_KINDS`（paper/preprint/thesis/report/chapter/book）资料，以及全部 active 实体和非记忆条目。项目范围按资料/条目的 project_id 或 kb_memberships 筛选；项目数据、代码和文稿原件只在项目范围出现。位置索引、viewport 和手动重排共用该范围规则。
+- `services/knowledge/layout.js` 在 `worker_threads` 中读取、计算和保存；graphology 0.26.0 + graphology-layout-forceatlas2 0.10.1（MIT），开启 Barnes-Hut。首次无位置时全量布局；手动重排只移动所选范围的非 pinned 节点。全量迭代按节点数 ≤1000 / ≤10000 / 更大分别为 100 / 60 / 30 次，局部 10 次，每 5 次让出 worker 并响应前台发言暂停。
+- 入库、新建和合并等事件停顿 2 秒后处理未定位节点：以已定位邻居的平均坐标加随机偏移为初值，无邻居则放当前图边缘；局部只移动新节点。删除移除坐标，其他节点不动。用户拖动与取消钉住即时保存，计算期间的拖动以保存时间校验保留；固定节点不回写，避免 Float32 舍入。
+- `knowledge.layout.changed` 的局部变化为 `{refs:[...]}`，全图重排仅发一次 `{all:true}`；布局异常为 `{error}`。关闭宿主终止 worker，重启扫描尚未定位的节点；原有坐标继续使用。
+- `GET /api/knowledge/layout?projectId=` 返回 `{nodes:[[ref,x,y,kind,degree],...],pending}`，不带名称、正文和边；kind 为 source、条目类型或实体种类，degree 为 active 边数。`POST /api/knowledge/viewport {refs,projectId?}` 返回范围内 `{ref,name,kind}` 和两端均在所选节点内的 `{id,from,to,relation,layer,origin,aiUntouched}`；refs 不设数量上限。
+- `PATCH /api/knowledge/positions {positions:[{ref,x,y,pinned?}]}` 保存坐标，省略 pinned 保留原状态；返回 `{refs}`。`POST /api/knowledge/layout/rerun {projectId?}` 立即返回 `{queued:true}`，后台重排。四个接口沿用启动口令；没有新增界面或模型请求。
+- Windows 合成 5 万节点/50 万边验收：全图 10.665 秒；layout 响应 5,023,047 bytes、2.955 秒，超过 1 秒目标 1.955 秒。viewport 1500 节点 141.5 ms，局部新增 100 节点 462.0 ms；布局期间没有超过 100 ms 的主线程延迟。SQL 独立测量 2.877 秒，查询计划逐节点统计两向度数；按所有者要求保留现方案，性能调整待审阅。
+
 ### 2.9 工作站（计划、导图、日志、文稿版本、历史版本）
 
 **用户能做什么**
@@ -643,6 +653,7 @@ data/
 | 023  | `rb_sources.file_size`、`file_mtime_ms`、`content_hash`                                                                                      | 项目文件的大小、修改时间和内容哈希，扫描时判断是否变化                                   |
 | 024  | `version_groups.source_path/format`；`manuscript_versions` 父版本、分支、层级、标签、标题、来源、哈希、会话；`desk_sessions`、`desk_changes` | 版本图与元数据；编辑会话表预建，尚无会话逻辑                                             |
 | 025  | `kb_entities.produced_from/evidence_json`；`kb_jobs.result_json/meeting_id/manual` | 论文卡片来源、证据和持久任务结果；卡片条目加入知识库版本快照与恢复 |
+| 026  | `kb_positions(ref,x,y,pinned,updated_at)` | 跨项目共享的图位置投影、用户钉住状态；可重算，不进历史版本 |
 
 ### 4.2 文件资源
 
