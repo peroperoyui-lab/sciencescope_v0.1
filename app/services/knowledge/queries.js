@@ -9,7 +9,7 @@ import { publicRow } from './records.js';
  */
 export function createKnowledgeQueries(core, records) {
   const { db } = core;
-  function page(table, clauses, values, options) {
+  function page(table, clauses, values, options, order = 'id') {
     const offset = Math.max(0, Math.floor(options.offset ?? 0)),
       limit = Math.max(1, Math.floor(options.limit ?? 50));
     const where = clauses.length ? 'WHERE ' + clauses.join(' AND ') : '';
@@ -17,7 +17,7 @@ export function createKnowledgeQueries(core, records) {
       db.prepare(`SELECT count(*) AS n FROM ${table} ${where}`).get(...values).n,
     );
     const rows = db
-      .prepare(`SELECT * FROM ${table} ${where} ORDER BY id LIMIT ? OFFSET ?`)
+      .prepare(`SELECT * FROM ${table} ${where} ORDER BY ${order} LIMIT ? OFFSET ?`)
       .all(...values, limit, offset)
       .map(publicRow);
     return { rows, total, remaining: Math.max(0, total - offset - rows.length), offset, limit };
@@ -50,7 +50,14 @@ export function createKnowledgeQueries(core, records) {
       clauses.push('(name LIKE ? OR name_en LIKE ? OR aliases_json LIKE ?)');
       values.push(...Array(3).fill('%' + (options.query ?? options.q) + '%'));
     }
-    return page('kb_entities', clauses, values, options);
+    // The knowledge page lists by name so near-duplicates sit together for merging.
+    const order = {
+      name: 'name COLLATE NOCASE, id',
+      updated: 'updated_at DESC, id',
+      degree:
+        "(SELECT count(*) FROM kb_edges e WHERE e.status='active' AND (e.from_ref='entity:'||kb_entities.id OR e.to_ref='entity:'||kb_entities.id)) DESC, id",
+    }[options.sort];
+    return page('kb_entities', clauses, values, options, order);
   }
   function neighbors(ref, options = {}) {
     records.requireNode(ref);
@@ -175,21 +182,26 @@ export function createKnowledgeQueries(core, records) {
       ...(ref ? { peer: describe(row.fromRef === ref ? row.toRef : row.fromRef) } : {}),
     };
   }
+  function grouped(edges, ref) {
+    const rows = edges.rows.map((row) => edgeDetails(row, ref));
+    const groups = [];
+    for (const relation of new Set(rows.map((row) => row.relation)))
+      groups.push({ relation, rows: rows.filter((row) => row.relation === relation) });
+    return { ...edges, rows, groups };
+  }
+  /** Any node's edges with peers, provenance and evidence, for the detail panel. */
+  const nodeEdges = (ref, options = {}) => grouped(neighbors(ref, options), ref);
   function entityDetails(id, options = {}) {
     const ref = 'entity:' + id;
     const { entity, edges } = getEntity(ref, {
       offset: options.edgesOffset,
       limit: options.edgesLimit,
     });
-    const rows = edges.rows.map((row) => edgeDetails(row, ref));
-    const groups = [];
-    for (const relation of new Set(rows.map((row) => row.relation)))
-      groups.push({ relation, rows: rows.filter((row) => row.relation === relation) });
     return {
       entity: { ...entity, degree: degree(ref), createdBy: createdBy(entity) },
       labels: labels(ref),
       memberships: memberships(ref),
-      edges: { ...edges, rows, groups },
+      edges: grouped(edges, ref),
     };
   }
   function listEntityDetails(options = {}) {
@@ -214,6 +226,7 @@ export function createKnowledgeQueries(core, records) {
     memberships,
     degree,
     entityDetails,
+    nodeEdges,
     listEntityDetails,
     revisionDetails,
     getEdge: (id) => publicRow(records.requireNode('edge:' + id)),

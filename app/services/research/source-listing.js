@@ -34,6 +34,8 @@ export function createSourceListing(db) {
         createdAt: 'created_at',
         updatedAt: 'updated_at',
         kind: 'kind',
+        relations:
+          "(SELECT count(*) FROM kb_edges e WHERE e.status='active' AND (e.from_ref='source:'||rb_sources.id OR e.to_ref='source:'||rb_sources.id))",
       };
       const sort = columns[options.sort] ?? 'created_at';
       const direction = options.direction === 'asc' ? 'ASC' : 'DESC';

@@ -1,22 +1,35 @@
+// The knowledge base page (design system PageKnowledge, table view): header
+// with the scope and the tabs, a toolbar with search, filters and sort, one
+// list per tab, and the node detail panel for the selected row.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
+import { Lucide } from '../icons.js';
 import { navigate } from '../route.js';
 import { Sites } from './home.js';
-import { InfoTip } from './info-tip.js';
-import { MainHead } from './mainhead.js';
+import { ChoiceMenu } from './popover.js';
 import { ResearchCard, ResearchHistory } from './research-card.js';
-import { researchTabs, researchSubtypes } from './research-fields.js';
-import { ResearchItemForm, ResearchSourceForm } from './research-forms.js';
-import { ResearchFilters, ResearchSources, ResearchSearchResults } from './research-list.js';
+import { researchTabs, researchSubtypes, researchLabel } from './research-fields.js';
+import { KnowledgeEntityForm, ResearchItemForm, ResearchSourceForm } from './research-forms.js';
+import {
+  KnowledgeEntities,
+  ResearchFilters,
+  ResearchItems,
+  ResearchSearchResults,
+  ResearchSources,
+} from './research-list.js';
+import { KnowledgePanel } from './knowledge-panel.js';
 import { MemoryViews } from './memory-views.js';
 import { MemoryHistory } from './memory-history.js';
-import { researchLabel } from './research-fields.js';
 import { ResearchSourceDetail } from './research-source-detail.js';
 
+const PAGE = 50;
+const MEMORY_TABS = ['memory', 'inbox', 'brief'];
+const ITEM_TABS = ['knowledge', 'model', 'claim', 'code'];
 const defaultFilters = {
   kind: '',
+  contentStatus: '',
   readStatus: '',
   tag: '',
   sort: 'addedAt',
@@ -24,7 +37,39 @@ const defaultFilters = {
   subtype: '',
   status: 'active',
   pinned: '',
+  entityKind: '',
+  label: '',
+  origin: '',
+  entitySort: 'name',
 };
+const sourceSorts = [
+  ['addedAt', '导入时间'],
+  ['title', '标题'],
+  ['year', '年份'],
+  ['relations', '关系数'],
+];
+const entitySorts = [
+  ['name', '名称'],
+  ['updated', '最近修改'],
+  ['degree', '关系数'],
+];
+
+/** @param {string} tab @param {any} filters @param {number} offset @param {string|null} projectId */
+function listOptions(tab, filters, offset, projectId) {
+  const pick = (keys) =>
+    Object.fromEntries(keys.filter((key) => filters[key] !== '').map((key) => [key, filters[key]]));
+  const scope = projectId ? { projectId, includePersonal: 0 } : {};
+  if (tab === 'sources')
+    return {
+      ...scope,
+      limit: PAGE,
+      pageSize: PAGE,
+      offset,
+      ...pick(['kind', 'contentStatus', 'readStatus', 'tag', 'sort', 'direction']),
+    };
+  return { ...scope, limit: PAGE, offset, ...pick(['subtype', 'status', 'pinned']) };
+}
+
 /** @param {{view:string,projectId?:string|null}} props */
 export function ResearchBase({ view, projectId = null }) {
   const actions = useActions();
@@ -51,40 +96,77 @@ export function ResearchBase({ view, projectId = null }) {
     mode: 'keyword',
     remaining: 0,
   });
+  const [counts, setCounts] = useState({ sources: null, entities: null, inbox: 0 });
+  const [selection, setSelection] = useState(
+    /** @type {{type:string,id:string,title?:string}|null} */ (null),
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);
   const [imports, setImports] = useState([]);
   const fileInput = useRef(null);
   const reload = () => setRefresh((value) => value + 1);
+  const scopeId = view === 'database' ? projectId : null;
+
   useEffect(() => {
-    if (view === 'sources' || ['inbox', 'brief'].includes(tab)) return;
+    if (view === 'sources') return undefined;
+    let current = true;
+    Promise.all([
+      actions.researchSources({
+        ...(scopeId ? { projectId: scopeId, includePersonal: 0 } : {}),
+        pageSize: 1,
+        offset: 0,
+      }),
+      actions.knowledgeEntities({ projectId: scopeId ?? undefined, limit: 1 }),
+      scopeId ? actions.memoryInbox(scopeId) : Promise.resolve({ count: 0 }),
+    ])
+      .then(
+        ([sources, entities, inbox]) =>
+          current &&
+          setCounts({ sources: sources.total, entities: entities.total, inbox: inbox.count }),
+      )
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [view, scopeId, version, refresh]);
+
+  useEffect(() => {
+    if (view === 'sources' || ['inbox', 'brief'].includes(tab)) return undefined;
     let current = true;
     setLoading(true);
     setError('');
-    const options = {
-      projectId: projectId ?? '',
-      includePersonal: 0,
-      limit: 50,
-      pageSize: 50,
-      offset,
-      ...Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== '')),
-    };
-    const work = query.trim()
-      ? actions.researchSearch(query, options)
-      : tab === 'sources'
-        ? actions.researchSources(options)
-        : actions.researchItems({ ...options, type: tab });
+    const options = listOptions(tab, filters, offset, scopeId);
+    const work =
+      tab === 'entities'
+        ? actions.knowledgeEntities({
+            projectId: scopeId ?? undefined,
+            kind: filters.entityKind || undefined,
+            label: filters.label || undefined,
+            origin: filters.origin || undefined,
+            q: query.trim() || undefined,
+            sort: filters.entitySort,
+            offset,
+            limit: PAGE,
+          })
+        : query.trim()
+          ? actions.researchSearch(query, options)
+          : tab === 'sources'
+            ? actions.researchSources(options)
+            : actions.researchItems({ ...options, type: tab });
     work
       .then((result) => {
         if (!current) return;
-        const rows = Array.isArray(result) ? result : (result.sources ?? result.items ?? []);
+        const rows = Array.isArray(result)
+          ? result
+          : (result.sources ?? result.items ?? result.rows ?? []);
+        const searched = tab !== 'entities' && query.trim();
         setPage({
           rows,
-          hits: query.trim() ? result.hits : null,
+          hits: searched ? result.hits : null,
           total: result.total ?? offset + rows.length,
           mode: result.mode ?? 'keyword',
-          remaining: result.remaining ?? (rows.length === 50 ? 1 : 0),
+          remaining: result.remaining ?? (rows.length === PAGE ? 1 : 0),
         });
       })
       .catch((caught) => {
@@ -96,7 +178,8 @@ export function ResearchBase({ view, projectId = null }) {
     return () => {
       current = false;
     };
-  }, [view, projectId, version, tab, filters, query, offset, refresh]);
+  }, [view, scopeId, version, tab, filters, query, offset, refresh]);
+
   function changeFilter(key, value) {
     setFilters({ ...filters, [key]: value });
     setOffset(0);
@@ -108,6 +191,8 @@ export function ResearchBase({ view, projectId = null }) {
     setOffset(0);
     setFilters(defaultFilters);
   }
+  const select = (type, row) => setSelection({ type, id: row.id, title: row.title ?? row.name });
+
   async function itemAction(action, item) {
     await actions.attempt(async () => {
       const detail = await actions.researchItem(item.id);
@@ -149,6 +234,22 @@ export function ResearchBase({ view, projectId = null }) {
       }
     });
   }
+  const itemMenu = (item) => [
+    { text: t('编辑'), icon: 'pencil', run: () => itemAction('edit', item) },
+    {
+      text: item.pinned ? t('取消置顶') : t('置顶'),
+      icon: 'pin',
+      run: () => itemAction('pin', item),
+    },
+    ...(item.status === 'active'
+      ? [
+          { text: t('取代'), icon: 'git-branch', run: () => itemAction('supersede', item) },
+          { text: t('归档'), icon: 'archive', run: () => itemAction('archive', item) },
+        ]
+      : []),
+    { sep: true },
+    { text: t('修订历史'), icon: 'history', run: () => itemAction('history', item) },
+  ];
   function newItem() {
     const item = {
       type: tab,
@@ -156,12 +257,40 @@ export function ResearchBase({ view, projectId = null }) {
       title: '',
       body: '',
       payload: {},
-      projectId,
-      scope: projectId ? 'project' : 'personal',
+      projectId: scopeId,
+      scope: scopeId ? 'project' : 'personal',
       visibility: 'shared',
     };
     actions.openModal(t('新建条目'), html`<${ResearchItemForm} item=${item} onSaved=${reload} />`);
   }
+  const editEntity = (entity) =>
+    actions.openModal(
+      entity ? t('编辑实体') : t('新建实体'),
+      html`<${KnowledgeEntityForm}
+        entity=${entity}
+        projectId=${scopeId}
+        onSaved=${(saved) => {
+          reload();
+          if (saved) setSelection({ type: 'entity', id: saved.id, title: saved.name });
+        }}
+      />`,
+    );
+  const removeEntity = (entity) =>
+    actions.attempt(async () => {
+      const { version: change } = await actions.knowledgeSession(scopeId, (sessionId) =>
+        actions.removeKnowledgeEntity(entity.id, sessionId),
+      );
+      if (selection?.id === entity.id) setSelection(null);
+      actions.toast(t('已删除「{name}」', { name: entity.name }), {
+        label: t('撤销'),
+        run: () => actions.attempt(() => actions.restoreKnowledgeVersion(change.id)),
+      });
+    });
+  const entityMenu = (entity) => [
+    { text: t('编辑'), icon: 'pencil', run: () => editEntity(entity) },
+    { sep: true },
+    { text: t('删除'), icon: 'trash-2', danger: true, run: () => removeEntity(entity) },
+  ];
   async function sourceAction(action, source) {
     await actions.attempt(async () => {
       if (action === 'detail')
@@ -169,7 +298,7 @@ export function ResearchBase({ view, projectId = null }) {
       else if (action === 'edit-source') {
         const detail = await actions.researchSource(source.id);
         actions.openModal(
-          t('编辑元数据'),
+          t('编辑信息'),
           html`<${ResearchSourceForm} source=${detail.source} onSaved=${reload} />`,
         );
       } else if (action === 'open') await actions.openResearchSource(source.id);
@@ -179,9 +308,25 @@ export function ResearchBase({ view, projectId = null }) {
       }
     });
   }
+  const sourceMenu = (source) => [
+    {
+      text: t('预览'),
+      icon: 'eye',
+      run: () => actions.openPreview({ kind: 'source', id: source.id }),
+    },
+    ...(source.originalPath
+      ? [{ text: t('打开原件'), icon: 'external-link', run: () => sourceAction('open', source) }]
+      : []),
+    { text: t('查看段落'), icon: 'file-search', run: () => sourceAction('detail', source) },
+    { sep: true },
+    { text: t('编辑信息'), icon: 'pencil', run: () => sourceAction('edit-source', source) },
+    ...(source.originalPath
+      ? [{ text: t('重新解析'), icon: 'refresh-cw', run: () => sourceAction('reparse', source) }]
+      : []),
+  ];
   function openHit(hit) {
     if (hit.type === 'item') {
-      itemAction('detail', { id: hit.id });
+      setSelection({ type: 'item', id: hit.id, title: hit.title });
       return;
     }
     actions.openModal(
@@ -215,7 +360,7 @@ export function ResearchBase({ view, projectId = null }) {
           name: file.name,
           mime: file.type,
           base64: btoa(binary),
-          projectId,
+          projectId: scopeId,
         });
         update(index, { status: source.contentStatus, error: source.parseError ?? '' });
       } catch (caught) {
@@ -224,134 +369,359 @@ export function ResearchBase({ view, projectId = null }) {
     }
     reload();
   }
-  const empty = page.hits ? page.hits.length === 0 : page.rows.length === 0;
-  const cards =
-    tab === 'memory'
-      ? html`${researchSubtypes.memory.map((subtype) => {
-          const rows = page.rows.filter((item) => item.subtype === subtype);
-          return (
-            rows.length &&
-            html`<section>
-              <h3>${researchLabel(subtype)}</h3>
-              <div class="rb-cards">
-                ${rows.map((item) => html`<${ResearchCard} key=${item.id} item=${item} onAction=${itemAction} />`)}
-              </div>
-            </section>`
-          );
-        })}`
-      : html`<div class="rb-cards">
-          ${page.rows.map((item) => html`<${ResearchCard} key=${item.id} item=${item} onAction=${itemAction} />`)}
-        </div>`;
-  return html`<main class="main">
-    <${MainHead}
-      crumb=${project?.name ?? t('我的资料')}
-      section=${t('数据库')}
-      title=${view === 'sources' ? t('外部资源') : t('研究资料库')}
-    />
-    <div class="mainbody">
-      <div class="content research-base">
-        <div class="between">
-          <h1>
-            ${view === 'sources' ? t('外部资源') : t('研究资料库')}
-            <${InfoTip}
-              text=${t('原件、知识、模型与主张保存在资料库中；解析段落与检索索引可以重建。')}
-            />
-          </h1>
-          ${view !== 'sources' && html`<div class="row"><button class="btn tiny" onClick=${() => fileInput.current.click()}>${t('导入材料')}</button>${researchSubtypes[tab] && html`<button class="btn tiny" onClick=${newItem}>${t('新建条目')}</button>`}<input ref=${fileInput} type="file" multiple hidden onChange=${importFiles} /></div>`}
-        </div>
-        <div class="tabs">
-          ${[
-            ['database', '当前项目材料'],
-            ['library', '我的资料'],
-            ['sources', '外部资源'],
-          ].map(
-            ([route, title]) =>
-              html`<button
-                class=${`tab ${view === route ? 'active' : ''}`}
-                disabled=${route === 'database' && !targetProject}
-                onClick=${() => navigate(route === 'database' ? { view: 'database', id: targetProject } : { view: /** @type {'library' | 'sources'} */ (route) })}
-              >
-                ${t(title)}
-              </button>`,
-          )}
-        </div>
-        ${
-          view === 'sources'
-            ? html`<${Sites} />`
-            : html`
-                <div class="tabs rb-tabs">
-                  ${Object.entries(researchTabs).map(([key, title]) => html`<button class=${`tab ${tab === key ? 'active' : ''}`} data-rb-tab=${key} onClick=${() => changeTab(key)}>${t(title)}</button>`)}
-                </div>
-                ${
-                  ['inbox', 'brief'].includes(tab)
-                    ? html`<${MemoryViews}
-                        key=${tab}
-                        projectId=${projectId}
-                        tab=${tab}
-                        onEdit=${(item) => itemAction('edit', item)}
-                      />`
-                    : html`
-                        <form
-                          class="rb-search"
-                          onSubmit=${(event) => {
-                            event.preventDefault();
-                            setQuery(draft);
-                            setOffset(0);
-                            reload();
-                          }}
-                        >
-                          <input
-                            value=${draft}
-                            aria-label=${t('统一检索资料与条目')}
-                            placeholder=${t('统一检索资料与条目')}
-                            onInput=${(event) => setDraft(event.currentTarget.value)}
-                          /><button class="btn tiny" type="submit">${t('搜索')}</button>${
-                            query &&
-                            html`<button
-                              type="button"
-                              class="btn tiny"
-                              onClick=${() => {
-                                setQuery('');
-                                setDraft('');
-                                setOffset(0);
-                              }}
-                            >
-                              ${t('清除搜索')}
-                            </button>`
-                          }<button type="button" class="btn tiny" onClick=${reload}>
-                            ${t('刷新')}
-                          </button>
-                        </form>
-                        ${!query && html`<${ResearchFilters} tab=${tab} filters=${filters} onFilter=${changeFilter} />`}
-                        ${imports.length > 0 && html`<div data-rb-import-progress role="status">${imports.map((entry) => html`<p>${entry.name} · ${entry.status === 'importing' ? t('正在导入…') : entry.status === 'queued' ? t('等待导入') : entry.status === 'parsed' ? t('已解析') : entry.status === 'partial' ? t('部分解析') : t('解析失败')}${entry.error && html`<span role="alert"> · ${entry.error}</span>`}</p>`)}</div>`}
-                        ${error && html`<p role="alert">${error}</p>`}${loading && html`<p role="status">${t('正在读取…')}</p>`}
-                        ${
-                          page.hits
-                            ? html`<${ResearchSearchResults}
-                                hits=${page.hits}
-                                query=${query}
-                                mode=${page.mode}
-                                onHit=${openHit}
-                              />`
-                            : tab === 'sources'
-                              ? html`<${ResearchSources}
-                                  sources=${page.rows}
-                                  onAction=${sourceAction}
-                                />`
-                              : filters.status === 'superseded'
-                                ? html`<details>
-                                    <summary>${t('已取代的记录')}</summary>
-                                    ${cards}
-                                  </details>`
-                                : cards
-                        }
-                        ${(!empty || offset > 0) && html`<div class="rb-pagination"><button class="btn tiny" disabled=${offset === 0} onClick=${() => setOffset(Math.max(0, offset - 50))}>${t('上一页')}</button><span>${offset + 1}–${offset + (page.hits?.length ?? page.rows.length)}${tab === 'sources' || page.hits ? ` / ${page.total}` : ''}</span><button class="btn tiny" disabled=${!page.remaining} onClick=${() => setOffset(offset + 50)}>${t('下一页')}</button></div>`}
-                        ${empty && !loading && html`<div class="empty">${t('暂无记录')}</div>`}
-                      `
-                }
-              `
-        }
+
+  if (view === 'sources')
+    return html`<main class="main ss-main research-base">
+      <div class="ss-header">
+        <button
+          type="button"
+          class="ss-icon-btn kb-back"
+          aria-label=${t('返回知识库')}
+          data-tip=${t('返回知识库')}
+          onClick=${() =>
+            navigate(targetProject ? { view: 'database', id: targetProject } : { view: 'library' })}
+        >
+          <${Lucide} name="arrow-left" />
+        </button>
+        <div class="ss-header__title"><span>${t('外部资源')}</span></div>
       </div>
-    </div>
-  </main>`;
+      <div class="ss-content kb-content"><${Sites} /></div>
+    </main>`;
+
+  const memoryTab = MEMORY_TABS.includes(tab);
+  const tabButton = (key, count) =>
+    html`<button
+      type="button"
+      class="ss-tab"
+      role="tab"
+      aria-selected=${String(tab === key)}
+      data-rb-tab=${key}
+      onClick=${() => changeTab(key)}
+    >
+      ${t(researchTabs[key])}${count != null && html`<span class="ss-tab__count">${count}</span>`}
+    </button>`;
+  const empty = page.hits ? page.hits.length === 0 : page.rows.length === 0;
+  const shown = page.hits?.length ?? page.rows.length;
+  const status =
+    loading || error || page.hits
+      ? ''
+      : tab === 'sources'
+        ? t('共 {n} 份', { n: page.total })
+        : tab === 'entities'
+          ? t('共 {n} 个', { n: page.total })
+          : '';
+  const sorts = tab === 'sources' ? sourceSorts : tab === 'entities' ? entitySorts : null;
+  const sortKey = tab === 'entities' ? 'entitySort' : 'sort';
+  const selectedRef = selection ? `${selection.type}:${selection.id}` : null;
+  let list;
+  if (page.hits)
+    list = html`<${ResearchSearchResults}
+      hits=${page.hits}
+      query=${query}
+      mode=${page.mode}
+      onHit=${openHit}
+    />`;
+  else if (tab === 'sources')
+    list = html`<${ResearchSources}
+      sources=${page.rows}
+      selected=${selectedRef}
+      onSelect=${(row) => select('source', row)}
+      menu=${sourceMenu}
+    />`;
+  else if (tab === 'entities')
+    list = html`<${KnowledgeEntities}
+      entities=${page.rows}
+      selected=${selectedRef}
+      onSelect=${(row) => select('entity', row)}
+      menu=${entityMenu}
+    />`;
+  else if (tab === 'memory')
+    list = html`${researchSubtypes.memory.map((subtype) => {
+      const rows = page.rows.filter((item) => item.subtype === subtype);
+      return (
+        rows.length > 0 &&
+        html`<section>
+          <h3 class="ss-section-title">${researchLabel(subtype)}</h3>
+          <div class="rb-cards">
+            ${rows.map((item) => html`<${ResearchCard} key=${item.id} item=${item} onAction=${itemAction} />`)}
+          </div>
+        </section>`
+      );
+    })}`;
+  else
+    list = html`<${ResearchItems}
+      items=${page.rows}
+      selected=${selectedRef}
+      onSelect=${(row) => select('item', row)}
+      menu=${itemMenu}
+    />`;
+
+  return html`<main class="main ss-main research-base">
+      <div class="ss-header">
+        <div class="ss-header__title"><span>${t('知识库')}</span></div>
+        <${ChoiceMenu}
+          label=${t('范围')}
+          triggerClass="ss-select ss-select--ghost"
+          placement="bottom-start"
+          attrs=${{ 'data-kb-scope': scopeId ? 'project' : 'global' }}
+          items=${[
+            { group: t('范围') },
+            ...(targetProject
+              ? [
+                  {
+                    text: t('当前项目：{name}', {
+                      name:
+                        (project ?? projects.find((row) => row.id === targetProject))?.name ?? '',
+                    }),
+                    icon: 'folder-open',
+                    selected: Boolean(scopeId),
+                    run: () => navigate({ view: 'database', id: targetProject }),
+                  },
+                ]
+              : []),
+            {
+              text: t('全局知识库'),
+              icon: 'book-open',
+              selected: !scopeId,
+              run: () => navigate({ view: 'library' }),
+            },
+            { group: t('网上') },
+            { text: t('外部资源'), icon: 'globe', run: () => navigate({ view: 'sources' }) },
+          ]}
+        >
+          <${Lucide} name=${scopeId ? 'folder-open' : 'book-open'} /><span class="ss-select__value"
+            >${scopeId ? (project?.name ?? '') : t('全局知识库')}</span
+          >
+        <//>
+        <span class="ss-header__sep"></span>
+        <nav class="ss-tabs" role="tablist" aria-label=${t('知识库内容')}>
+          ${tabButton('sources', counts.sources)}${tabButton('entities', counts.entities)}
+          ${ITEM_TABS.map((key) => tabButton(key))}
+          <button
+            type="button"
+            class="ss-tab"
+            role="tab"
+            aria-selected=${String(memoryTab)}
+            aria-haspopup="menu"
+            data-rb-tab="memory"
+            onClick=${(event) =>
+              actions.openMenu(
+                event,
+                [
+                  { text: t('记忆'), icon: 'brain', run: () => changeTab('memory') },
+                  {
+                    text: t('记忆收件箱'),
+                    icon: 'inbox',
+                    key: counts.inbox > 0 ? String(counts.inbox) : undefined,
+                    disabled: !scopeId,
+                    run: () => changeTab('inbox'),
+                  },
+                  {
+                    text: t('项目简报'),
+                    icon: 'newspaper',
+                    disabled: !scopeId,
+                    run: () => changeTab('brief'),
+                  },
+                ],
+                t('记忆'),
+              )}
+          >
+            ${memoryTab ? t(researchTabs[tab]) : t('记忆')}${counts.inbox > 0 && html`<span class="ss-tab__count">${counts.inbox}</span>`}<${Lucide}
+              name="chevron-down"
+              class="ss-i--sm"
+            />
+          </button>
+        </nav>
+        <div class="ss-header__actions">
+          ${
+            (tab === 'entities' || (researchSubtypes[tab] && tab !== 'memory')) &&
+            html`<button
+              type="button"
+              class="ss-icon-btn"
+              aria-label=${tab === 'entities' ? t('新建实体') : t('新建条目')}
+              data-tip=${tab === 'entities' ? t('新建实体') : t('新建条目')}
+              onClick=${() => (tab === 'entities' ? editEntity(null) : newItem())}
+            >
+              <${Lucide} name="plus" />
+            </button>`
+          }
+          <button type="button" class="ss-btn" onClick=${() => fileInput.current.click()}>
+            <${Lucide} name="import" />${t('导入')}
+          </button>
+          <input ref=${fileInput} type="file" multiple hidden onChange=${importFiles} />
+        </div>
+      </div>
+      ${
+        ['inbox', 'brief'].includes(tab)
+          ? html`<div class="ss-content kb-content">
+              <${MemoryViews}
+                key=${tab}
+                projectId=${scopeId}
+                tab=${tab}
+                onEdit=${(item) => itemAction('edit', item)}
+              />
+            </div>`
+          : html`<form
+                class="ss-toolbar kb-toolbar"
+                onSubmit=${(event) => {
+                  event.preventDefault();
+                  setQuery(draft);
+                  setOffset(0);
+                  reload();
+                }}
+              >
+                <span class="ss-input"
+                  ><${Lucide} name="search" /><input
+                    value=${draft}
+                    aria-label=${tab === 'entities' ? t('按名称或别名查找实体') : t('统一检索资料与条目')}
+                    placeholder=${tab === 'entities' ? t('按名称或别名查找') : t('搜索标题、实体或正文')}
+                    onInput=${(event) => setDraft(event.currentTarget.value)}
+                  />${
+                    query &&
+                    html`<button
+                      type="button"
+                      class="ss-icon-btn ss-icon-btn--sm"
+                      aria-label=${t('清除搜索')}
+                      data-tip=${t('清除搜索')}
+                      onClick=${() => {
+                        setQuery('');
+                        setDraft('');
+                        setOffset(0);
+                      }}
+                    >
+                      <${Lucide} name="x" />
+                    </button>`
+                  }</span
+                >
+                ${
+                  !query &&
+                  html`<${ResearchFilters}
+                    tab=${tab}
+                    filters=${filters}
+                    onFilter=${changeFilter}
+                    onClear=${() => {
+                      setFilters({
+                        ...defaultFilters,
+                        sort: filters.sort,
+                        direction: filters.direction,
+                        entitySort: filters.entitySort,
+                      });
+                      setOffset(0);
+                    }}
+                  />`
+                }
+                ${
+                  sorts &&
+                  !query &&
+                  html`<${ChoiceMenu}
+                    label=${t('排序')}
+                    triggerClass="ss-select ss-select--ghost"
+                    placement="bottom-start"
+                    items=${[
+                      { group: t('排序依据') },
+                      ...sorts.map(([value, text]) => ({
+                        text: t(text),
+                        selected: filters[sortKey] === value,
+                        run: () => changeFilter(sortKey, value),
+                      })),
+                      ...(tab === 'sources'
+                        ? [
+                            { group: t('顺序') },
+                            ...[
+                              ['desc', t('降序')],
+                              ['asc', t('升序')],
+                            ].map(([value, text]) => ({
+                              text,
+                              selected: filters.direction === value,
+                              run: () => changeFilter('direction', value),
+                            })),
+                          ]
+                        : []),
+                    ]}
+                  >
+                    <${Lucide} name="arrow-down-up" /><span class="ss-select__value"
+                      >${t(sorts.find(([value]) => value === filters[sortKey])?.[1] ?? sorts[0][1])}</span
+                    >
+                  <//>`
+                }
+                <span class="ss-toolbar__spacer"></span>
+                ${status && html`<span class="ss-muted kb-status">${status}</span>`}
+              </form>
+              <div class="ss-content kb-content">
+                ${imports.length > 0 && html`<div class="kb-imports" data-rb-import-progress role="status">${imports.map((entry) => html`<p>${entry.name} · ${entry.status === 'importing' ? t('正在导入…') : entry.status === 'queued' ? t('等待导入') : entry.status === 'parsed' ? t('已解析') : entry.status === 'partial' ? t('部分解析') : t('解析失败')}${entry.error && html`<span role="alert"> · ${entry.error}</span>`}</p>`)}</div>`}
+                ${error && html`<p role="alert">${error}</p>`}${loading && empty && html`<p class="ss-muted" role="status">${t('正在读取…')}</p>`}
+                ${list}
+                ${
+                  (page.remaining > 0 || offset > 0) &&
+                  html`<div class="kb-pagination">
+                    <button
+                      type="button"
+                      class="ss-btn ss-btn--ghost ss-btn--sm"
+                      disabled=${offset === 0}
+                      onClick=${() => setOffset(Math.max(0, offset - PAGE))}
+                    >
+                      ${t('上一页')}
+                    </button>
+                    <span class="ss-muted"
+                      >${offset + 1}–${offset + shown}${tab === 'sources' || tab === 'entities' || page.hits ? ` / ${page.total}` : ''}</span
+                    >
+                    <button
+                      type="button"
+                      class="ss-btn ss-btn--ghost ss-btn--sm"
+                      disabled=${!page.remaining}
+                      onClick=${() => setOffset(offset + PAGE)}
+                    >
+                      ${t('下一页')}
+                    </button>
+                  </div>`
+                }
+                ${
+                  empty &&
+                  !loading &&
+                  html`<div class="ss-empty kb-empty">
+                    <p>
+                      ${
+                        query || filters !== defaultFilters
+                          ? t('暂无记录')
+                          : tab === 'sources'
+                            ? t('还没有资料。导入文献、数据或笔记后会出现在这里。')
+                            : tab === 'entities'
+                              ? t(
+                                  '还没有实体。整理论文或专家按原文写入后会出现在这里，也可以手动新建。',
+                                )
+                              : t('暂无记录')
+                      }
+                    </p>
+                    ${
+                      !query &&
+                      filters === defaultFilters &&
+                      tab === 'sources' &&
+                      html`<button
+                        type="button"
+                        class="ss-btn"
+                        onClick=${() => fileInput.current.click()}
+                      >
+                        <${Lucide} name="import" />${t('导入')}
+                      </button>`
+                    }
+                  </div>`
+                }
+              </div>`
+      }
+    </main>
+    ${
+      selection &&
+      !memoryTab &&
+      html`<${KnowledgePanel}
+        selection=${selection}
+        projectId=${scopeId}
+        onSelect=${setSelection}
+        onClose=${() => setSelection(null)}
+        sourceMenu=${sourceMenu}
+        itemMenu=${itemMenu}
+        entityMenu=${entityMenu}
+        onEditEntity=${editEntity}
+        onEditItem=${(item) => itemAction('edit', item)}
+      />`
+    }`;
 }

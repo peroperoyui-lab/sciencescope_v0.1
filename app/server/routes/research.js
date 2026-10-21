@@ -18,7 +18,18 @@ export function registerResearchRoutes(router, core, service, semantic) {
     ...(query.has('limit') ? { limit: Number(query.get('limit')) } : {}),
     ...(query.has('offset') ? { offset: Number(query.get('offset')) } : {}),
     ...Object.fromEntries(
-      ['kind', 'readStatus', 'tag', 'sort', 'direction', 'type', 'subtype', 'status', 'visibility']
+      [
+        'kind',
+        'contentStatus',
+        'readStatus',
+        'tag',
+        'sort',
+        'direction',
+        'type',
+        'subtype',
+        'status',
+        'visibility',
+      ]
         .filter((key) => query.has(key))
         .map((key) => [key, query.get(key)]),
     ),
@@ -70,7 +81,11 @@ export function registerResearchRoutes(router, core, service, semantic) {
   router.get('/api/research/search', ({ query }) =>
     research.search(query.get('q') ?? '', options(query)),
   );
-  router.get('/api/research/items', ({ query }) => research.store.listItems(options(query)));
+  router.get('/api/research/items', ({ query }) =>
+    research.store
+      .listItems(options(query))
+      .map((item) => ({ ...item, relations: knowledge.degree('item:' + item.id) })),
+  );
   router.post('/api/research/items', ({ body }) =>
     body.supersedes
       ? research.store.supersedeItem(body.supersedes, body, actor)

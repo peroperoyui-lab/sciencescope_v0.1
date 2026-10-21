@@ -9,6 +9,7 @@ import {
   researchSubtypes,
   sourceKinds,
 } from './research-fields.js';
+import { entityKinds, kindLabel } from './knowledge-fields.js';
 
 /** @param {{item:any,replace?:boolean,onSaved:()=>void}} props */
 export function ResearchItemForm({ item, replace = false, onSaved }) {
@@ -127,6 +128,73 @@ export function ResearchSourceForm({ source, onSaved }) {
       value=${metadata.readStatus ?? 'unread'}
       options=${['unread', 'reading', 'read']}
     />
+    <p role="alert">${error}</p>
+    <button class="btn primary" type="submit" disabled=${pending}>${t('保存')}</button>
+  </form>`;
+}
+/**
+ * New or edited knowledge entity. A new entity in a project also joins that
+ * project, in one history version.
+ * @param {{entity?:any,projectId:string|null,onSaved:(entity:any)=>void}} props
+ */
+export function KnowledgeEntityForm({ entity = null, projectId, onSaved }) {
+  const actions = useActions();
+  const [error, setError] = useState('');
+  const [pending, setPending] = useState(false);
+  async function save(event) {
+    event.preventDefault();
+    setPending(true);
+    setError('');
+    try {
+      const values = Object.fromEntries(new FormData(event.currentTarget));
+      const fields = {
+        name: String(values.name).trim(),
+        kind: values.kind,
+        nameEn: String(values.nameEn).trim() || null,
+        aliases: String(values.aliases)
+          .split(/[,，、;；]/u)
+          .map((alias) => alias.trim())
+          .filter(Boolean),
+        description: String(values.description).trim(),
+      };
+      let saved;
+      if (entity) saved = await actions.updateKnowledgeEntity(entity.id, fields);
+      else
+        ({ result: saved } = await actions.knowledgeSession(projectId, async (sessionId) => {
+          const created = await actions.createKnowledgeEntity({ ...fields, sessionId });
+          if (projectId)
+            await actions.knowledgeMembership({
+              projectId,
+              ref: 'entity:' + created.id,
+              sessionId,
+            });
+          return created;
+        }));
+      actions.closeModal();
+      onSaved(saved);
+    } catch (caught) {
+      setError(caught.message);
+    } finally {
+      setPending(false);
+    }
+  }
+  const kinds =
+    entity && !entityKinds.includes(entity.kind) ? [...entityKinds, entity.kind] : entityKinds;
+  return html`<form class="rb-dialog" id="kb-entity-form" onSubmit=${save}>
+    <${ResearchField} label="名称" name="name" value=${entity?.name ?? ''} required />
+    <${ResearchSelect}
+      label="种类"
+      name="kind"
+      value=${entity?.kind ?? 'concept'}
+      options=${kinds.map((kind) => [kind, kindLabel(kind)])}
+    />
+    <${ResearchField} label="英文名" name="nameEn" value=${entity?.nameEn ?? ''} />
+    <${ResearchField}
+      label="别名（用逗号分隔）"
+      name="aliases"
+      value=${(entity?.aliases ?? []).join(', ')}
+    />
+    <${ResearchField} label="说明" name="description" value=${entity?.description ?? ''} textarea />
     <p role="alert">${error}</p>
     <button class="btn primary" type="submit" disabled=${pending}>${t('保存')}</button>
   </form>`;

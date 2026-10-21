@@ -41,6 +41,29 @@ async function importPdf(page, name = 'employment.pdf') {
   await page.locator('[data-rb-source]', { hasText: name }).filter({ hasText: '已解析' }).waitFor();
 }
 const run = (name, work) => withBrowserApp('r4-1b-' + name, silent, work);
+/** Runs a row's ⋯ menu entry. */
+async function rowMenu(page, row, name) {
+  await row.hover();
+  await row.getByRole('button', { name: '更多', exact: true }).click();
+  await page.getByRole('menuitem', { name, exact: true }).click();
+}
+/** Picks a value in the toolbar's filter popover. */
+async function filter(page, label, option) {
+  const dialog = page.getByRole('dialog', { name: '筛选' });
+  if (!(await dialog.isVisible())) await page.getByRole('button', { name: '筛选' }).click();
+  await dialog.getByRole('button', { name: label, exact: true }).click();
+  await page.getByRole('menuitemradio', { name: option, exact: true }).click();
+}
+/** Selects an item row and runs one of the detail panel's actions. */
+async function itemPanel(page, row, name) {
+  await row.click();
+  const panel = page.locator('.kb-panel');
+  if (name === '编辑') await panel.getByRole('button', { name: '编辑', exact: true }).click();
+  else {
+    await panel.getByRole('button', { name: '节点菜单' }).click();
+    await page.getByRole('menuitem', { name, exact: true }).click();
+  }
+}
 
 test(
   'library sidebar imports PDF, searches text and locates a cited passage',
@@ -51,7 +74,7 @@ test(
       await importPdf(page);
       assert.equal(new URL(page.url()).hash, '#/database/' + project.id);
       await page.getByLabel('统一检索资料与条目').fill('regional innovation');
-      await page.locator('.rb-search').getByRole('button', { name: '搜索', exact: true }).click();
+      await page.getByLabel('统一检索资料与条目').press('Enter');
       await page.locator('[data-rb-search-results] mark').first().waitFor();
       await page.locator('[data-hit-type="chunk"]').first().click();
       await page.locator('#modal .rb-passage[data-focused="true"]').waitFor();
@@ -84,28 +107,30 @@ test(
         .fill('**创新能力**促进就业恢复。');
       await page.locator('#modal').getByRole('button', { name: '保存', exact: true }).click();
       let card = page.locator('[data-rb-item]', { hasText: '城市就业韧性' });
-      await card.locator('strong', { hasText: '创新能力' }).waitFor();
+      await card.click();
+      const detail = page.locator('.kb-panel [data-rb-item-detail]');
+      await detail.locator('strong', { hasText: '创新能力' }).waitFor();
       const id = await card.getAttribute('data-rb-item');
-      await card.getByRole('button', { name: '编辑', exact: true }).click();
+      await itemPanel(page, card, '编辑');
       await page
         .locator('#modal')
         .getByLabel('内容', { exact: true })
         .fill('交通连接促进就业恢复。');
       await page.locator('#modal').getByRole('button', { name: '保存', exact: true }).click();
-      await card.getByText('交通连接促进就业恢复。', { exact: true }).waitFor();
-      await card.getByRole('button', { name: '修订历史' }).click();
+      await detail.getByText('交通连接促进就业恢复。', { exact: true }).waitFor();
+      await itemPanel(page, card, '修订历史');
       assert.match(await page.locator('[data-rb-history]').innerText(), /创新能力/);
       await page.locator('#modal').getByRole('button', { name: '关闭' }).click();
-      await card.getByRole('button', { name: '取代', exact: true }).click();
+      await itemPanel(page, card, '取代');
       await page.locator('#modal').getByLabel('标题').fill('就业韧性新结论');
       await page.locator('#modal').getByLabel('内容', { exact: true }).fill('创新与交通共同作用。');
       await page.locator('#modal').getByRole('button', { name: '保存新版本' }).click();
       await page.locator('[data-rb-item]', { hasText: '就业韧性新结论' }).waitFor();
-      await page.getByLabel('状态', { exact: true }).selectOption('superseded');
-      await page.getByText('已取代的记录', { exact: true }).click();
+      await filter(page, '状态', '已取代');
+      await page.keyboard.press('Escape');
       card = page.locator(`[data-rb-item="${id}"]`);
       await card.waitFor();
-      await card.getByRole('button', { name: '修订历史' }).click();
+      await rowMenu(page, card, '修订历史');
       assert.match(await page.locator('[data-rb-history]').innerText(), /交通连接/);
       assert.match(await page.locator('[data-rb-history]').innerText(), /superseded/);
     }),
@@ -120,7 +145,7 @@ test(
       await importPdf(page);
       let row = page.locator('[data-rb-source]');
       const id = await row.getAttribute('data-rb-source');
-      await row.getByRole('button', { name: '编辑元数据' }).click();
+      await rowMenu(page, row, '编辑信息');
       await page.locator('#modal').getByLabel('标题').fill('韧性文献');
       await page.locator('#modal').getByLabel('作者').fill('Lin; Chen');
       await page.locator('#modal').getByLabel('年份').fill('2026');
@@ -132,15 +157,16 @@ test(
       row = page.locator('[data-rb-source]', { hasText: '韧性文献' });
       await row.getByText('Lin; Chen').waitFor();
       assert.match(await row.innerText(), /2026.*Regional Studies/s);
-      await page.getByLabel('类型', { exact: true }).selectOption('paper');
-      await page.getByLabel('阅读状态').selectOption('read');
+      await filter(page, '类型', '论文');
+      await filter(page, '阅读状态', '已读');
       await page.getByLabel('按标签筛选').fill('cities');
       await page.getByLabel('按标签筛选').press('Tab');
       await row.waitFor();
-      await page.getByLabel('阅读状态').selectOption('unread');
+      await filter(page, '阅读状态', '未读');
       await page.getByText('暂无记录', { exact: true }).waitFor();
-      await page.getByLabel('阅读状态').selectOption('read');
-      await row.getByRole('button', { name: '重新解析' }).click();
+      await filter(page, '阅读状态', '已读');
+      await page.keyboard.press('Escape');
+      await rowMenu(page, row, '重新解析');
       await row.filter({ hasText: '已解析' }).waitFor();
       const source = (await request(page, '/api/research/sources/' + id)).source;
       assert.equal(source.metadata.authors[0].literal, 'Lin');
@@ -151,11 +177,11 @@ test(
         await route.fulfill({ json: { opened: true } });
       });
       const opening = page.waitForResponse((response) => response.url().endsWith('/open'));
-      await row.getByRole('button', { name: '打开原件' }).click();
+      await rowMenu(page, row, '打开原件');
       await opening;
       assert.equal(opened, true);
       await page.getByLabel('统一检索资料与条目').fill('韧性文献');
-      await page.locator('.rb-search').getByRole('button', { name: '搜索', exact: true }).click();
+      await page.getByLabel('统一检索资料与条目').press('Enter');
       await page.locator('[data-hit-type="source"]').waitFor();
     }),
 );
@@ -167,15 +193,19 @@ test(
     run('scopes-sites', async ({ page, app }) => {
       await openProject(page, app);
       await importPdf(page, 'project.pdf');
-      await page.getByRole('button', { name: '我的资料', exact: true }).click();
-      await page.getByText('暂无记录', { exact: true }).waitFor();
+      // The global knowledge base shows every source; a project shows its own.
+      await page.getByRole('button', { name: '范围', exact: true }).click();
+      await page.getByRole('menuitemradio', { name: '全局知识库', exact: true }).click();
+      await page.locator('[data-rb-source]', { hasText: 'project.pdf' }).waitFor();
       await importPdf(page, 'personal.pdf');
       const sources = await request(page, '/api/research/sources?projectId=');
       assert.equal(sources[0].projectId, null);
-      await page.getByRole('button', { name: '当前项目材料', exact: true }).click();
+      await page.getByRole('button', { name: '范围', exact: true }).click();
+      await page.getByRole('menuitemradio', { name: /当前项目/ }).click();
       await page.locator('[data-rb-source]', { hasText: 'project.pdf' }).waitFor();
       assert.equal(await page.locator('[data-rb-source]', { hasText: 'personal.pdf' }).count(), 0);
-      await page.getByRole('button', { name: '外部资源', exact: true }).click();
+      await page.getByRole('button', { name: '范围', exact: true }).click();
+      await page.getByRole('menuitemradio', { name: '外部资源', exact: true }).click();
       await page.getByRole('button', { name: '新增站点' }).click();
       await page.locator('#modal input').nth(0).fill('Open science');
       await page.locator('#modal input').nth(1).fill('https://example.org');
@@ -193,10 +223,13 @@ test(
           body: JSON.stringify({ appearance: { language: 'en' } }),
         });
       });
-      await page.getByRole('button', { name: 'My library', exact: true }).click();
-      await page.locator('.research-base h1').filter({ hasText: 'Research library' }).waitFor();
-      await page.getByRole('button', { name: 'Literature and materials' }).waitFor();
-      assert.equal(await page.getByRole('button', { name: '记忆', exact: true }).count(), 0);
+      await page.getByRole('button', { name: 'Back to knowledge base', exact: true }).click();
+      await page
+        .locator('.research-base .ss-header__title')
+        .filter({ hasText: 'Knowledge base' })
+        .waitFor();
+      await page.getByRole('tab', { name: /Literature and materials/ }).waitFor();
+      assert.equal(await page.getByRole('tab', { name: '记忆', exact: true }).count(), 0);
     }),
 );
 
@@ -211,15 +244,19 @@ test('pin and archive filters preserve item history', { skip: browserSkip }, () 
     });
     await page.locator('[data-rb-tab="knowledge"]').click();
     const card = page.locator('[data-rb-item]', { hasText: '可追溯结论' });
-    await card.getByRole('button', { name: '置顶', exact: true }).click();
-    await card.getByRole('button', { name: '取消置顶' }).waitFor();
-    await page.getByLabel('置顶', { exact: true }).selectOption('true');
+    await rowMenu(page, card, '置顶');
+    await card
+      .locator('.ss-list-row__meta [data-tip="已置顶"], .ss-list-row__meta[data-tip="已置顶"]')
+      .waitFor();
+    await filter(page, '置顶', '仅置顶');
+    await page.keyboard.press('Escape');
     await card.waitFor();
-    await card.getByRole('button', { name: '归档', exact: true }).click();
+    await rowMenu(page, card, '归档');
     await page.getByText('暂无记录', { exact: true }).waitFor();
-    await page.getByLabel('状态', { exact: true }).selectOption('archived');
+    await filter(page, '状态', '已归档');
+    await page.keyboard.press('Escape');
     await card.waitFor();
-    await card.getByRole('button', { name: '修订历史' }).click();
+    await rowMenu(page, card, '修订历史');
     assert.match(await page.locator('[data-rb-history]').innerText(), /archived/);
   }),
 );
@@ -241,8 +278,9 @@ test('models render LaTeX and variables while claims show their state', { skip: 
         }),
       );
     await page.locator('#modal').getByRole('button', { name: '保存', exact: true }).click();
-    await page.locator('.rb-latex .katex').waitFor();
-    assert.match(await page.locator('[data-rb-item] .table').innerText(), /创新投入/);
+    await page.locator('[data-rb-item]', { hasText: '就业恢复模型' }).click();
+    await page.locator('.kb-panel .rb-latex .katex').waitFor();
+    assert.match(await page.locator('.kb-panel .table').innerText(), /创新投入/);
     await page.locator('[data-rb-tab="claim"]').click();
     await page.getByRole('button', { name: '新建条目' }).click();
     await page.locator('#modal').getByLabel('标题').fill('创新假说');
@@ -251,7 +289,8 @@ test('models render LaTeX and variables while claims show their state', { skip: 
       .getByLabel('结构化内容（JSON）')
       .fill('{"claimStatus":"supported"}');
     await page.locator('#modal').getByRole('button', { name: '保存', exact: true }).click();
-    await page.getByText('有证据支持', { exact: true }).waitFor();
+    await page.locator('[data-rb-item]', { hasText: '创新假说' }).click();
+    await page.locator('.kb-panel').getByText('有证据支持', { exact: true }).waitFor();
   }),
 );
 
@@ -268,8 +307,10 @@ test(
           title: 'Source ' + String(index).padStart(2, '0'),
           kind: 'note',
         });
-      await page.getByLabel('排序', { exact: true }).selectOption('title');
-      await page.getByLabel('排序方向').selectOption('asc');
+      await page.getByRole('button', { name: '排序', exact: true }).click();
+      await page.getByRole('menuitemradio', { name: '标题', exact: true }).click();
+      await page.getByRole('button', { name: '排序', exact: true }).click();
+      await page.getByRole('menuitemradio', { name: '升序', exact: true }).click();
       await page.locator('[data-rb-source]', { hasText: 'Source 00' }).waitFor();
       await page.getByRole('button', { name: '下一页' }).click();
       await page.locator('[data-rb-source]', { hasText: 'Source 50' }).waitFor();
@@ -285,7 +326,7 @@ test(
         { contentStatus: 'parsed' },
       );
       await page.getByLabel('统一检索资料与条目').fill('unique regional discovery');
-      await page.locator('.rb-search').getByRole('button', { name: '搜索', exact: true }).click();
+      await page.getByLabel('统一检索资料与条目').press('Enter');
       await page.locator('[data-hit-type="chunk"]').click();
       await page
         .locator('.rb-passage[data-focused="true"]', { hasText: 'unique regional discovery' })
@@ -315,10 +356,11 @@ test(
         .filter({ hasText: '已解析' })
         .waitFor();
       await page.locator('[data-rb-import-progress] [role="alert"]').waitFor();
-      await page
-        .locator('[data-rb-source]', { hasText: 'unsupported.xyz' })
-        .getByRole('button', { name: '详情', exact: true })
-        .click();
+      await rowMenu(
+        page,
+        page.locator('[data-rb-source]', { hasText: 'unsupported.xyz' }),
+        '查看段落',
+      );
       await page.locator('#modal [role="alert"]').waitFor();
       await page.locator('#modal').getByText('暂无可读取的段落', { exact: true }).waitFor();
     }),

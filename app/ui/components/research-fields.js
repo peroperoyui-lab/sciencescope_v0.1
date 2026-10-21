@@ -3,9 +3,11 @@ import { t } from '../i18n/index.js';
 
 export const researchTabs = {
   sources: '文献与资料',
+  entities: '实体',
   knowledge: '知识',
   model: '模型与公式',
   claim: '主张与证据',
+  code: '代码',
   memory: '记忆',
   inbox: '记忆收件箱',
   brief: '项目简报',
@@ -14,6 +16,7 @@ export const researchSubtypes = {
   knowledge: ['finding', 'definition', 'method', 'fact', 'dataset-note', 'other'],
   model: ['theory', 'formula', 'algorithm', 'statistical-model', 'protocol'],
   claim: ['hypothesis', 'claim', 'conclusion'],
+  code: ['snippet', 'function', 'script'],
   memory: [
     'goal',
     'decision',
@@ -60,6 +63,9 @@ const names = {
   algorithm: '算法',
   'statistical-model': '统计模型',
   protocol: '研究方案',
+  snippet: '代码片段',
+  function: '函数',
+  script: '脚本',
   hypothesis: '假设',
   claim: '主张',
   conclusion: '结论',

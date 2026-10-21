@@ -25,6 +25,15 @@ test('original previews preserve full text and DOCX body, project files and page
       projectId: project.id,
     });
     assert.equal((await preview.document({ id: source.id })).text, text);
+    const note = app.research.store.createSource({
+      projectId: project.id,
+      title: '无原件',
+      kind: 'note',
+    });
+    app.research.store.addChunks(note.id, [{ text: '第一段' }, { text: '第二段' }], {
+      contentStatus: 'parsed',
+    });
+    assert.equal((await preview.document({ id: note.id })).text, '第一段\n\n第二段');
     const zip = new JSZip();
     zip.file(
       '[Content_Types].xml',

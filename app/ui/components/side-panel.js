@@ -12,7 +12,7 @@ const MIN_WIDTH = 280;
 const MAX_WIDTH = 640;
 
 /**
- * @param {{ name: 'secretary' | 'assistant' | 'preview' | 'materials', title: string, closeLabel: string,
+ * @param {{ name: 'secretary' | 'assistant' | 'preview' | 'materials' | 'knowledge', title: string, closeLabel: string,
  *   defaultWidth?: number,
  *   onClose: () => void, buttons?: any, onHeadPointerDown?: (event: PointerEvent) => void,
  *   detached?: boolean, className?: string, children: any }} props

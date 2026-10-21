@@ -50,6 +50,9 @@ export function registerKnowledgeRoutes(router, core, services = {}) {
   router.delete('/api/knowledge/entities/:id', ({ params, body }) =>
     edit(body, (actor) => knowledge.removeEntity(params.id, actor)),
   );
+  router.get('/api/knowledge/edges', ({ query }) =>
+    knowledge.nodeEdges(query.get('ref'), options(query)),
+  );
   router.post('/api/knowledge/edges', ({ body }) =>
     edit(body, (actor) => knowledge.createEdge(body, actor)),
   );

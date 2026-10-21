@@ -34,7 +34,7 @@ function HomeLinks() {
     </div>
     <div class="side-panel__links">
       ${open.length > 0 && html`<a class="ss-btn ss-btn--sm" href=${routeHref({ view: 'workbench', id: open[0].id })}>${t('工作站')}</a>`}
-      <a class="ss-btn ss-btn--sm" href=${routeHref({ view: 'library' })}>${t('数据库')}</a>
+      <a class="ss-btn ss-btn--sm" href=${routeHref({ view: 'library' })}>${t('知识库')}</a>
       <a class="ss-btn ss-btn--sm" href=${routeHref({ view: 'project-new' })}>${t('新建项目')}</a>
     </div>
   </nav>`;

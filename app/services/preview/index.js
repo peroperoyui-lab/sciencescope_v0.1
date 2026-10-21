@@ -53,6 +53,19 @@ export function createPreview(core, research) {
       };
     }
     const source = research.store.getSource(target.id);
+    // A source without an original file (a note or a metadata-only record)
+    // previews as its parsed passages.
+    if (!source.originalPath)
+      return {
+        path: null,
+        text: research.store
+          .chunks(source.id)
+          .map((chunk) => chunk.text)
+          .join('\n\n'),
+        name: `${source.title}.txt`,
+        projectId: source.projectId,
+        source,
+      };
     return {
       path: await research.sourcePath(source.id),
       name: source.name,
@@ -62,7 +75,10 @@ export function createPreview(core, research) {
   }
   async function content(target) {
     const file = await locate(target);
-    return { ...file, bytes: await readFile(file.path) };
+    return {
+      ...file,
+      bytes: file.path == null ? Buffer.from(file.text ?? '') : await readFile(file.path),
+    };
   }
   async function document(target) {
     const file = await content(target);

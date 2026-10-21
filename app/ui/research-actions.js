@@ -25,6 +25,35 @@ export function createResearchActions(api) {
     openResearchSource: (id) => api.post(`/api/research/sources/${id}/open`),
     createResearchItem: (body) => api.post('/api/research/items', body),
     updateResearchItem: (id, body) => api.patch(`/api/research/items/${id}`, body),
+    knowledgeEntities: (options) => api.get(`/api/knowledge/entities?${query(options)}`),
+    knowledgeEntity: (id) => api.get(`/api/knowledge/entities/${id}?edgesLimit=200`),
+    knowledgeEdges: (ref) => api.get(`/api/knowledge/edges?${query({ ref, limit: 200 })}`),
+    knowledgeHistory: (ref) => api.get(`/api/knowledge/history?${query({ ref, limit: 20 })}`),
+    restoreKnowledgeRevision: (id) => api.post(`/api/knowledge/revisions/${id}/restore`),
+    restoreKnowledgeVersion: (id) => api.post(`/api/knowledge/versions/${id}/restore`),
+    knowledgeLabels: (ref, change, sessionId) =>
+      api.post('/api/knowledge/labels', { ref, ...change, sessionId }),
+    /**
+     * Several edits as one history version, so one 撤销 withdraws them together.
+     * @param {string | null} projectId @param {(sessionId: string) => Promise<any>} work
+     */
+    async knowledgeSession(projectId, work) {
+      const { id } = await api.post('/api/knowledge/session', { projectId });
+      try {
+        const result = await work(id);
+        return { result, version: await api.post(`/api/knowledge/session/${id}/close`) };
+      } catch (error) {
+        await api.post(`/api/knowledge/session/${id}/close`);
+        throw error;
+      }
+    },
+    createKnowledgeEntity: (body) => api.post('/api/knowledge/entities', body),
+    updateKnowledgeEntity: (id, body) => api.patch(`/api/knowledge/entities/${id}`, body),
+    removeKnowledgeEntity: (id, sessionId) =>
+      api.request('DELETE', `/api/knowledge/entities/${id}`, { sessionId }),
+    removeKnowledgeEdge: (id, sessionId) =>
+      api.request('DELETE', `/api/knowledge/edges/${id}`, { sessionId }),
+    knowledgeMembership: (body) => api.post('/api/knowledge/memberships', body),
     semanticStatus: () => api.get('/api/research/semantic/status'),
     semanticDownload: () => api.post('/api/research/semantic/download'),
     semanticRebuild: () => api.post('/api/research/semantic/rebuild'),

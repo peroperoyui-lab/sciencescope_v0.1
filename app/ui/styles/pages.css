@@ -311,3 +311,133 @@
 .journal-savebar > span {
   margin-right: auto;
 }
+
+/* ---------- Knowledge base page (PageKnowledge, table view) ---------- */
+.research-base .ss-header__title {
+  align-items: center;
+  gap: var(--sp-4);
+}
+.research-base .ss-tabs {
+  min-width: 0;
+  overflow-x: auto;
+}
+.kb-content {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-12);
+  padding: 0 10px 12px;
+}
+.kb-content > section {
+  display: grid;
+  gap: var(--sp-6);
+}
+.kb-status {
+  font-size: 12px;
+  white-space: nowrap;
+}
+.kb-filter {
+  width: 280px;
+}
+.kb-filter .ss-select {
+  width: 100%;
+}
+.kb-row-icon {
+  display: inline-grid;
+  place-items: center;
+}
+.kb-row-icon > .ss-i {
+  color: var(--kind, var(--muted));
+}
+.kb-hit {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.kb-hit__text {
+  white-space: normal;
+}
+.kb-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-8);
+}
+.kb-empty > p {
+  margin: 0;
+  color: var(--muted);
+}
+.kb-imports > p {
+  margin: 0;
+  font-size: 12px;
+}
+.kb-panel__body {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-16);
+}
+.kb-panel__body > section {
+  min-width: 0;
+}
+.kb-panel__body .ss-props {
+  margin: 0;
+}
+.kb-break {
+  overflow-wrap: anywhere;
+}
+.kb-count {
+  font-weight: 400;
+}
+.kb-note {
+  margin: 0;
+  font-size: 12px;
+}
+.kb-item-body {
+  min-width: 0;
+}
+.kb-rel__open {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.kb-rel__open:hover {
+  text-decoration: underline;
+}
+.kb-rel__remove {
+  visibility: hidden;
+}
+.kb-rel:hover .kb-rel__remove,
+.kb-rel:focus-within .kb-rel__remove {
+  visibility: visible;
+}
+.ss-cite--missing {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.kb-labels {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.kb-label > button {
+  display: inline-grid;
+  place-items: center;
+  margin: 0 -2px 0 2px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.kb-label > button > .ss-i {
+  width: 12px;
+  height: 12px;
+}
+.kb-label-input {
+  width: 120px;
+}

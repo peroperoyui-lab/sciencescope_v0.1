@@ -97,6 +97,11 @@ test(
           return value;
         };
         await api('/api/meetings/' + main.id + '/minutes/refresh', {});
+        const memoryTab = async (name) => {
+          await page.locator('[data-rb-tab="memory"]').click();
+          // The inbox entry ends with its count.
+          await page.getByRole('menuitem', { name: new RegExp(`^${name}( \\d+)?$`) }).click();
+        };
         await page.goto(new URL('/?token=ui-token#/meeting/' + main.id, page.url()).href);
         await page.getByRole('button', { name: '工作区菜单', exact: true }).click();
         await page.getByRole('menuitem', { name: '整理这段对话', exact: true }).click();
@@ -115,7 +120,7 @@ test(
         await external.getByRole('button', { name: '定位到消息', exact: true }).click();
         await page.locator('[data-message-id="' + evidence[0].id + '"][data-target]').waitFor();
         await page.locator('.ss-sidebar [data-route="database"]').click();
-        await page.locator('[data-rb-tab="inbox"]').click();
+        await memoryTab('记忆收件箱');
         await external.getByRole('button', { name: '修改后接受', exact: true }).click();
         await external.getByLabel('标题', { exact: true }).fill('Confirmed external association');
         await external
@@ -129,7 +134,7 @@ test(
         await pending.nth(1).getByRole('checkbox').check();
         await page.getByRole('button', { name: '拒绝所选', exact: true }).click();
         await page.locator('[data-rb-proposal]').first().waitFor({ state: 'detached' });
-        await page.locator('[data-rb-tab="brief"]').click();
+        await memoryTab('项目简报');
         await page
           .locator('[data-rb-brief-text]', { hasText: 'Confirmed external association' })
           .waitFor();
@@ -137,7 +142,7 @@ test(
         assert.equal(await page.locator('[data-rb-brief-text]').textContent(), brief.text);
         assert.doesNotMatch(brief.text, /Rejected lesson/u);
         await shot('r4-4c-memory-brief-zh');
-        await page.locator('[data-rb-tab="memory"]').click();
+        await memoryTab('记忆');
         const active = page.locator('[data-rb-item]', {
           hasText: 'Confirmed external association',
         });
@@ -147,20 +152,20 @@ test(
         await history.getByRole('button', { name: '撤销', exact: true }).first().click();
         await history.getByRole('button', { name: '已撤销', exact: true }).first().waitFor();
         await history.getByRole('button', { name: '关闭', exact: true }).click();
-        await page.locator('[data-rb-tab="inbox"]').click();
+        await memoryTab('记忆收件箱');
         const restored = page.locator('[data-rb-proposal]', {
           hasText: 'External evidence decision',
         });
         await restored.waitFor();
         await restored.getByRole('button', { name: '接受', exact: true }).click();
         await restored.waitFor({ state: 'detached' });
-        await page.locator('[data-rb-tab="brief"]').click();
+        await memoryTab('项目简报');
         await page
           .locator('[data-rb-brief-text]', { hasText: 'External evidence decision' })
           .waitFor();
         await page.getByRole('button', { name: '视图', exact: true }).click();
         await page.getByRole('menuitemcheckbox', { name: 'English', exact: true }).click();
-        await page.locator('[data-rb-tab="memory"]', { hasText: 'Memory' }).waitFor();
+        await page.locator('[data-rb-tab="memory"]', { hasText: 'Project brief' }).waitFor();
         const interfaceText = await page.locator('.research-base').evaluate((element) => {
           const copy = element.cloneNode(true);
           /** @type {Element} */ (copy).querySelector('[data-rb-brief-text]')?.remove();
