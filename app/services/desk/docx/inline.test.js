@@ -31,7 +31,7 @@ async function fixture(t, body) {
 
 async function changed(bytes, before, inlines) {
   const block = before.blocks[0];
-  const after = await readDocx(await writeDocx(bytes, { [block.id]: inlines }));
+  const after = await readDocx((await writeDocx(bytes, { [block.id]: inlines })).bytes);
   assert.equal(before.xml.slice(0, block.start), after.xml.slice(0, after.blocks[0].start));
   assert.equal(before.xml.slice(block.end), after.xml.slice(after.blocks[0].end));
   for (const [name, entry] of Object.entries(before.zip.files)) {
@@ -239,12 +239,14 @@ test('direct formatting recognizes off values, preserves fonts and supports addi
     added.raw(added.runs[0].rPr),
     '<w:rPr><w:rStyle w:val="NotExpanded"/><w:rFonts w:eastAsia="宋体"/><w:b/><w:i/><w:color w:val="123456"/><w:u w:val="single"/></w:rPr>',
   );
-  const removedBytes = await writeDocx(
-    await writeDocx(bytes, {
-      [before.blocks[0].id]: before.blocks[0].inlines.map((inline, index) =>
-        index === 0 ? { ...inline, marks: ['b', 'i', 'u'] } : inline,
-      ),
-    }),
+  const { bytes: removedBytes } = await writeDocx(
+    (
+      await writeDocx(bytes, {
+        [before.blocks[0].id]: before.blocks[0].inlines.map((inline, index) =>
+          index === 0 ? { ...inline, marks: ['b', 'i', 'u'] } : inline,
+        ),
+      })
+    ).bytes,
     {
       [added.blocks[0].id]: added.blocks[0].inlines.map((inline, index) =>
         index === 0 ? { ...inline, marks: [] } : inline,

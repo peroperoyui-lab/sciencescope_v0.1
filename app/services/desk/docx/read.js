@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import { indexXml } from './xml.js';
 import { createInlineReader } from './inlines.js';
+import { readComments } from './comments-read.js';
 
 function ancestors(span, spans) {
   const result = [];
@@ -52,6 +53,7 @@ function readBlocks(xml, spans) {
       name: paragraph.name,
       selfClosing: paragraph.selfClosing,
       pPr,
+      parent: paragraph.parent,
     };
   });
   return { ...reader, blocks };
@@ -68,14 +70,6 @@ export async function readDocx(bytes) {
   const xml = await zip.file('word/document.xml').async('string');
   const spans = indexXml(xml);
   const commentsXml = (await zip.file('word/comments.xml')?.async('string')) ?? null;
-  const comments = commentsXml
-    ? indexXml(commentsXml)
-        .filter((span) => span.tag === 'w:comment')
-        .map((span) => ({
-          ...span,
-          id: span.attrs['w:id'],
-          author: span.attrs['w:author'],
-        }))
-    : [];
-  return { bytes, zip, xml, spans, ...readBlocks(xml, spans), commentsXml, comments };
+  const document = { bytes, zip, xml, spans, ...readBlocks(xml, spans), commentsXml };
+  return { ...document, comments: await readComments(document) };
 }

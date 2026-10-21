@@ -90,7 +90,7 @@ test('edit Chinese text and append a comment while preserving runs, atomic XML, 
     const inlines = block.inlines.map((inline) =>
       inline.text === '中文结果😀。' ? { ...inline, text: '中文结果已核实😀。' } : inline,
     );
-    const output = await writeDocx(
+    const { bytes: output } = await writeDocx(
       bytes,
       { [block.id]: inlines },
       {
@@ -124,7 +124,7 @@ test('edit Chinese text and append a comment while preserving runs, atomic XML, 
         name,
       );
     }
-    assert.deepEqual(await writeDocx(bytes, {}), bytes);
+    assert.deepEqual((await writeDocx(bytes, {})).bytes, bytes);
   } finally {
     await temporary.cleanup();
   }
@@ -135,7 +135,7 @@ test('first comment registers package parts once and text inserted at the paragr
   const before = await readDocx(bytes);
   const block = before.blocks[1];
   const changed = [{ text: '段首新增。' }, ...block.inlines];
-  const output = await writeDocx(
+  const { bytes: output } = await writeDocx(
     bytes,
     { [block.id]: changed },
     {

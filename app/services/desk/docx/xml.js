@@ -5,6 +5,9 @@ const namespaces = {
   [WORD]: 'w',
   'http://schemas.openxmlformats.org/officeDocument/2006/math': 'm',
   'http://schemas.microsoft.com/office/word/2010/wordml': 'w14',
+  'http://schemas.microsoft.com/office/word/2012/wordml': 'w15',
+  'http://schemas.microsoft.com/office/word/2016/wordml/cid': 'w16cid',
+  'http://schemas.microsoft.com/office/word/2018/wordml/cex': 'w16cex',
 };
 
 /**
@@ -78,4 +81,22 @@ export function appendXml(xml, content) {
   if (root.selfClosing)
     return xml.slice(0, root.openEnd - 2) + '>' + content + `</${root.name}>` + xml.slice(root.end);
   return xml.slice(0, root.closeStart) + content + xml.slice(root.closeStart);
+}
+
+/**
+ * Apply disjoint replacements without serializing untouched XML.
+ * @param {string} xml
+ * @param {any[]} edits
+ * @returns {string}
+ */
+export function patchXml(xml, edits) {
+  let cursor = 0;
+  let result = '';
+  for (const edit of edits.sort(
+    (left, right) => left.start - right.start || left.end - right.end,
+  )) {
+    result += xml.slice(cursor, edit.start) + (edit.text ?? '');
+    cursor = edit.end;
+  }
+  return result + xml.slice(cursor);
 }

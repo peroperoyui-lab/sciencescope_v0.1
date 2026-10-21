@@ -1,4 +1,5 @@
 import { appendXml, escapeXml, indexXml, WORD } from './xml.js';
+import { WORD14 } from './ids.js';
 
 const relationship = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments';
 const contentType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml';
@@ -20,14 +21,18 @@ export async function appendComments(document, additions) {
       .map((span) => Number(span.attrs['w:id'])),
   ].filter(Number.isFinite);
   let next = Math.max(-1, ...ids) + 1;
-  const assigned = additions.map((comment) => ({ ...comment, id: String(next++) }));
+  const assigned = additions.map((comment) => ({
+    ...comment,
+    id: String(next++),
+    paraId: document.allocateId(),
+  }));
   const xml =
     document.commentsXml ??
     `<?xml version="1.0" encoding="UTF-8"?><w:comments xmlns:w="${WORD}"></w:comments>`;
   const content = assigned
     .map(
       (comment) =>
-        `<w:comment xmlns:w="${WORD}" w:id="${comment.id}" w:author="${escapeXml(comment.author)}" w:date="${escapeXml(comment.date ?? new Date().toISOString())}"><w:p><w:r><w:t xml:space="preserve">${escapeXml(comment.text)}</w:t></w:r></w:p></w:comment>`,
+        `<w:comment xmlns:w="${WORD}" xmlns:w14="${WORD14}" w:id="${comment.id}" w:author="${escapeXml(comment.author)}" w:initials="${escapeXml(comment.initials ?? '')}" w:date="${escapeXml(comment.date ?? new Date().toISOString())}"><w:p w14:paraId="${comment.paraId}"><w:r><w:t xml:space="preserve">${escapeXml(comment.text)}</w:t></w:r></w:p></w:comment>`,
     )
     .join('');
   zip.file('word/comments.xml', appendXml(xml, content));

@@ -67,13 +67,15 @@ E0 是第一步，约 2–3 天，报告放 `.sciencescope-local/temp/desk-e0/`�
 
 **E0b 结果（2026-10-20，Sol 做、Claude 审）：自研路线可行，定稿。** 原型在 `app/services/desk/docx/`（读、写、追加批注）和 `app/services/desk/compare.js`（两层对齐）。三份中文稿改一句、加批注后 Word 和 WPS 都无修复提示，中文字体和未改内容保留；目录、REF 域和已有修订用带 188 个公式的受控副本验证了 F9 更新、接受和拒绝。英文稿和学位论文样本缺，在 alpha 前用真实论文走场景 1–7 时补测。审阅时把读入改成线性（4000 段从 3.5 秒降到 0.1 秒）。D2 要补的：含 `w:lastRenderedPageBreak`、`w:tab`、`w:br` 的文字段和 `w:hyperlink`、行内 `w:sdt` 现在整段当原子节点，Word 存过的稿件里很常见，要拆成「文字 + 原子」才能编辑；`w:b w:val="0"` 这类关闭标记要识别。D4 要补的：切句时块之间加段落分隔，避免没有句号的标题和下一段并成一句；空档很大时相似配对的二维表要限内存。
 
+**D2 结果（2026-10-21，Sol）：** 段内格式、拆段与增删段落、批注读写及回复链保留已完成；英文期刊、博士论文和含 188 个公式的受控稿在 Word/WPS 往返通过，含真实加粗/取消加粗、F9、接受/拒绝修订；博士论文 7,932 块读入 516.63 ms、写回 1,371.66 ms，详见本地 `temp/desk-d2/D2b.md`。
+
 **决定规则：** eigenpal 同时满足四条才采用：① 用到的包都是 Apache-2.0 或 MIT，编辑和批注不依赖 Pro 包；② 能挂进 Preact，不必打包整个 React；③ 3 份稿件全部通过第 11 节检查；④ 文档模型能在 Node 里无 DOM 运行。第 ④ 条最关键：AI 在界面没打开时也要能改文档，只能在浏览器里工作的编辑器意味着服务端另有一套写回器，两套模型迟早不一致。任何一条不满足就用自研方案；自研原型也通不过检查时，停下向用户报告，不降低标准。
 
 ### 3.4 docx 往返
 
 1. **读入**：jszip 解包；`saxes`（ISC）流式解析 `word/document.xml`，记下每个块级 `w:p`、每个 `w:r` 及其 `w:rPr`、每个原子节点在原字符串里的起止位置。不建 DOM，不重新序列化。`comments.xml` 同样解析。
 2. **写回**：只重新生成内容变了的块。`w:pPr`、没变的文字段、原子节点原文照抄；改动的文字生成新 `w:r`，`w:rPr` 继承改动起点所在的原文字段（段首时继承后一个），中文的 `w:rFonts w:eastAsia` 因此不丢；文字用 `<w:t xml:space="preserve">`。块之间的字节（`w:sectPr`、表格结构等）原样拼接。其他部件（样式、编号、页眉页脚、媒体、`settings.xml`）字节不变，只有新增批注时改 `comments.xml`、`[Content_Types].xml` 和 `document.xml.rels`。
-3. **批注**：新批注写入 `comments.xml`（没有就创建并登记），正文插入 id 相同的 `w:commentRangeStart`、`w:commentRangeEnd` 和 `w:commentReference`；作者是用户显示名，AI 写"ScienceScope · <角色名>"。已有批注可改文字、删除；回复和解决状态（`commentsExtended.xml`）只读。
+3. **批注**：读取 id、作者、缩写、日期、纯文本、块及内联边界、回复父 id 和解决状态；线程按批注最后一个段落的 paraId 对应 `commentsExtended.xml`，无扩展时按顶层未解决处理。新批注写入 `comments.xml`（没有就创建并登记），正文插入同 id 的范围和引用标记；作者、缩写由调用方传入。修改文字时合为一段，保留首段/首文字段格式和线程身份；删除时连同回复、正文标记以及 `commentsExtended.xml`、`commentsIds.xml`、`commentsExtensible.xml` 对应项一起删除。回复和解决状态只读；删正文段落则把书签和批注标记移至后一个保留段落开头，无后段时放前段末尾。
 4. **显示**：OMML 用 omml2mathml 转 MathML（许可证 E0 核实，不合适就显示公式的线性文字）；图片按关系 id 从包里取字节。
 
 ### 3.5 文件放在哪里
@@ -254,15 +256,15 @@ CREATE TABLE manuscript_bindings (
 
 ## 9. 依赖与许可证
 
-| 库                                                                         | 用途                                  | 许可证                                                           | 体积                                   | 状态                                               |
-| -------------------------------------------------------------------------- | ------------------------------------- | ---------------------------------------------------------------- | -------------------------------------- | -------------------------------------------------- |
-| prosemirror-model、-state、-view、-transform、-commands、-keymap、-history | docx 正文编辑                         | MIT                                                              | 合计压缩后约 150–200 KB（推断，E0 量） | 新增                                               |
-| `@codemirror/commands`                                                     | tex 编辑的撤销和按键                  | MIT                                                              | 数十 KB（推断）                        | 新增；state、view、language、legacy-modes 已在依赖 |
-| saxes                                                                      | 服务端 XML 流式解析，带位置           | ISC                                                              | 约 50 KB，依赖 xmlchars（MIT）         | 新增                                               |
-| 已有：jszip、diff、docx-preview、pdfjs-dist、mammoth                       | 解包、比较、版式视图、PDF、文字提取   | MIT/GPLv3 双许可（按 MIT）、BSD-3、Apache-2.0、Apache-2.0、BSD-2 | 已随包                                 | 不变                                               |
-| omml2mathml 1.3.0（scienceai/npm）                                          | OMML 公式显示                         | Apache-2.0，2026-10-21 已读[仓库 LICENSE 全文](https://github.com/scienceai/omml2mathml/blob/master/LICENSE) | 小                                     | D2a 未引入；当前显示 `m:t` 拼接的线性文字             |
-| eigenpal docx-editor                                                       | 只在通过第 3.3 节规则时替代自研编辑器 | 核心 Apache-2.0；`packages/pro` 为 EigenPal Pro 许可，**需核实** | 未知                                   | E0 试验                                            |
-| Tectonic                                                                   | 可选的 tex 编译器                     | MIT                                                              | 单个可执行文件，数十 MB（推断，E0 量） | 不随包，按需下载                                   |
+| 库                                                                         | 用途                                  | 许可证                                                                                                       | 体积                                   | 状态                                               |
+| -------------------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------- | -------------------------------------------------- |
+| prosemirror-model、-state、-view、-transform、-commands、-keymap、-history | docx 正文编辑                         | MIT                                                                                                          | 合计压缩后约 150–200 KB（推断，E0 量） | 新增                                               |
+| `@codemirror/commands`                                                     | tex 编辑的撤销和按键                  | MIT                                                                                                          | 数十 KB（推断）                        | 新增；state、view、language、legacy-modes 已在依赖 |
+| saxes                                                                      | 服务端 XML 流式解析，带位置           | ISC                                                                                                          | 约 50 KB，依赖 xmlchars（MIT）         | 新增                                               |
+| 已有：jszip、diff、docx-preview、pdfjs-dist、mammoth                       | 解包、比较、版式视图、PDF、文字提取   | MIT/GPLv3 双许可（按 MIT）、BSD-3、Apache-2.0、Apache-2.0、BSD-2                                             | 已随包                                 | 不变                                               |
+| omml2mathml 1.3.0（scienceai/npm）                                         | OMML 公式显示                         | Apache-2.0，2026-10-21 已读[仓库 LICENSE 全文](https://github.com/scienceai/omml2mathml/blob/master/LICENSE) | 小                                     | D2a 未引入；当前显示 `m:t` 拼接的线性文字          |
+| eigenpal docx-editor                                                       | 只在通过第 3.3 节规则时替代自研编辑器 | 核心 Apache-2.0；`packages/pro` 为 EigenPal Pro 许可，**需核实**                                             | 未知                                   | E0 试验                                            |
+| Tectonic                                                                   | 可选的 tex 编译器                     | MIT                                                                                                          | 单个可执行文件，数十 MB（推断，E0 量） | 不随包，按需下载                                   |
 
 **不用：** SuperDoc、ONLYOFFICE、Overleaf、SwiftLaTeX（AGPL）；lang-tex、texlab、latexdiff、BlockNote 的 `xl-` 包（GPL）；CKEditor、Tiptap 转换、Syncfusion、Univer Pro（商业或云）；pandoc 不做编辑往返。
 
