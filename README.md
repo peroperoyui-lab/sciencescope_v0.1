@@ -5,142 +5,122 @@
 <h1 align="center">ScienceScope</h1>
 
 <p align="center">
-  在本机运行的学术研究助手：几位 AI 专家和你一起讨论，读资料、做分析、改文稿，并记得整个项目的来龙去脉。<br>
-  A local-first research assistant where a small panel of AI experts works through your project with you.
+  A research assistant that runs on your own computer: a small panel of AI experts reads sources, runs analyses and revises drafts with you, and remembers the whole history of your project.
 </p>
 
 <p align="center">
-  <a href="#english">English</a> ·
-  <a href="docs/README.md">文档</a> ·
-  <a href="docs/plans/ROADMAP.md">路线图</a> ·
+  <a href="README.zh-CN.md">简体中文</a> ·
+  <a href="docs/README.md">Docs (Chinese)</a> ·
+  <a href="docs/plans/ROADMAP.md">Roadmap</a> ·
   <a href="LICENSE">MIT</a>
 </p>
 
-![一次三位专家参与的讨论](docs/images/readme/chat.png)
+![A discussion with three experts](docs/images/readme/en/chat.png)
 
-> 状态：`1.0.0-alpha.0` 预览，正在向 1.0.0-alpha 推进。还没有正式发布的安装包，预览包没有数字签名。截图里的项目和对话都是演示数据。
+> Status: `1.0.0-alpha.0` preview, working towards 1.0.0-alpha. There is no released installer yet, and preview builds are not code-signed. Projects and chats in the screenshots are demo data.
 
-## 它能做什么
+## What it does
 
-做研究的人手上往往有一个持续几个月的课题、大量文献和数据。ScienceScope 希望 AI 不只是回答一个问题，而是记得项目的来龙去脉，能动手读、算、写，并且每一步都看得见、改得回来。
+Researchers usually carry one topic for months, with a pile of papers, data and drafts. ScienceScope wants the AI to do more than answer one question: it should remember where the project came from, be able to read, compute and write, and keep every step visible and reversible.
 
 ```
-导入资料 → 多位专家与你讨论 → 秘书整理纪要和下一步 → 修改计划、导图、日志与文稿 → 下次接着做
+Import sources → experts discuss with you → secretary writes minutes and next steps → edit plans, maps, logs and drafts → pick up next time
 ```
 
-**专家小组。** 主专家持续处理当前任务；方法学家、统计审稿人、魔鬼代言人等可以被 @ 邀请并行作答，也可以在「有序讨论」里依次发言，最后由审核专家核查。每位专家可以用不同的模型。
+**An expert panel.** A lead expert keeps working on the current task. Others, such as a methodologist, a statistics reviewer or a devil's advocate, can be @-mentioned to answer in parallel, or take turns in an ordered discussion with a reviewer checking at the end. Each expert can use a different model.
 
-**任务秘书和全局助手。** 每个对话有一位秘书整理纪要、起草下一步提案；全局助手跨项目查阅，可以单独成窗口。
+**Secretary and global assistant.** Every chat has a secretary that keeps minutes and drafts the next step; a global assistant works across projects and can open in its own window.
 
-**知识库。** 所有项目共用一个知识库：文献、方法、数据集、变量、软件、人物和它们之间的关系。关系只来自原文或你明确说过的话，每条都记着出处；模型自己的推断不会进图。可以按表格浏览，也可以按图浏览，图视图按视野加载，五万节点的合成数据下平移帧时间中位数约 16.7 毫秒。
+**Knowledge base.** All projects share one knowledge base of papers, methods, datasets, variables, software and people, and the relations between them. A relation only comes from a source passage or from something you said, and records where it came from; the model's own guesses stay out of the graph. Browse it as a table or as a graph. The graph loads by viewport: on a 50,000-node synthetic graph the median pan frame is about 16.7 ms.
 
-![知识库图视图](docs/images/readme/graph.png)
+![The knowledge base as a graph](docs/images/readme/en/graph.png)
 
-| 文献与资料 | 文稿版本比较 |
+| Literature and materials | Comparing manuscript versions |
 |---|---|
-| ![知识库表格视图](docs/images/readme/library.png) | ![两个版本逐词比较](docs/images/readme/diff.png) |
+| ![The knowledge base as a table](docs/images/readme/en/library.png) | ![Word-level comparison of two versions](docs/images/readme/en/diff.png) |
 
-**工作站。** 计划、导图、日志和文稿版本，人和 AI 都能改，每次修改都留下可以恢复的历史版本；两个版本可以并排逐词比较。
+**Workbench.** Plans, mind maps, logs and manuscript versions that both you and the AI can edit. Every change is saved as a version you can restore, and two versions can be compared side by side, word by word.
 
-**AI 能动手，但要先问。** 所有角色共用一套工具：读写项目文件、运行 Python、查看图片、读网页。默认执行方式是「请求批准」：运行命令、写文件之前先问你，也可以按项目设置「总是允许」。还可以导入 `SKILL.md` 格式的技能、接入 MCP 服务器。
+**The AI can act, but asks first.** All roles share one tool set: read and write project files, run Python, look at images, read web pages. The default mode is "Ask for approval": the app asks before running a command or writing a file, and you can set "always allow" rules per project. Skills in `SKILL.md` format and MCP servers can be added.
 
-**模型。** 运行时基于 [pi-ai](https://github.com/earendil-works/pi)，内置 DeepSeek 官方接口和 OpenCode Go 订阅两个预设，只填密钥即可；也能添加其他 OpenAI 或 Anthropic 格式的兼容服务。
+**Models.** The runtime is built on [pi-ai](https://github.com/earendil-works/pi). Presets for the official DeepSeek API and the OpenCode Go subscription need only a key; other services in OpenAI or Anthropic format can be added.
 
-**数据在自己手里。** 所有内容都在安装目录的 `data/` 下：普通文件加一个 SQLite 数据库，离开应用也能读。密钥单独存放在 `data/secret/`。
+**Your data stays with you.** Everything lives under `data/` in the install folder: plain files plus one SQLite database, readable without the app. Keys are stored separately under `data/secret/`.
+
+**Two languages.** The whole interface is available in English and Chinese.
 
 <details>
-<summary>更多截图</summary>
+<summary>More screenshots</summary>
 
-| 欢迎页 | 专家设置 |
+| Welcome page | Expert settings |
 |---|---|
-| ![欢迎页](docs/images/readme/welcome.png) | ![专家角色设置](docs/images/readme/experts.png) |
+| ![Welcome page](docs/images/readme/en/welcome.png) | ![Expert role settings](docs/images/readme/en/experts.png) |
 
 </details>
 
-## 进度
+## Progress
 
-| 模块 | 状态 |
+| Area | Status |
 |---|---|
-| 对话与专家、有序讨论、并行 @ | 完成 |
-| 运行时与模型服务商（pi-ai） | 完成 |
-| 任务秘书、全局助手、记忆 | 完成 |
-| 工具、技能、MCP | 完成 |
-| 知识库：存储、索引、表格页、图视图、论文卡片后台 | 主体完成，继续打磨 |
-| 编辑台：docx / tex 编辑、版本图 | 后端进行中，界面待做 |
-| Windows 安装包 | 预览包可用，正式签名待定 |
+| Chats and experts, ordered discussion, parallel @-mentions | Done |
+| Runtime and model providers (pi-ai) | Done |
+| Secretary, global assistant, memory | Done |
+| Tools, skills, MCP | Done |
+| Knowledge base: storage, indexing, table page, graph view, paper-card pipeline | Mostly done, being refined |
+| Editing desk: docx / tex editing, version graph | Backend in progress, UI to come |
+| Windows installer | Preview builds work; signing to be decided |
 
-详细的现状见 [`docs/product/FEATURES.md`](docs/product/FEATURES.md)，计划见 [`docs/plans/ROADMAP.md`](docs/plans/ROADMAP.md)。
+The current state is described in [`docs/product/FEATURES.md`](docs/product/FEATURES.md) and the plan in [`docs/plans/ROADMAP.md`](docs/plans/ROADMAP.md) (both in Chinese).
 
-## 快速开始
+## Getting started
 
-需要 Node 22。
+Requires Node 22.
 
 ```sh
-npm ci                # 锁文件指向 npmmirror；海外网络可加 --registry=https://registry.npmjs.org --replace-registry-host=always
-npm run start:app     # 开发版，数据在 .sciencescope-local/data
-npm run check         # 格式、lint、类型检查和全部测试（约 340 个）
-npm run package       # Windows 安装包（NSIS），只在 Windows 上运行
+npm ci --registry=https://registry.npmjs.org --replace-registry-host=always
+                      # the lockfile points at npmmirror; inside China plain `npm ci` is faster
+npm run start:app     # development build, data in .sciencescope-local/data
+npm run check         # formatting, lint, type check and all tests (about 340)
+npm run package       # Windows installer (NSIS), Windows only
 ```
 
-浏览器测试需要 Chromium；Windows 原生外壳（Tauri）的构建环境见 [`docs/process/NATIVE_SETUP.md`](docs/process/NATIVE_SETUP.md)。
+Browser tests need Chromium. The build setup for the native Windows shell (Tauri) is in [`docs/process/NATIVE_SETUP.md`](docs/process/NATIVE_SETUP.md).
 
-## 架构
+## Architecture
 
 ```
-Tauri 外壳（Windows）
-  └─ Node 主进程 app/
-       ├─ core/       数据层：SQLite、事件、项目、对话、消息、轮次
-       ├─ services/   专家调度、秘书、工具、知识库、版本、编辑台、MCP、Python 环境
-       ├─ runtime/    智能体运行时（pi-ai + pi-agent-core），只通过运行时接口接入
-       ├─ server/     本机 HTTP 接口
-       └─ ui/         界面：Preact + htm，无构建步骤；图视图用 Cytoscape.js
+Tauri shell (Windows)
+  └─ Node main process  app/
+       ├─ core/       data layer: SQLite, events, projects, chats, messages, turns
+       ├─ services/   expert scheduling, secretary, tools, knowledge base, versions, editing desk, MCP, Python environments
+       ├─ runtime/    agent runtime (pi-ai + pi-agent-core), reached only through the runtime port
+       ├─ server/     local HTTP API
+       └─ ui/         interface: Preact + htm, no build step; the graph view uses Cytoscape.js
 ```
 
-知识库是同一个 SQLite 文件里的三层：无模型信号（引用、相似度）、便宜模型生成的「论文卡片」、按需的深度抽取；检索是混合搜索做种子，再沿图走一跳。设计见 [`docs/architecture/KNOWLEDGE_BASE.md`](docs/architecture/KNOWLEDGE_BASE.md)，整体架构见 [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md)。
+The knowledge base is three layers in the same SQLite file: model-free signals (citations, similarity), "paper cards" written by a cheap model, and deep extraction on demand. Retrieval seeds from hybrid search and then walks one hop of the graph. See [`docs/architecture/KNOWLEDGE_BASE.md`](docs/architecture/KNOWLEDGE_BASE.md) and [`docs/architecture/ARCHITECTURE.md`](docs/architecture/ARCHITECTURE.md).
 
-## 怎么开发的：Codex 和 Claude 协作
+## How it is built: Codex and Claude together
 
-这个项目由一位研究者主导，两个 AI 编程助手分工完成：
+One researcher leads the project, and two AI coding assistants share the work:
 
-- **Codex（OpenAI）** 在 Windows 本机按任务书实现后端功能、跑真实模型评测和安装包验收，每个任务一个 `codex/*` 分支。
-- **Claude（Anthropic）** 负责全部界面设计与实现，审阅 Codex 的分支、修小问题后合并，再写下一份任务书。
-- 作者本人做所有产品决定，并在自己的机器上做最终测试。
+- **Codex (OpenAI)** implements backend features from written task briefs on a Windows machine, runs real-model evaluations and installer acceptance, one `codex/*` branch per task.
+- **Claude (Anthropic)** designs and builds the whole interface, reviews Codex's branches, fixes small issues, merges them, and writes the next brief.
+- The author makes every product decision and does the final testing on their own machine.
 
-整个过程都留在仓库里：每份任务书在 [`docs/plans/tasks/`](docs/plans/tasks/)，审阅清单在 [`docs/process/REVIEW_CHECKLIST.md`](docs/process/REVIEW_CHECKLIST.md)，验收规则在 [`docs/process/ACCEPTANCE.md`](docs/process/ACCEPTANCE.md)，每次合并的记录在 [`docs/log/IMPLEMENTATION_LOG.md`](docs/log/IMPLEMENTATION_LOG.md)，作者的一百多条决定和理由在 [`docs/decisions/DECISIONS.md`](docs/decisions/DECISIONS.md)。开发规则写在 [`AGENTS.md`](AGENTS.md)。
+The whole process is in the repository: every task brief in [`docs/plans/tasks/`](docs/plans/tasks/), the review checklist in [`docs/process/REVIEW_CHECKLIST.md`](docs/process/REVIEW_CHECKLIST.md), the acceptance rules in [`docs/process/ACCEPTANCE.md`](docs/process/ACCEPTANCE.md), a record of every merge in [`docs/log/IMPLEMENTATION_LOG.md`](docs/log/IMPLEMENTATION_LOG.md), and more than a hundred of the author's decisions with their reasons in [`docs/decisions/DECISIONS.md`](docs/decisions/DECISIONS.md). Development rules are in [`AGENTS.md`](AGENTS.md). The docs are in Chinese.
 
-## 目录
+## Repository layout
 
-| 目录 | 内容 |
+| Folder | Contents |
 |---|---|
-| `app/` | 新核心：数据、服务、运行时、HTTP 接口和界面 |
-| `src-tauri/` | Windows 原生外壳 |
-| `tools/` | 打包脚本和品牌资源 |
-| `docs/` | 文档，从 [`docs/README.md`](docs/README.md) 开始 |
-| `ScienceScope.html`、`reference/` | 视觉基线：logo、配色和美术风格的来源 |
-| `desktop/`、`scripts/`、`adapters/`、`src/`、`qa/`、`tests/`、`screenshots/` | 旧原型，已冻结，之后删除 |
+| `app/` | The new core: data, services, runtime, HTTP API and interface |
+| `src-tauri/` | Native Windows shell |
+| `tools/` | Packaging scripts and brand assets |
+| `docs/` | Documentation, starting at [`docs/README.md`](docs/README.md) |
+| `ScienceScope.html`, `reference/` | Visual baseline: the source of the logo, colours and art style |
+| `desktop/`, `scripts/`, `adapters/`, `src/`, `qa/`, `tests/`, `screenshots/` | The old prototype, frozen, to be removed |
 
-## 许可证与署名
+## License and credits
 
-[MIT](LICENSE)。Publisher：**peroperoyui**。Contributors：**Codex**（OpenAI，AI 辅助开发）、**Claude**（Anthropic，AI 辅助设计、审阅与开发）。此署名不是 Windows 数字签名。
-
----
-
-<a id="english"></a>
-
-## English
-
-ScienceScope is a desktop research assistant that runs on your own machine. A main expert works on the current task; other experts (methodologist, statistics reviewer, devil's advocate) can be @-mentioned to answer in parallel or take turns in an ordered discussion, with a reviewer checking at the end. A secretary keeps minutes and drafts next steps; a global assistant works across projects.
-
-- **Knowledge base.** One shared base of papers, methods, datasets, variables, software and people. Every relation comes from a source passage or something you said, and records where it came from; model guesses stay out of the graph. Browse it as a table or as a graph that loads by viewport (median pan frame about 16.7 ms on a 50,000-node synthetic graph).
-- **Workstation.** Plans, mind maps, logs and manuscript versions that both you and the AI can edit, each change saved as a restorable version, with word-level version comparison.
-- **Tools with approval.** All roles share one tool set (project files, Python, images, web pages). By default the app asks before running commands or writing files. Skills (`SKILL.md`) and MCP servers can be added.
-- **Models.** Built on [pi-ai](https://github.com/earendil-works/pi): DeepSeek and OpenCode Go presets need only a key; other OpenAI- or Anthropic-format services can be added.
-- **Your data stays local.** Everything lives under `data/` in the install folder as plain files plus one SQLite database. Keys are stored separately under `data/secret/`.
-
-The interface is in Chinese and English. Status: `1.0.0-alpha.0` preview; no signed release yet. Screenshots use demo data.
-
-**Development.** Node 22: `npm ci`, `npm run start:app`, `npm run check`. Outside China, add `--registry=https://registry.npmjs.org --replace-registry-host=always` to `npm ci`.
-
-**How it is built.** One researcher makes the product decisions. Codex (OpenAI) implements backend tasks from written briefs on Windows and runs real-model and installer acceptance; Claude (Anthropic) designs and builds the whole UI, reviews and merges Codex's branches and writes the next brief. Briefs, review checklist, merge log and decision record are all in [`docs/`](docs/README.md) (Chinese).
-
-License: [MIT](LICENSE).
+[MIT](LICENSE). Publisher: **peroperoyui**. Contributors: **Codex** (OpenAI, AI-assisted development) and **Claude** (Anthropic, AI-assisted design, review and development). This credit is not a Windows code signature.
