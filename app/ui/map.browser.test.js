@@ -101,7 +101,11 @@ test(
       await page.getByRole('button', { name: '返回工作站' }).click();
       await page.locator('.wb-map [data-edge]').waitFor();
       await page.getByRole('button', { name: '打开研究导图编辑窗口' }).click();
-      await page.getByRole('button', { name: '历史版本', exact: true }).click();
+      // The workstation has its own 历史版本 buttons; use the editor's once it is open.
+      await page
+        .locator('.editortop')
+        .getByRole('button', { name: '历史版本', exact: true })
+        .click();
       await page
         .getByRole('dialog', { name: '历史版本', exact: true })
         .locator('[data-snapshot-group="map"] [data-snapshot-id]')
