@@ -27,6 +27,7 @@
     "@huggingface/transformers": "4.3.0",
     "@modelcontextprotocol/sdk": "1.32.1",
     "@napi-rs/canvas": "1.0.9",
+    "cytoscape": "3.34.3",
     "diff": "9.0.0",
     "docx-preview": "0.4.1",
     "dompurify": "3.4.16",

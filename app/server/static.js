@@ -18,6 +18,7 @@ const VENDOR = {
   'marked.js': path.join(modules, 'marked', 'lib', 'marked.esm.js'),
   'purify.js': path.join(modules, 'dompurify', 'dist', 'purify.es.mjs'),
   'katex.js': path.join(modules, 'katex', 'dist', 'katex.mjs'),
+  'cytoscape.js': path.join(modules, 'cytoscape', 'dist', 'cytoscape.esm.min.mjs'),
 };
 const FONT_ROOT = path.join(modules, '@fontsource-variable', 'noto-sans-sc');
 const LOGO = path.join(repoRoot, 'reference', 'ScienceScope_Logo.png');

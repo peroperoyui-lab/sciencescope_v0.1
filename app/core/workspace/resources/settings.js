@@ -28,6 +28,8 @@ export const DEFAULT_SETTINGS = {
     // Where the knowledge page opens: 'global' knowledge base or the current
     // project's 'project' database; the last choice is kept.
     knowledgeScope: 'global',
+    // The knowledge base as a 'table' (lists) or a 'graph'; the last choice is kept.
+    knowledgeView: 'table',
   },
   // Window shortcuts, recorded in Settings → 快捷键.
   shortcuts: {

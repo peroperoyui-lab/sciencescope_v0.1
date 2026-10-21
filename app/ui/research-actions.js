@@ -28,6 +28,8 @@ export function createResearchActions(api) {
     knowledgeEntities: (options) => api.get(`/api/knowledge/entities?${query(options)}`),
     knowledgeEntity: (id) => api.get(`/api/knowledge/entities/${id}?edgesLimit=200`),
     knowledgeEdges: (ref) => api.get(`/api/knowledge/edges?${query({ ref, limit: 200 })}`),
+    knowledgeEdgesOf: (ref, options) =>
+      api.get(`/api/knowledge/edges?${query({ ref, ...options })}`),
     knowledgeHistory: (ref) => api.get(`/api/knowledge/history?${query({ ref, limit: 20 })}`),
     restoreKnowledgeRevision: (id) => api.post(`/api/knowledge/revisions/${id}/restore`),
     restoreKnowledgeVersion: (id) => api.post(`/api/knowledge/versions/${id}/restore`),
@@ -54,6 +56,19 @@ export function createResearchActions(api) {
     removeKnowledgeEdge: (id, sessionId) =>
       api.request('DELETE', `/api/knowledge/edges/${id}`, { sessionId }),
     knowledgeMembership: (body) => api.post('/api/knowledge/memberships', body),
+    createKnowledgeEdge: (body) => api.post('/api/knowledge/edges', body),
+    knowledgeMergePreview: (into, from) =>
+      api.get(`/api/knowledge/entities/merge-preview?${query({ into, from: from.join(',') })}`),
+    mergeKnowledgeEntities: (body) => api.post('/api/knowledge/entities/merge', body),
+    knowledgeGraph: (options) => api.get(`/api/knowledge/graph?${query(options)}`),
+    knowledgeLayout: (projectId) =>
+      api.get(`/api/knowledge/layout?${query({ projectId: projectId ?? undefined })}`),
+    knowledgeViewport: (refs, projectId) =>
+      api.post('/api/knowledge/viewport', { refs, ...(projectId ? { projectId } : {}) }),
+    saveKnowledgePositions: (positions) => api.patch('/api/knowledge/positions', { positions }),
+    rerunKnowledgeLayout: (projectId) => api.post('/api/knowledge/layout/rerun', { projectId }),
+    openKnowledgeSession: (projectId) => api.post('/api/knowledge/session', { projectId }),
+    knowledgeSessionStep: (id, step) => api.post(`/api/knowledge/session/${id}/${step}`),
     semanticStatus: () => api.get('/api/research/semantic/status'),
     semanticDownload: () => api.post('/api/research/semantic/download'),
     semanticRebuild: () => api.post('/api/research/semantic/rebuild'),

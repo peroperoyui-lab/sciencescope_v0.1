@@ -67,6 +67,9 @@ const relationNames = {
   'in-folder': '位于',
 };
 
+/** Relation keys with a built-in name, in the order the picker offers them. */
+export const relationKeys = Object.keys(relationNames);
+
 /** @param {string} kind */
 export const kindLabel = (kind) =>
   kindNames[kind] ? t(kindNames[kind]) : researchLabel(kind) || kind;

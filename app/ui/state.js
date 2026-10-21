@@ -50,6 +50,8 @@ export const initialState = {
   memoryVersion: 0,
   /** @type {null|{projectId:string|null,at:number}} */ memoryInboxRequest: null,
   researchVersion: 0,
+  // Bumped when the host moves graph nodes (knowledge.layout.changed).
+  layoutVersion: 0,
   /** @type {Record<string, any>} */ researchDrafts: {},
   /** @type {any} */ materialsTarget: null,
   /** @type {any} */ previewTarget: null,
@@ -186,6 +188,8 @@ export function applyEvent(state, { type, payload }) {
     case 'memory.changed':
     case 'research.changed':
       return { ...state, researchVersion: state.researchVersion + 1 };
+    case 'knowledge.layout.changed':
+      return { ...state, layoutVersion: state.layoutVersion + 1 };
     case 'research.semantic.changed':
       return { ...state, semanticVersion: state.semanticVersion + 1, semanticStatus: payload };
     case 'secretary.proposal.updated':

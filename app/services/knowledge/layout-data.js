@@ -51,13 +51,14 @@ export function layoutIndex(db, projectId = null) {
   const rows = db
     .prepare(
       `WITH nodes AS (${NODES_SQL})
-    SELECT n.ref,n.kind,p.x,p.y FROM nodes n LEFT JOIN kb_positions p ON p.ref=n.ref WHERE ${scope}`,
+    SELECT n.ref,n.kind,p.x,p.y,p.pinned FROM nodes n LEFT JOIN kb_positions p ON p.ref=n.ref WHERE ${scope}`,
     )
     .all(...scopeValues(projectId));
   const nodes = [],
     missing = rows.filter((row) => row.x == null);
   for (const row of rows)
-    if (row.x != null) nodes.push([row.ref, row.x, row.y, row.kind, degree.get(row.ref) ?? 0]);
+    if (row.x != null)
+      nodes.push([row.ref, row.x, row.y, row.kind, degree.get(row.ref) ?? 0, Number(row.pinned)]);
   return { nodes, pending: missing.length };
 }
 

@@ -1,5 +1,10 @@
 # 实施记录
 
+## 2026-10-21 KB-10 知识库图视图（Claude）
+
+- 知识库页加「表格 / 图」切换（只在全局知识库；设置 `appearance.knowledgeView`）。图用 Cytoscape.js 3.34.3（MIT，新依赖，`/vendor/cytoscape.js` 按需加载），不用 edgehandles、fcose、rbush：拖线、空间查询自己写。`knowledge-map.js` 管画布（按视野加载、1500 节点 / 5000 边上限、下层点阵、拖线），`components/knowledge-graph.js` 管中心与深度、筛选、右键菜单、关系菜单、合并对话框、悬停卡片、页内撤销（一个编辑会话）、重新排列。位置索引多返回 pinned（第 6 项）。
+- 5 万节点 / 50 万边合成数据（云端无 GPU）：关系名全画时平移一帧 100–180 毫秒，改为边超过 300 条只给中心、选中、悬停的边写关系名，拖动时用快照，极小点画方块；之后平移中位数 16.7 毫秒。新测试 `knowledge-graph.browser.test.js`（设中心、深度、拖线、反向、撤销重做、Shift 多选合并、拖动钉住、筛选）。
+
 ## 2026-10-21 KB-10a 审查合并（Claude）
 
 - 合并 KB-10a（迁移 026、graphology 0.26.0 / forceatlas2 0.10.1，MIT）。唯一超标项 `layout` 接口（Windows 2.96 秒）：节点度数原来每个节点两条子查询，改成按 `kb_edges_from`、`kb_edges_to` 两个索引各分组统计一次再合并（自环按图论算 2）；同一 5 万节点、50 万边合成数据在云端从 1.5 秒降到 0.3–0.6 秒，Windows 待 Sol 下次顺带复测。check 313 过 / 3 跳过。

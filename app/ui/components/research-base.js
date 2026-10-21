@@ -20,6 +20,7 @@ import {
   ResearchSources,
 } from './research-list.js';
 import { KnowledgePanel } from './knowledge-panel.js';
+import { KnowledgeGraph } from './knowledge-graph.js';
 import { MemoryViews } from './memory-views.js';
 import { MemoryHistory } from './memory-history.js';
 import { ResearchSourceDetail } from './research-source-detail.js';
@@ -83,6 +84,8 @@ export function ResearchBase({ view, projectId = null }) {
   const targetProject = projectId ?? projects.find((candidate) => !candidate.archived)?.id;
   const inboxRequest = useAppState((state) => state.memoryInboxRequest);
   const scope = useAppState((state) => state.settings?.appearance?.knowledgeScope);
+  const savedView = useAppState((state) => state.settings?.appearance?.knowledgeView);
+  const [graphStatus, setGraphStatus] = useState('');
   const [chosenTab, setTab] = useState('sources');
   useEffect(() => {
     if (inboxRequest && inboxRequest.projectId === projectId) {
@@ -113,6 +116,14 @@ export function ResearchBase({ view, projectId = null }) {
   const reload = () => setRefresh((value) => value + 1);
   const scopeId = view === 'database' ? projectId : null;
   const tab = scopeId && !PROJECT_TABS.includes(chosenTab) ? 'sources' : chosenTab;
+  // The graph shows the shared knowledge base only; a project database is a list.
+  const graphView = !scopeId && savedView === 'graph';
+  function changeView(next) {
+    setQuery('');
+    setDraft('');
+    setOffset(0);
+    actions.updateSettings({ appearance: { knowledgeView: next } }).catch(() => {});
+  }
 
   useEffect(() => {
     if (view === 'sources') return;
@@ -145,7 +156,7 @@ export function ResearchBase({ view, projectId = null }) {
   }, [view, scopeId, version, refresh]);
 
   useEffect(() => {
-    if (view === 'sources' || ['inbox', 'brief'].includes(tab)) return undefined;
+    if (view === 'sources' || graphView || ['inbox', 'brief'].includes(tab)) return undefined;
     let current = true;
     setLoading(true);
     setError('');
@@ -191,7 +202,7 @@ export function ResearchBase({ view, projectId = null }) {
     return () => {
       current = false;
     };
-  }, [view, scopeId, version, tab, filters, query, offset, refresh]);
+  }, [view, scopeId, version, tab, filters, query, offset, refresh, graphView]);
 
   function changeFilter(key, value) {
     setFilters({ ...filters, [key]: value });
@@ -505,8 +516,8 @@ export function ResearchBase({ view, projectId = null }) {
             >${scopeId ? (project?.name ?? '') : t('所有项目')}</span
           >
         <//>
-        <span class="ss-header__sep"></span>
-        <nav class="ss-tabs" role="tablist" aria-label=${t('知识库内容')}>
+        ${!graphView && html`<span class="ss-header__sep"></span>`}
+        <nav class="ss-tabs" role="tablist" aria-label=${t('知识库内容')} hidden=${graphView}>
           ${tabButton('sources', counts.sources)}${!scopeId && tabButton('entities', counts.entities)}
           ${!scopeId && ITEM_TABS.map((key) => tabButton(key))}
           <button
@@ -546,6 +557,7 @@ export function ResearchBase({ view, projectId = null }) {
         </nav>
         <div class="ss-header__actions">
           ${
+            !graphView &&
             (tab === 'entities' || (researchSubtypes[tab] && tab !== 'memory')) &&
             html`<button
               type="button"
@@ -564,7 +576,7 @@ export function ResearchBase({ view, projectId = null }) {
         </div>
       </div>
       ${
-        ['inbox', 'brief'].includes(tab)
+        ['inbox', 'brief'].includes(tab) && !graphView
           ? html`<div class="ss-content kb-content">
               <${MemoryViews}
                 key=${tab}
@@ -585,8 +597,8 @@ export function ResearchBase({ view, projectId = null }) {
                 <span class="ss-input"
                   ><${Lucide} name="search" /><input
                     value=${draft}
-                    aria-label=${tab === 'entities' ? t('按名称或别名查找实体') : t('统一检索资料与条目')}
-                    placeholder=${tab === 'entities' ? t('按名称或别名查找') : scopeId ? t('搜索标题或正文') : t('搜索标题、实体或正文')}
+                    aria-label=${graphView ? t('找一个节点设为中心') : tab === 'entities' ? t('按名称或别名查找实体') : t('统一检索资料与条目')}
+                    placeholder=${graphView ? t('找一个节点设为中心') : tab === 'entities' ? t('按名称或别名查找') : scopeId ? t('搜索标题或正文') : t('搜索标题、实体或正文')}
                     onInput=${(event) => setDraft(event.currentTarget.value)}
                   />${
                     query &&
@@ -607,6 +619,7 @@ export function ResearchBase({ view, projectId = null }) {
                 >
                 ${
                   !query &&
+                  !graphView &&
                   html`<${ResearchFilters}
                     tab=${tab}
                     filters=${filters}
@@ -625,6 +638,7 @@ export function ResearchBase({ view, projectId = null }) {
                 ${
                   sorts &&
                   !query &&
+                  !graphView &&
                   html`<${ChoiceMenu}
                     label=${t('排序')}
                     triggerClass="ss-select ss-select--ghost"
@@ -657,73 +671,108 @@ export function ResearchBase({ view, projectId = null }) {
                   <//>`
                 }
                 <span class="ss-toolbar__spacer"></span>
-                ${status && html`<span class="ss-muted kb-status">${status}</span>`}
+                ${
+                  graphView
+                    ? graphStatus && html`<span class="ss-muted kb-status">${graphStatus}</span>`
+                    : status && html`<span class="ss-muted kb-status">${status}</span>`
+                }
+                ${
+                  !scopeId &&
+                  html`<div class="ss-seg ss-seg--sm" role="group" aria-label=${t('看法')}>
+                    <button
+                      type="button"
+                      aria-pressed=${String(!graphView)}
+                      data-kb-view="table"
+                      onClick=${() => graphView && changeView('table')}
+                    >
+                      <${Lucide} name="table-2" />${t('表格')}
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed=${String(graphView)}
+                      data-kb-view="graph"
+                      onClick=${() => !graphView && changeView('graph')}
+                    >
+                      <${Lucide} name="waypoints" />${t('图')}
+                    </button>
+                  </div>`
+                }
               </form>
-              <div class="ss-content kb-content">
-                ${imports.length > 0 && html`<div class="kb-imports" data-rb-import-progress role="status">${imports.map((entry) => html`<p>${entry.name} · ${entry.status === 'importing' ? t('正在导入…') : entry.status === 'queued' ? t('等待导入') : entry.status === 'parsed' ? t('已解析') : entry.status === 'partial' ? t('部分解析') : t('解析失败')}${entry.error && html`<span role="alert"> · ${entry.error}</span>`}</p>`)}</div>`}
-                ${error && html`<p role="alert">${error}</p>`}${loading && empty && html`<p class="ss-muted" role="status">${t('正在读取…')}</p>`}
-                ${list}
-                ${
-                  (page.remaining > 0 || offset > 0) &&
-                  html`<div class="kb-pagination">
-                    <button
-                      type="button"
-                      class="ss-btn ss-btn--ghost ss-btn--sm"
-                      disabled=${offset === 0}
-                      onClick=${() => setOffset(Math.max(0, offset - PAGE))}
-                    >
-                      ${t('上一页')}
-                    </button>
-                    <span class="ss-muted"
-                      >${offset + 1}–${offset + shown}${tab === 'sources' || tab === 'entities' || page.hits ? ` / ${page.total}` : ''}</span
-                    >
-                    <button
-                      type="button"
-                      class="ss-btn ss-btn--ghost ss-btn--sm"
-                      disabled=${!page.remaining}
-                      onClick=${() => setOffset(offset + PAGE)}
-                    >
-                      ${t('下一页')}
-                    </button>
-                  </div>`
-                }
-                ${
-                  empty &&
-                  !loading &&
-                  html`<div class="ss-empty kb-empty">
-                    <p>
+              ${
+                graphView
+                  ? html`<${KnowledgeGraph}
+                      selection=${selection}
+                      onSelect=${setSelection}
+                      onStatus=${setGraphStatus}
+                      query=${query}
+                      searchNonce=${refresh}
+                    />`
+                  : html`<div class="ss-content kb-content">
+                      ${imports.length > 0 && html`<div class="kb-imports" data-rb-import-progress role="status">${imports.map((entry) => html`<p>${entry.name} · ${entry.status === 'importing' ? t('正在导入…') : entry.status === 'queued' ? t('等待导入') : entry.status === 'parsed' ? t('已解析') : entry.status === 'partial' ? t('部分解析') : t('解析失败')}${entry.error && html`<span role="alert"> · ${entry.error}</span>`}</p>`)}</div>`}
+                      ${error && html`<p role="alert">${error}</p>`}${loading && empty && html`<p class="ss-muted" role="status">${t('正在读取…')}</p>`}
+                      ${list}
                       ${
-                        query || filters !== defaultFilters
-                          ? t('暂无记录')
-                          : tab === 'sources'
-                            ? t('还没有资料。导入文献、数据或笔记后会出现在这里。')
-                            : tab === 'entities'
-                              ? t(
-                                  '还没有实体。整理论文或专家按原文写入后会出现在这里，也可以手动新建。',
-                                )
-                              : t('暂无记录')
+                        (page.remaining > 0 || offset > 0) &&
+                        html`<div class="kb-pagination">
+                          <button
+                            type="button"
+                            class="ss-btn ss-btn--ghost ss-btn--sm"
+                            disabled=${offset === 0}
+                            onClick=${() => setOffset(Math.max(0, offset - PAGE))}
+                          >
+                            ${t('上一页')}
+                          </button>
+                          <span class="ss-muted"
+                            >${offset + 1}–${offset + shown}${tab === 'sources' || tab === 'entities' || page.hits ? ` / ${page.total}` : ''}</span
+                          >
+                          <button
+                            type="button"
+                            class="ss-btn ss-btn--ghost ss-btn--sm"
+                            disabled=${!page.remaining}
+                            onClick=${() => setOffset(offset + PAGE)}
+                          >
+                            ${t('下一页')}
+                          </button>
+                        </div>`
                       }
-                    </p>
-                    ${
-                      !query &&
-                      filters === defaultFilters &&
-                      tab === 'sources' &&
-                      html`<button
-                        type="button"
-                        class="ss-btn"
-                        onClick=${() => fileInput.current.click()}
-                      >
-                        <${Lucide} name="import" />${t('导入')}
-                      </button>`
-                    }
-                  </div>`
-                }
-              </div>`
+                      ${
+                        empty &&
+                        !loading &&
+                        html`<div class="ss-empty kb-empty">
+                          <p>
+                            ${
+                              query || filters !== defaultFilters
+                                ? t('暂无记录')
+                                : tab === 'sources'
+                                  ? t('还没有资料。导入文献、数据或笔记后会出现在这里。')
+                                  : tab === 'entities'
+                                    ? t(
+                                        '还没有实体。整理论文或专家按原文写入后会出现在这里，也可以手动新建。',
+                                      )
+                                    : t('暂无记录')
+                            }
+                          </p>
+                          ${
+                            !query &&
+                            filters === defaultFilters &&
+                            tab === 'sources' &&
+                            html`<button
+                              type="button"
+                              class="ss-btn"
+                              onClick=${() => fileInput.current.click()}
+                            >
+                              <${Lucide} name="import" />${t('导入')}
+                            </button>`
+                          }
+                        </div>`
+                      }
+                    </div>`
+              }`
       }
     </main>
     ${
       selection &&
-      !memoryTab &&
+      (!memoryTab || graphView) &&
       html`<${KnowledgePanel}
         selection=${selection}
         projectId=${scopeId}
