@@ -20,7 +20,7 @@ test('v23 manuscript versions upgrade their lineage without reading missing orig
                ('v2','g',2,'修改.docx','missing/second.docx','v1','old');
     `);
     db.close();
-    db = await openDatabase(file, { migrations, backupDir });
+    db = await openDatabase(file, { migrations: migrations.slice(0, 24), backupDir });
     assert.equal(db.prepare('PRAGMA user_version').get().user_version, 24);
     const rows = db.prepare('SELECT * FROM manuscript_versions ORDER BY number').all();
     assert.deepEqual(

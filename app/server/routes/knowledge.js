@@ -95,6 +95,14 @@ export function registerKnowledgeRoutes(router, core, services = {}) {
     versions.restoreRevision(params.id, user),
   );
   if (services.jobs) {
+    router.get('/api/knowledge/cards/estimate', ({ query }) =>
+      services.jobs.estimateCards(query.get('projectId')),
+    );
+    router.post('/api/knowledge/cards', ({ body }) => {
+      if (!Array.isArray(body.sourceIds) || body.sourceIds.some((id) => typeof id !== 'string'))
+        throw new AppError('KNOWLEDGE_CARD_SOURCES', 'Choose source IDs to build paper cards.');
+      return services.jobs.requestCards(body.sourceIds);
+    });
     router.get('/api/knowledge/jobs', () => services.jobs.summary());
     router.post('/api/knowledge/jobs', ({ body }) => {
       if (body.action !== 'retry')

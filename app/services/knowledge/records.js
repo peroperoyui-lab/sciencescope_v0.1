@@ -1,11 +1,14 @@
 import { projectEntity } from './projection.js';
 import { AppError } from '../../core/errors.js';
+import { indexText } from '../research/text-index.js';
+import { payloadText } from '../research/records.js';
 
 const tables = {
   entity: { table: 'kb_entities', keys: ['id'] },
   edge: { table: 'kb_edges', keys: ['id'] },
   label: { table: 'kb_labels', keys: ['ref', 'label'] },
   membership: { table: 'kb_memberships', keys: ['project_id', 'ref'] },
+  item: { table: 'rb_items', keys: ['id'] },
 };
 
 /**
@@ -62,6 +65,18 @@ export function createRecords(db) {
       ON CONFLICT(${target.keys.join(',')}) DO UPDATE SET ${updates.map((column) => `${column}=excluded.${column}`).join(',')}`,
     ).run(...columns.map((column) => row[column]));
     if (target.table === 'kb_entities') projectEntity(db, row.id, row);
+    if (target.table === 'rb_items') {
+      db.prepare("DELETE FROM rb_fts WHERE doc_type='item' AND doc_id=?").run(row.id);
+      if (row.status === 'active')
+        db.prepare(
+          "INSERT INTO rb_fts(doc_type,doc_id,project_id,title,body) VALUES('item',?,?,?,?)",
+        ).run(
+          row.id,
+          row.project_id,
+          indexText(row.title),
+          indexText(row.body + '\n' + payloadText(JSON.parse(row.payload_json))),
+        );
+    }
   }
 
   function requireNode(ref) {
