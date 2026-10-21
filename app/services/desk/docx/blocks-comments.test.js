@@ -251,6 +251,11 @@ test('read comment text, authors, anchors, reply relationships and resolved stat
   assert.ok(edited.includes(properties));
   assert.ok(edited.includes(fonts));
   assert.equal(indexXml(after.commentsXml).filter((span) => span.tag === 'w:p').length, 4);
+  const legacy = await JSZip.loadAsync(bytes);
+  legacy.remove('word/commentsExtended.xml');
+  legacy.file('word/comments.xml', before.commentsXml.replace(/ w14:paraId="[^"]+"/gu, ''));
+  const oldComments = await readDocx(await legacy.generateAsync({ type: 'nodebuffer' }));
+  assert.ok(oldComments.comments.every((comment) => comment.parentId === null && !comment.done));
 });
 
 test('deleting a comment removes its full reply thread, anchors and all matching extension entries', async (t) => {

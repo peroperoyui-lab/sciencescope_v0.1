@@ -71,7 +71,13 @@ export async function readComments(document) {
         range: anchors.get(span.attrs['w:id']) ?? null,
       };
     });
-  const byParagraph = new Map(comments.map((comment) => [comment.paraId, comment.id]));
-  for (const comment of comments) comment.parentId = byParagraph.get(comment.parentParaId) ?? null;
+  const byParagraph = new Map(
+    comments
+      .filter((comment) => comment.paraId != null)
+      .map((comment) => [comment.paraId, comment.id]),
+  );
+  for (const comment of comments)
+    comment.parentId =
+      comment.parentParaId == null ? null : (byParagraph.get(comment.parentParaId) ?? null);
   return comments;
 }
