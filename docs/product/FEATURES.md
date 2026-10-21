@@ -274,13 +274,13 @@ data/
 - `research_read {type:'entity'}` 返回字段、别名、标签和分页相连边，描述默认首行并报告剩余字数，`full:true` 读全文。`research_write` 复用条目创建/修改/取代与资料元数据修改，私有条目不可读写，条目修订保留。
 - `workspace_versions {resource:'knowledge'}` 支持列出、读修订与整组撤回，明确列出后来修改而跳过的记录。这些工具不触发「请求批准」。
 
-### 2.8b 论文卡片后台（KB-6a，界面由后续任务接入）
+### 2.8b 论文卡片后台（KB-6a/6b，界面由后续任务接入）
 
 - 文献类 `paper/preprint/thesis/report/chapter/book` 在派生层完成后自动排入同一知识库队列；其他资料可手动整理。设置 `knowledge.cards={enabled:true,model:null}`；关闭只停自动整理。模型依次选择 `knowledge.cards.model`、`memory.model`、秘书定义模型、`models.default`；均未配置时记 `skipped/no-model`，设置模型后继续。前台发言时不启动新任务，已有请求完成后保存；模型并发 2，连续失败三次后由 retry 重排。重启恢复 running 为 queued。
 - `services/knowledge/cards.js` 复用无工具后台运行器；按中英文章节优先挑方法、数据、结果、结论，连同元数据约 6000 token，整段保留，不发送 reference 段。每项证据先精确匹配，再容许空白、全半角标点差异；无效项整个丢弃并记录原因，研究问题无有效证据时为 null。
-- 卡片是全局 `rb_items` 的 `note/summary`，`payload.card` 含 `question:{text,evidence[]}|null`、methods/datasets/variables/metrics/software/code/findings；证据为 `{chunkId,quote,page}`，`payload.cardSource='source:<id>'`。项目资料给卡片及相关实体记 `kb_memberships`。实体按同种名称/别名归一化对齐，再查询可用实体向量的最近 3 个、余弦阈值 0.92；未开启混合检索时只按名称。复用实体只补别名，保留用户名称、说明；新实体说明直接使用核对过的原文。
+- 卡片是全局 `rb_items` 的 `note/summary`，`payload.card` 含 `question:{text,evidence[]}|null`、methods/datasets/variables/metrics/software/code/findings；证据为 `{chunkId,quote,page}`，`payload.cardSource='source:<id>'`。项目资料给卡片及相关实体记 `kb_memberships`。实体按同种名称/别名归一化对齐，再查询可用实体向量的最近 3 个、真实余弦阈值 0.94；未开启混合检索时只按名称。复用实体只补别名，保留用户名称、说明；新实体说明直接使用核对过的原文。`variantOf` 只接受单个非空名称，形状错误记入 dropped 并丢弃该项，其余卡片继续写入。提示区分本文实际采用的方法和综述介绍的他人指标，不把 Model 1/2 等局部编号当作方法名。
 - 固定后台参与者 `actor_card_builder`（不加入讨论专家名册）；卡片、实体及边带后台会议/发言来源，每篇一个标题命名的 `build` 版本。新增实体和边是 `extracted/ai`，记录 `produced_from` 和证据；方法变种、代码实现按原文的显式关系建边。内容哈希变化后，在同一个新 build 中替换旧卡片及本资料的 extracted 结果，保留 curated 和仍被其他边使用的实体。撤回同时恢复卡片、实体、边和归属；用户后来修改的条目通过条目修订号识别并列入 skipped，FTS 同步恢复。
-- `kb_jobs` 的 card 行保存内容哈希、后台会议、手动标记和结果；结果含 cardId/versionId、dropped/droppedCount、selection、usage。usage 累计当前内容版本各次尝试的 requests/inputTokens/outputTokens/totalTokens/unknownRequests；没有供应商用量时为 null 并标 unreported，部分报告标 partial。成本是设计稿 §4.6 的暂定估算，真实论文质量和成本验证安排在 KB-6b。
+- `kb_jobs` 的 card 行保存内容哈希、后台会议、手动标记和结果；结果含 cardId/versionId、dropped/droppedCount、selection、usage。usage 累计当前内容版本各次尝试的 requests/inputTokens/outputTokens/totalTokens/unknownRequests；没有供应商用量时为 null 并标 unreported，部分报告标 partial。KB-6b 的 10 篇实测校准成本：每篇估算输入 7,000、输出 11,000（含思考），未缓存峰时单价 0.30/1.20 USD/百万 token，不再额外乘 2；无正文扫描件不计入待整理费用。最终 10 篇估算 0.153 USD、已报告用量折算 0.07923540 USD，详情与残留漏合并见设计稿 §4.3、§4.6。
 
 ### 2.8b′ 知识库图视图（KB-10，2026-10-21）
 
@@ -301,7 +301,7 @@ data/
 - `knowledge.layout.changed` 的局部变化为 `{refs:[...]}`，全图重排仅发一次 `{all:true}`；布局异常为 `{error}`。关闭宿主终止 worker，重启扫描尚未定位的节点；原有坐标继续使用。
 - `GET /api/knowledge/layout?projectId=` 返回 `{nodes:[[ref,x,y,kind,degree,pinned],...],pending}`，不带名称、正文和边；kind 为 source、条目类型或实体种类，degree 为 active 边数（两次按端点索引分组统计，自环算 2），pinned 为 0 或 1。`POST /api/knowledge/viewport {refs,projectId?}` 返回范围内 `{ref,name,kind}` 和两端均在所选节点内的 `{id,from,to,relation,layer,origin,aiUntouched}`；refs 不设数量上限。
 - `PATCH /api/knowledge/positions {positions:[{ref,x,y,pinned?}]}` 保存坐标，省略 pinned 保留原状态；返回 `{refs}`。`POST /api/knowledge/layout/rerun {projectId?}` 立即返回 `{queued:true}`，后台重排。四个接口沿用启动口令；没有新增界面或模型请求。
-- Windows 合成 5 万节点/50 万边验收：全图 10.665 秒；layout 响应 5,023,047 bytes、2.955 秒，超过 1 秒目标 1.955 秒。viewport 1500 节点 141.5 ms，局部新增 100 节点 462.0 ms；布局期间没有超过 100 ms 的主线程延迟。SQL 独立测量 2.877 秒，原因是逐节点统计两向度数；审阅时改成按索引分组统计，云端同规模从 1.5 秒降到 0.3–0.6 秒，Windows 待复测。
+- Windows 合成 5 万节点/50 万边验收：全图 10.665 秒；layout 响应 5,023,047 bytes、2.955 秒，超过 1 秒目标 1.955 秒。viewport 1500 节点 141.5 ms，局部新增 100 节点 462.0 ms；布局期间没有超过 100 ms 的主线程延迟。SQL 独立测量 2.877 秒，原因是逐节点统计两向度数；审阅时改成按索引分组统计，云端同规模从 1.5 秒降到 0.3–0.6 秒，Windows 复测 667 毫秒（KB-6b 时）。
 
 ### 2.9 工作站（计划、导图、日志、文稿版本、历史版本）
 
@@ -568,7 +568,7 @@ data/
 - `GET /api/knowledge/versions` 支持 projectId/meetingId/turnId 与分页；`GET /api/knowledge/versions/:id` 返回 `{version,changes}`（含 ref/name/kind/op/before/after）；`POST /api/knowledge/versions/:id/restore` 整组撤回，保留 skipped。
 - `GET /api/knowledge/history?ref=` 分页查修订；`POST /api/knowledge/revisions/:id/restore` 恢复单条。版本摘要按每条记录净变化计数，建后撤销不计，重复修改计一次；派生边继续不进入修订。
 - `GET /api/knowledge/jobs` 保留派生层 counts/failed/similarity，增加 `cards:{counts,jobs}`；jobs 含 sourceId/state/error/attempts/contentVersion/result。`POST /api/knowledge/jobs {action:'retry'}` 同时重试派生层和卡片层失败项。
-- `POST /api/knowledge/cards {sourceIds}` 手动整理或重做（不受 enabled 限制），返回队列汇总；`GET /api/knowledge/cards/estimate?projectId=` 返回 `{count,currency:'USD',upperCost,assumptions,estimated:true}`，省略 projectId 统计全库。估算按每篇 7500 输入/1000 输出、每百万输入 $0.30/输出 $1.20 再乘 2 的暂定系数；所有接口沿用启动口令。
+- `POST /api/knowledge/cards {sourceIds}` 手动整理或重做（不受 enabled 限制），返回队列汇总；`GET /api/knowledge/cards/estimate?projectId=` 返回 `{count,currency:'USD',upperCost,assumptions,estimated:true}`，省略 projectId 统计全库。估算按每篇 7000 输入/11000 输出（含思考）、每百万输入 $0.30/输出 $1.20，额外系数 1；无可用正文的扫描件不计入估算，所有接口沿用启动口令。
 - AI 实体与边详情的 `createdBy` 含 participantId/name/meetingId/meetingTitle/turnId/messageId；已删除对象只保留 ID。证据 chunk 引用解析为 sourceId/title/page/quote，message 引用解析为 meetingId/meetingTitle/messageId/excerpt；原文缺失返回 missing:true。HTTP 写入或恢复历史中的单个证据对象读取时按数组返回，空证据返回空数组，无法解析的条目标 missing:true。全部接口沿用宿主口令认证，用户写入身份为 person_user。
 
 **文献版本**

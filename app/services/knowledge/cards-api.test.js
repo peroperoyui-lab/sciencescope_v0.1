@@ -51,12 +51,14 @@ test('card API estimates project papers, manually builds other files while disab
     });
     await app.knowledgeJobs.idle();
     const project = await app.core.projects.create({ name: 'Cards HTTP' });
-    app.research.store.createSource({
+    const paper = app.research.store.createSource({
       title: 'Project paper',
       kind: 'paper',
       projectId: project.id,
     });
-    app.research.store.createSource({ title: 'Global paper', kind: 'paper' });
+    const globalPaper = app.research.store.createSource({ title: 'Global paper', kind: 'paper' });
+    for (const source of [paper, globalPaper])
+      app.research.store.addChunks(source.id, [{ page: 1, text: 'We use fsQCA in this study.' }]);
     const file = app.research.store.createSource({ title: 'Methods file', kind: 'file' });
     app.research.store.addChunks(file.id, [
       {
@@ -67,7 +69,7 @@ test('card API estimates project papers, manually builds other files while disab
     const estimate = await call('cards/estimate?projectId=' + project.id);
     assert.equal(estimate.count, 1);
     assert.equal(estimate.currency, 'USD');
-    assert.equal(estimate.upperCost, 0.0069);
+    assert.equal(estimate.upperCost, 0.0153);
     assert.equal((await call('cards/estimate')).count, 2);
     assert.equal((await call('jobs')).cards.counts.done, 0);
     await call('cards', { sourceIds: [file.id] });

@@ -109,6 +109,10 @@ export function verifyCard(output, input) {
     };
     if (!value || typeof value[textKey] !== 'string' || !value[textKey].trim())
       return reject('missing-text');
+    // Real cards sometimes return multiple parent methods as an array. The
+    // graph contract has one named parent; keep the rest of the card usable.
+    if (value.variantOf != null && (typeof value.variantOf !== 'string' || !value.variantOf.trim()))
+      return reject('invalid-variant-of');
     const evidence = [].concat(value.evidence ?? []);
     if (!evidence.length) return reject('missing-evidence');
     const verified = [];

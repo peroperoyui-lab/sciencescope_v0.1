@@ -341,7 +341,12 @@ export function createSemantic(core, options = {}) {
           row.ref.type === 'entity' &&
           indexed.get(row.ref.id, row.version, manifest.modelId, manifest.revision),
       );
-    const result = await vector.search({ queries: [query], candidates, limit: 3 });
+    const result = await vector.search({
+      queries: [query],
+      candidates,
+      limit: 3,
+      cosineScores: true,
+    });
     return result.rankings?.[0] ?? [];
   }
 

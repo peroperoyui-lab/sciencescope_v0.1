@@ -1,5 +1,5 @@
 import { nowIso } from '../../core/ids.js';
-import { paragraphHash } from './card-input.js';
+import { cardInput, paragraphHash } from './card-input.js';
 import { CARD_COST, CARD_KINDS } from './cards.js';
 
 /**
@@ -180,10 +180,12 @@ export function createCardQueue({ core, research, worker, busy, notify, schedule
     );
     const count = sources.filter((source) => {
       const job = get(source.id);
+      const chunks = research.store.chunks(source.id);
       return (
         CARD_KINDS.includes(source.kind) &&
+        cardInput(source, chunks).paragraphs.length > 0 &&
         !(
-          job?.content_version === paragraphHash(research.store.chunks(source.id)) &&
+          job?.content_version === paragraphHash(chunks) &&
           ['done', 'running'].includes(String(job?.state))
         )
       );
