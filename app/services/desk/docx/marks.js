@@ -27,8 +27,21 @@ export function sameMarks(left, right) {
   return left.length === right.length && left.every((mark) => right.includes(mark));
 }
 
+// CT_RPr is a sequence (ECMA-376 Part 1, §17.3.2.28); Word reports an
+// unreadable document when its children are out of this order.
+const RPR_ORDER = (
+  'rStyle rFonts b bCs i iCs caps smallCaps strike dstrike outline shadow emboss imprint ' +
+  'noProof snapToGrid vanish webHidden color spacing w kern position sz szCs highlight u ' +
+  'effect bdr shd fitText vertAlign rtl cs em lang eastAsianLayout specVanish oMath'
+).split(' ');
+const rank = (tag) => {
+  const index = RPR_ORDER.indexOf(tag.slice(tag.indexOf(':') + 1));
+  return index < 0 ? RPR_ORDER.length : index;
+};
+
 /**
- * Patch only explicitly changed marks, retaining fonts, styles and other rPr bytes.
+ * Patch only explicitly changed marks, retaining fonts, styles and other rPr bytes;
+ * added elements go to their schema position.
  * @param {any} document
  * @param {any} run
  * @param {string[]} marks
@@ -56,15 +69,21 @@ export function writeProperties(document, run, marks, prefix) {
       'w:vertAlign',
       vertical(marks) ? `<${prefix}vertAlign ${prefix}val="${vertical(marks)}"/>` : '',
     );
-  if (!properties) return `<${prefix}rPr>${[...changed.values()].join('')}</${prefix}rPr>`;
+  const added = [...changed].filter(([, xml]) => xml).sort(([a], [b]) => rank(a) - rank(b));
+  if (!properties) return `<${prefix}rPr>${added.map(([, xml]) => xml).join('')}</${prefix}rPr>`;
   let cursor = properties.openEnd;
   let content = '';
+  const insertBefore = (tag) => {
+    while (added.length && rank(added[0][0]) < rank(tag)) content += added.shift()[1];
+  };
   for (const span of document.children.get(properties.index) ?? []) {
-    if (!changed.has(span.tag)) continue;
     content += document.xml.slice(cursor, span.start);
-    cursor = span.end;
+    cursor = span.start;
+    insertBefore(span.tag);
+    if (changed.has(span.tag)) cursor = span.end;
   }
-  content += document.xml.slice(cursor, properties.closeStart) + [...changed.values()].join('');
+  content +=
+    document.xml.slice(cursor, properties.closeStart) + added.map(([, xml]) => xml).join('');
   const opening = document.xml.slice(properties.start, properties.openEnd);
   return (
     (properties.selfClosing ? opening.replace(/\/>$/u, '>') : opening) +

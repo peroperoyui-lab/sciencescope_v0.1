@@ -234,6 +234,11 @@ test('direct formatting recognizes off values, preserves fonts and supports addi
   assert.deepEqual(added.blocks[0].inlines[0].marks, ['b', 'i', 'u']);
   assert.ok(added.raw(added.runs[0].rPr).includes('<w:rFonts w:eastAsia="宋体"/>'));
   assert.ok(added.raw(added.runs[0].rPr).includes('<w:rStyle w:val="NotExpanded"/>'));
+  // Added marks take their CT_RPr positions: b and i before color, u after it.
+  assert.equal(
+    added.raw(added.runs[0].rPr),
+    '<w:rPr><w:rStyle w:val="NotExpanded"/><w:rFonts w:eastAsia="宋体"/><w:b/><w:i/><w:color w:val="123456"/><w:u w:val="single"/></w:rPr>',
+  );
   const removedBytes = await writeDocx(
     await writeDocx(bytes, {
       [before.blocks[0].id]: before.blocks[0].inlines.map((inline, index) =>
