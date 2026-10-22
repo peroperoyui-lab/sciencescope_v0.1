@@ -52,6 +52,8 @@ export const initialState = {
   researchVersion: 0,
   // Bumped when the host moves graph nodes (knowledge.layout.changed).
   layoutVersion: 0,
+  /** @type {{message:string,seq:number}|null} */
+  layoutError: null,
   /** @type {Record<string, any>} */ researchDrafts: {},
   /** @type {any} */ materialsTarget: null,
   /** @type {any} */ previewTarget: null,
@@ -187,9 +189,12 @@ export function applyEvent(state, { type, payload }) {
       return { ...state, memoryVersion: state.memoryVersion + 1 };
     case 'memory.changed':
     case 'research.changed':
+    case 'knowledge.changed':
       return { ...state, researchVersion: state.researchVersion + 1 };
     case 'knowledge.layout.changed':
-      return { ...state, layoutVersion: state.layoutVersion + 1 };
+      return payload.error
+        ? { ...state, layoutError: { message: payload.error, seq: Date.now() } }
+        : { ...state, layoutVersion: state.layoutVersion + 1 };
     case 'research.semantic.changed':
       return { ...state, semanticVersion: state.semanticVersion + 1, semanticStatus: payload };
     case 'secretary.proposal.updated':

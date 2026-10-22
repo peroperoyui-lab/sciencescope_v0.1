@@ -189,12 +189,12 @@ CREATE TABLE manuscript_comments (...);            -- tex 批注，第 6.3 节
 
 **工具**（加进 `app/services/tools.js` 的现有工具，所有角色都有）：
 
-| 调用                                   | 参数与作用                                                                                                                                                                                                                                                                   |
-| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `workspace_read target="manuscript"`   | `scope=<项目 id>` 列出文稿；`key=<项目 id>/<组 id>` 或 `…/path:<相对路径>`，未登记的先登记。`offset` 默认 0、`limit` 默认 40 最多 200，`version` 读历史版本；返回块 id、种类、标题级别、文字、原子记号和 `remaining`，批注与绑定留到 D6。 |
+| 调用                                   | 参数与作用                                                                                                                                                                                                                                                                                 |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `workspace_read target="manuscript"`   | `scope=<项目 id>` 列出文稿；`key=<项目 id>/<组 id>` 或 `…/path:<相对路径>`，未登记的先登记。`offset` 默认 0、`limit` 默认 40 最多 200，`version` 读历史版本；返回块 id、种类、标题级别、文字、原子记号和 `remaining`，批注与绑定留到 D6。                                                  |
 | `workspace_edit resource="manuscript"` | `replace {block, find, with}`（`find` 在块内须唯一，否则 `TEXT_NOT_FOUND`/`TEXT_AMBIGUOUS`）；`insertBlock {after, text}`（段 id 或 `^`，继承段落格式）；`removeBlock {block}`；`save {to: "project"\|"version", label?, tier?}`。`comment`、`bind`、`unbind` 返回 `UNKNOWN_OP`，留到 D6。 |
-| `workspace_undo`                       | `revisionId` 可以是 `chg_…`                                                                                                                                                                                                                                                  |
-| `desk_suggest`                         | `{reason, document?}`，document 是文稿 key；持久记录 `desk.suggested {meetingId,reason,key:null或文稿key}`，同会议 10 分钟只记一次，返回 `{suggested:true}`。横条由 U8 接入。 |
+| `workspace_undo`                       | `revisionId` 可以是 `chg_…`                                                                                                                                                                                                                                                                |
+| `desk_suggest`                         | `{reason, document?}`，document 是文稿 key；持久记录 `desk.suggested {meetingId,reason,key:null或文稿key}`，同会议 10 分钟只记一次，返回 `{suggested:true}`。横条由 U8 接入。                                                                                                              |
 
 没有打开的会话时，`workspace_edit manuscript` 为最新版本开一个绑定当前会议的后台会话，修改进工作副本，用户下次打开接上同一会话。DOCX 复用 `updateBlocks`，tex/md 复用 `updateText`；每处修改记录专家、会议、轮次和触发消息前 200 字。AI 修改只动 `data/` 里的工作副本，不触发批准；写项目文件只有 `save {to:"project"}`，"请求批准"模式下卡片列出路径和基础版本号，复用 `write_file` 的项目级始终允许规则。拒绝不改项目文件；外部修改与保存确认原样回给模型，不自动确认。
 
@@ -321,7 +321,7 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 | U2 **A**  | ProseMirror 编辑器、原子节点、块同步、Ctrl+S                                                                        | Claude | 浏览器测试：改字保存后重开一致                                                      |
 | D4 ✅     | `diffVersions`：段落配对加段内词级比较和格式改动；生成版本时后台算好存进版本，任意两版现算缓存                      | Sol    | 插段、删段、拆段、改词、改格式测试；生成版本后 `diff_json` 存在                     |
 | U3 **A**  | 比较视图：左右两页并排、同步滚动、上一处下一处，`version-diff.js` 改用新结果                                        | Claude | 截图；上一处、下一处可用                                                            |
-| D5 **A**  | `manuscript` 读写、`chg_` 撤回、`desk_suggest`、提示词（任务书已写）                                                | Sol    | 脚本运行时测试；`deepseek-v4.1-flash` 真跑一次，报请求数和 token                    |
+| D5 ✅     | `manuscript` 读写、`chg_` 撤回、`desk_suggest`、提示词                                                              | Sol    | 脚本运行时测试；`deepseek-v4.1-flash` 真跑一次，报请求数和 token                    |
 | U4 **A**  | 浮动工具条、右键菜单、AI 修改后的提示条（看改了什么、撤销）、对话标记跳转                                           | Claude | 场景 2、9 浏览器测试；全新安装加服务商后真跑一次                                    |
 | D6 **A**  | 批注和索引的表、服务、接口（增删改查，含专家的）、打开时重新定位，原文删光时删除                                    | Sol    | 外部修改后仍定位；原文删掉后这条被删除并记进版本说明                                |
 | U5 **A**  | 「批注与索引」侧栏、批注和索引跟着文字走的标记（全删才删、撤销一起恢复）、查看索引菜单、索引选择框                  | Claude | 场景 5、6 浏览器测试；删字和撤销的锚点测试                                          |

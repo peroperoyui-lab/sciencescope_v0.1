@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { AppError } from '../../core/errors.js';
 import { createMcpConfig, parseMcpImport } from './config.js';
 import { openConnection } from './connection.js';
@@ -10,6 +11,22 @@ const connectionOf = ({ name: _name, disabledTools: _disabled, ...rest }) => JSO
  * initial catalog and configuration changes before taking its tool snapshot.
  * @param {import('../../core/index.js').Core} core
  */
+/**
+ * Model APIs accept only [A-Za-z0-9_-]{1,64}; calls map back through `tool`.
+ * A name that had to be cleaned or shortened gets a hash of the original, so
+ * `search.docs` and `search_docs` (or two long names) never share one name.
+ * @param {string} server
+ * @param {string} tool
+ * @returns {string}
+ */
+export function toolName(server, tool) {
+  const raw = `mcp__${server}__${tool}`;
+  const clean = raw.replace(/[^\w-]/gu, '_');
+  if (clean === raw && raw.length <= 64) return raw;
+  const suffix = createHash('sha256').update(`${server}\0${tool}`).digest('hex').slice(0, 8);
+  return `${clean.slice(0, 55)}_${suffix}`;
+}
+
 export function createMcp(core) {
   const config = createMcpConfig(core);
   const entries = new Map();
@@ -90,8 +107,7 @@ export function createMcp(core) {
     return [...entries.values()].flatMap((entry) =>
       entry.server.enabled
         ? entry.tools.map((tool) => ({
-            // Model APIs accept only [A-Za-z0-9_-]{1,64}; calls map back through `tool`.
-            name: `mcp__${entry.server.id}__${tool.name}`.replace(/[^\w-]/gu, '_').slice(0, 64),
+            name: toolName(entry.server.id, tool.name),
             description: tool.description ?? tool.name,
             parameters: {},
             inputSchema: tool.inputSchema,

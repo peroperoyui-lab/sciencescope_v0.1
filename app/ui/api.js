@@ -2,7 +2,7 @@
 // stream. The per-launch token arrives in the page address (`?token=`) and is
 // kept for the session so reloads keep working.
 
-const EVENT_TYPES = [
+export const EVENT_TYPES = [
   'project.created',
   'project.updated',
   'participant.created',
@@ -35,6 +35,8 @@ const EVENT_TYPES = [
   'memory.changed',
   'research.semantic.changed',
   'python.changed',
+  'knowledge.changed',
+  'knowledge.layout.changed',
 ];
 
 export class ApiError extends Error {

@@ -97,6 +97,24 @@ test('the event stream replays stored events and then sends live ones', () =>
     controller.abort();
   }));
 
+test('event stream reconnects from Last-Event-ID, not the original since', () =>
+  withServer(async ({ url, call }) => {
+    await call('POST', '/api/projects', { name: '重连前的项目' });
+    const { seq } = (await call('GET', '/api/events/head')).body;
+    await call('POST', '/api/projects', { name: '重连后的项目' });
+    const controller = new AbortController();
+    const response = await fetch(`${url}/api/events?since=0&token=${TOKEN}`, {
+      signal: controller.signal,
+      headers: { 'last-event-id': String(seq) },
+    });
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let text = '';
+    while (!text.includes('重连后的项目')) text += decoder.decode((await reader.read()).value);
+    assert.doesNotMatch(text, /重连前的项目/u);
+    controller.abort();
+  }));
+
 test('history API captures, previews, restores and deletes saved versions', () =>
   withServer(async ({ call }) => {
     const project = (await call('POST', '/api/projects', { name: '历史项目' })).body;

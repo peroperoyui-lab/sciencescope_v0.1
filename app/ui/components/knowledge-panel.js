@@ -39,6 +39,7 @@ const INCOMING = {
   'derived-from': '派生出',
 };
 const GROUP_ROWS = 8;
+const EDGE_PAGE = 200;
 
 /** A short excerpt for tips. @param {string} [text] */
 const clip = (text = '', length = 120) =>
@@ -107,9 +108,9 @@ function Evidence({ evidence }) {
 }
 
 /**
- * @param {{nodeRef:string, edges:any, onOpen:(ref:string)=>void, onRemove:(edge:any)=>void}} props
+ * @param {{nodeRef:string, edges:any, onOpen:(ref:string)=>void, onRemove:(edge:any)=>void, onMore:()=>void}} props
  */
-function Connections({ nodeRef, edges, onOpen, onRemove }) {
+function Connections({ nodeRef, edges, onOpen, onRemove, onMore }) {
   const [expanded, setExpanded] = useState(/** @type {string[]} */ ([]));
   if (!edges) return null;
   const groups = groupEdges(edges.rows, nodeRef);
@@ -199,7 +200,12 @@ function Connections({ nodeRef, edges, onOpen, onRemove }) {
             </div>`;
           })
     }
-    ${edges.remaining > 0 && html`<p class="ss-muted kb-note">${t('还有 {n} 条没有列出', { n: edges.remaining })}</p>`}
+    ${
+      edges.remaining > 0 &&
+      html`<button type="button" class="ss-linkbtn" onClick=${onMore}>
+        ${t('再加载 {n} 条', { n: Math.min(edges.remaining, EDGE_PAGE) })}
+      </button>`
+    }
   </section>`;
 }
 
@@ -230,8 +236,8 @@ function revisionText(row) {
     : t('{who}修改了这个节点', { who });
 }
 
-/** @param {{rows:any[], onRestore:(row:any)=>void}} props */
-function History({ rows, onRestore }) {
+/** @param {{rows:any[], remaining:number, onRestore:(row:any)=>void, onMore:()=>void}} props */
+function History({ rows, remaining, onRestore, onMore }) {
   if (!rows?.length) return null;
   return html`<section data-kb-history>
     <h3 class="ss-section-title">${t('历史')}</h3>
@@ -263,6 +269,12 @@ function History({ rows, onRestore }) {
           </div>`,
       )}
     </div>
+    ${
+      remaining > 0 &&
+      html`<button type="button" class="ss-linkbtn" onClick=${onMore}>
+        ${t('更早的 {n} 条', { n: remaining })}
+      </button>`
+    }
   </section>`;
 }
 
@@ -343,7 +355,11 @@ export function KnowledgePanel({
     const load =
       selection.type === 'entity'
         ? Promise.all([actions.knowledgeEntity(selection.id), actions.knowledgeHistory(ref)]).then(
-            ([entity, history]) => ({ ...entity, history: history.rows }),
+            ([entity, history]) => ({
+              ...entity,
+              history: history.rows,
+              historyRemaining: history.remaining,
+            }),
           )
         : Promise.all([
             selection.type === 'source'
@@ -374,6 +390,33 @@ export function KnowledgePanel({
         label: t('撤销'),
         run: () => actions.attempt(() => actions.restoreKnowledgeVersion(change.id)),
       });
+    });
+  // Detail requests are bounded; the rest stays reachable a page at a time.
+  const moreEdges = () =>
+    actions.attempt(async () => {
+      const page = await actions.knowledgeEdgesOf(ref, {
+        offset: detail.edges.rows.length,
+        limit: EDGE_PAGE,
+      });
+      setDetail(
+        (value) =>
+          value && {
+            ...value,
+            edges: { ...page, rows: [...value.edges.rows, ...page.rows] },
+          },
+      );
+    });
+  const moreHistory = () =>
+    actions.attempt(async () => {
+      const page = await actions.knowledgeHistory(ref, detail.history.length);
+      setDetail(
+        (value) =>
+          value && {
+            ...value,
+            history: [...value.history, ...page.rows],
+            historyRemaining: page.remaining,
+          },
+      );
     });
   const menuButton = (items) =>
     html`<button
@@ -558,9 +601,17 @@ export function KnowledgePanel({
             </dd>`
         }
       </dl>
-      <${Connections} nodeRef=${ref} edges=${detail.edges} onOpen=${open} onRemove=${removeEdge} />
+      <${Connections}
+        nodeRef=${ref}
+        edges=${detail.edges}
+        onOpen=${open}
+        onRemove=${removeEdge}
+        onMore=${moreEdges}
+      />
       <${History}
         rows=${detail.history}
+        remaining=${detail.historyRemaining ?? 0}
+        onMore=${moreHistory}
         onRestore=${(row) =>
           actions.attempt(async () => {
             await actions.restoreKnowledgeRevision(row.id);

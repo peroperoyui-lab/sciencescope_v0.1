@@ -242,7 +242,7 @@ function Palette() {
       label: hit.snippet,
       category: meetings.find((meeting) => meeting.id === hit.meetingId)?.title ?? t('对话'),
       icon: 'search',
-      run: () => navigate({ view: 'meeting', id: hit.meetingId }),
+      run: () => navigate({ view: 'meeting', id: `${hit.meetingId}/${hit.id}` }),
     })),
   ].slice(0, 40);
   const index = Math.min(selected, Math.max(0, items.length - 1));

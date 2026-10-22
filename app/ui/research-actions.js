@@ -28,9 +28,11 @@ export function createResearchActions(api) {
     knowledgeEntities: (options) => api.get(`/api/knowledge/entities?${query(options)}`),
     knowledgeEntity: (id) => api.get(`/api/knowledge/entities/${id}?edgesLimit=200`),
     knowledgeEdges: (ref) => api.get(`/api/knowledge/edges?${query({ ref, limit: 200 })}`),
+    knowledgeEdge: (id) => api.get(`/api/knowledge/edges/${encodeURIComponent(id)}`),
     knowledgeEdgesOf: (ref, options) =>
       api.get(`/api/knowledge/edges?${query({ ref, ...options })}`),
-    knowledgeHistory: (ref) => api.get(`/api/knowledge/history?${query({ ref, limit: 20 })}`),
+    knowledgeHistory: (ref, offset = 0) =>
+      api.get(`/api/knowledge/history?${query({ ref, limit: 20, offset })}`),
     restoreKnowledgeRevision: (id) => api.post(`/api/knowledge/revisions/${id}/restore`),
     restoreKnowledgeVersion: (id) => api.post(`/api/knowledge/versions/${id}/restore`),
     knowledgeLabels: (ref, change, sessionId) =>

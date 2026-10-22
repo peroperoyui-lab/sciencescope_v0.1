@@ -59,6 +59,7 @@ export function KnowledgeGraph({ selection, onSelect, onStatus, query, searchNon
   const actions = useActions();
   const version = useAppState((state) => state.researchVersion);
   const layoutVersion = useAppState((state) => state.layoutVersion);
+  const layoutError = useAppState((state) => state.layoutError);
   const host = useRef(/** @type {HTMLElement|null} */ (null));
   const graph = useRef(/** @type {HTMLElement|null} */ (null));
   const mapRef = useRef(/** @type {ReturnType<typeof createKnowledgeMap>|null} */ (null));
@@ -505,9 +506,8 @@ export function KnowledgeGraph({ selection, onSelect, onStatus, query, searchNon
     let current = true;
     const timer = setTimeout(() => {
       actions
-        .knowledgeEdgesOf(edge.source, { relations: edge.relation, limit: 200 })
-        .then((result) => {
-          const row = result.rows.find((candidate) => candidate.id === edge.id) ?? {};
+        .knowledgeEdge(edge.id)
+        .then((row) => {
           hoverCache.current.set(edge.id, row);
           if (current) setHoverDetail(row);
         })
@@ -519,6 +519,10 @@ export function KnowledgeGraph({ selection, onSelect, onStatus, query, searchNon
     };
   }, [hover?.edge?.id]);
   useEffect(() => hoverCache.current.clear(), [version]);
+  useEffect(() => {
+    if (layoutError)
+      actions.toast(t('重新排列没有完成：{message}', { message: layoutError.message }));
+  }, [layoutError?.seq]);
 
   // ---- Rendering -----------------------------------------------------------
   const box = graph.current?.getBoundingClientRect();

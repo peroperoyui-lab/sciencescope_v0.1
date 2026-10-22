@@ -84,6 +84,7 @@ export function registerKnowledgeRoutes(router, core, services = {}) {
   router.get('/api/knowledge/edges', ({ query }) =>
     knowledge.nodeEdges(query.get('ref'), options(query)),
   );
+  router.get('/api/knowledge/edges/:id', ({ params }) => knowledge.edgeDetail(params.id));
   router.post('/api/knowledge/edges', ({ body }) =>
     edit(body, (actor) => knowledge.createEdge(body, actor)),
   );

@@ -16,8 +16,10 @@ export function registerEventRoutes(router, core) {
   router.get('/api/events/head', () => ({ seq: core.events.head() }));
 
   router.get('/api/events', ({ query, request, response }) => {
-    const lastEventId = request.headers['last-event-id'];
-    let lastSent = Number(query.get('since') ?? lastEventId ?? 0) || 0;
+    // The page address keeps its first ?since=; an automatic reconnect sends
+    // the newer Last-Event-ID, so that cursor wins when present.
+    const lastEventId = Number(request.headers['last-event-id']);
+    let lastSent = (lastEventId > 0 ? lastEventId : Number(query.get('since') ?? 0)) || 0;
     let replaying = true;
     const held = [];
 

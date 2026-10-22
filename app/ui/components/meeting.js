@@ -151,13 +151,33 @@ export function MeetingView({ meetingId, focusMessageId }) {
       removeEventListener('sciencescope:find', onFind);
     };
   }, []);
-  // Scroll the found (or linked) message into view.
+  // A new link into the same meeting (search, evidence) re-targets this view.
+  useEffect(() => setTarget(focusMessageId ?? null), [focusMessageId]);
+  // Scroll the found (or linked) message into view once. A linked message may
+  // be older than the loaded page, so earlier pages load until it appears.
+  const shown = useRef(/** @type {string|null} */ (null));
+  const earlier = useRef(false);
+  const [paged, setPaged] = useState(0);
   useEffect(() => {
-    if (!target) return;
-    scroller.current
-      ?.querySelector(`[data-message-id="${target}"]`)
-      ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }, [target, messages]);
+    shown.current = null;
+  }, [target]);
+  useEffect(() => {
+    if (!target || shown.current === target) return;
+    const element = scroller.current?.querySelector(`[data-message-id="${target}"]`);
+    if (element) {
+      shown.current = target;
+      element.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    } else if (hasBefore && messages?.length && !earlier.current) {
+      earlier.current = true;
+      actions
+        .loadEarlier(meetingId)
+        .catch(() => {})
+        .finally(() => {
+          earlier.current = false;
+          setPaged((count) => count + 1);
+        });
+    }
+  }, [target, messages, hasBefore, paged]);
 
   useEffect(() => {
     setLoadError('');

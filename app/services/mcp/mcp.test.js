@@ -13,7 +13,7 @@ import { createScriptedRuntime } from '../../runtime/scripted.js';
 import { agentTools } from '../../runtime/pi/tools.js';
 import { tempDir, withCore } from '../../testing.js';
 import { readCredentials } from '../providers.js';
-import { createMcp } from './index.js';
+import { createMcp, toolName } from './index.js';
 import { commandOptions } from './connection.js';
 
 const fixture = `
@@ -31,6 +31,18 @@ return {content:[{type:'text',text:JSON.stringify({name:req.params.name,question
 process.on('exit',()=>child.kill());
 await server.connect(new StdioServerTransport());
 `;
+
+test('cleaned or shortened MCP tool names stay distinct and within 64 characters', () => {
+  const names = [
+    toolName('s1', 'search.docs'),
+    toolName('s1', 'search_docs'),
+    toolName('s1', 'x'.repeat(80) + 'a'),
+    toolName('s1', 'x'.repeat(80) + 'b'),
+  ];
+  assert.equal(new Set(names).size, 4);
+  assert.equal(names[1], 'mcp__s1__search_docs');
+  assert.ok(names.every((name) => /^[\w-]{1,64}$/u.test(name)));
+});
 
 test('legacy SSE uses the same stored HTTP headers and tool contract', async () =>
   withCore('mcp-sse', async (core) => {
@@ -70,7 +82,10 @@ test('legacy SSE uses the same stored HTTP headers and tool contract', async () 
       });
       assert.equal(entry.status, 'connected', entry.error);
       // Dots are not allowed in model tool names; the call still reaches `search.echo`.
-      assert.equal(mcp.catalog()[0].name, `mcp__${entry.id}__search_echo`);
+      assert.match(
+        mcp.catalog()[0].name,
+        new RegExp(`^mcp__${entry.id}__search_echo_[0-9a-f]{8}$`, 'u'),
+      );
       assert.match(entry.id, /^s[0-9a-f]{8}$/u);
       assert.equal((await mcp.call(mcp.catalog()[0].name, {})).text, 'SSE response');
     } finally {

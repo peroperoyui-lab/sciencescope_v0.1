@@ -230,5 +230,7 @@ export function createKnowledgeQueries(core, records) {
     listEntityDetails,
     revisionDetails,
     getEdge: (id) => publicRow(records.requireNode('edge:' + id)),
+    /** One edge with provenance and evidence, as the graph hover shows it. */
+    edgeDetail: (id) => edgeDetails(publicRow(records.requireNode('edge:' + id))),
   };
 }
