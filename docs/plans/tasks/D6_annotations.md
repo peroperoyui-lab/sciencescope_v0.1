@@ -33,7 +33,7 @@
    - 每次块内容变化（`updateBlocks`、`updateText`、专家的 `replace`、撤回）后，对这一块里的索引和非 docx 批注，用块旧文字到新文字的字符级比较（`diff` 包）把 `from/to` 映射过去：范围内删字收缩，范围内插字伸长，范围外的改动只平移。
    - 映射后范围为空（标记的字全删了），或整块被删除：删除这条，在这次修改记录里存下被删的条目（`desk_changes` 加一列 `annotations_json`，迁移 029 一起加）；撤回这次修改时按原样放回。修改接口的返回和 `desk.changed` 里带 `removedAnnotations: n`，界面据此弹提示。
    - docx 批注的范围本来就是块里的原子，删字时不动原子；范围里的文字全删时，把这对原子和批注一起删（同样记进修改，撤回一起恢复）。
-4. **重新定位**（打开会话时，以及导入外部版本后）：先按 `blockId` 和 `from/to` 核对 `quote.exact`；对不上就在全文里找 `quote.exact`，多处命中时用 `prefix`、`suffix` 选，唯一命中就更新 `blockId/from/to/version_id`；找不到或仍有多处，删除这条，记一条修改（op `annotation-lost`，可撤回）。tex、md 的块 id 只在会话内稳定，所以这两种格式每次打开都按原文重新定位。
+4. **重新定位**（打开会话时，以及导入外部版本后）：先按 `blockId` 和 `from/to` 核对 `quote.exact`；对不上就在全文里找 `quote.exact`，多处命中时用 `prefix`、`suffix` 选，唯一命中就更新 `blockId/from/to/version_id`；找不到或仍有多处，删除这条，记一条修改（op `annotation-lost`，可撤回）。撤回 `annotation-lost` 只恢复这条记录和原文引用，不改正文，状态记为 `status:'lost'`（列表里正常条目为 `anchored`）：界面显示「需重新定位」，不拿旧偏移高亮别的文字；用户划选新范围后 `PATCH` 带 `blockId/from/to` 即恢复为 `anchored`；之后再打开时若原文又出现、唯一命中，也自动恢复。docx 批注的范围原子已随原文删除，撤回后同样是 `lost`，保存时不写进 `comments.xml`，重新定位后再写。（2026-10-22 Sol 提问，所有者同意。）tex、md 的块 id 只在会话内稳定，所以这两种格式每次打开都按原文重新定位。
 5. **专家工具**（补 D5 留下的三个 op，进 `workspace_edit resource="manuscript"`）：
    - `comment {block, quote, text}`：`quote` 必须在块的读出文字里唯一，规则同 `replace` 的 `find`（`TEXT_NOT_FOUND`、`TEXT_AMBIGUOUS`）；范围不能切开原子记号。
    - `bind {block, quote, kind, value?, sources, note?}`：`sources` 是 schema 1 引用对象数组（项目文件、资料、条目、消息），至少一个。
