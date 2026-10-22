@@ -15,7 +15,7 @@ import { DiscussionStrip } from './discussion-strip.js';
 import { MinutesDialog } from './minutes-dialog.js';
 import { MemoryStatusDialog } from './memory-status.js';
 import { SecretaryPanel } from './secretary-panel.js';
-import { FieldForm } from './overlays.js';
+import { renameChat } from './sidebar.js';
 import { ProjectSummary } from './project-summary.js';
 
 const EMPTY = [];
@@ -131,16 +131,33 @@ export function MeetingView({ meetingId, focusMessageId }) {
   const [loadError, setLoadError] = useState('');
   const [finding, setFinding] = useState(false);
   const [summary, setSummary] = useState(false);
+  // The key handler is installed once; it reads the current chat from here.
+  const latest = useRef({ meeting, project });
+  latest.current = { meeting, project };
   const [secretary, setSecretary] = useState(false);
   const [target, setTarget] = useState(focusMessageId ?? null);
   const { scroller, onScroll } = useStickToBottom([messages, drafts]);
 
-  // Ctrl+F opens the find bar for this meeting.
+  // Ctrl+F opens the find bar, Alt+S the project summary, F2 renames this
+  // chat (a focused sidebar row handles its own F2 first).
   useEffect(() => {
     const onKey = (event) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f') {
+      if (event.defaultPrevented) return;
+      const key = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && key === 'f') {
         event.preventDefault();
         setFinding(true);
+      } else if (event.altKey && !event.ctrlKey && !event.metaKey && event.code === 'KeyS') {
+        if (!latest.current.project) return;
+        event.preventDefault();
+        setSummary((open) => !open);
+      } else if (event.key === 'F2' && !event.altKey && !event.ctrlKey && !event.metaKey) {
+        const from = /** @type {Element} */ (event.target);
+        if (from.closest?.('input, textarea, [contenteditable="true"], .ss-dialog, .modalback'))
+          return;
+        if (!latest.current.meeting) return;
+        event.preventDefault();
+        renameChat(actions, latest.current.meeting);
       }
     };
     const onFind = () => setFinding(true);
@@ -197,6 +214,7 @@ export function MeetingView({ meetingId, focusMessageId }) {
           {
             text: t('项目置顶摘要'),
             icon: 'newspaper',
+            key: 'Alt+S',
             run: () => setSummary(true),
           },
         ]
@@ -204,16 +222,8 @@ export function MeetingView({ meetingId, focusMessageId }) {
     {
       text: t('重命名'),
       icon: 'edit',
-      run: () =>
-        actions.openModal(
-          t('重命名对话'),
-          html`<${FieldForm}
-            label=${t('名称')}
-            value=${meeting.title}
-            submitText=${t('保存')}
-            onSubmit=${(title) => actions.updateMeeting(meeting.id, { title })}
-          />`,
-        ),
+      key: 'F2',
+      run: () => renameChat(actions, meeting),
     },
     {
       text: meeting.pinned ? t('取消置顶') : t('置顶'),
@@ -314,6 +324,21 @@ export function MeetingView({ meetingId, focusMessageId }) {
         >
           <${Lucide} name="search" />
         </button>
+        ${
+          project &&
+          html`<button
+            type="button"
+            class="ss-icon-btn"
+            aria-label=${t('项目置顶摘要')}
+            aria-expanded=${String(summary)}
+            data-tip=${t('项目置顶摘要')}
+            data-kbd="Alt S"
+            data-summary-trigger
+            onClick=${() => setSummary(!summary)}
+          >
+            <${Lucide} name="newspaper" />
+          </button>`
+        }
         <button
           type="button"
           class="ss-icon-btn"

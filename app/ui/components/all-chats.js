@@ -1,12 +1,14 @@
 // "Browse all" (全部对话) in the old interface's markup: every meeting in a
-// table with a filter for name and project, pinned and archived meetings.
+// table with a filter for name and project, pinned and archived meetings. Each
+// row has the sidebar's chat menu (⋯ or right click).
 import { useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
-import { Icon } from '../icons.js';
+import { Icon, Lucide } from '../icons.js';
 import { navigate } from '../route.js';
 import { MainHead } from './mainhead.js';
+import { chatMenuItems, useBusy } from './sidebar.js';
 
 const FILTERS = [
   ['all', '全部'],
@@ -88,37 +90,12 @@ export function AllChats() {
           <tbody>
             ${rows.map(
               (meeting) =>
-                html`<tr
+                html`<${ChatTableRow}
                   key=${meeting.id}
-                  onClick=${() => navigate({ view: 'meeting', id: meeting.id })}
-                >
-                  <td>
-                    <div class="table-title">
-                      <${Icon} name="chat" /><strong style="font-weight:500"
-                        >${meeting.title}</strong
-                      >
-                    </div>
-                    ${meeting.parentMeetingId && html`<small>${t('分支对话')}</small>`}
-                  </td>
-                  <td>${projectName(meeting.projectId)}</td>
-                  <td class="hide-small">${meeting.updatedAt.slice(0, 16).replace('T', ' ')}</td>
-                  <td>
-                    ${
-                      meeting.archived &&
-                      html`<button
-                        class="btn tiny"
-                        onClick=${(event) => {
-                          event.stopPropagation();
-                          actions.attempt(() =>
-                            actions.updateMeeting(meeting.id, { archived: false }),
-                          );
-                        }}
-                      >
-                        ${t('取消归档')}
-                      </button>`
-                    }
-                  </td>
-                </tr>`,
+                  meeting=${meeting}
+                  projects=${projects}
+                  projectName=${projectName(meeting.projectId)}
+                />`,
             )}
           </tbody>
         </table>
@@ -126,4 +103,63 @@ export function AllChats() {
       </div>
     </div>
   </main>`;
+}
+
+/** @param {{ meeting: any, projects: any[], projectName: string }} props */
+function ChatTableRow({ meeting, projects, projectName }) {
+  const actions = useActions();
+  const busy = useBusy(meeting.id);
+  const openMenu = (event) => {
+    event.stopPropagation();
+    const row = event.currentTarget.closest('tr');
+    actions.openMenu(
+      event,
+      chatMenuItems(actions, meeting, { busy, projects, row }),
+      meeting.title,
+    );
+  };
+  return html`<tr
+    data-object="chat"
+    data-object-id=${meeting.id}
+    onClick=${() => navigate({ view: 'meeting', id: meeting.id })}
+    onContextMenu=${openMenu}
+  >
+    <td>
+      <div class="table-title">
+        <${Icon} name="chat" /><strong style="font-weight:500">${meeting.title}</strong>
+        ${
+          meeting.pinned &&
+          html`<span class="chat-table__pin" data-tip=${t('已置顶')} aria-label=${t('已置顶')}
+            ><${Lucide} name="pin" small
+          /></span>`
+        }
+      </div>
+      ${meeting.parentMeetingId && html`<small>${t('分支对话')}</small>`}
+    </td>
+    <td>${projectName}</td>
+    <td class="hide-small">${meeting.updatedAt.slice(0, 16).replace('T', ' ')}</td>
+    <td class="chat-table__actions">
+      ${
+        meeting.archived &&
+        html`<button
+          class="btn tiny"
+          onClick=${(event) => {
+            event.stopPropagation();
+            actions.attempt(() => actions.updateMeeting(meeting.id, { archived: false }));
+          }}
+        >
+          ${t('取消归档')}
+        </button>`
+      }
+      <button
+        type="button"
+        class="ss-icon-btn ss-icon-btn--sm"
+        aria-label=${t('对话菜单')}
+        data-tip=${t('更多')}
+        onClick=${openMenu}
+      >
+        <${Lucide} name="ellipsis" />
+      </button>
+    </td>
+  </tr>`;
 }

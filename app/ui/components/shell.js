@@ -1,9 +1,11 @@
 // Window chrome in the old interface's markup: the top bar with its menus and
 // window controls, and the status bar.
+import { useEffect } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { currentLanguage, t } from '../i18n/index.js';
-import { navigate } from '../route.js';
+import { Lucide } from '../icons.js';
+import { navigate, useRoute } from '../route.js';
 import { FieldForm } from './overlays.js';
 import { LogoMark } from '../illustrations.js';
 
@@ -21,6 +23,12 @@ export function Topbar({ projectName, projectId }) {
   const settings = useAppState((state) => state.settings);
   const win = nativeWindow();
   const language = currentLanguage();
+  const route = useRoute();
+  const onTop = Boolean(settings?.appearance?.alwaysOnTop);
+  // 窗口置顶 is a setting, so it survives a restart.
+  useEffect(() => {
+    if (settings) void win?.setAlwaysOnTop?.(onTop)?.catch?.(() => {});
+  }, [onTop, Boolean(settings)]);
   const groups = [
     [
       {
@@ -47,6 +55,8 @@ export function Topbar({ projectName, projectId }) {
         text: t('查找当前对话'),
         icon: 'search',
         key: 'Ctrl+F',
+        // Only a chat page has a find bar.
+        disabled: route.view !== 'meeting',
         run: () => dispatchEvent(new Event('sciencescope:find')),
       },
       {
@@ -85,6 +95,15 @@ export function Topbar({ projectName, projectId }) {
         icon: 'users',
         run: () => actions.showAssistant(true),
       },
+      ...(win
+        ? [
+            {
+              text: t('窗口置顶'),
+              check: onTop,
+              run: () => actions.updateSettings({ appearance: { alwaysOnTop: !onTop } }),
+            },
+          ]
+        : []),
       {
         text: t('显示滚动条'),
         check: Boolean(settings?.appearance?.scrollbars),
@@ -150,6 +169,15 @@ export function Topbar({ projectName, projectId }) {
     ${
       win &&
       html`<div class="windowctl">
+        <button
+          class="windowctl__pin"
+          title=${onTop ? t('取消窗口置顶') : t('窗口置顶')}
+          aria-label=${t('窗口置顶')}
+          aria-pressed=${String(onTop)}
+          onClick=${() => actions.updateSettings({ appearance: { alwaysOnTop: !onTop } })}
+        >
+          <${Lucide} name="pin" small />
+        </button>
         <button title=${t('最小化')} onClick=${() => win.minimize()}>−</button>
         <button title=${t('最大化')} onClick=${() => win.toggleMaximize()}>□</button>
         <button title=${t('关闭主窗口')} onClick=${() => win.close()}>×</button>

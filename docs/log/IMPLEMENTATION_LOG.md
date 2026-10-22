@@ -173,6 +173,10 @@
 
 - Sol 的分支基于 U1 之前的 main，移到 15a9f43 上（三份文档冲突）。修 Sol 报给所有者的误判：外部修改原来拿项目文件和最新版本的哈希比，可写回项目文件不生成版本，连续两次 Ctrl+S 第二次就报 `DESK_EXTERNAL_CHANGE`，重开时还会多导入一个假的外部版本。新迁移 027 给版本组记 `source_hash`、`source_version_id`（登记、导入外部版本、写回时更新；存为版本时跟着移），外部修改和「从旧版本写回要确认」都按它判断，确认一次后不再问；补一项测试。
 - `writeDocx` 的 `inserted[].paraId` 改为在插段处直接取用，不再按调用顺序对位。
+## 2026-10-22 补回改版中丢失的窗口小功能，第一批（Claude）
+
+- Yui 请几个 Haiku 对比原型、旧桌面版、10-12 改版前新版和当前 main，回查报告 https://claude.ai/artifact/VxvRffJwPnRSfgxu2UP7J6 ，约 20 项没有决定就丢了。Yui 选先补第一批：输入框草稿按对话保存；客户端里屏蔽浏览器按键、右键菜单和误拖文件（`desktop-guard.js`，旧版 `desktop-behavior.mjs` 的做法）；F2 重命名；「查找当前对话」只在对话页可用；对话页头部恢复项目置顶摘要按钮和 `Alt+S`，摘要点外面关闭；「全部对话」行加对话菜单和置顶标记；新加窗口置顶（`appearance.alwaysOnTop`，权限 `core:window:allow-set-always-on-top`）。
+- 审阅清单加「新页面自查」一节。浏览器测试 `window-features.browser.test.js`；`npm run check` 345 通过、3 个 Windows 专属跳过。F5、拖放和置顶要 Sol 在 Windows 上确认。
 
 ## 2026-10-22 编辑台 U1 窗口骨架（Claude）
 

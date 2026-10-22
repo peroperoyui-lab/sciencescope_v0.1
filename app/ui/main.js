@@ -1,6 +1,7 @@
 // Entry point: connect to the host, load the current state, then render.
 import { render } from 'preact';
 import { installWindowResize } from './native-window.js';
+import { installDesktopGuards } from './desktop-guard.js';
 import { createActions } from './actions.js';
 import { createApi } from './api.js';
 import { App } from './components/app.js';
@@ -17,6 +18,7 @@ import { MarkSelection } from './components/mark-selection.js';
 import { installTooltips } from './floating.js';
 
 const surface = new URLSearchParams(location.search).get('surface');
+installDesktopGuards();
 if (surface === 'assistant-orb') document.documentElement.classList.add('native-orb');
 else {
   if (surface === 'assistant') document.documentElement.classList.add('assistant-panel');

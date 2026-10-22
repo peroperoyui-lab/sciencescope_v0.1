@@ -33,9 +33,12 @@ export function Composer({
 }) {
   const actions = useActions();
   const sendKey = useAppState((state) => state.settings?.composer?.sendKey ?? 'enter');
-  const [text, setText] = useState('');
-  const [sending, setSending] = useState(false);
   const owner = meetingId ?? `new:${projectId ?? 'global'}`;
+  // Unsent text belongs to the chat, not to this mounted box.
+  const text = useAppState((state) => state.composerDrafts[owner] ?? '');
+  /** @param {string | ((current: string) => string)} next */
+  const setText = (next) => actions.composerDraft(owner, next);
+  const [sending, setSending] = useState(false);
   const researchInput = useResearchInput(owner, projectId);
   const ownRef = useRef(null);
   const box = inputRef ?? ownRef;

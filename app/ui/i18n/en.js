@@ -2150,4 +2150,6 @@ export const en = {
   '项目文件在外面被改过，没有写回。':
     'The project file was changed outside, so nothing was written back.',
   '这次的修改已留作 v{n}': 'These changes are kept as v{n}',
+  窗口置顶: 'Keep window on top',
+  取消窗口置顶: 'Stop keeping window on top',
 };

@@ -6,7 +6,8 @@
  * @returns {{secretarySnapshot:(id:string,ensure?:boolean)=>Promise<any>,
  * resolveSecretaryProposal:(id:string,changes:any)=>Promise<any>,secretaryProposalHistory:(id:string)=>Promise<any[]>,
  * undoSecretaryProposal:(id:string)=>Promise<any>,secretaryDraft:(id:string,text:string,expected?:string)=>void,
- * fillMainDraft:(id:string,text:string)=>void,consumeMainDraft:(at:number)=>void}}
+ * fillMainDraft:(id:string,text:string)=>void,consumeMainDraft:(at:number)=>void,
+ * composerDraft:(owner:string,text:string|((current:string)=>string))=>void}}
  */
 export function createSecretaryActions(api, store) {
   const record = (mainMeetingId, snapshot) =>
@@ -73,6 +74,23 @@ export function createSecretaryActions(api, store) {
      */
     consumeMainDraft(at) {
       store.update((state) => (state.fillDraft?.at === at ? { ...state, fillDraft: null } : state));
+    },
+    /**
+     * The main input's unsent text, kept per chat (or per new-chat page) so
+     * switching chats does not lose it.
+     * @param {string} owner
+     * @param {string | ((current: string) => string)} text
+     * @returns {void}
+     */
+    composerDraft(owner, text) {
+      store.update((state) => {
+        const current = state.composerDrafts[owner] ?? '';
+        const next = typeof text === 'function' ? text(current) : text;
+        if (next === current) return state;
+        const composerDrafts = { ...state.composerDrafts, [owner]: next };
+        if (!next) delete composerDrafts[owner];
+        return { ...state, composerDrafts };
+      });
     },
   };
 }

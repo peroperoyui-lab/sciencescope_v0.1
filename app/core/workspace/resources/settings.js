@@ -21,6 +21,8 @@ export const DEFAULT_SETTINGS = {
     sideFontSize: 14,
     reduceMotion: false,
     scrollbars: false,
+    // 视图 → 窗口置顶: the main window stays above other windows.
+    alwaysOnTop: false,
     // 'compact' hides tool activity cards in meetings (视图 → 简洁执行记录).
     transcript: 'full',
     // Widths of the right-side panels, set by dragging their edge.
