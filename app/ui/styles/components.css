@@ -5183,3 +5183,34 @@ button.ss-act__row:hover {
 .ss-desk .ss-titlebar__title {
   margin-right: 12px;
 }
+
+/* 全部对话: the pinned mark and the row menu, shown like the sidebar's. */
+.chat-table tr[data-object] {
+  cursor: pointer;
+}
+.chat-table__pin {
+  display: inline-flex;
+  color: var(--muted);
+}
+.chat-table__actions {
+  text-align: right;
+  white-space: nowrap;
+}
+.chat-table__actions .ss-icon-btn {
+  opacity: 0;
+}
+.chat-table tr:hover .chat-table__actions .ss-icon-btn,
+.chat-table__actions .ss-icon-btn:focus-visible {
+  opacity: 1;
+}
+
+/* 窗口置顶 beside the window controls; pressed when the window stays on top. */
+.windowctl .windowctl__pin {
+  display: inline-flex;
+  align-items: center;
+  letter-spacing: 0;
+  color: var(--muted);
+}
+.windowctl .windowctl__pin[aria-pressed='true'] {
+  color: var(--accent);
+}

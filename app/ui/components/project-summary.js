@@ -1,7 +1,8 @@
 // 项目置顶摘要: the flyout from a project meeting's header (old
 // `.project-flyout`): recent history versions, the workbench and the latest
-// log entries.
-import { useEffect, useState } from 'preact/hooks';
+// log entries. Esc or a click outside closes it; the buttons that open it
+// carry data-summary-trigger so they can toggle it instead.
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { formatTime, t } from '../i18n/index.js';
@@ -24,19 +25,35 @@ export function ProjectSummary({ project, onClose }) {
       .then((file) => setLog(parseLog(file.text ?? '').slice(0, 2)))
       .catch(() => {});
   }, [project.id, version]);
+  const panel = useRef(null);
   useEffect(() => {
     const close = (event) => {
       if (event.key === 'Escape') onClose();
     };
+    const outside = (event) => {
+      const target = /** @type {Element} */ (event.target);
+      if (panel.current?.contains(target)) return;
+      if (target.closest?.('[data-summary-trigger], .ss-menu, .ss-dialog, .modalback')) return;
+      onClose();
+    };
     document.addEventListener('keydown', close);
-    return () => document.removeEventListener('keydown', close);
+    document.addEventListener('pointerdown', outside);
+    return () => {
+      document.removeEventListener('keydown', close);
+      document.removeEventListener('pointerdown', outside);
+    };
   }, []);
   const open = (route) => {
     onClose();
     navigate(route);
   };
 
-  return html`<section class="project-flyout" role="dialog" aria-label=${t('项目置顶摘要')}>
+  return html`<section
+    ref=${panel}
+    class="project-flyout"
+    role="dialog"
+    aria-label=${t('项目置顶摘要')}
+  >
     <div class="flyhead">
       <span>${t('项目摘要')}</span>
       <button

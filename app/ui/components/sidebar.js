@@ -63,22 +63,8 @@ function RowEnd({ meeting }) {
   return since(meeting.updatedAt);
 }
 
-function useRename() {
-  const actions = useActions();
-  return (title, value, save) =>
-    actions.openModal(
-      title,
-      html`<${FieldForm}
-        label=${t('名称')}
-        value=${value}
-        submitText=${t('保存')}
-        onSubmit=${save}
-      />`,
-    );
-}
-
 /** Running chats keep their place: archiving or moving one waits until it ends. */
-function useBusy(meetingId) {
+export function useBusy(meetingId) {
   return useAppState((state) =>
     Object.values(state.running).some((turn) => turn.meetingId === meetingId),
   );
@@ -99,15 +85,46 @@ function moveTo(actions, meeting, projectId, projects) {
   });
 }
 
+/** @param {any} actions @param {any} meeting */
+export function renameChat(actions, meeting) {
+  actions.openModal(
+    t('重命名对话'),
+    html`<${FieldForm}
+      label=${t('名称')}
+      value=${meeting.title}
+      submitText=${t('保存')}
+      onSubmit=${(title) => actions.updateMeeting(meeting.id, { title })}
+    />`,
+  );
+}
+
+/** @param {any} actions @param {any} project */
+function renameProject(actions, project) {
+  actions.openModal(
+    t('重命名项目'),
+    html`<${FieldForm}
+      label=${t('名称')}
+      value=${project.name}
+      submitText=${t('保存')}
+      onSubmit=${(name) => actions.updateProject(project.id, { name })}
+    />`,
+  );
+}
+
+/** F2 on a focused row renames it, as the menus promise. */
+const onRenameKey = (rename) => (event) => {
+  if (event.key !== 'F2' || event.altKey || event.ctrlKey || event.metaKey) return;
+  event.preventDefault();
+  rename();
+};
+
 /**
- * @param {{ meeting: any, active: boolean, variant: 'child' | 'leaf', projects: any[] }} props
+ * One chat's menu, shared by the sidebar and 全部对话.
+ * @param {any} actions @param {any} meeting
+ * @param {{ busy: boolean, projects: any[], row: Element }} options
  */
-function ChatRow({ meeting, active, variant, projects }) {
-  const actions = useActions();
-  const rename = useRename();
-  const busy = useBusy(meeting.id);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const moveMenu = (row) => {
+export function chatMenuItems(actions, meeting, { busy, projects, row }) {
+  const moveMenu = () => {
     const anchor = { type: 'click', currentTarget: row, preventDefault() {}, stopPropagation() {} };
     actions.openMenu(
       /** @type {any} */ (anchor),
@@ -133,41 +150,54 @@ function ChatRow({ meeting, active, variant, projects }) {
       t('移到项目'),
     );
   };
-  const openMenu = (event) => {
-    const row = event.currentTarget.closest('.ss-tree-row');
-    setMenuOpen(true);
-    actions.openMenu(
-      event,
-      [
-        {
-          text: t('重命名'),
-          icon: 'pencil',
-          key: 'F2',
-          run: () =>
-            rename(t('重命名对话'), meeting.title, (title) =>
-              actions.updateMeeting(meeting.id, { title }),
-            ),
-        },
-        {
-          text: meeting.pinned ? t('取消置顶') : t('置顶'),
-          icon: 'pin',
-          run: () =>
-            actions.attempt(() => actions.updateMeeting(meeting.id, { pinned: !meeting.pinned })),
-        },
-        {
-          text: busy ? t('移到项目（运行中不能移动）') : t('移到项目…'),
-          icon: 'folder',
-          disabled: busy || (!meeting.projectId && !projects.length),
-          run: () => moveMenu(row),
-        },
-        { sep: true },
-        {
+  return [
+    {
+      text: t('重命名'),
+      icon: 'pencil',
+      key: 'F2',
+      run: () => renameChat(actions, meeting),
+    },
+    {
+      text: meeting.pinned ? t('取消置顶') : t('置顶'),
+      icon: 'pin',
+      run: () =>
+        actions.attempt(() => actions.updateMeeting(meeting.id, { pinned: !meeting.pinned })),
+    },
+    {
+      text: busy ? t('移到项目（运行中不能移动）') : t('移到项目…'),
+      icon: 'folder',
+      disabled: busy || (!meeting.projectId && !projects.length),
+      run: moveMenu,
+    },
+    { sep: true },
+    meeting.archived
+      ? {
+          text: t('取消归档'),
+          icon: 'archive',
+          run: () => actions.attempt(() => actions.updateMeeting(meeting.id, { archived: false })),
+        }
+      : {
           text: busy ? t('归档（运行中不能归档）') : t('归档'),
           icon: 'archive',
           disabled: busy,
           run: () => actions.attempt(() => actions.updateMeeting(meeting.id, { archived: true })),
         },
-      ],
+  ];
+}
+
+/**
+ * @param {{ meeting: any, active: boolean, variant: 'child' | 'leaf', projects: any[] }} props
+ */
+function ChatRow({ meeting, active, variant, projects }) {
+  const actions = useActions();
+  const busy = useBusy(meeting.id);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const openMenu = (event) => {
+    const row = event.currentTarget.closest('.ss-tree-row');
+    setMenuOpen(true);
+    actions.openMenu(
+      event,
+      chatMenuItems(actions, meeting, { busy, projects, row }),
       meeting.title,
     );
   };
@@ -192,6 +222,7 @@ function ChatRow({ meeting, active, variant, projects }) {
     onDragEnd=${(event) => event.currentTarget.removeAttribute('data-dragging')}
     onClick=${() => navigate({ view: 'meeting', id: meeting.id })}
     onContextMenu=${openMenu}
+    onKeyDown=${onRenameKey(() => renameChat(actions, meeting))}
   >
     <button
       type="button"
@@ -225,7 +256,6 @@ function ChatRow({ meeting, active, variant, projects }) {
  */
 function ProjectRow({ project, chats, active, pinnedRow = false, expanded, onToggle, projects }) {
   const actions = useActions();
-  const rename = useRename();
   const [drop, setDrop] = useState(false);
   const meetings = useAppState((state) => state.meetings);
   const running = useAppState((state) =>
@@ -252,10 +282,7 @@ function ProjectRow({ project, chats, active, pinnedRow = false, expanded, onTog
           text: t('重命名'),
           icon: 'pencil',
           key: 'F2',
-          run: () =>
-            rename(t('重命名项目'), project.name, (name) =>
-              actions.updateProject(project.id, { name }),
-            ),
+          run: () => renameProject(actions, project),
         },
         { sep: true },
         {
@@ -276,6 +303,7 @@ function ProjectRow({ project, chats, active, pinnedRow = false, expanded, onTog
     data-drop=${drop ? '' : undefined}
     onClick=${() => navigate({ view: 'workbench', id: project.id })}
     onContextMenu=${openMenu}
+    onKeyDown=${onRenameKey(() => renameProject(actions, project))}
     onDragOver=${(event) => {
       if (!accepts(event)) return;
       event.preventDefault();
@@ -461,6 +489,7 @@ export function Sidebar({ route, currentProjectId }) {
             aria-label=${t('工作站简略信息')}
             data-tip=${t('工作站简报：最近历史版本、日志')}
             aria-expanded=${String(peek)}
+            data-summary-trigger
             onClick=${() => setPeek(!peek)}
           >
             <${Lucide} name="clipboard-list" />

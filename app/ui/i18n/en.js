@@ -1757,4 +1757,6 @@ export const en = {
   '项目文件夹里还没有 docx、tex、md 或 pdf 文稿。':
     'The project folder has no docx, tex, md or pdf documents yet.',
   项目符号: 'Bullets',
+  窗口置顶: 'Keep window on top',
+  取消窗口置顶: 'Stop keeping window on top',
 };

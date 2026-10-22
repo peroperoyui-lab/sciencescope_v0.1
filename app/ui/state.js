@@ -42,6 +42,8 @@ export const initialState = {
   /** @type {Record<string, any>} */ secretary: {},
   /** Local unsent secretary input, preserved when the right panel closes. */
   /** @type {Record<string, string>} */ secretaryDrafts: {},
+  /** Unsent main input by chat ('new:<project|global>' before it exists). */
+  /** @type {Record<string, string>} */ composerDrafts: {},
   /** The global assistant's meeting stays separate from the current page. */
   /** @type {any} */ assistantMeeting: null,
   assistantOpen: false,

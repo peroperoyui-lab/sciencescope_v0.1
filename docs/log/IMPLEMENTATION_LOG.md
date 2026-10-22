@@ -1,5 +1,10 @@
 # 实施记录
 
+## 2026-10-22 补回改版中丢失的窗口小功能，第一批（Claude）
+
+- Yui 请几个 Haiku 对比原型、旧桌面版、10-12 改版前新版和当前 main，回查报告 https://claude.ai/artifact/VxvRffJwPnRSfgxu2UP7J6 ，约 20 项没有决定就丢了。Yui 选先补第一批：输入框草稿按对话保存；客户端里屏蔽浏览器按键、右键菜单和误拖文件（`desktop-guard.js`，旧版 `desktop-behavior.mjs` 的做法）；F2 重命名；「查找当前对话」只在对话页可用；对话页头部恢复项目置顶摘要按钮和 `Alt+S`，摘要点外面关闭；「全部对话」行加对话菜单和置顶标记；新加窗口置顶（`appearance.alwaysOnTop`，权限 `core:window:allow-set-always-on-top`）。
+- 审阅清单加「新页面自查」一节。浏览器测试 `window-features.browser.test.js`；`npm run check` 345 通过、3 个 Windows 专属跳过。F5、拖放和置顶要 Sol 在 Windows 上确认。
+
 ## 2026-10-22 编辑台 U1 窗口骨架（Claude）
 
 - 新设置 `features.editingDesk`（第一个功能开关，默认关，设置→常规可开）。开着时左栏「工作站」下有「编辑台」，工作站页头和文件预览有「在编辑台打开」，工作站的文献版本管理撤掉；关着时界面和以前一样。
