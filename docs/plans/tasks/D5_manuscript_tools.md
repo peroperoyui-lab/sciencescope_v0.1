@@ -35,7 +35,7 @@
 4. **批准**：`save {to:"project"}` 是写项目文件，「请求批准」模式下和 `write_file` 一样先问用户（`approvals.js` 现在只认 `write_file`、`edit_file`，加上这一种；批准卡片写明文件路径和对应版本）。其余 manuscript 修改只动 `data/` 里的工作副本，不问。「始终允许」规则按现有的项目级规则走。
 5. **划选改写**：`POST /api/desk/sessions/:id/rewrite { blockId, quote, instruction }`。
    - 会话没绑会议时返回 `DESK_MEETING_REQUIRED`（绑会议是 D3c 的 `/api/desk/enter`，这次测试里直接建会话时传 `meetingId`）。
-   - 在绑定的会议里发一条用户消息，正文是指令；研究输入附一条引用标记（schema 1，`kind:'version'`，`id` 为会话基础版本，`location:{paragraph:<块序号>, blockId}`，`quote`），和现在对话里划选引用的标记同一格式。然后照常开始主专家这一轮。返回 `{ messageId, turnId }`。
+   - 在绑定的会议里发一条用户消息，正文是指令；研究输入附一条引用标记（schema 1，`kind:'version'`，`id` 为会话基础版本，`location:{paragraph:<块序号>, blockId}`，`quote`），和现在对话里划选引用的标记同一格式。然后照常开始主专家这一轮。沿用现有发送流程：会议空闲时返回 `{ messageId, turnId }`；会议正忙时进入现有待发送队列，返回 `{ messageId:null, turnId:null, queued:true, itemId }`，真正发出后由现有事件通知（2026-10-22 Sol 提问，所有者同意）。
    - 时间线里这条消息照常显示（界面怎么收成一行"编辑请求"是 U4 的事）。
 6. **`desk_suggest {reason, document?}`**（新工具，所有角色都有）：`document` 是第 1 条的 `key`。记一条持久事件 `desk.suggested {meetingId, reason, key|null}`，返回 `{ suggested:true }`。同一会议 10 分钟内重复调用只记一次。
 7. **提示词**（`app/core/context.js` 里讲工具的地方；按 §5「提示词要点」，不加硬限制）：文稿用 `workspace_edit manuscript`，不用 `edit_file` 改 docx/tex/md；只改划选或用户指定的范围，范围外的问题在回答里说；`find` 取足够长的原文；原子记号原样保留；回答只说改了什么、为什么。秘书和全局助手按用户要求读、比较、存版本，不主动改正文。
