@@ -189,12 +189,12 @@ CREATE TABLE manuscript_comments (...);            -- tex 批注，第 6.3 节
 
 **工具**（加进 `app/services/tools.js` 的现有工具，所有角色都有）：
 
-| 调用                                   | 参数与作用                                                                                                                                                                                                                                                                                 |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `workspace_read target="manuscript"`   | `scope=<项目 id>` 列出文稿；`key=<项目 id>/<组 id>` 或 `…/path:<相对路径>`，未登记的先登记。`offset` 默认 0、`limit` 默认 40 最多 200，`version` 读历史版本；返回块 id、种类、标题级别、文字、原子记号和 `remaining`；D6 为每块补 `annotations` 摘要，见 §6。                                                  |
+| 调用                                   | 参数与作用                                                                                                                                                                                                                                                                                |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `workspace_read target="manuscript"`   | `scope=<项目 id>` 列出文稿；`key=<项目 id>/<组 id>` 或 `…/path:<相对路径>`，未登记的先登记。`offset` 默认 0、`limit` 默认 40 最多 200，`version` 读历史版本；返回块 id、种类、标题级别、文字、原子记号和 `remaining`；D6 为每块补 `annotations` 摘要，见 §6。                             |
 | `workspace_edit resource="manuscript"` | `replace {block, find, with}`（`find` 在块内须唯一，否则 `TEXT_NOT_FOUND`/`TEXT_AMBIGUOUS`）；`insertBlock {after, text}`（段 id 或 `^`，继承段落格式）；`removeBlock {block}`；`save {to: "project"\|"version", label?, tier?}`。D6 补 `comment`、`bind`、`uncomment`、`unbind`，见 §6。 |
-| `workspace_undo`                       | `revisionId` 可以是 `chg_…`                                                                                                                                                                                                                                                                |
-| `desk_suggest`                         | `{reason, document?}`，document 是文稿 key；持久记录 `desk.suggested {meetingId,reason,key:null或文稿key}`，同会议 10 分钟只记一次，返回 `{suggested:true}`。横条由 U8 接入。                                                                                                              |
+| `workspace_undo`                       | `revisionId` 可以是 `chg_…`                                                                                                                                                                                                                                                               |
+| `desk_suggest`                         | `{reason, document?}`，document 是文稿 key；持久记录 `desk.suggested {meetingId,reason,key:null或文稿key}`，同会议 10 分钟只记一次，返回 `{suggested:true}`。横条由 U8 接入。                                                                                                             |
 
 没有打开的会话时，`workspace_edit manuscript` 为最新版本开一个绑定当前会议的后台会话，修改进工作副本，用户下次打开接上同一会话。DOCX 复用 `updateBlocks`，tex/md 复用 `updateText`；每处修改记录专家、会议、轮次和触发消息前 200 字。AI 修改只动 `data/` 里的工作副本，不触发批准；写项目文件只有 `save {to:"project"}`，"请求批准"模式下卡片列出路径和基础版本号，复用 `write_file` 的项目级始终允许规则。拒绝不改项目文件；外部修改与保存确认原样回给模型，不自动确认。
 
@@ -327,7 +327,7 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 | D2 **A**  | `desk/docx/` 读、写、批注                                                                                           | Sol    | 合成样例覆盖公式、域、图片、表格、修订、批注；改一段其余字节相同；`w:eastAsia` 继承 |
 | D3a ✅    | 会话服务（docx）：块更新、工作副本、修改记录、撤回、保存、外部修改、关闭生成版本                                    | Sol    | 打开 → 改 → 撤回 → 保存 → 关闭                                                      |
 | D3b ✅    | tex、md 会话（块拆分、按块记修改）、编辑台文件列表、docx 图片字节                                                   | Sol    | tex、md 各走一遍打开 → 改 → 撤回 → 保存 → 关闭                                      |
-| D3c **A** | `/api/desk/enter`（接续或分支）、`desk.focus`                                                                       | Sol    | 场景 1、9 的后端测试                                                                |
+| D3c **A** | `/api/desk/enter`（接续或分支）、`desk.focus`（任务书已写，与 D8 一起）                                             | Sol    | 场景 1、9 的后端测试                                                                |
 | E1 **A**  | tex 渲染与公式编辑试验：LaTeX.js 对比自写转换、KaTeX、MathLive；md 往返                                             | Claude | 三份真实 tex（含中文、公式、表格）渲染对照截图，选定方案；md 改一处其余原文不变     |
 | U0 **A**  | 编辑台设计稿：窗口布局、docx、tex、md、pdf、比较、版本树、浮动工具条、右键菜单（2026-10-22 已出，画廊「编辑台」组） | Claude | 所有者认可                                                                          |
 | U1 ✅     | 窗口骨架、入口、左栏、底部栏、文稿标签、`features.editingDesk`，撤掉工作站版本管理                                  | Claude | 100%、125% 截图；开关关闭时无入口                                                   |
@@ -336,7 +336,7 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 | U3 **A**  | 比较视图：左右两页并排、同步滚动、上一处下一处，`version-diff.js` 改用新结果                                        | Claude | 截图；上一处、下一处可用                                                            |
 | D5 ✅     | `manuscript` 读写、`chg_` 撤回、`desk_suggest`、提示词                                                              | Sol    | 脚本运行时测试；`deepseek-v4.1-flash` 真跑一次，报请求数和 token                    |
 | U4 **A**  | 浮动工具条、右键菜单、AI 修改后的提示条（看改了什么、撤销）、对话标记跳转                                           | Claude | 场景 2、9 浏览器测试；全新安装加服务商后真跑一次                                    |
-| D6 **A**  | 批注和索引的表、服务、接口（增删改查，含专家的）、打开时重新定位，原文删光时删除（任务书已写）                      | Sol    | 外部修改后仍定位；原文删掉后这条被删除并记进版本说明                                |
+| D6 ✅     | 批注和索引的表、服务、接口（增删改查，含专家的）、打开时重新定位，原文删光时删除                                    | Sol    | 外部修改后仍定位；原文删掉后这条被删除并记进版本说明                                |
 | U5 **A**  | 「批注与索引」侧栏、批注和索引跟着文字走的标记（全删才删、撤销一起恢复）、查看索引菜单、索引选择框                  | Claude | 场景 5、6 浏览器测试；删字和撤销的锚点测试                                          |
 | U6 **A**  | tex 源码加实时渲染、公式编辑框、md 两种视图、PDF 阅览与标记、编译按钮                                               | Claude | 场景 7、8 浏览器测试；无引擎时编译按钮停用有提示                                    |
 | D7 **A**  | 引擎检测、编译，输出放 `data/temp/`                                                                                 | Sol    | Windows 上 MiKTeX 编译 xeCJK 样例                                                   |

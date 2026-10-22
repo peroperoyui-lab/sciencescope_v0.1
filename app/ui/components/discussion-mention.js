@@ -29,14 +29,16 @@ export function useDiscussionMention({ candidates, enabled, box, text, onChange 
     // than a previous render's draft when the user immediately picks a name.
     const current = box.current?.value ?? text;
     const value = current.slice(0, mention.start) + insert + current.slice(mention.end);
+    // Place the caret now, not in a later frame: a deferred caret could land
+    // after the user's next edit started and collapse its selection.
+    const input = box.current;
+    if (input) {
+      input.value = value;
+      input.focus();
+      input.setSelectionRange(mention.start + insert.length, mention.start + insert.length);
+    }
     onChange(value);
     setMention(null);
-    requestAnimationFrame(() => {
-      // A newer edit owns the cursor; a pending selection must not move it.
-      if (box.current?.value !== value) return;
-      box.current?.focus();
-      box.current?.setSelectionRange(mention.start + insert.length, mention.start + insert.length);
-    });
   }
   function onKey(event) {
     if (!mention || event.isComposing || event.keyCode === 229) return false;
