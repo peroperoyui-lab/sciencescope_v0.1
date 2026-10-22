@@ -10,6 +10,16 @@ export function registerDeskRoutes(router, desk, core, conductor) {
   if (!desk) return;
   const actor = { actorId: 'person_user' };
   const rewrite = core && createDeskRewrite(core, desk, conductor);
+  router.get('/api/desk/sessions/:id/annotations', ({ params }) => desk.listAnnotations(params.id));
+  router.post('/api/desk/sessions/:id/annotations', ({ params, body }) =>
+    desk.createAnnotation(params.id, body, actor),
+  );
+  router.patch('/api/desk/annotations/:id', ({ params, body }) =>
+    desk.updateAnnotation(params.id, body, actor),
+  );
+  router.delete('/api/desk/annotations/:id', ({ params }) =>
+    desk.updateAnnotation(params.id, {}, actor, { remove: true }),
+  );
   router.post('/api/desk/sessions/:id/rewrite', async ({ params, body, response }) => {
     const controller = new AbortController();
     const close = () => controller.abort();

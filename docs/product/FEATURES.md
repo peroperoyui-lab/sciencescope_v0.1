@@ -323,6 +323,7 @@ data/
 
 - D4 版本比较后端已接入：`GET /api/versions/:id/diff` 返回两版块、段落配对、段内删增和格式范围；省略 baseline 默认父版本，可跨分支。迁移 028 的 `version_diffs` 缓存版本对；版本生成后由 worker 串行预计算，关闭应用取消未完成工作。DOCX 原子按 XML 哈希识别，tex/md/pdf 复用已有读取；旧比较界面仍用 `/compare`，新界面待 U3。
 - D5 专家改文稿后端已接入：所有角色共用 `workspace_read/edit manuscript`，按块读当前或历史内容、替换/插删段、存版本或写回项目，`workspace_undo chg_` 逐处撤回；复用编辑会话与修改记录。原子记号按原顺序保留，替换继承起始字符格式；写回项目在请求批准模式下询问，沿用 C1 始终允许规则。划选改写经绑定会议发送，忙时进入现有队列；`desk_suggest` 持久事件十分钟去重，界面提示由 Claude 接入。
+- D6 批注与索引后端：迁移 029 建索引/非 Word 批注表及修改记录的标注快照。统一 annotations 接口增删改查，标注随文字移动、删光时删除，按修改撤回时一起恢复；外部修改后按原文和前后文重新定位，缺失或歧义记 `annotation-lost`。DOCX 批注写回 Word，索引及 tex/md/pdf 批注只存应用；PDF 正文只读。专家共用 comment/bind/uncomment/unbind，读取带摘要，删除限自己添加的条目；侧栏由 U5 接入。
 
 **实现位置**：`app/core/workspace/`（`workspace.js` 读写与撤销，`snapshots.js` 历史版本，`resources/` 各资源格式）、`app/services/versions/`（`comparison.js` 旧比较、`diffs.js` 新比较队列和缓存、`organizer.js` 版本说明）、`app/services/desk/diff.js`（块与段内比较）、`app/services/journal-files.js`；界面 `app/ui/components/` 下的 `workbench.js`、`map-*.js`、`version*.js`、`resource-history.js`；编辑台窗口 `app/ui/desk-window.js`（打开与转交文稿）和 `app/ui/components/desk*.js`，原生窗口在 `src-tauri/src/main.rs` 的 `open_secondary_window`（`surface: 'desk'`）。
 
@@ -605,6 +606,7 @@ data/
 - `GET /api/desk/sessions/:id/media/:ref` 返回 DOCX 图片原字节及 MIME；可用图片原子带 `media:true`，不存在返回 404。
 - `POST /api/desk/changes/:id/undo`、`POST /api/desk/sessions/:id/settle` 逐处撤回或保留。
 - D5 `POST /api/desk/sessions/:id/rewrite {blockId,quote,instruction}` 发出带版本引用的用户消息；未绑定会议返回 `DESK_MEETING_REQUIRED`，空闲返回 `{messageId,turnId}`，忙时返回 `{messageId:null,turnId:null,queued:true,itemId}`，发出后沿用事件通知。引用含基础版本、从 1 开始的 paragraph、blockId 和 quote。
+- D6 `GET/POST /api/desk/sessions/:id/annotations`、`PATCH/DELETE /api/desk/annotations/:id` 提供统一批注/索引，DOCX id 为 `docx:<版本组 id>:<Word 编号>`；范围使用显示文字的 UTF-16 偏移。事件 `desk.annotations.changed`；文字修改返回和 `desk.changed` 带 `removedAnnotations`。Word 重编号后返回新 id，仍保留匹配到的作者身份。
 - `POST /api/desk/sessions/:id/save` 写回项目文件或存新版本；`POST /api/desk/sessions/:id/close` 按需留版本后删除工作副本。事件 `desk.changed`、`desk.session`；409 错误的 `details` 提供冲突块或外部版本。
 - `GET/PATCH /api/version-preferences/:projectId` 读取、开关项目的自动整理说明。
 
@@ -686,6 +688,9 @@ data/
 | 025  | `kb_entities.produced_from/evidence_json`；`kb_jobs.result_json/meeting_id/manual`                                                           | 论文卡片来源、证据和持久任务结果；卡片条目加入知识库版本快照与恢复                       |
 | 026  | `kb_positions(ref,x,y,pinned,updated_at)`                                                                                                    | 跨项目共享的图位置投影、用户钉住状态；可重算，不进历史版本                               |
 | 027  | `version_groups.source_hash`、`source_version_id`                                                                                            | 编辑台判断项目文件是否在外部被改过；写回项目文件不生成版本                               |
+
+| 028 | `version_diffs` | 父子版本及任意版本对的差异缓存，可重新计算 |
+| 029 | `manuscript_bindings`、`manuscript_comments`；`desk_changes.annotations_json` | 索引、非 Word 批注及同次修改的标注快照；DOCX 批注仍由文件和修改记录保存 |
 
 ### 4.2 文件资源
 

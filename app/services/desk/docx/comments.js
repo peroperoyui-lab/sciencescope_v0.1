@@ -23,8 +23,8 @@ export async function appendComments(document, additions) {
   let next = Math.max(-1, ...ids) + 1;
   const assigned = additions.map((comment) => ({
     ...comment,
-    id: String(next++),
-    paraId: document.allocateId(),
+    id: comment.id == null ? String(next++) : String(comment.id),
+    paraId: comment.paraId ?? document.allocateId(),
   }));
   const xml =
     document.commentsXml ??

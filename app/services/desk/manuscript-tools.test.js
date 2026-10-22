@@ -210,7 +210,7 @@ test('manuscript tools page current/history blocks, preserve atom markers and re
       });
       assert.equal(history.blocks[0].text, first.blocks[0].text);
       assert.equal(history.sessionId, null);
-      assert.equal((await edit('comment', {})).code, 'UNKNOWN_OP');
+      assert.equal((await edit('unsupported', {})).code, 'UNKNOWN_OP');
     } finally {
       await fixture.close();
     }

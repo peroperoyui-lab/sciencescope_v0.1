@@ -70,6 +70,7 @@ function change(row) {
     op: row.op,
     before: JSON.parse(row.before_json),
     after: JSON.parse(row.after_json),
+    annotations: JSON.parse(row.annotations_json ?? '[]'),
     actorId: row.actor_id,
     meetingId: row.meeting_id,
     turnId: row.turn_id,
@@ -82,8 +83,9 @@ function change(row) {
 
 /**
  * @param {import('../../core/index.js').Core} core
+ * @param {any} [annotations]
  */
-export function createDeskStore(core) {
+export function createDeskStore(core, annotations) {
   const { db } = core;
   const get = (id) => session(db.prepare('SELECT * FROM desk_sessions WHERE id=?').get(id));
   const changes = (id) =>
@@ -103,13 +105,20 @@ export function createDeskStore(core) {
   }
   function commit(state, proposal, actor, undoId = null) {
     if (!proposal.records.length) return { seq: state.session.seq, inserted: proposal.inserted };
+    annotations?.prepare(
+      state,
+      proposal,
+      undoId ? change(db.prepare('SELECT * FROM desk_changes WHERE id=?').get(undoId)) : null,
+    );
     const seq = state.session.seq + 1;
     const ids = proposal.records.map(() => newId('chg'));
+    const deltas = proposal.records.flatMap((record) => record.annotations ?? []);
+    const removedAnnotations = deltas.filter((delta) => delta.before && !delta.after).length;
     db.transaction(() => {
       for (const [index, record] of proposal.records.entries())
         db.prepare(
           `INSERT INTO desk_changes (id,session_id,seq,block_id,op,before_json,after_json,
-          actor_id,meeting_id,turn_id,instruction,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+          actor_id,meeting_id,turn_id,instruction,created_at,annotations_json) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         ).run(
           ids[index],
           state.session.id,
@@ -123,9 +132,18 @@ export function createDeskStore(core) {
           actor.turnId ?? null,
           actor.instruction ?? '',
           nowIso(),
+          JSON.stringify(record.annotations ?? []),
         );
+      annotations?.applyDatabase(proposal.records);
       if (undoId) db.prepare('UPDATE desk_changes SET undone_by=? WHERE id=?').run(ids[0], undoId);
       db.prepare('UPDATE desk_sessions SET seq=? WHERE id=?').run(seq, state.session.id);
+      // Catalog-only annotation edits are already durable and do not dirty the
+      // project file. Word comments remain ordinary unsaved document changes.
+      if (
+        state.session.seq === state.session.savedSeq &&
+        proposal.records.every((record) => ['annotation', 'annotation-lost'].includes(record.op))
+      )
+        db.prepare('UPDATE desk_sessions SET saved_seq=? WHERE id=?').run(seq, state.session.id);
       core.events.record(
         'desk.changed',
         {
@@ -133,13 +151,24 @@ export function createDeskStore(core) {
           seq,
           blockIds: proposal.records.map((record) => record.blockId),
           changeIds: ids,
+          removedAnnotations,
         },
         actor,
       );
+      if (deltas.length)
+        core.events.record(
+          'desk.annotations.changed',
+          {
+            sessionId: state.session.id,
+            ids: [...new Set(deltas.map((delta) => (delta.after ?? delta.before).id))],
+          },
+          actor,
+        );
     });
     state.blocks = proposal.blocks;
+    annotations?.accept(state, proposal.records);
     state.session = get(state.session.id);
-    return { seq, inserted: proposal.inserted };
+    return { seq, inserted: proposal.inserted, removedAnnotations };
   }
   return {
     get,

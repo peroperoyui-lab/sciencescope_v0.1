@@ -83,9 +83,10 @@ export function replay(blocks, records) {
   const next = blocks.slice();
   for (const record of records) {
     const index = next.findIndex((block) => block.id === record.blockId);
-    if (record.op === 'edit') next[index] = { ...next[index], inlines: record.after };
+    if (['edit', 'comment'].includes(record.op))
+      next[index] = { ...next[index], inlines: record.after };
     else if (record.op === 'remove-block') next.splice(index, 1);
-    else {
+    else if (record.op === 'insert-block') {
       const after = record.after;
       const at = after.after === '^' ? -1 : next.findIndex((block) => block.id === after.after);
       next.splice(at + 1, 0, { ...after.block, id: record.blockId, inlines: after.inlines });
@@ -192,14 +193,15 @@ export function propose(state, input) {
  */
 export function inverse(state, record) {
   const current = state.blocks.find((block) => block.id === record.blockId);
-  const expected = record.op === 'edit' ? record.after : record.after?.inlines;
+  const expected = ['edit', 'comment'].includes(record.op) ? record.after : record.after?.inlines;
   if (
     record.undoneBy ||
     (record.op === 'remove-block' ? !!current : !equal(current?.inlines, expected))
   )
     throw conflict('DESK_UNDO_BLOCKED', '这段正文后来又被修改，请先撤回后面的修改。');
   let undo;
-  if (record.op === 'edit') undo = { ...record, before: record.after, after: record.before };
+  if (['edit', 'comment'].includes(record.op))
+    undo = { ...record, before: record.after, after: record.before, annotations: [] };
   else if (record.op === 'insert-block')
     undo = {
       blockId: record.blockId,

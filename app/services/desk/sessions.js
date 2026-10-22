@@ -12,7 +12,7 @@ import { hash, readProject, writeAtomic } from './storage.js';
  */
 export function createDeskSessions(
   core,
-  { versions, projectFiles, store, serial, idleMs, schedule, cancel, writeWorking },
+  { versions, projectFiles, store, annotations, serial, idleMs, schedule, cancel, writeWorking },
 ) {
   const states = new Map();
   const catalog = core.versionCatalog;
@@ -39,6 +39,7 @@ export function createDeskSessions(
       flushedSeq,
       timer: null,
     };
+    annotations.hydrate(state, records);
     states.set(session.id, state);
     if (state.flushedSeq < session.seq) requestFlush(state);
     return state;
@@ -149,6 +150,10 @@ export function createDeskSessions(
       core.db
         .prepare('UPDATE desk_sessions SET base_version_id=? WHERE id=?')
         .run(version.id, state.session.id);
+      for (const table of ['manuscript_bindings', 'manuscript_comments'])
+        core.db
+          .prepare(`UPDATE ${table} SET version_id=? WHERE group_id=?`)
+          .run(version.id, state.session.groupId);
       // A project file written from this lineage now descends from the new version.
       core.db
         .prepare('UPDATE version_groups SET source_version_id=? WHERE id=? AND source_version_id=?')
@@ -183,8 +188,8 @@ export function createDeskSessions(
    */
   async function open({ groupId, versionId, meetingId }) {
     const group = catalog.group(groupId);
-    if (!['docx', 'tex', 'md'].includes(group.format))
-      throw new AppError('DESK_FORMAT', '请选择 DOCX、TeX 或 Markdown 文稿。');
+    if (!['docx', 'tex', 'md', 'pdf'].includes(group.format))
+      throw new AppError('DESK_FORMAT', '请选择 DOCX、TeX、Markdown 或 PDF 文稿。');
     if (meetingId) core.meetings.get(meetingId);
     const existing = store.open(groupId);
     const source = await external(group);
@@ -206,7 +211,13 @@ export function createDeskSessions(
     const document = await readDocument(bytes, group.format);
     const session = store.create(groupId, version.id, meetingId);
     try {
-      return response(await initialize(session, document));
+      const state = await initialize(session, document);
+      const proposal = annotations.reanchor(state);
+      if (proposal.records.length) {
+        store.commit(state, proposal, { actorId: 'person_user' });
+        requestFlush(state);
+      }
+      return response(state);
     } catch (error) {
       core.db.prepare('DELETE FROM desk_sessions WHERE id=?').run(session.id);
       await rm(paths(session).root, { recursive: true, force: true });

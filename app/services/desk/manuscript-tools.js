@@ -4,7 +4,14 @@ import { AppError } from '../../core/errors.js';
 import { createDeskStore } from './storage.js';
 import { createProjectFiles } from '../project-files.js';
 import { readDiffBlocks } from './diff-blocks.js';
-import { manuscriptText, replaceInlines, editText, plainInsertion } from './manuscript-text.js';
+import {
+  manuscriptText,
+  findText,
+  replaceInlines,
+  editText,
+  plainInsertion,
+} from './manuscript-text.js';
+import { toolRange } from './annotation-tools.js';
 
 /**
  * @param {import('../../core/index.js').Core} core
@@ -74,12 +81,28 @@ export function createManuscriptTools(core, desk, approvals) {
     const offset = Math.max(0, Math.trunc(args.offset ?? 0));
     const limit = Math.max(1, Math.min(200, Math.trunc(args.limit ?? 40)));
     const page = blocks.slice(offset, offset + limit);
+    const annotations = (
+      open ? await desk.listAnnotations(open.id) : await desk.versionAnnotations(versionId)
+    ).items;
     return {
       groupId: group.id,
       versionId,
       sessionId: open?.id ?? null,
       seq,
-      blocks: page.map(visible),
+      blocks: page.map((block) => ({
+        ...visible(block),
+        annotations: annotations
+          .filter((item) => item.blockId === block.id)
+          .map((item) => ({
+            id: item.id,
+            type: item.type,
+            quote: item.quote,
+            summary:
+              item.type === 'comment'
+                ? item.text.slice(0, 60)
+                : [item.value, item.note].filter(Boolean).join(' · '),
+          })),
+      })),
       remaining: Math.max(0, blocks.length - offset - page.length),
     };
   }
@@ -104,11 +127,23 @@ export function createManuscriptTools(core, desk, approvals) {
               .filter((record) => record.seq === result.seq)
               .map((record) => record.id),
       seq: result.seq,
+      removedAnnotations: result.removedAnnotations ?? 0,
       block: visible(current.blocks.find((block) => block.id === blockId)),
     };
   }
   async function edit(args, context) {
-    if (!['replace', 'insertBlock', 'removeBlock', 'save'].includes(args.op))
+    if (
+      ![
+        'replace',
+        'insertBlock',
+        'removeBlock',
+        'save',
+        'comment',
+        'bind',
+        'unbind',
+        'uncomment',
+      ].includes(args.op)
+    )
       throw new AppError('UNKNOWN_OP', '这项文稿操作尚未提供。');
     const group = await groupOf(args.key);
     const actor = actorOf(context);
@@ -118,6 +153,16 @@ export function createManuscriptTools(core, desk, approvals) {
       : await desk.openSession({ groupId: group.id, meetingId: context.meetingId });
     const input = args.args ?? {};
     const id = current.session.id;
+    if (['unbind', 'uncomment'].includes(args.op)) {
+      const item = (await desk.listAnnotations(id)).items.find((entry) => entry.id === input.id);
+      if (!item)
+        throw new AppError('DESK_ANNOTATION_NOT_FOUND', '这份文稿中找不到这条批注或索引。', 404);
+      const result = await desk.updateAnnotation(input.id, {}, actor, {
+        remove: true,
+        ownOnly: true,
+      });
+      return resultOf(id, current.session.seq, result, null);
+    }
     if (args.op === 'save') {
       if (input.to === 'project') {
         if (!group.sourcePath)
@@ -149,6 +194,27 @@ export function createManuscriptTools(core, desk, approvals) {
     const block = current.blocks.find((entry) => entry.id === blockId);
     if (!block && !(args.op === 'insertBlock' && input.after === '^'))
       throw new AppError('DOCX_BLOCK_NOT_FOUND', '这段正文已不存在，请重新读取文稿。');
+    if (['comment', 'bind'].includes(args.op)) {
+      const found = findText(
+        block,
+        typeof input.quote === 'string' ? input.quote : input.quote?.exact,
+      );
+      const range = toolRange(block, found.from, found.to);
+      const result = await desk.createAnnotation(
+        id,
+        {
+          ...input,
+          type: args.op === 'comment' ? 'comment' : 'index',
+          blockId: block.id,
+          ...range,
+        },
+        actor,
+      );
+      return {
+        ...(await resultOf(id, current.session.seq, result, block.id)),
+        annotation: result.item,
+      };
+    }
     let result,
       editedId = input.block;
     if (group.format === 'docx') {

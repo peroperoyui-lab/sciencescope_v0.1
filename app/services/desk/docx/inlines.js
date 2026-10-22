@@ -55,7 +55,7 @@ export function createInlineReader(xml, spans) {
     children.get(span.parent).push(span);
   }
   const inside = (span) => spans.slice(span.index, span.after);
-  const raw = (span) => xml.slice(span.start, span.end);
+  const raw = (span) => span.raw ?? xml.slice(span.start, span.end);
   const runs = spans
     .filter((span) => span.tag === 'w:r')
     .map((span) => {
@@ -85,6 +85,8 @@ export function createInlineReader(xml, spans) {
     return text;
   }
   function display(span, type) {
+    // Range delimiters are metadata, not object characters in the paragraph.
+    if (type.startsWith('comment-')) return '';
     if (type === 'math') return textOf(span, 'm:t');
     if (type === 'field') return textOf(span, 'w:t', true);
     if (type === 'tab') return '\t';

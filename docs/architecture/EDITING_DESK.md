@@ -191,8 +191,8 @@ CREATE TABLE manuscript_comments (...);            -- tex 批注，第 6.3 节
 
 | 调用                                   | 参数与作用                                                                                                                                                                                                                                                                                 |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `workspace_read target="manuscript"`   | `scope=<项目 id>` 列出文稿；`key=<项目 id>/<组 id>` 或 `…/path:<相对路径>`，未登记的先登记。`offset` 默认 0、`limit` 默认 40 最多 200，`version` 读历史版本；返回块 id、种类、标题级别、文字、原子记号和 `remaining`，批注与绑定留到 D6。                                                  |
-| `workspace_edit resource="manuscript"` | `replace {block, find, with}`（`find` 在块内须唯一，否则 `TEXT_NOT_FOUND`/`TEXT_AMBIGUOUS`）；`insertBlock {after, text}`（段 id 或 `^`，继承段落格式）；`removeBlock {block}`；`save {to: "project"\|"version", label?, tier?}`。`comment`、`bind`、`unbind` 返回 `UNKNOWN_OP`，留到 D6。 |
+| `workspace_read target="manuscript"`   | `scope=<项目 id>` 列出文稿；`key=<项目 id>/<组 id>` 或 `…/path:<相对路径>`，未登记的先登记。`offset` 默认 0、`limit` 默认 40 最多 200，`version` 读历史版本；返回块 id、种类、标题级别、文字、原子记号和 `remaining`；D6 为每块补 `annotations` 摘要，见 §6。                                                  |
+| `workspace_edit resource="manuscript"` | `replace {block, find, with}`（`find` 在块内须唯一，否则 `TEXT_NOT_FOUND`/`TEXT_AMBIGUOUS`）；`insertBlock {after, text}`（段 id 或 `^`，继承段落格式）；`removeBlock {block}`；`save {to: "project"\|"version", label?, tier?}`。D6 补 `comment`、`bind`、`uncomment`、`unbind`，见 §6。 |
 | `workspace_undo`                       | `revisionId` 可以是 `chg_…`                                                                                                                                                                                                                                                                |
 | `desk_suggest`                         | `{reason, document?}`，document 是文稿 key；持久记录 `desk.suggested {meetingId,reason,key:null或文稿key}`，同会议 10 分钟只记一次，返回 `{suggested:true}`。横条由 U8 接入。                                                                                                              |
 
@@ -200,7 +200,7 @@ CREATE TABLE manuscript_comments (...);            -- tex 批注，第 6.3 节
 
 D5 原子记号为 `⟦类型:ref⟧`，域和公式还带显示文字，例如 `⟦field:8 (Zhang, 2024)⟧`；替换必须逐个按原顺序保留，否则 `DESK_ATOM_CHANGED`。替换文字沿用起始字符的格式，其他原有行内内容保留。工具成功返回 `{revisionIds:['chg_…'],seq,block:{id,kind,level,text}}`；删除或保存时 block 为 null，保存另带 version（写回项目时为 null）。工具错误返回 `{code,error,...details}`，找不到/不唯一时含当前 block；撤回冲突保留 `DESK_UNDO_BLOCKED`。
 
-**提示词要点**（不加硬限制）：文稿用 `workspace_edit manuscript`，不用 `edit_file` 改 docx/tex/md；只改划选或用户指定的范围，范围外的问题在回答里说；`find` 取足够长且唯一的原文；原子记号及顺序原样保留；回答只说改了什么和为什么。秘书和全局助手用同一套工具（原则 2、3），按用户要求读、比较、存版本，不主动改正文；会议里被 @ 的专家同样可用。批注和索引由 D6 接入。
+**提示词要点**（不加硬限制）：文稿用 `workspace_edit manuscript`，不用 `edit_file` 改 docx/tex/md；只改划选或用户指定的范围，范围外的问题用 `comment` 留批注；`find` 取足够长且唯一的原文；原子记号及顺序原样保留；回答只说改了什么和为什么。秘书和全局助手用同一套工具（原则 2、3），按用户要求读、比较、存版本，不主动改正文；会议里被 @ 的专家同样可用。数字、图表和结论有来源时用 `bind` 记下。
 
 ## 6. 批注与索引（索引即原"来源绑定"）
 
@@ -209,8 +209,9 @@ D5 原子记号为 `⟦类型:ref⟧`，域和公式还带显示文字，例如 
 ```sql
 CREATE TABLE manuscript_bindings (
   id TEXT PRIMARY KEY, group_id TEXT NOT NULL REFERENCES version_groups(id),
-  version_id TEXT REFERENCES manuscript_versions(id),  -- 绑定时所在的版本
-  block_id TEXT NOT NULL, quote_json TEXT NOT NULL,    -- {exact, prefix, suffix}
+  version_id TEXT REFERENCES manuscript_versions(id),  -- 最后一次定位的版本
+  block_id TEXT NOT NULL, block_from INTEGER NOT NULL, block_to INTEGER NOT NULL,
+  quote_json TEXT NOT NULL,    -- {exact, prefix, suffix}，前后各 32 个字符
   kind TEXT NOT NULL,           -- number | figure | table | claim | text
   value TEXT NOT NULL DEFAULT '',
   sources_json TEXT NOT NULL DEFAULT '[]',             -- schema 1 引用对象数组
@@ -223,11 +224,17 @@ CREATE TABLE manuscript_bindings (
 
 结构对应 W3C PROV：`value` 是实体，`derivation` 是生成它的活动（`inputs` 是 used，`script` 是活动的计划），`attributed_to` 是执行者。`sources` 和 `script` 直接用 `app/core/references.js` 的 schema 1 引用对象（`project-file`、`script`、`source`、`chunk`、`item`、`message`），跳转复用日志和版本说明现有的打开逻辑，不增加新的引用格式。
 
+D6 的迁移 029 已建 `manuscript_bindings`、`manuscript_comments`（同样有 `block_from/block_to`），并给 `desk_changes` 加 `annotations_json`，存这一处修改引起的 `{before,after}` 标注快照。DOCX 批注由原件和会话记录投影，不进批注表；新增、改正文、删除批注记 `op:'comment'`，写回复用 D2b。索引及其他格式批注记 `op:'annotation'`。新增 DOCX 范围标记先使用会话内可重放的原子，存盘写为标准 Word 批注范围，批注、索引及文字共用撤回栈。
+
+偏移是块的显示文字中的 UTF-16 位置；批注起止和引用标记占 0 个字符，公式、域和图片保留原来的显示文字或对象字符。工具读出的 `⟦类型:ref⟧` 记号由服务端转换成这个范围，切开记号返回 `DESK_ATOM_CHANGED`。PDF 可建立只读标注会话，正文保持原件字节；tex/md/pdf 的批注支持 `parentId` 回复和 `resolved`，DOCX 的回复和解决留到后续。
+
+DOCX 批注 id 为 `docx:<版本组 id>:<Word 批注编号>`，其他标注用全局 id。Word 保存时会重编号，重新打开后列表返回新的编号；作者用批注段落标识匹配，兼容旧记录时只接受唯一的作者/正文/分钟级时间匹配。外来批注的作者保留原名字，无法对应参与者时 id 为 null。
+
 ### 6.2 锚点
 
 **编辑时（所有者 2026-10-22）：** 批注和索引在编辑器里是跟着文字走的标记（ProseMirror mark），删字、插字时范围自动收缩、伸长；**标记的文字只要还剩一个字就保留，最后一个字删掉时批注或索引一起删除**；撤销把文字和批注、索引一起恢复（同一个撤销栈）。删除时底部提示"删掉的文字带走了 1 条索引"，可以撤销。AI 的修改同样遵守这条规则。
 
-**存盘时：** 锚点放 `data/`（docx 的批注另写进 Word 批注范围），记 `block_id`、块内起止和 `quote`。打开时先按 `block_id` 和起止定位，对不上（外部修改过）时在全文里找 `quote.exact`，用 `prefix`、`suffix` 消歧；唯一命中就更新，找不到说明原文已被删掉，按上面的规则删除这条，记进版本说明，不猜。
+**存盘时：** 锚点放 `data/`（docx 的批注另写进 Word 批注范围），记 `block_id`、块内起止和 `quote`。打开时先按 `block_id` 和起止定位，对不上（外部修改过）时在全文里找 `quote.exact`，多处命中用 `prefix`、`suffix` 消歧；唯一命中就更新，找不到或仍有多处时删除，并记可撤回的 `annotation-lost` 修改。tex/md 每次新建会话都按原文重找。修改记录的 `annotations` 保存标注快照，原文删光时与文字一起恢复；原文比较复用 jsdiff `diffChars`，按仍保留的原字符映射，范围内的插字随范围伸长。
 
 ### 6.3 界面与 tex 批注
 
@@ -235,6 +242,8 @@ CREATE TABLE manuscript_bindings (
 - 批注的文字浅黄底加下划线，索引的文字下有细点线。右键 →「查看索引」在栏里展开说明、来源（文件名、页码或行号）、生成脚本和记录者，点任一项在文件预览里打开并定位。
 - 划选后右键 →「添加索引」，可选项目文件、资料库资料或条目、某条消息，写一句说明。
 - tex、md、pdf 的批注存 `manuscript_comments`（`id, group_id, version_id, block_id, quote_json, author_id, text, parent_id, resolved, created_at, updated_at`），锚点规则与索引相同；因为只在应用内，支持回复和解决。
+
+D6 工具已接入 `workspace_edit manuscript`：`comment {block,quote,text}`、`bind {block,quote,kind,value?,sources,note?}`、`uncomment {id}`、`unbind {id}`。引用文字必须唯一且不切开原子；索引至少有一个 schema 1 来源。专家删除别人添加的条目返回 `DESK_NOT_AUTHOR`，用户接口可删除任意条目。`workspace_read manuscript` 每块附 `annotations:[{id,type,quote,summary}]`，批注摘要取前 60 字，索引为 `value · note`；历史读取仅列对应版本的标注。提示词引导专家为数字、图表和结论记来源，范围外问题用批注。
 
 ## 7. 界面
 
@@ -252,6 +261,10 @@ CREATE TABLE manuscript_bindings (
 新路由在 `app/server/routes/desk.js`，版本相关的放现有版本路由，都需要口令。
 
 D4：`GET /api/versions/:id/diff?baseline=` 返回 `{baseline:{id,number,branch},version:{id,number,branch},format,old:{blocks},new:{blocks},diff}`。省略 baseline 取父版本，无父返回 `{status:'first'}`；跨分支可比，跨组报 `INVALID_BASELINE`。不支持或解析失败时 old/new 为 null、diff 为 `{status:'originals-only'}`。有缓存复用差异，无缓存排队计算后保存。
+
+D6 已提供统一标注接口：`GET/POST /api/desk/sessions/:id/annotations`、`PATCH/DELETE /api/desk/annotations/:id`。GET 返回 `{items}`，按块顺序、起始位置排序；共同字段为 `id,type,blockId,from,to,quote,author:{id,name},createdAt,updatedAt`。批注另含 `text,parentId?,resolved?`；索引另含 `kind,value,sources,derivation,note,status`。导入的跨段 Word 批注另有 `endBlockId`。POST 接受 `{type,blockId,from,to,...}`，空范围返回 `DESK_EMPTY_RANGE`；PATCH 按类型修改正文、说明和来源等，DELETE 删除条目。修改返回 `{seq,inserted,removedAnnotations,item}`，删除时 item 为 null；DOCX 的全局 id 已含组 id，服务端据此定位或打开会话。旧设计中的独立 comments/bindings 路由由这组统一接口取代。
+
+标注变化发送持久事件 `desk.annotations.changed {sessionId,ids}`；文字修改与 `desk.changed` 都增加 `removedAnnotations` 计数。增删标注不单独询问批准；Word 批注随已有 `save to=project` 的批准一起写回。
 
 D5：`POST /api/desk/sessions/:id/rewrite {blockId,quote,instruction}` 沿用会议发送流程；quote 接受文字或 `{exact,prefix?,suffix?}`。未绑定会议返回 `DESK_MEETING_REQUIRED`。空闲返回 `{messageId,turnId}`（已开始发言，不等待回答）；忙时排队返回 `{messageId:null,turnId:null,queued:true,itemId}`。消息正文是指令，研究输入 marks 的 reference 为 schema 1 / kind version / 基础版本 id，location 带从 1 开始的 paragraph、blockId、quote；mark 同时含 quote、manuscriptKey，供上下文编译为 annotation，排队发送后沿用既有事件通知。
 

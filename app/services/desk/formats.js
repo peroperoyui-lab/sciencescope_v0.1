@@ -4,6 +4,7 @@ import { paragraphIds } from './docx/ids.js';
 import { aggregate, replay, publicBlock } from './model.js';
 import { readText, replayText, joinText } from './text.js';
 import { indexMedia } from './media.js';
+import { commentWriteOptions } from './annotation-docx.js';
 
 /**
  * @param {Uint8Array} bytes
@@ -11,6 +12,21 @@ import { indexMedia } from './media.js';
  * @returns {Promise<any>}
  */
 export async function readDocument(bytes, format) {
+  if (format === 'pdf') {
+    const { parseDocument } = await import('../research/parsers/index.js');
+    const parsed = await parseDocument(bytes, { name: 'manuscript.pdf' });
+    return {
+      bytes,
+      format,
+      blocks: parsed.blocks.map((block, index) => ({
+        id: `b:${index}`,
+        kind: 'paragraph',
+        level: null,
+        text: block.text,
+        page: block.page,
+      })),
+    };
+  }
   if (format !== 'docx') return readText(bytes, format);
   const document = await readDocx(bytes);
   return { ...document, format, media: await indexMedia(document) };
@@ -22,6 +38,7 @@ export async function readDocument(bytes, format) {
  * @returns {Promise<{blocks:any[],allocateId:()=>string}>}
  */
 export async function restoreDocument(document, records) {
+  if (document.format === 'pdf') return { blocks: document.blocks, allocateId: () => '' };
   if (document.format !== 'docx') {
     const ids = [
       ...document.blocks.map((block) => block.id),
@@ -37,6 +54,10 @@ export async function restoreDocument(document, records) {
   const used = new Set(
     records.filter((record) => record.op === 'insert-block').map((record) => record.blockId),
   );
+  for (const record of records)
+    for (const delta of record.annotations ?? [])
+      for (const item of [delta.before, delta.after])
+        if (item?.paraId) used.add('p:' + item.paraId);
   return {
     blocks: replay(document.blocks, records),
     allocateId: () => {
@@ -55,9 +76,15 @@ export async function restoreDocument(document, records) {
  * @returns {Promise<Uint8Array>}
  */
 export async function writeDocument(state) {
+  if (state.document.format === 'pdf') return state.document.bytes;
   if (state.document.format !== 'docx') return Buffer.from(joinText(state.blocks));
   const delta = aggregate(state.document, state.blocks);
-  return (await writeDocx(state.document.bytes, delta.changes, delta)).bytes;
+  return (
+    await writeDocx(state.document.bytes, delta.changes, {
+      ...delta,
+      ...(state.comments ? commentWriteOptions(state) : {}),
+    })
+  ).bytes;
 }
 
 /**
@@ -65,6 +92,7 @@ export async function writeDocument(state) {
  * @returns {any}
  */
 export function documentResponse(state) {
+  if (state.document.format === 'pdf') return { blocks: state.blocks, readOnly: true };
   if (state.document.format !== 'docx')
     return {
       text: joinText(state.blocks),

@@ -7,6 +7,7 @@ import { createDeskSessions } from './sessions.js';
 import { readText, proposeText, inverseText } from './text.js';
 import { readMedia } from './media.js';
 import { listDocuments } from './documents.js';
+import { createAnnotations } from './annotations.js';
 
 const messages = {
   INVALID_TIER: '请选择编辑台设置中的版本层级。',
@@ -62,11 +63,13 @@ export function createDesk(
     pending = task.catch(() => {});
     return task;
   }
-  const store = createDeskStore(core);
+  const annotations = createAnnotations(core);
+  const store = createDeskStore(core, annotations);
   const sessions = createDeskSessions(core, {
     versions,
     projectFiles,
     store,
+    annotations,
     serial,
     idleMs,
     schedule,
@@ -79,8 +82,8 @@ export function createDesk(
   async function registerDocument(input) {
     const file = projectFiles.locate(input.projectId, input.path);
     const extension = path.extname(file).toLowerCase();
-    if (!['.docx', '.tex', '.md', '.markdown'].includes(extension))
-      throw new AppError('DESK_FORMAT', '请选择 DOCX、TeX 或 Markdown 文稿。');
+    if (!['.docx', '.tex', '.md', '.markdown', '.pdf'].includes(extension))
+      throw new AppError('DESK_FORMAT', '请选择 DOCX、TeX、Markdown 或 PDF 文稿。');
     const relative = path
       .relative(projectFiles.rootOf(input.projectId), file)
       .split(path.sep)
@@ -90,7 +93,8 @@ export function createDesk(
       .get(input.projectId, relative);
     if (row) return core.versionCatalog.group(row.id);
     const bytes = await readProject(file);
-    if (extension !== '.docx') readText(bytes, extension === '.tex' ? 'tex' : 'md');
+    if (['.tex', '.md', '.markdown'].includes(extension))
+      readText(bytes, extension === '.tex' ? 'tex' : 'md');
     const imported = await versions.importFiles(
       {
         projectId: input.projectId,
@@ -145,8 +149,11 @@ export function createDesk(
   async function undoChange(id, actor) {
     const record = store.change(id);
     const state = await sessions.load(store.get(record.sessionId));
-    const proposal =
-      state.document.format === 'docx' ? inverse(state, record) : inverseText(state, record);
+    const proposal = ['annotation', 'annotation-lost'].includes(record.op)
+      ? annotations.inverse(state, record)
+      : state.document.format === 'docx'
+        ? inverse(state, record)
+        : inverseText(state, record);
     const result = store.commit(state, proposal, actor, id);
     sessions.requestFlush(state);
     return result;
@@ -170,6 +177,61 @@ export function createDesk(
     return sessions.response(state);
   }
   return {
+    /**
+     * @param {string} versionId
+     */
+    versionAnnotations: (versionId) => serial(() => annotations.forVersion(versionId)),
+    /**
+     * @param {string} id
+     */
+    listAnnotations: (id) =>
+      serial(async () => annotations.list(await sessions.load(store.get(id)))),
+    /**
+     * @param {string} id
+     * @param {any} input
+     * @param {any} [actor]
+     */
+    createAnnotation: (id, input, actor = {}) =>
+      serial(async () => {
+        const state = await sessions.load(store.get(id));
+        const proposal = annotations.create(state, input, actor);
+        const result = store.commit(state, proposal, actor);
+        sessions.requestFlush(state);
+        return {
+          ...result,
+          item: annotations.list(state).items.find((item) => item.id === proposal.item.id),
+        };
+      }),
+    /**
+     * @param {string} id
+     * @param {any} input
+     * @param {any} [actor]
+     * @param {{remove?:boolean,ownOnly?:boolean}} [options]
+     */
+    updateAnnotation: (id, input, actor = {}, options = {}) =>
+      serial(async () => {
+        const groupId = id.startsWith('docx:')
+          ? id.slice(5, id.lastIndexOf(':'))
+          : annotations.table.get(id)?.groupId;
+        if (!groupId)
+          throw new AppError('DESK_ANNOTATION_NOT_FOUND', '找不到这条批注或索引。', 404);
+        const open = store.open(groupId) ?? (await sessions.open({ groupId })).session;
+        const state = await sessions.load(open);
+        const proposal = annotations.update(
+          state,
+          id,
+          input,
+          actor,
+          options.remove,
+          options.ownOnly,
+        );
+        const result = store.commit(state, proposal, actor);
+        sessions.requestFlush(state);
+        return {
+          ...result,
+          item: annotations.list(state).items.find((item) => item.id === id) ?? null,
+        };
+      }),
     /**
      * @param {string} projectId
      */
@@ -200,6 +262,8 @@ export function createDesk(
     updateText: (id, input, actor = {}) =>
       serial(async () => {
         const state = await sessions.load(store.get(id));
+        if (state.document.format === 'pdf')
+          throw new AppError('DESK_READ_ONLY', 'PDF 正文只读，可以添加批注和索引。');
         if (state.document.format === 'docx')
           throw new AppError('DESK_FORMAT', 'DOCX 会话请按段落提交修改。');
         const proposal = proposeText(state, input);

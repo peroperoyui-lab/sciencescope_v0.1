@@ -119,7 +119,7 @@ export function replayText(original, records, format) {
     const index = blocks.findIndex((block) => block.id === record.blockId);
     if (record.op === 'edit') blocks[index] = blockFrom(record.after, record.blockId, format);
     else if (record.op === 'remove-block') blocks.splice(index, 1);
-    else {
+    else if (record.op === 'insert-block') {
       const at =
         record.after.after === '^'
           ? -1
@@ -219,7 +219,8 @@ export function inverseText(state, record) {
   )
     throw conflict('DESK_UNDO_BLOCKED', '这段正文后来又被修改，请先撤回后面的修改。');
   let undo;
-  if (record.op === 'edit') undo = { ...record, before: record.after, after: record.before };
+  if (record.op === 'edit')
+    undo = { ...record, before: record.after, after: record.before, annotations: [] };
   else if (record.op === 'insert-block')
     undo = {
       blockId: record.blockId,

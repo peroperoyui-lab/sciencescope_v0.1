@@ -13,11 +13,12 @@ import { AppError } from '../../../core/errors.js';
  * and inter-paragraph slices are copied unchanged, not XML-serialized.
  * @param {Buffer|Uint8Array} bytes
  * @param {Record<string,any[]>} changes
- * @param {{comments?:any[], inserted?:any[], removed?:string[]}} [options]
+ * @param {{comments?:any[], inserted?:any[], removed?:string[], atoms?:Record<string,any>}} [options]
  * @returns {Promise<{bytes:Buffer, inserted:Record<string,string>}>}
  */
 export async function writeDocx(bytes, changes, options = {}) {
   const document = await readDocx(bytes);
+  Object.assign(document.atoms, options.atoms ?? {});
   if (
     !Object.keys(changes).length &&
     !options.comments?.length &&
@@ -52,7 +53,12 @@ export async function writeDocx(bytes, changes, options = {}) {
   const source = { ...document, allocateId };
   const plan = planBlocks(source, changes, options);
   const comments = await applyComments(source, options.comments ?? []);
-  const rendered = renderBlocks(source, plan, changes, comments.added);
+  const rendered = renderBlocks(
+    source,
+    plan,
+    changes,
+    comments.added.filter((item) => !item.inlineAnchors),
+  );
   let xml = patchXml(document.xml, rendered.edits);
   if (comments.deleted.size)
     xml = patchXml(
