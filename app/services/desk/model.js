@@ -94,6 +94,22 @@ export function replay(blocks, records) {
   return next;
 }
 
+function insertedKind(document, template, parent) {
+  const original = document.blocks.find(
+    (block) => block.id === (template?.template ?? template?.id),
+  );
+  const properties = original?.pPr ? document.inside(original.pPr) : [];
+  let kind = properties.some((span) => span.tag === 'w:numPr') ? 'list-item' : 'paragraph';
+  if (template?.level != null || /^Heading/iu.test(template?.style ?? '')) kind = 'heading';
+  for (let span = document.spans[parent]; span; span = document.spans[span.parent])
+    if (span.tag === 'w:tc') return 'table-cell';
+  return kind;
+}
+
+function requireEditable(block) {
+  if (block.kind === 'opaque') throw new AppError('DOCX_OPAQUE_BLOCK', '跨段落的域只能整体保留。');
+}
+
 /**
  * @param {any} state
  * @param {any} input
@@ -107,8 +123,6 @@ export function propose(state, input) {
   const find = (id) => {
     const block = blocks.find((entry) => entry.id === id);
     if (!block) throw new AppError('DOCX_BLOCK_NOT_FOUND', '这段正文已不存在，请重新载入。');
-    if (block.kind === 'opaque')
-      throw new AppError('DOCX_OPAQUE_BLOCK', '跨段落的域只能整体保留。');
     return block;
   };
   const add = (record) => {
@@ -118,6 +132,7 @@ export function propose(state, input) {
   for (const [id, inlines] of Object.entries(input.blocks ?? {})) {
     if (input.removed?.includes(id)) continue;
     const block = find(id);
+    requireEditable(block);
     if (!Array.isArray(inlines)) throw new AppError('DESK_INPUT', '段落内容必须是内联项列表。');
     if (!equal(block.inlines, inlines))
       add({ blockId: id, op: 'edit', before: block.inlines, after: inlines });
@@ -127,18 +142,25 @@ export function propose(state, input) {
       throw new AppError('DOCX_DUPLICATE_BLOCK', '新段落的临时标识重复。');
     const after = inserted[entry.after] ?? entry.after;
     const anchor = after === '^' ? null : find(after);
+    if (
+      anchor?.kind === 'opaque' &&
+      state.document.fields.some((field) => field.start < anchor.end && field.end > anchor.end)
+    )
+      throw new AppError('DOCX_OPAQUE_BLOCK', '不能在跨段落的域内部插段，请在域之后插入。');
     const template = entry.like
       ? find(inserted[entry.like] ?? entry.like)
       : (anchor ?? blocks.find((block) => block.kind !== 'table-cell'));
     const id = 'p:' + state.allocateId();
     inserted[entry.id] = id;
+    const parent =
+      anchor?.parent ?? state.document.spans.find((span) => span.tag === 'w:body').index;
     const block = {
       id,
-      kind: template?.kind ?? 'paragraph',
+      kind: insertedKind(state.document, template, parent),
       style: template?.style ?? null,
       level: template?.level ?? null,
       template: template?.template ?? template?.id,
-      parent: anchor?.parent ?? state.document.spans.find((span) => span.tag === 'w:body').index,
+      parent,
       anchor: anchor?.anchor ?? after,
     };
     add({
@@ -150,6 +172,7 @@ export function propose(state, input) {
   }
   for (const id of input.removed ?? []) {
     const block = find(id);
+    requireEditable(block);
     const index = blocks.indexOf(block);
     add({
       blockId: id,
