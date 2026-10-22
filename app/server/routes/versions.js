@@ -35,6 +35,9 @@ export function registerVersionRoutes(router, versions, organizer) {
       query.has('baseline') ? query.get('baseline') || null : versions.get(params.id).baselineId,
     ),
   );
+  router.get('/api/versions/:id/diff', ({ params, query }) =>
+    versions.diff(params.id, query.has('baseline') ? query.get('baseline') : undefined),
+  );
   router.post('/api/versions/:id/save-as-new', ({ params }) =>
     versions.saveAsNew(params.id, { actorId: 'person_user' }),
   );

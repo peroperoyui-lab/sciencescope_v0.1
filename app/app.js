@@ -209,6 +209,7 @@ export async function createApp({
       await memory.close();
       await memoryRunner.close();
       await minutes.close();
+      await versions.close();
       await server.close();
       await desk.shutdown();
       await conductor.idle();

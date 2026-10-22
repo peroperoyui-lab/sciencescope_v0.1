@@ -15,8 +15,9 @@ import { AppError } from '../../core/errors.js';
 /**
  * @param {import('../../core/index.js').Core} core
  * @param {(work:()=>Promise<any>)=>Promise<any>} serial
+ * @param {(versions:any[])=>void} [afterCreate]
  */
-export function createVersionStorage(core, serial) {
+export function createVersionStorage(core, serial, afterCreate = () => {}) {
   const catalog = core.versionCatalog;
 
   function writer(group, isNew, actor) {
@@ -125,10 +126,12 @@ export function createVersionStorage(core, serial) {
         const action = saved.every((entry) => entry.origin === 'desk') ? 'created' : 'imported';
         catalog.changed(group.projectId, action, group.id, actor.actorId);
       });
-      return {
+      const result = {
         group: catalog.group(group.id),
         versions: saved.map((entry) => catalog.get(entry.id)),
       };
+      afterCreate(result.versions);
+      return result;
     }
     async function discard() {
       // Only files staged by this writer are removed; registered originals stay.

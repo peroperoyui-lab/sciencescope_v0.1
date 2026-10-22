@@ -9,12 +9,16 @@ import { openPath, recyclePath } from '../system.js';
 import { compareText } from './comparison.js';
 import { createVersionStorage } from './storage.js';
 import { createVersionGraph } from './graph.js';
+import { createVersionDiffs } from './diffs.js';
 
 /**
  * @param {import('../../core/index.js').Core} core
- * @param {{open?:typeof openPath,recycle?:typeof recyclePath}} [options]
+ * @param {{open?:typeof openPath,recycle?:typeof recyclePath,diffs?:Parameters<typeof createVersionDiffs>[1]}} [options]
  */
-export function createVersions(core, { open = openPath, recycle = recyclePath } = {}) {
+export function createVersions(
+  core,
+  { open = openPath, recycle = recyclePath, diffs: diffOptions } = {},
+) {
   const catalog = core.versionCatalog;
   // A tier rename spans projects; all version mutations share its queue so
   // imports and metadata edits cannot race the settings-save compensation.
@@ -24,7 +28,8 @@ export function createVersions(core, { open = openPath, recycle = recyclePath } 
     pending = next.catch(() => {});
     return next;
   }
-  const storage = createVersionStorage(core, serial);
+  const diffs = createVersionDiffs(core, diffOptions);
+  const storage = createVersionStorage(core, serial, diffs.enqueue);
   const graph = createVersionGraph(core, serial);
   function renameGroup(id, name, actorId = 'person_user') {
     const group = catalog.group(id);
@@ -157,6 +162,9 @@ export function createVersions(core, { open = openPath, recycle = recyclePath } 
     openNotes,
     editNotes,
     compare,
+    diff: diffs.diff,
+    diffIdle: diffs.idle,
+    close: diffs.close,
     saveAsNew,
   };
 }

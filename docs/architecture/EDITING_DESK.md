@@ -170,12 +170,12 @@ CREATE TABLE manuscript_comments (...);            -- tex 批注，第 6.3 节
 
 ### 4.4 比较算法
 
-比较按 Word 并排查看的样子显示，不做逐句对齐的行视图（所有者 2026-10-22）。新增 `desk/compare.js` 的 `diffVersions(old, new)`，两版先转成块列表（PDF 仍用提取文字）：
+比较按 Word 并排查看的样子显示，不做逐句对齐的行视图（所有者 2026-10-22）。D4 的 `desk/diff.js` 提供 `diffVersions(old, new)`，两版先转成块列表（DOCX 带 inlines，tex/md 按文本块，PDF 用现有提取文字）：
 
-1. **段落配对**：块文字归一化（NFKC 统一全半角、合并空白、原子节点用原文哈希占位），jsdiff `diffArrays` 配对相同的块；剩下的块在同一空档里按字符二元组 Dice 系数配对（阈值先用 E0b-2 的 0.4），配不上的算整段新增或删除。
-2. **段内比较**：配对的块用现有 `compareText`（词粒度）找出删掉和新加的字；同一段文字的格式（加粗、斜体、下划线、上下标、段落样式）不同时记一处格式改动。
-3. **输出**：两份标注，旧版每块的 `deleted` 区间、新版每块的 `inserted` 和 `format` 区间，加整段删除在新版里的位置；计数和 `changeSummary` 由它生成。
-4. **什么时候算**：生成版本时（关闭会话、存为版本、导入外部修改）后台和父版本比一次，结果存进这个版本（`manuscript_versions.diff_json`）；任意两版比较时现算，按版本对缓存。编辑时不算、不显示。
+1. **段落配对**：块文字归一化（NFKC、合并空白、首尾去空白；原子用类型与原 XML 的 SHA-256 占位，不用 display），jsdiff `diffArrays` 配相同块；同一空档按字符二元组 Dice 保序加权配对，阈值 0.4。空档旧块数 × 新块数超过 250000 时全部记删增并返回 `limited:true`；拆合段保留最相似的一段，其余记删增，不检测移动。
+2. **段内比较**：复用 `compareText` 中文词粒度；位置为原文 UTF-16 偏移。仅在不变文字上比较 `b/i/u/sup/sub`，连续同样的前后标记算一处；`kind/style/level` 改变记覆盖整块的格式项，tex/md/pdf 只比较 kind/level。
+3. **输出**：`algorithm:1`、`status:ready|unchanged`、按块序号的 pairs、旧版 deleted、新版 inserted/format、整段删除位置 removedAt（after 为新版前块序号，开头 -1）、counts 和 limited。连续删增、整段删增各算一处；相同文稿各数组为空。旧 `/compare`、`alignVersions` 和版本说明的 `changeSummary` 保持原行为。
+4. **什么时候算**：所有有父版本的新版本在提交成功后排队，包括关闭/保存会话、外部修改、另存和带基线导入；单 worker 串行，不等待计算才返回版本。迁移 028 的 `version_diffs(baseline_id,version_id,algorithm,diff_json,created_at)` 同时缓存父子与任意版本对，复合主键两列均引用 manuscript_versions；旧 algorithm 重算覆盖。失败只记日志，下一次请求重算；退出终止 worker、丢弃未完成任务。缓存只存差异，接口仍从不可变原件读取块。
 
 **中文：** 词粒度沿用 `compareText` 的中文切分。归一化只用于配对，显示的永远是原文。
 
@@ -248,6 +248,8 @@ CREATE TABLE manuscript_bindings (
 ## 8. 接口
 
 新路由在 `app/server/routes/desk.js`，版本相关的放现有版本路由，都需要口令。
+
+D4：`GET /api/versions/:id/diff?baseline=` 返回 `{baseline:{id,number,branch},version:{id,number,branch},format,old:{blocks},new:{blocks},diff}`。省略 baseline 取父版本，无父返回 `{status:'first'}`；跨分支可比，跨组报 `INVALID_BASELINE`。不支持或解析失败时 old/new 为 null、diff 为 `{status:'originals-only'}`。有缓存复用差异，无缓存排队计算后保存。
 
 D3a 已实现下表中的登记、开会话、重连、PATCH blocks、撤回、保留、保存和关闭八个接口，其余是后续设计。登记仅收 `{projectId,path}` 并返回版本组；开会话/重连返回 `{session,blocks,changes}`（不含批注和绑定接口）。修改返回 `{seq,inserted}`，其中 inserted 是客户端 id 到 `p:<paraId>` 的映射；`writeDocx` 的插入项支持预分配的 `paraId`。冲突错误为 HTTP 409 的 `{code,message,details}`：`DESK_CONFLICT` 的 details 含 `seq,blockIds,blocks`（已删除块为 `{id,removed:true}`）；`DESK_EXTERNAL_CHANGE` 含 `versionId`，`DESK_SAVE_CONFIRM` 含 `versionId,versionNumber`。保存支持 `confirm?`，保留支持 `{ids?}`。服务调用的 actor 可传 `actorId,meetingId,turnId,instruction`；HTTP 修改统一记为用户。
 

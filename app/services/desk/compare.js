@@ -69,7 +69,11 @@ function sentenceItems(blocks) {
   });
 }
 
-function bigrams(text) {
+/**
+ * @param {string} text
+ * @returns {{counts:Map<string,number>,size:number}}
+ */
+export function bigrams(text) {
   const letters = Array.from(normalize(text));
   const counts = new Map();
   for (let index = 1; index < letters.length; index++) {
@@ -79,7 +83,12 @@ function bigrams(text) {
   return { counts, size: Math.max(0, letters.length - 1) };
 }
 
-function dice(left, right) {
+/**
+ * @param {ReturnType<typeof bigrams>} left
+ * @param {ReturnType<typeof bigrams>} right
+ * @returns {number}
+ */
+export function dice(left, right) {
   const total = left.size + right.size;
   if (!total) return 0;
   let overlap = 0;
