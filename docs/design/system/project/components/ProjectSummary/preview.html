@@ -1,0 +1,40 @@
+<!-- @dsCard group="对话" height=540 subtitle="项目置顶摘要：对话页头报纸按钮或 Alt S 打开的浮层，列最近历史版本和日志，底部去工作站" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>ProjectSummary</title></head>
+<body>
+<div class="ds" style="grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start">
+  <div class="ds-box" style="position:relative;height:500px;overflow:hidden;background:var(--paper)">
+    <div class="ss-header">
+      <div class="ss-header__title"><span>文献综述框架讨论</span></div>
+      <span class="ss-header__sep"></span>
+      <span class="ss-avatars" style="align-self:center"><span class="ss-avatar">主</span><span class="ss-avatar">方</span><span class="ss-avatar">文</span></span>
+      <div class="ss-header__actions">
+        <button class="ss-icon-btn" type="button" aria-label="查找当前对话" data-tip="查找当前对话" data-kbd="Ctrl F"><i data-i="search"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="项目置顶摘要" aria-expanded="true" data-tip="项目置顶摘要" data-kbd="Alt S" style="background:var(--selected)"><i data-i="newspaper"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="任务秘书" data-tip="任务秘书" data-kbd="Ctrl J"><i data-i="panel-right"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="更多" data-tip="更多"><i data-i="ellipsis"></i></button>
+      </div>
+    </div>
+    <div class="ss-flyout" style="top:48px;right:52px" role="dialog" aria-label="项目摘要">
+      <div class="ss-flyout__head"><i data-i="folder-open" class="ss-i--sm"></i><span>城市韧性研究</span><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="关闭项目摘要" data-tip="关闭项目摘要"><i data-i="x"></i></button></div>
+      <button class="ss-list__group" type="button" aria-expanded="true" data-toggle="next"><i data-i="chevron-down"></i>最近历史版本<span class="ss-count">3</span></button>
+      <div class="ss-list"><div class="ss-list-row"><i data-i="network" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">研究导图</span></div><span class="ss-list-row__meta ss-list-row__meta--time">10-22 09:12</span><span class="ss-list-row__actions"></span></div><div class="ss-list-row"><i data-i="list-checks" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">全局计划</span></div><span class="ss-list-row__meta ss-list-row__meta--time">10-21 18:30</span><span class="ss-list-row__actions"></span></div><div class="ss-list-row"><i data-i="notebook-pen" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">本项目日志</span></div><span class="ss-list-row__meta ss-list-row__meta--time">10-21 16:40</span><span class="ss-list-row__actions"></span></div></div>
+      <div class="ss-flyout__group">最近日志</div>
+      <div class="ss-list"><div class="ss-list-row"><i data-i="notebook-pen" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">fsQCA 校准阈值确定</span></div><span class="ss-list-row__meta ss-list-row__meta--time">10-22</span><span class="ss-list-row__actions"></span></div><div class="ss-list-row"><i data-i="notebook-pen" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">综述按方法分三节</span></div><span class="ss-list-row__meta ss-list-row__meta--time">10-21</span><span class="ss-list-row__actions"></span></div><div class="ss-list-row"><i data-i="notebook-pen" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">面板数据清洗出错</span></div><span class="ss-list-row__meta ss-list-row__meta--time">10-20</span><span class="ss-list-row__actions"></span></div></div>
+      <div class="ss-flyout__foot"><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="network"></i>研究导图</button><button class="ss-btn ss-btn--sm" type="button"><i data-i="box"></i>打开工作站</button></div>
+    </div>
+  </div>
+  <div class="ds-col" style="padding-top:4px">
+    <span class="ds-title">什么时候出现</span>
+    <p class="ds-note">项目里的对话，页头的报纸按钮或 Alt S 打开；再按一次、Esc 或点浮层外面关闭。独立对话没有这个按钮。</p>
+    <p class="ds-note">左栏工作站右边的简报按钮打开同一个浮层，位置贴着左栏。</p>
+    <span class="ds-title" style="margin-top:8px">内容</span>
+    <p class="ds-note">最近历史版本：工作站里导图、计划、日志最近的改动，点一行打开那一版。</p>
+    <p class="ds-note">最近日志：本项目最近三条日志，点一行进入日志详情。</p>
+    <p class="ds-note">底部：研究导图、打开工作站。</p>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

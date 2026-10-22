@@ -1,0 +1,55 @@
+<!-- @dsCard group="整页示例" height=700 subtitle="全局助手：桌面悬浮球和独立的小窗口；窗口顶部是最近项目和三个入口，下面是助手对话" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>AssistantWindow</title></head>
+<body>
+<div class="ds" style="grid-template-columns:400px 1fr;gap:28px;align-items:start">
+  <div class="ss-assistant" style="height:640px">
+    <div class="ss-panel__head" style="cursor:grab"><i data-i="sparkle" style="margin-right:6px;color:var(--accent)"></i><span class="ss-panel__title">全局助手</span><button class="ss-icon-btn" type="button" aria-label="收起为悬浮球" data-tip="收起为悬浮球"><i data-i="minimize-2"></i></button><button class="ss-icon-btn" type="button" aria-label="关闭助手" data-tip="关闭助手"><i data-i="x"></i></button></div>
+    <div class="ss-content">
+      <div style="padding:12px 16px 4px;display:grid;gap:8px">
+        <div class="ss-section-title">最近项目</div>
+        <div class="ss-list"><div class="ss-list-row"><i data-i="folder" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">城市韧性研究</span></div><span class="ss-list-row__actions"></span></div><div class="ss-list-row"><i data-i="folder" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">劳动保障政策演化</span></div><span class="ss-list-row__actions"></span></div></div>
+        <div style="display:flex;gap:6px"><button class="ss-btn ss-btn--sm" type="button"><i data-i="box"></i>工作站</button><button class="ss-btn ss-btn--sm" type="button"><i data-i="book-open"></i>知识库</button><button class="ss-btn ss-btn--sm" type="button"><i data-i="folder-plus"></i>新建项目</button></div>
+      </div>
+      <div class="ss-thread" style="padding:12px 16px;gap:16px">
+        <div class="ss-msg ss-msg--user"><div class="ss-msg__bubble">哪些项目还有待办？</div></div>
+        <div class="ss-msg">
+          <div class="ss-msg__head"><span class="ss-avatar"><i data-i="sparkle" class="ss-i--sm"></i></span><span class="ss-msg__name">全局助手</span><span class="ss-msg__role">deepseek-v4-flash</span></div>
+          <div class="ss-act"><div class="ss-act__row"><i data-i="list-checks"></i><span class="ss-act__verb">读取全局计划</span><span class="ss-act__end">4 条</span></div></div>
+          <div class="ss-msg__body"><p>还有 3 条没完成：</p><ul><li><b>城市韧性研究</b>：补齐 2021–2022 年面板数据（10-24 前）、第三章组态分析改写（10-26 前）。</li><li><b>劳动保障政策演化</b>：政策文本编码复核（10-28 前）。</li></ul></div>
+        </div>
+      </div>
+    </div>
+    <div class="ss-composer-wrap" style="padding:0 12px 12px">
+      <div class="ss-composer">
+        <textarea class="ss-composer__input" rows="1" placeholder="哪些项目还有待办？也可以指定项目查阅。" style="min-height:40px;padding:8px 12px 0"></textarea>
+        <div class="ss-composer__bar"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="添加文件或资料" data-tip="添加文件或资料"><i data-i="plus"></i></button><span class="ss-composer__spacer"></span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">deepseek-v4-flash<i data-i="chevron-down"></i></button><button class="ss-send" type="button" aria-label="发送" disabled><i data-i="arrow-up"></i></button></div>
+      </div>
+    </div>
+  </div>
+  <div class="ds-col" style="gap:14px">
+    <span class="ds-label">悬浮球（48px，桌面上始终在最前，可拖动）</span>
+    <div style="display:flex;align-items:center;gap:20px">
+      <button class="ss-orb" type="button" aria-label="展开或收起全局助手" data-ctx="#m-orb"><i data-logo></i></button>
+      <div class="ss-menu" style="position:static;width:180px">  <button class="ss-menu__item" type="button">展开/收起助手</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button">退出助手</button>
+</div>
+    </div>
+    <span class="ds-label">右键菜单是系统菜单：展开或收起、退出助手</span>
+    <span class="ds-title" style="margin-top:8px">规则</span>
+    <p class="ds-note">单击悬浮球展开或收起助手窗口；拖动超过 5px 才算移动，不触发展开。</p>
+    <p class="ds-note">助手窗口没有系统标题栏，拖动面板头移动；「收起为悬浮球」只隐藏窗口，不清除历史，也不停止正在运行的任务，停止用输入框的停止按钮。</p>
+    <p class="ds-note">启动时显示什么在设置的「桌面浮球与启动」里选：不打开、只显示浮球、显示浮球与助手对话；下次启动生效。</p>
+    <p class="ds-note">主窗口里点左栏底部的 sparkle，在右侧面板打开同一个助手对话。</p>
+  </div>
+</div>
+<div class="ss-menu" id="m-orb" hidden>
+  <button class="ss-menu__item" type="button">展开/收起助手</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button">退出助手</button>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

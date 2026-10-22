@@ -1,4 +1,4 @@
-<!-- @dsCard group="导航" height=236 subtitle="44px 页头：标题、范围或成员、一行标签、右侧至多三个操作" -->
+<!-- @dsCard group="导航" height=210 subtitle="44px 页头：标题、范围或成员、一行标签、右侧至多三个操作" -->
 <!doctype html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><title>PageHeader</title></head>
@@ -10,28 +10,18 @@
       <span class="ss-header__sep"></span>
       <span class="ss-avatars" style="align-self:center" data-tip="主专家、方法专家、文献专家"><span class="ss-avatar">主</span><span class="ss-avatar">方</span><span class="ss-avatar">文</span></span>
       <div class="ss-header__actions">
-        <button class="ss-icon-btn" type="button" aria-label="历史版本" data-tip="对话里的文件改动"><i data-i="history"></i></button>
-        <button class="ss-icon-btn" type="button" aria-label="任务秘书" aria-pressed="true" data-tip="任务秘书" data-kbd="Ctrl J"><i data-i="panel-right"></i></button>
-        <button class="ss-icon-btn" type="button" aria-label="更多" data-menu="#m-head"><i data-i="ellipsis"></i></button>
-      </div>
+          <button class="ss-icon-btn" type="button" aria-label="查找当前对话" data-tip="查找当前对话" data-kbd="Ctrl F"><i data-i="search"></i></button>
+          <button class="ss-icon-btn" type="button" aria-label="项目置顶摘要" aria-expanded="false" data-tip="项目置顶摘要" data-kbd="Alt S"><i data-i="newspaper"></i></button>
+          <button class="ss-icon-btn" type="button" aria-label="任务秘书" aria-pressed="true" data-tip="任务秘书" data-kbd="Ctrl J"><i data-i="panel-right"></i></button>
+          <button class="ss-icon-btn" type="button" aria-label="更多" data-menu="#m-head"><i data-i="ellipsis"></i></button>
+        </div>
     </div>
   </div>
   <div class="ds-box" style="overflow:hidden">
     <div class="ss-header">
       <div class="ss-header__title"><span>工作站</span></div>
       <button class="ss-select ss-select--ghost" type="button" aria-haspopup="menu" data-menu="#m-ws"><i data-i="folder-open"></i><span class="ss-select__value" data-slot="value">城市韧性研究</span><i data-i="chevron-down"></i></button>
-      <span class="ss-header__sep"></span>
-      <nav class="ss-tabs" role="tablist" aria-label="工作站">
-        <button class="ss-tab" role="tab" aria-selected="true" type="button">导图</button>
-        <button class="ss-tab" role="tab" aria-selected="false" type="button">计划</button>
-        <button class="ss-tab" role="tab" aria-selected="false" type="button">日志</button>
-        <button class="ss-tab" role="tab" aria-selected="false" type="button">纪要</button>
-        <button class="ss-tab" role="tab" aria-selected="false" type="button">笔记</button>
-      </nav>
-      <div class="ss-header__actions">
-        <button class="ss-info" type="button" aria-label="说明" data-tip="工作站里的内容都可以被秘书和助手读取与修改，每次修改都会留下历史版本。" data-tip-place="bottom-end"><i data-i="info"></i></button>
-        <button class="ss-btn" type="button"><i data-i="history"></i>历史版本</button>
-      </div>
+      <div class="ss-header__actions"><button class="ss-btn ss-btn--ghost" type="button"><i data-i="git-fork"></i>版本树</button><button class="ss-btn" type="button"><i data-i="file-pen"></i>在编辑台打开</button><button class="ss-icon-btn" type="button" aria-label="更多" data-tip="更多"><i data-i="ellipsis"></i></button></div>
     </div>
   </div>
   <div class="ds-box" style="overflow:hidden">

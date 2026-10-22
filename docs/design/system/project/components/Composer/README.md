@@ -14,8 +14,6 @@
   - 模型和思考强度按钮，见 ModelPicker；
   - SendButton。
 
-执行方式是自动化时，在 `ss-composer` 上加 `data-mode="auto"`：边框变成 `auto-line`，执行方式按钮换成 `ss-btn--auto`。
-
 ## 规则
 
 - 输入框上方不放说明文字和提示条。说明写进占位符或 ⓘ。

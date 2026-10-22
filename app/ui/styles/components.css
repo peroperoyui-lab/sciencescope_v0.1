@@ -886,6 +886,7 @@ button {
   flex: 1;
 }
 .ss-titlebar__title {
+  margin-right: var(--sp-8);
   overflow: hidden;
   color: var(--muted);
   font-size: 12px;
@@ -909,6 +910,13 @@ button {
 .ss-winctl--close:hover {
   background: var(--danger);
   color: var(--on-danger);
+}
+/* 窗口置顶: pressed while the window stays above other windows. */
+.ss-winctl--pin[aria-pressed='true'] {
+  color: var(--accent);
+}
+.ss-winctl--pin[aria-pressed='true'] > .ss-i {
+  fill: var(--accent);
 }
 .ss-winctl > .ss-i {
   width: var(--icon-sm);
@@ -1199,6 +1207,11 @@ button {
 }
 .ss-side-all > span:first-of-type {
   flex: 1;
+}
+.ss-side-all[aria-current='page'] {
+  background: var(--selected);
+  color: var(--ink);
+  font-weight: 500;
 }
 .ss-tree-row[data-dragging] {
   opacity: 0.5;
@@ -4025,6 +4038,365 @@ button.ss-act__row:hover {
 /* File trees deeper than the sidebar's two levels: set --depth on the row. */
 .ss-tree-row--nested {
   padding-left: calc(6px + var(--depth, 0) * 16px);
+}
+
+/* ---------- Main-window pages: home, workstation, research map, journal, summary, assistant ---------- */
+
+/* Home: greeting, recent work and sites above the composer. */
+.ss-home {
+  display: grid;
+  gap: var(--sp-24);
+  width: min(720px, 100%);
+  margin: 0 auto;
+  padding: 48px 24px 24px;
+}
+.ss-home__hello {
+  display: grid;
+  justify-items: start;
+  gap: var(--sp-4);
+}
+.ss-home__hello .ss-art {
+  width: 120px;
+  height: 90px;
+  margin-bottom: var(--sp-8);
+}
+.ss-home__sites {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8);
+}
+
+/* Section head inside a page: title, count, actions on the right. */
+.ss-block-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-height: 28px;
+  margin-bottom: var(--sp-8);
+}
+.ss-block-head__title {
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+.ss-block-head__end {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-left: auto;
+}
+
+/* Workstation: plans and log as two strips, the research map below. */
+.ss-wb {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  gap: var(--sp-16);
+  height: 100%;
+  padding: 16px 20px 20px;
+}
+.ss-wb__strip {
+  display: grid;
+  grid-auto-columns: minmax(208px, 1fr);
+  grid-auto-flow: column;
+  gap: var(--sp-8);
+  overflow-x: auto;
+}
+.ss-wb__bottom {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: var(--sp-12);
+  min-height: 0;
+}
+.ss-box-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+}
+.ss-box-card__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--sp-4);
+  height: 40px;
+  padding: 0 6px 0 12px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.ss-box-card__head > span:first-child {
+  flex: 1;
+}
+.ss-box-card__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Plan and log cards in the strips. */
+.ss-note-card {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-4);
+  min-height: 84px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+}
+.ss-note-card:hover {
+  border-color: var(--line-strong);
+}
+.ss-note-card__top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  min-width: 0;
+}
+.ss-note-card__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ss-note-card__text {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 18px;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.ss-note-card__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 16px;
+}
+.ss-note-card--done .ss-note-card__title {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
+/* Research map: cards on a dotted canvas, links drawn in an SVG layer.
+   Nodes look like the editing desk's version-tree cards (.ss-vnode). */
+.ss-map {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background-color: var(--paper);
+  background-image: radial-gradient(var(--line-strong) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+.ss-map__links {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.ss-map__links path {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+.ss-map__links path[data-link] {
+  stroke: var(--accent);
+  stroke-dasharray: 4 3;
+}
+.ss-mnode {
+  position: absolute;
+  display: grid;
+  gap: 2px;
+  width: 150px;
+  padding: 6px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--raised);
+  box-shadow: var(--shadow-1);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: left;
+}
+.ss-mnode[aria-selected='true'] {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px var(--accent-soft),
+    var(--shadow-1);
+}
+.ss-mnode--root {
+  width: 168px;
+  border-color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 18px;
+}
+.ss-mnode--loose {
+  border-style: dashed;
+}
+.ss-mnode__title {
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ss-mnode__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  color: var(--muted);
+  font-size: 11px;
+}
+.ss-mnode__meta > .ss-dot {
+  width: 6px;
+  height: 6px;
+}
+.ss-mnode__fold {
+  position: absolute;
+  top: 50%;
+  right: -9px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+.ss-map__bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--sp-8);
+  height: 36px;
+  padding: 0 8px 0 12px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--muted);
+  font-size: 12px;
+}
+.ss-map__hint {
+  position: absolute;
+  top: var(--sp-8);
+  right: var(--sp-8);
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+/* Journal entry page: one readable column. */
+.ss-doc {
+  display: grid;
+  gap: var(--sp-16);
+  width: min(760px, 100%);
+  margin: 0 auto;
+  padding: 24px 24px 40px;
+}
+.ss-doc--aside {
+  grid-template-columns: minmax(0, 1fr) 280px;
+  align-items: start;
+  gap: var(--sp-24);
+  width: min(1080px, 100%);
+}
+.ss-doc__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-8);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* 项目置顶摘要: a flyout under the chat header's button. */
+.ss-flyout {
+  position: absolute;
+  z-index: var(--z-pop);
+  display: grid;
+  width: 320px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--raised);
+  box-shadow: var(--shadow-2);
+}
+.ss-flyout__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: 4px 4px 8px 8px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+.ss-flyout__head > span {
+  flex: 1;
+}
+.ss-flyout__group {
+  padding: 8px 8px 4px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 16px;
+}
+.ss-flyout__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-8);
+  padding: 8px 4px 2px;
+  border-top: 1px solid var(--line);
+}
+
+/* Global assistant: a small frameless window with its own title bar. */
+.ss-assistant {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  box-shadow: var(--shadow-3);
+}
+.ss-assistant > .ss-titlebar {
+  padding-right: 0;
+}
+.ss-orb {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--raised);
+  box-shadow: var(--shadow-2);
+  color: var(--accent);
+}
+.ss-orb > .ss-logo {
+  width: 26px;
+  height: 26px;
 }
 
 /* ---------- Editing desk (its own window; docs/architecture/EDITING_DESK.md §7) ---------- */
