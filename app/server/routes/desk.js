@@ -20,6 +20,9 @@ export function registerDeskRoutes(router, desk) {
     response.writeHead(200, {
       'content-type': media.mimeType,
       'content-length': media.bytes.length,
+      // Pictures come from third-party documents; an SVG must never run as a page.
+      'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+      'x-content-type-options': 'nosniff',
     });
     response.end(media.bytes);
   });

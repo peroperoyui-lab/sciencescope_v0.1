@@ -76,7 +76,6 @@ export async function listDocuments(core, projectFiles, projectId, limit = 2000)
       }
       if (truncated) return;
     }
-    if (files.length >= limit) truncated = true;
   }
   await walk();
   files.sort((left, right) => left.path.localeCompare(right.path));

@@ -66,6 +66,9 @@ test('desk listing includes registered and unregistered manuscripts without impo
       const first = await limited.listDocuments(bound.id);
       assert.equal(first.files.length, 2);
       assert.equal(first.truncated, true);
+      // Exactly reaching the limit is not truncation.
+      const exact = createDesk(core, { versions, projectFiles, documentLimit: 8 });
+      assert.equal((await exact.listDocuments(bound.id)).truncated, false);
     } finally {
       await desk.shutdown();
     }
@@ -137,6 +140,8 @@ test('desk media returns the first embedded image bytes and MIME and exposes ava
       );
       assert.equal(response.status, 200);
       assert.equal(response.headers.get('content-type'), 'image/png');
+      assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+      assert.match(response.headers.get('content-security-policy'), /sandbox/u);
       assert.deepEqual(Buffer.from(await response.arrayBuffer()), png);
       assert.equal((await desk.media(opened.session.id, images[1].ref)).mimeType, 'image/emf');
       const missing = await fetch(`${url}/api/desk/sessions/${opened.session.id}/media/99999`, {
