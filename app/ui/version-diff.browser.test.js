@@ -118,6 +118,8 @@ test(
           .locator('[data-journal-entry]')
           .getByRole('button', { name: '分析/中文脚本.py', exact: true })
           .click();
+        // Clicks return before the routed open request arrives.
+        for (let tries = 0; opens.length < 2 && tries < 50; tries++) await page.waitForTimeout(100);
         assert.equal(opens.length, 2);
         assert.equal(opens[0].reference.id, current.id);
         assert.equal(opens[1].reference.path, '分析/中文脚本.py');
