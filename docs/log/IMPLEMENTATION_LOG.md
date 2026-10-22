@@ -1,5 +1,10 @@
 # 实施记录
 
+## 2026-10-22 编辑台设计稿 U0（Claude）
+
+- 画廊新增「编辑台」组：`PageDesk`、`PageDeskVersions`、`PageDeskTex`、`PageDeskMarkdown`、`PageDeskPdf`、`PageDeskCompare`、`DeskEntry`、`DeskMenus`，由 `build/desk/gen.py` 生成。
+- `components.css` 加编辑台样式（窗口、功能区、页面、修订标记、浮动工具条、版本树、tex 两栏、公式编辑框、比较、PDF）；令牌加 `diff-ins`、`diff-del`、`diff-del-ink` 和 `font-serif`；图标加「编辑台」一组 25 个。等所有者认可。
+
 ## 2026-10-22 D2b 审查合并（Claude）
 
 - Sol 的分支基于改写前的旧历史，审阅时移到新 `main` 上（只有本文件冲突）。修一处：删段时书签和批注标记一律移到相邻段，若调用方已把被删段的内容并进前一段（退格合并两段），标记会出现两次，Word 会报错；改为只移没被新内容带走的标记，另外同一个书签、批注、脚注、图片等对象出现在两个段落时整次写回报 `DOCX_DUPLICATE_ATOM`，补两项测试。

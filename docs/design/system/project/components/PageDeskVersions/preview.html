@@ -1,0 +1,86 @@
+<!-- @dsCard group="编辑台" page height=900 width=1536 subtitle="版本树：底栏按钮打开右侧栏，从上往下分叉，样式同研究框架导图；右键版本可以从它开始编辑、比较、改层级" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>PageDeskVersions</title></head>
+<body>
+<div class="ss-shell ss-desk">
+  <header class="ss-titlebar">
+    <span class="ss-titlebar__brand"><i data-logo></i>编辑台</span>
+    <nav class="ss-doctabs" role="tablist" aria-label="打开的文稿"><div class="ss-doctab" role="tab" aria-selected="true"><span class="ss-ftype ss-ftype--docx" aria-hidden="true">W</span><span class="ss-truncate">thesis.docx</span><span class="ss-doctab__dirty" aria-label="有修改未写回"></span></div><div class="ss-doctab" role="tab" aria-selected="false"><span class="ss-ftype ss-ftype--tex" aria-hidden="true">T</span><span class="ss-truncate">method.tex</span><button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭"><i data-i="x"></i></button></div><div class="ss-doctab" role="tab" aria-selected="false"><span class="ss-ftype ss-ftype--md" aria-hidden="true">M</span><span class="ss-truncate">outline.md</span><button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭"><i data-i="x"></i></button></div><div class="ss-doctab" role="tab" aria-selected="false"><span class="ss-ftype ss-ftype--pdf" aria-hidden="true">P</span><span class="ss-truncate">Ragin_2008.pdf</span><button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭"><i data-i="x"></i></button></div></nav>
+    <button class="ss-icon-btn" type="button" aria-label="打开文稿" data-tip="打开文稿" style="-webkit-app-region:no-drag"><i data-i="plus"></i></button>
+    <span class="ss-titlebar__spacer"></span>
+    <span class="ss-titlebar__title">城市韧性研究</span>
+    <button class="ss-winctl" type="button" aria-label="最小化"><i data-i="minus"></i></button>
+    <button class="ss-winctl" type="button" aria-label="最大化"><i data-i="square"></i></button>
+    <button class="ss-winctl ss-winctl--close" type="button" aria-label="关闭"><i data-i="x"></i></button>
+  </header>
+  <div class="ss-ribbon">
+    <div class="ss-ribbon__tabs"><nav class="ss-tabs" role="tablist" aria-label="功能区"><button class="ss-tab" role="tab" type="button" aria-selected="true">开始</button><button class="ss-tab" role="tab" type="button" aria-selected="false">审阅</button><button class="ss-tab" role="tab" type="button" aria-selected="false">视图</button></nav><span class="ss-ribbon__spacer"></span><button class="ss-icon-btn" type="button" aria-label="收起功能区 Ctrl F1" data-tip="收起功能区 Ctrl F1"><i data-i="chevron-up"></i></button></div>
+    <div class="ss-ribbon__bar"><button class="ss-icon-btn" type="button" aria-label="撤销 Ctrl Z" data-tip="撤销 Ctrl Z"><i data-i="undo-2"></i></button><button class="ss-icon-btn" type="button" aria-label="重做 Ctrl Y" data-tip="重做 Ctrl Y"><i data-i="redo-2"></i></button><span class="ss-ribbon__sep"></span><button class="ss-select ss-select--sm" type="button" aria-haspopup="listbox" data-tip="段落样式"><span class="ss-select__value">正文</span><i data-i="chevron-down"></i></button><span class="ss-ribbon__sep"></span><button class="ss-icon-btn" type="button" aria-label="加粗 Ctrl B" data-tip="加粗 Ctrl B"><i data-i="bold"></i></button><button class="ss-icon-btn" type="button" aria-label="斜体 Ctrl I" data-tip="斜体 Ctrl I"><i data-i="italic"></i></button><button class="ss-icon-btn" type="button" aria-label="下划线 Ctrl U" data-tip="下划线 Ctrl U"><i data-i="underline"></i></button><button class="ss-icon-btn" type="button" aria-label="上标" data-tip="上标"><i data-i="superscript"></i></button><button class="ss-icon-btn" type="button" aria-label="下标" data-tip="下标"><i data-i="subscript"></i></button><button class="ss-icon-btn" type="button" aria-label="清除格式" data-tip="清除格式"><i data-i="remove-formatting"></i></button><span class="ss-ribbon__sep"></span><button class="ss-icon-btn" type="button" aria-label="项目符号" data-tip="项目符号"><i data-i="list"></i></button><button class="ss-icon-btn" type="button" aria-label="编号" data-tip="编号"><i data-i="list-ordered"></i></button><span class="ss-ribbon__sep"></span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="message-square-plus"></i>批注</button><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="link-2"></i>绑定来源</button><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="text-quote"></i>引用到对话</button><span class="ss-ribbon__spacer"></span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="git-compare"></i>比较</button><button class="ss-btn ss-btn--primary ss-btn--sm" type="button" data-tip="写回项目文件夹里的 thesis.docx" data-kbd="Ctrl S"><i data-i="save"></i>保存</button></div>
+  </div>
+  <div class="ss-shell__body">
+    <aside class="ss-desk-nav">
+      <div class="ss-desk-nav__section">
+        <div class="ss-desk-nav__head"><span>文件</span><button class="ss-icon-btn" type="button" aria-label="查找文件" data-tip="查找文件"><i data-i="search"></i></button><button class="ss-icon-btn" type="button" aria-label="打开项目文件夹里的其他文稿" data-tip="打开项目文件夹里的其他文稿"><i data-i="folder-open"></i></button></div>
+        <button class="ss-desk-file" type="button" aria-current="true"><span class="ss-ftype ss-ftype--docx" aria-hidden="true">W</span><span class="ss-desk-file__name">thesis.docx</span><span class="ss-desk-file__end">v7</span></button><button class="ss-desk-file" type="button"><span class="ss-ftype ss-ftype--tex" aria-hidden="true">T</span><span class="ss-desk-file__name">chapters/method.tex</span><span class="ss-desk-file__end">v3</span></button><button class="ss-desk-file" type="button"><span class="ss-ftype ss-ftype--md" aria-hidden="true">M</span><span class="ss-desk-file__name">notes/outline.md</span><span class="ss-desk-file__end">v2</span></button><button class="ss-desk-file" type="button"><span class="ss-ftype ss-ftype--pdf" aria-hidden="true">P</span><span class="ss-desk-file__name">refs/Ragin_2008.pdf</span><span class="ss-desk-file__end"></span></button><button class="ss-desk-file" type="button"><span class="ss-ftype ss-ftype--docx" aria-hidden="true">W</span><span class="ss-desk-file__name">开题报告.docx</span><span class="ss-desk-file__end">v4</span></button><button class="ss-desk-file" type="button"><span class="ss-ftype ss-ftype--group" aria-hidden="true">V</span><span class="ss-desk-file__name">答辩稿（只在应用内）</span><span class="ss-desk-file__end">v3</span></button>
+      </div>
+      <div class="ss-desk-nav__section" style="flex:1">
+        <div class="ss-desk-nav__head"><span>大纲</span><button class="ss-icon-btn" type="button" aria-label="全部收起" data-tip="全部收起"><i data-i="chevrons-down-up"></i></button></div>
+        <ul class="ss-outline"><li><button type="button" style="--lv:0">第三章 研究设计</button></li><li><button type="button" style="--lv:1">3.1 研究方法</button></li><li><button type="button" style="--lv:1" aria-current="true">3.2 样本与数据</button></li><li><button type="button" style="--lv:2">3.2.1 指标合成</button></li><li><button type="button" style="--lv:2">3.2.2 校准</button></li><li><button type="button" style="--lv:1">3.3 稳健性检验</button></li><li><button type="button" style="--lv:0">第四章 实证结果</button></li><li><button type="button" style="--lv:1">4.1 必要条件分析</button></li><li><button type="button" style="--lv:1">4.2 组态分析</button></li><li><button type="button" style="--lv:0">第五章 结论与讨论</button></li></ul>
+      </div>
+      <div class="ss-splitter ss-splitter--end" data-min="180" data-max="320" data-default="232"></div>
+    </aside>
+    <main class="ss-desk-canvas"><button class="ss-desk-orb" type="button" aria-label="秘书" data-tip="这个对话的秘书"><i data-i="clipboard-list"></i></button>
+      <article class="ss-page">
+        <h1>第三章　研究设计</h1>
+        <h2>3.1　研究方法</h2>
+        <p>本章采用模糊集定性比较分析（fsQCA）识别城市经济韧性的条件组态，并以面板回归检验结论的稳健性。与传统回归关注单一变量的净效应不同，组态视角关注多个条件如何共同导致结果，适合解释“多条路径通向同一结果”的现象。</p>
+        <div style="position:relative">
+        <p>经济韧性指数采用熵权法合成，涵盖抵抗力、恢复力与再组织能力三个维度，各维度下设 4–6 个二级指标，权重由各指标的信息熵确定。</p>
+        </div>
+        <h2>3.2　样本与数据</h2>
+        <p>研究样本为 <span class="ss-bind" data-tip="右键：含义与来源">98 个地级市</span>，时间跨度为 2010–2022 年，数据主要来自《中国城市统计年鉴》和各市统计公报，缺失值用线性插值补齐。</p>
+        <p>结果表明<del class="ss-rev-del">该方法显著优于基线</del><ins class="ss-rev-ins">，在样本量为 98 的条件下，组态方法的解释力总体高于基线模型</ins>，但对东部城市的区分度有限。<span class="ss-revtag"><b>主专家</b>14:02<span>改写 · 1 处</span></span></p>
+        <p class="ss-page__eq"><span class="ss-atom" data-tip="Word 公式：只显示，保存时原样保留"><span class="ss-math"><i>CI</i><sub><i>i</i></sub><span class="ss-math__op">=</span><span class="ss-limits"><small><i>m</i></small><span>∑</span><small><i>j</i>=1</small></span><i>w</i><sub><i>j</i></sub><i>x</i><sub><i>ij</i></sub></span></span><span class="ss-page__eqno">（3-1）</span></p>
+        <p>一致性阈值设为 <span class="ss-cmt" data-active>0.85</span>，案例频数阈值设为 2；校准锚点分别取各条件的第 95、50、5 百分位，<span class="ss-qmark">对应“完全隶属”“交叉点”和“完全不隶属”</span>。</p>
+        <table><caption>表 3-1　条件变量与校准锚点</caption>
+          <thead><tr><th>条件</th><th>完全隶属</th><th>交叉点</th><th>完全不隶属</th></tr></thead>
+          <tbody><tr><td>数字经济水平</td><td>0.82</td><td>0.41</td><td>0.12</td></tr><tr><td>产业结构高级化</td><td>1.96</td><td>1.08</td><td>0.63</td></tr><tr><td>政府干预</td><td>0.31</td><td>0.18</td><td>0.09</td></tr></tbody>
+        </table>
+        <span class="ss-page__pageno">— 23 —</span>
+      </article>
+    </main>
+    <aside class="ss-panel" style="width:360px">
+      <div class="ss-splitter ss-splitter--start" data-min="300" data-max="640" data-default="360"></div>
+      <div class="ss-panel__head"><i data-i="git-fork" style="margin-right:6px;color:var(--ink-2)"></i><span class="ss-panel__title">版本树 · thesis.docx</span><button class="ss-icon-btn" type="button" aria-label="拉宽" data-tip="拉宽"><i data-i="maximize-2"></i></button><button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭"><i data-i="x"></i></button></div>
+      <div class="ss-toolbar" style="padding:8px 12px;border-bottom:1px solid var(--line)"><span class="ss-input ss-input--sm" style="flex:1"><i data-i="search"></i><input placeholder="按标题、标签、备注、修改指令筛选" /></span></div>
+      <div class="ss-vtree">
+        <svg class="ss-vtree__links" width="340" height="460" aria-hidden="true"><path d="M86 56V80"/><path d="M86 120V144"/><path d="M86 184V208"/><path d="M86 248V272"/><path d="M86 312V336" data-on/><path d="M86 376V400" data-on/><path d="M256 376V400"/><path d="M152 292H246Q256 292 256 302V336"/><path d="M152 164H182"/></svg>
+        <button class="ss-vnode" type="button" style="left:20px;top:16px"><span class="ss-vnode__top"><span class="ss-vnode__v">v1</span><span class="ss-vnode__title">导入</span></span><span class="ss-vnode__meta"><i data-i="import"></i>10-12 · 导入</span></button><button class="ss-vnode" type="button" style="left:20px;top:80px"><span class="ss-vnode__top"><span class="ss-vnode__v">v2</span><span class="ss-vnode__title">补充文献综述</span></span><span class="ss-vnode__meta"><i data-i="pencil"></i>10-14 · 你</span></button><button class="ss-vnode" type="button" style="left:20px;top:144px"><span class="ss-vnode__top"><span class="ss-vnode__v">v3</span><span class="ss-vnode__title">导师第一轮意见</span></span><span class="ss-vnode__meta"><i data-i="pencil"></i>10-16 · 你</span></button><button class="ss-vnode" type="button" style="left:20px;top:208px" data-tier="final"><span class="ss-vnode__top"><span class="ss-vnode__v">v4</span><span class="ss-vnode__title">初稿完成</span></span><span class="ss-vnode__meta"><i data-i="pencil"></i>10-18 · 定稿</span></button><button class="ss-vnode" type="button" style="left:20px;top:272px" aria-selected="true"><span class="ss-vnode__top"><span class="ss-vnode__v">v5</span><span class="ss-vnode__title">修改方法部分</span></span><span class="ss-vnode__meta"><i data-i="sparkle"></i>10-20 · 主专家</span></button><button class="ss-vnode" type="button" style="left:20px;top:336px" data-origin="external"><span class="ss-vnode__top"><span class="ss-vnode__v">v6</span><span class="ss-vnode__title">Word 中修改</span></span><span class="ss-vnode__meta"><i data-i="file-pen"></i>10-21 · 外部</span></button><button class="ss-vnode" type="button" style="left:20px;top:400px" data-current><span class="ss-vnode__top"><span class="ss-vnode__v">v7</span><span class="ss-vnode__title">主线</span></span><span class="ss-vnode__meta"><i data-i="pencil"></i>正在编辑</span></button><button class="ss-vnode" type="button" style="left:190px;top:336px"><span class="ss-vnode__top"><span class="ss-vnode__v">v8</span><span class="ss-vnode__title">压缩到 8000 字</span></span><span class="ss-vnode__meta"><i data-i="sparkle"></i>10-21 · 主专家</span></button><button class="ss-vnode" type="button" style="left:190px;top:400px" data-tier="submit"><span class="ss-vnode__top"><span class="ss-vnode__v">v9</span><span class="ss-vnode__title">期刊投稿</span></span><span class="ss-vnode__meta"><i data-i="pencil"></i>10-22 · 投稿</span></button><span class="ss-vfold" style="left:182px;top:155px" data-tip="展开这一枝">会议摘要 · 2 版<i data-i="chevron-down" class="ss-i--sm"></i></span><span class="ss-vbranch" style="left:186px;top:282px"><i data-i="git-branch" class="ss-i--sm"></i>分支：期刊投稿</span>
+        <div class="ss-vtree__legend"><span><i data-tier="final"></i>定稿</span><span><i data-tier="submit"></i>投稿</span><span><i data-i="file-pen" class="ss-i--sm"></i>虚线：外部修改</span><span><span class="ss-dot ss-dot--ok"></span>正在编辑</span></div>
+      </div>
+      <div class="ss-vtree__detail">
+        <div style="display:grid;gap:6px">
+          <span class="ss-input ss-input--sm"><span class="ss-mono ss-muted" style="font-size:12px">v5</span><input value="修改方法部分" aria-label="版本名称" /></span>
+          <dl class="ss-props">
+            <dt>层级</dt><dd><button class="ss-select ss-select--sm" type="button"><span class="ss-select__value">草稿</span><i data-i="chevron-down"></i></button></dd>
+            <dt>来自</dt><dd>编辑台 · 主专家 · 10-20 16:12</dd>
+            <dt>派生</dt><dd>父 v4 · 子 v6、v8</dd>
+            <dt>改动</dt><dd>12 处，集中在 3.2 节</dd>
+          </dl>
+        </div>
+        <div style="display:flex;gap:6px"><button class="ss-btn ss-btn--sm" type="button"><i data-i="pencil"></i>从这一版开始编辑</button><button class="ss-btn ss-btn--sm ss-btn--ghost" type="button"><i data-i="git-compare"></i>和 v7 比较</button></div>
+      </div>
+    </aside>
+  </div>
+  <footer class="ss-statusbar">
+    <span class="ss-statusbar__item"><span class="ss-ftype ss-ftype--docx" aria-hidden="true">W</span>thesis.docx</span><span class="ss-statusbar__item">v7 · 主线 · 草稿</span><span class="ss-statusbar__item"><span class="ss-dot ss-dot--warn"></span>有 4 处修改未写回</span><span class="ss-statusbar__item">12,480 字</span>
+    <span class="ss-statusbar__spacer"></span>
+    <button class="ss-statusbar__btn" type="button" aria-pressed="true" data-tip="这份文稿的版本分叉树"><i data-i="git-fork"></i>版本树</button>
+    <button class="ss-statusbar__btn" type="button"><i data-i="message-square"></i>第三章：组态分析</button>
+    <span class="ss-statusbar__item">100%</span>
+  </footer>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

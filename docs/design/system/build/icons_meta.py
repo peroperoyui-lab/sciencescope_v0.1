@@ -31,4 +31,10 @@ GROUPS = [
     ('plug','服务商'),('cpu','模型'),('key-round','密钥'),('sun','浅色'),('moon','深色'),('monitor','跟随系统'),
     ('tag','标签'),('calendar','日期'),('star','星标'),('layout-list','列表视图'),('table-2','表格视图'),
     ('palette','外观'),('database','数据与存储'),('keyboard','快捷键'),('languages','语言'),('check-check','全部接受')]),
+  ('编辑台', [
+    ('app-window','编辑台窗口'),('save','保存'),('bold','加粗'),('italic','斜体'),('underline','下划线'),('superscript','上标'),('subscript','下标'),
+    ('remove-formatting','清除格式'),('heading','标题级别'),('list','项目符号'),('list-ordered','编号'),('list-tree','大纲'),
+    ('message-square-plus','添加批注'),('link-2','绑定来源'),('text-quote','引用到对话'),('wand-sparkles','改写'),('highlighter','标记'),
+    ('scissors','剪切'),('git-fork','版本树'),('git-compare','比较'),('columns-2','并排视图'),('radical','公式'),('file-output','编译 PDF'),
+    ('chevron-left','上一处'),('arrow-left-right','交换两侧')]),
 ]

@@ -4026,3 +4026,1126 @@ button.ss-act__row:hover {
 .ss-tree-row--nested {
   padding-left: calc(6px + var(--depth, 0) * 16px);
 }
+
+/* ---------- Editing desk (its own window; docs/architecture/EDITING_DESK.md §7) ---------- */
+.ss-desk {
+  grid-template-rows: var(--titlebar) auto minmax(0, 1fr) var(--statusbar);
+}
+/* Document tabs sit in the title bar, like a browser. */
+.ss-doctabs {
+  display: flex;
+  align-self: stretch;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding-top: 4px;
+  -webkit-app-region: no-drag;
+}
+.ss-doctab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  max-width: 220px;
+  height: 31px;
+  padding: 0 4px 0 10px;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+}
+.ss-doctab:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+.ss-doctab[aria-selected='true'] {
+  position: relative;
+  border-color: var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 500;
+}
+.ss-doctab[aria-selected='true']::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: var(--paper);
+}
+.ss-doctab > .ss-icon-btn {
+  width: 20px;
+  height: 20px;
+}
+.ss-doctab > .ss-icon-btn > .ss-i {
+  width: 12px;
+  height: 12px;
+}
+/* Unsaved changes: a dot that turns into × on hover. */
+.ss-doctab__dirty {
+  width: 6px;
+  height: 6px;
+  margin: 0 7px;
+  border-radius: 50%;
+  background: var(--warn);
+}
+/* File-type marks: a coloured letter badge, the same everywhere in the desk. */
+.ss-ftype {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  color: var(--on-accent);
+  font: 700 9px/1 var(--font-sans);
+  letter-spacing: -0.2px;
+}
+.ss-ftype--docx {
+  background: var(--kg-dataset);
+}
+.ss-ftype--tex {
+  background: var(--kg-variable);
+}
+.ss-ftype--md {
+  background: var(--kg-source);
+}
+.ss-ftype--pdf {
+  background: var(--danger);
+}
+.ss-ftype--group {
+  border: 1px dashed var(--faint);
+  background: transparent;
+  color: var(--muted);
+}
+
+/* Ribbon: one line of tabs and one line of commands, collapsible (Office "simplified ribbon"). */
+.ss-ribbon {
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+.ss-ribbon__tabs {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 30px;
+  padding: 0 8px;
+}
+.ss-ribbon__tabs > .ss-tab {
+  height: 30px;
+  font-size: 12px;
+}
+.ss-ribbon__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 40px;
+  margin: 0 8px 6px;
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+  box-shadow: var(--shadow-1);
+}
+.ss-ribbon__sep {
+  flex: none;
+  width: 1px;
+  height: 20px;
+  margin: 0 6px;
+  background: var(--line);
+}
+.ss-ribbon__spacer {
+  flex: 1;
+}
+.ss-ribbon__bar > .ss-btn {
+  height: var(--h-md);
+}
+.ss-ribbon__bar .ss-select--sm {
+  min-width: 96px;
+}
+
+/* Left pane: files on top, outline below. */
+.ss-desk-nav {
+  position: relative;
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 232px;
+  border-right: 1px solid var(--line);
+  background: var(--side);
+}
+.ss-desk-nav__section {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 8px;
+}
+.ss-desk-nav__section + .ss-desk-nav__section {
+  border-top: 1px solid var(--line);
+}
+.ss-desk-nav__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  height: 28px;
+  padding: 0 4px 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.ss-desk-nav__head > span {
+  flex: 1;
+}
+.ss-desk-file {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+}
+.ss-desk-file:hover {
+  background: var(--hover);
+}
+.ss-desk-file[aria-current='true'] {
+  background: var(--selected);
+  font-weight: 500;
+}
+.ss-desk-file__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ss-desk-file__end {
+  color: var(--faint);
+  font-size: 11px;
+}
+.ss-desk-file--folder {
+  color: var(--muted);
+  font-size: 12px;
+}
+.ss-outline {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ss-outline > li > button {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  padding: 4px 8px 4px calc(8px + var(--lv, 0) * 14px);
+  border: 0;
+  border-left: 2px solid transparent;
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 18px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ss-outline > li > button:hover {
+  color: var(--ink);
+}
+.ss-outline > li > button[aria-current='true'] {
+  border-left-color: var(--accent);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* The document canvas and the page. */
+.ss-desk-canvas {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  background: var(--sunken);
+}
+.ss-page {
+  position: relative;
+  width: 720px;
+  margin: 24px auto 40px;
+  padding: 64px 84px 72px;
+  border: 1px solid var(--line);
+  background: var(--raised);
+  box-shadow: var(--shadow-1);
+  color: var(--ink);
+  font: 400 15px/1.85 var(--font-serif);
+}
+.ss-page :is(h1, h2, h3) {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-weight: 600;
+}
+.ss-page h1 {
+  margin-bottom: 20px;
+  font-size: 22px;
+  line-height: 32px;
+  text-align: center;
+}
+.ss-page h2 {
+  margin: 22px 0 8px;
+  font-size: 17px;
+  line-height: 26px;
+}
+.ss-page h3 {
+  margin: 16px 0 6px;
+  font-size: 15px;
+  line-height: 24px;
+}
+.ss-page p {
+  position: relative;
+  margin: 0 0 6px;
+  text-indent: 2em;
+}
+.ss-page p.ss-page__noindent {
+  text-indent: 0;
+}
+.ss-page table {
+  width: 100%;
+  margin: 10px 0 14px;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 20px;
+  text-indent: 0;
+}
+.ss-page caption {
+  padding-bottom: 6px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+}
+.ss-page :is(th, td) {
+  padding: 4px 8px;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 1px solid var(--line-strong);
+  text-align: center;
+}
+.ss-page th {
+  font-weight: 600;
+}
+.ss-page__eq {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 8px 0 10px;
+  text-indent: 0;
+}
+.ss-page__eqno {
+  position: absolute;
+  right: 0;
+}
+.ss-page__pageno {
+  position: absolute;
+  right: 0;
+  bottom: 24px;
+  left: 0;
+  color: var(--faint);
+  font: 400 11px/16px var(--font-sans);
+  text-align: center;
+}
+
+/* Marks inside the text. */
+.ss-rev-ins {
+  border-radius: 2px;
+  background: var(--diff-ins);
+  text-decoration: none;
+}
+.ss-rev-del {
+  border-radius: 2px;
+  background: var(--diff-del);
+  color: var(--diff-del-ink);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+}
+/* Who changed a paragraph, in the right margin of the page. */
+.ss-revtag {
+  position: absolute;
+  top: 4px;
+  right: -78px;
+  display: grid;
+  gap: 2px;
+  width: 66px;
+  color: var(--muted);
+  font: 400 11px/14px var(--font-sans);
+  text-indent: 0;
+}
+.ss-revtag::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: -8px;
+  width: 2px;
+  border-radius: 1px;
+  background: var(--warn);
+}
+.ss-revtag > b {
+  color: var(--ink-2);
+  font-weight: 500;
+}
+.ss-sel {
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+}
+.ss-qmark {
+  background: color-mix(in srgb, var(--warn) 22%, transparent);
+}
+.ss-cmt {
+  border-bottom: 2px solid var(--warn-line);
+  background: var(--warn-soft);
+}
+.ss-cmt[data-active] {
+  border-bottom-color: var(--warn);
+}
+.ss-bind {
+  text-decoration: underline dotted var(--accent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+/* An object the desk keeps but does not edit (docx formula, image, field). */
+.ss-atom {
+  display: inline-block;
+  padding: 0 4px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-xs);
+  text-indent: 0;
+}
+/* Arriving from a chat mark: the sentence glows once. */
+.ss-flash {
+  border-radius: 2px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent);
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+/* Inline maths (tex render pane and formula editor). */
+.ss-math {
+  font-family: 'Latin Modern Math', 'STIX Two Math', 'Cambria Math', var(--font-serif);
+  font-style: normal;
+  white-space: nowrap;
+}
+.ss-math i {
+  font-style: italic;
+}
+.ss-math sub,
+.ss-math sup {
+  font-size: 0.72em;
+  line-height: 0;
+}
+.ss-math__op {
+  margin: 0 0.22em;
+}
+.ss-math__big {
+  font-size: 1.5em;
+  vertical-align: -0.12em;
+}
+.ss-frac {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 0.15em;
+  vertical-align: middle;
+  line-height: 1.3;
+}
+.ss-frac > span + span {
+  border-top: 1px solid currentColor;
+}
+.ss-frac > span {
+  padding: 0 0.2em;
+}
+.ss-limits {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 0.15em;
+  vertical-align: middle;
+  line-height: 1;
+}
+.ss-limits > small {
+  font-size: 0.62em;
+}
+.ss-limits > span {
+  font-size: 1.45em;
+  line-height: 1.1;
+}
+
+/* Floating toolbar on a selection (Office mini toolbar): format row, then rewrite. */
+.ss-ftb {
+  position: absolute;
+  z-index: var(--z-pop);
+  display: grid;
+  width: 452px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--raised);
+  box-shadow: var(--shadow-2);
+  font-family: var(--font-sans);
+  text-indent: 0;
+}
+.ss-ftb__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 4px 6px;
+}
+.ss-ftb__row + .ss-ftb__row {
+  border-top: 1px solid var(--line);
+}
+.ss-ftb__ask {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: var(--sp-6);
+  height: var(--h-md);
+  padding: 0 4px 0 8px;
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+  color: var(--faint);
+  font-size: 13px;
+}
+.ss-ftb__ask > .ss-i {
+  color: var(--accent);
+}
+.ss-ftb__ask > span:not(.ss-kbd, .ss-spin) {
+  flex: 1;
+}
+.ss-ftb__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  padding: 0 8px 8px;
+}
+.ss-ftb__chips > button {
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-full);
+  background: var(--paper);
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.ss-ftb__chips > button:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+.ss-ftb .ss-icon-btn[aria-pressed='true'] {
+  background: var(--selected);
+  color: var(--ink);
+}
+.ss-ftb__label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  height: var(--h-md);
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.ss-ftb__label:hover {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+/* A menu placed at a point (right-click), for mocks and the app alike. */
+.ss-at {
+  position: absolute;
+  z-index: var(--z-pop);
+  font-family: var(--font-sans);
+  text-indent: 0;
+}
+
+/* Right panel cards: comments and the change list. */
+.ss-desk-card {
+  display: grid;
+  gap: var(--sp-6);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+}
+.ss-desk-card[data-active] {
+  border-color: var(--warn-line);
+  box-shadow: 0 0 0 1px var(--warn-line);
+}
+.ss-desk-card__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  min-width: 0;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+}
+.ss-desk-card__head > time {
+  margin-left: auto;
+  color: var(--faint);
+  font-weight: 400;
+}
+.ss-desk-card__quote {
+  margin: 0;
+  overflow: hidden;
+  padding-left: 8px;
+  border-left: 2px solid var(--line-strong);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ss-desk-card__body {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 20px;
+}
+.ss-desk-card__foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.ss-desk-card__foot > .ss-btn {
+  height: var(--h-sm);
+  padding: 0 8px;
+  font-size: 12px;
+}
+.ss-desk-list {
+  display: grid;
+  gap: var(--sp-8);
+}
+
+/* Status bar extras: a small button and the save state. */
+.ss-statusbar__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  height: 20px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.ss-statusbar__btn:hover,
+.ss-statusbar__btn[aria-pressed='true'] {
+  background: var(--hover);
+  color: var(--ink);
+}
+.ss-statusbar__btn > .ss-i {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
+
+/* Version fork tree: grows top-down, styled like the research map (cards, links, folds). */
+.ss-vtree {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background-color: var(--paper);
+  background-image: radial-gradient(var(--line-strong) 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+.ss-vtree__links {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+.ss-vtree__links path {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+.ss-vtree__links path[data-on] {
+  stroke: var(--accent);
+}
+.ss-vnode {
+  position: absolute;
+  display: grid;
+  gap: 2px;
+  width: 132px;
+  padding: 6px 8px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--raised);
+  box-shadow: var(--shadow-1);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 16px;
+  text-align: left;
+}
+.ss-vnode:hover {
+  border-color: var(--faint);
+}
+.ss-vnode[aria-selected='true'] {
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 2px var(--accent-soft),
+    var(--shadow-1);
+}
+.ss-vnode__top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+.ss-vnode__v {
+  flex: none;
+  color: var(--muted);
+  font: 600 11px/16px var(--font-mono);
+}
+.ss-vnode__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ss-vnode__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  color: var(--faint);
+  font-size: 11px;
+}
+.ss-vnode__meta > .ss-i {
+  width: 12px;
+  height: 12px;
+}
+/* The version being edited now: a solid accent dot before the number. */
+.ss-vnode[data-current] .ss-vnode__v::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 1px;
+}
+.ss-vnode[data-tier='submit'] {
+  border-left: 3px solid var(--kg-dataset);
+}
+.ss-vnode[data-tier='final'] {
+  border-left: 3px solid var(--accent);
+}
+.ss-vnode[data-origin='external'] {
+  border-style: dashed;
+}
+.ss-vbranch {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  height: 20px;
+  padding: 0 8px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-full);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.ss-vfold {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 22px;
+  height: 18px;
+  padding: 0 5px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-full);
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 11px;
+}
+.ss-vtree__detail {
+  display: grid;
+  flex: none;
+  gap: var(--sp-12);
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+}
+.ss-vtree__legend {
+  position: absolute;
+  bottom: var(--sp-8);
+  left: var(--sp-8);
+  display: flex;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+  flex-wrap: wrap;
+  gap: var(--sp-4) var(--sp-12);
+  color: var(--muted);
+  font-size: 11px;
+}
+.ss-vtree__legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.ss-vtree__legend i[data-tier] {
+  display: inline-block;
+  width: 3px;
+  height: 12px;
+  border-radius: 1px;
+  background: var(--line-strong);
+}
+.ss-vtree__legend i[data-tier='final'] {
+  background: var(--accent);
+}
+.ss-vtree__legend i[data-tier='submit'] {
+  background: var(--kg-dataset);
+}
+
+/* tex: source on the left, live render on the right. */
+.ss-split {
+  display: grid;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+  min-width: 0;
+}
+.ss-split__rule {
+  background: var(--line);
+}
+.ss-code {
+  overflow: auto;
+  padding: 12px 0;
+  background: var(--raised);
+  color: var(--ink);
+  font: 400 13px/22px var(--font-mono);
+  counter-reset: ln;
+}
+.ss-code__line {
+  display: flex;
+  min-height: 22px;
+  padding-right: 16px;
+  white-space: pre-wrap;
+}
+.ss-code__line::before {
+  content: counter(ln);
+  flex: none;
+  width: 44px;
+  padding-right: 14px;
+  color: var(--faint);
+  text-align: right;
+  counter-increment: ln;
+  user-select: none;
+}
+.ss-code__line[data-active] {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+.ss-code__line[data-active]::before {
+  color: var(--ink-2);
+}
+.tok-cmd {
+  color: var(--kg-dataset);
+}
+.tok-env {
+  color: var(--kg-concept);
+}
+.tok-math {
+  color: var(--kg-variable);
+}
+.tok-com {
+  color: var(--faint);
+  font-style: italic;
+}
+.tok-arg {
+  color: var(--kg-software);
+}
+.tok-md {
+  color: var(--faint);
+}
+.ss-split__render {
+  overflow: auto;
+  background: var(--sunken);
+}
+.ss-split__render > .ss-page {
+  width: auto;
+  max-width: 640px;
+  margin: 16px 24px 32px;
+  padding: 36px 56px 48px;
+}
+/* A rendered formula you can click to edit. */
+.ss-eqbox {
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.ss-eqbox:hover,
+.ss-eqbox[data-active] {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+
+/* Formula editor (MathLive field + template palette + the LaTeX it writes). */
+.ss-mathedit {
+  width: 468px;
+  max-width: none;
+}
+.ss-mathedit__field {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 76px;
+  padding: 10px;
+  border: 1px solid var(--accent);
+  border-radius: var(--r-md);
+  background: var(--raised);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  font-size: 20px;
+}
+.ss-mathedit__slot {
+  display: inline-block;
+  min-width: 0.8em;
+  height: 1.1em;
+  border: 1px dashed var(--accent);
+  border-radius: 2px;
+  background: var(--accent-soft);
+  vertical-align: -0.2em;
+}
+.ss-mathedit__caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 1.1em;
+  margin: 0 1px;
+  background: var(--accent);
+  vertical-align: -0.2em;
+}
+.ss-mathedit__pal {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: var(--sp-2);
+}
+.ss-mathedit__pal > button {
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+  color: var(--ink);
+  font:
+    400 14px/1 'Latin Modern Math',
+    'STIX Two Math',
+    'Cambria Math',
+    var(--font-serif);
+}
+.ss-mathedit__pal > button:hover {
+  border-color: var(--line-strong);
+  background: var(--raised);
+}
+.ss-mathedit__src {
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+  color: var(--ink-2);
+  font: 400 12px/18px var(--font-mono);
+  word-break: break-all;
+}
+
+/* Version comparison: two columns aligned by sentence. */
+.ss-cmp {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--raised);
+}
+.ss-cmp__bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--sp-8);
+  height: 44px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+}
+.ss-cmp__heads,
+.ss-cmp__row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr);
+}
+.ss-cmp__heads {
+  flex: none;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--muted);
+  font-size: 12px;
+}
+.ss-cmp__heads > div {
+  padding: 6px 16px;
+}
+.ss-cmp__heads > div + div {
+  border-left: 1px solid var(--line);
+}
+.ss-cmp__rows {
+  flex: 1;
+  overflow: auto;
+}
+.ss-cmp__row {
+  border-bottom: 1px solid var(--line);
+}
+.ss-cmp__row > div {
+  padding: 8px 16px;
+  color: var(--ink);
+  font: 400 14px/1.8 var(--font-serif);
+}
+.ss-cmp__row > div + div {
+  border-left: 1px solid var(--line);
+}
+.ss-cmp__row > .ss-cmp__gut {
+  display: grid;
+  justify-items: center;
+  padding: 10px 0 0;
+  color: var(--faint);
+  font: 500 11px/16px var(--font-sans);
+}
+.ss-cmp__row[data-type='same'] > div:not(.ss-cmp__gut) {
+  color: var(--muted);
+}
+.ss-cmp__row[data-type='changed'] > .ss-cmp__gut {
+  color: var(--warn);
+}
+.ss-cmp__row[data-type='added'] > .ss-cmp__gut {
+  color: var(--kg-software);
+}
+.ss-cmp__row[data-type='removed'] > .ss-cmp__gut {
+  color: var(--diff-del-ink);
+}
+.ss-cmp__row[data-current] {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.ss-cmp__row[data-heading] > div:not(.ss-cmp__gut) {
+  font: 600 14px/22px var(--font-sans);
+}
+.ss-cmp__empty {
+  background: repeating-linear-gradient(
+    135deg,
+    transparent 0 6px,
+    color-mix(in srgb, var(--line) 70%, transparent) 6px 7px
+  );
+}
+.ss-cmp__fold {
+  padding: 4px 16px 4px 44px;
+  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--faint);
+  font-size: 12px;
+}
+
+/* PDF: the page is an image; marks and comment pins sit on top. */
+.ss-page--pdf {
+  width: 680px;
+  padding: 56px 60px 64px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.ss-page--pdf p {
+  text-align: justify;
+  text-indent: 0;
+}
+.ss-page--pdf h1 {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  line-height: 28px;
+}
+.ss-page--pdf h2 {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  line-height: 22px;
+}
+.ss-pdf-cols {
+  columns: 2;
+  column-gap: 24px;
+}
+.ss-pin {
+  position: absolute;
+  right: 20px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--warn-line);
+  border-radius: 6px 6px 6px 2px;
+  background: var(--warn-soft);
+  color: var(--warn-ink);
+  font: 600 11px/1 var(--font-sans);
+}
+
+/* The orb that opens this conversation's secretary from the desk. */
+.ss-desk-orb {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  z-index: var(--z-sticky);
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--raised);
+  box-shadow: var(--shadow-2);
+  color: var(--ink-2);
+}
+.ss-desk-orb:hover {
+  color: var(--ink);
+}
+/* Markdown and other plain documents: no first-line indent, headings flush left. */
+.ss-page--md {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.8;
+}
+.ss-page--md p {
+  text-indent: 0;
+  margin-bottom: 10px;
+}
+.ss-page--md h1 {
+  text-align: left;
+}
+.ss-page--md :is(ul, ol) {
+  margin: 0 0 10px;
+  padding-left: 22px;
+}
+.ss-page--md code {
+  padding: 1px 4px;
+  border-radius: var(--r-xs);
+  background: var(--sunken);
+  font: 400 12.5px/1 var(--font-mono);
+}
+.ss-page--md a {
+  color: var(--accent-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.ss-page--md blockquote {
+  margin: 0 0 10px;
+  padding: 2px 12px;
+  border-left: 3px solid var(--line-strong);
+  color: var(--ink-2);
+}

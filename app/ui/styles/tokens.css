@@ -36,6 +36,9 @@
   --auto-ink: #8b302b;
   --auto-soft: #f6e7e5;
   --auto-line: #dcb0aa;
+  --diff-ins: #f4e3a1;
+  --diff-del: #f2dcd7;
+  --diff-del-ink: #8b3a33;
   --kg-source: #5d655e;
   --kg-method: #3f6049;
   --kg-dataset: #3e6282;
@@ -98,6 +101,7 @@
   --font-mono:
     'JetBrains Mono', 'Cascadia Code', 'SFMono-Regular', Consolas, 'Noto Sans Mono CJK SC',
     monospace;
+  --font-serif: 'Noto Serif SC', 'Source Han Serif SC', 'Songti SC', 'SimSun', serif;
 }
 :root[data-theme='dark'] {
   --paper: #161917;
@@ -133,6 +137,9 @@
   --auto-ink: #eaa39a;
   --auto-soft: #3b2321;
   --auto-line: #6e322c;
+  --diff-ins: #4a3e17;
+  --diff-del: #43272a;
+  --diff-del-ink: #e6a59c;
   --kg-source: #aab3a7;
   --kg-method: #9cc3a4;
   --kg-dataset: #8fb3d1;

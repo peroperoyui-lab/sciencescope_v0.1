@@ -1,0 +1,49 @@
+<!-- @dsCard group="编辑台" height=390 subtitle="入口：左栏工作站下面、工作站页头的版本树、对话底部的进入横条、对话里的文稿标记跳到编辑台" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>DeskEntry</title></head>
+<body>
+<div class="ds" style="grid-template-columns:240px 1fr;align-items:start;gap:20px 24px">
+  <div class="ds-col">
+    <div class="ds-box" style="background:var(--side);padding:8px;display:grid;gap:2px">
+      <button class="ss-nav-item" type="button"><i data-i="square-pen"></i><span class="ss-nav-item__label">新对话</span></button>
+      <button class="ss-nav-item" type="button"><i data-i="book-open"></i><span class="ss-nav-item__label">知识库</span></button>
+      <button class="ss-nav-item" type="button"><i data-i="box"></i><span class="ss-nav-item__label">工作站</span></button>
+      <button class="ss-nav-item" type="button" data-tip="在独立窗口打开编辑台"><i data-i="file-pen"></i><span class="ss-nav-item__label">编辑台</span><span class="ss-nav-item__end"><i data-i="app-window" class="ss-i--sm"></i></span></button>
+      <button class="ss-search-trigger" type="button"><i data-i="search"></i><span class="ss-search-trigger__label">搜索与命令</span><span class="ss-kbd">Ctrl K</span></button>
+    </div>
+    <span class="ds-label">① 主窗口左栏：「编辑台」在工作站下面；小窗图标表示另开窗口，窗口已开时切过去</span>
+  </div>
+  <div class="ds-col">
+    <div class="ds-box" style="overflow:hidden">
+      <div class="ss-header">
+        <div class="ss-header__title"><span>工作站</span></div>
+        <div class="ss-header__actions">
+          <button class="ss-btn ss-btn--ghost" type="button"><i data-i="git-fork"></i>版本树</button>
+          <button class="ss-btn" type="button"><i data-i="file-pen"></i>在编辑台打开</button>
+        </div>
+      </div>
+      <div style="height:24px"></div>
+    </div>
+    <span class="ds-label">② 工作站页头：「版本树」在右侧栏打开和编辑台同一个版本树组件；左下角原来的文件版本管理撤掉，导图向左拉伸</span>
+    <div class="ss-callout" style="margin-top:8px"><i data-i="file-pen"></i><div class="ss-callout__body"><span class="ss-callout__title">初稿已经成形，要进入编辑台继续改吗？</span>thesis.docx 第三章</div><div class="ss-callout__actions"><button class="ss-btn ss-btn--sm" type="button">开新分支进入</button><button class="ss-btn ss-btn--sm ss-btn--primary" type="button">接续当前对话</button></div></div>
+    <span class="ds-label">③ 对话底部的进入横条：主专家调用 desk_suggest 时出现</span>
+  </div>
+  <div class="ds-col" style="grid-column:1 / -1;grid-template-columns:1fr 1fr;gap:8px 24px">
+    <div class="ds-box" style="padding:12px;display:grid;gap:8px;justify-items:end">
+      <div class="ss-msg__bubble" style="max-width:100%">3.2 节这两句帮我核对一下数据来源。</div>
+      <div class="ss-msg__files">
+        <span class="ss-file-chip" data-tip="在编辑台打开并定位到这句"><span class="ss-ftype ss-ftype--docx" aria-hidden="true">W</span><button type="button" class="ss-file-chip__open">thesis.docx · 3.2 节</button><i data-i="app-window" class="ss-i--sm" style="color:var(--muted)"></i></span>
+        <span class="ss-file-chip"><i data-i="sticky-note"></i><button type="button" class="ss-file-chip__open">标记 2 条</button></span>
+      </div>
+    </div>
+    <div class="ss-page" style="width:auto;margin:0;padding:14px 20px;font-size:14px">
+      <p style="margin:0">样本量为 98。<span class="ss-flash">一致性阈值设为 0.85，案例频数阈值设为 2</span>；校准锚点取第 95、50、5 百分位。</p>
+    </div>
+    <span class="ds-label">④ 对话里来自文稿的标记写明文件和位置，点一下把编辑台窗口调到前面……</span>
+    <span class="ds-label">……打开那份文稿、滚到那句，短暂高亮</span>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>
