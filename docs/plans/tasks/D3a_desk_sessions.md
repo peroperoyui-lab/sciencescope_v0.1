@@ -1,6 +1,6 @@
 # D3a 编辑台会话服务（docx）
 
-- 起草：Claude，2026-10-22。依据：`architecture/EDITING_DESK.md` §3.2「同步」、§3.5、§4.1–4.2、§8、§10 D3；D1 的版本图（迁移 024 已建 `desk_sessions`、`desk_changes`）；D2 的 `desk/docx/` 读写（`readDocx`、`writeDocx`）。D3 拆成两步：D3a 做 docx 会话，D3b 做 tex、文件列表、进入编辑台和图片。
+- 起草：Claude，2026-10-22。依据：`architecture/EDITING_DESK.md` §3.2「同步」、§3.5、§4.1–4.2、§8、§10 D3；D1 的版本图（迁移 024 已建 `desk_sessions`、`desk_changes`）；D2 的 `desk/docx/` 读写（`readDocx`、`writeDocx`）。D3 拆成两步：D3a 做 docx 会话，D3b 做 tex 和 md、文件列表、进入编辑台和图片。
 - 执行：Sol（Windows）；审阅：Claude。约 2 小时，一步交付；超出就停下汇报。
 
 ## 目标
@@ -42,7 +42,7 @@
 ## 不做的
 
 - 不改 `app/ui/`（U1、U2 由 Claude 做），不加 `features.editingDesk` 开关。
-- 不做 tex、文件列表、`/api/desk/enter`、图片字节（D3b），不做批注接口、来源绑定（D6），不做 AI 工具和划选改写（D5），不做比较（D4）。
+- 不做 tex、md、文件列表、`/api/desk/enter`、图片字节（D3b），不做批注接口、来源绑定（D6），不做 AI 工具和划选改写（D5），不做比较（D4）。
 - 不动 `<预览安装目录>` 及其数据，不把稿件、截图提交进仓库。
 
 ## 完成标准
