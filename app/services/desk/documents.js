@@ -16,6 +16,7 @@ const extensions = new Map([
  * @param {ReturnType<typeof import('../project-files.js').createProjectFiles>} projectFiles
  * @param {string} projectId
  * @param {number} [limit]
+ * @returns {Promise<{files:any[],groups:any[],truncated:boolean}>}
  */
 export async function listDocuments(core, projectFiles, projectId, limit = 2000) {
   const project = core.projects.get(projectId);

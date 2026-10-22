@@ -19,6 +19,7 @@ export async function readDocument(bytes, format) {
 /**
  * @param {any} document
  * @param {any[]} records
+ * @returns {Promise<{blocks:any[],allocateId:()=>string}>}
  */
 export async function restoreDocument(document, records) {
   if (document.format !== 'docx') {
