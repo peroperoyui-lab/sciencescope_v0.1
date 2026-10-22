@@ -38,13 +38,13 @@ export async function indexMedia(document) {
       const id = Object.entries(span.attrs).find(([name]) => /:(?:embed|id)$/u.test(name))?.[1];
       const relation = relationships.get(id);
       if (!relation || relation.TargetMode === 'External' || !relation.Type?.endsWith('/image'))
-        continue;
+        break;
       const file = path.posix.normalize(
         relation.Target.startsWith('/')
           ? relation.Target.slice(1)
           : path.posix.join('word', relation.Target),
       );
-      if (!document.zip.file(file)) continue;
+      if (!document.zip.file(file)) break;
       const extension = path.posix.extname(file).slice(1).toLowerCase();
       const override = contentTypes.find((entry) => entry.attrs.PartName === '/' + file);
       const fallback = contentTypes.find(

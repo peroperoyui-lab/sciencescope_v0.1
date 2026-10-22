@@ -100,6 +100,14 @@ test('desk media returns the first embedded image bytes and MIME and exposes ava
     zip.file('word/media/first.png', png);
     zip.file('word/media/second.png', Buffer.from('second'));
     zip.file('word/media/vector.emf', Buffer.from('EMF fixture bytes'));
+    const documentXml = await zip.file('word/document.xml').async('string');
+    zip.file(
+      'word/document.xml',
+      documentXml.replace(
+        '</w:body>',
+        '<w:p><w:r><w:drawing><a:blip r:embed="missing"/><a:blip r:embed="second"/></w:drawing></w:r></w:p></w:body>',
+      ),
+    );
     const folder = path.join(dir, '图片稿');
     await mkdir(folder);
     await writeFile(
@@ -118,7 +126,11 @@ test('desk media returns the first embedded image bytes and MIME and exposes ava
       const images = opened.blocks
         .flatMap((block) => block.inlines)
         .filter((inline) => inline.atom === 'image');
-      assert.ok(images.every((inline) => inline.media === true));
+      assert.ok(images.slice(0, 2).every((inline) => inline.media === true));
+      assert.equal(images[2].media, undefined);
+      await assert.rejects(desk.media(opened.session.id, images[2].ref), {
+        code: 'DESK_MEDIA_NOT_FOUND',
+      });
       const response = await fetch(
         `${url}/api/desk/sessions/${opened.session.id}/media/${images[0].ref}`,
         { headers },
