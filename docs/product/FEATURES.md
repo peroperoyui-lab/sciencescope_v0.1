@@ -596,7 +596,7 @@ data/
 - `POST /api/versions/:id/save-as-new` 旧版另存为新版本。
 - `POST /api/versions/:id/organize` 重新整理说明。
 
-**编辑台会话（D3a/D3b，编辑接口尚未接界面）**
+**编辑台会话与专家改写（D3a/D3b/D5，编辑接口尚未接界面）**
 
 - `POST /api/desk/documents` 登记项目内 DOCX、TeX、MD/Markdown，同一路径返回已有组。
 - `GET /api/desk/documents?projectId=` 只读列出项目文稿、已登记的最新版本和只在应用里的组；达到 2000 个文稿返回 `truncated`。跳过隐藏目录、node_modules，自带项目根另跳过应用自有目录。
