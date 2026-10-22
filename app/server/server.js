@@ -27,6 +27,7 @@ import { registerSkillRoutes } from './routes/skills.js';
 import { registerToolRoutes } from './routes/tools.js';
 import { registerMcpRoutes } from './routes/mcp.js';
 import { registerKnowledgeRoutes } from './routes/knowledge.js';
+import { registerDeskRoutes } from './routes/desk.js';
 
 // Generous resource bound for request bodies (attachments travel separately).
 const MAX_BODY_BYTES = 64 * 1024 * 1024;
@@ -78,6 +79,7 @@ function tokenMatches(given, expected) {
  *   projectFiles?:ReturnType<typeof import('../services/project-files.js').createProjectFiles>,
  *   projectIndex?:ReturnType<typeof import('../services/knowledge/project-index.js').createProjectIndex>,
  *   knowledge?:any, knowledgeSessions?:any, knowledgeJobs?:any,
+ *   desk?:ReturnType<typeof import('../services/desk/index.js').createDesk>,
  *   conductor?: ReturnType<typeof import('../services/conductor.js').createConductor> }} options
  *   Without a conductor (core-only tests) posting a message triggers no answers.
  */
@@ -108,8 +110,10 @@ export function createAppServer({
   knowledge,
   knowledgeSessions,
   knowledgeJobs,
+  desk,
 }) {
   const router = createRouter();
+  registerDeskRoutes(router, desk);
   registerSkillRoutes(router, skills);
   registerMcpRoutes(router, mcp);
   registerToolRoutes(router, tools);
@@ -178,7 +182,8 @@ export function createAppServer({
           : await readJson(
               request,
               ['/api/research/sources', '/api/versions/import'].includes(url.pathname) ||
-                /^\/api\/research-input\/[^/]+\/attachments$/u.test(url.pathname),
+                /^\/api\/research-input\/[^/]+\/attachments$/u.test(url.pathname) ||
+                /^\/api\/desk\/sessions\/[^/]+\/blocks$/u.test(url.pathname),
             );
       const result = await route.handler({
         params: route.params,
@@ -190,7 +195,11 @@ export function createAppServer({
       if (!response.headersSent) reply(200, result);
     } catch (error) {
       if (error instanceof AppError) {
-        reply(error.status, { code: error.code, message: error.message });
+        reply(error.status, {
+          code: error.code,
+          message: error.message,
+          ...('details' in error ? { details: error.details } : {}),
+        });
       } else {
         console.error(error);
         reply(500, { code: 'INTERNAL', message: '内部错误，详情见日志。' });

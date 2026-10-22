@@ -29,6 +29,7 @@ import { createResearchInput } from './services/research-input/index.js';
 import { createSemantic } from './services/research/semantic/index.js';
 import { createPython } from './services/python/index.js';
 import { createVersions } from './services/versions/index.js';
+import { createDesk } from './services/desk/index.js';
 import { createVersionOrganizer } from './services/versions/organizer.js';
 
 /**
@@ -62,6 +63,7 @@ export async function createApp({
     indexEntry: (id, relative) => projectIndex.entry(id, relative),
   });
   const projectIndex = createProjectIndex({ core, research, files: projectFiles });
+  const desk = createDesk(core, { versions, projectFiles });
   const researchInput = createResearchInput({ core, research });
   startup?.mark('pythonStart');
   const python = createPython(core, pythonOptions);
@@ -170,9 +172,11 @@ export async function createApp({
     knowledge,
     knowledgeSessions,
     knowledgeJobs,
+    desk,
   });
 
   return {
+    desk,
     core,
     projectFiles,
     projectIndex,
@@ -206,6 +210,7 @@ export async function createApp({
       await memoryRunner.close();
       await minutes.close();
       await server.close();
+      await desk.shutdown();
       await conductor.idle();
       await projectIndex.close();
       await knowledgeJobs.close();

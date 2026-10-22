@@ -92,6 +92,7 @@ data/projects/<目录>/
   versions/<组 id>/v<号>-<版本 id>/<原文件名>           版本原件（现有结构，不变）
   versions/<组 id>/v<号>-<版本 id>/<原文件名>.notes.md  版本说明，也是版本图里"边的备注"（现有）
   desk/<会话 id>/<原文件名>                             会话工作副本，空闲 2 秒自动写一次
+  desk/<会话 id>/.state/source.docx、checkpoint.json      会话初始包与已落盘序号（D3a）
 data/temp/desk-build/<会话 id>/                         tex 编译输出和日志
 data/tools/tectonic/<版本>/                              按需下载的 Tectonic 和它的缓存
 data/sciencescope.sqlite                                会话、修改记录、绑定、tex 批注（第 4.1 节）
@@ -99,7 +100,11 @@ data/sciencescope.sqlite                                会话、修改记录、
 
 工作副本是真实的 docx 或 tex 文件，崩溃后或离开应用也能打开；会话关闭生成版本后删除。
 
+D3a 已接通 docx 会话。修改先经 D2 的结构校验，再在一个 SQLite 事务中记逐块修改和递增序号；空闲 2 秒集中写一次 ZIP，保存、关闭会话和正常退出会先写掉未落盘修改。工作副本与检查点均用临时文件加改名；初始包保留整个会话的内联引用和无 paraId 段落的稳定编号，重启读取工作副本后由修改记录恢复已确认的修改。原稿和所有侧车状态分开。
+
 **外部修改：** 打开和保存前比较项目文件的哈希与该组最新版本的 `content_hash`。不同就说明文件在外面被改过（Word，或 `write_file`），先把它导入成新版本（`origin='external'`）；会话里有未保存的修改时让用户选「以外部版本为准重新打开」或「保留我的修改另存为分支」，不悄悄覆盖。
+
+D3a 按任务书原文使用上述“最新版本”基准（所有者 2026-10-22 确认暂不扩展）：应用写回项目文件后再次保存、或另存分支后项目文件仍未改变，也可能被记为外部版本；判定基准留给 Claude 协调。文件被删除或无法读取时返回 `DESK_SOURCE_UNAVAILABLE`，工作副本保留。
 
 ## 4. 版本与分支
 
@@ -147,13 +152,13 @@ CREATE TABLE manuscript_comments (...);            -- tex 批注，第 6.3 节
 ### 4.2 版本什么时候生成
 
 - **第一次打开项目文件**：建版本组（`source_path`、`format`），文件复制成 v1（`origin='import'`）。
-- **会话关闭时**（离开编辑台、切换文档、关闭应用）：工作副本哈希与打开时的版本不同就生成一个版本，父版本是 `base_version_id`，`origin='desk'`，本次的 `desk_changes` 填上 `version_id`。对应 IDEAS 的"退出时保留历史版本"。
+- **显式关闭会话时**（D3a 的 `closeSession`）：工作副本哈希与当前基础版本不同就生成一个版本，父版本是 `base_version_id`，`origin='desk'`，记 `session_id` 和 `result_version_id`，尚未归档的修改记录填上 `version_id`；无变化时仅关闭。随后删除工作副本目录，不写回项目文件。应用正常退出只先落盘，保留 open 会话供重启恢复。
 - **「存为版本」**：随时手动生成，可填标签和层级，之后的修改以它为父。
-- **保存（Ctrl+S）**：只把工作副本写回项目文件，不生成版本。
+- **保存（Ctrl+S）**：检查外部修改后，把工作副本原子写回项目文件，`saved_seq=seq`，不生成版本。项目文件对应版本不是会话基础版本时返回 `DESK_SAVE_CONFIRM`，明确带 `confirm:true` 才写回。
 
 **分支：** 父版本已有子版本时，新版本自动成为"分支 n"，用户可改名；同一分支上继续则继承分支名。从旧版本打开后保存到项目文件时先问一次：「写回项目文件（文件当前对应 v7，v7 仍在版本图里）」或「只存为版本」。底部信息栏始终写明项目文件对应哪个版本。
 
-**版本说明：** 编辑台生成的版本不自动让秘书写说明（现在一份要十几万 token），只自动做第 4.4 节的比较，并把本次修改记录列为"实际文件变化"；用户可以手动加备注，或点「请秘书整理」走现有 `POST /api/versions/:id/organize`。导入的版本仍按 `auto_version_notes`。
+**版本说明：** 编辑台生成的版本不自动让秘书写说明；D3a 保存修改记录，第 4.4 节的比较待 D4 接入。用户可以手动加备注，或点「请秘书整理」走现有 `POST /api/versions/:id/organize`。导入的版本仍按 `auto_version_notes`。
 
 ### 4.3 版本图与历史版本
 
@@ -242,6 +247,8 @@ CREATE TABLE manuscript_bindings (
 
 新路由在 `app/server/routes/desk.js`，版本相关的放现有版本路由，都需要口令。
 
+D3a 已实现下表中的登记、开会话、重连、PATCH blocks、撤回、保留、保存和关闭八个接口，其余是后续设计。登记仅收 `{projectId,path}` 并返回版本组；开会话/重连返回 `{session,blocks,changes}`（不含批注和绑定接口）。修改返回 `{seq,inserted}`，其中 inserted 是客户端 id 到 `p:<paraId>` 的映射；`writeDocx` 的插入项支持预分配的 `paraId`。冲突错误为 HTTP 409 的 `{code,message,details}`：`DESK_CONFLICT` 的 details 含 `seq,blockIds,blocks`（已删除块为 `{id,removed:true}`）；`DESK_EXTERNAL_CHANGE` 含 `versionId`，`DESK_SAVE_CONFIRM` 含 `versionId,versionNumber`。保存支持 `confirm?`，保留支持 `{ids?}`。服务调用的 actor 可传 `actorId,meetingId,turnId,instruction`；HTTP 修改统一记为用户。
+
 | 方法与路径                                                                                                     | 作用                                                                        |
 | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `GET /api/desk/documents?projectId=`                                                                           | 编辑台文件列表：项目文件夹里可编辑和可预览的文件，加版本组                  |
@@ -261,7 +268,7 @@ CREATE TABLE manuscript_bindings (
 | `GET /api/version-groups/:id/graph`、`PATCH /api/versions/:id`                                                 | 版本图（节点含说明前 200 字和修改指令）；改标题、层级、标签、分支名         |
 | `GET /api/versions/:id/compare?baseline=`                                                                      | 现有接口，返回值改为第 4.4 节的对齐行；允许跨分支比较同组任意两版           |
 
-事件：`desk.changed`（`sessionId, seq, blocks 或 text, changeIds`）、`desk.session`（opened、closed）、`desk.suggested`（横条）、`desk.focus`（`{ groupId, blockId? }`，让编辑台窗口打开文稿并定位，对话里的标记、预览框按钮都发它）、现有的 `versions.changed`。md 和 tex 一样用 `PUT …/text`。
+事件：D3a 的 `desk.changed` 为 `{sessionId,seq,blockIds,changeIds}`；`desk.session` 为 `{sessionId,state:'open'|'closed'}`，空闲写入失败时另发瞬时 `{sessionId,state:'save-error',message}`，可重试保存。保留不改正文和 seq，也发 `desk.changed`。`desk.suggested`、tex 文本事件留到后续；继续使用现有 `versions.changed`。 `desk.focus`（`{ groupId, blockId? }`，让编辑台窗口打开文稿并定位）留到 D3b；md 和 tex 一样用 `PUT …/text`。
 
 ## 9. 依赖与许可证
 

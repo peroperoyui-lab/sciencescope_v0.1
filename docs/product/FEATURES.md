@@ -34,7 +34,7 @@
 
 - `app/main.js` 生成一次性的 64 位十六进制口令，监听 `127.0.0.1` 的随机端口，然后向标准输出打印一行 JSON：`{ url, token, ui, dataRoot, shutdownPath, shutdownToken }`。原生外壳读这一行，把 `ui` 地址加载进主窗口。
 - `app/app.js` 装配核心、各项服务、运行时和 HTTP 服务。测试用同一个 `createApp`，只把运行时换成 `app/runtime/scripted.js`。
-- 所有 `/api/` 请求都要带口令（`Authorization: Bearer` 或 `?token=`），否则返回 401。请求体上限 64 MB，导入资料和文献版本的两个接口不设此上限。
+- 所有 `/api/` 请求都要带口令（`Authorization: Bearer` 或 `?token=`），否则返回 401。请求体上限 64 MB，导入资料、文献版本、附件和编辑台块修改不设此上限。
 - 界面通过 `GET /api/events`（Server-Sent Events，可用 `since` 或 `Last-Event-ID` 续传）接收核心事件，不轮询。
 - 原生外壳（`src-tauri/src/main.rs`、`new_app.rs`）默认启动新核心；设置环境变量 `SCIENCESCOPE_APP=legacy` 才会启动冻结的旧宿主。外壳负责窗口、文件夹选择、用系统程序打开文件和网址、全局助手窗口与浮球；在 Windows 上用 Job 对象管理子进程树。
 
@@ -54,6 +54,7 @@ data/
     notes/<名称>.md
     minutes/<会议id>.md
     versions/<组id>/v<n>-<版本id>/<原文件>  以及同名 .notes.md 版本说明
+    desk/<会话id>/<原文件>    DOCX 会话工作副本；.state/ 保留初始包和落盘序号
   workspaces/<随机id>/ 或 shared/   独立对话的工作文件夹
   library/originals/          资料库原件（导入时复制，文件名为随机 id）
   library/project-files/<项目id>/<内容哈希>  项目文件的去重副本，旧内容暂保留
@@ -319,6 +320,7 @@ data/
 - DOCX 段落与批注服务（D2b，尚未接编辑界面）：`writeDocx(bytes, changes, {inserted, removed, comments})` 返回 `{bytes, inserted}`，其中 inserted 把调用方新块 id 映射到 `p:<paraId>`。支持段首/同层级插段、拆段和删段，继承段落与文字格式；新 paraId 在整个包内唯一。分节符段和表格单元格最后一段禁止删除，整次写回失败；跨段域继续整体只读。删除正文时保留并迁移书签、批注标记；调用方已把它们并进别的段落（退格合并两段）时不再迁移，同一个书签、批注、脚注、图片等对象出现在两个段落时整次写回报 `DOCX_DUPLICATE_ATOM`。批注读取作者/缩写/日期/正文、`range.from/to={blockId,index}`、`parentId` 和 `done`；支持 add/edit/delete，删父批注同时删回复及扩展元数据，回复和解决状态只读。英文期刊、博士论文和带域/公式/修订的受控副本已完成 Word/WPS 验收。
 - 编辑台窗口（U1，试用开关 `features.editingDesk` 默认关，在设置→常规打开）：打开后左栏「工作站」下面出现「编辑台」，工作站页头和项目文件预览有「在编辑台打开」，工作站左下角的文献版本管理撤掉、导图向左拉宽。编辑台是单独的窗口（桌面版原生窗口 `secondary-desk`，约 1440×900、最小 960×600；浏览器里是新标签页），所有项目共用一个，再次打开时切到前面并在新标签里打开指定文稿。窗口里有文稿标签（重开窗口时恢复）、功能区（开始、审阅、视图，可收起，Ctrl+F1）、左栏（项目切换、项目文件夹里的 docx/tex/md/pdf 按文件夹展开，加只在应用数据里的版本组；下面是大纲，点击跳到标题）、右侧栏（批注与索引、对话，目前是空状态）和底部信息栏（文件、最新版本、字数或页数、版本树按钮）。现在只能阅读：docx 显示正文、md 渲染或源码、tex 源码、PDF 可缩放翻页；编辑、批注、保存、比较、版本树按钮先停用。
 - 历史版本：AI 每轮发言结束、用户离开编辑页面、恢复之前，都会为改过的资源留一个历史版本；可只读预览、恢复或删除。工作区每次修改另有逐条修订，可撤销。
+- DOCX 编辑会话（D3a，尚未接界面）：`app/services/desk/` 登记项目文件、维护唯一 open 会话、接收逐块修改和撤回/保留；修改通过结构校验后记录 actor、会议、发言和指令，空闲 2 秒集中写工作副本。保存可写回项目文件或生成父子版本，关闭按需留版本再清理工作目录；正常退出先落盘，重启恢复同一会话。沿用迁移 024 的 `desk_sessions`、`desk_changes`，无新迁移。
 
 **实现位置**：`app/core/workspace/`（`workspace.js` 读写与撤销，`snapshots.js` 历史版本，`resources/` 各资源格式）、`app/services/versions/`（`comparison.js` 比较、`organizer.js` 版本说明）、`app/services/journal-files.js`；界面 `app/ui/components/` 下的 `workbench.js`、`map-*.js`、`version*.js`、`resource-history.js`；编辑台窗口 `app/ui/desk-window.js`（打开与转交文稿）和 `app/ui/components/desk*.js`，原生窗口在 `src-tauri/src/main.rs` 的 `open_secondary_window`（`surface: 'desk'`）。
 
@@ -328,6 +330,7 @@ data/
 
 - 版本说明每份仍要十几万到二十几万 token，未达到 10 万的目标；对表格和未改动上下文的解读偶有错误。
 - PDF 版本比较的是提取文字，排版和解析差异不一定代表正文修改。
+- D3a 外部修改检查按任务书比较项目文件与组内最新版本；重复写回或另存分支后也可能触发外部版本导入，所有者要求先保留此规则，待 Claude 协调。项目文件缺失或被占用时工作副本保留；旧版写回需 `confirm:true`。
 - 导图节点图片和附件在 alpha 之后（R4-10）。
 
 ### 2.10 记忆
@@ -589,6 +592,14 @@ data/
 - `PATCH /api/versions/:id/baseline` 更换比较基线。
 - `POST /api/versions/:id/save-as-new` 旧版另存为新版本。
 - `POST /api/versions/:id/organize` 重新整理说明。
+
+**编辑台会话（D3a，尚未接界面）**
+
+- `POST /api/desk/documents` 登记项目内 DOCX，同一路径返回已有组。
+- `POST /api/desk/sessions`、`GET /api/desk/sessions/:id` 打开/重连，返回 `{session,blocks,changes}`。
+- `PATCH /api/desk/sessions/:id/blocks` 按块修改、插入和删除，旧 seq 仅在同一块被改过时冲突，返回 `{seq,inserted}`。
+- `POST /api/desk/changes/:id/undo`、`POST /api/desk/sessions/:id/settle` 逐处撤回或保留。
+- `POST /api/desk/sessions/:id/save` 写回项目文件或存新版本；`POST /api/desk/sessions/:id/close` 按需留版本后删除工作副本。事件 `desk.changed`、`desk.session`；409 错误的 `details` 提供冲突块或外部版本。
 - `GET/PATCH /api/version-preferences/:projectId` 读取、开关项目的自动整理说明。
 
 **模型与服务商**
@@ -665,7 +676,7 @@ data/
 | 021  | 移除 `meeting_goals`                                                                                                                         | 旧自动化会议改为 `direct`，移除 `policy.goal`，保留消息及其他规则                        |
 | 022  | `kb_entities`、`kb_edges`、`kb_labels`、`kb_memberships`、`kb_versions`、`kb_revisions`、`kb_jobs`；`rb_sources.folder_path`                 | 知识库实体、关系、标签、项目归属、修订与历史版本、后台任务（模型工具；表格页和节点详情） |
 | 023  | `rb_sources.file_size`、`file_mtime_ms`、`content_hash`                                                                                      | 项目文件的大小、修改时间和内容哈希，扫描时判断是否变化                                   |
-| 024  | `version_groups.source_path/format`；`manuscript_versions` 父版本、分支、层级、标签、标题、来源、哈希、会话；`desk_sessions`、`desk_changes` | 版本图与元数据；编辑会话表预建，尚无会话逻辑                                             |
+| 024  | `version_groups.source_path/format`；`manuscript_versions` 父版本、分支、层级、标签、标题、来源、哈希、会话；`desk_sessions`、`desk_changes` | 版本图与元数据；DOCX 编辑会话、逐块修改及撤回、保留、版本归档                            |
 | 025  | `kb_entities.produced_from/evidence_json`；`kb_jobs.result_json/meeting_id/manual`                                                           | 论文卡片来源、证据和持久任务结果；卡片条目加入知识库版本快照与恢复                       |
 | 026  | `kb_positions(ref,x,y,pinned,updated_at)`                                                                                                    | 跨项目共享的图位置投影、用户钉住状态；可重算，不进历史版本                               |
 
@@ -725,4 +736,5 @@ data/
 - **仅 Windows**：两个测试在非 Windows 上跳过，都用真实的无删除共享文件句柄检查占用时的重试与恢复：`app/core/workspace/workspace.test.js`（计划文件被占用）和 `app/core/projects.test.js`（项目文件夹改名被占用）。原生窗口和助手窗口的浏览器测试（`native-window.browser.test.js`、`assistant-window.browser.test.js`）在没有浏览器时跳过。
 - **打包**：`tools/package/*.test.js`（裁剪、许可说明、NSIS 钩子）纳入 `npm run check` 的格式、ESLint 和测试检查；Windows 专用测试按平台和编译器可用性运行。
 - **原生**：Rust 启动测试在 `src-tauri/src/new_app.rs`，用 `cargo test` 运行。
+- **编辑台**：`services/desk/sessions.test.js` 覆盖完整接口流程、逐块冲突和撤回顺序、失败原子性、空闲批写、外部修改、正常退出及落盘前中断的恢复；`services/desk/docx/*.test.js` 保留读写结构测试。
 - **真实模型与安装包验收**：不属于自动测试。按 `AGENTS.md` 和 `docs/process/ACCEPTANCE.md`，涉及 AI 路径的改动用便宜的付费模型跑一次并报告请求数和 token；安装包从全新安装开始验收。已知不稳定：`app/ui/map.browser.test.js` 的导图历史测试偶发失败，留待导图重做。

@@ -3,11 +3,12 @@ import { applyComments } from './comment-edit.js';
 import { planBlocks, renderBlocks } from './blocks.js';
 import { paragraphIds } from './ids.js';
 import { indexXml, patchXml } from './xml.js';
+import { AppError } from '../../../core/errors.js';
 
 /**
  * Changes map block ids to new inlines. Comment ranges use inline boundaries in
  * the changed block: {blockId,from,to,text,author,initials?,date?}. Insertions use
- * {after,id,inlines,like?}; the result maps client ids to persisted p:<paraId> ids.
+ * {after,id,inlines,like?,paraId?}; the result maps client ids to persisted p:<paraId> ids.
  * Original package parts
  * and inter-paragraph slices are copied unchanged, not XML-serialized.
  * @param {Buffer|Uint8Array} bytes
@@ -24,7 +25,33 @@ export async function writeDocx(bytes, changes, options = {}) {
     !options.removed?.length
   )
     return { bytes: Buffer.from(bytes), inserted: {} };
-  const allocateId = await paragraphIds(document.zip);
+  const generateId = await paragraphIds(document.zip);
+  const reserved = new Set();
+  for (const entry of Object.values(document.zip.files)) {
+    if (entry.dir || !entry.name.endsWith('.xml')) continue;
+    for (const span of indexXml(await entry.async('string'))) {
+      const id = span.attrs['w14:paraId'];
+      if (id) reserved.add(id.toUpperCase());
+    }
+  }
+  for (const item of options.inserted ?? []) {
+    if (item.paraId == null) continue;
+    const id = String(item.paraId).toUpperCase();
+    if (!/^[0-7][0-9A-F]{7}$/u.test(id) || reserved.has(id))
+      throw new AppError('DOCX_DUPLICATE_BLOCK', '新段落的标识无效或已被使用。');
+    reserved.add(id);
+  }
+  let allocation = 0;
+  const allocateId = () => {
+    const supplied = options.inserted?.[allocation++]?.paraId;
+    if (supplied != null) return String(supplied).toUpperCase();
+    let id;
+    do {
+      id = generateId();
+    } while (reserved.has(id));
+    reserved.add(id);
+    return id;
+  };
   const source = { ...document, allocateId };
   const plan = planBlocks(source, changes, options);
   const comments = await applyComments(source, options.comments ?? []);
