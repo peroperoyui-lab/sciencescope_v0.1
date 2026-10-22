@@ -4,6 +4,9 @@ import { nowIso } from '../../core/ids.js';
 import { conflict, inverse, propose, publicBlock } from './model.js';
 import { createDeskStore, hash, readProject, writeAtomic } from './storage.js';
 import { createDeskSessions } from './sessions.js';
+import { readText, proposeText, inverseText } from './text.js';
+import { readMedia } from './media.js';
+import { listDocuments } from './documents.js';
 
 const messages = {
   INVALID_TIER: '请选择编辑台设置中的版本层级。',
@@ -23,7 +26,7 @@ const messages = {
  * @param {{versions:ReturnType<typeof import('../versions/index.js').createVersions>,
  * projectFiles:ReturnType<typeof import('../project-files.js').createProjectFiles>,
  * idleMs?:number,schedule?:(callback:()=>any,ms:number)=>any,cancel?:(timer:any)=>void,
- * writeWorking?:typeof writeAtomic}} options
+ * writeWorking?:typeof writeAtomic,documentLimit?:number}} options
  */
 export function createDesk(
   core,
@@ -34,6 +37,7 @@ export function createDesk(
     schedule = setTimeout,
     cancel = clearTimeout,
     writeWorking = writeAtomic,
+    documentLimit = 2000,
   },
 ) {
   /** @type {Promise<unknown>} */
@@ -52,7 +56,7 @@ export function createDesk(
       if (error instanceof AppError) throw error;
       throw new AppError(
         'DESK_DOCUMENT_ERROR',
-        '无法处理这份文稿，请确认它是有效的 DOCX 文件且没有被占用。',
+        '无法处理这份文稿，请确认文件格式有效且没有被占用。',
       );
     });
     pending = task.catch(() => {});
@@ -74,8 +78,9 @@ export function createDesk(
    */
   async function registerDocument(input) {
     const file = projectFiles.locate(input.projectId, input.path);
-    if (path.extname(file).toLowerCase() !== '.docx')
-      throw new AppError('DESK_FORMAT', '目前只能登记 DOCX 文稿。');
+    const extension = path.extname(file).toLowerCase();
+    if (!['.docx', '.tex', '.md', '.markdown'].includes(extension))
+      throw new AppError('DESK_FORMAT', '请选择 DOCX、TeX 或 Markdown 文稿。');
     const relative = path
       .relative(projectFiles.rootOf(input.projectId), file)
       .split(path.sep)
@@ -85,6 +90,7 @@ export function createDesk(
       .get(input.projectId, relative);
     if (row) return core.versionCatalog.group(row.id);
     const bytes = await readProject(file);
+    if (extension !== '.docx') readText(bytes, extension === '.tex' ? 'tex' : 'md');
     const imported = await versions.importFiles(
       {
         projectId: input.projectId,
@@ -106,6 +112,7 @@ export function createDesk(
    */
   async function updateBlocks(id, input, actor) {
     const state = await sessions.load(store.get(id));
+    if (state.document.format !== 'docx') throw new AppError('DESK_FORMAT', '文本会话请提交全文。');
     if (!Number.isInteger(input.baseSeq) || input.baseSeq < 0 || input.baseSeq > state.session.seq)
       throw new AppError('DESK_SEQUENCE', '请提供当前编辑会话的有效序号。', 409);
     const touched = new Set([
@@ -138,7 +145,8 @@ export function createDesk(
   async function undoChange(id, actor) {
     const record = store.change(id);
     const state = await sessions.load(store.get(record.sessionId));
-    const proposal = inverse(state, record);
+    const proposal =
+      state.document.format === 'docx' ? inverse(state, record) : inverseText(state, record);
     const result = store.commit(state, proposal, actor, id);
     sessions.requestFlush(state);
     return result;
@@ -163,6 +171,10 @@ export function createDesk(
   }
   return {
     /**
+     * @param {string} projectId
+     */
+    listDocuments: (projectId) => listDocuments(core, projectFiles, projectId, documentLimit),
+    /**
      * @param {{projectId:string,path:string}} input
      */
     registerDocument: (input) => serial(() => registerDocument(input)),
@@ -180,6 +192,27 @@ export function createDesk(
      * @param {any} [actor]
      */
     updateBlocks: (id, input, actor = {}) => serial(() => updateBlocks(id, input, actor)),
+    /**
+     * @param {string} id
+     * @param {{baseSeq:number,text:string}} input
+     * @param {any} [actor]
+     */
+    updateText: (id, input, actor = {}) =>
+      serial(async () => {
+        const state = await sessions.load(store.get(id));
+        if (state.document.format === 'docx')
+          throw new AppError('DESK_FORMAT', 'DOCX 会话请按段落提交修改。');
+        const proposal = proposeText(state, input);
+        const result = store.commit(state, proposal, actor);
+        if (proposal.records.length) sessions.requestFlush(state);
+        return result;
+      }),
+    /**
+     * @param {string} id
+     * @param {string|number} ref
+     */
+    media: (id, ref) =>
+      serial(async () => readMedia((await sessions.load(store.get(id))).document, ref)),
     /**
      * @param {string} id
      * @param {any} [actor]

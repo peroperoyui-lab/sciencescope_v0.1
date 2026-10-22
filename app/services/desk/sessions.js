@@ -2,10 +2,8 @@ import { readFile, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { AppError } from '../../core/errors.js';
 import { nowIso } from '../../core/ids.js';
-import { readDocx } from './docx/read.js';
-import { writeDocx } from './docx/write.js';
-import { paragraphIds } from './docx/ids.js';
-import { aggregate, publicBlock, replay, conflict } from './model.js';
+import { conflict } from './model.js';
+import { readDocument, restoreDocument, writeDocument, documentResponse } from './formats.js';
 import { hash, readProject, writeAtomic } from './storage.js';
 
 /**
@@ -27,31 +25,19 @@ export function createDeskSessions(
     return {
       root,
       file: path.join(root, path.basename(catalog.file(session.baseVersionId))),
-      source: path.join(root, '.state', 'source.docx'),
+      source: path.join(root, '.state', `source.${group.format}`),
       checkpoint: path.join(root, '.state', 'checkpoint.json'),
     };
   }
   async function remember(session, files, document, flushedSeq) {
-    const allocate = await paragraphIds(document.zip);
     const records = store.changes(session.id);
-    const used = new Set(
-      records.filter((record) => record.op === 'insert-block').map((record) => record.blockId),
-    );
     const state = {
       session,
       files,
       document,
-      blocks: replay(document.blocks, records),
+      ...(await restoreDocument(document, records)),
       flushedSeq,
       timer: null,
-      allocateId: () => {
-        let id;
-        do {
-          id = allocate();
-        } while (used.has('p:' + id));
-        used.add('p:' + id);
-        return id;
-      },
     };
     states.set(session.id, state);
     if (state.flushedSeq < session.seq) requestFlush(state);
@@ -64,8 +50,9 @@ export function createDeskSessions(
     const files = paths(session);
     // Read the working file as well as the immutable reference package. The
     // journal replays acknowledged changes, even if a crash preceded idle flush.
-    await readDocx(await readFile(files.file));
-    const document = await readDocx(await readFile(files.source));
+    const format = catalog.group(session.groupId).format;
+    await readDocument(await readFile(files.file), format);
+    const document = await readDocument(await readFile(files.source), format);
     const checkpoint = JSON.parse(await readFile(files.checkpoint, 'utf8'));
     return remember(session, files, document, checkpoint.seq);
   }
@@ -80,7 +67,7 @@ export function createDeskSessions(
   function response(state) {
     return {
       session: store.get(state.session.id),
-      blocks: state.blocks.map(publicBlock),
+      ...documentResponse(state),
       changes: store
         .changes(state.session.id)
         .filter((record) => !record.undoneBy && !record.settled),
@@ -92,9 +79,7 @@ export function createDeskSessions(
     if (state.timer != null) cancel(state.timer);
     state.timer = null;
     if (state.flushedSeq === state.session.seq) return;
-    const delta = aggregate(state.document, state.blocks);
-    const result = await writeDocx(state.document.bytes, delta.changes, delta);
-    await writeWorking(state.files.file, result.bytes);
+    await writeWorking(state.files.file, await writeDocument(state));
     await writeAtomic(
       state.files.checkpoint,
       Buffer.from(JSON.stringify({ seq: state.session.seq })),
@@ -198,7 +183,8 @@ export function createDeskSessions(
    */
   async function open({ groupId, versionId, meetingId }) {
     const group = catalog.group(groupId);
-    if (group.format !== 'docx') throw new AppError('DESK_FORMAT', '目前只能编辑 DOCX 文稿。');
+    if (!['docx', 'tex', 'md'].includes(group.format))
+      throw new AppError('DESK_FORMAT', '请选择 DOCX、TeX 或 Markdown 文稿。');
     if (meetingId) core.meetings.get(meetingId);
     const existing = store.open(groupId);
     const source = await external(group);
@@ -217,7 +203,7 @@ export function createDeskSessions(
     if (version.groupId !== groupId)
       throw new AppError('INVALID_VERSION', '请选择这个版本组里的版本。');
     const bytes = await readFile(catalog.file(version.id));
-    const document = await readDocx(bytes);
+    const document = await readDocument(bytes, group.format);
     const session = store.create(groupId, version.id, meetingId);
     try {
       return response(await initialize(session, document));

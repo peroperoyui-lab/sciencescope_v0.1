@@ -64,6 +64,8 @@
 - **Markdown：** 源码视图用 CodeMirror 的 markdown 模式；渲染视图用 ProseMirror 加 prosemirror-markdown，块是顶层段落、标题、列表项、代码块、表格。写回时只重新生成改过的块，其余原文照抄，避免改写用户的格式习惯。公式用 KaTeX 显示。
 - **同步：** 服务端会话持有块列表和递增的 `seq`，是正本。浏览器停止输入 800 毫秒后，把改过的块（docx）或整份文本（tex）连同 `baseSeq` 发给服务端，服务端记修改、`seq` 加一、广播 `desk.changed`。AI 的修改走同一入口。冲突按块处理：用户在同一块有未发出的修改时先等它提交；之后 AI 的 `find` 找不到就返回 `TEXT_NOT_FOUND`，模型重读再改，用户的字不被覆盖。
 
+**D3b 服务现状：** tex、md 共用 UTF-8 文本会话，按空行切块，Markdown 围栏内的空行不切块；显示块为 `{id:'t:<n>',kind,level,text}`，序号在会话内递增、不复用。保留 BOM、CRLF/LF、分隔空白和末尾换行；修改记录中的文字切片包含相邻分隔空白，使撤回与重启能逐字节恢复。全文提交用 `diffArrays` 配对相同块、同一空档按位置配对修改；必须使用当前 `baseSeq`，全文相同时不增序号。空闲写、撤回/保留、保存和版本均复用 D3a。非 UTF-8 返回 `DESK_ENCODING`。DOCX 图片原子有可读取的嵌入图片时带 `media:true`，按原始包关系读第一张图片；包括 EMF 等浏览器不支持的格式，界面决定占位。
+
 ### 3.3 E0 试验和之后的决定规则
 
 E0 是第一步，约 2–3 天，报告放 `.sciencescope-local/temp/desk-e0/`：① eigenpal docx-editor：读 LICENSE 和 `packages/pro` 的许可文本，把框架无关的核心挂进 Preact（不行再试 `preact/compat`），量体积和首屏时间，3 份真实稿件往返；② 自研回写最小原型（`docx/read.js`、`write.js`），同样 3 份稿件、同样的第 11 节检查；③ 句子对齐：同一论文的两个真实修订稿跑第 4.4 节算法，人工检查误标。
@@ -104,7 +106,7 @@ D3a 已接通 docx 会话。修改先经 D2 的结构校验，再在一个 SQLit
 
 **外部修改：** 打开和保存前比较项目文件的哈希与 ScienceScope 上次看到或写回的哈希（`version_groups.source_hash`，迁移 027；同时记 `source_version_id`，即项目文件从哪个版本来）。写回项目文件不生成版本，所以不能拿最新版本的 `content_hash` 比。不同就说明文件在外面被改过（Word，或 `write_file`），先把它导入成新版本（`origin='external'`）；会话里有未保存的修改时让用户选「以外部版本为准重新打开」或「保留我的修改另存为分支」，不悄悄覆盖。
 
-D3a 按任务书原文使用上述“最新版本”基准（所有者 2026-10-22 确认暂不扩展）：应用写回项目文件后再次保存、或另存分支后项目文件仍未改变，也可能被记为外部版本；判定基准留给 Claude 协调。文件被删除或无法读取时返回 `DESK_SOURCE_UNAVAILABLE`，工作副本保留。
+迁移 027 的外部判定也用于 tex、md 会话；文件被删除或无法读取时返回 `DESK_SOURCE_UNAVAILABLE`，工作副本保留。文本会话的初始文件为 `.state/source.tex` 或 `.state/source.md`，工作副本沿用原文件名。
 
 ## 4. 版本与分支
 
@@ -249,6 +251,8 @@ CREATE TABLE manuscript_bindings (
 
 D3a 已实现下表中的登记、开会话、重连、PATCH blocks、撤回、保留、保存和关闭八个接口，其余是后续设计。登记仅收 `{projectId,path}` 并返回版本组；开会话/重连返回 `{session,blocks,changes}`（不含批注和绑定接口）。修改返回 `{seq,inserted}`，其中 inserted 是客户端 id 到 `p:<paraId>` 的映射；`writeDocx` 的插入项支持预分配的 `paraId`。冲突错误为 HTTP 409 的 `{code,message,details}`：`DESK_CONFLICT` 的 details 含 `seq,blockIds,blocks`（已删除块为 `{id,removed:true}`）；`DESK_EXTERNAL_CHANGE` 含 `versionId`，`DESK_SAVE_CONFIRM` 含 `versionId,versionNumber`。保存支持 `confirm?`，保留支持 `{ids?}`。服务调用的 actor 可传 `actorId,meetingId,turnId,instruction`；HTTP 修改统一记为用户。
 
+D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media/:ref`。登记接受 docx/tex/md/markdown，后两种均记格式 md。文本会话响应额外含 `text`；全文冲突的 `details` 为 `{seq,text}`，格式不符返回 `DESK_FORMAT`。文件列表返回 `{files,groups,truncated}`：文件含 `path,name,format,size,mtime,group`，mtime 为 ISO 时间；group 摘要含 `id,latest:{id,number,branch,tier},sourceVersionId`；仅在数据目录的组另含 name、format。递归跳过隐藏目录和 node_modules，自带项目根另跳过 workbench/notes/minutes/versions/desk，达到 2000 个文稿返回 truncated，读取失败的子目录跳过。列表只读。图片接口返回原字节和原 MIME，缺失为 404 `DESK_MEDIA_NOT_FOUND`。
+
 | 方法与路径                                                                                                     | 作用                                                                        |
 | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `GET /api/desk/documents?projectId=`                                                                           | 编辑台文件列表：项目文件夹里可编辑和可预览的文件，加版本组                  |
@@ -268,7 +272,7 @@ D3a 已实现下表中的登记、开会话、重连、PATCH blocks、撤回、�
 | `GET /api/version-groups/:id/graph`、`PATCH /api/versions/:id`                                                 | 版本图（节点含说明前 200 字和修改指令）；改标题、层级、标签、分支名         |
 | `GET /api/versions/:id/compare?baseline=`                                                                      | 现有接口，返回值改为第 4.4 节的对齐行；允许跨分支比较同组任意两版           |
 
-事件：D3a 的 `desk.changed` 为 `{sessionId,seq,blockIds,changeIds}`；`desk.session` 为 `{sessionId,state:'open'|'closed'}`，空闲写入失败时另发瞬时 `{sessionId,state:'save-error',message}`，可重试保存。保留不改正文和 seq，也发 `desk.changed`。`desk.suggested`、tex 文本事件留到后续；继续使用现有 `versions.changed`。 `desk.focus`（`{ groupId, blockId? }`，让编辑台窗口打开文稿并定位）留到 D3b；md 和 tex 一样用 `PUT …/text`。
+事件：docx、tex、md 共用 `desk.changed {sessionId,seq,blockIds,changeIds}`；`desk.session` 为 `{sessionId,state:'open'|'closed'}`，空闲写入失败时另发瞬时 `{sessionId,state:'save-error',message}`，可重试保存。保留不改正文和 seq，也发 `desk.changed`；继续使用现有 `versions.changed`。`desk.suggested` 留到后续；`desk.focus` 和 `/api/desk/enter` 留到 D3c。
 
 ## 9. 依赖与许可证
 

@@ -183,7 +183,7 @@ export function createAppServer({
               request,
               ['/api/research/sources', '/api/versions/import'].includes(url.pathname) ||
                 /^\/api\/research-input\/[^/]+\/attachments$/u.test(url.pathname) ||
-                /^\/api\/desk\/sessions\/[^/]+\/blocks$/u.test(url.pathname),
+                /^\/api\/desk\/sessions\/[^/]+\/(?:blocks|text)$/u.test(url.pathname),
             );
       const result = await route.handler({
         params: route.params,

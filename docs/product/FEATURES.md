@@ -330,7 +330,7 @@ data/
 
 - 版本说明每份仍要十几万到二十几万 token，未达到 10 万的目标；对表格和未改动上下文的解读偶有错误。
 - PDF 版本比较的是提取文字，排版和解析差异不一定代表正文修改。
-- D3a 外部修改检查按任务书比较项目文件与组内最新版本；重复写回或另存分支后也可能触发外部版本导入，所有者要求先保留此规则，待 Claude 协调。项目文件缺失或被占用时工作副本保留；旧版写回需 `confirm:true`。
+- 编辑台按迁移 027 的项目文件哈希判断外部修改；项目文件缺失或被占用时工作副本保留，旧版写回需 `confirm:true`。文本会话只接受 UTF-8；DOCX 的 EMF/WMF/TIFF 图片返回原字节，由界面显示占位。
 - 导图节点图片和附件在 alpha 之后（R4-10）。
 
 ### 2.10 记忆
@@ -593,11 +593,14 @@ data/
 - `POST /api/versions/:id/save-as-new` 旧版另存为新版本。
 - `POST /api/versions/:id/organize` 重新整理说明。
 
-**编辑台会话（D3a，尚未接界面）**
+**编辑台会话（D3a/D3b，编辑接口尚未接界面）**
 
-- `POST /api/desk/documents` 登记项目内 DOCX，同一路径返回已有组。
+- `POST /api/desk/documents` 登记项目内 DOCX、TeX、MD/Markdown，同一路径返回已有组。
+- `GET /api/desk/documents?projectId=` 只读列出项目文稿、已登记的最新版本和只在应用里的组；达到 2000 个文稿返回 `truncated`。跳过隐藏目录、node_modules，自带项目根另跳过应用自有目录。
 - `POST /api/desk/sessions`、`GET /api/desk/sessions/:id` 打开/重连，返回 `{session,blocks,changes}`。
 - `PATCH /api/desk/sessions/:id/blocks` 按块修改、插入和删除，旧 seq 仅在同一块被改过时冲突，返回 `{seq,inserted}`。
+- `PUT /api/desk/sessions/:id/text` 提交 tex/md 全文，要求当前 seq，不变时不记修改；空行切块并保留围栏、BOM、原换行和分隔空白。文本会话响应额外带全文 `text`，重启恢复块标识、逐处撤回与保存共用原有流程。
+- `GET /api/desk/sessions/:id/media/:ref` 返回 DOCX 图片原字节及 MIME；可用图片原子带 `media:true`，不存在返回 404。
 - `POST /api/desk/changes/:id/undo`、`POST /api/desk/sessions/:id/settle` 逐处撤回或保留。
 - `POST /api/desk/sessions/:id/save` 写回项目文件或存新版本；`POST /api/desk/sessions/:id/close` 按需留版本后删除工作副本。事件 `desk.changed`、`desk.session`；409 错误的 `details` 提供冲突块或外部版本。
 - `GET/PATCH /api/version-preferences/:projectId` 读取、开关项目的自动整理说明。

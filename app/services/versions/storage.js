@@ -176,7 +176,12 @@ export function createVersionStorage(core, serial) {
         projectId,
         name,
         nextNumber: 1,
-        format: ['docx', 'tex', 'pdf'].includes(extension) ? extension : 'other',
+        format:
+          extension === 'markdown'
+            ? 'md'
+            : ['docx', 'tex', 'md', 'pdf'].includes(extension)
+              ? extension
+              : 'other',
       };
       const batch = writer(group, !previous, actor);
       try {
