@@ -52,7 +52,7 @@ FORMAT = (icon_btn('bold', '加粗 Ctrl B') + icon_btn('italic', '斜体 Ctrl I'
           + icon_btn('superscript', '上标') + icon_btn('subscript', '下标') + icon_btn('remove-formatting', '清除格式'))
 LISTS = icon_btn('list', '项目符号') + icon_btn('list-ordered', '编号')
 MARKS = ('<button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="message-square-plus"></i>批注</button>'
-         '<button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="link-2"></i>绑定来源</button>'
+         '<button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="link-2"></i>索引</button>'
          '<button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="text-quote"></i>引用到对话</button>')
 
 
@@ -160,7 +160,7 @@ def panel(tabs, active, inner, width=336, foot=''):
     </aside>'''
 
 
-PANEL_TABS = [('批注', 2), ('修改', 4), ('来源', 3), ('对话', 0)]
+PANEL_TABS = [('批注与索引', 5), ('对话', 0)]
 DOCX_OUTLINE = [(0, '第三章 研究设计', False), (1, '3.1 研究方法', False), (1, '3.2 样本与数据', True), (2, '3.2.1 指标合成', False),
                 (2, '3.2.2 校准', False), (1, '3.3 稳健性检验', False), (0, '第四章 实证结果', False), (1, '4.1 必要条件分析', False),
                 (1, '4.2 组态分析', False), (0, '第五章 结论与讨论', False)]
@@ -179,7 +179,7 @@ def docx_page(toolbar=True, flash=False):
             <span class="ss-ribbon__sep" style="margin:0 2px"></span>
             ''' + icon_btn('bold', '加粗 Ctrl B') + icon_btn('italic', '斜体 Ctrl I') + icon_btn('underline', '下划线 Ctrl U') + icon_btn('superscript', '上标') + icon_btn('subscript', '下标') + '''
             <span class="ss-ribbon__sep" style="margin:0 2px"></span>
-            ''' + icon_btn('message-square-plus', '添加批注') + icon_btn('link-2', '绑定来源') + '''
+            ''' + icon_btn('message-square-plus', '添加批注') + icon_btn('link-2', '添加索引') + '''
             <button class="ss-ftb__label" type="button"><i data-i="text-quote"></i>引用到对话</button>
             ''' + icon_btn('ellipsis', '更多') + '''
           </div>
@@ -198,8 +198,8 @@ def docx_page(toolbar=True, flash=False):
         <p>{sel_open}经济韧性指数采用熵权法合成，涵盖抵抗力、恢复力与再组织能力三个维度{sel_close}，各维度下设 4–6 个二级指标，权重由各指标的信息熵确定。</p>
         </div>
         <h2>3.2　样本与数据</h2>
-        <p>研究样本为 <span class="ss-bind" data-tip="右键：含义与来源">98 个地级市</span>，时间跨度为 2010–2022 年，数据主要来自《中国城市统计年鉴》和各市统计公报，缺失值用线性插值补齐。</p>
-        <p>结果表明<del class="ss-rev-del">该方法显著优于基线</del><ins class="ss-rev-ins">，在样本量为 98 的条件下，组态方法的解释力总体高于基线模型</ins>，但对东部城市的区分度有限。<span class="ss-revtag"><b>主专家</b>14:02<span>改写 · 1 处</span></span></p>
+        <p>研究样本为 <span class="ss-bind" data-tip="索引：data/city_panel.csv、scripts/sample.py">98 个地级市</span>，时间跨度为 2010–2022 年，数据主要来自《中国城市统计年鉴》和各市统计公报，缺失值用线性插值补齐。</p>
+        <p>结果表明，在样本量为 98 的条件下，组态方法的解释力总体高于基线模型，<span class="ss-cmt">但对东部城市的区分度有限</span>。</p>
         <p class="ss-page__eq"><span class="ss-atom" data-tip="Word 公式：只显示，保存时原样保留">{EQ}</span><span class="ss-page__eqno">（3-1）</span></p>
         <p>{fl_open}一致性阈值设为 <span class="ss-cmt" data-active>0.85</span>，案例频数阈值设为 2{fl_close}；校准锚点分别取各条件的第 95、50、5 百分位，<span class="ss-qmark">对应“完全隶属”“交叉点”和“完全不隶属”</span>。</p>
         <table><caption>表 3-1　条件变量与校准锚点</caption>
@@ -225,18 +225,40 @@ AV_YOU = '<span class="ss-avatar ss-avatar--user">Y</span>'
 AV_SEC = '<span class="ss-avatar">秘</span>'
 
 
-def changes_panel():
-    inner = f'''<div class="ss-panel__body" style="display:grid;gap:10px;align-content:start;padding:12px">
-        <div style="display:flex;align-items:center;gap:8px"><span class="ss-muted" style="font-size:12px;flex:1">本次打开 4 处修改，都还没有保留</span><button class="ss-btn ss-btn--sm" type="button"><i data-i="check-check"></i>全部保留</button></div>
+def note_card(kind, who, avatar, time, quote, body, active=False, extra=''):
+    icon = 'message-square' if kind == '批注' else 'link-2'
+    act = ' data-active' if active else ''
+    return f'''<div class="ss-desk-card"{act}>
+          <div class="ss-desk-card__head"><i data-i="{icon}" class="ss-i--sm" style="color:var({'--warn' if kind == '批注' else '--accent'})"></i><span>{kind}</span>{avatar}<span>{who}</span><time>{time}</time></div>
+          <p class="ss-desk-card__quote">{quote}</p><p class="ss-desk-card__body">{body}</p>{extra}
+          <div class="ss-desk-card__foot"><button class="ss-btn ss-btn--ghost" type="button"><i data-i="locate"></i>定位</button><button class="ss-btn ss-btn--ghost" type="button"><i data-i="pencil"></i>编辑</button><button class="ss-btn ss-btn--ghost" type="button"><i data-i="trash-2"></i>删除</button></div>
+        </div>'''
+
+
+def notes_panel(active_tab='批注与索引', composer=True, filt='全部'):
+    seg = ''.join(f'<button type="button" aria-pressed="{"true" if name == filt else "false"}">{name}</button>' for name in ('全部', '批注', '索引'))
+    comp = '''<div class="ss-desk-card" style="border-color:var(--accent-line);box-shadow:0 0 0 1px var(--accent-line)">
+          <div class="ss-desk-card__head"><i data-i="message-square-plus" class="ss-i--sm" style="color:var(--accent)"></i><span>新批注</span></div>
+          <p class="ss-desk-card__quote">经济韧性指数采用熵权法合成，涵盖抵抗力、恢复力与再组织能力三个维度</p>
+          <textarea class="ss-textarea" rows="2" placeholder="写批注，@ 专家可以请他看这里"></textarea>
+          <div class="ss-desk-card__foot"><button class="ss-btn ss-btn--ghost" type="button"><i data-i="link-2"></i>改成索引</button><span style="flex:1"></span><button class="ss-btn ss-btn--ghost" type="button">取消</button><button class="ss-btn ss-btn--primary" type="button">添加</button></div>
+        </div>''' if composer else ''
+    idx_extra = '<dl class="ss-props" style="margin:0"><dt>数据</dt><dd>data/city_panel.csv</dd><dt>脚本</dt><dd>scripts/sample.py</dd></dl>'
+    inner = f'''<div class="ss-toolbar" style="padding:8px 12px;border-bottom:1px solid var(--line);gap:6px"><div class="ss-seg ss-seg--sm" role="group" aria-label="类型">{seg}</div><span style="flex:1"></span><button class="ss-select ss-select--sm ss-select--ghost" type="button"><span class="ss-select__value">所有人</span><i data-i="chevron-down"></i></button></div>
+      <div class="ss-panel__body" style="display:grid;gap:10px;align-content:start;padding:12px">
+        {comp}
         <div class="ss-desk-list">
-        {change_card('主专家 · 改写', AV_MAIN, '14:02', '<del class="ss-rev-del">该方法显著优于基线</del><ins class="ss-rev-ins">，在样本量为 98 的条件下，组态方法的解释力总体高于基线模型</ins>', quote='指令：语气缓和些，补上样本量')}
-        {change_card('你 · 修改', AV_YOU, '13:55', '一致性阈值设为 <del class="ss-rev-del">0.8</del><ins class="ss-rev-ins">0.85</ins>，案例频数阈值设为 <del class="ss-rev-del">1</del><ins class="ss-rev-ins">2</ins>')}
-        {change_card('你 · 拆分段落', AV_YOU, '13:51', '3.2 节第 2 段拆成两段')}
-        {change_card('主专家 · 删除段落', AV_MAIN, '13:40', '<del class="ss-rev-del">本研究的创新之处主要体现在以下三个方面……</del>', actions=('撤回', '保留'), quote='指令：删掉和第一章重复的话')}
+        {note_card('批注', '你', AV_YOU, '10-21', '0.85', '导师要求给出阈值依据，引 Ragin 2008 第 3 章。', active=True)}
+        {note_card('批注', '主专家', AV_MAIN, '14:02', '但对东部城市的区分度有限', '这句和 4.2 节“东部城市组态最多”的结论不一致，建议核对东部样本。')}
+        {note_card('索引', '主专家', AV_MAIN, '10-21', '98 个地级市', '去重后进入分析的城市数。', extra=idx_extra)}
+        {note_card('索引', '你', AV_YOU, '10-19', '熵权法', '知识库：方法「熵权法」；资料 Wang 2021 第 6 页。')}
         </div>
-        <p class="ss-prov">撤回要从后往前：一处之后又被改过时，先撤回后面那处。保留只是不再显示标记。</p>
+        <p class="ss-prov">标记的文字全部删掉时，批注或索引跟着删掉；撤销会把文字和它们一起恢复。docx 的批注保存时写进 Word 批注。</p>
       </div>'''
-    return panel(PANEL_TABS, '修改', inner)
+    return panel(PANEL_TABS, active_tab, inner)
+
+
+TOAST = '''<div class="ss-toast" data-static style="position:sticky;bottom:16px;margin:0 auto;width:fit-content;z-index:var(--z-sticky)"><span class="ss-avatar">主</span><span class="ss-toast__msg">主专家改写了 3.2 节 1 句</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">看改了什么</button><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">撤销</button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="关闭"><i data-i="x"></i></button></div>'''
 
 
 ORB = '<button class="ss-desk-orb" type="button" aria-label="秘书" data-tip="这个对话的秘书"><i data-i="clipboard-list"></i></button>'
@@ -245,27 +267,30 @@ ORB = '<button class="ss-desk-orb" type="button" aria-label="秘书" data-tip="�
 docx_body = f'''{nav('thesis.docx', DOCX_OUTLINE)}
     <main class="ss-desk-canvas">{ORB}
       {docx_page()}
+      {TOAST}
     </main>
-    {changes_panel()}'''
+    {notes_panel()}'''
 
-card('PageDesk', 'group="编辑台" page height=900 width=1536 subtitle="编辑台：独立窗口，顶部是文稿标签和功能区；划选弹出 Office 式浮动工具条；AI 的修改逐处显示、逐处撤回"',
+card('PageDesk', 'group="编辑台" page height=900 width=1536 subtitle="编辑台：独立窗口，像 Word 一样正常编辑，不显示修订标记；划选弹出 Office 式浮动工具条；右侧「批注与索引」新增、查看、修改、删除"',
      window('thesis.docx', 'docx', docx_body, DOCX_STATUS, dirty=('thesis.docx',)), '''
 整页示例：编辑台（docx）。编辑台是独立的系统窗口，主窗口留在对话；样式参照 Office 365 网页版。
 
 ## 区域
 
 - 标题栏：「编辑台」、打开的文稿标签（有未写回修改的标签显示圆点，悬停变成 ×）、「+」打开文稿、项目名、窗口按钮。
-- 功能区：一行标签（开始、审阅、视图）加一行命令，可以收起（Ctrl F1）。开始：撤销重做、段落样式、加粗斜体下划线上下标、清除格式、列表、批注、绑定来源、引用到对话；右边「比较」和「保存」（写回项目文件夹里的原文件，Ctrl S）。
+- 功能区：一行标签（开始、审阅、视图）加一行命令，可以收起（Ctrl F1）。开始：撤销重做、段落样式、加粗斜体下划线上下标、清除格式、列表、批注、索引、引用到对话；右边「比较」和「保存」（写回项目文件夹里的原文件，Ctrl S）。
 - 左栏：上半是文件（项目文件夹里的 docx、tex、md、pdf，加只在应用内的版本组），右侧是最新版本号；下半是大纲，当前位置有竖线。
 - 中间：页面按 Word 的版式画（正文衬线字体、首行缩进），右上角悬浮秘书按钮。
-- 右侧栏：批注、修改、来源、对话四个标签，这里打开的是「修改」。
+- 右侧栏：「批注与索引」和「对话」。
 - 底栏：文件名、当前版本（版本号、分支、层级）、保存状态、字数；右边「版本树」按钮、绑定的对话、缩放。
 
 ## 演示的规则
 
-- 划选后弹出浮动工具条：第一行格式和批注、绑定、引用到对话；第二行是改写输入框，下面是常用指令。鼠标离开后淡出。
-- AI 的修改直接写进正文：删掉的字淡暗红加删除线，新加的字淡黄；页边写明谁、什么时候。右侧「修改」逐条撤回或保留。
-- 有来源绑定的文字下有点线；批注的文字有浅黄底和下划线；引用到对话的标记和对话里的标记同色。
+- 正文像 Word 一样正常编辑，不显示增删高亮和删除线。谁改了哪里（你、哪位专家、哪个模型）在后台记下，看差异用「比较」。
+- AI 改完弹一条提示：「主专家改写了 3.2 节 1 句」，可以「看改了什么」（打开比较定位到这处）或「撤销」。
+- 划选后弹出浮动工具条：第一行格式和批注、索引、引用到对话；第二行是改写输入框，下面是常用指令。鼠标离开后淡出。
+- 批注与索引：一个入口，新增、查看、修改、删除，专家加的也在这里，可以按类型和作者筛选。批注的文字浅黄底加下划线，索引的文字下有点线；点卡片「定位」滚到原文。
+- 锚点规则：批注或索引标记的文字，直到最后一个字被删掉才删除它；撤销把文字和批注、索引一起恢复。
 - Word 公式、图片只显示，虚线框提示保存时原样保留。
 ''')
 
@@ -451,7 +476,7 @@ card('PageDeskTex', 'group="编辑台" page height=900 width=1536 subtitle="tex�
 
 ## 区域
 
-- 功能区：视图「源码 / 并排 / 渲染」，默认并排；章节样式、加粗（\\textbf）、斜体（\\emph）、「公式」、插入引用（\\cite）、批注、绑定来源、引用到对话；右边「编译 PDF」和「保存」。
+- 功能区：视图「源码 / 并排 / 渲染」，默认并排；章节样式、加粗（\\textbf）、斜体（\\emph）、「公式」、插入引用（\\cite）、批注、索引、引用到对话；右边「编译 PDF」和「保存」。
 - 左栏：文件和大纲（由 \\section、\\subsection、表和图的标题生成）。
 - 中间左：源码，行号、语法着色（命令、环境、数学、注释、参数），当前行浅底。CodeMirror 6。
 - 中间右：渲染（章节、列表、引用、表格和公式，KaTeX），和源码滚动联动；右侧栏默认收起，给两栏留宽度。
@@ -475,8 +500,8 @@ md_menu = '''<div class="ss-at" style="left:330px;top:344px">
             <button class="ss-menu__item" type="button" role="menuitem"><i data-i="text-quote"></i>引用到对话<span class="ss-menu__end">Ctrl Shift L</span></button>
             <div class="ss-menu__sep"></div>
             <button class="ss-menu__item" type="button" role="menuitem"><i data-i="message-square-plus"></i>添加批注<span class="ss-menu__end">Ctrl Alt M</span></button>
-            <button class="ss-menu__item" type="button" role="menuitem"><i data-i="link-2"></i>绑定来源…</button>
-            <button class="ss-menu__item" type="button" role="menuitem" data-active><i data-i="info"></i>含义与来源</button>
+            <button class="ss-menu__item" type="button" role="menuitem"><i data-i="link-2"></i>添加索引…</button>
+            <button class="ss-menu__item" type="button" role="menuitem" data-active><i data-i="info"></i>查看索引</button>
             <div class="ss-menu__sep"></div>
             <button class="ss-menu__item" type="button" role="menuitem"><i data-i="history"></i>这句的修改记录</button>
             <button class="ss-menu__item" type="button" role="menuitem"><i data-i="git-fork"></i>在版本树里定位</button>
@@ -494,35 +519,36 @@ md_page = f'''<article class="ss-page ss-page--md">
         <ul><li>补稳健性检验：去掉直辖市</li><li>和统计审稿人确认标准误按省份聚类</li></ul>
         {md_menu}
       </article>'''
-sources_inner = '''<div class="ss-panel__body" style="display:grid;gap:10px;align-content:start;padding:12px">
-        <div class="ss-callout ss-callout--warn" style="padding:8px 10px"><i data-i="triangle-alert"></i><div class="ss-callout__body"><span class="ss-callout__title">1 处失去位置，</span>原句被改写了，请重新绑定。</div></div>
+sources_inner = f'''<div class="ss-toolbar" style="padding:8px 12px;border-bottom:1px solid var(--line);gap:6px"><div class="ss-seg ss-seg--sm" role="group" aria-label="类型"><button type="button" aria-pressed="false">全部</button><button type="button" aria-pressed="false">批注</button><button type="button" aria-pressed="true">索引</button></div><span style="flex:1"></span><button class="ss-select ss-select--sm ss-select--ghost" type="button"><span class="ss-select__value">所有人</span><i data-i="chevron-down"></i></button></div>
+      <div class="ss-panel__body" style="display:grid;gap:10px;align-content:start;padding:12px">
         <div class="ss-desk-list">
-          <div class="ss-desk-card"><div class="ss-desk-card__head"><i data-i="circle-alert" style="color:var(--warn)"></i><span>失去位置</span><time>10-20</time></div><p class="ss-desk-card__quote">“缺失超过三成的城市共 4 个”</p><p class="ss-desk-card__body">来源：<code class="ss-mono">scripts/clean.py</code> 第 42 行</p><div class="ss-desk-card__foot"><button class="ss-btn" type="button">重新绑定</button><button class="ss-btn ss-btn--ghost" type="button">删除</button></div></div>
-          <div class="ss-desk-card" data-active><div class="ss-desk-card__head"><i data-i="link-2" style="color:var(--accent)"></i><span>98 个地级市</span><time>主专家 · 10-21</time></div><p class="ss-desk-card__body">去重后进入分析的城市数。</p><dl class="ss-props" style="margin:0"><dt>数据</dt><dd>data/city_panel.csv</dd><dt>脚本</dt><dd>scripts/sample.py（10-21 运行）</dd><dt>对话</dt><dd>第三章：组态分析</dd></dl><div class="ss-desk-card__foot"><button class="ss-btn ss-btn--ghost" type="button"><i data-i="external-link"></i>打开脚本</button><button class="ss-btn ss-btn--ghost" type="button">编辑</button></div></div>
-          <div class="ss-desk-card"><div class="ss-desk-card__head"><i data-i="link-2" style="color:var(--accent)"></i><span>熵权法</span><time>你 · 10-19</time></div><p class="ss-desk-card__body">知识库：方法「熵权法」，资料 Wang 2021 第 6 页。</p></div>
+          <div class="ss-desk-card" data-active><div class="ss-desk-card__head"><i data-i="link-2" class="ss-i--sm" style="color:var(--accent)"></i><span>索引</span>{AV_MAIN}<span>主专家</span><time>10-21</time></div><p class="ss-desk-card__quote">98 个地级市，去掉了 4 个数据缺失超过三成的城市</p><p class="ss-desk-card__body">去重后进入分析的城市数。</p><dl class="ss-props" style="margin:0"><dt>数据</dt><dd>data/city_panel.csv</dd><dt>脚本</dt><dd>scripts/sample.py（10-21 运行）</dd><dt>对话</dt><dd>第三章：组态分析</dd></dl><div class="ss-desk-card__foot"><button class="ss-btn ss-btn--ghost" type="button"><i data-i="external-link"></i>打开脚本</button><button class="ss-btn ss-btn--ghost" type="button"><i data-i="pencil"></i>编辑</button><button class="ss-btn ss-btn--ghost" type="button"><i data-i="trash-2"></i>删除</button></div></div>
+          <div class="ss-desk-card"><div class="ss-desk-card__head"><i data-i="link-2" class="ss-i--sm" style="color:var(--accent)"></i><span>索引</span>{AV_YOU}<span>你</span><time>10-19</time></div><p class="ss-desk-card__quote">熵权法</p><p class="ss-desk-card__body">知识库：方法「熵权法」；资料 Wang 2021 第 6 页。</p><div class="ss-desk-card__foot"><button class="ss-btn ss-btn--ghost" type="button"><i data-i="locate"></i>定位</button><button class="ss-btn ss-btn--ghost" type="button"><i data-i="pencil"></i>编辑</button><button class="ss-btn ss-btn--ghost" type="button"><i data-i="trash-2"></i>删除</button></div></div>
         </div>
       </div>'''
+MD_TOAST = '''<div class="ss-toast" data-static style="position:sticky;bottom:16px;margin:0 auto;width:fit-content;z-index:var(--z-sticky)"><i data-i="link-2"></i><span class="ss-toast__msg">删掉的文字带走了 1 条索引</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">撤销</button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="关闭"><i data-i="x"></i></button></div>'''
 MD_OUTLINE = [(0, '第三章写作提纲', False), (1, '一、要回答的问题', False), (1, '二、数据', True), (1, '三、待办', False)]
 md_body = f'''{nav('outline.md', MD_OUTLINE)}
     <main class="ss-desk-canvas">{ORB}
       {md_page}
     </main>
-    {panel(PANEL_TABS[:2] + [('来源', 3), ('对话', 0)], '来源', sources_inner)}'''
-card('PageDeskMarkdown', 'group="编辑台" page height=900 width=1536 subtitle="md：渲染视图像普通文档一样直接改，也可以切到源码；右键菜单分组：编辑、改写与引用、批注与来源、记录与版本"',
+    {panel(PANEL_TABS, '批注与索引', sources_inner)}'''
+card('PageDeskMarkdown', 'group="编辑台" page height=900 width=1536 subtitle="md：渲染视图像普通文档一样直接改，也可以切到源码；右键菜单分组：编辑、改写与引用、批注与索引、记录与版本"',
      window('outline.md', 'md', md_body, [f'{ftype("md")}notes/outline.md', 'v2 · 主线', '<span class="ss-dot ss-dot--ok"></span>已写回项目文件', '612 字']), '''
 整页示例：编辑台（Markdown）和右键菜单。
 
 ## 区域
 
-- 功能区：视图「渲染 / 源码」，默认渲染；段落样式、加粗、斜体、行内代码、链接、公式、列表、批注、绑定来源、引用到对话、保存。
+- 功能区：视图「渲染 / 源码」，默认渲染；段落样式、加粗、斜体、行内代码、链接、公式、列表、批注、索引、引用到对话、保存。
 - 中间：渲染视图（prosemirror-markdown），标题、列表、引用块、代码、链接、公式都能直接改；源码视图是 CodeMirror。保存时不改动用户没碰过的写法（列表符号、空行）。
-- 右侧栏：「来源」标签列出这份文稿的全部绑定，失去位置的排在最前，带「重新绑定」。
+- 右侧栏：「批注与索引」筛到「索引」，列出这份文稿的全部索引（说明、数据、脚本、对话），可以编辑、删除。
 
 ## 右键菜单
 
-- 分四组：剪切、复制、粘贴 │ 改写…、引用到对话 │ 添加批注、绑定来源…、含义与来源（有绑定时） │ 这句的修改记录、在版本树里定位。
-- 没有选区时作用于光标所在的句子。没有绑定时不显示「含义与来源」，PDF 里没有剪切、粘贴和改写。
-- 「含义与来源」在右侧「来源」里展开那条绑定：说明、数据、脚本、对话，点一项在文件预览里打开并定位。
+- 分四组：剪切、复制、粘贴 │ 改写…、引用到对话 │ 添加批注、添加索引…、查看索引（有索引时） │ 这句的修改记录、在版本树里定位。
+- 没有选区时作用于光标所在的句子。没有索引时不显示「查看索引」，PDF 里没有剪切、粘贴和改写。
+- 「查看索引」在右侧「批注与索引」里展开那条索引：说明、数据、脚本、对话，点一项在文件预览里打开并定位。
+- 索引标记的文字全部删掉时索引跟着删掉，提示条可以撤销；撤销把文字和索引一起恢复。
 ''')
 
 # ---------- 5. pdf ----------
@@ -564,83 +590,89 @@ pdf_body = f'''{nav('Ragin_2008.pdf', PDF_OUTLINE)}
     <main class="ss-desk-canvas">{ORB}
       {pdf_page}
     </main>
-    {panel([('批注', 2), ('标记', 2), ('来源', 0), ('对话', 0)], '批注', comments_inner)}'''
+    {panel([('批注与索引', 2), ('标记', 2), ('对话', 0)], '批注与索引', comments_inner)}'''
 card('PageDeskPdf', 'group="编辑台" page height=900 width=1536 subtitle="PDF：只阅览，不能改；可以划选标记、引用到对话和批注，批注只在应用内可见，支持回复和解决"',
      window('Ragin_2008.pdf', 'pdf', pdf_body, [f'{ftype("pdf")}refs/Ragin_2008.pdf', '第 3 / 18 页', '只读', '资料库：Ragin 2008']), '''
 整页示例：编辑台（PDF）。现有 pdf.js 阅读器放进编辑台，只读。
 
 ## 区域
 
-- 功能区只有「阅览」「视图」：缩放、适应宽度、翻页、标记、批注、绑定来源、引用到对话、查找；右边「只读」标签和「用系统阅读器打开」。
+- 功能区只有「阅览」「视图」：缩放、适应宽度、翻页、标记、批注、索引、引用到对话、查找；右边「只读」标签和「用系统阅读器打开」。
 - 左栏：文件和 PDF 自带的目录。
 - 中间：页面，标记（引用到对话）和批注的高亮叠在文字上，批注在页边有编号。
-- 右侧栏：批注（可以回复、解决）、标记（引用到对话的句子）。
+- 右侧栏：批注与索引（批注可以回复、解决）、标记（引用到对话的句子）。
 
 ## 演示的规则
 
-- 划选后浮动工具条只有标记、批注、绑定来源、引用到对话，没有格式和改写。
+- 划选后浮动工具条只有标记、批注、索引、引用到对话，没有格式和改写。
 - 批注存在应用里，不写进 PDF；栏顶一句话写明。
 ''')
 
 # ---------- 6. compare ----------
-def row(kind, left, right, gut, current=False, heading=False):
-    attrs = f' data-type="{kind}"' + (' data-current' if current else '') + (' data-heading' if heading else '')
-    lc = ' class="ss-cmp__empty"' if left is None else ''
-    rc = ' class="ss-cmp__empty"' if right is None else ''
-    return f'<div class="ss-cmp__row"{attrs}><div class="ss-cmp__gut">{gut}</div><div{lc}>{left or ""}</div><div{rc}>{right or ""}</div></div>'
-
-
-D = lambda s: f'<del class="ss-rev-del">{s}</del>'
-I = lambda s: f'<ins class="ss-rev-ins">{s}</ins>'
-rows = ''.join([
-    row('same', '3.2　样本与数据', '3.2　样本与数据', '', heading=True),
-    row('changed', f'研究样本为 {D("102")} 个地级市，时间跨度为 2010–{D("2020")} 年。', f'研究样本为 {I("98")} 个地级市，时间跨度为 2010–{I("2022")} 年。', '改'),
-    row('added', None, f'{I("去掉了 4 个数据缺失超过三成的城市，缺失值用线性插值补齐。")}', '增'),
-    row('changed', f'结果表明{D("该方法显著优于基线")}。', f'结果表明{I("，在样本量为 98 的条件下，组态方法的解释力总体高于基线模型")}，{I("但对东部城市的区分度有限")}。', '改', current=True),
-]) + '<div class="ss-cmp__fold">… 6 句相同，展开</div>' + ''.join([
-    row('changed', f'一致性阈值设为 {D("0.8")}，案例频数阈值设为 {D("1")}。', f'一致性阈值设为 {I("0.85")}，案例频数阈值设为 {I("2")}。', '改'),
-    row('removed', f'{D("本研究的创新之处主要体现在以下三个方面……")}', None, '删'),
-    row('same', '3.3　稳健性检验', '3.3　稳健性检验', '', heading=True),
-    row('changed', f'替换结果变量的测度方法后，{D("结论不变")}。', f'替换结果变量的测度方法{I("（改用主成分法）")}后，{I("核心组态保持一致")}。', '改'),
-    row('changed', f'将一致性阈值调整为 {D("0.75")} 后，组态数量{D("增加到 5 个")}。', f'将一致性阈值调整为 {I("0.80")} 后，组态数量{I("不变，覆盖度略有上升")}。', '改'),
-    row('changed', '剔除直辖市样本后，结果基本稳健。', f'剔除{I("4 个")}直辖市样本后，结果基本稳健{I("，见附表 A-3")}。', '改'),
-]) + '<div class="ss-cmp__fold">… 14 句相同，展开</div>' + ''.join([
-    row('same', '第四章　实证结果', '第四章　实证结果', '', heading=True),
-    row('changed', f'必要条件分析显示，{D("没有")}单一条件的一致性超过 0.9。', f'必要条件分析显示，{I("除数字经济水平（0.91）外，其余")}单一条件的一致性{I("均未")}超过 0.9。', '改'),
-])
+D = lambda t, cur=False: f'<span class="ss-diff-del{" ss-diff-cur" if cur else ""}">{t}</span>'
+I = lambda t, cur=False: f'<span class="ss-rev-ins{" ss-diff-cur" if cur else ""}">{t}</span>'
+GAP = '<span class="ss-diff-gap" data-tip="这里删了一段"></span>'
+old_page = f'''<article class="ss-page">
+          <h1>第三章　研究设计</h1>
+          <h2>3.1　研究方法</h2>
+          <p>本章采用模糊集定性比较分析（fsQCA）识别城市经济韧性的条件组态。与传统回归关注单一变量的净效应不同，组态视角关注多个条件如何共同导致结果。</p>
+          <p>经济韧性指数采用熵权法合成，涵盖抵抗力{D("和")}恢复力{D("两个维度")}，各维度下设 4–6 个二级指标。</p>
+          <p>{D("本研究的创新之处主要体现在以下三个方面：一是从组态视角解释城市经济韧性，二是构建了多维指标体系，三是结合面板数据检验稳健性。")}</p>
+          <h2>3.2　样本与数据</h2>
+          <p>研究样本为 {D("102")} 个地级市，时间跨度为 2010–{D("2020")} 年，数据主要来自《中国城市统计年鉴》。</p>
+          <p>结果表明{D("该方法显著优于基线", True)}。</p>
+          <p class="ss-page__eq"><span class="ss-atom">{EQ}</span><span class="ss-page__eqno">（3-1）</span></p>
+          <p>一致性阈值设为 {D("0.8")}，案例频数阈值设为 {D("1")}。</p>
+          <p>数字经济水平与产业结构共同构成高韧性的核心条件。</p>
+          <span class="ss-page__pageno">— 23 —</span>
+        </article>'''
+new_page = f'''<article class="ss-page">
+          <h1>第三章　研究设计</h1>
+          <h2>3.1　研究方法</h2>
+          <p>本章采用模糊集定性比较分析（fsQCA）识别城市经济韧性的条件组态{I("，并以面板回归检验结论的稳健性")}。与传统回归关注单一变量的净效应不同，组态视角关注多个条件如何共同导致结果{I("，适合解释“多条路径通向同一结果”的现象")}。</p>
+          <p>经济韧性指数采用熵权法合成，涵盖抵抗力{I("、")}恢复力{I("与再组织能力三个维度")}，各维度下设 4–6 个二级指标{I("，权重由各指标的信息熵确定")}。{GAP}</p>
+          <h2>3.2　样本与数据</h2>
+          <p>研究样本为 {I("98")} 个地级市，时间跨度为 2010–{I("2022")} 年，数据主要来自《中国城市统计年鉴》{I("和各市统计公报，缺失值用线性插值补齐")}。</p>
+          <p>结果表明{I("，在样本量为 98 的条件下，组态方法的解释力总体高于基线模型，但对东部城市的区分度有限", True)}。</p>
+          <p class="ss-page__eq"><span class="ss-atom">{EQ}</span><span class="ss-page__eqno">（3-1）</span></p>
+          <p>一致性阈值设为 {I("0.85")}，案例频数阈值设为 {I("2")}{I("；校准锚点分别取各条件的第 95、50、5 百分位")}。</p>
+          <p>数字经济水平与产业结构共同构成高韧性的<b class="ss-diff-fmt" data-tip="格式：加粗">核心条件</b>。</p>
+          <span class="ss-page__pageno">— 23 —</span>
+        </article>'''
 cmp_main = f'''<main class="ss-cmp">
       <div class="ss-cmp__bar">
         <i data-i="git-compare" style="color:var(--ink-2)"></i>
         <button class="ss-select ss-select--sm" type="button"><span class="ss-select__value">v5 · 修改方法部分</span><i data-i="chevron-down"></i></button>
         {icon_btn('arrow-left-right', '交换两侧')}
-        <button class="ss-select ss-select--sm" type="button"><span class="ss-select__value">v7 · 正在编辑（含未写回的修改）</span><i data-i="chevron-down"></i></button>
+        <button class="ss-select ss-select--sm" type="button"><span class="ss-select__value">v7 · 主线</span><i data-i="chevron-down"></i></button>
         <span style="flex:1"></span>
-        <span class="ss-muted" style="font-size:12px">9 处：改 7 · 增 1 · 删 1</span>
-        <div class="ss-seg ss-seg--sm" role="group" aria-label="显示"><button type="button" aria-pressed="false">全部</button><button type="button" aria-pressed="true">只看改动</button></div>
-        {icon_btn('chevron-up', '上一处 Shift F7')}<span style="font-size:12px">3 / 9</span>{icon_btn('chevron-down', '下一处 F7')}
+        <span class="ss-muted" style="font-size:12px"><span class="ss-diff-del" style="padding:0 4px">删 6 处</span>　<span class="ss-rev-ins" style="padding:0 4px">增 9 处</span>　<span class="ss-diff-fmt" style="padding:0 4px">格式 1 处</span></span>
+        <label class="ss-check" style="font-size:12px"><input type="checkbox" class="ss-switch" checked /><span>同步滚动</span></label>
+        {icon_btn('chevron-up', '上一处 Shift F7')}<span style="font-size:12px">5 / 16</span>{icon_btn('chevron-down', '下一处 F7')}
         <button class="ss-btn ss-btn--sm" type="button"><i data-i="x"></i>退出比较</button>
       </div>
-      <div class="ss-cmp__heads"><div></div><div>v5 · 修改方法部分 · 主专家 10-20 16:12</div><div>v7 · 主线 · 正在编辑</div></div>
-      <div class="ss-cmp__rows">{rows}</div>
+      <div class="ss-cmp__pages">
+        <div class="ss-cmp__col"><div class="ss-cmp__label"><b>旧 · v5 修改方法部分</b>主专家 10-20 16:12</div>{old_page}</div>
+        <div class="ss-cmp__col"><div class="ss-cmp__label"><b>新 · v7 主线</b>你 10-22 14:06 存版本</div>{new_page}</div>
+      </div>
     </main>'''
 cmp_body = f'''{nav('thesis.docx', DOCX_OUTLINE)}
     {cmp_main}'''
-card('PageDeskCompare', 'group="编辑台" page height=900 width=1536 subtitle="比较：中间展开左旧右新两栏，按段落和句子对齐成行；句内标出增删的词，整句增删另一侧留空；相同的句子折叠"',
+card('PageDeskCompare', 'group="编辑台" page height=900 width=1536 subtitle="比较：两版像 Word 并排查看一样左右两页显示，左旧右新；旧版删掉的标红，新版加的内容和格式标淡黄；差异在存版本时后台算好"',
      window('thesis.docx', 'docx', cmp_body, DOCX_STATUS, dirty=('thesis.docx',), compare=True), '''
-整页示例：编辑台的版本比较。功能区「比较」、版本树里右键「和……比较」都进这里；同一份文稿任意两版都能比。
+整页示例：编辑台的版本比较。功能区「比较」、版本树里右键「和……比较」都进这里。
 
 ## 区域
 
-- 比较栏：左右两个版本选择（正在编辑的版本包含未写回的修改）、交换两侧、改动计数（改、增、删、拆段）、「全部 / 只看改动」、上一处下一处（F7）、退出比较。
-- 栏头：两边的版本名、作者和时间。
-- 行：左旧右新，按段落对齐，再按句子对齐；左边窄栏写「改」「增」「删」。当前这处左侧有强调色竖线。
+- 比较栏：左右两个版本选择、交换两侧、三种改动的计数（删、增、格式）、「同步滚动」、上一处下一处（F7）、退出比较。
+- 两页：像 Word 的并排查看，左边旧版、右边新版，各自按原来的版式排，页头写版本、作者和时间；默认同步滚动。
 
 ## 演示的规则
 
-- 句内按词标出增删：旧版多出的淡暗红加删除线，新版多出的淡黄，和修订标记同一组颜色（diff-del、diff-ins 两个令牌）。
-- 整句新增或删除时另一侧是斜纹空格，不错位。
-- 「只看改动」时相同的句子折成一行「… 6 句相同，展开」。
-- 现有 version-diff 页面改用同一比较结果。
+- 旧版里被删掉的字标红（diff-del 底、diff-del-ink 字），不加删除线；新版里新加的字和改过格式的字标淡黄（diff-ins），格式改动另有点线和提示（“格式：加粗”）。
+- 新版里整段删掉的位置留一根红色细竖线，悬停提示“这里删了一段”。
+- 上一处下一处时，当前这处两边都有强调色描边。
+- 差异在存版本时（离开编辑台、存为版本、外部修改导入）后台算好，存在这个版本上；任意两版比较时现算一次再缓存。正文编辑时不显示修订标记。
 ''')
 
 # ---------- 7. entry points ----------
@@ -704,15 +736,15 @@ def ftb(rows, chips=True, width=None):
 SEP2 = '<span class="ss-ribbon__sep" style="margin:0 2px"></span>'
 row_fmt = ('<button class="ss-ftb__label" type="button">正文<i data-i="chevron-down"></i></button>' + SEP2
            + icon_btn('bold', '加粗 Ctrl B') + icon_btn('italic', '斜体 Ctrl I') + icon_btn('underline', '下划线 Ctrl U') + icon_btn('superscript', '上标') + icon_btn('subscript', '下标')
-           + SEP2 + icon_btn('message-square-plus', '添加批注') + icon_btn('link-2', '绑定来源')
+           + SEP2 + icon_btn('message-square-plus', '添加批注') + icon_btn('link-2', '添加索引')
            + '<button class="ss-ftb__label" type="button"><i data-i="text-quote"></i>引用到对话</button>' + icon_btn('ellipsis', '更多'))
 row_ask = '<div class="ss-ftb__ask"><i data-i="wand-sparkles"></i><span>告诉主专家怎么改，例如「语气缓和些」</span><span class="ss-kbd">Enter</span></div>'
 row_tex = ('<button class="ss-ftb__label" type="button">\\textbf</button><button class="ss-ftb__label" type="button">\\emph</button>' + icon_btn('radical', '转成公式 $…$')
-           + SEP2 + icon_btn('message-square-plus', '添加批注') + icon_btn('link-2', '绑定来源')
+           + SEP2 + icon_btn('message-square-plus', '添加批注') + icon_btn('link-2', '添加索引')
            + '<button class="ss-ftb__label" type="button"><i data-i="text-quote"></i>引用到对话</button>')
 row_pdf = ('<button class="ss-ftb__label" type="button"><i data-i="highlighter"></i>标记</button>'
            + '<button class="ss-ftb__label" type="button"><i data-i="message-square-plus"></i>批注</button>'
-           + '<button class="ss-ftb__label" type="button"><i data-i="link-2"></i>绑定来源</button>'
+           + '<button class="ss-ftb__label" type="button"><i data-i="link-2"></i>索引</button>'
            + '<button class="ss-ftb__label" type="button"><i data-i="text-quote"></i>引用到对话</button>' + icon_btn('copy', '复制'))
 row_busy = ('<div class="ss-ftb__ask" style="color:var(--ink-2)"><span class="ss-spin"></span><span>主专家正在改写这段……</span>'
             + '<button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">停止</button></div>')
@@ -725,7 +757,7 @@ parts = f'''<div class="ds" style="grid-template-columns:auto 1fr;align-items:st
     {ftb([row_pdf], chips=False, width=360)}
     <span class="ds-label">PDF：没有格式和改写</span>
     {ftb([row_busy], chips=False, width=360)}
-    <span class="ds-label">发出改写后：同一位置显示进度，可以停止；改完变成修订标记</span>
+    <span class="ds-label">发出改写后：同一位置显示进度，可以停止；改完直接写进正文，弹提示可撤销</span>
   </div>
   <div class="ds-col">
     <div class="ss-menu" data-static role="menu" aria-label="版本 v5" style="min-width:220px">
@@ -749,9 +781,9 @@ card('DeskMenus', 'group="编辑台" height=410 subtitle="浮动工具条（docx
 编辑台的浮动工具条和版本树右键菜单。正文的右键菜单见 PageDeskMarkdown。
 
 - 浮动工具条参照 Office 的浮动工具栏：划选后出现在选区上方，鼠标离开后淡出，不挡正文；Esc 关掉。
-- docx 和 md：第一行段落样式、加粗、斜体、下划线、上下标、批注、绑定来源、引用到对话、更多；第二行改写输入框（Enter 发出），下面五个常用指令。
+- docx 和 md：第一行段落样式、加粗、斜体、下划线、上下标、批注、索引、引用到对话、更多；第二行改写输入框（Enter 发出），下面五个常用指令。
 - tex 源码：格式按钮写成命令（\\\\textbf、\\\\emph、转成公式）。渲染栏里划选时和 docx 一样。
-- PDF：只有标记、批注、绑定来源、引用到对话、复制。
-- 改写发出后，工具条变成进度行，可以停止；改完在正文里变成修订标记，右侧「修改」多一条。
+- PDF：只有标记、批注、索引、引用到对话、复制。
+- 改写发出后，工具条变成进度行，可以停止；改完直接写进正文（不显示修订标记），弹提示「看改了什么 / 撤销」。
 - 版本右键：打开（只读）、从这一版开始编辑、比较、改名和备注、层级、另存为文件、用这一版覆盖项目文件（先确认）；有后续版本时不能删，菜单写明原因。
 ''')

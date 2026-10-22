@@ -1,4 +1,4 @@
-<!-- @dsCard group="编辑台" page height=900 width=1536 subtitle="编辑台：独立窗口，顶部是文稿标签和功能区；划选弹出 Office 式浮动工具条；AI 的修改逐处显示、逐处撤回" -->
+<!-- @dsCard group="编辑台" page height=900 width=1536 subtitle="编辑台：独立窗口，像 Word 一样正常编辑，不显示修订标记；划选弹出 Office 式浮动工具条；右侧「批注与索引」新增、查看、修改、删除" -->
 <!doctype html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><title>PageDesk</title></head>
@@ -16,7 +16,7 @@
   </header>
   <div class="ss-ribbon">
     <div class="ss-ribbon__tabs"><nav class="ss-tabs" role="tablist" aria-label="功能区"><button class="ss-tab" role="tab" type="button" aria-selected="true">开始</button><button class="ss-tab" role="tab" type="button" aria-selected="false">审阅</button><button class="ss-tab" role="tab" type="button" aria-selected="false">视图</button></nav><span class="ss-ribbon__spacer"></span><button class="ss-icon-btn" type="button" aria-label="收起功能区 Ctrl F1" data-tip="收起功能区 Ctrl F1"><i data-i="chevron-up"></i></button></div>
-    <div class="ss-ribbon__bar"><button class="ss-icon-btn" type="button" aria-label="撤销 Ctrl Z" data-tip="撤销 Ctrl Z"><i data-i="undo-2"></i></button><button class="ss-icon-btn" type="button" aria-label="重做 Ctrl Y" data-tip="重做 Ctrl Y"><i data-i="redo-2"></i></button><span class="ss-ribbon__sep"></span><button class="ss-select ss-select--sm" type="button" aria-haspopup="listbox" data-tip="段落样式"><span class="ss-select__value">正文</span><i data-i="chevron-down"></i></button><span class="ss-ribbon__sep"></span><button class="ss-icon-btn" type="button" aria-label="加粗 Ctrl B" data-tip="加粗 Ctrl B"><i data-i="bold"></i></button><button class="ss-icon-btn" type="button" aria-label="斜体 Ctrl I" data-tip="斜体 Ctrl I"><i data-i="italic"></i></button><button class="ss-icon-btn" type="button" aria-label="下划线 Ctrl U" data-tip="下划线 Ctrl U"><i data-i="underline"></i></button><button class="ss-icon-btn" type="button" aria-label="上标" data-tip="上标"><i data-i="superscript"></i></button><button class="ss-icon-btn" type="button" aria-label="下标" data-tip="下标"><i data-i="subscript"></i></button><button class="ss-icon-btn" type="button" aria-label="清除格式" data-tip="清除格式"><i data-i="remove-formatting"></i></button><span class="ss-ribbon__sep"></span><button class="ss-icon-btn" type="button" aria-label="项目符号" data-tip="项目符号"><i data-i="list"></i></button><button class="ss-icon-btn" type="button" aria-label="编号" data-tip="编号"><i data-i="list-ordered"></i></button><span class="ss-ribbon__sep"></span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="message-square-plus"></i>批注</button><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="link-2"></i>绑定来源</button><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="text-quote"></i>引用到对话</button><span class="ss-ribbon__spacer"></span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="git-compare"></i>比较</button><button class="ss-btn ss-btn--primary ss-btn--sm" type="button" data-tip="写回项目文件夹里的 thesis.docx" data-kbd="Ctrl S"><i data-i="save"></i>保存</button></div>
+    <div class="ss-ribbon__bar"><button class="ss-icon-btn" type="button" aria-label="撤销 Ctrl Z" data-tip="撤销 Ctrl Z"><i data-i="undo-2"></i></button><button class="ss-icon-btn" type="button" aria-label="重做 Ctrl Y" data-tip="重做 Ctrl Y"><i data-i="redo-2"></i></button><span class="ss-ribbon__sep"></span><button class="ss-select ss-select--sm" type="button" aria-haspopup="listbox" data-tip="段落样式"><span class="ss-select__value">正文</span><i data-i="chevron-down"></i></button><span class="ss-ribbon__sep"></span><button class="ss-icon-btn" type="button" aria-label="加粗 Ctrl B" data-tip="加粗 Ctrl B"><i data-i="bold"></i></button><button class="ss-icon-btn" type="button" aria-label="斜体 Ctrl I" data-tip="斜体 Ctrl I"><i data-i="italic"></i></button><button class="ss-icon-btn" type="button" aria-label="下划线 Ctrl U" data-tip="下划线 Ctrl U"><i data-i="underline"></i></button><button class="ss-icon-btn" type="button" aria-label="上标" data-tip="上标"><i data-i="superscript"></i></button><button class="ss-icon-btn" type="button" aria-label="下标" data-tip="下标"><i data-i="subscript"></i></button><button class="ss-icon-btn" type="button" aria-label="清除格式" data-tip="清除格式"><i data-i="remove-formatting"></i></button><span class="ss-ribbon__sep"></span><button class="ss-icon-btn" type="button" aria-label="项目符号" data-tip="项目符号"><i data-i="list"></i></button><button class="ss-icon-btn" type="button" aria-label="编号" data-tip="编号"><i data-i="list-ordered"></i></button><span class="ss-ribbon__sep"></span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="message-square-plus"></i>批注</button><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="link-2"></i>索引</button><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="text-quote"></i>引用到对话</button><span class="ss-ribbon__spacer"></span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="git-compare"></i>比较</button><button class="ss-btn ss-btn--primary ss-btn--sm" type="button" data-tip="写回项目文件夹里的 thesis.docx" data-kbd="Ctrl S"><i data-i="save"></i>保存</button></div>
   </div>
   <div class="ss-shell__body">
     <aside class="ss-desk-nav">
@@ -42,7 +42,7 @@
             <span class="ss-ribbon__sep" style="margin:0 2px"></span>
             <button class="ss-icon-btn" type="button" aria-label="加粗 Ctrl B" data-tip="加粗 Ctrl B"><i data-i="bold"></i></button><button class="ss-icon-btn" type="button" aria-label="斜体 Ctrl I" data-tip="斜体 Ctrl I"><i data-i="italic"></i></button><button class="ss-icon-btn" type="button" aria-label="下划线 Ctrl U" data-tip="下划线 Ctrl U"><i data-i="underline"></i></button><button class="ss-icon-btn" type="button" aria-label="上标" data-tip="上标"><i data-i="superscript"></i></button><button class="ss-icon-btn" type="button" aria-label="下标" data-tip="下标"><i data-i="subscript"></i></button>
             <span class="ss-ribbon__sep" style="margin:0 2px"></span>
-            <button class="ss-icon-btn" type="button" aria-label="添加批注" data-tip="添加批注"><i data-i="message-square-plus"></i></button><button class="ss-icon-btn" type="button" aria-label="绑定来源" data-tip="绑定来源"><i data-i="link-2"></i></button>
+            <button class="ss-icon-btn" type="button" aria-label="添加批注" data-tip="添加批注"><i data-i="message-square-plus"></i></button><button class="ss-icon-btn" type="button" aria-label="添加索引" data-tip="添加索引"><i data-i="link-2"></i></button>
             <button class="ss-ftb__label" type="button"><i data-i="text-quote"></i>引用到对话</button>
             <button class="ss-icon-btn" type="button" aria-label="更多" data-tip="更多"><i data-i="ellipsis"></i></button>
           </div>
@@ -54,8 +54,8 @@
         <p><span class="ss-sel">经济韧性指数采用熵权法合成，涵盖抵抗力、恢复力与再组织能力三个维度</span>，各维度下设 4–6 个二级指标，权重由各指标的信息熵确定。</p>
         </div>
         <h2>3.2　样本与数据</h2>
-        <p>研究样本为 <span class="ss-bind" data-tip="右键：含义与来源">98 个地级市</span>，时间跨度为 2010–2022 年，数据主要来自《中国城市统计年鉴》和各市统计公报，缺失值用线性插值补齐。</p>
-        <p>结果表明<del class="ss-rev-del">该方法显著优于基线</del><ins class="ss-rev-ins">，在样本量为 98 的条件下，组态方法的解释力总体高于基线模型</ins>，但对东部城市的区分度有限。<span class="ss-revtag"><b>主专家</b>14:02<span>改写 · 1 处</span></span></p>
+        <p>研究样本为 <span class="ss-bind" data-tip="索引：data/city_panel.csv、scripts/sample.py">98 个地级市</span>，时间跨度为 2010–2022 年，数据主要来自《中国城市统计年鉴》和各市统计公报，缺失值用线性插值补齐。</p>
+        <p>结果表明，在样本量为 98 的条件下，组态方法的解释力总体高于基线模型，<span class="ss-cmt">但对东部城市的区分度有限</span>。</p>
         <p class="ss-page__eq"><span class="ss-atom" data-tip="Word 公式：只显示，保存时原样保留"><span class="ss-math"><i>CI</i><sub><i>i</i></sub><span class="ss-math__op">=</span><span class="ss-limits"><small><i>m</i></small><span>∑</span><small><i>j</i>=1</small></span><i>w</i><sub><i>j</i></sub><i>x</i><sub><i>ij</i></sub></span></span><span class="ss-page__eqno">（3-1）</span></p>
         <p>一致性阈值设为 <span class="ss-cmt" data-active>0.85</span>，案例频数阈值设为 2；校准锚点分别取各条件的第 95、50、5 百分位，<span class="ss-qmark">对应“完全隶属”“交叉点”和“完全不隶属”</span>。</p>
         <table><caption>表 3-1　条件变量与校准锚点</caption>
@@ -64,35 +64,42 @@
         </table>
         <span class="ss-page__pageno">— 23 —</span>
       </article>
+      <div class="ss-toast" data-static style="position:sticky;bottom:16px;margin:0 auto;width:fit-content;z-index:var(--z-sticky)"><span class="ss-avatar">主</span><span class="ss-toast__msg">主专家改写了 3.2 节 1 句</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">看改了什么</button><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">撤销</button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="关闭"><i data-i="x"></i></button></div>
     </main>
     <aside class="ss-panel" style="width:336px">
       <div class="ss-splitter ss-splitter--start" data-min="280" data-max="560" data-default="336"></div>
-      <div class="ss-panel__head" style="padding-left:8px"><nav class="ss-tabs" role="tablist" aria-label="侧栏" style="align-self:stretch"><button class="ss-tab" role="tab" type="button" aria-selected="false">批注<span class="ss-tab__count">2</span></button><button class="ss-tab" role="tab" type="button" aria-selected="true">修改<span class="ss-tab__count">4</span></button><button class="ss-tab" role="tab" type="button" aria-selected="false">来源<span class="ss-tab__count">3</span></button><button class="ss-tab" role="tab" type="button" aria-selected="false">对话</button></nav><span style="flex:1"></span><button class="ss-icon-btn" type="button" aria-label="关闭侧栏" data-tip="关闭侧栏"><i data-i="x"></i></button></div>
+      <div class="ss-panel__head" style="padding-left:8px"><nav class="ss-tabs" role="tablist" aria-label="侧栏" style="align-self:stretch"><button class="ss-tab" role="tab" type="button" aria-selected="true">批注与索引<span class="ss-tab__count">5</span></button><button class="ss-tab" role="tab" type="button" aria-selected="false">对话</button></nav><span style="flex:1"></span><button class="ss-icon-btn" type="button" aria-label="关闭侧栏" data-tip="关闭侧栏"><i data-i="x"></i></button></div>
+      <div class="ss-toolbar" style="padding:8px 12px;border-bottom:1px solid var(--line);gap:6px"><div class="ss-seg ss-seg--sm" role="group" aria-label="类型"><button type="button" aria-pressed="true">全部</button><button type="button" aria-pressed="false">批注</button><button type="button" aria-pressed="false">索引</button></div><span style="flex:1"></span><button class="ss-select ss-select--sm ss-select--ghost" type="button"><span class="ss-select__value">所有人</span><i data-i="chevron-down"></i></button></div>
       <div class="ss-panel__body" style="display:grid;gap:10px;align-content:start;padding:12px">
-        <div style="display:flex;align-items:center;gap:8px"><span class="ss-muted" style="font-size:12px;flex:1">本次打开 4 处修改，都还没有保留</span><button class="ss-btn ss-btn--sm" type="button"><i data-i="check-check"></i>全部保留</button></div>
+        <div class="ss-desk-card" style="border-color:var(--accent-line);box-shadow:0 0 0 1px var(--accent-line)">
+          <div class="ss-desk-card__head"><i data-i="message-square-plus" class="ss-i--sm" style="color:var(--accent)"></i><span>新批注</span></div>
+          <p class="ss-desk-card__quote">经济韧性指数采用熵权法合成，涵盖抵抗力、恢复力与再组织能力三个维度</p>
+          <textarea class="ss-textarea" rows="2" placeholder="写批注，@ 专家可以请他看这里"></textarea>
+          <div class="ss-desk-card__foot"><button class="ss-btn ss-btn--ghost" type="button"><i data-i="link-2"></i>改成索引</button><span style="flex:1"></span><button class="ss-btn ss-btn--ghost" type="button">取消</button><button class="ss-btn ss-btn--primary" type="button">添加</button></div>
+        </div>
         <div class="ss-desk-list">
-        <div class="ss-desk-card">
-          <div class="ss-desk-card__head"><span class="ss-avatar">主</span><span>主专家 · 改写</span><time>14:02</time></div>
-          <p class="ss-desk-card__quote">指令：语气缓和些，补上样本量</p><p class="ss-desk-card__body"><del class="ss-rev-del">该方法显著优于基线</del><ins class="ss-rev-ins">，在样本量为 98 的条件下，组态方法的解释力总体高于基线模型</ins></p>
-          <div class="ss-desk-card__foot"><button class="ss-btn" type="button">撤回</button><button class="ss-btn ss-btn--ghost" type="button">保留</button><button class="ss-btn ss-btn--ghost" type="button">定位</button></div>
+        <div class="ss-desk-card" data-active>
+          <div class="ss-desk-card__head"><i data-i="message-square" class="ss-i--sm" style="color:var(--warn)"></i><span>批注</span><span class="ss-avatar ss-avatar--user">Y</span><span>你</span><time>10-21</time></div>
+          <p class="ss-desk-card__quote">0.85</p><p class="ss-desk-card__body">导师要求给出阈值依据，引 Ragin 2008 第 3 章。</p>
+          <div class="ss-desk-card__foot"><button class="ss-btn ss-btn--ghost" type="button"><i data-i="locate"></i>定位</button><button class="ss-btn ss-btn--ghost" type="button"><i data-i="pencil"></i>编辑</button><button class="ss-btn ss-btn--ghost" type="button"><i data-i="trash-2"></i>删除</button></div>
         </div>
         <div class="ss-desk-card">
-          <div class="ss-desk-card__head"><span class="ss-avatar ss-avatar--user">Y</span><span>你 · 修改</span><time>13:55</time></div>
-          <p class="ss-desk-card__body">一致性阈值设为 <del class="ss-rev-del">0.8</del><ins class="ss-rev-ins">0.85</ins>，案例频数阈值设为 <del class="ss-rev-del">1</del><ins class="ss-rev-ins">2</ins></p>
-          <div class="ss-desk-card__foot"><button class="ss-btn" type="button">撤回</button><button class="ss-btn ss-btn--ghost" type="button">保留</button><button class="ss-btn ss-btn--ghost" type="button">定位</button></div>
+          <div class="ss-desk-card__head"><i data-i="message-square" class="ss-i--sm" style="color:var(--warn)"></i><span>批注</span><span class="ss-avatar">主</span><span>主专家</span><time>14:02</time></div>
+          <p class="ss-desk-card__quote">但对东部城市的区分度有限</p><p class="ss-desk-card__body">这句和 4.2 节“东部城市组态最多”的结论不一致，建议核对东部样本。</p>
+          <div class="ss-desk-card__foot"><button class="ss-btn ss-btn--ghost" type="button"><i data-i="locate"></i>定位</button><button class="ss-btn ss-btn--ghost" type="button"><i data-i="pencil"></i>编辑</button><button class="ss-btn ss-btn--ghost" type="button"><i data-i="trash-2"></i>删除</button></div>
         </div>
         <div class="ss-desk-card">
-          <div class="ss-desk-card__head"><span class="ss-avatar ss-avatar--user">Y</span><span>你 · 拆分段落</span><time>13:51</time></div>
-          <p class="ss-desk-card__body">3.2 节第 2 段拆成两段</p>
-          <div class="ss-desk-card__foot"><button class="ss-btn" type="button">撤回</button><button class="ss-btn ss-btn--ghost" type="button">保留</button><button class="ss-btn ss-btn--ghost" type="button">定位</button></div>
+          <div class="ss-desk-card__head"><i data-i="link-2" class="ss-i--sm" style="color:var(--accent)"></i><span>索引</span><span class="ss-avatar">主</span><span>主专家</span><time>10-21</time></div>
+          <p class="ss-desk-card__quote">98 个地级市</p><p class="ss-desk-card__body">去重后进入分析的城市数。</p><dl class="ss-props" style="margin:0"><dt>数据</dt><dd>data/city_panel.csv</dd><dt>脚本</dt><dd>scripts/sample.py</dd></dl>
+          <div class="ss-desk-card__foot"><button class="ss-btn ss-btn--ghost" type="button"><i data-i="locate"></i>定位</button><button class="ss-btn ss-btn--ghost" type="button"><i data-i="pencil"></i>编辑</button><button class="ss-btn ss-btn--ghost" type="button"><i data-i="trash-2"></i>删除</button></div>
         </div>
         <div class="ss-desk-card">
-          <div class="ss-desk-card__head"><span class="ss-avatar">主</span><span>主专家 · 删除段落</span><time>13:40</time></div>
-          <p class="ss-desk-card__quote">指令：删掉和第一章重复的话</p><p class="ss-desk-card__body"><del class="ss-rev-del">本研究的创新之处主要体现在以下三个方面……</del></p>
-          <div class="ss-desk-card__foot"><button class="ss-btn" type="button">撤回</button><button class="ss-btn ss-btn--ghost" type="button">保留</button></div>
+          <div class="ss-desk-card__head"><i data-i="link-2" class="ss-i--sm" style="color:var(--accent)"></i><span>索引</span><span class="ss-avatar ss-avatar--user">Y</span><span>你</span><time>10-19</time></div>
+          <p class="ss-desk-card__quote">熵权法</p><p class="ss-desk-card__body">知识库：方法「熵权法」；资料 Wang 2021 第 6 页。</p>
+          <div class="ss-desk-card__foot"><button class="ss-btn ss-btn--ghost" type="button"><i data-i="locate"></i>定位</button><button class="ss-btn ss-btn--ghost" type="button"><i data-i="pencil"></i>编辑</button><button class="ss-btn ss-btn--ghost" type="button"><i data-i="trash-2"></i>删除</button></div>
         </div>
         </div>
-        <p class="ss-prov">撤回要从后往前：一处之后又被改过时，先撤回后面那处。保留只是不再显示标记。</p>
+        <p class="ss-prov">标记的文字全部删掉时，批注或索引跟着删掉；撤销会把文字和它们一起恢复。docx 的批注保存时写进 Word 批注。</p>
       </div>
       
     </aside>

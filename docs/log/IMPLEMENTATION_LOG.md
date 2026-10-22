@@ -3,6 +3,7 @@
 ## 2026-10-22 编辑台设计稿 U0（Claude）
 
 - 画廊新增「编辑台」组：`PageDesk`、`PageDeskVersions`、`PageDeskTex`、`PageDeskMarkdown`、`PageDeskPdf`、`PageDeskCompare`、`DeskEntry`、`DeskMenus`，由 `build/desk/gen.py` 生成。
+- 所有者看稿后改了第二轮：正文不显示修订标记（AI 改完弹提示可撤销），右侧栏改成「批注与索引」，比较改成左右两页并排；设计文档 §1、§2、§4.4、§5、§6、§7、§10、§12 跟着改。
 - `components.css` 加编辑台样式（窗口、功能区、页面、修订标记、浮动工具条、版本树、tex 两栏、公式编辑框、比较、PDF）；令牌加 `diff-ins`、`diff-del`、`diff-del-ink` 和 `font-serif`；图标加「编辑台」一组 25 个。等所有者认可。
 
 ## 2026-10-22 D2b 审查合并（Claude）
