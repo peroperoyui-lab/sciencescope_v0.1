@@ -688,7 +688,6 @@ data/
 | 025  | `kb_entities.produced_from/evidence_json`；`kb_jobs.result_json/meeting_id/manual`                                                           | 论文卡片来源、证据和持久任务结果；卡片条目加入知识库版本快照与恢复                       |
 | 026  | `kb_positions(ref,x,y,pinned,updated_at)`                                                                                                    | 跨项目共享的图位置投影、用户钉住状态；可重算，不进历史版本                               |
 | 027  | `version_groups.source_hash`、`source_version_id`                                                                                            | 编辑台判断项目文件是否在外部被改过；写回项目文件不生成版本                               |
-
 | 028 | `version_diffs` | 父子版本及任意版本对的差异缓存，可重新计算 |
 | 029 | `manuscript_bindings`、`manuscript_comments`；`desk_changes.annotations_json` | 索引、非 Word 批注及同次修改的标注快照；DOCX 批注仍由文件和修改记录保存 |
 
