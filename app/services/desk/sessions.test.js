@@ -198,7 +198,7 @@ test('writer failures leave the journal, sequence and file unchanged; idle batch
     try {
       const group = await desk.registerDocument({ projectId: project.id, path: '论文.docx' });
       const { session } = await desk.openSession({ groupId: group.id });
-      const working = path.join(
+      let working = path.join(
         core.workspace.locate.projectDir(project.id),
         'desk',
         session.id,
@@ -232,8 +232,17 @@ test('writer failures leave the journal, sequence and file unchanged; idle batch
         blocks: { [split.inserted.new]: text('新段已编辑'), 'b:5': text('稳定标识') },
       });
       assert.equal(writes, 0);
+      const previousWorking = working;
+      await core.projects.update(project.id, { name: '改名后的论文' });
+      working = path.join(
+        core.workspace.locate.projectDir(project.id),
+        'desk',
+        session.id,
+        '论文.docx',
+      );
       await callback();
       assert.equal(writes, 1);
+      await assert.rejects(readFile(previousWorking), { code: 'ENOENT' });
       const parsed = await readDocx(await readFile(working));
       assert.equal(
         parsed.blocks.find((block) => block.id === split.inserted.new).kind,

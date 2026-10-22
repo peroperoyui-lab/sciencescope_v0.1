@@ -87,6 +87,8 @@ export function createDeskSessions(
     };
   }
   async function flush(state) {
+    // Project renames move its owned data directory, including an open desk.
+    state.files = paths(state.session);
     if (state.timer != null) cancel(state.timer);
     state.timer = null;
     if (state.flushedSeq === state.session.seq) return;
