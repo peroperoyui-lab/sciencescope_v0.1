@@ -19,6 +19,7 @@ export function createAnnotationStore(core) {
       authorId: row.author_id ?? row.attributed_to,
       createdAt: row.created_at,
       updatedAt: row.updated_at,
+      status: row.status,
       ...(type === 'comment'
         ? { text: row.text, parentId: row.parent_id, resolved: Boolean(row.resolved) }
         : {
@@ -27,7 +28,6 @@ export function createAnnotationStore(core) {
             sources: JSON.parse(row.sources_json),
             derivation: row.derivation_json ? JSON.parse(row.derivation_json) : null,
             note: row.note,
-            status: row.status,
           }),
     };
   }
@@ -78,20 +78,21 @@ export function createAnnotationStore(core) {
         after.derivation == null ? null : JSON.stringify(after.derivation),
         after.note,
         after.authorId,
-        after.status,
+        after.status ?? 'anchored',
         after.createdAt,
         after.updatedAt,
       );
     else
       db.prepare(
-        `INSERT INTO manuscript_comments (id,group_id,version_id,block_id,block_from,block_to,quote_json,author_id,text,parent_id,resolved,created_at,updated_at)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET version_id=excluded.version_id,block_id=excluded.block_id,block_from=excluded.block_from,block_to=excluded.block_to,quote_json=excluded.quote_json,text=excluded.text,parent_id=excluded.parent_id,resolved=excluded.resolved,updated_at=excluded.updated_at`,
+        `INSERT INTO manuscript_comments (id,group_id,version_id,block_id,block_from,block_to,quote_json,author_id,text,parent_id,resolved,status,created_at,updated_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET version_id=excluded.version_id,block_id=excluded.block_id,block_from=excluded.block_from,block_to=excluded.block_to,quote_json=excluded.quote_json,text=excluded.text,parent_id=excluded.parent_id,resolved=excluded.resolved,status=excluded.status,updated_at=excluded.updated_at`,
       ).run(
         ...common,
         after.authorId,
         after.text,
         after.parentId ?? null,
         after.resolved ? 1 : 0,
+        after.status ?? 'anchored',
         after.createdAt,
         after.updatedAt,
       );

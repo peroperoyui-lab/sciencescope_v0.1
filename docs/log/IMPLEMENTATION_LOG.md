@@ -1,5 +1,10 @@
 # 实施记录
 
+## 2026-10-22 D6 丢失标注撤回补充（Codex）
+
+- 按用户确认，撤回 annotation-lost 只恢复记录/引用并标 lost；重开保留，PATCH 新范围或原文再次唯一命中后回 anchored。DOCX lost 仅留历史，不写 comments.xml；未合并的029补非Word批注status列，工具块摘要排除未定位项，未改UI。
+- 新增回归覆盖正文不变、持久恢复、手动/自动定位和Word保存；学位论文副本经Word删原文、撤回、重开、重新定位后再用Word核对通过，本次新增模型请求0；材料在忽略目录desk-d6。
+
 ## 2026-10-22 D6 批注与索引后端（Codex）
 
 - 迁移029、统一 annotations CRUD、随文字移动/删除及同栈撤回；DOCX批注复用D2b写回，索引及其他格式批注仅存应用，PDF只读；原文重定位和 annotation-lost 记录，专家工具与摘要已接入，未改UI。

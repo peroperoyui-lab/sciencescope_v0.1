@@ -28,7 +28,14 @@ test('v28 upgrades annotation tables and retains existing desk journal entries',
         .prepare(`PRAGMA table_info(${table})`)
         .all()
         .map((row) => row.name);
-      for (const name of ['group_id', 'version_id', 'block_from', 'block_to', 'quote_json'])
+      for (const name of [
+        'group_id',
+        'version_id',
+        'block_from',
+        'block_to',
+        'quote_json',
+        'status',
+      ])
         assert.ok(columns.includes(name));
     }
   } finally {

@@ -152,7 +152,7 @@ export function createDeskSessions(
         .run(version.id, state.session.id);
       for (const table of ['manuscript_bindings', 'manuscript_comments'])
         core.db
-          .prepare(`UPDATE ${table} SET version_id=? WHERE group_id=?`)
+          .prepare(`UPDATE ${table} SET version_id=? WHERE group_id=? AND status='anchored'`)
           .run(version.id, state.session.groupId);
       // A project file written from this lineage now descends from the new version.
       core.db
@@ -212,7 +212,7 @@ export function createDeskSessions(
     const session = store.create(groupId, version.id, meetingId);
     try {
       const state = await initialize(session, document);
-      const proposal = annotations.reanchor(state);
+      const proposal = await annotations.reanchor(state);
       if (proposal.records.length) {
         store.commit(state, proposal, { actorId: 'person_user' });
         requestFlush(state);

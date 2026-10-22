@@ -137,6 +137,7 @@ export function originalComments(state, authors) {
         {
           id,
           type: 'comment',
+          status: 'anchored',
           groupId: state.session.groupId,
           versionId: state.session.baseVersionId,
           blockId: range?.blockId ?? '',
@@ -173,12 +174,12 @@ export function commentWriteOptions(state) {
   const comments = [];
   for (const [id, comment] of original) {
     const current = state.comments.get(id);
-    if (!current) comments.push({ op: 'delete', id: comment.id });
+    if (!current || current.status === 'lost') comments.push({ op: 'delete', id: comment.id });
     else if (current.text !== comment.text)
       comments.push({ op: 'edit', id: comment.id, text: current.text });
   }
   for (const [id, item] of state.comments)
-    if (!original.has(id))
+    if (!original.has(id) && item.status !== 'lost')
       comments.push({
         op: 'add',
         id: id.split(':').at(-1),

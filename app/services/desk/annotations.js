@@ -6,6 +6,7 @@ import { readFile } from 'node:fs/promises';
 import { AppError } from '../../core/errors.js';
 import { newId, nowIso } from '../../core/ids.js';
 import { createAnnotationStore } from './annotation-store.js';
+import { recoverDocx } from './annotation-recovery.js';
 import { readDocument } from './formats.js';
 import { annotationText, quoteAt, mapRange, relocate, splitInlines } from './annotation-anchors.js';
 import {
@@ -60,7 +61,11 @@ export function createAnnotations(core) {
     const value = { ...item };
     for (const key of ['authorId', 'authorName', 'groupId', 'versionId', 'paraId'])
       delete value[key];
-    return { ...value, author: { id: authorId, name: authorName ?? nameOf(authorId) } };
+    return {
+      ...value,
+      status: item.status ?? 'anchored',
+      author: { id: authorId, name: authorName ?? nameOf(authorId) },
+    };
   }
   function list(state, versionId = null) {
     const positions = new Map(state.blocks.map((block, index) => [block.id, index]));
@@ -83,7 +88,7 @@ export function createAnnotations(core) {
       throw new AppError('DESK_NOT_AUTHOR', '只能删除自己添加的批注或索引。');
     return item;
   }
-  function create(state, input, actor) {
+  function selection(state, input) {
     const block = state.blocks.find((entry) => entry.id === input.blockId);
     if (!block) throw new AppError('DOCX_BLOCK_NOT_FOUND', '这段正文已不存在。');
     const text = annotationText(block);
@@ -97,6 +102,10 @@ export function createAnnotations(core) {
     )
       throw new AppError('DESK_RANGE', '请在当前段落内重新划选文字。');
     if (block.inlines) splitInlines(block.inlines, [input.from, input.to]);
+    return { block, quote: quoteAt(text, input.from, input.to) };
+  }
+  function create(state, input, actor) {
+    const { block, quote } = selection(state, input);
     if (!['comment', 'index'].includes(input.type))
       throw new AppError('DESK_ANNOTATION_TYPE', '请选择批注或索引。');
     if (
@@ -129,7 +138,8 @@ export function createAnnotations(core) {
       blockId: block.id,
       from: input.from,
       to: input.to,
-      quote: quoteAt(text, input.from, input.to),
+      quote,
+      status: 'anchored',
       authorId: actor.actorId ?? 'person_user',
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -141,7 +151,6 @@ export function createAnnotations(core) {
             sources: input.sources,
             derivation: input.derivation ?? null,
             note: input.note ?? '',
-            status: 'anchored',
           }),
     };
     if (isDocx) {
@@ -185,6 +194,20 @@ export function createAnnotations(core) {
         ? ['text', 'resolved']
         : ['kind', 'value', 'sources', 'derivation', 'note'])
         if (key in input) after[key] = input[key];
+    const locating =
+      after && item.status === 'lost' && ['blockId', 'from', 'to'].some((key) => key in input);
+    if (locating) {
+      const { block, quote } = selection(state, input);
+      Object.assign(after, {
+        blockId: block.id,
+        from: input.from,
+        to: input.to,
+        quote,
+        versionId: state.session.baseVersionId,
+        status: 'anchored',
+      });
+      if (docx) after.endBlockId = block.id;
+    }
     if (
       after?.type === 'index' &&
       (!Array.isArray(after.sources) ||
@@ -192,13 +215,18 @@ export function createAnnotations(core) {
         after.sources.some((entry) => entry?.schema !== 1))
     )
       throw new AppError('DESK_SOURCE_REQUIRED', '索引至少需要一个 schema 1 来源引用。');
-    const block = state.blocks.find((entry) => entry.id === item.blockId);
+    const block = state.blocks.find(
+      (entry) => entry.id === (locating ? after.blockId : item.blockId),
+    );
+    const writesDocument = docx && (locating || item.status !== 'lost');
     const inlines =
-      docx && remove
-        ? block.inlines.filter((inline) => commentIdentity(state.document, inline) !== id)
-        : block?.inlines;
+      docx && locating
+        ? addCommentMarkers(state.document, block, after)
+        : writesDocument && remove
+          ? block.inlines.filter((inline) => commentIdentity(state.document, inline) !== id)
+          : block?.inlines;
     const blocks =
-      docx && remove
+      writesDocument && (remove || locating)
         ? state.blocks.map((entry) => (entry.id === block.id ? { ...entry, inlines } : entry))
         : state.blocks;
     const annotations = [{ before: item, after }];
@@ -211,10 +239,10 @@ export function createAnnotations(core) {
       item: after,
       records: [
         {
-          blockId: item.blockId,
-          op: docx ? 'comment' : 'annotation',
-          before: docx ? block.inlines : null,
-          after: docx ? inlines : null,
+          blockId: locating ? after.blockId : item.blockId,
+          op: writesDocument ? 'comment' : 'annotation',
+          before: writesDocument ? block.inlines : null,
+          after: writesDocument ? inlines : null,
           annotations,
         },
       ],
@@ -230,7 +258,8 @@ export function createAnnotations(core) {
       for (const change of undo.annotations ?? []) {
         const item = change.after ?? change.before;
         const current = get(state, item.id) ?? null;
-        const content = (value) => value && { ...value, versionId: null };
+        const content = (value) =>
+          value && { ...value, status: value.status ?? 'anchored', versionId: null };
         if (!isDeepStrictEqual(content(current), content(change.after)))
           throw new AppError(
             'DESK_UNDO_BLOCKED',
@@ -241,7 +270,15 @@ export function createAnnotations(core) {
         (proposal.records[0].annotations ??= []).push({
           before: current,
           after: change.before
-            ? { ...change.before, versionId: state.session.baseVersionId }
+            ? {
+                ...change.before,
+                versionId:
+                  undo.op === 'annotation-lost'
+                    ? change.before.versionId
+                    : state.session.baseVersionId,
+                status:
+                  undo.op === 'annotation-lost' ? 'lost' : (change.before.status ?? 'anchored'),
+              }
             : null,
         });
       }
@@ -249,7 +286,7 @@ export function createAnnotations(core) {
     const ranges =
       state.document.format === 'docx' ? commentRanges(state.document, proposal.blocks) : new Map();
     for (const item of all(state)) {
-      if (explicit.has(item.id)) continue;
+      if (explicit.has(item.id) || item.status === 'lost') continue;
       const record = proposal.records.find((entry) => entry.blockId === item.blockId);
       if (!record) continue;
       const oldBlock = state.blocks.find((block) => block.id === item.blockId);
@@ -305,10 +342,13 @@ export function createAnnotations(core) {
         else state.comments.delete(item.id);
       }
   }
-  function reanchor(state) {
+  async function reanchor(state) {
     const records = [];
     for (const item of table.rows(state.session.groupId)) {
       const found = relocate(state.blocks, item, state.document.format !== 'docx');
+      // A user-restored lost record stays available until it can be located;
+      // ordinary edits must not reuse its old offsets against unrelated text.
+      if (!found && item.status === 'lost') continue;
       const block = found && state.blocks.find((entry) => entry.id === found.blockId);
       const after = found
         ? {
@@ -316,6 +356,7 @@ export function createAnnotations(core) {
             ...found,
             quote: quoteAt(annotationText(block), found.from, found.to),
             versionId: state.session.baseVersionId,
+            status: 'anchored',
             updatedAt: nowIso(),
           }
         : null;
@@ -324,7 +365,8 @@ export function createAnnotations(core) {
         item.blockId === after.blockId &&
         item.from === after.from &&
         item.to === after.to &&
-        item.versionId === after.versionId
+        item.versionId === after.versionId &&
+        item.status === after.status
       )
         continue;
       records.push({
@@ -335,7 +377,10 @@ export function createAnnotations(core) {
         annotations: [{ before: item, after }],
       });
     }
-    return { blocks: state.blocks, inserted: {}, records };
+    const proposal = { blocks: state.blocks, inserted: {}, records };
+    if (state.document.format === 'docx')
+      await recoverDocx(core, state, proposal, hydrate, history);
+    return proposal;
   }
   function inverse(state, record) {
     if (record.undoneBy) throw new AppError('DESK_UNDO_BLOCKED', '这条修改已撤回。', 409);

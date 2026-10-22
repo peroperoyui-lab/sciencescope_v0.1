@@ -92,7 +92,7 @@ export function createManuscriptTools(core, desk, approvals) {
       blocks: page.map((block) => ({
         ...visible(block),
         annotations: annotations
-          .filter((item) => item.blockId === block.id)
+          .filter((item) => item.status !== 'lost' && item.blockId === block.id)
           .map((item) => ({
             id: item.id,
             type: item.type,
