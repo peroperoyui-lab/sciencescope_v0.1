@@ -6,7 +6,8 @@ import { useEffect, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
-import { Icon } from '../icons.js';
+import { Icon, Lucide } from '../icons.js';
+import { deskEnabled, openDesk } from '../desk-window.js';
 import { renderMarkdown } from '../markdown.js';
 import { useSnapshotCapture } from '../resource-snapshots.js';
 import { openResourceHistory } from './resource-history.js';
@@ -409,7 +410,9 @@ function ResearchMap({ project }) {
 
 /** @param {{ projectId: string }} props */
 export function Workbench({ projectId }) {
+  const actions = useActions();
   const projects = useAppState((state) => state.projects);
+  const desk = deskEnabled(useAppState((state) => state.settings));
   const project = projects.find((p) => p.id === projectId);
   if (!project) {
     return html`<main class="main"><div class="empty">${t('找不到这个项目。')}</div></main>`;
@@ -425,13 +428,24 @@ export function Workbench({ projectId }) {
       >
         <${Icon} name="chat" />
       </button>
+      ${
+        desk &&
+        html`<button
+          class="ss-btn ss-btn--sm"
+          type="button"
+          data-tip=${t('在独立窗口打开编辑台，文件版本也在那里管理')}
+          onClick=${() => actions.attempt(() => openDesk({ projectId: project.id }))}
+        >
+          <${Lucide} name="file-pen" />${t('在编辑台打开')}
+        </button>`
+      }
     <//>
     <div class="mainbody">
       <div class="workbench">
         <${PlanStrip} project=${project} projects=${active} />
         <${JournalStrip} project=${project} />
-        <div class="wb-bottom">
-          <${Versions} project=${project} />
+        <div class=${desk ? 'wb-bottom wb-bottom--desk' : 'wb-bottom'}>
+          ${!desk && html`<${Versions} project=${project} />`}
           <${ResearchMap} project=${project} />
           <${ProjectFolder} project=${project} />
         </div>

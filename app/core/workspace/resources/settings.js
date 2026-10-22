@@ -64,6 +64,8 @@ export const DEFAULT_SETTINGS = {
     cards: { enabled: true, model: null },
   },
   desk: { tiers: ['草稿', '内部审阅', '投稿', '修回', '终稿'] },
+  // Features still being built; each turns on once its checks pass.
+  features: { editingDesk: false },
   // A cumulative input/output cost budget; null turns the budget off.
   memory: { enabled: true, idleMinutes: 10, model: null, tokenLimit: 100000 },
   // Summary thresholds trigger work; they never truncate the meeting record.

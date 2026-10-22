@@ -317,9 +317,10 @@ data/
 - 层级设置 `desk.tiers` 默认「草稿、内部审阅、投稿、修回、终稿」；标记版本只接受设置内的名称或空串。改名先在 SQLite 事务中更新版本，再通过原有 `workspace.edit` 保存设置；保存失败恢复此次改过的版本并报错，不做断电恢复。直接删除设置中的层级不改已有标记，仍显示原文字。编辑台生成的版本不自动整理说明，手动整理仍可用；后续导入也不会带动这些版本自动整理。
 - DOCX 段内读写服务（D2a，尚未接编辑界面）：制表符、换行和特殊字符前后的文字可改，超链接、smartTag、customXml、普通行内内容控件可改字并保留容器；引文控件、公式、已有修订和未知对象整体保留。内联项暴露 `run`、可选 `wrap` 和原子 `display`；块纯文本使用域缓存和公式线性文字，删除的修订文字不进入投影。格式标记为 `b/i/u/sup/sub`，识别关闭值，只读取直接格式，不展开字符样式；改字继承原格式，改标记只调整对应元素。仅重写改过的段落，其余段落和 ZIP 部件内容保持原字节。
 - DOCX 段落与批注服务（D2b，尚未接编辑界面）：`writeDocx(bytes, changes, {inserted, removed, comments})` 返回 `{bytes, inserted}`，其中 inserted 把调用方新块 id 映射到 `p:<paraId>`。支持段首/同层级插段、拆段和删段，继承段落与文字格式；新 paraId 在整个包内唯一。分节符段和表格单元格最后一段禁止删除，整次写回失败；跨段域继续整体只读。删除正文时保留并迁移书签、批注标记；调用方已把它们并进别的段落（退格合并两段）时不再迁移，同一个书签、批注、脚注、图片等对象出现在两个段落时整次写回报 `DOCX_DUPLICATE_ATOM`。批注读取作者/缩写/日期/正文、`range.from/to={blockId,index}`、`parentId` 和 `done`；支持 add/edit/delete，删父批注同时删回复及扩展元数据，回复和解决状态只读。英文期刊、博士论文和带域/公式/修订的受控副本已完成 Word/WPS 验收。
+- 编辑台窗口（U1，试用开关 `features.editingDesk` 默认关，在设置→常规打开）：打开后左栏「工作站」下面出现「编辑台」，工作站页头和项目文件预览有「在编辑台打开」，工作站左下角的文献版本管理撤掉、导图向左拉宽。编辑台是单独的窗口（桌面版原生窗口 `secondary-desk`，约 1440×900、最小 960×600；浏览器里是新标签页），所有项目共用一个，再次打开时切到前面并在新标签里打开指定文稿。窗口里有文稿标签（重开窗口时恢复）、功能区（开始、审阅、视图，可收起，Ctrl+F1）、左栏（项目切换、项目文件夹里的 docx/tex/md/pdf 按文件夹展开，加只在应用数据里的版本组；下面是大纲，点击跳到标题）、右侧栏（批注与索引、对话，目前是空状态）和底部信息栏（文件、最新版本、字数或页数、版本树按钮）。现在只能阅读：docx 显示正文、md 渲染或源码、tex 源码、PDF 可缩放翻页；编辑、批注、保存、比较、版本树按钮先停用。
 - 历史版本：AI 每轮发言结束、用户离开编辑页面、恢复之前，都会为改过的资源留一个历史版本；可只读预览、恢复或删除。工作区每次修改另有逐条修订，可撤销。
 
-**实现位置**：`app/core/workspace/`（`workspace.js` 读写与撤销，`snapshots.js` 历史版本，`resources/` 各资源格式）、`app/services/versions/`（`comparison.js` 比较、`organizer.js` 版本说明）、`app/services/journal-files.js`；界面 `app/ui/components/` 下的 `workbench.js`、`map-*.js`、`version*.js`、`resource-history.js`。
+**实现位置**：`app/core/workspace/`（`workspace.js` 读写与撤销，`snapshots.js` 历史版本，`resources/` 各资源格式）、`app/services/versions/`（`comparison.js` 比较、`organizer.js` 版本说明）、`app/services/journal-files.js`；界面 `app/ui/components/` 下的 `workbench.js`、`map-*.js`、`version*.js`、`resource-history.js`；编辑台窗口 `app/ui/desk-window.js`（打开与转交文稿）和 `app/ui/components/desk*.js`，原生窗口在 `src-tauri/src/main.rs` 的 `open_secondary_window`（`surface: 'desk'`）。
 
 **关键数据**：资源 `plans`、`map`、`log`、`notes`、`versions`；表 `revisions`、`resource_snapshots`、`log_file_references`（日志链接的可重建投影）、`version_groups`、`manuscript_versions`、`version_note_meetings`；`projects.auto_version_notes`；设置 `versionNotes.template`、`summary.workbench.versions`。
 
@@ -665,8 +666,8 @@ data/
 | 022  | `kb_entities`、`kb_edges`、`kb_labels`、`kb_memberships`、`kb_versions`、`kb_revisions`、`kb_jobs`；`rb_sources.folder_path`                 | 知识库实体、关系、标签、项目归属、修订与历史版本、后台任务（模型工具；表格页和节点详情） |
 | 023  | `rb_sources.file_size`、`file_mtime_ms`、`content_hash`                                                                                      | 项目文件的大小、修改时间和内容哈希，扫描时判断是否变化                                   |
 | 024  | `version_groups.source_path/format`；`manuscript_versions` 父版本、分支、层级、标签、标题、来源、哈希、会话；`desk_sessions`、`desk_changes` | 版本图与元数据；编辑会话表预建，尚无会话逻辑                                             |
-| 025  | `kb_entities.produced_from/evidence_json`；`kb_jobs.result_json/meeting_id/manual` | 论文卡片来源、证据和持久任务结果；卡片条目加入知识库版本快照与恢复 |
-| 026  | `kb_positions(ref,x,y,pinned,updated_at)` | 跨项目共享的图位置投影、用户钉住状态；可重算，不进历史版本 |
+| 025  | `kb_entities.produced_from/evidence_json`；`kb_jobs.result_json/meeting_id/manual`                                                           | 论文卡片来源、证据和持久任务结果；卡片条目加入知识库版本快照与恢复                       |
+| 026  | `kb_positions(ref,x,y,pinned,updated_at)`                                                                                                    | 跨项目共享的图位置投影、用户钉住状态；可重算，不进历史版本                               |
 
 ### 4.2 文件资源
 

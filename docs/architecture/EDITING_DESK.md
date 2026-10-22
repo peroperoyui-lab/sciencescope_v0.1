@@ -37,7 +37,7 @@
 
 ### 3.1 模块位置
 
-后端在 `app/services/desk/`：`index.js`（会话）、`docx/read.js`、`docx/write.js`、`docx/comments.js`、`tex.js`、`markdown.js`、`compare.js`、`bindings.js`、`compile.js`；路由 `app/server/routes/desk.js`。界面在 `app/ui/components/desk-*.js`，入口页 `app/ui/desk.html`（独立窗口加载它），编辑器依赖打进 `app/ui/readers/editor-vendor.js`。原生窗口沿用全局助手窗口的机制（`src-tauri/src/main.rs`）。
+后端在 `app/services/desk/`：`index.js`（会话）、`docx/read.js`、`docx/write.js`、`docx/comments.js`、`tex.js`、`markdown.js`、`compare.js`、`bindings.js`、`compile.js`；路由 `app/server/routes/desk.js`。界面在 `app/ui/components/desk*.js`，独立窗口用 `index.html?surface=desk` 加载（U1 定，不另建入口页），`app/ui/desk-window.js` 负责打开窗口和把文稿交给已开的窗口；编辑器依赖打进 `app/ui/readers/editor-vendor.js`。原生窗口沿用全局助手窗口的机制（`src-tauri/src/main.rs`，标签 `secondary-desk`，所有项目共用一个）。
 
 ### 3.2 文档模型
 
@@ -297,7 +297,7 @@ CREATE TABLE manuscript_bindings (
 | D3b **A** | tex、md 会话（块拆分、按块记修改）、文件列表、`enter`、图片字节、`desk.focus`                                       | Sol    | tex、md 各走一遍打开 → 改 → 撤回 → 保存 → 关闭                                      |
 | E1 **A**  | tex 渲染与公式编辑试验：LaTeX.js 对比自写转换、KaTeX、MathLive；md 往返                                             | Claude | 三份真实 tex（含中文、公式、表格）渲染对照截图，选定方案；md 改一处其余原文不变     |
 | U0 **A**  | 编辑台设计稿：窗口布局、docx、tex、md、pdf、比较、版本树、浮动工具条、右键菜单（2026-10-22 已出，画廊「编辑台」组） | Claude | 所有者认可                                                                          |
-| U1 **A**  | 窗口骨架、入口、左栏、底部栏、文稿标签、`features.editingDesk`，撤掉工作站版本管理                                  | Claude | 100%、125% 截图；开关关闭时无入口                                                   |
+| U1 ✅     | 窗口骨架、入口、左栏、底部栏、文稿标签、`features.editingDesk`，撤掉工作站版本管理                                  | Claude | 100%、125% 截图；开关关闭时无入口                                                   |
 | U2 **A**  | ProseMirror 编辑器、原子节点、块同步、Ctrl+S                                                                        | Claude | 浏览器测试：改字保存后重开一致                                                      |
 | D4 **A**  | `diffVersions`：段落配对加段内词级比较和格式改动；生成版本时后台算好存进版本，任意两版现算缓存                      | Sol    | 插段、删段、拆段、改词、改格式测试；生成版本后 `diff_json` 存在                     |
 | U3 **A**  | 比较视图：左右两页并排、同步滚动、上一处下一处，`version-diff.js` 改用新结果                                        | Claude | 截图；上一处、下一处可用                                                            |
@@ -307,7 +307,7 @@ CREATE TABLE manuscript_bindings (
 | U5 **A**  | 「批注与索引」侧栏、批注和索引跟着文字走的标记（全删才删、撤销一起恢复）、查看索引菜单、索引选择框                  | Claude | 场景 5、6 浏览器测试；删字和撤销的锚点测试                                          |
 | U6 **A**  | tex 源码加实时渲染、公式编辑框、md 两种视图、PDF 阅览与标记、编译按钮                                               | Claude | 场景 7、8 浏览器测试；无引擎时编译按钮停用有提示                                    |
 | D7 **A**  | 引擎检测、编译，输出放 `data/temp/`                                                                                 | Sol    | Windows 上 MiKTeX 编译 xeCJK 样例                                                   |
-| D8 **A**  | 编辑台原生窗口（沿用全局助手窗口机制）、`desk.focus` 调到前面                                                       | Sol    | 原生验收：开关、记住大小和位置、主窗口不锁定、点标记能切过去                        |
+| D8 **A**  | 编辑台原生窗口：U1 已加 `desk` 窗口和 `desk-open` 事件，D8 补记住大小和位置、`desk.focus` 调到前面                  | Sol    | 原生验收：开关、记住大小和位置、主窗口不锁定、点标记能切过去                        |
 | U7 **A**  | 版本分叉树侧栏：从上往下的树、信息栏、搜索、右键比较；工作站页面的按钮                                              | Claude | 场景 4 走通                                                                         |
 | U8 **A**  | 进入横条（接续或分支）、秘书悬浮按钮                                                                                | Claude | 场景 1 走通，分支后原对话不变                                                       |
 | D9        | Tectonic 按需下载                                                                                                   | Sol    | 视第 12 节第 4 条                                                                   |

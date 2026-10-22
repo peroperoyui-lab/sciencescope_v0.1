@@ -159,6 +159,7 @@ function PreferencesForm() {
   const [look, setLook] = useState({ ...LOOK_DEFAULTS, ...settings?.appearance });
   const [sendKey, setSendKey] = useState(settings?.composer?.sendKey ?? 'enter');
   const [hideWindow, setHideWindow] = useState(settings?.composer?.hideWindowOnScreenshot ?? true);
+  const [desk, setDesk] = useState(settings?.features?.editingDesk === true);
   const [fonts, setFonts] = useState(/** @type {string[]} */ ([]));
   const [fontStatus, setFontStatus] = useState('');
   const [feedback, setFeedback] = useState('');
@@ -186,6 +187,7 @@ function PreferencesForm() {
       actions.updateSettings({
         appearance: look,
         composer: { sendKey, hideWindowOnScreenshot: hideWindow },
+        features: { editingDesk: desk },
       }),
     );
     if (saved !== undefined) setFeedback(t('已保存并应用。'));
@@ -317,6 +319,19 @@ function PreferencesForm() {
       <select value=${String(look.scrollbars)} onChange=${setFlag('scrollbars')}>
         <option value="false">${t('自动隐藏')}</option>
         <option value="true">${t('始终显示')}</option>
+      </select>
+    <//>
+    <${SettingRow}
+      title=${t('编辑台（试用）')}
+      tip=${t('还在开发：打开后左栏「工作站」下面出现「编辑台」，工作站的文献版本管理换成「在编辑台打开」。现在只能阅读文稿。')}
+    >
+      <select
+        aria-label=${t('编辑台（试用）')}
+        value=${String(desk)}
+        onChange=${(event) => setDesk(event.currentTarget.value === 'true')}
+      >
+        <option value="false">${t('关闭')}</option>
+        <option value="true">${t('开启')}</option>
       </select>
     <//>
     <p role="status">${feedback}</p>

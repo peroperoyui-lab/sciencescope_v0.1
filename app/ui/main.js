@@ -11,6 +11,7 @@ import { createStore } from './state.js';
 import { applyAssistantStartup, installAssistantNavigation } from './assistant-window.js';
 import { AssistantWindow } from './components/assistant-panel.js';
 import { AssistantOrb } from './components/assistant-orb.js';
+import { DeskWindow } from './components/desk.js';
 import { Overlays } from './components/overlays.js';
 import { MarkSelection } from './components/mark-selection.js';
 import { installTooltips } from './floating.js';
@@ -19,6 +20,7 @@ const surface = new URLSearchParams(location.search).get('surface');
 if (surface === 'assistant-orb') document.documentElement.classList.add('native-orb');
 else {
   if (surface === 'assistant') document.documentElement.classList.add('assistant-panel');
+  if (surface === 'desk') document.documentElement.classList.add('desk-window');
   installWindowResize();
   installTooltips();
 }
@@ -35,7 +37,11 @@ try {
   } else {
     await actions.start();
     const page =
-      surface === 'assistant' ? html`<${AssistantWindow} /><${Overlays} />` : html`<${App} />`;
+      surface === 'assistant'
+        ? html`<${AssistantWindow} /><${Overlays} />`
+        : surface === 'desk'
+          ? html`<${DeskWindow} /><${Overlays} />`
+          : html`<${App} />`;
     render(
       html`<${AppContext.Provider} value=${{ store, actions }}>${page}<${MarkSelection} /><//>`,
       root,

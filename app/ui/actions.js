@@ -392,6 +392,7 @@ export function createActions(api, store) {
         applyAppearance(settings);
         set({ settings });
       }
+      return settings;
     } catch (error) {
       if (settingsWrites === write) {
         const settings = await api.get('/api/settings').catch(() => current);

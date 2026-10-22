@@ -20,7 +20,7 @@ import { renderMarkdown, renderFormula } from '../markdown.js';
  * @param {any} doc
  * @param {string} mode
  * @param {() => Promise<ArrayBuffer>} bytes
- * @returns {Promise<{dispose:()=>void,rows?:number,shown?:number}>}
+ * @returns {Promise<{dispose:()=>void,rows?:number,shown?:number,scrollToLine?:(line:number)=>void}>}
  */
 export async function mountDocument(surface, doc, mode, bytes) {
   surface.replaceChildren();
@@ -79,7 +79,15 @@ export async function mountDocument(surface, doc, mode, bytes) {
         ],
       }),
     });
-    return { dispose: () => editor.destroy() };
+    return {
+      dispose: () => editor.destroy(),
+      /** @param {number} number 1-based */
+      scrollToLine(number) {
+        const lines = editor.state.doc;
+        const line = lines.line(Math.max(1, Math.min(number, lines.lines)));
+        editor.dispatch({ effects: EditorView.scrollIntoView(line.from, { y: 'start' }) });
+      },
+    };
   }
   return { dispose() {} };
 }

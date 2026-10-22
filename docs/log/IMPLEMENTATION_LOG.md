@@ -1,5 +1,12 @@
 # 实施记录
 
+## 2026-10-22 编辑台 U1 窗口骨架（Claude）
+
+- 新设置 `features.editingDesk`（第一个功能开关，默认关，设置→常规可开）。开着时左栏「工作站」下有「编辑台」，工作站页头和文件预览有「在编辑台打开」，工作站的文献版本管理撤掉；关着时界面和以前一样。
+- 编辑台窗口：`?surface=desk` 加载同一个 `index.html`（不另建 `desk.html`），`app/ui/desk-window.js` 负责打开和把文稿交给已开的窗口（原生用 `desk-open` 事件，浏览器用 BroadcastChannel）。`main.rs` 加 `desk` 窗口：标签 `secondary-desk`，可带 `projectId` 和项目内 `path`，已开时发事件而不是新开；记住大小位置、原生验收仍归 D8。`cargo check` 通过（云端临时装 GTK 开发库、放占位图标，未提交）。
+- 骨架按画廊「编辑台」组做：文稿标签、功能区、左栏文件与大纲、页面、右侧栏、底部信息栏。U1 只读显示（沿用现有阅读器），编辑等 U2，文件列表等 D3b 的接口后换掉。新测试 `desk.browser.test.js`；截图在项目文件 `screenshots/desk-u1/`。
+- 顺手修一处回归：D2b 审阅时改的 `updateSettings` 不再返回保存结果，设置页点「保存并应用」后不显示「已保存并应用。」，现在恢复。
+
 ## 2026-10-22 编辑台设计稿 U0（Claude）
 
 - 画廊新增「编辑台」组：`PageDesk`、`PageDeskVersions`、`PageDeskTex`、`PageDeskMarkdown`、`PageDeskPdf`、`PageDeskCompare`、`DeskEntry`、`DeskMenus`，由 `build/desk/gen.py` 生成。

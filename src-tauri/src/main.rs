@@ -104,14 +104,18 @@ struct SecondaryRequest {
     toggle: bool,
     #[serde(default)]
     collapsed: bool,
+    /// The editing desk's document: a path inside the project folder.
+    #[serde(default)]
+    path: Option<String>,
 }
 
 fn surface_name(surface: &str) -> Result<&'static str, String> {
     match surface {
-        "assistant" | "map" | "browser" | "quick" => Ok(match surface {
+        "assistant" | "map" | "browser" | "quick" | "desk" => Ok(match surface {
             "assistant" => "assistant",
             "map" => "map",
             "browser" => "browser",
+            "desk" => "desk",
             _ => "quick",
         }),
         _ => Err("unsupported secondary surface".to_owned()),
@@ -124,6 +128,14 @@ fn safe_project_id(project_id: Option<&str>) -> Result<Option<&str>, String> {
         byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.')
     }) {
         return Err("invalid project id".to_owned());
+    }
+    Ok(Some(value))
+}
+
+fn safe_document_path(path: Option<&str>) -> Result<Option<&str>, String> {
+    let Some(value) = path else { return Ok(None) };
+    if value.is_empty() || value.len() > 1024 || value.chars().any(char::is_control) {
+        return Err("invalid document path".to_owned());
     }
     Ok(Some(value))
 }
@@ -268,17 +280,30 @@ async fn open_secondary_window(
     if surface == "quick" && project_id.is_none() {
         return Err("project id is required by the quick surface".to_owned());
     }
-    if !matches!(surface, "map" | "quick") && project_id.is_some() {
-        return Err("project id is only supported by map or quick surfaces".to_owned());
+    if !matches!(surface, "map" | "quick" | "desk") && project_id.is_some() {
+        return Err("project id is only supported by map, quick or desk surfaces".to_owned());
     }
-    let label = if let Some(project_id) = project_id {
+    let path = safe_document_path(request.path.as_deref())?;
+    if path.is_some() && (surface != "desk" || project_id.is_none()) {
+        return Err("a document path needs the desk surface and a project id".to_owned());
+    }
+    // One desk window for every project; it opens each document in a tab.
+    let label = if surface == "desk" {
+        "secondary-desk".to_owned()
+    } else if let Some(project_id) = project_id {
         format!("secondary-{surface}-{project_id}")
     } else {
         format!("secondary-{surface}")
     };
 
     if surface != "assistant" {
-        if let Some(existing)=app.get_webview_window(&label) {let _=existing.show();let _=existing.set_focus();return Ok(label);}
+        if let Some(existing)=app.get_webview_window(&label) {
+            let _=existing.show();let _=existing.set_focus();
+            if surface == "desk" {
+                let _ = app.emit_to(&label, "desk-open", serde_json::json!({ "projectId": project_id, "path": path }));
+            }
+            return Ok(label);
+        }
     }
     let base_url = app
         .try_state::<HostAccess>()
@@ -289,6 +314,9 @@ async fn open_secondary_window(
     url.query_pairs_mut().append_pair("surface", surface);
     if let Some(project_id) = project_id {
         url.query_pairs_mut().append_pair("projectId", project_id);
+    }
+    if let Some(path) = path {
+        url.query_pairs_mut().append_pair("path", path);
     }
     let assistant = surface == "assistant";
     if assistant {
@@ -346,24 +374,27 @@ async fn open_secondary_window(
     }
     let assistant_dimensions = app.state::<AssistantState>().dimensions_path.clone();
     let initial_dimensions = if assistant { read_assistant_dimensions(&assistant_dimensions) } else { AssistantDimensions { width: 800, height: 740 } };
-    WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(url))
+    let mut builder = WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(url))
         .initialization_script(api_initialization(&app))
         .devtools(false)
         .title(match surface {
             "assistant" => "ScienceScope · 全局助手",
             "map" => "ScienceScope · 研究导图",
             "browser" => "ScienceScope · 浏览器",
+            "desk" => "ScienceScope · 编辑台",
             _ => "ScienceScope · 快速聊天",
         })
-        .inner_size(if surface == "map" { 1260.0 } else { f64::from(initial_dimensions.width) }, if surface == "map" { 850.0 } else { f64::from(initial_dimensions.height) })
+        .inner_size(match surface { "map" => 1260.0, "desk" => 1440.0, _ => f64::from(initial_dimensions.width) }, match surface { "map" => 850.0, "desk" => 900.0, _ => f64::from(initial_dimensions.height) })
         .decorations(false)
         .transparent(assistant)
         .shadow(!assistant)
         .always_on_top(false)
         .resizable(true)
-        .data_directory(app.state::<WebviewDataDirectory>().0.clone())
-        .build()
-        .map_err(|error| format!("could not open secondary window: {error}"))?;
+        .data_directory(app.state::<WebviewDataDirectory>().0.clone());
+    if surface == "desk" {
+        builder = builder.min_inner_size(960.0, 600.0);
+    }
+    builder.build().map_err(|error| format!("could not open secondary window: {error}"))?;
     Ok(label)
 }
 

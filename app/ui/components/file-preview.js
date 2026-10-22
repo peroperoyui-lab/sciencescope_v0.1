@@ -3,6 +3,8 @@ import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
+import { deskEnabled, openDesk } from '../desk-window.js';
+import { deskKind } from './desk-nav.js';
 import { DocumentReader } from './document-reader.js';
 import { ChoiceMenu } from './popover.js';
 import { SidePanel } from './side-panel.js';
@@ -10,6 +12,7 @@ import { SidePanel } from './side-panel.js';
 export function FilePreview() {
   const actions = useActions();
   const target = useAppState((state) => state.previewTarget);
+  const desk = deskEnabled(useAppState((state) => state.settings));
   const [doc, setDoc] = useState(null);
   const [sources, setSources] = useState([]);
   const [error, setError] = useState('');
@@ -66,6 +69,20 @@ export function FilePreview() {
       >
         <${Lucide} name="external-link" /><span>${t('打开原件')}</span>
       </button>
+      ${
+        desk &&
+        target.kind === 'project' &&
+        deskKind(target.path ?? '') &&
+        html`<button
+          type="button"
+          class="ss-btn ss-btn--sm"
+          data-tip=${t('在独立窗口打开编辑台')}
+          onClick=${() =>
+            actions.attempt(() => openDesk({ projectId: target.projectId, path: target.path }))}
+        >
+          <${Lucide} name="file-pen" /><span>${t('在编辑台打开')}</span>
+        </button>`
+      }
     </div>
     ${error && html`<div class="ss-status ss-status--fail file-preview-error" role="alert">${error}</div>`}
     <div class="file-preview-content">

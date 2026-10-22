@@ -144,3 +144,11 @@
   width: 34px;
   height: 34px;
 }
+
+/* With the editing desk on, manuscript versions live in the desk and the map takes their place. */
+.wb-bottom.wb-bottom--desk {
+  grid-template-columns: minmax(240px, 1fr) minmax(175px, 220px);
+}
+.desk-window #app {
+  height: 100vh;
+}

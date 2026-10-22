@@ -12,6 +12,7 @@ import { FieldForm } from './overlays.js';
 import { ProjectSummary } from './project-summary.js';
 import { ProfileForm } from './shell.js';
 import { Splitter } from './splitter.js';
+import { deskEnabled, openDesk } from '../desk-window.js';
 
 const DEFAULT_WIDTH = 248;
 const MIN_WIDTH = 200;
@@ -470,6 +471,22 @@ export function Sidebar({ route, currentProjectId }) {
         peek &&
         peekProject &&
         html`<${ProjectSummary} project=${peekProject} onClose=${() => setPeek(false)} />`
+      }
+      ${
+        deskEnabled(settings) &&
+        html`<button
+          type="button"
+          class="ss-nav-item"
+          data-tip=${t('在独立窗口打开编辑台')}
+          data-tip-place="right"
+          onClick=${() =>
+            actions.attempt(() =>
+              openDesk({ projectId: currentProjectId ?? activeProjects[0]?.id ?? null }),
+            )}
+        >
+          <${Lucide} name="file-pen" /><span class="ss-nav-item__label">${t('编辑台')}</span
+          ><span class="ss-nav-item__end"><${Lucide} name="app-window" small /></span>
+        </button>`
       }
       <button type="button" class="ss-search-trigger" onClick=${actions.openPalette}>
         <${Lucide} name="search" /><span class="ss-search-trigger__label">${t('搜索与命令')}</span

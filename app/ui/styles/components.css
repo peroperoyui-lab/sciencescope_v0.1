@@ -5108,3 +5108,78 @@ button.ss-act__row:hover {
   border-left: 3px solid var(--line-strong);
   color: var(--ink-2);
 }
+/* The desk window in the app (U1): folder rows, the read-only readers inside the canvas. */
+.ss-desk-nav > .ss-desk-nav__files {
+  flex: 1 1 55%;
+}
+.ss-desk-nav > .ss-desk-nav__outline {
+  flex: 1 1 45%;
+  overflow: auto;
+}
+.ss-desk-nav__list {
+  min-height: 0;
+  overflow: auto;
+}
+.ss-desk-nav__project {
+  flex: none;
+  width: 100%;
+  margin-bottom: 4px;
+}
+.ss-desk-nav__note {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: 4px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+.ss-desk-nav__sub {
+  padding: 10px 8px 4px;
+  color: var(--faint);
+  font-size: 11px;
+}
+.ss-desk-nav__list .ss-desk-file {
+  padding-left: calc(8px + var(--lv, 0) * 14px);
+}
+.ss-desk-file--folder > .ss-i {
+  margin: 0 -2px;
+  color: var(--faint);
+}
+.ss-ribbon__hint,
+.ss-ribbon__page {
+  padding: 0 6px;
+  font-size: 12px;
+}
+.ss-ribbon__bar > .ss-tag {
+  margin-right: 6px;
+}
+.ss-desk-source,
+.ss-desk-pdf {
+  position: absolute;
+  inset: 0;
+}
+.ss-desk-source.reader-surface {
+  padding: 0;
+  background: var(--raised);
+}
+.ss-desk-canvas__state {
+  position: absolute;
+  inset: 0;
+  align-content: center;
+}
+.ss-desk-canvas__state .ss-empty__text {
+  max-width: 360px;
+}
+.ss-desk-panel .ss-panel__head {
+  padding-left: 8px;
+}
+.ss-desk-panel .ss-panel__head > .ss-tabs {
+  align-self: stretch;
+}
+.ss-page img {
+  max-width: 100%;
+}
+.ss-desk .ss-titlebar__title {
+  margin-right: 12px;
+}
