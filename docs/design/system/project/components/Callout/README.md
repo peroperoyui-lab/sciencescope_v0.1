@@ -2,7 +2,7 @@
 
 ## 结构
 
-`ss-callout`（版本 `--warn`、`--danger`、`--ok`、`--auto`）里放图标、`ss-callout__body`（`ss-callout__title` + 正文，细节放 `ss-callout__details` 并默认 `hidden`）和 `ss-callout__actions`（「查看」用 `data-toggle` 展开细节，✕ 关闭）。
+`ss-callout`（版本 `--warn`、`--danger`、`--ok`）里放图标、`ss-callout__body`（`ss-callout__title` + 正文，细节放 `ss-callout__details` 并默认 `hidden`）和 `ss-callout__actions`（「查看」用 `data-toggle` 展开细节，✕ 关闭）。
 
 ## 规则
 

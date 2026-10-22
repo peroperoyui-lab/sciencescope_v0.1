@@ -1,0 +1,99 @@
+<!-- @dsCard group="导航" height=520 subtitle="主窗口标题栏：菜单、当前项目、窗口置顶和窗口按钮；所有主窗口页面共用" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>TitleBar</title></head>
+<body>
+<div class="ds" style="gap:16px">
+  <div class="ds-col">
+    <span class="ds-label">主窗口：标志、四个菜单、当前项目名、窗口置顶、最小化、最大化、关闭</span>
+    <div class="ds-box" style="overflow:hidden"><header class="ss-titlebar">
+    <span class="ss-titlebar__brand"><i data-logo></i>ScienceScope</span>
+    <button class="ss-titlebar__menu" type="button" aria-haspopup="menu" data-menu="#m-tb-file">文件</button>
+    <button class="ss-titlebar__menu" type="button" aria-haspopup="menu" data-menu="#m-tb-edit">编辑</button>
+    <button class="ss-titlebar__menu" type="button" aria-haspopup="menu" data-menu="#m-tb-view">视图</button>
+    <button class="ss-titlebar__menu" type="button" aria-haspopup="menu" data-menu="#m-tb-help">帮助</button>
+    <span class="ss-titlebar__spacer"></span>
+    <span class="ss-titlebar__title">城市韧性研究</span>
+    <button class="ss-winctl ss-winctl--pin" type="button" aria-label="窗口置顶" aria-pressed="false" data-tip="窗口置顶"><i data-i="pin"></i></button>
+    <button class="ss-winctl" type="button" aria-label="最小化"><i data-i="minus"></i></button>
+    <button class="ss-winctl" type="button" aria-label="最大化"><i data-i="square"></i></button>
+    <button class="ss-winctl ss-winctl--close" type="button" aria-label="关闭"><i data-i="x"></i></button>
+  </header></div>
+  </div>
+  <div class="ds-col">
+    <span class="ds-label">窗口置顶打开：图钉变成主色并填充；提示改成「取消窗口置顶」</span>
+    <div class="ds-box" style="overflow:hidden"><header class="ss-titlebar">
+    <span class="ss-titlebar__brand"><i data-logo></i>ScienceScope</span>
+    <button class="ss-titlebar__menu" type="button" aria-haspopup="menu" data-menu="#m-tb-file">文件</button>
+    <button class="ss-titlebar__menu" type="button" aria-haspopup="menu" data-menu="#m-tb-edit">编辑</button>
+    <button class="ss-titlebar__menu" type="button" aria-haspopup="menu" data-menu="#m-tb-view">视图</button>
+    <button class="ss-titlebar__menu" type="button" aria-haspopup="menu" data-menu="#m-tb-help">帮助</button>
+    <span class="ss-titlebar__spacer"></span>
+    <span class="ss-titlebar__title">城市韧性研究</span>
+    <button class="ss-winctl ss-winctl--pin" type="button" aria-label="窗口置顶" aria-pressed="true" data-tip="取消窗口置顶"><i data-i="pin"></i></button>
+    <button class="ss-winctl" type="button" aria-label="最小化"><i data-i="minus"></i></button>
+    <button class="ss-winctl" type="button" aria-label="最大化"><i data-i="square"></i></button>
+    <button class="ss-winctl ss-winctl--close" type="button" aria-label="关闭"><i data-i="x"></i></button>
+  </header></div>
+  </div>
+  <div class="ds" style="grid-template-columns:auto 1fr;gap:24px;align-items:start;padding:0">
+    <div class="ds-col">
+      <span class="ds-label">「视图」菜单（窗口置顶也在这里，两处同步）</span>
+      <div class="ss-menu" style="position:static;width:240px">  <button class="ss-menu__item" type="button"><i data-i="layout-list"></i>全部对话<span class="ss-menu__end">Ctrl Shift K</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="box"></i>工作站</button>
+  <button class="ss-menu__item" type="button"><i data-i="file-pen"></i>编辑台</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="sparkle"></i>全局助手</button>
+  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="true" type="button"><i data-i="pin"></i>窗口置顶<i data-i="check" class="ss-menu__check"></i></button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="false" type="button">显示滚动条<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="true" type="button">简洁执行记录<i data-i="check" class="ss-menu__check"></i></button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="true" type="button">中文<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="false" type="button">English<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+    </div>
+    <div class="ds-col" style="max-width:420px">
+      <span class="ds-title">规则</span>
+      <p class="ds-note">所有主窗口页面用同一个标题栏；编辑台窗口用自己的标题栏（文稿标签页），右边同样有窗口置顶。</p>
+      <p class="ds-note">窗口置顶是设置（appearance.alwaysOnTop），重启后保留。</p>
+      <p class="ds-note">右侧写当前项目名；不在项目里时不写。</p>
+      <p class="ds-note">整条可以拖动窗口，按钮和菜单除外；双击最大化。</p>
+    </div>
+  </div>
+</div>
+<div class="ss-menu" id="m-tb-file" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="square-pen"></i>新对话<span class="ss-menu__end">Ctrl N</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="message-square"></i>独立快速对话<span class="ss-menu__end">Ctrl Alt N</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="folder-plus"></i>新建项目</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="download"></i>导出当前对话（Markdown）</button>
+  <button class="ss-menu__item" type="button"><i data-i="package"></i>导出项目快照</button>
+</div>
+<div class="ss-menu" id="m-tb-edit" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="search"></i>查找当前对话<span class="ss-menu__end">Ctrl F</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="search"></i>搜索与命令<span class="ss-menu__end">Ctrl K</span></button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="copy"></i>复制选中文字<span class="ss-menu__end">Ctrl C</span></button>
+</div>
+<div class="ss-menu" id="m-tb-view" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="layout-list"></i>全部对话<span class="ss-menu__end">Ctrl Shift K</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="box"></i>工作站</button>
+  <button class="ss-menu__item" type="button"><i data-i="file-pen"></i>编辑台</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="sparkle"></i>全局助手</button>
+  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="true" type="button"><i data-i="pin"></i>窗口置顶<i data-i="check" class="ss-menu__check"></i></button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="false" type="button">显示滚动条<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="true" type="button">简洁执行记录<i data-i="check" class="ss-menu__check"></i></button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="true" type="button">中文<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="false" type="button">English<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<div class="ss-menu" id="m-tb-help" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="keyboard"></i>键盘快捷键</button>
+  <button class="ss-menu__item" type="button"><i data-i="info"></i>关于 ScienceScope</button>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

@@ -1,5 +1,11 @@
 # 实施记录
 
+## 2026-10-22 主窗口设计稿统一外壳，补八张稿（Claude）
+
+- Yui 指出画廊没跟上：编辑台入口不在任何页面稿里，各页标题栏和左栏也不一致。新脚本 `build/shell/gen.py` 生成同一份标题栏（加窗口置顶，右侧写当前项目名）和左栏（工作站右边的简报按钮、工作站下面的编辑台入口、末尾全部对话、底部全局助手），换进所有主窗口整页稿；对话页头改成和应用一致（查找、项目置顶摘要 Alt S、任务秘书、⋯）。要在 `build/assemble.py` 之后运行。
+- 新增 `TitleBar`、`PageHome`、`PageAllChats`、`PageWorkbench`（含版本树侧栏，导图向左拉伸）、`PageMap`、`PageJournal`、`ProjectSummary`、`AssistantWindow`。原计划的「文献版本」页不做，编辑台的版本树和比较已经覆盖。
+- 删掉画廊里自动化的残留（Button、Callout、Composer、Menu、ModeMenu、Badge、PageChat）；样式表里的 `--auto` 类先留着。只改设计稿，没动应用代码，没跑测试。
+
 ## 2026-10-22 补回改版中丢失的窗口小功能，第一批（Claude）
 
 - Yui 请几个 Haiku 对比原型、旧桌面版、10-12 改版前新版和当前 main，回查报告 https://claude.ai/artifact/VxvRffJwPnRSfgxu2UP7J6 ，约 20 项没有决定就丢了。Yui 选先补第一批：输入框草稿按对话保存；客户端里屏蔽浏览器按键、右键菜单和误拖文件（`desktop-guard.js`，旧版 `desktop-behavior.mjs` 的做法）；F2 重命名；「查找当前对话」只在对话页可用；对话页头部恢复项目置顶摘要按钮和 `Alt+S`，摘要点外面关闭；「全部对话」行加对话菜单和置顶标记；新加窗口置顶（`appearance.alwaysOnTop`，权限 `core:window:allow-set-always-on-top`）。

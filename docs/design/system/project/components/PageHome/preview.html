@@ -1,0 +1,177 @@
+<!-- @dsCard group="整页示例" page height=900 width=1536 subtitle="首页（新对话）：问候、最近工作、常用学术站点，输入框在底部；页头选新对话放进哪个项目" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>PageHome</title></head>
+<body>
+<div class="ss-shell">
+  <header class="ss-titlebar">
+    <span class="ss-titlebar__brand"><i data-logo></i>ScienceScope</span>
+    <button class="ss-titlebar__menu" type="button" aria-haspopup="menu" data-menu="#m-tb-file">文件</button>
+    <button class="ss-titlebar__menu" type="button" aria-haspopup="menu" data-menu="#m-tb-edit">编辑</button>
+    <button class="ss-titlebar__menu" type="button" aria-haspopup="menu" data-menu="#m-tb-view">视图</button>
+    <button class="ss-titlebar__menu" type="button" aria-haspopup="menu" data-menu="#m-tb-help">帮助</button>
+    <span class="ss-titlebar__spacer"></span>
+    <span class="ss-titlebar__title">城市韧性研究</span>
+    <button class="ss-winctl ss-winctl--pin" type="button" aria-label="窗口置顶" aria-pressed="false" data-tip="窗口置顶"><i data-i="pin"></i></button>
+    <button class="ss-winctl" type="button" aria-label="最小化"><i data-i="minus"></i></button>
+    <button class="ss-winctl" type="button" aria-label="最大化"><i data-i="square"></i></button>
+    <button class="ss-winctl ss-winctl--close" type="button" aria-label="关闭"><i data-i="x"></i></button>
+  </header>
+  <div class="ss-shell__body">
+    <aside class="ss-sidebar">
+      <div class="ss-sidebar__top">
+        <button class="ss-nav-item" type="button" aria-current="page" data-tip="新对话" data-kbd="Ctrl N" data-tip-place="right"><i data-i="square-pen"></i><span class="ss-nav-item__label">新对话</span></button>
+        <button class="ss-nav-item" type="button" data-tip="收件箱里有 8 条记忆等你确认" data-tip-place="right"><i data-i="book-open"></i><span class="ss-nav-item__label">知识库</span><span class="ss-nav-item__end">8</span></button>
+        <div class="ss-nav-row"><button class="ss-nav-item" type="button"><i data-i="box"></i><span class="ss-nav-item__label">工作站</span></button><button class="ss-icon-btn" type="button" aria-label="工作站简报" data-tip="工作站简报：最近历史版本、日志" aria-expanded="false"><i data-i="clipboard-list"></i></button></div>
+        <button class="ss-nav-item" type="button" data-tip="在独立窗口打开编辑台" data-tip-place="right"><i data-i="file-pen"></i><span class="ss-nav-item__label">编辑台</span><span class="ss-nav-item__end"><i data-i="app-window" class="ss-i--sm"></i></span></button>
+        <button class="ss-search-trigger" type="button"><i data-i="search"></i><span class="ss-search-trigger__label">搜索与命令</span><span class="ss-kbd">Ctrl K</span></button>
+      </div>
+      <div class="ss-sidebar__scroll">
+        <div class="ss-side-section" style="margin-top:4px">
+          <div class="ss-side-section__head"><span>置顶</span></div>
+          <div class="ss-tree"><div class="ss-tree-row ss-tree-row--leaf" data-ctx="#m-side-chat"><span class="ss-tree-row__label">开题报告修改意见</span><span class="ss-tree-row__end">今天</span><span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-tip="更多" data-menu="#m-side-chat"><i data-i="ellipsis"></i></button></span></div></div>
+        </div>
+        <div class="ss-side-section">
+          <div class="ss-side-section__head"><span>项目</span><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="新建项目" data-tip="新建项目"><i data-i="plus"></i></button></div>
+          <div class="ss-tree">
+            <div class="ss-tree-row" aria-expanded="true" data-drop-target data-ctx="#m-side-project"><button class="ss-tree-row__twisty" type="button" aria-label="收起"><i data-i="chevron-down"></i></button><i data-i="folder-open"></i><span class="ss-tree-row__label">城市韧性研究</span><span class="ss-tree-row__end"></span><span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="在项目中新对话" data-tip="在项目中新对话"><i data-i="square-pen"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-tip="更多" data-menu="#m-side-project"><i data-i="ellipsis"></i></button></span></div>
+            <div class="ss-tree"><div class="ss-tree-row ss-tree-row--child" data-ctx="#m-side-chat"><span class="ss-tree-row__label">文献综述框架讨论</span><span class="ss-tree-row__end"><span class="ss-spin" aria-label="运行中"></span></span><span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-tip="更多" data-menu="#m-side-chat"><i data-i="ellipsis"></i></button></span></div><div class="ss-tree-row ss-tree-row--child" data-ctx="#m-side-chat"><span class="ss-tree-row__label">指标体系初稿</span><span class="ss-tree-row__end"><span class="ss-tree-row__state ss-tree-row__state--warn" data-tip="等你批准" data-tip-place="right"><i data-i="shield-question-mark" class="ss-i--sm"></i>待批准</span></span><span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-tip="更多" data-menu="#m-side-chat"><i data-i="ellipsis"></i></button></span></div><div class="ss-tree-row ss-tree-row--child" data-ctx="#m-side-chat"><span class="ss-tree-row__label">面板数据清洗</span><span class="ss-tree-row__end"><span class="ss-tree-row__state ss-tree-row__state--danger" data-tip="上次回答失败，点开查看" data-tip-place="right"><i data-i="circle-alert" class="ss-i--sm"></i>失败</span></span><span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-tip="更多" data-menu="#m-side-chat"><i data-i="ellipsis"></i></button></span></div><div class="ss-tree-row ss-tree-row--child" data-ctx="#m-side-chat"><span class="ss-tree-row__label">问卷题项对照</span><span class="ss-tree-row__end">3 天</span><span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-tip="更多" data-menu="#m-side-chat"><i data-i="ellipsis"></i></button></span></div><div class="ss-tree-row ss-tree-row--child" data-ctx="#m-side-chat"><span class="ss-tree-row__label">访谈提纲</span><span class="ss-tree-row__end">1 周</span><span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-tip="更多" data-menu="#m-side-chat"><i data-i="ellipsis"></i></button></span></div><button class="ss-tree-more" type="button">还有 4 个</button></div>
+            <div class="ss-tree-row" aria-expanded="false" data-drop-target data-ctx="#m-side-project"><button class="ss-tree-row__twisty" type="button" aria-label="展开"><i data-i="chevron-down"></i></button><i data-i="folder"></i><span class="ss-tree-row__label">劳动保障政策演化</span><span class="ss-tree-row__end"><span class="ss-spin" aria-label="里面有对话在运行" data-tip="里面有对话在运行" data-tip-place="right"></span></span><span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="在项目中新对话" data-tip="在项目中新对话"><i data-i="square-pen"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-tip="更多" data-menu="#m-side-project"><i data-i="ellipsis"></i></button></span></div>
+            <div class="ss-tree" hidden></div>
+          </div>
+        </div>
+        <div class="ss-side-section">
+          <div class="ss-side-section__head"><span>独立对话</span></div>
+          <div class="ss-tree"><div class="ss-tree-row ss-tree-row--leaf" data-ctx="#m-side-chat" draggable="true" data-drag="chat"><span class="ss-tree-row__label">参考文献格式整理</span><span class="ss-tree-row__end"><span class="ss-tree-row__state" data-tip="排在当前回答之后" data-tip-place="right"><i data-i="clock" class="ss-i--sm"></i>排队</span></span><span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-tip="更多" data-menu="#m-side-chat"><i data-i="ellipsis"></i></button></span></div><div class="ss-tree-row ss-tree-row--leaf" data-ctx="#m-side-chat" draggable="true" data-drag="chat"><span class="ss-tree-row__label">Zipf 定律推导</span><span class="ss-tree-row__end">3 天</span><span class="ss-tree-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-tip="更多" data-menu="#m-side-chat"><i data-i="ellipsis"></i></button></span></div></div>
+        </div>
+        <button class="ss-side-all" type="button"><i data-i="layout-list"></i><span>全部对话</span><span class="ss-kbd">Ctrl Shift K</span></button>
+      </div>
+      <div class="ss-sidebar__foot">
+        <button class="ss-user" type="button" data-tip="个人资料"><span class="ss-avatar ss-avatar--lg ss-avatar--user">Y</span><span class="ss-truncate">Yui</span></button>
+        <button class="ss-icon-btn" type="button" aria-label="全局助手" data-tip="全局助手"><i data-i="sparkle"></i></button>
+        <button class="ss-icon-btn" type="button" aria-label="设置" data-tip="设置" data-kbd="Ctrl ,"><i data-i="settings"></i></button>
+      </div>
+      <div class="ss-splitter ss-splitter--end" data-min="200" data-max="360" data-default="248"></div>
+    </aside>
+    <main class="ss-main">
+      <div class="ss-header">
+        <div class="ss-header__title"><span>新对话</span></div>
+        <button class="ss-select ss-select--ghost" type="button" aria-haspopup="menu" data-menu="#m-where"><i data-i="folder-open"></i><span class="ss-select__value" data-slot="value">城市韧性研究</span><i data-i="chevron-down"></i></button>
+        <div class="ss-header__actions"></div>
+      </div>
+      <div class="ss-content">
+        <div class="ss-home">
+          <div class="ss-home__hello">
+            <svg class="ss-art" viewBox="0 0 160 120" aria-hidden="true" focusable="false"><ellipse class="ss-art__ground" cx="80" cy="104" rx="58" ry="6"/><path class="ss-art__dash" d="M47 55Q56 60 62 66M113 55Q104 60 98 66M80 40V48"/><path class="ss-art__paper ss-art__line" d="M42 98V66Q61 60 80 66Q99 60 118 66V98Q99 92 80 98Q61 92 42 98Z"/><path class="ss-art__line" d="M80 66V98M50 74Q60 71 72 73M50 81Q60 78 72 80M50 88Q58 86 66 87M88 73Q100 71 110 74M88 80Q100 78 110 81"/><circle class="ss-art__paper ss-art__line" cx="40" cy="36" r="5"/><path class="ss-art__paper ss-art__line" d="M31 51q9-11 18 0"/><circle class="ss-art__soft ss-art__accent-line" cx="80" cy="20" r="5.5"/><path class="ss-art__soft ss-art__accent-line" d="M70 36q10-12 20 0"/><circle class="ss-art__paper ss-art__line" cx="120" cy="36" r="5"/><path class="ss-art__paper ss-art__line" d="M111 51q9-11 18 0"/><path class="ss-art__accent" d="M80 50C80.72 55.28 80.72 55.28 86 56C80.72 56.72 80.72 56.72 80 62C79.28 56.72 79.28 56.72 74 56C79.28 55.28 79.28 55.28 80 50Z"/></svg>
+            <h1 style="margin:0;font-size:22px;line-height:30px;font-weight:600">今天想研究什么？</h1>
+            <p class="ss-muted" style="margin:0;font-size:13px">Yui，从一个问题开始，和你的研究小组一起推进。</p>
+          </div>
+          <section>
+            <div class="ss-block-head"><span class="ss-block-head__title">最近工作</span><span class="ss-block-head__end"><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">全部对话<i data-i="chevron-right"></i></button></span></div>
+            <div class="ss-list"><div class="ss-list-row ss-list-row--2" data-ctx="#m-side-chat"><i data-i="message-square" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">文献综述框架讨论</span><span class="ss-list-row__sub">城市韧性研究</span></div><span class="ss-spin" aria-label="运行中"></span><span class="ss-list-row__meta ss-list-row__meta--time">16:24</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="对话菜单" data-tip="对话菜单" data-menu="#m-side-chat"><i data-i="ellipsis"></i></button></span></div><div class="ss-list-row ss-list-row--2" data-ctx="#m-side-chat"><i data-i="message-square" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">指标体系初稿</span><span class="ss-list-row__sub">城市韧性研究</span></div><span class="ss-tag ss-tag--warn">待批准</span><span class="ss-list-row__meta ss-list-row__meta--time">15:02</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="对话菜单" data-tip="对话菜单" data-menu="#m-side-chat"><i data-i="ellipsis"></i></button></span></div><div class="ss-list-row ss-list-row--2" data-ctx="#m-side-chat"><i data-i="message-square" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">参考文献格式整理</span><span class="ss-list-row__sub">独立对话</span></div><span class="ss-list-row__meta ss-list-row__meta--time">昨天</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="对话菜单" data-tip="对话菜单" data-menu="#m-side-chat"><i data-i="ellipsis"></i></button></span></div><div class="ss-list-row ss-list-row--2" data-ctx="#m-side-chat"><i data-i="message-square" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">面板数据清洗</span><span class="ss-list-row__sub">城市韧性研究</span></div><span class="ss-tag ss-tag--danger">失败</span><span class="ss-list-row__meta ss-list-row__meta--time">10-20</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="对话菜单" data-tip="对话菜单" data-menu="#m-side-chat"><i data-i="ellipsis"></i></button></span></div><div class="ss-list-row ss-list-row--2" data-ctx="#m-side-chat"><i data-i="message-square" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">政策文本编码规则</span><span class="ss-list-row__sub">劳动保障政策演化</span></div><span class="ss-list-row__meta ss-list-row__meta--time">10-19</span><span class="ss-list-row__actions"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="对话菜单" data-tip="对话菜单" data-menu="#m-side-chat"><i data-i="ellipsis"></i></button></span></div></div>
+          </section>
+          <section>
+            <div class="ss-block-head"><span class="ss-block-head__title">常用学术站点</span><span class="ss-block-head__end"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="管理站点" data-tip="管理站点"><i data-i="settings"></i></button></span></div>
+            <div class="ss-home__sites"><button class="ss-btn ss-btn--sm" type="button" data-ctx="#m-site" data-tip="scholar.google.com"><i data-i="globe"></i>Google Scholar</button><button class="ss-btn ss-btn--sm" type="button" data-ctx="#m-site" data-tip="cnki.net"><i data-i="globe"></i>中国知网</button><button class="ss-btn ss-btn--sm" type="button" data-ctx="#m-site" data-tip="webofscience.com"><i data-i="globe"></i>Web of Science</button><button class="ss-btn ss-btn--sm" type="button" data-ctx="#m-site" data-tip="arxiv.org"><i data-i="globe"></i>arXiv</button><button class="ss-btn ss-btn--sm" type="button" data-ctx="#m-site" data-tip="stats.gov.cn"><i data-i="globe"></i>国家统计局</button><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="plus"></i>添加站点</button></div>
+          </section>
+        </div>
+      </div>
+      <div class="ss-composer-wrap">
+        <div class="ss-composer">
+          <textarea class="ss-composer__input" rows="1" placeholder="问一个研究问题，输入 @ 叫其他专家"></textarea>
+          <div class="ss-composer__bar">
+            <button class="ss-icon-btn" type="button" aria-label="添加文件或资料" data-tip="添加文件或资料"><i data-i="plus"></i></button>
+            <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" aria-haspopup="menu" data-menu="#m-mode" data-tip="执行方式"><i data-i="shield-check"></i><span data-slot="value">请求批准</span><i data-i="chevron-down"></i></button>
+            <span class="ss-composer__spacer"></span>
+            <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" data-tip="模型和思考强度">deepseek-v4-pro · 中<i data-i="chevron-down"></i></button>
+            <button class="ss-send" type="button" aria-label="发送" disabled><i data-i="arrow-up"></i></button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+  </div>
+  <footer class="ss-statusbar">
+    <span class="ss-statusbar__item"><span class="ss-dot ss-dot--ok"></span>已连接</span>
+    <span class="ss-statusbar__item">项目文件夹 D:\研究\城市韧性</span>
+    <span class="ss-statusbar__spacer"></span>
+    <span class="ss-statusbar__item">Python 3.12（项目环境）</span>
+  </footer>
+</div>
+<div class="ss-menu" id="m-where" hidden>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="true" data-label="城市韧性研究" type="button"><i data-i="folder-open"></i>城市韧性研究<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="劳动保障政策演化" type="button"><i data-i="folder"></i>劳动保障政策演化<i data-i="check" class="ss-menu__check"></i></button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" role="menuitemradio" aria-checked="false" data-label="独立对话（不放进项目）" type="button"><i data-i="message-square"></i>独立对话（不放进项目）<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<div class="ss-menu" id="m-site" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="external-link"></i>打开站点</button>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>编辑站点</button>
+  <button class="ss-menu__item" type="button"><i data-i="chevron-up"></i>上移</button>
+  <button class="ss-menu__item" type="button"><i data-i="chevron-down"></i>下移</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>移除站点</button>
+</div>
+<div class="ss-menu" id="m-mode" hidden style="width:300px">
+  <button class="ss-menu__item ss-menu__item--rich" role="menuitemradio" aria-checked="true" type="button" data-label="请求批准" data-icon="shield-check"><i data-i="shield-check"></i><span class="ss-menu__text"><span>请求批准</span><span class="ss-menu__desc">运行命令、写入项目文件夹、安装包之前先问你</span></span><i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item ss-menu__item--rich" role="menuitemradio" aria-checked="false" type="button" data-label="常规" data-icon="play"><i data-i="play"></i><span class="ss-menu__text"><span>常规</span><span class="ss-menu__desc">直接执行，不逐条询问，随时可以停止</span></span><i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<!-- shell menus: build/shell/gen.py -->
+<div class="ss-menu" id="m-tb-file" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="square-pen"></i>新对话<span class="ss-menu__end">Ctrl N</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="message-square"></i>独立快速对话<span class="ss-menu__end">Ctrl Alt N</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="folder-plus"></i>新建项目</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="download"></i>导出当前对话（Markdown）</button>
+  <button class="ss-menu__item" type="button"><i data-i="package"></i>导出项目快照</button>
+</div>
+<div class="ss-menu" id="m-tb-edit" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="search"></i>查找当前对话<span class="ss-menu__end">Ctrl F</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="search"></i>搜索与命令<span class="ss-menu__end">Ctrl K</span></button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="copy"></i>复制选中文字<span class="ss-menu__end">Ctrl C</span></button>
+</div>
+<div class="ss-menu" id="m-tb-view" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="layout-list"></i>全部对话<span class="ss-menu__end">Ctrl Shift K</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="box"></i>工作站</button>
+  <button class="ss-menu__item" type="button"><i data-i="file-pen"></i>编辑台</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="sparkle"></i>全局助手</button>
+  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="false" type="button"><i data-i="pin"></i>窗口置顶<i data-i="check" class="ss-menu__check"></i></button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="false" type="button">显示滚动条<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="true" type="button">简洁执行记录<i data-i="check" class="ss-menu__check"></i></button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="true" type="button">中文<i data-i="check" class="ss-menu__check"></i></button>
+  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="false" type="button">English<i data-i="check" class="ss-menu__check"></i></button>
+</div>
+<div class="ss-menu" id="m-tb-help" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="keyboard"></i>键盘快捷键</button>
+  <button class="ss-menu__item" type="button"><i data-i="info"></i>关于 ScienceScope</button>
+</div>
+<div class="ss-menu" id="m-side-chat" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>重命名<span class="ss-menu__end">F2</span></button>
+  <button class="ss-menu__item" type="button"><i data-i="pin"></i>置顶</button>
+  <button class="ss-menu__item" type="button" data-menu="#m-side-move"><i data-i="folder"></i>移到项目…</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button" aria-disabled="true"><i data-i="archive"></i>归档（运行中不能归档）</button>
+</div>
+<div class="ss-menu" id="m-side-move" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="folder"></i>城市韧性研究</button>
+  <button class="ss-menu__item" type="button"><i data-i="folder"></i>劳动保障政策演化</button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="message-square"></i>移出项目，变成独立对话</button>
+</div>
+<div class="ss-menu" id="m-side-project" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="square-pen"></i>在项目中新对话</button>
+  <button class="ss-menu__item" type="button"><i data-i="box"></i>打开工作站</button>
+  <button class="ss-menu__item" type="button"><i data-i="folder-open"></i>打开项目文件夹</button>
+  <button class="ss-menu__item" type="button"><i data-i="pin"></i>置顶</button>
+  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>重命名<span class="ss-menu__end">F2</span></button>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button"><i data-i="archive"></i>归档项目</button>
+</div>
+<!-- /shell menus -->
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

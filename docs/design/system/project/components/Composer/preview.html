@@ -1,4 +1,4 @@
-<!-- @dsCard group="对话" height=440 subtitle="输入框：执行方式、上下文用量、模型和思考强度都在底栏；发送和停止是同一个按钮" -->
+<!-- @dsCard group="对话" height=316 subtitle="输入框：执行方式、上下文用量、模型和思考强度都在底栏；发送和停止是同一个按钮" -->
 <!doctype html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><title>Composer</title></head>
@@ -32,18 +32,6 @@
       <button class="ss-send" type="button" aria-label="停止" data-tip="停止" data-kbd="Esc" data-state="running" data-send-demo><span class="ss-send__stop"></span></button>
     </div>
   </div>
-  <span class="ds-label">自动化：边框和执行方式变成暗红色</span>
-  <div class="ss-composer" data-mode="auto" style="margin:0;max-width:760px">
-    <textarea class="ss-composer__input" rows="1" placeholder="说明目标，专家会持续工作直到完成" aria-label="消息"></textarea>
-    <div class="ss-composer__bar">
-      <button class="ss-icon-btn" type="button" aria-label="添加" data-tip="添加文件或资料"><i data-i="plus"></i></button>
-      <button class="ss-btn ss-btn--auto ss-btn--sm" type="button" data-tip="执行方式"><i data-i="zap"></i><span>自动化</span><i data-i="chevron-down"></i></button>
-      <span class="ss-composer__spacer"></span>
-      <span data-tip="上下文已用 12%"><i data-ring="12"></i></span>
-      <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" data-tip="模型和思考强度">deepseek-v4-flash · 关闭<i data-i="chevron-down"></i></button>
-      <button class="ss-send" type="button" aria-label="发送" disabled><i data-i="arrow-up"></i></button>
-    </div>
-  </div>
 </div>
 <div class="ss-menu" id="m-add" hidden>
   <button class="ss-menu__item" type="button"><i data-i="paperclip"></i>添加文件<span class="ss-menu__end">Ctrl U</span></button>
@@ -53,7 +41,6 @@
 <div class="ss-menu" id="m-mode1" hidden style="width:300px">
   <button class="ss-menu__item ss-menu__item--rich" role="menuitemradio" aria-checked="true" type="button" data-label="请求批准" data-icon="shield-check" data-mode="" data-trigger-class="ss-btn ss-btn--ghost ss-btn--sm"><i data-i="shield-check"></i><span class="ss-menu__text"><span>请求批准</span><span class="ss-menu__desc">运行命令、写入项目文件夹、安装包之前先问你</span></span><i data-i="check" class="ss-menu__check"></i></button>
   <button class="ss-menu__item ss-menu__item--rich" role="menuitemradio" aria-checked="false" type="button" data-label="常规" data-icon="play" data-mode="" data-trigger-class="ss-btn ss-btn--ghost ss-btn--sm"><i data-i="play"></i><span class="ss-menu__text"><span>常规</span><span class="ss-menu__desc">直接执行，随时可以停止</span></span><i data-i="check" class="ss-menu__check"></i></button>
-  <button class="ss-menu__item ss-menu__item--rich ss-menu__item--auto" role="menuitemradio" aria-checked="false" type="button" data-label="自动化" data-icon="zap" data-mode="auto" data-trigger-class="ss-btn ss-btn--auto ss-btn--sm"><i data-i="zap"></i><span class="ss-menu__text"><span>自动化</span><span class="ss-menu__desc">按目标持续工作，直到完成或你停止</span></span><i data-i="check" class="ss-menu__check"></i></button>
 </div>
 <script>window.SS && SS.mount(document.body)</script>
 </body>
