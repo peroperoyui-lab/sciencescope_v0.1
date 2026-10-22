@@ -10,10 +10,17 @@ const markerTags = new Set([
   'w:bookmarkEnd',
 ]);
 
-function markers(document, block) {
+// Atoms without an identity of their own may be copied; the rest must stay unique.
+const copyable = new Set(['tab', 'break', 'symbol']);
+
+function markers(document, block, kept) {
   return document.spans
     .filter(
-      (span) => span.start >= block.start && span.end <= block.end && markerTags.has(span.tag),
+      (span) =>
+        span.start >= block.start &&
+        span.end <= block.end &&
+        markerTags.has(span.tag) &&
+        !kept.has(span.index),
     )
     .map((span) => {
       if (span.tag !== 'w:commentReference') return document.raw(span);
@@ -93,10 +100,28 @@ export function planBlocks(document, changes, options) {
       );
   }
   const retained = document.blocks.filter((block) => !removed.has(block.id));
+  // A removed paragraph's markers move to a neighbour unless the caller kept
+  // them in some paragraph's new inlines (joining two paragraphs does).
+  const final = [
+    ...retained.map((block) => changes[block.id] ?? block.inlines),
+    ...inserted.map((record) => record.inlines ?? []),
+  ];
+  const used = new Set();
+  const kept = new Set();
+  for (const inline of final.flat()) {
+    if (!inline.atom || inline.ref == null) continue;
+    const atom = document.atoms[inline.ref];
+    if (!atom || copyable.has(inline.atom)) continue;
+    if (used.has(inline.ref))
+      throw new AppError('DOCX_DUPLICATE_ATOM', 'An inline object would appear twice');
+    used.add(inline.ref);
+    if (atom.index != null)
+      for (let index = atom.index; index < (atom.after ?? atom.index + 1); index++) kept.add(index);
+  }
   const moved = new Map();
   for (const id of removed) {
     const block = byId.get(id);
-    const content = markers(document, block);
+    const content = markers(document, block, kept);
     if (!content) continue;
     const next = retained.find((item) => item.start > block.start);
     const target = next ?? retained.findLast((item) => item.start < block.start);

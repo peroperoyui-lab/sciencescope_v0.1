@@ -315,3 +315,44 @@ test('adding a comment to an inserted paragraph records caller initials and vali
   for (const part of ['commentsExtended.xml', 'commentsIds.xml'])
     assert.ok((await after.zip.file('word/' + part).async('string')).includes(comment.paraId));
 });
+
+test('merging a paragraph into the previous one keeps each marker once', async (t) => {
+  const { bytes, before } = await fixture(
+    t,
+    paragraph('00112233', '前一段') + `<w:p w14:paraId="00112234">${properties}${markers}</w:p>`,
+    true,
+  );
+  const [first, second] = before.blocks;
+  // Backspace at the start of the second paragraph: its content joins the first.
+  const result = await writeDocx(
+    bytes,
+    { [first.id]: [...first.inlines, ...second.inlines] },
+    { removed: [second.id] },
+  );
+  const xml = await (await JSZip.loadAsync(result.bytes)).file('word/document.xml').async('string');
+  const count = (tag) => indexXml(xml).filter((span) => span.tag === tag).length;
+  for (const tag of [
+    'w:bookmarkStart',
+    'w:bookmarkEnd',
+    'w:commentRangeStart',
+    'w:commentRangeEnd',
+    'w:commentReference',
+  ])
+    assert.equal(count(tag), 1, tag);
+  const after = await readDocx(result.bytes);
+  assert.equal(after.blocks.length, 1);
+  assert.equal(after.comments.find((comment) => comment.id === '1').range.from.blockId, first.id);
+});
+
+test('copying a bookmark or comment marker into a second paragraph is refused', async (t) => {
+  const { bytes, before } = await fixture(
+    t,
+    `<w:p w14:paraId="00112234">${properties}${markers}</w:p>`,
+    true,
+  );
+  const [block] = before.blocks;
+  await assert.rejects(
+    writeDocx(bytes, {}, { inserted: [{ after: block.id, id: 'copy', inlines: block.inlines }] }),
+    { code: 'DOCX_DUPLICATE_ATOM' },
+  );
+});

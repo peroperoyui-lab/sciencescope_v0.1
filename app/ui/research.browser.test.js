@@ -274,6 +274,36 @@ test(
     }),
 );
 
+test(
+  'the sidebar reopens a just-chosen scope while the setting is still saving',
+  { skip: browserSkip },
+  () =>
+    run('scope-race', async ({ page, app }) => {
+      const project = await app.core.projects.create({ name: '城市就业研究' });
+      await page.locator('.ss-sidebar .ss-tree-row__open', { hasText: project.name }).waitFor();
+      // Hold every settings save until the sidebar has been clicked.
+      /** @type {(value?: unknown) => void} */
+      let release = () => {};
+      const held = new Promise((resolve) => (release = resolve));
+      await page.route('**/api/settings', async (route) => {
+        if (route.request().method() === 'PATCH') await held;
+        await route.continue();
+      });
+      await page.evaluate((id) => (location.hash = '#/database/' + id), project.id);
+      await page.locator('.research-base .ss-header__title', { hasText: '数据库' }).waitFor();
+      await page.evaluate(() => (location.hash = '#/'));
+      await page.locator('.ss-sidebar [data-route="database"]').click();
+      await page.locator('.research-base .ss-header__title', { hasText: '数据库' }).waitFor();
+      release();
+      await page.waitForFunction(async () => {
+        const response = await fetch('/api/settings', {
+          headers: { authorization: 'Bearer ui-token' },
+        });
+        return (await response.json()).appearance.knowledgeScope === 'project';
+      });
+    }),
+);
+
 test('pin and archive filters preserve item history', { skip: browserSkip }, () =>
   run('item-status', async ({ page, app }) => {
     const project = await openProject(page, app, 'global');

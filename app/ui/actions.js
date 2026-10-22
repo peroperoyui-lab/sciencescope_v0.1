@@ -365,11 +365,41 @@ export function createActions(api, store) {
     return focusChanges;
   }
 
+  // Settings show the change at once and save in order: a page that navigates
+  // by a just-saved setting (the knowledge scope) must not read the old value,
+  // and an earlier response must not overwrite a later one.
+  let settingsWrites = Promise.resolve();
+  const isPlain = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const mergeSettings = (base, patch) => {
+    const result = { ...base };
+    for (const [key, value] of Object.entries(patch))
+      result[key] = isPlain(value) && isPlain(base[key]) ? mergeSettings(base[key], value) : value;
+    return result;
+  };
   /** @param {Record<string, any>} changes */
   async function updateSettings(changes) {
-    const settings = await api.patch('/api/settings', changes);
-    applyAppearance(settings);
-    set({ settings });
+    const current = store.get().settings;
+    if (current) {
+      const next = mergeSettings(current, changes);
+      applyAppearance(next);
+      set({ settings: next });
+    }
+    const write = settingsWrites.catch(() => {}).then(() => api.patch('/api/settings', changes));
+    settingsWrites = write;
+    try {
+      const settings = await write;
+      if (settingsWrites === write) {
+        applyAppearance(settings);
+        set({ settings });
+      }
+    } catch (error) {
+      if (settingsWrites === write) {
+        const settings = await api.get('/api/settings').catch(() => current);
+        applyAppearance(settings);
+        set({ settings });
+      }
+      throw error;
+    }
   }
 
   /** @param {string} resource @param {string} key */
