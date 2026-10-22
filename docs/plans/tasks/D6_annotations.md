@@ -25,7 +25,7 @@
    - `manuscript_comments`（tex、md、pdf 的批注）照 §6.3，同样加 `block_from`、`block_to`。docx 的批注不进这张表，读写都走 D2b（批注本身在文稿里，范围由 `comment-start`、`comment-end` 原子标出）。
    - 两张表都按版本组（`group_id`）存，记最后一次定位所在的版本（`version_id`）。
 2. **统一的读写**（`app/services/desk/` 新文件，比如 `annotations.js`）：对外只有「批注」和「索引」两种，格式差别藏在里面。
-   - 列表：`GET /api/desk/sessions/:id/annotations` → `{ items:[{ id, type:'comment'|'index', blockId, from, to, quote, text|{kind,value,sources,derivation,note}, author:{id,name}, createdAt, updatedAt, replies?, resolved? }] }`，按文稿顺序。docx 批注从会话里的当前文稿读（D2b 的 `readComments`），id 用 `docx:<批注 id>`；其余用表里的 id。
+   - 列表：`GET /api/desk/sessions/:id/annotations` → `{ items:[{ id, type:'comment'|'index', blockId, from, to, quote, text|{kind,value,sources,derivation,note}, author:{id,name}, createdAt, updatedAt, replies?, resolved? }] }`，按文稿顺序。docx 批注从会话里的当前文稿读（D2b 的 `readComments`），id 用 `docx:<版本组 id>:<批注 id>`（文件内编号各文稿会重复，带上版本组就全局唯一；一个版本组同时只有一个打开的会话，`PATCH`/`DELETE` 由此找到会话）；其余用表里的 id。（2026-10-22 Sol 提问，所有者同意此方案。）
    - 新建：`POST /api/desk/sessions/:id/annotations { type, blockId, from, to, ... }`。docx 批注作为会话修改记一条（op `comment`，进 `desk_changes`，可撤回），保存时由 `writeDocx` 写进 `comments.xml`；索引和其余格式的批注写表。`from === to` 返回 `DESK_EMPTY_RANGE`。
    - 修改、删除：`PATCH`、`DELETE /api/desk/annotations/:id`（索引改说明、来源、kind、value；批注改正文；tex/md/pdf 批注可 `resolved`、回复 `parentId`）。docx 批注的修改、删除同样记会话修改。
    - 每次变化发 `desk.annotations.changed { sessionId, ids }`。
