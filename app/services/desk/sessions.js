@@ -115,25 +115,36 @@ export function createDeskSessions(
       idleMs,
     );
   }
+  /** Record what the project file now holds and which version it descends from. */
+  function synced(groupId, sourceHash, versionId) {
+    core.db
+      .prepare('UPDATE version_groups SET source_hash=?,source_version_id=? WHERE id=?')
+      .run(sourceHash, versionId, groupId);
+  }
+  // Saving to the project file makes no version, so an external edit is a
+  // change from what ScienceScope last saw or wrote, not from the latest version.
   async function external(group, actor = {}) {
     if (!group.sourcePath) return { version: latest(group.id), changed: false };
     const bytes = await readProject(projectFiles.locate(group.projectId, group.sourcePath));
-    const previous = latest(group.id);
-    if (hash(bytes) === previous.contentHash) return { version: previous, changed: false };
+    const current = group.sourceVersionId ? catalog.get(group.sourceVersionId) : latest(group.id);
+    if (hash(bytes) === (group.sourceHash ?? current.contentHash))
+      return { version: current, changed: false };
     const version = await versions.createVersion(
       {
         groupId: group.id,
-        parentId: previous.id,
+        parentId: current.id,
         bytes,
         name: path.basename(group.sourcePath),
         origin: 'external',
       },
       actor,
     );
+    synced(group.id, hash(bytes), version.id);
     return { version, changed: true };
   }
   async function saveVersion(state, options, actor) {
     await flush(state);
+    const base = state.session.baseVersionId;
     const version = await versions.createVersion(
       {
         groupId: state.session.groupId,
@@ -153,6 +164,10 @@ export function createDeskSessions(
       core.db
         .prepare('UPDATE desk_sessions SET base_version_id=? WHERE id=?')
         .run(version.id, state.session.id);
+      // A project file written from this lineage now descends from the new version.
+      core.db
+        .prepare('UPDATE version_groups SET source_version_id=? WHERE id=? AND source_version_id=?')
+        .run(version.id, state.session.groupId, base);
     });
     state.session = store.get(state.session.id);
     return version;
@@ -236,14 +251,15 @@ export function createDeskSessions(
     await flush(state);
     // Recheck after ZIP generation: an external editor may have saved during it.
     const target = projectFiles.locate(group.projectId, group.sourcePath);
-    if (hash(await readProject(target)) !== source.version.contentHash) {
+    if (hash(await readProject(target)) !== (group.sourceHash ?? source.version.contentHash)) {
       const changed = await external(group, actor);
       throw conflict('DESK_EXTERNAL_CHANGE', '项目文件在保存期间发生变化，工作副本仍保留。', {
         versionId: changed.version.id,
       });
     }
+    const bytes = await readFile(state.files.file);
     try {
-      await writeAtomic(target, await readFile(state.files.file));
+      await writeAtomic(target, bytes);
     } catch {
       throw new AppError(
         'DESK_SAVE_FAILED',
@@ -251,7 +267,10 @@ export function createDeskSessions(
         409,
       );
     }
-    core.db.prepare('UPDATE desk_sessions SET saved_seq=seq WHERE id=?').run(state.session.id);
+    core.db.transaction(() => {
+      core.db.prepare('UPDATE desk_sessions SET saved_seq=seq WHERE id=?').run(state.session.id);
+      synced(group.id, hash(bytes), state.session.baseVersionId);
+    });
     state.session = store.get(state.session.id);
     return { session: state.session };
   }

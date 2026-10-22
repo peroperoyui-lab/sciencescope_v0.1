@@ -81,7 +81,7 @@ export function planBlocks(document, changes, options) {
       template,
       parent: input.after === '^' ? body.index : (preceding?.parent ?? anchor.parent),
       position: input.after === '^' ? body.openEnd : (preceding?.position ?? anchor.end),
-      paraId: document.allocateId(),
+      paraId: input.paraId != null ? String(input.paraId).toUpperCase() : document.allocateId(),
     };
     if (preceding) inserted.splice(inserted.indexOf(preceding) + 1, 0, record);
     else inserted.push(record);

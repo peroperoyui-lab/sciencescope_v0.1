@@ -307,6 +307,60 @@ test('open and save import external versions, retain dirty copies and confirm an
     }
   }));
 
+test('saving to the project file twice is not an external edit, and an old-version overwrite asks once', () =>
+  withCore('desk-saved-source', async (core, dir) => {
+    const { project, file } = await setup(core, dir);
+    const versions = createVersions(core);
+    const desk = createDesk(core, { versions, projectFiles: createProjectFiles(core) });
+    const edit = (session, seq, value) =>
+      desk.updateBlocks(session.session.id, {
+        baseSeq: seq,
+        blocks: { 'p:00000001': text(value) },
+      });
+    try {
+      const group = await desk.registerDocument({ projectId: project.id, path: '论文.docx' });
+      const first = await desk.openSession({ groupId: group.id });
+      await edit(first, 0, '第一次保存');
+      await desk.save(first.session.id, { to: 'project' });
+      await edit(first, 1, '第二次保存');
+      await desk.save(first.session.id, { to: 'project' });
+      assert.equal((await readDocx(await readFile(file))).blocks[0].text, '第二次保存');
+      // Reopening the still-open session finds no external change.
+      assert.equal((await desk.openSession({ groupId: group.id })).session.id, first.session.id);
+      const closed = await desk.closeSession(first.session.id);
+      const reopened = await desk.openSession({ groupId: group.id });
+      assert.equal(reopened.session.baseVersionId, closed.version.id);
+      assert.equal(reopened.blocks[0].text, '第二次保存');
+      assert.deepEqual(
+        versions.list(project.id)[0].versions.map((version) => version.origin),
+        ['desk', 'import'],
+      );
+      await desk.closeSession(reopened.session.id);
+
+      const old = await desk.openSession({
+        groupId: group.id,
+        versionId: first.session.baseVersionId,
+      });
+      await edit(old, 0, '旧版改写');
+      await assert.rejects(desk.save(old.session.id, { to: 'project' }), {
+        code: 'DESK_SAVE_CONFIRM',
+      });
+      await desk.save(old.session.id, { to: 'project', confirm: true });
+      await edit(old, 1, '旧版再改');
+      await desk.save(old.session.id, { to: 'project' });
+      // An edit made outside after these saves is still caught.
+      await writeFile(
+        file,
+        (await writeDocx(await readFile(file), { 'p:00000002': text('Word 外部修改') })).bytes,
+      );
+      await assert.rejects(desk.save(old.session.id, { to: 'project' }), {
+        code: 'DESK_EXTERNAL_CHANGE',
+      });
+    } finally {
+      await desk.shutdown();
+    }
+  }));
+
 test('createApp shutdown flushes an open session and restart recovers block identities and sequence', async () => {
   const temporary = await tempDir('desk-restart');
   let app;

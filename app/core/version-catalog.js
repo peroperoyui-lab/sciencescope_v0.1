@@ -20,6 +20,8 @@ export function createVersionCatalog(core) {
       name: String(row.name),
       sourcePath: row.source_path == null ? null : String(row.source_path),
       format: String(row.format),
+      sourceHash: row.source_hash == null ? null : String(row.source_hash),
+      sourceVersionId: row.source_version_id == null ? null : String(row.source_version_id),
       nextNumber: Number(row.next_number),
       autoOrganize: Boolean(row.auto_organize),
       createdAt: String(row.created_at),

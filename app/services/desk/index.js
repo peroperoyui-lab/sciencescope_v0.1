@@ -2,7 +2,7 @@ import path from 'node:path';
 import { AppError } from '../../core/errors.js';
 import { nowIso } from '../../core/ids.js';
 import { conflict, inverse, propose, publicBlock } from './model.js';
-import { createDeskStore, readProject, writeAtomic } from './storage.js';
+import { createDeskStore, hash, readProject, writeAtomic } from './storage.js';
 import { createDeskSessions } from './sessions.js';
 
 const messages = {
@@ -93,8 +93,10 @@ export function createDesk(
       { actorId: 'person_user' },
     );
     core.db
-      .prepare('UPDATE version_groups SET source_path=?,updated_at=? WHERE id=?')
-      .run(relative, nowIso(), imported.group.id);
+      .prepare(
+        'UPDATE version_groups SET source_path=?,source_hash=?,source_version_id=?,updated_at=? WHERE id=?',
+      )
+      .run(relative, hash(bytes), imported.versions[0].id, nowIso(), imported.group.id);
     return core.versionCatalog.group(imported.group.id);
   }
   /**

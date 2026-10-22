@@ -320,7 +320,7 @@ data/
 - DOCX 段落与批注服务（D2b，尚未接编辑界面）：`writeDocx(bytes, changes, {inserted, removed, comments})` 返回 `{bytes, inserted}`，其中 inserted 把调用方新块 id 映射到 `p:<paraId>`。支持段首/同层级插段、拆段和删段，继承段落与文字格式；新 paraId 在整个包内唯一。分节符段和表格单元格最后一段禁止删除，整次写回失败；跨段域继续整体只读。删除正文时保留并迁移书签、批注标记；调用方已把它们并进别的段落（退格合并两段）时不再迁移，同一个书签、批注、脚注、图片等对象出现在两个段落时整次写回报 `DOCX_DUPLICATE_ATOM`。批注读取作者/缩写/日期/正文、`range.from/to={blockId,index}`、`parentId` 和 `done`；支持 add/edit/delete，删父批注同时删回复及扩展元数据，回复和解决状态只读。英文期刊、博士论文和带域/公式/修订的受控副本已完成 Word/WPS 验收。
 - 编辑台窗口（U1，试用开关 `features.editingDesk` 默认关，在设置→常规打开）：打开后左栏「工作站」下面出现「编辑台」，工作站页头和项目文件预览有「在编辑台打开」，工作站左下角的文献版本管理撤掉、导图向左拉宽。编辑台是单独的窗口（桌面版原生窗口 `secondary-desk`，约 1440×900、最小 960×600；浏览器里是新标签页），所有项目共用一个，再次打开时切到前面并在新标签里打开指定文稿。窗口里有文稿标签（重开窗口时恢复）、功能区（开始、审阅、视图，可收起，Ctrl+F1）、左栏（项目切换、项目文件夹里的 docx/tex/md/pdf 按文件夹展开，加只在应用数据里的版本组；下面是大纲，点击跳到标题）、右侧栏（批注与索引、对话，目前是空状态）和底部信息栏（文件、最新版本、字数或页数、版本树按钮）。现在只能阅读：docx 显示正文、md 渲染或源码、tex 源码、PDF 可缩放翻页；编辑、批注、保存、比较、版本树按钮先停用。
 - 历史版本：AI 每轮发言结束、用户离开编辑页面、恢复之前，都会为改过的资源留一个历史版本；可只读预览、恢复或删除。工作区每次修改另有逐条修订，可撤销。
-- DOCX 编辑会话（D3a，尚未接界面）：`app/services/desk/` 登记项目文件、维护唯一 open 会话、接收逐块修改和撤回/保留；修改通过结构校验后记录 actor、会议、发言和指令，空闲 2 秒集中写工作副本。保存可写回项目文件或生成父子版本，关闭按需留版本再清理工作目录；正常退出先落盘，重启恢复同一会话。沿用迁移 024 的 `desk_sessions`、`desk_changes`，无新迁移。
+- DOCX 编辑会话（D3a，尚未接界面）：`app/services/desk/` 登记项目文件、维护唯一 open 会话、接收逐块修改和撤回/保留；修改通过结构校验后记录 actor、会议、发言和指令，空闲 2 秒集中写工作副本。保存可写回项目文件或生成父子版本，关闭按需留版本再清理工作目录；正常退出先落盘，重启恢复同一会话。沿用迁移 024 的 `desk_sessions`、`desk_changes`；迁移 027 给版本组加 `source_hash`、`source_version_id`，记项目文件上次登记、导入或写回时的哈希和对应版本，外部修改按它判断，连续保存不再误报。
 
 **实现位置**：`app/core/workspace/`（`workspace.js` 读写与撤销，`snapshots.js` 历史版本，`resources/` 各资源格式）、`app/services/versions/`（`comparison.js` 比较、`organizer.js` 版本说明）、`app/services/journal-files.js`；界面 `app/ui/components/` 下的 `workbench.js`、`map-*.js`、`version*.js`、`resource-history.js`；编辑台窗口 `app/ui/desk-window.js`（打开与转交文稿）和 `app/ui/components/desk*.js`，原生窗口在 `src-tauri/src/main.rs` 的 `open_secondary_window`（`surface: 'desk'`）。
 
@@ -679,6 +679,7 @@ data/
 | 024  | `version_groups.source_path/format`；`manuscript_versions` 父版本、分支、层级、标签、标题、来源、哈希、会话；`desk_sessions`、`desk_changes` | 版本图与元数据；DOCX 编辑会话、逐块修改及撤回、保留、版本归档                            |
 | 025  | `kb_entities.produced_from/evidence_json`；`kb_jobs.result_json/meeting_id/manual`                                                           | 论文卡片来源、证据和持久任务结果；卡片条目加入知识库版本快照与恢复                       |
 | 026  | `kb_positions(ref,x,y,pinned,updated_at)`                                                                                                    | 跨项目共享的图位置投影、用户钉住状态；可重算，不进历史版本                               |
+| 027  | `version_groups.source_hash`、`source_version_id`                                                                                            | 编辑台判断项目文件是否在外部被改过；写回项目文件不生成版本                               |
 
 ### 4.2 文件资源
 

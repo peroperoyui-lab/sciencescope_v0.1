@@ -41,10 +41,7 @@ export async function writeDocx(bytes, changes, options = {}) {
       throw new AppError('DOCX_DUPLICATE_BLOCK', '新段落的标识无效或已被使用。');
     reserved.add(id);
   }
-  let allocation = 0;
   const allocateId = () => {
-    const supplied = options.inserted?.[allocation++]?.paraId;
-    if (supplied != null) return String(supplied).toUpperCase();
     let id;
     do {
       id = generateId();

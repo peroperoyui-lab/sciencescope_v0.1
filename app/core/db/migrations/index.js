@@ -34,6 +34,7 @@ import * as projectFileIndex from './023-project-file-index.js';
 import * as versionGraph from './024-version-graph.js';
 import * as paperCards from './025-paper-cards.js';
 import * as knowledgePositions from './026-knowledge-positions.js';
+import * as deskSourceSync from './027-desk-source-sync.js';
 
 export const migrations = [
   core,
@@ -62,4 +63,5 @@ export const migrations = [
   versionGraph,
   paperCards,
   knowledgePositions,
+  deskSourceSync,
 ];
