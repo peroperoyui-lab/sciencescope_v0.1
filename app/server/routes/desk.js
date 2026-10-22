@@ -1,10 +1,25 @@
+import { createDeskRewrite } from '../../services/desk/rewrite.js';
+
 /**
  * @param {import('../router.js').Router} router
  * @param {ReturnType<typeof import('../../services/desk/index.js').createDesk>} desk
+ * @param {import('../../core/index.js').Core} [core]
+ * @param {ReturnType<typeof import('../../services/conductor.js').createConductor>} [conductor]
  */
-export function registerDeskRoutes(router, desk) {
+export function registerDeskRoutes(router, desk, core, conductor) {
   if (!desk) return;
   const actor = { actorId: 'person_user' };
+  const rewrite = core && createDeskRewrite(core, desk, conductor);
+  router.post('/api/desk/sessions/:id/rewrite', async ({ params, body, response }) => {
+    const controller = new AbortController();
+    const close = () => controller.abort();
+    response.once('close', close);
+    try {
+      return await rewrite(params.id, body, controller.signal);
+    } finally {
+      response.removeListener('close', close);
+    }
+  });
   router.get('/api/desk/documents', ({ query }) => desk.listDocuments(query.get('projectId')));
   router.post('/api/desk/documents', ({ body }) => desk.registerDocument(body));
   router.post('/api/desk/sessions', ({ body }) => desk.openSession(body));

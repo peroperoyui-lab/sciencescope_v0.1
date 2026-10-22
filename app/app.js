@@ -105,7 +105,7 @@ export async function createApp({
   const secretary = createSecretaryChat({ core, minutes, modelCatalog: catalog });
   const skills = createSkills(core);
   const mcp = createMcp(core);
-  const tools = createTools(core, research, { secretary, python, versions, skills, mcp });
+  const tools = createTools(core, research, { secretary, python, versions, skills, mcp, desk });
   const versionNotes = createVersionOrganizer({
     core,
     versions,

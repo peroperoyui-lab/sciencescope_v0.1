@@ -323,6 +323,7 @@ data/
 - DOCX 编辑会话（D3a，尚未接界面）：`app/services/desk/` 登记项目文件、维护唯一 open 会话、接收逐块修改和撤回/保留；修改通过结构校验后记录 actor、会议、发言和指令，空闲 2 秒集中写工作副本。保存可写回项目文件或生成父子版本，关闭按需留版本再清理工作目录；正常退出先落盘，重启恢复同一会话。沿用迁移 024 的 `desk_sessions`、`desk_changes`；迁移 027 给版本组加 `source_hash`、`source_version_id`，记项目文件上次登记、导入或写回时的哈希和对应版本，外部修改按它判断，连续保存不再误报。
 
 - D4 版本比较后端已接入：`GET /api/versions/:id/diff` 返回两版块、段落配对、段内删增和格式范围；省略 baseline 默认父版本，可跨分支。迁移 028 的 `version_diffs` 缓存版本对；版本生成后由 worker 串行预计算，关闭应用取消未完成工作。DOCX 原子按 XML 哈希识别，tex/md/pdf 复用已有读取；旧比较界面仍用 `/compare`，新界面待 U3。
+- D5 专家改文稿后端已接入：所有角色共用 `workspace_read/edit manuscript`，按块读当前或历史内容、替换/插删段、存版本或写回项目，`workspace_undo chg_` 逐处撤回；复用编辑会话与修改记录。原子记号按原顺序保留，替换继承起始字符格式；写回项目在请求批准模式下询问，沿用 C1 始终允许规则。划选改写经绑定会议发送，忙时进入现有队列；`desk_suggest` 持久事件十分钟去重，界面提示由 Claude 接入。
 
 **实现位置**：`app/core/workspace/`（`workspace.js` 读写与撤销，`snapshots.js` 历史版本，`resources/` 各资源格式）、`app/services/versions/`（`comparison.js` 旧比较、`diffs.js` 新比较队列和缓存、`organizer.js` 版本说明）、`app/services/desk/diff.js`（块与段内比较）、`app/services/journal-files.js`；界面 `app/ui/components/` 下的 `workbench.js`、`map-*.js`、`version*.js`、`resource-history.js`；编辑台窗口 `app/ui/desk-window.js`（打开与转交文稿）和 `app/ui/components/desk*.js`，原生窗口在 `src-tauri/src/main.rs` 的 `open_secondary_window`（`surface: 'desk'`）。
 
@@ -604,6 +605,7 @@ data/
 - `PUT /api/desk/sessions/:id/text` 提交 tex/md 全文，要求当前 seq，不变时不记修改；空行切块并保留围栏、BOM、原换行和分隔空白。文本会话响应额外带全文 `text`，重启恢复块标识、逐处撤回与保存共用原有流程。
 - `GET /api/desk/sessions/:id/media/:ref` 返回 DOCX 图片原字节及 MIME；可用图片原子带 `media:true`，不存在返回 404。
 - `POST /api/desk/changes/:id/undo`、`POST /api/desk/sessions/:id/settle` 逐处撤回或保留。
+- D5 `POST /api/desk/sessions/:id/rewrite {blockId,quote,instruction}` 发出带版本引用的用户消息；未绑定会议返回 `DESK_MEETING_REQUIRED`，空闲返回 `{messageId,turnId}`，忙时返回 `{messageId:null,turnId:null,queued:true,itemId}`，发出后沿用事件通知。引用含基础版本、从 1 开始的 paragraph、blockId 和 quote。
 - `POST /api/desk/sessions/:id/save` 写回项目文件或存新版本；`POST /api/desk/sessions/:id/close` 按需留版本后删除工作副本。事件 `desk.changed`、`desk.session`；409 错误的 `details` 提供冲突块或外部版本。
 - `GET/PATCH /api/version-preferences/:projectId` 读取、开关项目的自动整理说明。
 

@@ -113,7 +113,7 @@ export function createAppServer({
   desk,
 }) {
   const router = createRouter();
-  registerDeskRoutes(router, desk);
+  registerDeskRoutes(router, desk, core, conductor);
   registerSkillRoutes(router, skills);
   registerMcpRoutes(router, mcp);
   registerToolRoutes(router, tools);

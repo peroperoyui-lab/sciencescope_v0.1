@@ -191,14 +191,16 @@ CREATE TABLE manuscript_comments (...);            -- tex 批注，第 6.3 节
 
 | 调用                                   | 参数与作用                                                                                                                                                                                                                                                                   |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `workspace_read target="manuscript"`   | `scope=<项目 id>` 列出文稿；`key=<项目 id>/<组 id>`，`offset`/`limit` 按块分页，可加 `version`；返回块 id、文字、原子节点占位、批注和绑定摘要、`remaining`                                                                                                                   |
-| `workspace_edit resource="manuscript"` | `replace {block, find, with}`（`find` 在块内须唯一，否则 `TEXT_NOT_FOUND`/`AMBIGUOUS`）；`insertBlock {after, text}`（继承 `after` 段的 `w:pPr`）；`removeBlock {block}`；`comment {block, quote, text}`；`bind`、`unbind`；`save {to: "project"\|"version", label?, tier?}` |
+| `workspace_read target="manuscript"`   | `scope=<项目 id>` 列出文稿；`key=<项目 id>/<组 id>` 或 `…/path:<相对路径>`，未登记的先登记。`offset` 默认 0、`limit` 默认 40 最多 200，`version` 读历史版本；返回块 id、种类、标题级别、文字、原子记号和 `remaining`，批注与绑定留到 D6。 |
+| `workspace_edit resource="manuscript"` | `replace {block, find, with}`（`find` 在块内须唯一，否则 `TEXT_NOT_FOUND`/`TEXT_AMBIGUOUS`）；`insertBlock {after, text}`（段 id 或 `^`，继承段落格式）；`removeBlock {block}`；`save {to: "project"\|"version", label?, tier?}`。`comment`、`bind`、`unbind` 返回 `UNKNOWN_OP`，留到 D6。 |
 | `workspace_undo`                       | `revisionId` 可以是 `chg_…`                                                                                                                                                                                                                                                  |
-| `desk_suggest`（新）                   | `{reason, document?}`，弹出进入编辑台的横条                                                                                                                                                                                                                                  |
+| `desk_suggest`                         | `{reason, document?}`，document 是文稿 key；持久记录 `desk.suggested {meetingId,reason,key:null或文稿key}`，同会议 10 分钟只记一次，返回 `{suggested:true}`。横条由 U8 接入。 |
 
-没有打开的会话时，`workspace_edit manuscript` 为最新版本开一个后台会话，修改进工作副本，用户下次打开时看到标记。AI 修改只动 `data/` 里的工作副本，不触发批准；写项目文件只有 `save {to:"project"}`，"请求批准"模式下和 `write_file` 一样先问用户。
+没有打开的会话时，`workspace_edit manuscript` 为最新版本开一个绑定当前会议的后台会话，修改进工作副本，用户下次打开接上同一会话。DOCX 复用 `updateBlocks`，tex/md 复用 `updateText`；每处修改记录专家、会议、轮次和触发消息前 200 字。AI 修改只动 `data/` 里的工作副本，不触发批准；写项目文件只有 `save {to:"project"}`，"请求批准"模式下卡片列出路径和基础版本号，复用 `write_file` 的项目级始终允许规则。拒绝不改项目文件；外部修改与保存确认原样回给模型，不自动确认。
 
-**提示词要点**（不加硬限制）：文稿在编辑台打开时用 `workspace_edit manuscript`，不用 `edit_file` 改 docx/tex；只改划选范围，范围外的问题写批注或在回答里说；`find` 取足够长的原文；不动公式、引文、图片；涉及数字时检查绑定；回答只说改了什么和为什么。秘书和全局助手用同一套工具（原则 2、3），按用户要求找版本、比较、整理修改记录、加批注，不主动改正文；会议里被 @ 的专家同样可用。
+D5 原子记号为 `⟦类型:ref⟧`，域和公式还带显示文字，例如 `⟦field:8 (Zhang, 2024)⟧`；替换必须逐个按原顺序保留，否则 `DESK_ATOM_CHANGED`。替换文字沿用起始字符的格式，其他原有行内内容保留。工具成功返回 `{revisionIds:['chg_…'],seq,block:{id,kind,level,text}}`；删除或保存时 block 为 null，保存另带 version（写回项目时为 null）。工具错误返回 `{code,error,...details}`，找不到/不唯一时含当前 block；撤回冲突保留 `DESK_UNDO_BLOCKED`。
+
+**提示词要点**（不加硬限制）：文稿用 `workspace_edit manuscript`，不用 `edit_file` 改 docx/tex/md；只改划选或用户指定的范围，范围外的问题在回答里说；`find` 取足够长且唯一的原文；原子记号及顺序原样保留；回答只说改了什么和为什么。秘书和全局助手用同一套工具（原则 2、3），按用户要求读、比较、存版本，不主动改正文；会议里被 @ 的专家同样可用。批注和索引由 D6 接入。
 
 ## 6. 批注与索引（索引即原"来源绑定"）
 
@@ -251,6 +253,10 @@ CREATE TABLE manuscript_bindings (
 
 D4：`GET /api/versions/:id/diff?baseline=` 返回 `{baseline:{id,number,branch},version:{id,number,branch},format,old:{blocks},new:{blocks},diff}`。省略 baseline 取父版本，无父返回 `{status:'first'}`；跨分支可比，跨组报 `INVALID_BASELINE`。不支持或解析失败时 old/new 为 null、diff 为 `{status:'originals-only'}`。有缓存复用差异，无缓存排队计算后保存。
 
+D5：`POST /api/desk/sessions/:id/rewrite {blockId,quote,instruction}` 沿用会议发送流程；quote 接受文字或 `{exact,prefix?,suffix?}`。未绑定会议返回 `DESK_MEETING_REQUIRED`。空闲返回 `{messageId,turnId}`（已开始发言，不等待回答）；忙时排队返回 `{messageId:null,turnId:null,queued:true,itemId}`。消息正文是指令，研究输入 marks 的 reference 为 schema 1 / kind version / 基础版本 id，location 带从 1 开始的 paragraph、blockId、quote；mark 同时含 quote、manuscriptKey，供上下文编译为 annotation，排队发送后沿用既有事件通知。
+
+`workspace_read manuscript` 列表返回 `{documents:[{key,name,format,versionNumber,sessionId}],truncated}`；块读取返回 `{groupId,versionId,sessionId,seq,blocks,remaining}`，块为 `{id,kind,level,text}`。历史读取 sessionId 为 null、seq 为 0；默认优先读会话未保存内容，否则读最新版本。
+
 D3a 已实现下表中的登记、开会话、重连、PATCH blocks、撤回、保留、保存和关闭八个接口，其余是后续设计。登记仅收 `{projectId,path}` 并返回版本组；开会话/重连返回 `{session,blocks,changes}`（不含批注和绑定接口）。修改返回 `{seq,inserted}`，其中 inserted 是客户端 id 到 `p:<paraId>` 的映射；`writeDocx` 的插入项支持预分配的 `paraId`。冲突错误为 HTTP 409 的 `{code,message,details}`：`DESK_CONFLICT` 的 details 含 `seq,blockIds,blocks`（已删除块为 `{id,removed:true}`）；`DESK_EXTERNAL_CHANGE` 含 `versionId`，`DESK_SAVE_CONFIRM` 含 `versionId,versionNumber`。保存支持 `confirm?`，保留支持 `{ids?}`。服务调用的 actor 可传 `actorId,meetingId,turnId,instruction`；HTTP 修改统一记为用户。
 
 D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media/:ref`。登记接受 docx/tex/md/markdown，后两种均记格式 md。文本会话响应额外含 `text`；全文冲突的 `details` 为 `{seq,text}`，格式不符返回 `DESK_FORMAT`。文件列表返回 `{files,groups,truncated}`：文件含 `path,name,format,size,mtime,group`，mtime 为 ISO 时间；group 摘要含 `id,latest:{id,number,branch,tier},sourceVersionId`；仅在数据目录的组另含 name、format。递归跳过隐藏目录和 node_modules，自带项目根另跳过 workbench/notes/minutes/versions/desk，达到 2000 个文稿返回 truncated，读取失败的子目录跳过。列表只读。图片接口返回原字节和原 MIME，缺失为 404 `DESK_MEDIA_NOT_FOUND`。
@@ -274,7 +280,7 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 | `GET /api/version-groups/:id/graph`、`PATCH /api/versions/:id`                                                 | 版本图（节点含说明前 200 字和修改指令）；改标题、层级、标签、分支名         |
 | `GET /api/versions/:id/compare?baseline=`                                                                      | 现有接口，返回值改为第 4.4 节的对齐行；允许跨分支比较同组任意两版           |
 
-事件：docx、tex、md 共用 `desk.changed {sessionId,seq,blockIds,changeIds}`；`desk.session` 为 `{sessionId,state:'open'|'closed'}`，空闲写入失败时另发瞬时 `{sessionId,state:'save-error',message}`，可重试保存。保留不改正文和 seq，也发 `desk.changed`；继续使用现有 `versions.changed`。`desk.suggested` 留到后续；`desk.focus` 和 `/api/desk/enter` 留到 D3c。
+事件：docx、tex、md 共用 `desk.changed {sessionId,seq,blockIds,changeIds}`；`desk.session` 为 `{sessionId,state:'open'|'closed'}`，空闲写入失败时另发瞬时 `{sessionId,state:'save-error',message}`，可重试保存。保留不改正文和 seq，也发 `desk.changed`；继续使用现有 `versions.changed`。D5 已记录 `desk.suggested {meetingId,reason,key}`；`desk.focus` 和 `/api/desk/enter` 留到 D3c。
 
 ## 9. 依赖与许可证
 

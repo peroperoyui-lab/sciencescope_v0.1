@@ -15,7 +15,7 @@ const rejected = { rejected: true, message: '用户拒绝了这次操作' };
  * @param {import('../core/index.js').Core} core
  */
 export function createApprovals(core) {
-  /** @type {Map<string, {row:any, context:any, finish:(status:string, rule?:any)=>any, saving?:Promise<any>}>} */
+  /** @type {Map<string, {row:any, context:any, ruleTool:string, finish:(status:string, rule?:any)=>any, saving?:Promise<any>}>} */
   const pending = new Map();
   const rules = createApprovalRules(core);
   let closed = false;
@@ -41,6 +41,8 @@ export function createApprovals(core) {
   async function summaryFor(tool, args, context) {
     const meeting = core.meetings.get(context.meetingId);
     if (meeting.policy.approval === 'auto') return null;
+    if (context.manuscript)
+      return `${context.manuscript.path}\n文稿 v${context.manuscript.version}`;
     if (context.mcp) return `${context.mcp.name} · ${context.mcp.tool}\n${JSON.stringify(args)}`;
     if (tool === 'shell') return String(args.command ?? '');
     if (tool === 'python_env_install') return JSON.stringify(args.packages ?? []);
@@ -71,8 +73,12 @@ export function createApprovals(core) {
     if (summary === null) return null;
     const turn = core.turns.get(context.turnId);
     if (turn.status !== 'running') return cancelled;
-    const matches = await rules.matching(tool, args ?? {}, context);
-    const scopes = matches.length ? [] : await rules.scopes(tool, args ?? {}, context);
+    // A manuscript save writes the same project file as write_file. Share its
+    // exact-file/folder rules, while the visible card retains the actual tool.
+    const ruleTool = context.manuscript ? 'write_file' : tool;
+    const ruleArgs = context.manuscript ? { path: context.manuscript.path } : (args ?? {});
+    const matches = await rules.matching(ruleTool, ruleArgs, context);
+    const scopes = matches.length ? [] : await rules.scopes(ruleTool, ruleArgs, context);
     if (closed || context.signal?.aborted || core.turns.get(turn.id).status !== 'running')
       return cancelled;
     if (matches.length) {
@@ -110,7 +116,7 @@ export function createApprovals(core) {
           resolve(result);
           return ended;
         }
-        pending.set(row.id, { row, context, finish });
+        pending.set(row.id, { row, context, ruleTool, finish });
         context.signal?.addEventListener('abort', abort, { once: true });
         core.turns.setPhase(turn.id, 'waiting-approval');
       });
@@ -135,7 +141,7 @@ export function createApprovals(core) {
       if (!choice) throw new AppError('INVALID_APPROVAL_SCOPE', '请选择这次操作提供的允许范围。');
       if (!entry.saving)
         entry.saving = rules
-          .remember(row.name, choice, entry.context.meetingId)
+          .remember(entry.ruleTool, choice, entry.context.meetingId)
           .then(
             (rule) =>
               entry.finish('approved', rule) ??

@@ -9,8 +9,9 @@ import { createViewImage, VIEW_IMAGE_SPEC } from './builtin-tools/view-image.js'
 import { createSkills, USE_SKILL_SPEC } from './skills/index.js';
 import { KNOWLEDGE_TOOL_SPECS } from './knowledge/tool-specs.js';
 import { createKnowledgeTools } from './knowledge/tools.js';
+import { createManuscriptTools } from './desk/manuscript-tools.js';
 
-/** @typedef {{ participantId: string, meetingId: string, turnId: string, callId?: string, environmentId?:string, signal?:AbortSignal, workFolder?:string, env?:{PATH?:string,VIRTUAL_ENV?:string}, mcp?:{id:string,name:string,tool:string} }} ToolContext */
+/** @typedef {{ participantId: string, meetingId: string, turnId: string, callId?: string, environmentId?:string, signal?:AbortSignal, workFolder?:string, env?:{PATH?:string,VIRTUAL_ENV?:string}, mcp?:{id:string,name:string,tool:string}, manuscript?:{path:string,version:number} }} ToolContext */
 
 const RESOURCES = ['map', 'plans', 'log', 'minutes', 'notes', 'agent', 'settings', 'versions'];
 
@@ -92,15 +93,17 @@ export const TOOL_SPECS = [
       'page backwards with before = a message seq). "changes": recent edits (optional key = meeting id). ' +
       'Resources: "map", "log" (key = project id; Markdown entries may carry <!-- sciencescope:references [schema-1 reference objects] -->), "plans" (project id or "global"), "minutes" ' +
       '(meeting id), "notes" (project id/name; give scope = project id without key to list), "agent" ' +
-      '(participant id), "settings", "versions" (scope = project id lists groups; key = project id/version id reads extracted paragraphs and notes; offset/limit pages original text).',
+      '(participant id), "settings", "versions" (scope = project id lists groups; key = project id/version id reads extracted paragraphs and notes; offset/limit pages original text). ' +
+      '"manuscript": scope=project id lists keys; key=project id/group id or project id/path:relative/path reads current editing blocks. offset/limit page blocks (default 40, maximum 200); remaining reports unread blocks. Optional version reads a historical version. Atoms appear as ⟦type:ref display⟧ and must be kept exactly.',
     parameters: {
       target: {
         type: 'string',
         required: true,
-        enum: ['overview', 'project', 'meeting', 'changes', ...RESOURCES],
+        enum: ['overview', 'project', 'meeting', 'changes', ...RESOURCES, 'manuscript'],
       },
       key: { type: 'string', description: 'Which item; see target.' },
       scope: { type: 'string', description: 'For listing notes: the project id.' },
+      version: { type: 'string', description: 'For manuscript: read-only historical version id.' },
       before: { type: 'integer', description: 'For meetings: read messages before this seq.' },
       limit: { type: 'integer', description: 'For meetings and changes: how many to return.' },
       offset: {
@@ -116,9 +119,10 @@ export const TOOL_SPECS = [
       'undone. Text resources (plans, log, minutes, notes, agent) support op "write" {text}, "append" ' +
       '{text}, "replace" {find, with}, "delete". Log entries may include <!-- sciencescope:references [{"schema":1,"kind":"version","id":"version id","projectId":"project id","label":"file name"}] --> or kind "project-file" with path instead of id. map supports "addNode" {node: {id?, parent, text}}, ' +
       '"updateNode" {id, changes}, "removeNode" {id}, "addEdge" {edge: {from, to, label?}}, "removeEdge" ' +
-      '{id}, "write" {map}. settings supports "patch" {changes}. versions edits only the paired notes Markdown (project id/version id), never original bytes. Keys are as in workspace_read.',
+      '{id}, "write" {map}. settings supports "patch" {changes}. versions edits only the paired notes Markdown (project id/version id), never original bytes. Keys are as in workspace_read. ' +
+      'manuscript edits the working copy: replace {block,find,with} needs a unique exact find; preserve every atom marker and its order. insertBlock {after,text} uses a block id or ^ for the beginning; removeBlock {block}; save {to:"version"|"project",label?,tier?}. Only saving to project writes the project file and may ask approval. Report DESK_EXTERNAL_CHANGE or DESK_SAVE_CONFIRM to the user; never automatically confirm. Edits return revisionIds (chg_) for individual undo. Read current blocks before editing, and change only the requested scope.',
     parameters: {
-      resource: { type: 'string', required: true, enum: RESOURCES },
+      resource: { type: 'string', required: true, enum: [...RESOURCES, 'manuscript'] },
       key: { type: 'string', required: true },
       op: { type: 'string', required: true },
       args: { type: 'object', additionalProperties: true, description: 'Arguments of the op.' },
@@ -127,7 +131,7 @@ export const TOOL_SPECS = [
   {
     name: 'workspace_undo',
     description:
-      'Undo one change by its revision id (from workspace_edit or workspace_read "changes").',
+      'Undo one change by its revision id (from workspace_edit or workspace_read "changes"). Manuscript chg_ ids undo one editing change; if that block changed later, undo the later change first.',
     parameters: { revisionId: { type: 'string', required: true } },
   },
   {
@@ -150,6 +154,12 @@ export const TOOL_SPECS = [
     },
   },
   {
+    name: 'desk_suggest',
+    description:
+      'Suggest entering the editing desk when a manuscript is ready for focused editing. Provide a reason and optionally a manuscript key from workspace_read. This records a suggestion; the user chooses whether to enter.',
+    parameters: { reason: { type: 'string', required: true }, document: { type: 'string' } },
+  },
+  {
     name: 'propose_main_draft',
     description:
       'Prepare a draft instruction for the main meeting. The editable proposal is saved in its secretary conversation; the user fills the main input and sends it explicitly. This does not post a main meeting message.',
@@ -166,17 +176,18 @@ export const TOOL_SPECS = [
 /**
  * @param {import('../core/index.js').Core} core
  * @param {ReturnType<typeof createResearch>} [research]
- * @param {{mcp?:ReturnType<typeof import('./mcp/index.js').createMcp>,skills?:ReturnType<typeof createSkills>,secretary?: ReturnType<typeof import('./secretary/chat.js').createSecretaryChat>,python?:ReturnType<typeof import('./python/index.js').createPython>,versions?:ReturnType<typeof import('./versions/index.js').createVersions>}} [services]
+ * @param {{desk?:ReturnType<typeof import('./desk/index.js').createDesk>,mcp?:ReturnType<typeof import('./mcp/index.js').createMcp>,skills?:ReturnType<typeof createSkills>,secretary?: ReturnType<typeof import('./secretary/chat.js').createSecretaryChat>,python?:ReturnType<typeof import('./python/index.js').createPython>,versions?:ReturnType<typeof import('./versions/index.js').createVersions>}} [services]
  */
 export function createTools(
   core,
   research = createResearch(core),
-  { secretary, python, versions, skills = createSkills(core), mcp } = {},
+  { secretary, python, versions, skills = createSkills(core), mcp, desk } = {},
 ) {
   const deliverables = createDeliverables(core);
   const builtins = createBuiltinTools(core, python);
   const viewImage = createViewImage(core, research);
   const approvals = createApprovals(core);
+  const manuscript = desk && createManuscriptTools(core, desk, approvals);
   const knowledge = createKnowledgeTools(core, research);
   async function nameOf(id) {
     try {
@@ -252,6 +263,7 @@ export function createTools(
     }
     const decision = await approvals.request(name, args, context);
     if (decision) return decision;
+    if (manuscript?.handles(name, args)) return manuscript.run(name, args, context);
     if (name === 'view_image') return viewImage(args ?? {}, context);
     if (BUILTIN_SPECS.some((spec) => spec.name === name)) return builtins(name, args, context);
     if (name === 'python_env_install') {

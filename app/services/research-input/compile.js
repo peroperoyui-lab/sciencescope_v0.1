@@ -37,7 +37,7 @@ export function compileResearchInput(input = {}) {
         ? body(mark.text, tag)
         : `<selected>${body(mark.text, 'selected')}</selected>`;
     blocks.push(
-      `<${tag}${attributes({ 'source-chat': mark.meetingId, 'source-message': mark.messageId, speaker: mark.speaker, resource: mark.sourceId, path: mark.target?.path, title: mark.title, location: typeof mark.location === 'object' ? JSON.stringify(mark.location) : mark.location })}>\n${content}${mark.comment ? `\n<comment>${body(mark.comment, 'comment')}</comment>` : ''}\n</${tag}>`,
+      `<${tag}${attributes({ 'source-chat': mark.meetingId, 'source-message': mark.messageId, speaker: mark.speaker, resource: mark.sourceId, path: mark.target?.path, title: mark.title, location: typeof mark.location === 'object' ? JSON.stringify(mark.location) : mark.location, manuscript: mark.manuscriptKey, reference: mark.reference ? JSON.stringify(mark.reference) : undefined })}>\n${content}${mark.comment ? `\n<comment>${body(mark.comment, 'comment')}</comment>` : ''}\n</${tag}>`,
     );
   }
   return blocks.length
