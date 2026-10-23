@@ -56,10 +56,19 @@ test('project files are indexed, changed once and readable after their folder mo
         added: 2,
         updated: 0,
         unchanged: 0,
-        nameOnly: 1,
+        nameOnly: 0,
         failed: 0,
         moved: 0,
         deleted: 0,
+        queued: 2,
+      });
+      await index.idle(project.id);
+      assert.deepEqual(await call('GET', `/api/projects/${project.id}/index`), {
+        phase: 'idle',
+        total: 2,
+        done: 2,
+        queued: 0,
+        failed: 0,
       });
       const sources = research.store.listSources({ projectId: project.id });
       const paper = sources.find((source) => source.name === '研究.pdf');
@@ -97,7 +106,11 @@ test('project files are indexed, changed once and readable after their folder mo
       // A timestamp-only edit does not reparse; simultaneous requests coalesce.
       changes.length = 0;
       await utimes(path.join(folder, 'papers/研究.pdf'), new Date(), new Date(Date.now() + 2000));
-      await Promise.all([index.scan(project.id), index.scan(project.id), index.scan(project.id)]);
+      await Promise.all([
+        index.scanAndWait(project.id),
+        index.scanAndWait(project.id),
+        index.scanAndWait(project.id),
+      ]);
       assert.equal(changes.filter((event) => event.action === 'source.imported').length, 0);
       const changed = await PDFDocument.load(pdf);
       changed.getPage(0).drawText('Updated evidence sentence.', { x: 48, y: 500 });
@@ -106,6 +119,8 @@ test('project files are indexed, changed once and readable after their folder mo
       const result = await call('POST', `/api/projects/${project.id}/index`);
       assert.equal(result.updated, 1);
       assert.equal(result.unchanged, 1);
+      assert.equal(result.queued, 1);
+      await index.idle(project.id);
       assert.deepEqual(
         changes
           .filter((event) => event.action === 'source.imported')
@@ -122,7 +137,7 @@ test('project files are indexed, changed once and readable after their folder mo
         path: 'broken.pdf',
         base64: Buffer.from('broken').toString('base64'),
       });
-      await index.scan(project.id);
+      await index.scanAndWait(project.id);
       const broken = research.store
         .listSources({ projectId: project.id })
         .find((source) => source.name === 'broken.pdf');
@@ -130,7 +145,7 @@ test('project files are indexed, changed once and readable after their folder mo
       assert.ok(broken.parseError);
       await writeFile(path.join(folder, 'same.dta'), 'binary fixture');
       await call('GET', `/api/projects/${project.id}/files`);
-      await index.scan(project.id);
+      await index.scanAndWait(project.id);
       const same = research.store
         .listSources({ projectId: project.id })
         .find((source) => source.name === 'same.dta');
@@ -154,7 +169,7 @@ test('project files are indexed, changed once and readable after their folder mo
       );
       const moved = path.join(dir, '项目移走');
       await rename(folder, moved);
-      await assert.rejects(index.scan(project.id), { code: 'ENOENT' });
+      await assert.rejects(index.scanAndWait(project.id), { code: 'ENOENT' });
       assert.equal(research.store.getSource(paper.id).id, paper.id);
       assert.equal(
         await research.sourcePath(paper.id),
@@ -197,7 +212,7 @@ test("a project's built-in folder leaves ScienceScope's own workspace out of the
       await writeFile(path.join(root, 'minutes/m1.md'), '纪要');
       await writeFile(path.join(root, 'versions/g1/v1.md'), '稿子');
       await writeFile(path.join(root, 'papers/notes/读书.md'), '用户放进来的');
-      await index.scan(project.id);
+      await index.scanAndWait(project.id);
       assert.deepEqual(
         research.store.listSources({ projectId: project.id }).map((source) => source.folderPath),
         ['papers/notes/读书.md'],

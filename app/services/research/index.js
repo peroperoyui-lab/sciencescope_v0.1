@@ -42,19 +42,38 @@ export function createResearch(core, options = {}) {
    * Unsupported/empty/broken documents still have searchable file identity.
    * @param {string} id
    * @param {{actorId?:string,meetingId?:string}} [actor]
+   * @param {{originalPath:string,contentHash:string,fileSize:number,fileMtimeMs:number,isCurrent?:()=>Promise<boolean>}} [snapshot]
    */
-  async function parseProjectSource(id, actor = {}) {
+  async function parseProjectSource(id, actor = {}, snapshot) {
     const source = store.getSource(id);
+    const save = async (chunks, parsed) => {
+      if (snapshot?.isCurrent && !(await snapshot.isCurrent())) return null;
+      return core.db.transaction(() => {
+        if (snapshot) {
+          const { originalPath, contentHash, fileSize, fileMtimeMs } = snapshot;
+          store.updateSource(id, { originalPath, contentHash, fileSize, fileMtimeMs }, actor);
+        }
+        // Publish the immutable-copy identity and its parsed projection together.
+        return store.addChunks(id, chunks, parsed, actor);
+      });
+    };
+    const size = snapshot?.fileSize ?? source.fileSize;
     let reason;
-    if (source.fileSize > 200 * 1024 * 1024)
-      reason = `File is ${source.fileSize} bytes; content parsing is limited to 200 MB.`;
+    if (size > 200 * 1024 * 1024)
+      reason = `File is ${size} bytes; content parsing is limited to 200 MB.`;
     else if (!parserFor(source.name)) reason = `Unsupported document format: ${source.name}`;
-    if (reason)
-      return store.addChunks(id, [], { contentStatus: 'name-only', parseError: reason }, actor);
-    const parsed = await parseSource(source, await readFile(await sourcePath(id)), actor);
-    return ['failed', 'unsupported'].includes(parsed.contentStatus)
-      ? store.updateSource(id, { contentStatus: 'name-only' }, actor)
-      : parsed;
+    if (reason) return save([], { contentStatus: 'name-only', parseError: reason });
+    const file = snapshot
+      ? path.join(core.paths.library, snapshot.originalPath)
+      : await sourcePath(id);
+    return parseSource(source, await readFile(file), actor, source.metadata, (chunks, parsed) =>
+      save(chunks, {
+        ...parsed,
+        contentStatus: ['failed', 'unsupported'].includes(parsed.contentStatus)
+          ? 'name-only'
+          : parsed.contentStatus,
+      }),
+    );
   }
 
   /**
@@ -81,20 +100,28 @@ export function createResearch(core, options = {}) {
     return parseSource(source, input.bytes, actor, input.metadata);
   }
 
-  async function parseSource(source, bytes, actor, metadata = source.metadata) {
+  /**
+   * @param {any} source
+   * @param {Uint8Array} bytes
+   * @param {any} actor
+   * @param {any} [metadata]
+   * @param {(chunks:any[],parsed:any)=>any} [save]
+   */
+  async function parseSource(
+    source,
+    bytes,
+    actor,
+    metadata = source.metadata,
+    save = (chunks, parsed) => store.addChunks(source.id, chunks, parsed, actor),
+  ) {
     let parsed;
     try {
       parsed = await parseDocument(bytes, { name: source.name });
     } catch (error) {
-      return store.addChunks(
-        source.id,
-        [],
-        {
-          contentStatus: error.code === 'PARSER_UNSUPPORTED' ? 'unsupported' : 'failed',
-          parseError: String(error.message),
-        },
-        actor,
-      );
+      return save([], {
+        contentStatus: error.code === 'PARSER_UNSUPPORTED' ? 'unsupported' : 'failed',
+        parseError: String(error.message),
+      });
     }
     const chunks = chunkBlocks(parsed.blocks);
     // A fresh untyped file with a reference list or a DOI is a paper, so it gets
@@ -103,21 +130,16 @@ export function createResearch(core, options = {}) {
       source.kind === 'file' &&
       source.contentStatus === 'queued' &&
       (Boolean(parsed.metadata?.doi) || chunks.some((chunk) => chunk.kind === 'reference'));
-    return store.addChunks(
-      source.id,
-      chunks,
-      {
-        ...(paper ? { kind: 'paper' } : {}),
-        parser: parsed.parser,
-        pages: parsed.pages ?? null,
-        metadata: { ...parsed.metadata, ...metadata },
-        contentStatus: !chunks.length ? 'failed' : parsed.warnings?.length ? 'partial' : 'parsed',
-        parseError: chunks.length
-          ? parsed.warnings?.join('; ') || null
-          : '未提取到文字（可能是扫描件或空文件）。',
-      },
-      actor,
-    );
+    return save(chunks, {
+      ...(paper ? { kind: 'paper' } : {}),
+      parser: parsed.parser,
+      pages: parsed.pages ?? null,
+      metadata: { ...parsed.metadata, ...metadata },
+      contentStatus: !chunks.length ? 'failed' : parsed.warnings?.length ? 'partial' : 'parsed',
+      parseError: chunks.length
+        ? parsed.warnings?.join('; ') || null
+        : '未提取到文字（可能是扫描件或空文件）。',
+    });
   }
 
   /** @param {string} id @param {{actorId?:string,meetingId?:string}} [actor] */

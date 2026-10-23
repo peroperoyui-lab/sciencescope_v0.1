@@ -52,6 +52,8 @@ const chunkKinds = [
  * @typedef {ReturnType<typeof createResearchItems> & {
  *   db: import('../../core/db/database.js').Db,
  *   createSource: (input: any, actor?: Actor) => ResearchSource,
+ *   queueSources: (changes: any[], actor?: Actor) => ResearchSource[],
+ *   queueProjectSources: (projectId:string) => void,
  *   getSource: (id: string) => ResearchSource,
  *   listSources: (options?: SourceQuery) => ResearchSource[],
  *   countSources: (options?: SourceQuery) => number,
@@ -121,14 +123,14 @@ export function createResearchStore({
     db.prepare('DELETE FROM rb_fts WHERE doc_type = ? AND doc_id = ?').run(type, id);
   }
 
-  function putIndex(type, id, projectId, title, body) {
-    deleteIndex(type, id);
+  function putIndex(type, id, projectId, title, body, replace = true) {
+    if (replace) deleteIndex(type, id);
     db.prepare(
       'INSERT INTO rb_fts (doc_type, doc_id, project_id, title, body) VALUES (?, ?, ?, ?, ?)',
     ).run(type, id, projectId, indexText(title), indexText(body));
   }
 
-  function indexSource(source) {
+  function indexSource(source, replace = true) {
     // Keep both the literal path and its words: "panel 2020" must find panel_2020.dta.
     const file = source.folderPath
       ? [source.name, source.folderPath].filter(Boolean).join('\n')
@@ -139,6 +141,7 @@ export function createResearchStore({
       source.projectId,
       source.title,
       [payloadText(source.metadata), file, file.replace(/[_.\\/–-]/gu, ' ')].join('\n'),
+      replace,
     );
   }
 
@@ -162,8 +165,12 @@ export function createResearchStore({
     return source;
   }
 
-  /** @param {any} input @param {import('../../core/workspace/workspace.js').Actor} [actor] */
-  function createSource(input, actor = {}) {
+  /**
+   * @param {any} input
+   * @param {import('../../core/workspace/workspace.js').Actor} [actor]
+   * @param {number} [reservedNumber] Reserved only by the synchronous batch writer.
+   */
+  function createSource(input, actor = {}, reservedNumber) {
     const title = requiredText(input.title, 'title');
     const kind = oneOf(input.kind ?? 'file', sourceKinds, 'source kind');
     const metadata = recordObject(input.metadata ?? {});
@@ -172,6 +179,7 @@ export function createResearchStore({
       const id = input.id ?? newId('src');
       const projectId = input.projectId ?? null;
       const number =
+        reservedNumber ??
         Number(
           db
             .prepare(
@@ -206,10 +214,55 @@ export function createResearchStore({
         input.contentHash ?? null,
         input.parseError ?? null,
       );
-      indexSource(getSource(id));
+      // A new identity has no previous FTS row to search for and delete.
+      indexSource(getSource(id), false);
       // Imports publish their single change event after parser results are saved.
       if (contentStatus !== 'queued') changed('source.created', getSource(id), actor);
       return getSource(id);
+    });
+  }
+
+  /**
+   * Reserve source numbers once per project/batch, avoiding a MAX scan per file.
+   * The outer transaction also coalesces the catalog/FTS durability writes.
+   * @param {Array<{id?:string,patch:any}>} changes
+   * @param {Actor} [actor]
+   * @returns {ResearchSource[]}
+   */
+  function queueSources(changes, actor = {}) {
+    return db.transaction(() => {
+      const numbers = new Map();
+      return changes.map(({ id, patch }) => {
+        if (id) return updateSource(id, patch, actor);
+        const projectId = patch.projectId ?? null;
+        if (!numbers.has(projectId))
+          numbers.set(
+            projectId,
+            Number(
+              db
+                .prepare(
+                  "SELECT MAX(number) AS n FROM rb_sources WHERE ifnull(project_id,'')=ifnull(?,'')",
+                )
+                .get(projectId).n ?? 0,
+            ) + 1,
+          );
+        const number = numbers.get(projectId);
+        numbers.set(projectId, number + 1);
+        return createSource(patch, actor, number);
+      });
+    });
+  }
+
+  /**
+   * A rebound root invalidates size/mtime comparisons even at identical paths.
+   * Filename projections and the last successful copies remain unchanged.
+   * @param {string} projectId
+   */
+  function queueProjectSources(projectId) {
+    db.transaction(() => {
+      db.prepare(
+        "UPDATE rb_sources SET content_status='queued' WHERE project_id=? AND folder_path IS NOT NULL",
+      ).run(projectId);
     });
   }
 
@@ -253,7 +306,15 @@ export function createResearchStore({
          parse_error=? WHERE id=?`,
       ).run(title, kind, JSON.stringify(metadata), now(), contentStatus, ...values, id);
       const result = getSource(id);
-      indexSource(result);
+      // Hash/status checkpoints do not change filename search. Avoid a full FTS
+      // lookup per background file when only those catalog fields changed.
+      if (
+        result.title !== current.title ||
+        result.name !== current.name ||
+        result.folderPath !== current.folderPath ||
+        JSON.stringify(result.metadata) !== JSON.stringify(current.metadata)
+      )
+        indexSource(result);
       changed('source.updated', result, actor);
       return result;
     });
@@ -308,7 +369,8 @@ export function createResearchStore({
           passage.charEnd ?? null,
           passage.anchor == null ? null : JSON.stringify(passage.anchor),
         );
-        putIndex('chunk', id, source.projectId, passage.section ?? '', text);
+        // Old chunks were removed above; newly inserted passages have no old row.
+        putIndex('chunk', id, source.projectId, passage.section ?? '', text, false);
       }
       db.prepare(
         `UPDATE rb_sources SET kind = ?, content_status = ?, parser = ?, parse_error = ?,
@@ -324,7 +386,7 @@ export function createResearchStore({
         sourceId,
       );
       const result = getSource(sourceId);
-      indexSource(result);
+      if (JSON.stringify(result.metadata) !== JSON.stringify(source.metadata)) indexSource(result);
       changed('source.imported', result, actor);
       return result;
     });
@@ -365,6 +427,8 @@ export function createResearchStore({
   return {
     db,
     createSource,
+    queueSources,
+    queueProjectSources,
     getSource,
     listSources,
     countSources,

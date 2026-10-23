@@ -1,44 +1,120 @@
 // Copies are immutable source artifacts, named by byte content, not by parser IDs.
-import { createReadStream } from 'node:fs';
+import { createReadStream, createWriteStream } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
-import { copyFile, mkdir, readdir, rename, stat, unlink } from 'node:fs/promises';
+import { mkdir, readdir, rename, stat, unlink } from 'node:fs/promises';
+import { Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import path from 'node:path';
+import { AppError } from '../../core/errors.js';
 
-/**
- * @param {string} file
- * @returns {Promise<string>}
- */
-export async function fileHash(file) {
-  const hash = createHash('sha256');
-  for await (const bytes of createReadStream(file)) hash.update(bytes);
-  return hash.digest('hex');
+const publications = new Map();
+const directories = new Map();
+
+function ensureCopyDirectory(directory) {
+  if (directories.has(directory)) return directories.get(directory);
+  const operation = mkdir(directory, { recursive: true })
+    .catch(async (error) => {
+      // Windows can report EPERM when another worker just created the directory.
+      const existing = await stat(directory).catch(() => null);
+      if (['EEXIST', 'EPERM'].includes(error.code) && existing?.isDirectory()) return;
+      throw error;
+    })
+    .finally(() => directories.delete(directory));
+  directories.set(directory, operation);
+  return operation;
+}
+
+async function publishSnapshot(temporary, destination, fileSize) {
+  const previous = publications.get(destination) ?? Promise.resolve();
+  const operation = previous
+    .catch(() => {})
+    .then(async () => {
+      const existing = await stat(destination).catch((error) => {
+        if (error.code !== 'ENOENT') throw error;
+        return null;
+      });
+      if (existing) {
+        if (!existing.isFile() || existing.size !== fileSize)
+          throw new AppError(
+            'INDEX_COPY_MISMATCH',
+            'Saved project copy has a different size.',
+            409,
+          );
+        return true;
+      }
+      try {
+        await rename(temporary, destination);
+        return false;
+      } catch (error) {
+        if (!['EEXIST', 'EPERM'].includes(error.code)) throw error;
+        const saved = await stat(destination).catch(() => null);
+        if (saved?.isFile() && saved.size === fileSize) return true;
+        throw error;
+      }
+    });
+  publications.set(destination, operation);
+  try {
+    return await operation;
+  } finally {
+    if (publications.get(destination) === operation) publications.delete(destination);
+  }
 }
 
 /**
+ * Hash and copy the same bytes in one source read. Publish the immutable copy
+ * without replacing an existing hash file when two workers finish together.
  * The temporary copy stays in the data directory, never in the project folder.
  * @param {string} library
  * @param {string} projectId
  * @param {string} file
- * @param {string} hash
- * @returns {Promise<string>}
+ * @param {{fileSize:number,fileMtimeMs:number}} [expected]
+ * @returns {Promise<{contentHash:string,originalPath:string,fileSize:number,fileMtimeMs:number,reused:boolean}>}
  */
-export async function copyProjectFile(library, projectId, file, hash) {
-  const relative = `project-files/${projectId}/${hash}`;
-  const destination = path.join(library, relative);
+export async function snapshotProjectFile(library, projectId, file, expected) {
+  const before = await stat(file);
+  const changed = () =>
+    new AppError('INDEX_FILE_CHANGED', 'File changed during indexing; scan again.', 409);
+  if (expected && (before.size !== expected.fileSize || before.mtimeMs !== expected.fileMtimeMs))
+    throw changed();
+  const directory = path.join(library, 'project-files', projectId);
+  await ensureCopyDirectory(directory);
+  const temporary = path.join(directory, `${randomUUID()}.tmp`);
+  const hash = createHash('sha256');
+  let bytesRead = 0;
   try {
-    await stat(destination);
-    return relative;
-  } catch (error) {
-    if (error.code !== 'ENOENT') throw error;
-  }
-  await mkdir(path.dirname(destination), { recursive: true });
-  const temporary = `${destination}.${randomUUID()}.tmp`;
-  try {
-    await copyFile(file, temporary);
-    if ((await fileHash(temporary)) !== hash)
-      throw new Error('File changed during indexing; scan again.');
-    await rename(temporary, destination);
-    return relative;
+    await pipeline(
+      createReadStream(file),
+      new Transform({
+        transform(bytes, encoding, callback) {
+          hash.update(bytes);
+          bytesRead += bytes.length;
+          callback(null, bytes);
+        },
+      }),
+      createWriteStream(temporary, { flags: 'wx' }),
+    );
+    const after = await stat(file).catch((error) => {
+      if (['ENOENT', 'ENOTDIR'].includes(error.code)) throw changed();
+      throw error;
+    });
+    if (
+      before.size !== after.size ||
+      before.mtimeMs !== after.mtimeMs ||
+      before.ctimeMs !== after.ctimeMs ||
+      before.ino !== after.ino ||
+      bytesRead !== before.size
+    )
+      throw changed();
+    const contentHash = hash.digest('hex');
+    const originalPath = `project-files/${projectId}/${contentHash}`;
+    const reused = await publishSnapshot(temporary, path.join(library, originalPath), before.size);
+    return {
+      contentHash,
+      originalPath,
+      fileSize: before.size,
+      fileMtimeMs: before.mtimeMs,
+      reused,
+    };
   } finally {
     await unlink(temporary).catch((error) => {
       if (error.code !== 'ENOENT') throw error;

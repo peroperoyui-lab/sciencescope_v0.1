@@ -30,6 +30,7 @@ export const EVENT_TYPES = [
   'secretary.followup.updated',
   'revision.undone',
   'research.changed',
+  'research.index.progress',
   'research.input.changed',
   'memory.status',
   'memory.changed',
