@@ -1,6 +1,6 @@
 // KB-10: the knowledge base as a graph. The canvas draws the stored layout,
 // centres on a node, connects two nodes by dragging, merges entities, pins a
-// dragged node, filters by kind, and undoes page edits with Ctrl+Z.
+// dragged node, filters by kind and unconnected nodes, and undoes page edits with Ctrl+Z.
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createResearchStore } from '../services/research/store.js';
@@ -232,6 +232,17 @@ test(
 
       // Filters hide a kind at once; clearing brings it back.
       await page.locator('[data-kb-graph]').getByRole('button', { name: '筛选' }).click();
+      // Only unconnected nodes: every node here has a relation.
+      await page.getByRole('dialog', { name: '筛选' }).getByLabel('只看未连接的').check();
+      assert.equal(
+        await onMap(
+          page,
+          'const node = map.cy.getElementById(value); return node.empty() || node.hasClass("hidden");',
+          ref.paper,
+        ),
+        true,
+      );
+      await page.getByRole('dialog', { name: '筛选' }).getByLabel('只看未连接的').uncheck();
       await page.getByRole('dialog', { name: '筛选' }).getByLabel('文献').uncheck();
       // A filtered kind is hidden, then unloaded on the next viewport load.
       assert.equal(

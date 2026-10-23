@@ -225,7 +225,7 @@ function stylesheet(palette) {
 
 /**
  * @typedef {{ref:string,x:number,y:number,kind:string,degree:number,pinned:boolean}} IndexNode
- * @typedef {{kinds:Set<string>|null,layers:Set<string>|null,aiOnly:boolean}} MapFilters
+ * @typedef {{kinds:Set<string>|null,layers:Set<string>|null,aiOnly:boolean,unlinked?:boolean}} MapFilters
  * @typedef {{
  *   load:(refs:string[])=>Promise<{nodes:any[],edges:any[]}>,
  *   onSelect?:(ref:string|null,multi:boolean,point:{x:number,y:number})=>void,
@@ -288,8 +288,9 @@ export function createKnowledgeMap(cytoscape, host, options) {
   let frame = 0;
   let destroyed = false;
 
-  const visibleKind = (node) =>
-    !filters.kinds || filters.kinds.has(kindGroup(displayKind(node.ref, node.kind)));
+  const visibleNode = (node) =>
+    (!filters.kinds || filters.kinds.has(kindGroup(displayKind(node.ref, node.kind)))) &&
+    (!filters.unlinked || node.degree === 0);
   const size = (degree) => Math.round(20 + Math.min(20, 4 * Math.log2(1 + degree)));
   const model = (node) => ({ x: node.x * scale, y: node.y * scale });
 
@@ -397,7 +398,7 @@ export function createKnowledgeMap(cytoscape, host, options) {
         node.x <= x2 &&
         node.y >= y1 &&
         node.y <= y2 &&
-        visibleKind(node) &&
+        visibleNode(node) &&
         !must.has(node.ref)
       )
         inView.push(node);
@@ -489,7 +490,7 @@ export function createKnowledgeMap(cytoscape, host, options) {
   function applyClasses() {
     for (const element of cy.nodes(':not(.ghost)')) {
       const index = position.get(element.id());
-      element.toggleClass('hidden', index == null || !visibleKind(nodes[index]));
+      element.toggleClass('hidden', index == null || !visibleNode(nodes[index]));
       element.toggleClass('faded', Boolean(center) && !center.refs.has(element.id()));
     }
     const quiet = cy.edges(':not(.ghost)').length > EDGE_LABEL_LIMIT;
@@ -544,7 +545,7 @@ export function createKnowledgeMap(cytoscape, host, options) {
         const x = node.x * scale * zoom + pan.x;
         const y = node.y * scale * zoom + pan.y;
         if (x < -4 || y < -4 || x > width + 4 || y > height + 4) continue;
-        if (!visibleKind(node) || cy.getElementById(node.ref).nonempty()) continue;
+        if (!visibleNode(node) || cy.getElementById(node.ref).nonempty()) continue;
         const group = kindGroup(displayKind(node.ref, node.kind));
         if (!groups.has(group)) groups.set(group, []);
         groups.get(group).push(x, y);

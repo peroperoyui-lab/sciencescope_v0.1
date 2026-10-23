@@ -1519,6 +1519,7 @@ export const en = {
   仅索引文件名: 'File name only',
   全部种类: 'All kinds',
   '只看 AI 添加的': 'Only added by AI',
+  只看未连接的: 'Only unconnected',
   筛选立即生效: 'Filters apply immediately',
   清除: 'Clear',
   '{n} 条关系': 'Relations {n}',

@@ -32,7 +32,7 @@ const PICKER_RELATIONS = [
 const LEGEND_TIP =
   '实线是手动添加的关系；带圆点的实线是从原文整理出来的，带页码证据；虚线是自动线索（引用、相似），只作参考。AI 添加且没人改过的关系带 AI 标记。拖动节点会把它钉在那里；按住 Shift 点选可以选中多个实体再合并。';
 
-const noFilters = { kinds: null, layers: null, aiOnly: false };
+const noFilters = { kinds: null, layers: null, aiOnly: false, unlinked: false };
 /** A context-menu event at a canvas point, for actions.openMenu. @returns {any} */
 const pointEvent = (host, point) => ({
   type: 'contextmenu',
@@ -812,10 +812,10 @@ export function KnowledgeGraph({ selection, onSelect, onStatus, query, searchNon
     }`;
 }
 
-/** Kinds, edge layers and AI-only, applied on the canvas immediately. */
+/** Kinds, edge layers, AI-only and unlinked nodes, applied on the canvas immediately. */
 function GraphFilters({ filters, onChange }) {
   const pop = usePopover({ placement: 'bottom-end' });
-  const active = Boolean(filters.kinds || filters.layers || filters.aiOnly);
+  const active = Boolean(filters.kinds || filters.layers || filters.aiOnly || filters.unlinked);
   const toggle = (key, value, all) => {
     const current = new Set(filters[key] ?? all);
     if (current.has(value)) current.delete(value);
@@ -853,6 +853,14 @@ function GraphFilters({ filters, onChange }) {
                   /><span>${t(name)}</span></label
                 >`,
             )}
+            <label class="ss-check"
+              ><input
+                type="checkbox"
+                checked=${filters.unlinked}
+                onChange=${(event) =>
+                  onChange({ ...filters, unlinked: event.currentTarget.checked })}
+              /><span>${t('只看未连接的')}</span></label
+            >
           </div>
           <div class="ss-pop__section">
             <span class="ss-pop__label">${t('关系的来源')}</span>
