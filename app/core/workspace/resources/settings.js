@@ -60,6 +60,7 @@ export const DEFAULT_SETTINGS = {
   mcp: { servers: [], npmRegistry: null },
   semantic: DEFAULT_SEMANTIC_SETTINGS,
   knowledge: {
+    retrievalExpansion: false,
     similarity: { threshold: 0.85, maxPerPaper: 3 },
     cards: { enabled: true, model: null },
   },
@@ -103,6 +104,8 @@ function parse(text) {
 }
 
 function format(value) {
+  if (typeof value.knowledge?.retrievalExpansion !== 'boolean')
+    throw new AppError('INVALID_RETRIEVAL_EXPANSION', '知识图检索扩展设置必须为开启或关闭。');
   if (!['auto', 'xelatex', 'lualatex', 'pdflatex'].includes(value.desk?.tex?.engine))
     throw new AppError('INVALID_TEX_ENGINE', '请选择自动或已支持的 TeX 引擎。');
   for (const server of value.mcp.servers)

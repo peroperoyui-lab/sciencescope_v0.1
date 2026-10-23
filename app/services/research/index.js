@@ -10,8 +10,9 @@ import { chunkBlocks } from './chunks.js';
 import { openPath } from '../system.js';
 import { createProjectFiles } from '../project-files.js';
 import { createSourceRemoval } from '../knowledge/source-removal.js';
+import { createExpansionSearch } from '../knowledge/expansion.js';
 
-/** @param {import('../../core/index.js').Core} core @param {{semantic?:any,open?:typeof openPath,recycle?:typeof import('../system.js').recyclePath}} [options] */
+/** @param {import('../../core/index.js').Core} core @param {{semantic?:any,open?:typeof openPath,recycle?:typeof import('../system.js').recyclePath,expansion?:Parameters<typeof createExpansionSearch>[2]}} [options] */
 export function createResearch(core, options = {}) {
   const store = createResearchStore({ db: core.db, events: core.events });
   const search = createResearchSearch(store);
@@ -142,9 +143,13 @@ export function createResearch(core, options = {}) {
     sourcePath,
     openSource,
     read: search.read,
-    search: (query, input = {}) =>
-      options.semantic
-        ? options.semantic.search(query, input, search.search)
-        : { ...search.search(query, input), mode: 'keyword' },
+    search: createExpansionSearch(
+      core,
+      (query, input = {}) =>
+        options.semantic
+          ? options.semantic.search(query, input, search.search)
+          : { ...search.search(query, input), mode: 'keyword' },
+      options.expansion,
+    ),
   };
 }

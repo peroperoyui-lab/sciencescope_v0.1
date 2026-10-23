@@ -53,9 +53,21 @@ export const TOOL_SPECS = [
       'Search imported research passages and active shared research items by keywords. ' +
       'Use the current project unless projectId is given; personal sources are included. ' +
       'Results include citation labels such as [S3 p.4]. Read the passage before citing. ' +
-      'Private items never participate. Returned remaining counts can be paged with offset.',
+      'Private items never participate. Returned remaining counts can be paged with offset. ' +
+      'Graph discovery returns original evidence with origin and via; graph:false disables it. ' +
+      'Use graph:{depth:2} explicitly when a method variant or dataset connection requires an intermediate node; otherwise prefer one hop.',
     parameters: {
       query: { type: 'string', required: true },
+      graph: {
+        anyOf: [
+          { type: 'boolean', const: false },
+          {
+            type: 'object',
+            properties: { depth: { type: 'integer', enum: [1, 2] } },
+            additionalProperties: false,
+          },
+        ],
+      },
       projectId: { type: 'string', description: 'Project id; omit for current meeting project.' },
       includePersonal: { type: 'boolean' },
       includeSuperseded: {

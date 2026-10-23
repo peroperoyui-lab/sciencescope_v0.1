@@ -1,0 +1,180 @@
+// Synthetic, bilingual research examples; no real paper or model-written answer.
+// Freeze the questions and relevance labels before comparing retrieval variants.
+export const RETRIEVAL_TOPICS = [
+  {
+    key: 'qca',
+    name: '模糊集定性比较分析',
+    aliases: ['fsQCA', 'fuzzy-set qualitative comparative analysis'],
+    title: 'Configurations of urban resilience',
+    body: '本研究采用模糊集定性比较分析研究城市韧性的多条充分路径。样本是四十二座城市；高公共服务与跨部门协同形成一条充分配置。',
+    general: '城市韧性研究包含多少座城市？',
+    method: 'Which urban resilience study uses fsQCA?',
+  },
+  {
+    key: 'did',
+    name: '双重差分',
+    aliases: ['DID', 'difference-in-differences'],
+    title: '碳交易政策的减排效应',
+    body: '采用双重差分比较试点与非试点地区在政策前后的排放变化。样本期为二〇一〇年至二〇二〇年，平行趋势检验支持识别设计。',
+    general: '碳交易政策研究的样本期是什么？',
+    method: '哪篇碳政策研究采用 DID 准实验？',
+  },
+  {
+    key: 'rdd',
+    name: '断点回归',
+    aliases: ['RDD', 'regression discontinuity'],
+    title: 'Financial aid at the scholarship cutoff',
+    body: 'A regression discontinuity design estimates the effect of scholarships at the eligibility cutoff. The cutoff is a score of eighty. Local estimates use observations near the threshold.',
+    general: 'What score determines scholarship eligibility?',
+    method: '哪篇奖学金论文使用 RDD 的局部识别？',
+  },
+  {
+    key: 'psm',
+    name: '倾向得分匹配',
+    aliases: ['PSM', 'propensity score matching'],
+    title: '职业培训与再就业',
+    body: '培训参与者和未参与者通过倾向得分匹配进行比较。培训随访十二个月，就业率提高八个百分点；匹配变量包括年龄和既往收入。',
+    general: '职业培训的随访持续多少个月？',
+    method: 'Which employment study matches treated and control propensity scores?',
+  },
+  {
+    key: 'iv',
+    name: '工具变量',
+    aliases: ['IV', 'instrumental variables', '2SLS'],
+    title: 'Credit access and household investment',
+    body: 'We estimate credit access with instrumental variables and two-stage least squares. Distance to historical bank branches is the excluded instrument. The sample contains six hundred households.',
+    general: 'Which instrument identifies credit access?',
+    method: '哪篇信贷研究使用 2SLS 而非普通回归？',
+  },
+  {
+    key: 'dea',
+    name: '数据包络分析',
+    aliases: ['DEA', 'data envelopment analysis'],
+    title: '医院运营效率的非参数评估',
+    body: '本研究以数据包络分析测算医院效率，不预设生产函数。投入是床位和医护人数，产出为门诊与住院服务量。样本包含二十四家医院。',
+    general: '医院运营效率评估用了多少家医院？',
+    method: 'Which hospital study estimates a nonparametric production frontier with DEA?',
+  },
+  {
+    key: 'sem',
+    name: '结构方程模型',
+    aliases: ['SEM', 'structural equation modeling'],
+    title: 'Neighborhood trust and subjective wellbeing',
+    body: 'Structural equation modeling relates neighborhood trust to subjective wellbeing through perceived safety. The survey includes nine hundred residents. Perceived safety mediates part of the association.',
+    general: 'What mediates neighborhood trust and wellbeing?',
+    method: '哪项幸福感研究使用潜变量路径模型 SEM？',
+  },
+  {
+    key: 'stm',
+    name: '结构主题模型',
+    aliases: ['STM', 'structural topic model'],
+    title: '城市热线诉求的主题变化',
+    body: '采用结构主题模型识别热线诉求，时间与街道属性作为主题占比的协变量。语料共有三万条热线记录，交通投诉在雨季增加。',
+    general: '城市热线语料共有多少条记录？',
+    method: 'Which civic-text study uses STM with document covariates?',
+  },
+  {
+    key: 'gwr',
+    name: '地理加权回归',
+    aliases: ['GWR', 'geographically weighted regression'],
+    title: '公交可达性的空间异质性',
+    body: '地理加权回归允许公共交通可达性与就业密度的关系随位置变化。自适应核以最近六十个邻居构造局部估计，远郊系数低于中心城区。',
+    general: '公交可达性局部估计的核使用多少个邻居？',
+    method: '哪项公交空间研究使用 GWR 局部回归？',
+  },
+  {
+    key: 'mrio',
+    name: '多区域投入产出分析',
+    aliases: ['MRIO', 'multi-region input-output analysis'],
+    title: 'Embodied carbon in interprovincial trade',
+    body: 'Multi-region input-output analysis traces embodied carbon across provincial supply chains. The accounting covers thirty provinces and forty-two sectors. Construction demand drives substantial upstream emissions.',
+    general: 'How many sectors are in the provincial carbon accounting?',
+    method: '哪篇省际碳转移研究使用 MRIO 核算？',
+  },
+];
+
+export const RETRIEVAL_QUESTIONS = RETRIEVAL_TOPICS.flatMap((topic, index) => [
+  {
+    id: `g${String(index + 1).padStart(2, '0')}`,
+    group: 'general',
+    query: topic.general,
+    correct: [topic.key],
+  },
+  {
+    id: `m${String(index + 1).padStart(2, '0')}`,
+    group: 'method',
+    query: topic.method,
+    correct: [topic.key],
+  },
+]);
+
+export const RETRIEVAL_DISTRACTORS = [
+  [
+    'urban-survey',
+    'Urban resilience methods: a review',
+    'We review fsQCA and regression analysis for urban resilience. This review does not estimate configurations; it compares reporting standards and reproducibility checklists.',
+  ],
+  [
+    'carbon-survey',
+    '碳政策识别方法综述',
+    '综述列出 DID、RDD 与回归分析的识别假设。文章不估计政策效果，强调预先登记与公开数据。',
+  ],
+  [
+    'aid-survey',
+    'Scholarship evidence checklist',
+    'RDD, matching and regression analysis appear in this scholarship design checklist. No original scholarship effect is estimated.',
+  ],
+  [
+    'employment-survey',
+    'Employment matching diagnostics',
+    'Propensity scores, common support and regression analysis are discussed as employment diagnostics. This methodological note has no training follow-up data.',
+  ],
+  [
+    'credit-survey',
+    '信贷研究的识别风险',
+    '2SLS 与普通回归的结果都可能受到测量误差影响。本文是信贷工具变量的讨论性综述，没有家庭样本。',
+  ],
+  [
+    'hospital-survey',
+    'DEA for hospitals: reproducibility notes',
+    'DEA, nonparametric production frontiers and regression analysis are listed for hospital analysts. This is a reporting guide without hospital efficiency estimates.',
+  ],
+  [
+    'wellbeing-survey',
+    '幸福感测量手册',
+    'SEM 潜变量路径与回归分析是常见的幸福感分析工具。本文讨论量表设计，没有邻里调查。',
+  ],
+  [
+    'civic-survey',
+    'STM for civic text: a tutorial',
+    'STM with document covariates is introduced alongside regression analysis. This tutorial uses toy documents rather than a city hotline corpus.',
+  ],
+  [
+    'transit-survey',
+    '公交研究中的空间诊断',
+    'GWR 与回归分析的带宽选择需要交叉验证。此方法评论没有实际公交核估计。',
+  ],
+  [
+    'carbon-trade-survey',
+    '省际碳转移方法手册',
+    'MRIO 和回归分析都是碳研究中出现的方法。本手册列出优缺点，没有实际部门核算。',
+  ],
+  ['education', '学校规模与出勤率', '回归分析显示学校规模与出勤率存在相关性；本样例没有因果解释。'],
+  [
+    'rain',
+    'Rainfall and bicycle counts',
+    'Regression analysis relates daily rainfall to bicycle counts. Temperature and holidays are controls.',
+  ],
+  ['housing', '住房满意度调查', '回归分析用于住房满意度的描述性比较。横断面数据不识别动态效应。'],
+  [
+    'energy',
+    'Energy use in small offices',
+    'Regression analysis describes electricity consumption across small offices. Floor area is a control.',
+  ],
+  ['agriculture', '农田灌溉记录', '使用回归分析比较灌溉与产量。降雨差异是本研究的控制变量。'],
+  [
+    'museum',
+    'Museum visits by season',
+    'Regression analysis compares museum visits by season. Opening hours explain part of the variation.',
+  ],
+];

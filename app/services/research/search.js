@@ -21,7 +21,7 @@ export function createResearchSearch(store) {
 
   /**
    * @param {string} query
-   * @param {{projectId?:string|null,includePersonal?:boolean,knowledge?:boolean,audience?:'user'|'agent',includeSuperseded?:boolean,limit?:number,offset?:number}} [options]
+   * @param {{projectId?:string|null,includePersonal?:boolean,knowledge?:boolean,audience?:'user'|'agent',includeSuperseded?:boolean,limit?:number,offset?:number,onRankings?:(context:any)=>void}} [options]
    */
   function search(query, options = {}) {
     const limit = Math.max(1, Math.floor(options.limit ?? 10));
@@ -63,8 +63,13 @@ export function createResearchSearch(store) {
       .prepare(
         `SELECT doc_type, doc_id, bm25(rb_fts,0,0,0,2,1) AS score FROM rb_fts WHERE rb_fts MATCH ? AND ${where} ORDER BY score, doc_id LIMIT ? OFFSET ?`,
       )
-      .all(expression, ...parameters, limit, offset);
-    const hits = rows.map((row) => {
+      .all(
+        expression,
+        ...parameters,
+        options.onRankings ? Math.max(1, total) : limit,
+        options.onRankings ? 0 : offset,
+      );
+    const hit = (row) => {
       const id = String(row.doc_id);
       const type = String(row.doc_type);
       if (type === 'entity') {
@@ -107,7 +112,20 @@ export function createResearchSearch(store) {
         citation: citationFor(source, chunk),
         score: Number(row.score),
       };
-    });
+    };
+    if (options.onRankings) {
+      const ranked = rows.map((row) => ({
+        ref: { type: String(row.doc_type), id: String(row.doc_id) },
+        score: Number(row.score),
+      }));
+      options.onRankings({
+        ranked,
+        vectorRankings: [],
+        keywordRankings: [ranked],
+        hit: (ref, score = 0) => hit({ doc_type: ref.type, doc_id: ref.id, score }),
+      });
+    }
+    const hits = (options.onRankings ? rows.slice(offset, offset + limit) : rows).map(hit);
     return {
       query,
       hits,

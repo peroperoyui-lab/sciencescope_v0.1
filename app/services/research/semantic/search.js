@@ -43,6 +43,7 @@ export function createHybridSearch({
     }
     const keywordResult = await keyword(query, {
       ...options,
+      onRankings: undefined,
       offset: 0,
       limit: Math.max(1, candidates.length),
     });
@@ -70,6 +71,12 @@ export function createHybridSearch({
     const hits = ranked
       .slice(offset, offset + limit)
       .map((row) => projection.hit(row.ref, row.score));
+    options.onRankings?.({
+      ranked,
+      vectorRankings: phase.result.rankings,
+      keywordRankings: [keywordResult.hits.map((hit) => ({ ref: { type: hit.type, id: hit.id } }))],
+      hit: projection.hit,
+    });
     return {
       query,
       hits,
