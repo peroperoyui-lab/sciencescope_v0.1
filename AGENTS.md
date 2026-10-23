@@ -113,8 +113,12 @@ workflow, helping the user understand and advance their own research project
   screenshots at 100% and 125% scaling. AI paths are accepted from a fresh
   install: add the provider in Settings, then run the task.
   Native acceptance only if native code changed.
-- Report in 15 lines or fewer: what changed, which files, test result, open
-  issues. Long material stays in `.sciencescope-local/temp`.
+- Chat reply in 15 lines or fewer: what changed, which files, test result, open
+  issues. Commit a reviewable report to `docs/handoff/reports/<TASK>.md` with
+  each delivery, including later fixes and rechecks. Link it from the implementation
+  log and the final reply so Claude can read it after fetching the branch.
+  Keep raw logs, screenshots, credentials and private samples in ignored local
+  storage; put the relevant results and remaining issues in the committed report.
 - Branches `codex/tNN-topic-YYYYMMDD` from `main`. Report the remote branch
   and SHA. No PR or merge unless the user asks. The repository is public: never
   commit secrets, local state, logs, builds, personal paths or private
