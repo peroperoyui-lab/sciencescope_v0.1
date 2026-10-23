@@ -59,7 +59,7 @@ test('moves keep source identity; deletion removes projections and cleanup prese
       modelVersion: '1',
     });
     try {
-      await index.scan(project.id);
+      await index.scanAndWait(project.id);
       const original = research.store.listSources({ projectId: project.id })[0];
       const chunks = research.store.chunks(original.id);
       const entity = knowledge.createEntity({ name: 'Method', kind: 'method' });
@@ -76,7 +76,7 @@ test('moves keep source identity; deletion removes projections and cleanup prese
       });
       try {
         await rename(path.join(folder, 'old.md'), path.join(folder, 'moved.md'));
-        const moved = await index.scan(project.id);
+        const moved = await index.scanAndWait(project.id);
         assert.equal(moved.moved, 1);
         assert.equal(moved.added, 0);
         assert.equal(moved.deleted, 0);
@@ -92,7 +92,7 @@ test('moves keep source identity; deletion removes projections and cleanup prese
         path.join(folder, 'moved.md'),
         '# Evidence\n\nUpdated distinctive sentence with new content.',
       );
-      await index.scan(project.id);
+      await index.scanAndWait(project.id);
       const updated = research.store.getSource(original.id);
       const oldFile = path.join(core.paths.library, original.originalPath);
       const newFile = path.join(core.paths.library, updated.originalPath);
@@ -108,7 +108,7 @@ test('moves keep source identity; deletion removes projections and cleanup prese
 
       await vectors.upsertDocuments(createSemanticDocuments(core).documents());
       await unlink(path.join(folder, 'moved.md'));
-      const removed = await index.scan(project.id);
+      const removed = await index.scanAndWait(project.id);
       assert.equal(removed.deleted, 1);
       assert.equal(research.search('distinctive', { projectId: project.id }).total, 0);
       assert.equal(

@@ -60,7 +60,7 @@ export const DEFAULT_SETTINGS = {
   mcp: { servers: [], npmRegistry: null },
   semantic: DEFAULT_SEMANTIC_SETTINGS,
   knowledge: {
-    retrievalExpansion: false,
+    retrievalExpansion: true,
     similarity: { threshold: 0.85, maxPerPaper: 3 },
     cards: { enabled: true, model: null },
   },

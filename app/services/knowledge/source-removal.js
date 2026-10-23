@@ -17,7 +17,8 @@ export function createSourceRemoval(core, store, { recycle = recyclePath } = {})
   return async (id, actor = {}) => {
     const source = store.getSource(id);
     // Project snapshots belong to explicit orphan cleanup, never to the recycle bin.
-    if (!source.folderPath && source.originalPath) {
+    const projectSnapshot = source.originalPath?.replaceAll('\\', '/').startsWith('project-files/');
+    if (!source.folderPath && source.originalPath && !projectSnapshot) {
       const original = path.join(core.paths.library, source.originalPath);
       const exists = await stat(original).then(
         () => true,
