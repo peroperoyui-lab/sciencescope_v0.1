@@ -278,24 +278,24 @@ D3a 已实现下表中的登记、开会话、重连、PATCH blocks、撤回、�
 
 D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media/:ref`。登记接受 docx/tex/md/markdown，后两种均记格式 md。文本会话响应额外含 `text`；全文冲突的 `details` 为 `{seq,text}`，格式不符返回 `DESK_FORMAT`。文件列表返回 `{files,groups,truncated}`：文件含 `path,name,format,size,mtime,group`，mtime 为 ISO 时间；group 摘要含 `id,latest:{id,number,branch,tier},sourceVersionId`；仅在数据目录的组另含 name、format。递归跳过隐藏目录和 node_modules，自带项目根另跳过 workbench/notes/minutes/versions/desk，达到 2000 个文稿返回 truncated，读取失败的子目录跳过。列表只读。图片接口返回原字节和原 MIME，缺失为 404 `DESK_MEDIA_NOT_FOUND`。
 
-| 方法与路径                                                                                                     | 作用                                                                        |
-| -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `GET /api/desk/documents?projectId=`                                                                           | 编辑台文件列表：项目文件夹里可编辑和可预览的文件，加版本组                  |
-| `POST /api/desk/documents`                                                                                     | `{ projectId, path }` 登记项目文件（建组和 v1），或 `{ versionId }`         |
-| `POST /api/desk/enter`                                                                                         | `{ projectId, meetingId?, mode, atMessageId? }`，返回会议、created、sessionIds       |
-| `POST /api/desk/sessions`                                                                                      | `{ groupId, versionId?, meetingId }` 打开会话，返回块列表、修改、批注、绑定 |
-| `GET /api/desk/sessions/:id`                                                                                   | 重连时读取会话                                                              |
-| `PATCH /api/desk/sessions/:id/blocks`、`PUT …/text`                                                            | docx `{ baseSeq, blocks, inserted, removed }`；tex `{ baseSeq, text }`      |
-| `POST /api/desk/sessions/:id/rewrite`                                                                          | 划选改写，第 5 节                                                           |
-| `POST /api/desk/sessions/:id/save`                                                                             | `{ to: 'project' \| 'version', label?, tier? }`                             |
-| `POST /api/desk/sessions/:id/close`                                                                            | 关闭会话，按需生成版本                                                      |
-| `POST /api/desk/changes/:id/undo`、`POST /api/desk/sessions/:id/settle`                                        | 撤回一处；保留（`{ ids }` 或全部）                                          |
-| `GET/POST /api/desk/sessions/:id/comments`、`PATCH/DELETE /api/desk/comments/:id`                              | 批注（docx 写进工作副本，tex 写进表）                                       |
-| `GET/POST /api/desk/bindings?groupId=`、`PATCH/DELETE /api/desk/bindings/:id`                                  | 来源绑定                                                                    |
-| `GET /api/desk/sessions/:id/media/:ref`                                                                        | docx 里的图片字节                                                           |
-| `GET /api/desk/tex/engines`、`POST /api/desk/tex/tectonic`、`POST /api/desk/sessions/:id/compile`、`GET …/pdf` | 检测引擎、下载 Tectonic、编译、读输出 PDF                                   |
-| `GET /api/version-groups/:id/graph`、`PATCH /api/versions/:id`                                                 | 版本图（节点含说明前 200 字和修改指令）；改标题、层级、标签、分支名         |
-| `GET /api/versions/:id/compare?baseline=`                                                                      | 现有接口，返回值改为第 4.4 节的对齐行；允许跨分支比较同组任意两版           |
+| 方法与路径                                                                                                     | 作用                                                                           |
+| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `GET /api/desk/documents?projectId=`                                                                           | 编辑台文件列表：项目文件夹里可编辑和可预览的文件，加版本组                     |
+| `POST /api/desk/documents`                                                                                     | `{ projectId, path }` 登记项目文件（建组和 v1），或 `{ versionId }`            |
+| `POST /api/desk/enter`                                                                                         | `{ projectId, meetingId?, mode, atMessageId? }`，返回会议、created、sessionIds |
+| `POST /api/desk/sessions`                                                                                      | `{ groupId, versionId?, meetingId }` 打开会话，返回块列表、修改、批注、绑定    |
+| `GET /api/desk/sessions/:id`                                                                                   | 重连时读取会话                                                                 |
+| `PATCH /api/desk/sessions/:id/blocks`、`PUT …/text`                                                            | docx `{ baseSeq, blocks, inserted, removed }`；tex `{ baseSeq, text }`         |
+| `POST /api/desk/sessions/:id/rewrite`                                                                          | 划选改写，第 5 节                                                              |
+| `POST /api/desk/sessions/:id/save`                                                                             | `{ to: 'project' \| 'version', label?, tier? }`                                |
+| `POST /api/desk/sessions/:id/close`                                                                            | 关闭会话，按需生成版本                                                         |
+| `POST /api/desk/changes/:id/undo`、`POST /api/desk/sessions/:id/settle`                                        | 撤回一处；保留（`{ ids }` 或全部）                                             |
+| `GET/POST /api/desk/sessions/:id/comments`、`PATCH/DELETE /api/desk/comments/:id`                              | 批注（docx 写进工作副本，tex 写进表）                                          |
+| `GET/POST /api/desk/bindings?groupId=`、`PATCH/DELETE /api/desk/bindings/:id`                                  | 来源绑定                                                                       |
+| `GET /api/desk/sessions/:id/media/:ref`                                                                        | docx 里的图片字节                                                              |
+| `GET /api/desk/tex/engines`、`POST /api/desk/tex/tectonic`、`POST /api/desk/sessions/:id/compile`、`GET …/pdf` | 检测引擎、下载 Tectonic、编译、读输出 PDF                                      |
+| `GET /api/version-groups/:id/graph`、`PATCH /api/versions/:id`                                                 | 版本图（节点含说明前 200 字和修改指令）；改标题、层级、标签、分支名            |
+| `GET /api/versions/:id/compare?baseline=`                                                                      | 现有接口，返回值改为第 4.4 节的对齐行；允许跨分支比较同组任意两版              |
 
 事件：docx、tex、md 共用 `desk.changed {sessionId,seq,blockIds,changeIds}`；`desk.session` 为 `{sessionId,state:'open'|'closed'}`，空闲写入失败时另发瞬时 `{sessionId,state:'save-error',message}`，可重试保存。保留不改正文和 seq，也发 `desk.changed`；继续使用现有 `versions.changed`。D5 已记录 `desk.suggested {meetingId,reason,key}`；D3c 已接入 `desk.entered` 与 `desk.focus`，载荷见本节接口说明。
 
@@ -323,31 +323,31 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 
 每个任务书约 1–2 小时，超时就停下报告。D 是 Sol（后端、原生），U 是 Claude（界面）。**A** 表示 alpha 必需。
 
-| 顺序      | 任务                                                                                                                | 谁     | 完成标准                                                                            |
-| --------- | ------------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------- |
-| E0a ✅    | eigenpal 试验（2026-10-20：不采用，见第 3.3 节）                                                                    | Claude | 第 3.3 节四条逐条有结论                                                             |
-| E0b ✅    | 自研回写原型、句子对齐试验（2026-10-20：自研可行）                                                                  | Sol    | 3 份稿件过第 11 节检查；对齐误标清单；报告定路线                                    |
-| D1 **A**  | 新迁移、版本图后端、`PATCH /api/versions/:id`、`graph`                                                              | Sol    | 迁移测试；建分支、改层级、读图的功能测试                                            |
-| D2 **A**  | `desk/docx/` 读、写、批注                                                                                           | Sol    | 合成样例覆盖公式、域、图片、表格、修订、批注；改一段其余字节相同；`w:eastAsia` 继承 |
-| D3a ✅    | 会话服务（docx）：块更新、工作副本、修改记录、撤回、保存、外部修改、关闭生成版本                                    | Sol    | 打开 → 改 → 撤回 → 保存 → 关闭                                                      |
-| D3b ✅    | tex、md 会话（块拆分、按块记修改）、编辑台文件列表、docx 图片字节                                                   | Sol    | tex、md 各走一遍打开 → 改 → 撤回 → 保存 → 关闭                                      |
-| D3c **A** | `/api/desk/enter`（接续或分支）、`desk.focus`（任务书已写，与 D8 一起）                                             | Sol    | 场景 1、9 的后端测试                                                                |
-| E1 **A**  | tex 渲染与公式编辑试验：LaTeX.js 对比自写转换、KaTeX、MathLive；md 往返                                             | Claude | 三份真实 tex（含中文、公式、表格）渲染对照截图，选定方案；md 改一处其余原文不变     |
-| U0 **A**  | 编辑台设计稿：窗口布局、docx、tex、md、pdf、比较、版本树、浮动工具条、右键菜单（2026-10-22 已出，画廊「编辑台」组） | Claude | 所有者认可                                                                          |
-| U1 ✅     | 窗口骨架、入口、左栏、底部栏、文稿标签、`features.editingDesk`，撤掉工作站版本管理                                  | Claude | 100%、125% 截图；开关关闭时无入口                                                   |
-| U2 **A**  | ProseMirror 编辑器、原子节点、块同步、Ctrl+S                                                                        | Claude | 浏览器测试：改字保存后重开一致                                                      |
-| D4 ✅     | `diffVersions`：段落配对加段内词级比较和格式改动；生成版本时后台算好存进版本，任意两版现算缓存                      | Sol    | 插段、删段、拆段、改词、改格式测试；生成版本后 `diff_json` 存在                     |
-| U3 **A**  | 比较视图：左右两页并排、同步滚动、上一处下一处，`version-diff.js` 改用新结果                                        | Claude | 截图；上一处、下一处可用                                                            |
-| D5 ✅     | `manuscript` 读写、`chg_` 撤回、`desk_suggest`、提示词                                                              | Sol    | 脚本运行时测试；`deepseek-v4.1-flash` 真跑一次，报请求数和 token                    |
-| U4 **A**  | 浮动工具条、右键菜单、AI 修改后的提示条（看改了什么、撤销）、对话标记跳转                                           | Claude | 场景 2、9 浏览器测试；全新安装加服务商后真跑一次                                    |
-| D6 ✅     | 批注和索引的表、服务、接口（增删改查，含专家的）、打开时重新定位，原文删光时删除                                    | Sol    | 外部修改后仍定位；原文删掉后这条被删除并记进版本说明                                |
-| U5 **A**  | 「批注与索引」侧栏、批注和索引跟着文字走的标记（全删才删、撤销一起恢复）、查看索引菜单、索引选择框                  | Claude | 场景 5、6 浏览器测试；删字和撤销的锚点测试                                          |
-| U6 **A**  | tex 源码加实时渲染、公式编辑框、md 两种视图、PDF 阅览与标记、编译按钮                                               | Claude | 场景 7、8 浏览器测试；无引擎时编译按钮停用有提示                                    |
-| D7 **A**  | 引擎检测、编译，输出放 `data/temp/`                                                                                 | Sol    | Windows 上 MiKTeX 编译 xeCJK 样例                                                   |
-| D8 **A**  | 编辑台原生窗口：U1 已加 `desk` 窗口和 `desk-open` 事件，D8 补记住大小和位置、`desk.focus` 调到前面                  | Sol    | 原生验收：开关、记住大小和位置、主窗口不锁定、点标记能切过去                        |
-| U7 **A**  | 版本分叉树侧栏：从上往下的树、信息栏、搜索、右键比较；工作站页面的按钮                                              | Claude | 场景 4 走通                                                                         |
-| U8 **A**  | 进入横条（接续或分支）、秘书悬浮按钮                                                                                | Claude | 场景 1 走通，分支后原对话不变                                                       |
-| D9        | Tectonic 按需下载                                                                                                   | Sol    | 视第 12 节第 4 条                                                                   |
+| 顺序     | 任务                                                                                                                | 谁     | 完成标准                                                                            |
+| -------- | ------------------------------------------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------- |
+| E0a ✅   | eigenpal 试验（2026-10-20：不采用，见第 3.3 节）                                                                    | Claude | 第 3.3 节四条逐条有结论                                                             |
+| E0b ✅   | 自研回写原型、句子对齐试验（2026-10-20：自研可行）                                                                  | Sol    | 3 份稿件过第 11 节检查；对齐误标清单；报告定路线                                    |
+| D1 **A** | 新迁移、版本图后端、`PATCH /api/versions/:id`、`graph`                                                              | Sol    | 迁移测试；建分支、改层级、读图的功能测试                                            |
+| D2 **A** | `desk/docx/` 读、写、批注                                                                                           | Sol    | 合成样例覆盖公式、域、图片、表格、修订、批注；改一段其余字节相同；`w:eastAsia` 继承 |
+| D3a ✅   | 会话服务（docx）：块更新、工作副本、修改记录、撤回、保存、外部修改、关闭生成版本                                    | Sol    | 打开 → 改 → 撤回 → 保存 → 关闭                                                      |
+| D3b ✅   | tex、md 会话（块拆分、按块记修改）、编辑台文件列表、docx 图片字节                                                   | Sol    | tex、md 各走一遍打开 → 改 → 撤回 → 保存 → 关闭                                      |
+| D3c ✅   | `/api/desk/enter`（接续或分支）、`desk.focus`（与 D8 一起）                                                         | Sol    | 场景 1、9 的后端测试                                                                |
+| E1 **A** | tex 渲染与公式编辑试验：LaTeX.js 对比自写转换、KaTeX、MathLive；md 往返                                             | Claude | 三份真实 tex（含中文、公式、表格）渲染对照截图，选定方案；md 改一处其余原文不变     |
+| U0 **A** | 编辑台设计稿：窗口布局、docx、tex、md、pdf、比较、版本树、浮动工具条、右键菜单（2026-10-22 已出，画廊「编辑台」组） | Claude | 所有者认可                                                                          |
+| U1 ✅    | 窗口骨架、入口、左栏、底部栏、文稿标签、`features.editingDesk`，撤掉工作站版本管理                                  | Claude | 100%、125% 截图；开关关闭时无入口                                                   |
+| U2 **A** | ProseMirror 编辑器、原子节点、块同步、Ctrl+S                                                                        | Claude | 浏览器测试：改字保存后重开一致                                                      |
+| D4 ✅    | `diffVersions`：段落配对加段内词级比较和格式改动；生成版本时后台算好存进版本，任意两版现算缓存                      | Sol    | 插段、删段、拆段、改词、改格式测试；生成版本后 `diff_json` 存在                     |
+| U3 **A** | 比较视图：左右两页并排、同步滚动、上一处下一处，`version-diff.js` 改用新结果                                        | Claude | 截图；上一处、下一处可用                                                            |
+| D5 ✅    | `manuscript` 读写、`chg_` 撤回、`desk_suggest`、提示词                                                              | Sol    | 脚本运行时测试；`deepseek-v4.1-flash` 真跑一次，报请求数和 token                    |
+| U4 **A** | 浮动工具条、右键菜单、AI 修改后的提示条（看改了什么、撤销）、对话标记跳转                                           | Claude | 场景 2、9 浏览器测试；全新安装加服务商后真跑一次                                    |
+| D6 ✅    | 批注和索引的表、服务、接口（增删改查，含专家的）、打开时重新定位，原文删光时删除                                    | Sol    | 外部修改后仍定位；原文删掉后这条被删除并记进版本说明                                |
+| U5 **A** | 「批注与索引」侧栏、批注和索引跟着文字走的标记（全删才删、撤销一起恢复）、查看索引菜单、索引选择框                  | Claude | 场景 5、6 浏览器测试；删字和撤销的锚点测试                                          |
+| U6 **A** | tex 源码加实时渲染、公式编辑框、md 两种视图、PDF 阅览与标记、编译按钮                                               | Claude | 场景 7、8 浏览器测试；无引擎时编译按钮停用有提示                                    |
+| D7 **A** | 引擎检测、编译，输出放 `data/temp/`（任务书已写）                                                                   | Sol    | Windows 上 MiKTeX 编译 xeCJK 样例                                                   |
+| D8 ✅    | 编辑台原生窗口：U1 已加 `desk` 窗口和 `desk-open` 事件，D8 补记住大小和位置、`desk.focus` 调到前面                  | Sol    | 原生验收：开关、记住大小和位置、主窗口不锁定、点标记能切过去                        |
+| U7 **A** | 版本分叉树侧栏：从上往下的树、信息栏、搜索、右键比较；工作站页面的按钮                                              | Claude | 场景 4 走通                                                                         |
+| U8 **A** | 进入横条（接续或分支）、秘书悬浮按钮                                                                                | Claude | 场景 1 走通，分支后原对话不变                                                       |
+| D9       | Tectonic 按需下载                                                                                                   | Sol    | 视第 12 节第 4 条                                                                   |
 
 A 任务完成后，在 Windows 候选安装包上用真实论文走完场景 1–9，再打开 `features.editingDesk`；`product/FEATURES.md` 随每个任务更新。
 

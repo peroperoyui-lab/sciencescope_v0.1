@@ -254,6 +254,13 @@ test(
       await page.locator('.site', { hasText: 'Open science' }).waitFor();
       await page.locator('.site', { hasText: 'Open science' }).click({ button: 'right' });
       await page.getByRole('menuitem', { name: '编辑站点' }).click();
+      // A settings reload while the form is open replaces the site objects.
+      const reloaded = page.waitForResponse(
+        (response) =>
+          response.url().endsWith('/api/settings') && response.request().method() === 'GET',
+      );
+      app.core.events.record('resource.changed', { resource: 'settings', key: 'app' });
+      await reloaded;
       await page.locator('#modal input').nth(0).fill('Research tools');
       await page.locator('#modal').getByRole('button', { name: '保存', exact: true }).click();
       await page.locator('.site', { hasText: 'Research tools' }).waitFor();

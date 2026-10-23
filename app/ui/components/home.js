@@ -18,6 +18,9 @@ function shortStamp(iso) {
   return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+/** @param {{name:string,url:string}} left @param {{name:string,url:string}} right */
+const sameSite = (left, right) => left.name === right.name && left.url === right.url;
+
 /** Add a site, or edit `site`. @param {{ site?: { name: string, url: string } }} props */
 function SiteForm({ site }) {
   const actions = useActions();
@@ -28,8 +31,10 @@ function SiteForm({ site }) {
     event.preventDefault();
     actions.closeModal();
     const entry = { name: name.trim(), url: url.trim() };
+    // Settings refreshes replace the site objects; match the edited one by value.
+    const at = site ? sites.findIndex((candidate) => sameSite(candidate, site)) : -1;
     const next = site
-      ? sites.map((candidate) => (candidate === site ? entry : candidate))
+      ? sites.map((candidate, index) => (index === at ? entry : candidate))
       : [...sites, entry];
     await actions.attempt(() => actions.updateSettings({ sites: next }));
   }
@@ -84,7 +89,10 @@ export function Sites() {
           text: t('移除站点'),
           icon: 'trash',
           danger: true,
-          run: () => store(sites.filter((candidate) => candidate !== site)),
+          run: () => {
+            const at = sites.findIndex((candidate) => sameSite(candidate, site));
+            store(sites.filter((_, position) => position !== at));
+          },
         },
       ],
       site.name,
