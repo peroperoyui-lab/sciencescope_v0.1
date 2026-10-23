@@ -5,6 +5,8 @@ import path from 'node:path';
 import JSZip from 'jszip';
 import { safeFileName } from '../core/paths.js';
 
+export { createFullExport } from './export/index.js';
+
 /**
  * A meeting record as readable Markdown.
  * @param {import('../core/index.js').Core} core @param {string} meetingId

@@ -28,6 +28,8 @@ import { registerToolRoutes } from './routes/tools.js';
 import { registerMcpRoutes } from './routes/mcp.js';
 import { registerKnowledgeRoutes } from './routes/knowledge.js';
 import { registerDeskRoutes } from './routes/desk.js';
+import { registerExportRoutes } from './routes/export.js';
+import { createFullExport } from '../services/export.js';
 
 // Generous resource bound for request bodies (attachments travel separately).
 const MAX_BODY_BYTES = 64 * 1024 * 1024;
@@ -113,6 +115,8 @@ export function createAppServer({
   desk,
 }) {
   const router = createRouter();
+  const exporter = createFullExport(core);
+  registerExportRoutes(router, exporter);
   registerDeskRoutes(router, desk, core, conductor);
   registerSkillRoutes(router, skills);
   registerMcpRoutes(router, mcp);
@@ -220,9 +224,12 @@ export function createAppServer({
         });
       });
     },
-    close() {
+    async close() {
       server.closeAllConnections();
-      return new Promise((resolve) => server.close(() => resolve(undefined)));
+      const closed = new Promise((resolve) => server.close(() => resolve(undefined)));
+      // Stop the worker before the application closes its core database.
+      await exporter.close();
+      await closed;
     },
   };
 }

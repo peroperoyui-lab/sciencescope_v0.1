@@ -1,2 +1,4 @@
 # App source is formatted as LF by Prettier, including Windows clean checkouts.
 app/** text eol=lf
+# Packaging tests are also checked by Prettier in a clean Windows checkout.
+tools/package/*.test.js text eol=lf

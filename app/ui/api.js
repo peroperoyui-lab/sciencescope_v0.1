@@ -41,6 +41,8 @@ export const EVENT_TYPES = [
   'desk.entered',
   'desk.focus',
   'desk.compiled',
+  'export.progress',
+  'export.finished',
 ];
 
 export class ApiError extends Error {

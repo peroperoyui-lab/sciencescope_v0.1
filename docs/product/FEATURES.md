@@ -36,7 +36,7 @@
 - `app/app.js` 装配核心、各项服务、运行时和 HTTP 服务。测试用同一个 `createApp`，只把运行时换成 `app/runtime/scripted.js`。
 - 所有 `/api/` 请求都要带口令（`Authorization: Bearer` 或 `?token=`），否则返回 401。请求体上限 64 MB，导入资料、文献版本、附件和编辑台块修改不设此上限。
 - 界面通过 `GET /api/events`（Server-Sent Events，可用 `since` 或 `Last-Event-ID` 续传）接收核心事件，不轮询。
-- 原生外壳（`src-tauri/src/main.rs`、`new_app.rs`）默认启动新核心；设置环境变量 `SCIENCESCOPE_APP=legacy` 才会启动冻结的旧宿主。外壳负责窗口、文件夹选择、用系统程序打开文件和网址、全局助手窗口与浮球；在 Windows 上用 Job 对象管理子进程树。
+- 原生外壳（`src-tauri/src/main.rs`、`new_app.rs`）只启动新核心；R5 已删除旧宿主分支。外壳负责窗口、文件夹选择、用系统程序打开文件和网址、全局助手窗口与浮球；在 Windows 上用 Job 对象管理子进程树。
 
 ### 1.2 数据目录 `data/`
 
@@ -92,6 +92,7 @@ data/
 - 每个项目默认显示最近 5 个对话（当前打开的总在），其余收进「还有 N 个」。行尾显示状态：运行中转圈（项目收起时转在项目行上）、待批准、失败、排队、暂停，没有状态时显示多久前活动（今天、昨天、N 天/周/个月）。
 - 对话菜单：重命名（F2）、置顶、移到项目…（列出其他项目和「移出项目，变成独立对话」）、归档；运行中不能移动或归档。也可把对话拖到项目行上。移动后底部提示可「撤销」。随对话移动的：纪要文件（含附属秘书对话）；工作文件夹原来是默认位置（项目目录或数据目录下的 `workspaces/`）时改到新项目，移出项目时新建一个独立文件夹；用户自选的文件夹不变。没有删除，只有归档（用户 2026-10-20）。
 - 从任意一条消息"从这里分支"出新对话；导出当前对话为 Markdown，导出项目快照为 zip（项目文件夹加全部会议记录）。
+- 全量导出后端将全部对话、工作站、知识库、专家、技能、设置和 SQLite 副本写成普通文件夹；界面入口由后续界面接入。任务在后台线程执行，支持取消，关闭应用即取消，未完成目录保留标记。外部项目文件夹只记录路径；项目资料副本可通过 `includeProjectCopies` 选择复制。服务商自定义 header 及 MCP 明文 header/env 的值在设置和数据库副本（含历史及事件）中改为 `<已移除>`，保留名称、引用及表行数；原库不修改。
 - 项目文件夹页：浏览绑定的工作目录（未绑定时显示项目自带文件夹），新建文件夹、重命名、移到系统回收站、用资源管理器或默认程序打开；更换位置不会移动已有文件，已有会议继续用原工作目录。
 
 **实现位置**：`app/core/projects.js`、`app/core/meetings.js`、`app/services/project-files.js`、`app/services/export.js`、`app/server/routes/projects.js`、`app/server/routes/meetings.js`；界面 `app/ui/components/sidebar.js`、`all-chats.js`、`project-new.js`、`python-choice.js`、`project-folder.js`。
@@ -477,6 +478,7 @@ data/
 - `DELETE /api/research/sources/:id` 删除资料及投影，返回 `{deleted,vectors,versionId}`；`versionId` 对应人工关系的撤回版本（没有关系修改时为 null）。
 - `POST /api/projects/:id/files` 新建文件夹、重命名、移到回收站、打开。
 - `GET /api/projects/:id/export` 项目快照 zip。
+- `POST /api/export/all {target,includeProjectCopies?}` 返回 `{jobId,folder}`；同一时间只运行一个任务。`GET /api/export/all/:jobId` 返回 `{phase,done,total,bytes,folder,error?}`，`DELETE` 取消。阶段为 `snapshot/exporting/finished/cancelled/failed`。`export.progress` 每秒最多一次，`export.finished` 带 `{jobId,folder,files,bytes,skipped,cancelled,error?}`；实现位于 `app/services/export/`、`app/server/routes/export.js`。
 - `POST /api/projects/:id/log-file/open` 打开日志条目里链接的文件。
 - `POST /api/projects/:id/focus` 进入或离开项目（触发纪要规则）。
 
