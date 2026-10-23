@@ -265,7 +265,7 @@ CREATE UNIQUE INDEX rb_sources_folder ON rb_sources(project_id, folder_path) WHE
 5. **引用**：格式不变（`[S3 p.4]`、`[@a1b2c3d4]`）；实体不能单独当引用，只作路径说明，保证「引用 = 可核查的原文」。结果的 `via` 字段供「本轮用到的资料」显示路径。
 6. **降级与设置**：检索读取 `knowledge.retrievalExpansion`，当前默认 `false`；工具传 `graph:false` 关闭本次，传 `graph:{depth:1|2}` 显式开启本次（服务接口兼容 `graphDepth:2`）。图阶段单独计时，空图、异常、超过 300 毫秒或没有新增证据时返回原排序，并加 `graph:{used:false,reason}`；使用时为 `{used:true,seeds,nodes,truncated}`。每条结果都有 `origin:'search'|'graph'`。设置开关和路径展示由后续界面任务接入。
 7. **评测结论**：固定 30 份合成资料/条目、20 题，统一取 12 条，使用本机 multilingual-e5-small。五组（不扩展、A 无/有枢纽与扇出处理、B 无/有处理）一般题 Hit@3/Recall@12 均 100%/100%；方法题前三均 10%，前 12 覆盖分别 30%/30%/30%/50%/50%。保留 B，按前三没有提升的规则默认关闭；排序调整留 Claude。脚本、题目在 `app/services/knowledge/retrieval-{eval,corpus,fixture}.js`，正式回归脚本仅保留 B 两组和不扩展组；初次 A/B 对照原记录保留于本地验收材料。
-8. **规模与来源**：5 万实体、50 万边（含 5 个枢纽）的原 SQL 子图/PPR 一跳 75.2、两跳 456.7 毫秒；启动时建可重建邻接表、事件增量更新，节点预算已满后不再读取预算外节点，降为 53.2/99.3 毫秒；缓存初始化 2.24 秒。原文、证据和修订仍以数据库及原件为准。PPR 幂迭代与悬挂节点规则核对 NetworkX `pagerank_alg`（BSD-3-Clause），独立实现、无复制代码或新增依赖。
+8. **规模与来源**：5 万实体、50 万边（含 5 个枢纽）的原 SQL 子图/PPR 一跳 75.2、两跳 456.7 毫秒；启动时建可重建邻接表、事件增量更新，节点预算已满后不再读取预算外节点，最终复核为 55.2/102.8 毫秒；缓存初始化 2.27 秒，GC 后保留 JS 堆增量约 440 MiB。原文、证据和修订仍以数据库及原件为准。PPR 幂迭代与悬挂节点规则核对 NetworkX `pagerank_alg`（BSD-3-Clause），独立实现、无复制代码或新增依赖。
 
 ## 6. 工具
 
