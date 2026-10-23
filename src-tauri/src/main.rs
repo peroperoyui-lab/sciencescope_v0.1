@@ -417,7 +417,7 @@ impl ChildHandle {
         )?;
         stream.set_read_timeout(Some(Duration::from_millis(400)))?;
         stream.set_write_timeout(Some(Duration::from_millis(400)))?;
-        let path = if target.path.starts_with('/') { target.path.as_str() } else { "/__host_shutdown" };
+        let path = if target.path.starts_with('/') { target.path.as_str() } else { "/api/shutdown" };
         let request = format!(
             "POST {path} HTTP/1.1\r\nHost: {}:{}\r\nAuthorization: Bearer {}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
             target.host, target.port, target.token,
@@ -466,11 +466,10 @@ impl Drop for HostProcess {
     }
 }
 
-fn host_url(log_dir: &std::path::Path, new_app: Option<&new_app::NewAppLaunch>, native_started: u128) -> Result<Option<(String, String, ChildHandle)>, Box<dyn std::error::Error>> {
+fn host_url(log_dir: &std::path::Path, launch: &new_app::NewAppLaunch, native_started: u128) -> Result<(String, String, ChildHandle), Box<dyn std::error::Error>> {
     let node = match std::env::var_os("SCIENCESCOPE_NODE") {
         Some(value) if !value.is_empty() => value,
-        _ if new_app.is_some() => new_app.unwrap().node.clone().into_os_string(),
-        _ => return Ok(None),
+        _ => launch.node.clone().into_os_string(),
     };
     std::fs::create_dir_all(log_dir)?;
     // One log per launch; stdout carries only the capability line read below.
@@ -482,22 +481,13 @@ fn host_url(log_dir: &std::path::Path, new_app: Option<&new_app::NewAppLaunch>, 
     }
     let host_log = fs::File::create(&log)?;
     let mut command = Command::new(node);
-    if let Some(launch) = new_app {
-        launch.configure(&mut command);
-    } else {
-        let script = match std::env::var_os("SCIENCESCOPE_HOST_SCRIPT") {
-            Some(value) if !value.is_empty() => value,
-            _ => return Ok(None),
-        };
-        command.arg(script).arg("--desktop")
-            .env("SCIENCESCOPE_NATIVE_FEATURES", "pickFolder");
-    }
+    launch.configure(&mut command);
     command.stdout(Stdio::piped()).stderr(Stdio::from(host_log));
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
         // CREATE_NO_WINDOW: the host gets a console without a window, and the
-        // DSH processes it starts inherit that console instead of opening theirs.
+        // tool processes it starts inherit that console instead of opening theirs.
         const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         command.creation_flags(CREATE_NO_WINDOW);
     }
@@ -532,16 +522,7 @@ fn host_url(log_dir: &std::path::Path, new_app: Option<&new_app::NewAppLaunch>, 
         .recv_timeout(Duration::from_secs(45))
         .map_err(|_| "timed out waiting for desktop host")??;
     let parsed: serde_json::Value = serde_json::from_str(line.trim())?;
-    let (url, api_token) = if new_app.is_some() {
-        new_app::readiness(&parsed)?
-    } else {
-        let api_token = parsed.get("apiToken").and_then(serde_json::Value::as_str)
-            .filter(|value| !value.trim().is_empty() && value.len() <= 256)
-            .ok_or("desktop host API capability was invalid")?;
-        let url = parsed.get("url").and_then(serde_json::Value::as_str)
-            .ok_or("desktop host readiness JSON did not contain a url")?;
-        (url.to_owned(), api_token.to_owned())
-    };
+    let (url, api_token) = new_app::readiness(&parsed)?;
     let parsed_url = url::Url::parse(&url)?;
     if parsed_url.scheme() != "http"
         || !matches!(parsed_url.host_str(), Some("127.0.0.1" | "localhost"))
@@ -564,7 +545,7 @@ fn host_url(log_dir: &std::path::Path, new_app: Option<&new_app::NewAppLaunch>, 
             token: shutdown_token.to_owned(),
         });
     }
-    Ok(Some((url, api_token, owned)))
+    Ok((url, api_token, owned))
 }
 
 #[cfg(windows)]
@@ -713,12 +694,8 @@ fn main() {
             let root = executable
                 .parent()
                 .ok_or("Application directory is unavailable")?;
-            let new_app = if new_app::is_new_app(std::env::var_os("SCIENCESCOPE_APP").as_deref()) {
-                Some(new_app::NewAppLaunch::resolve(root, std::env::var_os("SCIENCESCOPE_DATA").as_deref())?)
-            } else {
-                None
-            };
-            let native_data = new_app.as_ref().map(|launch| launch.data_root.clone()).unwrap_or_else(|| root.join("data"));
+            let launch = new_app::NewAppLaunch::resolve(root, std::env::var_os("SCIENCESCOPE_DATA").as_deref())?;
+            let native_data = launch.data_root.clone();
             let webview_data = native_data.join("webview");
             std::fs::create_dir_all(&webview_data)?;
             app.manage(desk_window::DeskState::new(native_data.join("desk-window.json")));
@@ -729,30 +706,26 @@ fn main() {
                 dimensions_path,
             });
 
-            let hosted = host_url(&native_data.join("logs"), new_app.as_ref(), native_started)?;
+            let (url, api_token, child) = host_url(&native_data.join("logs"), &launch, native_started)?;
             let mut config = app.config().app.windows[0].clone();
-            if let Some((url, api_token, child)) = hosted {
-                let parsed_url = url::Url::parse(&url)?;
-                let mut capability: serde_json::Value = serde_json::from_str(include_str!("../capabilities/main.json"))?;
-                capability["identifier"] = serde_json::json!("host-window-controls");
-                if new_app.is_some() {
-                    capability["windows"] = serde_json::json!(["main", ASSISTANT_LABEL, ASSISTANT_ORB_LABEL, desk_window::LABEL]);
-                    capability["permissions"].as_array_mut().ok_or("window permissions must be an array")?
-                        .push(serde_json::json!({"identifier": "opener:allow-open-url", "allow": [{"url": "http://*"}, {"url": "https://*"}]}));
-                }
-                capability["local"] = serde_json::json!(false);
-                capability["remote"] = serde_json::json!({"urls": [format!("{}/*", parsed_url.origin().ascii_serialization())]});
-                app.add_capability(serde_json::to_string(&capability)?)?;
-                let mut folder_capability: serde_json::Value = serde_json::from_str(include_str!("../capabilities/folder-picker.json"))?;
-                folder_capability["local"] = serde_json::json!(false);
-                folder_capability["remote"] = serde_json::json!({"urls": [format!("{}/*", parsed_url.origin().ascii_serialization())]});
-                app.add_capability(serde_json::to_string(&folder_capability)?)?;
-                config.url = tauri::WebviewUrl::External(parsed_url.clone());
-                app.manage(HostAccess { url: parsed_url, api_token });
-                app.manage(HostProcess {
-                    child: Mutex::new(Some(child)),
-                });
-            }
+            let parsed_url = url::Url::parse(&url)?;
+            let mut capability: serde_json::Value = serde_json::from_str(include_str!("../capabilities/main.json"))?;
+            capability["identifier"] = serde_json::json!("host-window-controls");
+            capability["windows"] = serde_json::json!(["main", ASSISTANT_LABEL, ASSISTANT_ORB_LABEL, desk_window::LABEL]);
+            capability["permissions"].as_array_mut().ok_or("window permissions must be an array")?
+                .push(serde_json::json!({"identifier": "opener:allow-open-url", "allow": [{"url": "http://*"}, {"url": "https://*"}]}));
+            capability["local"] = serde_json::json!(false);
+            capability["remote"] = serde_json::json!({"urls": [format!("{}/*", parsed_url.origin().ascii_serialization())]});
+            app.add_capability(serde_json::to_string(&capability)?)?;
+            let mut folder_capability: serde_json::Value = serde_json::from_str(include_str!("../capabilities/folder-picker.json"))?;
+            folder_capability["local"] = serde_json::json!(false);
+            folder_capability["remote"] = serde_json::json!({"urls": [format!("{}/*", parsed_url.origin().ascii_serialization())]});
+            app.add_capability(serde_json::to_string(&folder_capability)?)?;
+            config.url = tauri::WebviewUrl::External(parsed_url.clone());
+            app.manage(HostAccess { url: parsed_url, api_token });
+            app.manage(HostProcess {
+                child: Mutex::new(Some(child)),
+            });
             WebviewWindowBuilder::from_config(app.handle(), &config)?
                 .initialization_script(api_initialization(app.handle()))
                 .data_directory(webview_data)

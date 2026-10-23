@@ -44,10 +44,6 @@ impl NewAppLaunch {
     }
 }
 
-pub fn is_new_app(mode: Option<&OsStr>) -> bool {
-    mode != Some(OsStr::new("legacy"))
-}
-
 pub fn readiness(parsed: &serde_json::Value) -> Result<(String, String), Box<dyn std::error::Error>> {
     let ui = parsed.get("ui").and_then(serde_json::Value::as_str)
         .ok_or("app readiness JSON did not contain ui")?;
@@ -63,10 +59,7 @@ mod tests {
     use std::io::{BufRead, BufReader};
 
     #[test]
-    fn default_is_new_and_legacy_remains_explicit_with_separate_data() {
-        assert!(is_new_app(None));
-        assert!(!is_new_app(Some(OsStr::new("legacy"))));
-        assert!(is_new_app(Some(OsStr::new("new"))));
+    fn launch_uses_app_main_with_its_data_root() {
         let launch = NewAppLaunch::resolve(Path::new("."), None).unwrap();
         let mut command = std::process::Command::new("node");
         launch.configure(&mut command);

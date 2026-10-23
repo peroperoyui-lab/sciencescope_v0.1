@@ -1,5 +1,5 @@
 // Resources preserve Node's module resolution and readable application sources.
-// Sidecars suit single binaries; DSH, native modules and document assets need
+// Sidecars suit single binaries; native modules and document assets need
 // their complete neighbouring package trees instead.
 import { spawn } from 'node:child_process';
 import { cp, mkdir, readFile, writeFile, access, rm } from 'node:fs/promises';

@@ -4,7 +4,7 @@
   "version": "1.0.0-alpha.0",
   "identifier": "org.sciencescope.desktop",
   "build": {
-    "frontendDist": "../.sciencescope-local/desktop-dist"
+    "frontendDist": "../app/ui"
   },
   "app": {
     "withGlobalTauri": true,

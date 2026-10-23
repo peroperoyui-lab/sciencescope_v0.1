@@ -2,7 +2,7 @@
 
 本文描述新核心 `app/` 今天实际能做什么。它取代 `docs/SYSTEM_SPEC.md`（已归档为 `docs/archive/legacy/SYSTEM_SPEC_2026-10-18.md`），后者的 1–7 节描述的是旧原型。
 
-旧线 `desktop/`、`scripts/`、`adapters/` 已冻结（标签 `v0-prototype`），不在本文范围内，将在 R5 切换后删除。
+旧线已在 R5 删除；最后仍包含旧原型的 main 提交为 `1dc18e9a3c8f7539e092dcb4ae2fd681ec4ac513`，历史实现从该提交查阅。原生外壳只启动新核心 `app/main.js`。
 
 核对基线：`4ede4b1`（2026-10-18），逐项对照 `app/` 代码。
 
@@ -747,7 +747,7 @@ data/
 
 ## 5. 测试索引
 
-- **入口**：`npm run check` = Prettier 格式检查 + ESLint + TypeScript 类型检查（`tsc -p app`）+ `node --test --test-concurrency=2 "app/**/*.test.js" "tools/package/*.test.js"`。只跑测试用 `npm run test:app`。`npm test` 跑的是冻结旧线的 `tests/*.test.mjs`，不覆盖新核心。
+- **入口**：`npm run check` = Prettier 格式检查 + ESLint + TypeScript 类型检查（`tsc -p app`）+ `node --test --test-concurrency=2 "app/**/*.test.js" "tools/package/*.test.js"`。只跑测试用 `npm run test:app`。R5 已删除旧原型的 `npm test` 脚本。
 - **组织**：测试文件与被测代码放在一起，命名 `*.test.js`（基线时 99 个），按用户路径写功能测试；多数迁移有测试检查旧数据升级。
 - **脚本化模型**：服务和接口测试用 `app/runtime/scripted.js` 代替真实模型；临时目录由 `app/testing.js` 建在 `.sciencescope-local/temp` 下。`app/ui/i18n/en.test.js` 检查每个界面中文字符串都有英文对照。
 - **运行时测试**：`*.runtime.test.js`（`app/app.runtime.test.js`、`app/main.runtime.test.js`、`app/runtime/pi/http.runtime.test.js`）启动真实宿主或本地 HTTP 假服务商，检查启动输出、关闭、超时和重试。

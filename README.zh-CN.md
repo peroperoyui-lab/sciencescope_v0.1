@@ -116,7 +116,6 @@ Tauri 外壳（Windows）
 | `tools/` | 打包脚本和品牌资源 |
 | `docs/` | 文档，从 [`docs/README.md`](docs/README.md) 开始 |
 | `ScienceScope.html`、`reference/` | 视觉基线：logo、配色和美术风格的来源 |
-| `desktop/`、`scripts/`、`adapters/`、`src/`、`qa/`、`tests/`、`screenshots/` | 旧原型，已冻结，之后删除 |
 
 ## 许可证与署名
 

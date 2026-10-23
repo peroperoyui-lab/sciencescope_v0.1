@@ -55,16 +55,16 @@ workflow, helping the user understand and advance their own research project
 7. **Runtime.** ScienceScope's own agent runtime on `@earendil-works/pi-ai` and
    `@earendil-works/pi-agent-core`, through the runtime port only
    (`docs/architecture/RUNTIME_PORT.md`): only `app/runtime/` imports model or agent
-   packages. DSH is being removed (user 2026-10-16, task P1a); the old line keeps
-   it as a dev dependency until R5.
+   packages. The former DSH runtime and its development dependencies were removed
+   with the old line in R5.
 
 ## Engineering rules
 
 - **Rebuild in progress** (`docs/architecture/ARCHITECTURE.md` §6; alpha order in `docs/plans/ROADMAP.md`). New
-  code goes into `app/` following `docs/architecture/CORE_MODEL.md`. The old line
-  (`desktop/`, `scripts/`, `adapters/`) is frozen as reference (tag
-  `v0-prototype`): no new features there, only fixes needed to keep it running.
-  It is deleted after the R5 cutover.
+  code goes into `app/` following `docs/architecture/CORE_MODEL.md`. R5 deleted
+  the old line. Its last main revision is
+  `1dc18e9a3c8f7539e092dcb4ae2fd681ec4ac513`; consult that commit for historical
+  implementation details. Visual baselines and archived documents remain.
 - Readable, maintainable code comes first: `docs/process/CODE_STYLE.md`, enforced by
   `npm run check` (format, lint, types, tests).
 - Frontend: Preact + htm components in `app/ui/`, rendered from data; never wrap
@@ -109,7 +109,7 @@ workflow, helping the user understand and advance their own research project
   look for a mature open-source library or reference implementation first; name
   it and its licence in the report.
 - Verification: related tests while working; the full `npm run check` once before
-  delivery (`npm test` is the old line's suite). When the user can see the change,
+  delivery. When the user can see the change,
   screenshots at 100% and 125% scaling. AI paths are accepted from a fresh
   install: add the provider in Settings, then run the task.
   Native acceptance only if native code changed.

@@ -119,7 +119,6 @@ The whole process is in the repository: every task brief in [`docs/plans/tasks/`
 | `tools/` | Packaging scripts and brand assets |
 | `docs/` | Documentation, starting at [`docs/README.md`](docs/README.md) |
 | `ScienceScope.html`, `reference/` | Visual baseline: the source of the logo, colours and art style |
-| `desktop/`, `scripts/`, `adapters/`, `src/`, `qa/`, `tests/`, `screenshots/` | The old prototype, frozen, to be removed |
 
 ## License and credits
 

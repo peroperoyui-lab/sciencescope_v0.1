@@ -1,5 +1,7 @@
 # 运行时接口（Runtime Port）· 初稿
 
+> R5 已删除旧线；文中的旧线路径仅作历史参考，原代码见 main 提交 1dc18e9a3c8f7539e092dcb4ae2fd681ec4ac513。
+
 > **C2（2026-10-19）工具图片结果**：工具可返回 `{text,images:[{data:base64,mimeType}],preview?}`。pi 适配器按模型 `input` 是否含 `image` 转成文字与图片块；不支持时正常返回「当前模型不能看图，请换支持图片的模型」。`tool-result` 事件只携带文字及预览元数据，图片内容不进入宿主数据库；其他 JSON 工具结果保持原样。
 
 > **C3（2026-10-19）**：新端口 `steer(sessionId,input,images?)` 同步返回 boolean；true 表示已交给正在运行的发言，在当前一步完成后读取，false 表示会话已结束或已取消，由宿主普通发送。pi 适配器使用 pi-agent-core 的 `agent.steer`（MIT），脚本运行时向脚本提供 `steered` 消息数组；持久消息与排序仍由宿主维护。

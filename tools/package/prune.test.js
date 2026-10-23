@@ -18,10 +18,6 @@ test('production pruning preserves live assets and licenses, with complete pre-p
     'ordinary/tests/live.js',
     'ordinary/lib/index.js',
     'ordinary/font.woff2',
-    '@deepseek-ai/dsh/prompt.md',
-    '@deepseek-ai/dsh/skills/nested.md',
-    '@deepseek-ai/dsh/lib/index.js',
-    'ordinary/node_modules/@deepseek-ai/plugin/prompt.md',
   ];
   const remove = [
     'ordinary/index.d.ts',
@@ -33,8 +29,6 @@ test('production pruning preserves live assets and licenses, with complete pre-p
     'ordinary/source.cts',
     'ordinary/README.md',
     'ordinary/docs/manual.md',
-    '@deepseek-ai/dsh/index.d.ts',
-    '@deepseek-ai/dsh/source.ts',
     'onnxruntime-web/index.js',
     'onnxruntime-web/LICENSE',
   ];
