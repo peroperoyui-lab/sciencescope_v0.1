@@ -9,6 +9,7 @@ import { readMedia } from './media.js';
 import { listDocuments } from './documents.js';
 import { createAnnotations } from './annotations.js';
 import { createDeskNavigation } from './navigation.js';
+import { createTexBuild } from './tex-build.js';
 
 const messages = {
   INVALID_TIER: '请选择编辑台设置中的版本层级。',
@@ -28,7 +29,8 @@ const messages = {
  * @param {{versions:ReturnType<typeof import('../versions/index.js').createVersions>,
  * projectFiles:ReturnType<typeof import('../project-files.js').createProjectFiles>,
  * idleMs?:number,schedule?:(callback:()=>any,ms:number)=>any,cancel?:(timer:any)=>void,
- * writeWorking?:typeof writeAtomic,documentLimit?:number}} options
+ * writeWorking?:typeof writeAtomic,documentLimit?:number,
+ * texOptions?:Partial<Parameters<typeof createTexBuild>[1]>}} options
  */
 export function createDesk(
   core,
@@ -40,6 +42,7 @@ export function createDesk(
     cancel = clearTimeout,
     writeWorking = writeAtomic,
     documentLimit = 2000,
+    texOptions = {},
   },
 ) {
   /** @type {Promise<unknown>} */
@@ -66,6 +69,7 @@ export function createDesk(
   }
   const annotations = createAnnotations(core);
   const store = createDeskStore(core, annotations);
+  const tex = createTexBuild(core, { ...texOptions, projectFiles, store });
   const sessions = createDeskSessions(core, {
     versions,
     projectFiles,
@@ -76,6 +80,7 @@ export function createDesk(
     schedule,
     cancel,
     writeWorking,
+    onClose: (id) => tex.remove(id),
   });
   /**
    * @param {{projectId:string,path:string}} input
@@ -179,6 +184,9 @@ export function createDesk(
   }
   const navigation = createDeskNavigation(core, { sessions, store, registerDocument });
   return {
+    texEngines: tex.engines,
+    compile: tex.compile,
+    compiledPdf: tex.pdf,
     /**
      * @param {{projectId:string,meetingId?:string,mode:'continue'|'branch',atMessageId?:string}} input
      */
@@ -311,6 +319,9 @@ export function createDesk(
     closeSession: (id, actor = {}) =>
       serial(async () => sessions.close(await sessions.load(store.get(id)), actor)),
     /** Flush acknowledged changes, leaving open sessions recoverable. */
-    shutdown: () => serial(() => sessions.shutdown()),
+    shutdown: async () => {
+      await tex.shutdown();
+      return serial(() => sessions.shutdown());
+    },
   };
 }

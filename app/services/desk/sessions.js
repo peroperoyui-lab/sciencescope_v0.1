@@ -12,7 +12,18 @@ import { hash, readProject, writeAtomic } from './storage.js';
  */
 export function createDeskSessions(
   core,
-  { versions, projectFiles, store, annotations, serial, idleMs, schedule, cancel, writeWorking },
+  {
+    versions,
+    projectFiles,
+    store,
+    annotations,
+    serial,
+    idleMs,
+    schedule,
+    cancel,
+    writeWorking,
+    onClose,
+  },
 ) {
   const states = new Map();
   const catalog = core.versionCatalog;
@@ -180,6 +191,7 @@ export function createDeskSessions(
       core.events.record('desk.session', { sessionId: state.session.id, state: 'closed' }, actor);
     });
     states.delete(state.session.id);
+    await onClose?.(state.session.id);
     await rm(state.files.root, { recursive: true, force: true });
     return { session: store.get(state.session.id), version: result };
   }

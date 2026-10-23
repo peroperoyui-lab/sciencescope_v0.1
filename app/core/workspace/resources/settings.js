@@ -63,7 +63,7 @@ export const DEFAULT_SETTINGS = {
     similarity: { threshold: 0.85, maxPerPaper: 3 },
     cards: { enabled: true, model: null },
   },
-  desk: { tiers: ['草稿', '内部审阅', '投稿', '修回', '终稿'] },
+  desk: { tiers: ['草稿', '内部审阅', '投稿', '修回', '终稿'], tex: { engine: 'auto' } },
   // Features still being built; each turns on once its checks pass.
   features: { editingDesk: false },
   // A cumulative input/output cost budget; null turns the budget off.
@@ -103,6 +103,8 @@ function parse(text) {
 }
 
 function format(value) {
+  if (!['auto', 'xelatex', 'lualatex', 'pdflatex'].includes(value.desk?.tex?.engine))
+    throw new AppError('INVALID_TEX_ENGINE', '请选择自动或已支持的 TeX 引擎。');
   for (const server of value.mcp.servers)
     for (const field of ['env', 'headers'])
       if (Object.values(server[field] ?? {}).some((entry) => !entry?.keyRef))

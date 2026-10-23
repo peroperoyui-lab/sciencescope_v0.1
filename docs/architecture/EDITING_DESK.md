@@ -95,12 +95,14 @@ data/projects/<目录>/
   versions/<组 id>/v<号>-<版本 id>/<原文件名>.notes.md  版本说明，也是版本图里"边的备注"（现有）
   desk/<会话 id>/<原文件名>                             会话工作副本，空闲 2 秒自动写一次
   desk/<会话 id>/.state/source.docx、checkpoint.json      会话初始包与已落盘序号（D3a）
-data/temp/desk-build/<会话 id>/                         tex 编译输出和日志
-data/tools/tectonic/<版本>/                              按需下载的 Tectonic 和它的缓存
+data/temp/desk-build/<会话 id>/work/                    TeX 本次编译输出、日志与中间文件
+data/temp/desk-build/<会话 id>/last-success.pdf          最近一次成功的 PDF，失败时保留
 data/sciencescope.sqlite                                会话、修改记录、绑定、tex 批注（第 4.1 节）
 ```
 
 工作副本是真实的 docx 或 tex 文件，崩溃后或离开应用也能打开；会话关闭生成版本后删除。
+
+D7 编译读取项目文件夹里已保存的源文件，工作目录仍是项目文件夹；构建产物只写入上述临时目录。关闭会话会结束其编译进程树并删除构建目录，启动时清理没有对应打开会话的旧目录。打开会话的成功 PDF 可在重启后继续读取。
 
 D3a 已接通 docx 会话。修改先经 D2 的结构校验，再在一个 SQLite 事务中记逐块修改和递增序号；空闲 2 秒集中写一次 ZIP，保存、关闭会话和正常退出会先写掉未落盘修改。工作副本与检查点均用临时文件加改名；初始包保留整个会话的内联引用和无 paraId 段落的稳定编号，重启读取工作副本后由修改记录恢复已确认的修改。原稿和所有侧车状态分开。
 
@@ -293,7 +295,9 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 | `GET/POST /api/desk/sessions/:id/comments`、`PATCH/DELETE /api/desk/comments/:id`                              | 批注（docx 写进工作副本，tex 写进表）                                          |
 | `GET/POST /api/desk/bindings?groupId=`、`PATCH/DELETE /api/desk/bindings/:id`                                  | 来源绑定                                                                       |
 | `GET /api/desk/sessions/:id/media/:ref`                                                                        | docx 里的图片字节                                                              |
-| `GET /api/desk/tex/engines`、`POST /api/desk/tex/tectonic`、`POST /api/desk/sessions/:id/compile`、`GET …/pdf` | 检测引擎、下载 Tectonic、编译、读输出 PDF                                      |
+| `GET /api/desk/tex/engines[?refresh=1]` | 已安装引擎的 id/path/distribution/version，以及 latexmk/biber/bibtex 路径；进程内缓存，refresh 重新检测 |
+| `POST /api/desk/sessions/:id/compile {root?}` | 返回 status/root/engine/durationMs/pdf/errors/warnings/unsaved/logTail；desk.compiled 事件携带 sessionId/status |
+| `GET /api/desk/sessions/:id/pdf` | 最近一次成功的 PDF，application/pdf、no-store；没有成功产物返回 404 |
 | `GET /api/version-groups/:id/graph`、`PATCH /api/versions/:id`                                                 | 版本图（节点含说明前 200 字和修改指令）；改标题、层级、标签、分支名            |
 | `GET /api/versions/:id/compare?baseline=`                                                                      | 现有接口，返回值改为第 4.4 节的对齐行；允许跨分支比较同组任意两版              |
 
@@ -309,7 +313,7 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 | 已有：jszip、diff、docx-preview、pdfjs-dist、mammoth                       | 解包、比较、版式视图、PDF、文字提取   | MIT/GPLv3 双许可（按 MIT）、BSD-3、Apache-2.0、Apache-2.0、BSD-2                                             | 已随包                                 | 不变                                               |
 | omml2mathml 1.3.0（scienceai/npm）                                         | OMML 公式显示                         | Apache-2.0，2026-10-21 已读[仓库 LICENSE 全文](https://github.com/scienceai/omml2mathml/blob/master/LICENSE) | 小                                     | D2a 未引入；当前显示 `m:t` 拼接的线性文字          |
 | eigenpal docx-editor                                                       | 只在通过第 3.3 节规则时替代自研编辑器 | 核心 Apache-2.0；`packages/pro` 为 EigenPal Pro 许可，**需核实**                                             | 未知                                   | E0 试验                                            |
-| Tectonic                                                                   | 可选的 tex 编译器                     | MIT                                                                                                          | 单个可执行文件，数十 MB（推断，E0 量） | 不随包，按需下载                                   |
+| Tectonic                                                                   | 可选的 tex 编译器                     | MIT                                                                                                          | 单个可执行文件，数十 MB（推断，E0 量） | D9（alpha 之后）；D7 不下载或随包分发                |
 | KaTeX                                                                      | tex、md 渲染里的公式                  | MIT（E1 核实）                                                                                               | 约 300 KB 加字体（推断）               | 新增，E1 定                                        |
 | LaTeX.js 或自写转换                                                        | tex 渲染栏的结构                      | LaTeX.js 为 MIT（E1 核实）；不合适就自写常用命令的转换                                                       | 未知                                   | E1 试验                                            |
 | MathLive                                                                   | tex 公式可视化编辑框                  | MIT（E1 核实）                                                                                               | 约 1 MB（推断，E1 量）                 | 新增，E1 定                                        |
@@ -317,7 +321,9 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 
 **不用：** SuperDoc、ONLYOFFICE、Overleaf、SwiftLaTeX（AGPL）；lang-tex、texlab、latexdiff、BlockNote 的 `xl-` 包（GPL）；CKEditor、Tiptap 转换、Syncfusion、Univer Pro（商业或云）；pandoc 不做编辑往返。
 
-**Tectonic：** 先找用户已装的 TeX Live 或 MiKTeX（PATH 和常见安装位置里的 `xelatex`、`lualatex`、`pdflatex`、`latexmk`）。下载的 Tectonic 放 `data/tools/tectonic/<版本>/`，缓存用环境变量 `TECTONIC_CACHE_DIR` 指向 `data/tools/tectonic/cache/`（E0 核实该变量在 Windows 上的行为），随 `data/` 走、卸载可删。程序和支持包默认从海外下载，暂无已知镜像，用到时在报告写明；alpha 是否提供见第 12 节。编译命令形如 `tectonic --outdir <data/temp/desk-build/<会话>> main.tex`，工作目录是项目文件夹（`\input` 能找到章节），输出不进项目文件夹。
+**TeX 编译（D7）：** alpha 只调用已装的 MiKTeX 或 TeX Live，搜索 PATH 和常见安装目录，TeX Live 多个年份选最新。`desk.tex.engine` 默认为 `auto`；显式设置优先，其后是文稿首部的 `% !TEX program`、主文件宏包，缺少所选引擎时按 xelatex/lualatex/pdflatex 选择已安装者。主文件依次按请求的项目相对 `root`、首部 `% !TEX root`、自身 documentclass、唯一直接引用者选取；无法唯一确定返回 `DESK_TEX_ROOT` 和候选列表。
+
+有 latexmk 时使用其多轮编译，无 latexmk 时按 aux/bcf 选择 bibtex/biber，再运行两遍引擎。子进程使用 nonstopmode、file-line-error、halt-on-error、no-shell-escape；MiKTeX 引擎加 `--disable-installer`，安装开关的环境覆盖只传给子进程，不修改用户配置。总编译时限 120 秒，超时结束进程树；同会话重复编译返回 `DESK_TEX_BUSY`。`unsaved` 列出本项目尚未写回的文稿；`pdf` 表示是否有可读的成功产物，失败时可仍为 true。错误给出相对文件路径、行号和说明，日志只返回末 40 行。Tectonic 下载留到 D9，本轮没有该接口或依赖。
 
 ## 10. 分阶段与任务拆分
 
@@ -343,7 +349,7 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 | D6 ✅    | 批注和索引的表、服务、接口（增删改查，含专家的）、打开时重新定位，原文删光时删除                                    | Sol    | 外部修改后仍定位；原文删掉后这条被删除并记进版本说明                                |
 | U5 **A** | 「批注与索引」侧栏、批注和索引跟着文字走的标记（全删才删、撤销一起恢复）、查看索引菜单、索引选择框                  | Claude | 场景 5、6 浏览器测试；删字和撤销的锚点测试                                          |
 | U6 **A** | tex 源码加实时渲染、公式编辑框、md 两种视图、PDF 阅览与标记、编译按钮                                               | Claude | 场景 7、8 浏览器测试；无引擎时编译按钮停用有提示                                    |
-| D7 **A** | 引擎检测、编译，输出放 `data/temp/`（任务书已写）                                                                   | Sol    | Windows 上 MiKTeX 编译 xeCJK 样例                                                   |
+| D7 ✅    | 已装引擎检测、编译、错误与成功 PDF；输出放 `data/temp/desk-build/`                                                  | Sol    | Windows MiKTeX 中文、多文件参考文献、错误定位、缺包无弹窗和目录无产物通过           |
 | D8 ✅    | 编辑台原生窗口：U1 已加 `desk` 窗口和 `desk-open` 事件，D8 补记住大小和位置、`desk.focus` 调到前面                  | Sol    | 原生验收：开关、记住大小和位置、主窗口不锁定、点标记能切过去                        |
 | U7 **A** | 版本分叉树侧栏：从上往下的树、信息栏、搜索、右键比较；工作站页面的按钮                                              | Claude | 场景 4 走通                                                                         |
 | U8 **A** | 进入横条（接续或分支）、秘书悬浮按钮                                                                                | Claude | 场景 1 走通，分支后原对话不变                                                       |

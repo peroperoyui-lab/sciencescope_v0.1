@@ -39,6 +39,7 @@ export const EVENT_TYPES = [
   'knowledge.layout.changed',
   'desk.entered',
   'desk.focus',
+  'desk.compiled',
 ];
 
 export class ApiError extends Error {

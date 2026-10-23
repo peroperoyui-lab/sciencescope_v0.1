@@ -598,6 +598,8 @@ data/
 
 **编辑台会话与专家改写（D3a/D3b/D5，编辑接口尚未接界面）**
 
+- D7 TeX 编译后端：`GET /api/desk/tex/engines[?refresh=1]` 检测本机 MiKTeX/TeX Live 与参考文献工具，`desk.tex.engine` 支持 auto/xelatex/lualatex/pdflatex；设置、首部魔法注释和宏包共同决定引擎。主文件支持请求指定、root 注释、自身 documentclass 或唯一直接引用者；不明确时返回 `DESK_TEX_ROOT` 和候选列表。
+- `POST /api/desk/sessions/:id/compile {root?}` 只编译已保存的项目文件，返回 status/root/engine/durationMs/pdf/errors/warnings/unsaved/logTail，广播 `desk.compiled {sessionId,status}`；同会话并发返回 `DESK_TEX_BUSY`，无引擎返回 `DESK_TEX_MISSING`。latexmk 或引擎加 bibtex/biber 的多轮流程均把产物放入 `data/temp/desk-build/`，120 秒超时清理进程树；MiKTeX 禁止自动安装，缺宏包返回错误。`GET …/pdf` 提供最近成功 PDF（no-store），失败保留，关闭会话删除；启动清理遗留的已关闭会话目录。界面本轮仅登记事件，编译按钮由 U6 接入。
 - D3c `POST /api/desk/enter {projectId,meetingId?,mode,atMessageId?}` 接续或分支，返回会议摘要、是否新建及改绑的 sessionIds；省略会议选最近活动的未归档项目会议，没有则按项目默认新建。历史修改归属不变，后续用户修改归绑定会议，已有会话打开时也可改绑；发 `desk.entered`，不启动回答。
 - D3c `POST /api/desk/focus {reference}` 将 project-file/version 的块与原文引用定位到当前工作副本，无会话自动打开；返回并广播 `desk.focus` 的项目、路径、组、会话、所引版本、exact/moved/missing 及可选范围。重复原文按前后文选择，缺失不返回范围；UI 事件目录已加两项，进入横条/滚动高亮仍由 U4/U8 接入。
 - D8 原生编辑台通过 `desk-window.json` 记住正常外框、显示器缩放和最大化，移动/缩放合并写入；重开恢复，越界回主屏工作区。重复打开可从主窗口/助手窗口恢复最小化并置前，主窗口仍可操作；没有新增 window-state 插件，助手和主窗口尺寸记忆不变。

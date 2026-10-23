@@ -10,6 +10,19 @@ export function registerDeskRoutes(router, desk, core, conductor) {
   if (!desk) return;
   const actor = { actorId: 'person_user' };
   const rewrite = core && createDeskRewrite(core, desk, conductor);
+  router.get('/api/desk/tex/engines', ({ query }) => desk.texEngines(query.get('refresh') === '1'));
+  router.post('/api/desk/sessions/:id/compile', ({ params, body }) =>
+    desk.compile(params.id, body),
+  );
+  router.get('/api/desk/sessions/:id/pdf', async ({ params, response }) => {
+    const bytes = await desk.compiledPdf(params.id);
+    response.writeHead(200, {
+      'content-type': 'application/pdf',
+      'cache-control': 'no-store',
+      'content-length': bytes.length,
+    });
+    response.end(bytes);
+  });
   router.post('/api/desk/enter', ({ body }) => desk.enter(body));
   router.post('/api/desk/focus', ({ body }) => desk.focus(body));
   router.get('/api/desk/sessions/:id/annotations', ({ params }) => desk.listAnnotations(params.id));
