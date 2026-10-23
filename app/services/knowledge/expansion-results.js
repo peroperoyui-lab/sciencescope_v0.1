@@ -93,14 +93,16 @@ export function graphPassages(db, graph, ranked, context, original, check) {
 
 /**
  * Enforce the quota on the final result, not on a fixed position. The extra
- * original.length/3 bound also keeps sparse searches at or below one quarter.
+ * original.length/3 bound keeps sparse searches near one quarter, but one graph
+ * result is always allowed: a search that only matched a method entity and a
+ * survey would otherwise never reach the paper that uses the method.
  * @param {any[]} ranked
  * @param {any[]} original
  * @param {number} limit
  * @returns {any[]}
  */
 export function selectExpanded(ranked, original, limit) {
-  const maxGraph = Math.min(Math.floor(limit / 4), Math.floor(original.length / 3));
+  const maxGraph = Math.min(Math.floor(limit / 4), Math.max(1, Math.floor(original.length / 3)));
   let graphs = 0;
   const selected = [];
   for (const hit of ranked) {
@@ -147,7 +149,41 @@ export function fuseExpanded(original, candidates, context, limit) {
   // positively matched evidence. PPR does not manufacture lexical relevance.
   values.push(...[...hits.values()].map((hit) => ({ ...hit, score: 0 })));
   values.sort((a, b) => b.score - a.score || hybridRefKey(a).localeCompare(hybridRefKey(b)));
-  return selectExpanded(values, original, limit);
+  return selectExpanded(promoteEntityEvidence(values), original, limit);
+}
+
+/**
+ * An entity is not citable evidence. Where the query matched an entity, its
+ * strongest graph-found passage takes the place just before it, so a method
+ * named by an alias leads to the paper that uses it instead of trailing the
+ * direct hits (2026-10-23 review: Hit@3 for method questions).
+ * @param {any[]} values
+ * @returns {any[]}
+ */
+export function promoteEntityEvidence(values) {
+  const output = [];
+  const placed = new Set();
+  for (const hit of values) {
+    const key = hybridRefKey(hit);
+    if (placed.has(key)) continue;
+    if (hit.type === 'entity') {
+      const best = values
+        .filter(
+          (value) =>
+            value.origin === 'graph' &&
+            !placed.has(hybridRefKey(value)) &&
+            value.candidate?.path.nodes[0] === 'entity:' + hit.id,
+        )
+        .sort((a, b) => b.candidate.score - a.candidate.score)[0];
+      if (best) {
+        output.push(best);
+        placed.add(hybridRefKey(best));
+      }
+    }
+    output.push(hit);
+    placed.add(key);
+  }
+  return output;
 }
 
 /**

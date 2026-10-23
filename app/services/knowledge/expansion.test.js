@@ -9,6 +9,8 @@ import { rankExpansion } from './expansion-rank.js';
 import { fuseExpanded, explainExpanded } from './expansion-results.js';
 import { populateRetrievalScale } from './retrieval-benchmark.js';
 import { RETRIEVAL_QUESTIONS } from './retrieval-corpus.js';
+import { buildRetrievalFixture } from './retrieval-fixture.js';
+import { evaluateRetrieval } from './retrieval-eval.js';
 import { createTools } from '../tools.js';
 import { createScriptedRuntime } from '../../runtime/scripted.js';
 import { createTurnRunner } from '../turn-runner.js';
@@ -377,3 +379,17 @@ test('the frozen synthetic evaluation contains ten general and ten method questi
   assert.equal(new Set(RETRIEVAL_QUESTIONS.map((question) => question.id)).size, 20);
   assert.ok(RETRIEVAL_QUESTIONS.every((question) => question.correct.length > 0));
 });
+
+test('keyword-only evaluation: expansion lifts method Hit@3 without hurting general questions', () =>
+  withCore('retrieval-eval-keyword', async (core) => {
+    // Without the embedding model, method questions name a method only by an
+    // alias that the target paper never uses; the entity leads to the paper.
+    const fixture = await buildRetrievalFixture(core, createResearch(core));
+    const { results } = await evaluateRetrieval(core, null, fixture, [
+      { name: 'baseline', graph: false },
+      { name: 'expanded', graph: { depth: 1 } },
+    ]);
+    const [baseline, expanded] = results.map((result) => result.summary);
+    assert.equal(expanded.general.hit3, baseline.general.hit3);
+    assert.ok(expanded.method.hit3 >= baseline.method.hit3 + 0.5, JSON.stringify(expanded));
+  }));
