@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { performance } from 'node:perf_hooks';
 import { setImmediate as yieldLoop } from 'node:timers/promises';
-import { mkdir, readdir, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, rename, stat, unlink, utimes, writeFile } from 'node:fs/promises';
 import { withCore, tempDir } from '../../testing.js';
 import { createCore } from '../../core/index.js';
 import { createResearch } from '../research/index.js';
@@ -427,6 +427,8 @@ test('moves keep identity without parsing, deletion waits for background work, a
       assert.throws(() => research.store.getSource(original.id), { code: 'SOURCE_NOT_FOUND' });
       const replacement = research.store.listSources({ projectId: project.id })[0];
       await rename(path.join(folder, 'new.md'), path.join(folder, 'unreadable.md'));
+      const unreadableTime = new Date(replacement.fileMtimeMs + 2000);
+      await utimes(path.join(folder, 'unreadable.md'), unreadableTime, unreadableTime);
       fail = true;
       const failed = await index.scanAndWait(project.id);
       assert.equal(failed.failed, 1);

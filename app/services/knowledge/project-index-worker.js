@@ -4,6 +4,7 @@ import path from 'node:path';
 import { stat as fileStat } from 'node:fs/promises';
 import { setImmediate as yieldLoop } from 'node:timers/promises';
 import { snapshotProjectFile } from './project-copies.js';
+import { hasSourceEdits } from './project-index-edits.js';
 
 /**
  * @typedef {import('../research/store.js').ResearchSource} ResearchSource
@@ -71,7 +72,33 @@ export async function processIndexJob(
         )
           relocated = latest;
       }
-      if (relocated) {
+      if (relocated && hasSourceEdits(core, research.store.getSource(job.source.id))) {
+        // Both identities are already meaningful to the user. Keep references
+        // where they are. Keep the last published projection and restore its
+        // usable status synchronously (root rebinding can leave it queued),
+        // so a concurrent reparse of the new
+        // identity cannot leave the old one eligible for missing-file deletion.
+        state.moved.add(relocated.id);
+        const restoredStatus = research.store.chunks(relocated.id).length
+          ? relocated.parseError
+            ? 'partial'
+            : 'parsed'
+          : 'name-only';
+        research.store.updateSource(
+          relocated.id,
+          {
+            folderPath: null,
+            ...(!completed(relocated) ? { contentStatus: restoredStatus } : {}),
+            metadata: { originalFileMissing: true, missingFolderPath: relocated.folderPath },
+          },
+          { actorId: 'system' },
+        );
+        source = await research.parseProjectSource(
+          job.source.id,
+          {},
+          { ...identity, isCurrent: () => isCurrent(state, job) },
+        );
+      } else if (relocated) {
         await research.deleteSource(job.source.id, { actorId: 'system', origin: 'system' });
         source = research.store.updateSource(relocated.id, {
           ...identity,

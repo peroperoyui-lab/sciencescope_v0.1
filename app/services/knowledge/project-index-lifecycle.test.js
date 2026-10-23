@@ -202,6 +202,8 @@ test(
         await index.scanAndWait(project.id);
         const original = research.store.listSources({ projectId: project.id })[0];
         assert.equal(original.contentStatus, 'parsed');
+        const changedTime = new Date(original.fileMtimeMs + 2000);
+        await utimes(newFile, changedTime, changedTime);
         await core.projects.update(project.id, { folder: second });
         await started.promise;
         assert.equal(research.store.getSource(original.id).contentStatus, 'queued');
@@ -400,6 +402,8 @@ test(
       const original = research.store.listSources({ projectId: project.id })[0];
       const chunks = research.store.chunks(original.id);
       await rename(path.join(folder, 'old.md'), path.join(folder, 'new.md'));
+      const changedTime = new Date(original.fileMtimeMs + 2000);
+      await utimes(path.join(folder, 'new.md'), changedTime, changedTime);
       block = true;
       await index.scan(project.id);
       await started.promise;
