@@ -4,28 +4,36 @@ import { texFiles } from './tex-source.js';
 
 /**
  * All compiler and bibliography outputs belong to the build directory. Include
- * auxiliaries retain their relative subdirectories, which TeX does not create.
+ * auxiliaries keep their subdirectories relative to the main file's folder (the
+ * compiler's working directory), which TeX does not create.
  * @param {string} project
+ * @param {string} folder the main file's folder
  * @param {string} output
  * @param {string[]} [exclude]
  * @returns {Promise<void>}
  */
-export async function prepareTexBuild(project, output, exclude = []) {
+export async function prepareTexBuild(project, folder, output, exclude = []) {
   await mkdir(output, { recursive: true });
-  for (const file of await texFiles(project, exclude))
-    await mkdir(path.join(output, path.dirname(file)), { recursive: true });
+  for (const file of await texFiles(project, exclude)) {
+    const relative = path.relative(folder, path.join(project, path.dirname(file)));
+    if (!relative.startsWith('..') && !path.isAbsolute(relative))
+      await mkdir(path.join(output, relative), { recursive: true });
+  }
 }
 
 /**
  * Only child processes receive search paths; the user's TeX configuration stays
- * unchanged. A trailing delimiter preserves the distribution's built-in paths.
+ * unchanged. The main file's folder is searched without recursion, so an older
+ * copy elsewhere in the project never shadows a chapter; a trailing delimiter
+ * keeps the distribution's built-in paths. Unwrapped log lines (TeX Live reads
+ * max_print_line from the environment) keep messages whole for the parser.
  * @param {NodeJS.ProcessEnv} env
- * @param {string} project
+ * @param {string} folder the main file's folder
  * @param {string} output
  * @param {(string|null)[]} programs
  * @returns {NodeJS.ProcessEnv}
  */
-export function texBuildEnv(env, project, output, programs) {
+export function texBuildEnv(env, folder, output, programs) {
   const result = { ...env };
   const key = Object.keys(result).find((name) => name.toUpperCase() === 'PATH') ?? 'PATH';
   result[key] = [
@@ -33,10 +41,11 @@ export function texBuildEnv(env, project, output, programs) {
     result[key] ?? '',
   ].join(path.delimiter);
   for (const name of ['TEXINPUTS', 'BIBINPUTS', 'BSTINPUTS'])
-    result[name] = [project.replaceAll('\\', '/') + '//', result[name] ?? '', ''].join(
-      path.delimiter,
-    );
+    result[name] = [folder.replaceAll('\\', '/'), result[name] ?? '', ''].join(path.delimiter);
   result.TEXMFOUTPUT = output;
+  result.max_print_line = '10000';
+  result.error_line = '254';
+  result.half_error_line = '238';
   return result;
 }
 

@@ -96,13 +96,15 @@ export function createTexBuild(
     }, timeoutMs);
     let log = '';
     let failed = false;
-    const childEnv = texBuildEnv(env, project, output, [
+    // TeX resolves \input and \include from the main file's folder, as editors do.
+    const folderOfRoot = path.join(project, path.dirname(source.root));
+    const childEnv = texBuildEnv(env, folderOfRoot, output, [
       engine.path,
       tools.latexmk,
       tools.biber,
       tools.bibtex,
     ]);
-    async function invoke(executable, args, cwd = project) {
+    async function invoke(executable, args, cwd = folderOfRoot) {
       const result = await run(executable, args, { cwd, env: childEnv, signal: controller.signal });
       log += result.output + '\n';
       if (result.code !== 0 || result.aborted) failed = true;
@@ -110,8 +112,8 @@ export function createTexBuild(
     }
     try {
       await rm(output, { recursive: true, force: true });
-      await prepareTexBuild(project, output, exclude);
-      const command = texCommand(engine, tools.latexmk, source.root, output);
+      await prepareTexBuild(project, folderOfRoot, output, exclude);
+      const command = texCommand(engine, tools.latexmk, path.basename(source.root), output);
       if (await invoke(command.executable, command.args)) {
         if (!tools.latexmk) {
           const backend = await bibliography(output, job);

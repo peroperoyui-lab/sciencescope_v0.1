@@ -134,23 +134,31 @@ export function texDiagnostics(log, project, root) {
         !/^\(?(?:[a-z]:[\\/]|\.?\/)|^! |^l\.\d+/i.test(rawLines[index + 1])
       )
         line += rawLines[++index];
+    // Without an unwrapped log, TeX breaks every line at 79 columns (characters
+    // for XeTeX/LuaTeX, bytes for pdfTeX); rejoin a message cut there.
+    while (
+      (line.length % 79 === 0 || Buffer.byteLength(line) % 79 === 0) &&
+      line.length &&
+      index + 1 < rawLines.length &&
+      rawLines[index + 1] &&
+      !/^\(?(?:[a-z]:[\\/]|\.?\/)|^! |^l\.\d+/i.test(rawLines[index + 1])
+    )
+      line += rawLines[++index];
     lines.push(line);
   }
+  // Relative names in the log are relative to the main file's folder.
+  const folder = path.join(project, path.dirname(root));
+  const fromLog = (name) =>
+    path.relative(project, path.resolve(folder, name)).split(path.sep).join('/');
   const errors = [];
   let currentFile = root;
   for (const [index, line] of lines.entries()) {
     const opened = [...line.matchAll(/\((?:\.\/)?([^()\r\n]+\.tex)(?=\s|$|\))/g)].at(-1);
-    if (opened)
-      currentFile = path.isAbsolute(opened[1])
-        ? path.relative(project, opened[1]).split(path.sep).join('/')
-        : opened[1];
+    if (opened) currentFile = fromLog(opened[1]);
     const located = line.match(/^(.+?\.(?:tex|sty|cls)):(\d+):\s*(.+)$/i);
     if (located) {
-      const file = path.isAbsolute(located[1])
-        ? path.relative(project, located[1])
-        : located[1].replace(/^\.\//, '');
       errors.push({
-        file: file.split(path.sep).join('/'),
+        file: fromLog(located[1]),
         line: Number(located[2]),
         message: located[3],
       });

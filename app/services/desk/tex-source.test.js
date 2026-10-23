@@ -102,3 +102,18 @@ test('MiKTeX wrapped Windows paths identify the actual chapter rather than a tru
     { file: 'chapters/bad.tex', line: 3, message: 'Undefined control sequence.' },
   ]);
 });
+
+test('a wrapped message is rejoined and log paths resolve from the main file folder', () => {
+  // TeX Live's default 79-column log, reproduced with a real pdflatex run.
+  const project = path.resolve('project');
+  const head = path.join(project, 'paper/main.tex').split(path.sep).join('/') + ':3: ';
+  const message = "I can't write on file `chapters/one.aux'.";
+  const cut = 79 - head.length;
+  const log = [head + message.slice(0, cut), message.slice(cut), 'l.3 \\include{chapters/one}'];
+  log.push('./chapters/one.tex:2: Undefined control sequence.');
+  const parsed = texDiagnostics(log.join('\n'), project, 'paper/main.tex');
+  assert.deepEqual(parsed.errors, [
+    { file: 'paper/main.tex', line: 3, message },
+    { file: 'paper/chapters/one.tex', line: 2, message: 'Undefined control sequence.' },
+  ]);
+});

@@ -102,7 +102,7 @@ data/sciencescope.sqlite                                会话、修改记录、
 
 工作副本是真实的 docx 或 tex 文件，崩溃后或离开应用也能打开；会话关闭生成版本后删除。
 
-D7 编译读取项目文件夹里已保存的源文件，工作目录仍是项目文件夹；构建产物只写入上述临时目录。关闭会话会结束其编译进程树并删除构建目录，启动时清理没有对应打开会话的旧目录。打开会话的成功 PDF 可在重启后继续读取。
+D7 编译读取项目文件夹里已保存的源文件，工作目录是主文件所在的文件夹（和 TeXworks、Overleaf 一样，`\input`、`\include` 按主文件位置找；搜索路径只加这个文件夹，不递归整个项目，项目里的旧副本不会被误用）；构建产物只写入上述临时目录。关闭会话会结束其编译进程树并删除构建目录，启动时清理没有对应打开会话的旧目录。打开会话的成功 PDF 可在重启后继续读取。
 
 D3a 已接通 docx 会话。修改先经 D2 的结构校验，再在一个 SQLite 事务中记逐块修改和递增序号；空闲 2 秒集中写一次 ZIP，保存、关闭会话和正常退出会先写掉未落盘修改。工作副本与检查点均用临时文件加改名；初始包保留整个会话的内联引用和无 paraId 段落的稳定编号，重启读取工作副本后由修改记录恢复已确认的修改。原稿和所有侧车状态分开。
 
@@ -280,26 +280,26 @@ D3a 已实现下表中的登记、开会话、重连、PATCH blocks、撤回、�
 
 D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media/:ref`。登记接受 docx/tex/md/markdown，后两种均记格式 md。文本会话响应额外含 `text`；全文冲突的 `details` 为 `{seq,text}`，格式不符返回 `DESK_FORMAT`。文件列表返回 `{files,groups,truncated}`：文件含 `path,name,format,size,mtime,group`，mtime 为 ISO 时间；group 摘要含 `id,latest:{id,number,branch,tier},sourceVersionId`；仅在数据目录的组另含 name、format。递归跳过隐藏目录和 node_modules，自带项目根另跳过 workbench/notes/minutes/versions/desk，达到 2000 个文稿返回 truncated，读取失败的子目录跳过。列表只读。图片接口返回原字节和原 MIME，缺失为 404 `DESK_MEDIA_NOT_FOUND`。
 
-| 方法与路径                                                                                                     | 作用                                                                           |
-| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `GET /api/desk/documents?projectId=`                                                                           | 编辑台文件列表：项目文件夹里可编辑和可预览的文件，加版本组                     |
-| `POST /api/desk/documents`                                                                                     | `{ projectId, path }` 登记项目文件（建组和 v1），或 `{ versionId }`            |
-| `POST /api/desk/enter`                                                                                         | `{ projectId, meetingId?, mode, atMessageId? }`，返回会议、created、sessionIds |
-| `POST /api/desk/sessions`                                                                                      | `{ groupId, versionId?, meetingId }` 打开会话，返回块列表、修改、批注、绑定    |
-| `GET /api/desk/sessions/:id`                                                                                   | 重连时读取会话                                                                 |
-| `PATCH /api/desk/sessions/:id/blocks`、`PUT …/text`                                                            | docx `{ baseSeq, blocks, inserted, removed }`；tex `{ baseSeq, text }`         |
-| `POST /api/desk/sessions/:id/rewrite`                                                                          | 划选改写，第 5 节                                                              |
-| `POST /api/desk/sessions/:id/save`                                                                             | `{ to: 'project' \| 'version', label?, tier? }`                                |
-| `POST /api/desk/sessions/:id/close`                                                                            | 关闭会话，按需生成版本                                                         |
-| `POST /api/desk/changes/:id/undo`、`POST /api/desk/sessions/:id/settle`                                        | 撤回一处；保留（`{ ids }` 或全部）                                             |
-| `GET/POST /api/desk/sessions/:id/comments`、`PATCH/DELETE /api/desk/comments/:id`                              | 批注（docx 写进工作副本，tex 写进表）                                          |
-| `GET/POST /api/desk/bindings?groupId=`、`PATCH/DELETE /api/desk/bindings/:id`                                  | 来源绑定                                                                       |
-| `GET /api/desk/sessions/:id/media/:ref`                                                                        | docx 里的图片字节                                                              |
-| `GET /api/desk/tex/engines[?refresh=1]` | 已安装引擎的 id/path/distribution/version，以及 latexmk/biber/bibtex 路径；进程内缓存，refresh 重新检测 |
-| `POST /api/desk/sessions/:id/compile {root?}` | 返回 status/root/engine/durationMs/pdf/errors/warnings/unsaved/logTail；desk.compiled 事件携带 sessionId/status |
-| `GET /api/desk/sessions/:id/pdf` | 最近一次成功的 PDF，application/pdf、no-store；没有成功产物返回 404 |
-| `GET /api/version-groups/:id/graph`、`PATCH /api/versions/:id`                                                 | 版本图（节点含说明前 200 字和修改指令）；改标题、层级、标签、分支名            |
-| `GET /api/versions/:id/compare?baseline=`                                                                      | 现有接口，返回值改为第 4.4 节的对齐行；允许跨分支比较同组任意两版              |
+| 方法与路径                                                                        | 作用                                                                                                            |
+| --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `GET /api/desk/documents?projectId=`                                              | 编辑台文件列表：项目文件夹里可编辑和可预览的文件，加版本组                                                      |
+| `POST /api/desk/documents`                                                        | `{ projectId, path }` 登记项目文件（建组和 v1），或 `{ versionId }`                                             |
+| `POST /api/desk/enter`                                                            | `{ projectId, meetingId?, mode, atMessageId? }`，返回会议、created、sessionIds                                  |
+| `POST /api/desk/sessions`                                                         | `{ groupId, versionId?, meetingId }` 打开会话，返回块列表、修改、批注、绑定                                     |
+| `GET /api/desk/sessions/:id`                                                      | 重连时读取会话                                                                                                  |
+| `PATCH /api/desk/sessions/:id/blocks`、`PUT …/text`                               | docx `{ baseSeq, blocks, inserted, removed }`；tex `{ baseSeq, text }`                                          |
+| `POST /api/desk/sessions/:id/rewrite`                                             | 划选改写，第 5 节                                                                                               |
+| `POST /api/desk/sessions/:id/save`                                                | `{ to: 'project' \| 'version', label?, tier? }`                                                                 |
+| `POST /api/desk/sessions/:id/close`                                               | 关闭会话，按需生成版本                                                                                          |
+| `POST /api/desk/changes/:id/undo`、`POST /api/desk/sessions/:id/settle`           | 撤回一处；保留（`{ ids }` 或全部）                                                                              |
+| `GET/POST /api/desk/sessions/:id/comments`、`PATCH/DELETE /api/desk/comments/:id` | 批注（docx 写进工作副本，tex 写进表）                                                                           |
+| `GET/POST /api/desk/bindings?groupId=`、`PATCH/DELETE /api/desk/bindings/:id`     | 来源绑定                                                                                                        |
+| `GET /api/desk/sessions/:id/media/:ref`                                           | docx 里的图片字节                                                                                               |
+| `GET /api/desk/tex/engines[?refresh=1]`                                           | 已安装引擎的 id/path/distribution/version，以及 latexmk/biber/bibtex 路径；进程内缓存，refresh 重新检测         |
+| `POST /api/desk/sessions/:id/compile {root?}`                                     | 返回 status/root/engine/durationMs/pdf/errors/warnings/unsaved/logTail；desk.compiled 事件携带 sessionId/status |
+| `GET /api/desk/sessions/:id/pdf`                                                  | 最近一次成功的 PDF，application/pdf、no-store；没有成功产物返回 404                                             |
+| `GET /api/version-groups/:id/graph`、`PATCH /api/versions/:id`                    | 版本图（节点含说明前 200 字和修改指令）；改标题、层级、标签、分支名                                             |
+| `GET /api/versions/:id/compare?baseline=`                                         | 现有接口，返回值改为第 4.4 节的对齐行；允许跨分支比较同组任意两版                                               |
 
 事件：docx、tex、md 共用 `desk.changed {sessionId,seq,blockIds,changeIds}`；`desk.session` 为 `{sessionId,state:'open'|'closed'}`，空闲写入失败时另发瞬时 `{sessionId,state:'save-error',message}`，可重试保存。保留不改正文和 seq，也发 `desk.changed`；继续使用现有 `versions.changed`。D5 已记录 `desk.suggested {meetingId,reason,key}`；D3c 已接入 `desk.entered` 与 `desk.focus`，载荷见本节接口说明。
 
@@ -313,7 +313,7 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 | 已有：jszip、diff、docx-preview、pdfjs-dist、mammoth                       | 解包、比较、版式视图、PDF、文字提取   | MIT/GPLv3 双许可（按 MIT）、BSD-3、Apache-2.0、Apache-2.0、BSD-2                                             | 已随包                                 | 不变                                               |
 | omml2mathml 1.3.0（scienceai/npm）                                         | OMML 公式显示                         | Apache-2.0，2026-10-21 已读[仓库 LICENSE 全文](https://github.com/scienceai/omml2mathml/blob/master/LICENSE) | 小                                     | D2a 未引入；当前显示 `m:t` 拼接的线性文字          |
 | eigenpal docx-editor                                                       | 只在通过第 3.3 节规则时替代自研编辑器 | 核心 Apache-2.0；`packages/pro` 为 EigenPal Pro 许可，**需核实**                                             | 未知                                   | E0 试验                                            |
-| Tectonic                                                                   | 可选的 tex 编译器                     | MIT                                                                                                          | 单个可执行文件，数十 MB（推断，E0 量） | D9（alpha 之后）；D7 不下载或随包分发                |
+| Tectonic                                                                   | 可选的 tex 编译器                     | MIT                                                                                                          | 单个可执行文件，数十 MB（推断，E0 量） | D9（alpha 之后）；D7 不下载或随包分发              |
 | KaTeX                                                                      | tex、md 渲染里的公式                  | MIT（E1 核实）                                                                                               | 约 300 KB 加字体（推断）               | 新增，E1 定                                        |
 | LaTeX.js 或自写转换                                                        | tex 渲染栏的结构                      | LaTeX.js 为 MIT（E1 核实）；不合适就自写常用命令的转换                                                       | 未知                                   | E1 试验                                            |
 | MathLive                                                                   | tex 公式可视化编辑框                  | MIT（E1 核实）                                                                                               | 约 1 MB（推断，E1 量）                 | 新增，E1 定                                        |

@@ -10,6 +10,19 @@ import { createTexEngines } from './tex-engines.js';
 import { createAppServer } from '../../server/server.js';
 import { fakeTex } from './tex-fixture.js';
 
+/** A killed process may linger as a zombie where PID 1 does not reap (containers). */
+async function alive(pid) {
+  try {
+    process.kill(pid, 0);
+  } catch (error) {
+    if (error.code === 'ESRCH') return false;
+    throw error;
+  }
+  if (process.platform !== 'linux') return true;
+  const status = await readFile(`/proc/${pid}/status`, 'utf8').catch(() => '');
+  return !/^State:\s+Z/m.test(status);
+}
+
 async function setup(core, dir, names, config = {}, timeoutMs = 120000) {
   const folder = path.join(dir, '项目 中文');
   await mkdir(path.join(folder, 'chapters'), { recursive: true });
@@ -175,7 +188,7 @@ test('TeX timeout kills compiler descendants and startup cleans abandoned builds
       assert.equal(result.status, 'timeout', result.logTail);
       assert.equal(result.pdf, false);
       const pid = Number(await readFile(childPid, 'utf8'));
-      assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+      assert.equal(await alive(pid), false);
       await assert.rejects(access(orphan), { code: 'ENOENT' });
     } finally {
       await desk.shutdown();
@@ -191,6 +204,30 @@ test('TeX compilation explains missing engines and rejects non-TeX sessions', ()
       const group = await desk.registerDocument({ projectId: project.id, path: 'note.md' });
       const note = await desk.openSession({ groupId: group.id });
       assert.throws(() => desk.compile(note.session.id), { code: 'DESK_FORMAT' });
+    } finally {
+      await desk.shutdown();
+    }
+  }));
+
+test('a main file in a subfolder compiles from its own folder', () =>
+  withCore('tex-subfolder', async (core, dir) => {
+    const { desk, folder, project, fake } = await setup(core, dir, ['pdflatex']);
+    try {
+      // An older copy elsewhere in the project must not be searched first.
+      await mkdir(path.join(folder, 'paper/chapters'), { recursive: true });
+      await writeFile(path.join(folder, 'paper/main.tex'), '\\documentclass{article}\n');
+      const group = await desk.registerDocument({ projectId: project.id, path: 'paper/main.tex' });
+      const { session } = await desk.openSession({ groupId: group.id });
+      const result = await desk.compile(session.id);
+      assert.equal(result.status, 'ok', result.logTail);
+      assert.equal(result.root, 'paper/main.tex');
+      const call = (await readFile(fake.calls, 'utf8'))
+        .trim()
+        .split('\n')
+        .map((line) => JSON.parse(line))
+        .at(-1);
+      assert.equal(call.cwd, path.join(folder, 'paper'));
+      assert.equal(call.args.at(-1), 'main.tex');
     } finally {
       await desk.shutdown();
     }
