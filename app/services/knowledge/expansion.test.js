@@ -239,6 +239,8 @@ async function smallGraph(core) {
 test('search reads its setting, deduplicates evidenced paths, and degrades for empty/error/timeout graphs', () =>
   withCore('retrieval-fallback', async (core) => {
     const { research, chunk } = await smallGraph(core);
+    assert.equal(research.search('anchor', { limit: 12 }).graph.used, true);
+    await settingsPatch(core, false);
     const off = research.search('anchor', { limit: 12 });
     assert.equal(off.graph.reason, 'disabled');
     await settingsPatch(core, true);
