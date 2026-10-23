@@ -108,8 +108,10 @@ test('a wrapped message is rejoined and log paths resolve from the main file fol
   const project = path.resolve('project');
   const head = path.join(project, 'paper/main.tex').split(path.sep).join('/') + ':3: ';
   const message = "I can't write on file `chapters/one.aux'.";
-  const cut = 79 - head.length;
-  const log = [head + message.slice(0, cut), message.slice(cut), 'l.3 \\include{chapters/one}'];
+  // A clean checkout can itself have a path longer than 79 columns. Wrap the
+  // complete diagnostic, including its path, just as the real engine does.
+  const log = (head + message).match(/.{1,79}/g);
+  log.push('l.3 \\include{chapters/one}');
   log.push('./chapters/one.tex:2: Undefined control sequence.');
   const parsed = texDiagnostics(log.join('\n'), project, 'paper/main.tex');
   assert.deepEqual(parsed.errors, [
