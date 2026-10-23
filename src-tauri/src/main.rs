@@ -5,6 +5,7 @@
 
 mod new_app;
 mod screenshot;
+mod desk_window;
 
 use std::{
     fs,
@@ -298,9 +299,11 @@ async fn open_secondary_window(
 
     if surface != "assistant" {
         if let Some(existing)=app.get_webview_window(&label) {
-            let _=existing.show();let _=existing.set_focus();
             if surface == "desk" {
+                desk_window::present(&existing)?;
                 let _ = app.emit_to(&label, "desk-open", serde_json::json!({ "projectId": project_id, "path": path }));
+            } else {
+                let _=existing.show();let _=existing.set_focus();
             }
             return Ok(label);
         }
@@ -392,9 +395,10 @@ async fn open_secondary_window(
         .resizable(true)
         .data_directory(app.state::<WebviewDataDirectory>().0.clone());
     if surface == "desk" {
-        builder = builder.min_inner_size(960.0, 600.0);
+        builder = builder.visible(false);
     }
-    builder.build().map_err(|error| format!("could not open secondary window: {error}"))?;
+    let window = builder.build().map_err(|error| format!("could not open secondary window: {error}"))?;
+    if surface == "desk" { desk_window::initialize(&window)?; }
     Ok(label)
 }
 
@@ -650,6 +654,7 @@ fn main() {
             }
         })
         .on_window_event(|window, event| {
+            desk_window::on_event(window, event);
             if window.label() == ASSISTANT_LABEL {
                 match event {
                     tauri::WindowEvent::Resized(size) => {
@@ -688,6 +693,9 @@ fn main() {
                     return;
                 }
                 if window.label() == "main" {
+                    if let Some(desk) = window.app_handle().get_webview_window(desk_window::LABEL) {
+                        desk_window::save(&desk.as_ref().window(), true);
+                    }
                     for (label, secondary) in window.app_handle().webview_windows() {
                         if label != "main" {
                             let _ = secondary.close();
@@ -713,6 +721,7 @@ fn main() {
             let native_data = new_app.as_ref().map(|launch| launch.data_root.clone()).unwrap_or_else(|| root.join("data"));
             let webview_data = native_data.join("webview");
             std::fs::create_dir_all(&webview_data)?;
+            app.manage(desk_window::DeskState::new(native_data.join("desk-window.json")));
             app.manage(WebviewDataDirectory(webview_data.clone()));
             let dimensions_path = native_data.join("assistant-window.json");
             app.manage(AssistantState {
@@ -727,7 +736,7 @@ fn main() {
                 let mut capability: serde_json::Value = serde_json::from_str(include_str!("../capabilities/main.json"))?;
                 capability["identifier"] = serde_json::json!("host-window-controls");
                 if new_app.is_some() {
-                    capability["windows"] = serde_json::json!(["main", ASSISTANT_LABEL, ASSISTANT_ORB_LABEL]);
+                    capability["windows"] = serde_json::json!(["main", ASSISTANT_LABEL, ASSISTANT_ORB_LABEL, desk_window::LABEL]);
                     capability["permissions"].as_array_mut().ok_or("window permissions must be an array")?
                         .push(serde_json::json!({"identifier": "opener:allow-open-url", "allow": [{"url": "http://*"}, {"url": "https://*"}]}));
                 }

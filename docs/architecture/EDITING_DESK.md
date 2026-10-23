@@ -249,7 +249,7 @@ D6 工具已接入 `workspace_edit manuscript`：`comment {block,quote,text}`、
 
 细节在界面任务里按设计系统定，这里只定结构。
 
-- **窗口：** 编辑台是独立的系统窗口（所有者 2026-10-22），沿用全局助手窗口的机制，记住大小和位置；主窗口留在对话，两边可以并排或放两块屏幕。浏览器开发环境里是新标签页。一个窗口里可以开几份文稿，顶部是文稿标签。
+- **窗口：** 编辑台是独立、非模态的系统窗口，所有项目共用 `secondary-desk`。原生数据目录的 `desk-window.json` 保存还原时的外框位置/大小、显示器原点、缩放及最大化状态；停止移动/缩放 350ms 后写，关闭时立即写。恢复按目标显示器缩放换算，超出显示器时回主屏居中并限制在工作区。再次调用 `open_secondary_window` 先恢复最小化、显示并取得焦点，再发 `desk-open`；主窗口关闭仍一并关闭副窗口。主窗口留在对话，两边可以并排或放两块屏幕；浏览器开发环境为新标签页。
 - **入口：** 主窗口左栏「工作站」下面的「编辑台」，点了打开或切到编辑台窗口；对话里的文稿标记、项目文件夹预览框的「在编辑台打开」、进入横条也都打开它并定位。工作站左下角的文件版本管理撤掉，导图向左拉伸占它的位置。
 - **布局：** 参照 Office 365 网页版。顶部一行可折叠功能区（保存、撤销重做、加粗斜体上下标、标题级别、批注、索引、比较、tex/md 的视图切换和「编译 PDF」）。左栏上半是文件列表（项目文件夹里的 docx、tex、md、pdf，加只在 `data/` 里的版本组），下半是大纲。中间正文。右侧栏标签：批注与索引、对话（绑定会议）；版本树也在右侧栏打开。底部信息栏：文件名、当前版本（"v7 · 期刊投稿 · 投稿"）、保存状态（"已写回项目文件"/"有修改未写回"）、字数、「版本树」按钮。右上角悬浮秘书按钮，点开是这个会议的秘书对话。
 - **版本树：** 右侧栏，见第 4.3 节；工作站页面的按钮打开同一个侧栏组件。
@@ -259,6 +259,10 @@ D6 工具已接入 `workspace_edit manuscript`：`comment {block,quote,text}`、
 ## 8. 接口
 
 新路由在 `app/server/routes/desk.js`，版本相关的放现有版本路由，都需要口令。
+
+D3c：`POST /api/desk/enter {projectId,meetingId?,mode:'continue'|'branch',atMessageId?}` 返回 `{meeting:{id,title,parentMeetingId},mode,created,sessionIds}`。接续指定对话或选未归档、最近活动的项目对话；无对话时以用户和主专家为成员新建“编辑台”，工作文件夹沿用项目默认。分支沿用 fork，省略消息取最新一条；空对话报 `DESK_BRANCH_EMPTY`，跨项目报 `DESK_MEETING_PROJECT`。改绑本项目打开的会话，旧修改归属不变；之后用户修改默认归属所绑定对话，明确传入的 actor 归属保留。已有同组会话再次打开时传 meetingId 也会改绑。进入会 touch 并发 `desk.entered {projectId,meetingId,mode}`，不触发回答。
+
+`POST /api/desk/focus {reference}` 接受 schema 1 的 project-file 或 version 引用；location 至少带 blockId 或 quote.exact，可含 characters 和 quote 前后文。在打开的工作副本中定位，无会话时自动打开；旧版引用也定位当前文稿。返回及 `desk.focus` 事件均为 `{projectId,path,groupId,sessionId,versionId,status:'exact'|'moved'|'missing',blockId?,from?,to?}`，versionId 保留所引版本（项目文件引用取会话基础版本），missing 不带范围。复用 D6 relocate；tex/md 的块编号跨会话不稳定，始终用原文及前后文消歧。仅有块 id 时定位整块。横条、点击及滚动高亮由 U4/U8 接入。
 
 D4：`GET /api/versions/:id/diff?baseline=` 返回 `{baseline:{id,number,branch},version:{id,number,branch},format,old:{blocks},new:{blocks},diff}`。省略 baseline 取父版本，无父返回 `{status:'first'}`；跨分支可比，跨组报 `INVALID_BASELINE`。不支持或解析失败时 old/new 为 null、diff 为 `{status:'originals-only'}`。有缓存复用差异，无缓存排队计算后保存。
 
@@ -270,7 +274,7 @@ D5：`POST /api/desk/sessions/:id/rewrite {blockId,quote,instruction}` 沿用会
 
 `workspace_read manuscript` 列表返回 `{documents:[{key,name,format,versionNumber,sessionId}],truncated}`；块读取返回 `{groupId,versionId,sessionId,seq,blocks,remaining}`，块为 `{id,kind,level,text}`。历史读取 sessionId 为 null、seq 为 0；默认优先读会话未保存内容，否则读最新版本。
 
-D3a 已实现下表中的登记、开会话、重连、PATCH blocks、撤回、保留、保存和关闭八个接口，其余是后续设计。登记仅收 `{projectId,path}` 并返回版本组；开会话/重连返回 `{session,blocks,changes}`（不含批注和绑定接口）。修改返回 `{seq,inserted}`，其中 inserted 是客户端 id 到 `p:<paraId>` 的映射；`writeDocx` 的插入项支持预分配的 `paraId`。冲突错误为 HTTP 409 的 `{code,message,details}`：`DESK_CONFLICT` 的 details 含 `seq,blockIds,blocks`（已删除块为 `{id,removed:true}`）；`DESK_EXTERNAL_CHANGE` 含 `versionId`，`DESK_SAVE_CONFIRM` 含 `versionId,versionNumber`。保存支持 `confirm?`，保留支持 `{ids?}`。服务调用的 actor 可传 `actorId,meetingId,turnId,instruction`；HTTP 修改统一记为用户。
+D3a 已实现下表中的登记、开会话、重连、PATCH blocks、撤回、保留、保存和关闭八个接口，D3c 补齐进入与定位，其余未注明的接口仍为后续设计。登记仅收 `{projectId,path}` 并返回版本组；开会话/重连返回 `{session,blocks,changes}`（不含批注和绑定接口）。修改返回 `{seq,inserted}`，其中 inserted 是客户端 id 到 `p:<paraId>` 的映射；`writeDocx` 的插入项支持预分配的 `paraId`。冲突错误为 HTTP 409 的 `{code,message,details}`：`DESK_CONFLICT` 的 details 含 `seq,blockIds,blocks`（已删除块为 `{id,removed:true}`）；`DESK_EXTERNAL_CHANGE` 含 `versionId`，`DESK_SAVE_CONFIRM` 含 `versionId,versionNumber`。保存支持 `confirm?`，保留支持 `{ids?}`。服务调用的 actor 可传 `actorId,meetingId,turnId,instruction`；HTTP 修改统一记为用户。
 
 D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media/:ref`。登记接受 docx/tex/md/markdown，后两种均记格式 md。文本会话响应额外含 `text`；全文冲突的 `details` 为 `{seq,text}`，格式不符返回 `DESK_FORMAT`。文件列表返回 `{files,groups,truncated}`：文件含 `path,name,format,size,mtime,group`，mtime 为 ISO 时间；group 摘要含 `id,latest:{id,number,branch,tier},sourceVersionId`；仅在数据目录的组另含 name、format。递归跳过隐藏目录和 node_modules，自带项目根另跳过 workbench/notes/minutes/versions/desk，达到 2000 个文稿返回 truncated，读取失败的子目录跳过。列表只读。图片接口返回原字节和原 MIME，缺失为 404 `DESK_MEDIA_NOT_FOUND`。
 
@@ -278,7 +282,7 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 | -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `GET /api/desk/documents?projectId=`                                                                           | 编辑台文件列表：项目文件夹里可编辑和可预览的文件，加版本组                  |
 | `POST /api/desk/documents`                                                                                     | `{ projectId, path }` 登记项目文件（建组和 v1），或 `{ versionId }`         |
-| `POST /api/desk/enter`                                                                                         | `{ meetingId, mode: 'continue' \| 'branch' }`，返回编辑台要绑定的会议       |
+| `POST /api/desk/enter`                                                                                         | `{ projectId, meetingId?, mode, atMessageId? }`，返回会议、created、sessionIds       |
 | `POST /api/desk/sessions`                                                                                      | `{ groupId, versionId?, meetingId }` 打开会话，返回块列表、修改、批注、绑定 |
 | `GET /api/desk/sessions/:id`                                                                                   | 重连时读取会话                                                              |
 | `PATCH /api/desk/sessions/:id/blocks`、`PUT …/text`                                                            | docx `{ baseSeq, blocks, inserted, removed }`；tex `{ baseSeq, text }`      |
@@ -293,7 +297,7 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 | `GET /api/version-groups/:id/graph`、`PATCH /api/versions/:id`                                                 | 版本图（节点含说明前 200 字和修改指令）；改标题、层级、标签、分支名         |
 | `GET /api/versions/:id/compare?baseline=`                                                                      | 现有接口，返回值改为第 4.4 节的对齐行；允许跨分支比较同组任意两版           |
 
-事件：docx、tex、md 共用 `desk.changed {sessionId,seq,blockIds,changeIds}`；`desk.session` 为 `{sessionId,state:'open'|'closed'}`，空闲写入失败时另发瞬时 `{sessionId,state:'save-error',message}`，可重试保存。保留不改正文和 seq，也发 `desk.changed`；继续使用现有 `versions.changed`。D5 已记录 `desk.suggested {meetingId,reason,key}`；`desk.focus` 和 `/api/desk/enter` 留到 D3c。
+事件：docx、tex、md 共用 `desk.changed {sessionId,seq,blockIds,changeIds}`；`desk.session` 为 `{sessionId,state:'open'|'closed'}`，空闲写入失败时另发瞬时 `{sessionId,state:'save-error',message}`，可重试保存。保留不改正文和 seq，也发 `desk.changed`；继续使用现有 `versions.changed`。D5 已记录 `desk.suggested {meetingId,reason,key}`；D3c 已接入 `desk.entered` 与 `desk.focus`，载荷见本节接口说明。
 
 ## 9. 依赖与许可证
 

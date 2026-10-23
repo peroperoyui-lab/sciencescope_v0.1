@@ -128,7 +128,7 @@ export function createDeskStore(core, annotations) {
           JSON.stringify(record.before),
           JSON.stringify(record.after),
           actor.actorId ?? 'person_user',
-          actor.meetingId ?? null,
+          actor.meetingId ?? state.session.meetingId,
           actor.turnId ?? null,
           actor.instruction ?? '',
           nowIso(),

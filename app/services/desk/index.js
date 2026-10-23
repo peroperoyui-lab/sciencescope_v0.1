@@ -8,6 +8,7 @@ import { readText, proposeText, inverseText } from './text.js';
 import { readMedia } from './media.js';
 import { listDocuments } from './documents.js';
 import { createAnnotations } from './annotations.js';
+import { createDeskNavigation } from './navigation.js';
 
 const messages = {
   INVALID_TIER: '请选择编辑台设置中的版本层级。',
@@ -176,7 +177,16 @@ export function createDesk(
     });
     return sessions.response(state);
   }
+  const navigation = createDeskNavigation(core, { sessions, store, registerDocument });
   return {
+    /**
+     * @param {{projectId:string,meetingId?:string,mode:'continue'|'branch',atMessageId?:string}} input
+     */
+    enter: (input) => serial(async () => navigation.enter(input)),
+    /**
+     * @param {{reference:import('../../core/references.js').ContentReference}} input
+     */
+    focus: (input) => serial(() => navigation.focus(input)),
     /**
      * @param {string} versionId
      */

@@ -10,6 +10,8 @@ export function registerDeskRoutes(router, desk, core, conductor) {
   if (!desk) return;
   const actor = { actorId: 'person_user' };
   const rewrite = core && createDeskRewrite(core, desk, conductor);
+  router.post('/api/desk/enter', ({ body }) => desk.enter(body));
+  router.post('/api/desk/focus', ({ body }) => desk.focus(body));
   router.get('/api/desk/sessions/:id/annotations', ({ params }) => desk.listAnnotations(params.id));
   router.post('/api/desk/sessions/:id/annotations', ({ params, body }) =>
     desk.createAnnotation(params.id, body, actor),

@@ -190,12 +190,16 @@ export function createDeskSessions(
     const group = catalog.group(groupId);
     if (!['docx', 'tex', 'md', 'pdf'].includes(group.format))
       throw new AppError('DESK_FORMAT', '请选择 DOCX、TeX、Markdown 或 PDF 文稿。');
-    if (meetingId) core.meetings.get(meetingId);
+    if (meetingId && core.meetings.get(meetingId).projectId !== group.projectId)
+      throw new AppError('DESK_MEETING_PROJECT', '请选择这个项目里的对话。');
     const existing = store.open(groupId);
     const source = await external(group);
     if (existing) {
       const state = await load(existing);
-      if (!source.changed) return response(state);
+      if (!source.changed) {
+        if (meetingId && meetingId !== existing.meetingId) bind(existing.id, meetingId);
+        return response(state);
+      }
       if (existing.seq !== existing.savedSeq)
         throw conflict(
           'DESK_EXTERNAL_CHANGE',
@@ -209,7 +213,7 @@ export function createDeskSessions(
       throw new AppError('INVALID_VERSION', '请选择这个版本组里的版本。');
     const bytes = await readFile(catalog.file(version.id));
     const document = await readDocument(bytes, group.format);
-    const session = store.create(groupId, version.id, meetingId);
+    const session = store.create(groupId, version.id, meetingId ?? existing?.meetingId);
     try {
       const state = await initialize(session, document);
       const proposal = await annotations.reanchor(state);
@@ -271,7 +275,14 @@ export function createDeskSessions(
     state.session = store.get(state.session.id);
     return { session: state.session };
   }
+  function bind(id, meetingId) {
+    core.db.prepare('UPDATE desk_sessions SET meeting_id=? WHERE id=?').run(meetingId, id);
+    core.db.afterCommit(() => {
+      if (states.has(id)) states.get(id).session = store.get(id);
+    });
+  }
   return {
+    bind,
     load,
     response,
     requestFlush,
