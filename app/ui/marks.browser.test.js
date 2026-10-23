@@ -63,6 +63,7 @@ test(
           await page.getByLabel('标记备注').fill('Note ' + index);
           await page.getByLabel('标记备注').press('Enter');
           await page.getByRole('button', { name: `标记 ${index + 1}`, exact: true }).waitFor();
+          await page.locator('.mark-selection-popover').waitFor({ state: 'detached' });
         }
         await page.getByRole('button', { name: '标记 3', exact: true }).click();
         const pop = page.locator('.marks-popover');

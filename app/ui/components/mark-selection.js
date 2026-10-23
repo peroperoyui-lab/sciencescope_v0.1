@@ -20,8 +20,13 @@ export function MarkSelection() {
     setSelection(null);
     markHighlight('research-pending', []);
   };
+  // The listener reads the latest state through a ref: a message can render and
+  // be selected before an effect would have re-subscribed with the new list.
+  const latest = useRef({ messages, participants, preview });
+  latest.current = { messages, participants, preview };
   useEffect(() => {
     const select = () => {
+      const state = latest.current;
       const current = getSelection();
       if (!current?.rangeCount || current.isCollapsed || !current.toString().trim()) return;
       const range = current.getRangeAt(0);
@@ -38,7 +43,7 @@ export function MarkSelection() {
         const id =
           messageNode.getAttribute('data-message-id') ??
           messageNode.getAttribute('data-assistant-message');
-        const message = Object.values(messages)
+        const message = Object.values(state.messages)
           .flat()
           .find((entry) => entry.id === id);
         if (!message) return;
@@ -47,12 +52,13 @@ export function MarkSelection() {
           meetingId: owner,
           messageId: id,
           speaker:
-            participants.find((person) => person.id === message.authorId)?.name ?? message.authorId,
+            state.participants.find((person) => person.id === message.authorId)?.name ??
+            message.authorId,
           text: current.toString(),
         };
       } else if (file) {
         const route = parseRoute();
-        owner = preview?.owner ?? (route.view === 'meeting' ? route.id.split('/')[0] : null);
+        owner = state.preview?.owner ?? (route.view === 'meeting' ? route.id.split('/')[0] : null);
         if (!owner) {
           actions.toast(t('请先打开一个对话，再添加标记。'));
           return;
@@ -68,7 +74,7 @@ export function MarkSelection() {
           : null;
         mark = {
           sourceId: file.getAttribute('data-resource-id'),
-          target: preview,
+          target: state.preview,
           title: /** @type {HTMLSelectElement} */ (
             document.querySelector('.file-preview-toolbar select')
           )?.selectedOptions[0]?.textContent?.trim(),
@@ -94,7 +100,7 @@ export function MarkSelection() {
     };
     document.addEventListener('mouseup', select);
     return () => document.removeEventListener('mouseup', select);
-  }, [messages, participants, preview]);
+  }, []);
   useLayoutEffect(() => {
     if (!selection || !pop.current) return;
     const { width, height } = pop.current.getBoundingClientRect(),

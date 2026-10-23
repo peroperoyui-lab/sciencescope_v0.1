@@ -4,6 +4,13 @@ import { hashText } from '../../core/workspace/files.js';
 
 export const REMOVED_VALUE = '<已移除>';
 
+/** @param {string} value */
+function tokenLike(value) {
+  if (value.length < 8 || /\s/u.test(value))
+    return /^(?:Bearer|Basic|Token)\s+\S{8,}$/iu.test(value);
+  return !/^[\d.:/-]+$/u.test(value) && !/^[a-z]+\/[a-z0-9.+-]+$/iu.test(value);
+}
+
 function reference(value) {
   return (
     value &&
@@ -52,11 +59,15 @@ export function sanitizeSnapshot(db, configuration, check) {
     entry.rows += amount;
     map.set(key, entry);
   }
+  // Header fields themselves are always replaced. Free text elsewhere only
+  // loses values shaped like tokens: a header such as `anthropic-version:
+  // 2023-06-01` or `Accept: application/json` must not erase every date or
+  // MIME type in the person's conversations.
   function remember(value) {
     if (typeof value !== 'string' || !value || value === REMOVED_VALUE) return;
-    values.add(value);
     const token = /^(?:Bearer|Basic|Token)\s+(.+)$/iu.exec(value);
-    if (token) values.add(token[1]);
+    for (const candidate of token ? [value, token[1]] : [value])
+      if (tokenLike(candidate)) values.add(candidate);
   }
   function replaceText(value) {
     let result = value;

@@ -87,3 +87,35 @@ test('redaction discovers provider configuration while preserving ordinary metad
     db.close();
   }
 });
+
+test('free text keeps ordinary values that happen to be header values', () => {
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec(
+      'CREATE TABLE revisions (resource TEXT,before_text TEXT,after_text TEXT,after_hash TEXT);',
+    );
+    db.exec('CREATE TABLE resource_snapshots (resource TEXT,content_text TEXT,content_hash TEXT);');
+    db.exec('CREATE TABLE messages (text TEXT);');
+    const text = 'Sent 2023-06-01 as application/json, v1, Bearer TOKEN_abc123xyz';
+    db.prepare('INSERT INTO messages VALUES(?)').run(text);
+    const headers = {
+      'anthropic-version': '2023-06-01',
+      Accept: 'application/json',
+      'X-Version': 'v1',
+      Authorization: 'Bearer TOKEN_abc123xyz',
+    };
+    const result = sanitizeSnapshot(
+      db,
+      { providers: [{ id: 'p', baseUrl: 'https://example.invalid', api: 'x', headers }] },
+      () => {},
+    );
+    for (const value of Object.values(result.configuration.providers[0].headers))
+      assert.equal(value, REMOVED_VALUE);
+    assert.equal(
+      db.prepare('SELECT text FROM messages').get().text,
+      `Sent 2023-06-01 as application/json, v1, ${REMOVED_VALUE}`,
+    );
+  } finally {
+    db.close();
+  }
+});
