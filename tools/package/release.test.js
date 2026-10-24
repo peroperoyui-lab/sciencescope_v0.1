@@ -9,7 +9,12 @@ test('release material contains the signed Windows artifact and implementation e
   versionFixture(async (root) => {
     const previous = '# 实施记录\n\n## 2026-10-23 Earlier release\n\n- Earlier changes.\n';
     const entry = '## 2026-10-24 Update support\n\n- Signed updater and installer checks.\n';
-    const current = '# 实施记录\n\n' + entry + '\n' + previous.split('\n\n').slice(1).join('\n\n');
+    const current = (
+      '# 实施记录\n\n' +
+      entry +
+      '\n' +
+      previous.split('\n\n').slice(1).join('\n\n')
+    ).replaceAll('\n', '\r\n');
     assert.equal(releaseNotes(current, previous), entry.trim());
     await mkdir(path.join(root, 'docs/log'), { recursive: true });
     await writeFile(path.join(root, 'docs/log/IMPLEMENTATION_LOG.md'), current);

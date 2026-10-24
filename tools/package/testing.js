@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 
-/** @param {(root:string)=>Promise<void>} work */
+/**
+ * @param {(root:string)=>Promise<void>} work
+ * @returns {Promise<void>}
+ */
 export async function versionFixture(work) {
   const parent = path.resolve('.sciencescope-local/temp/r6b/version');
   await mkdir(parent, { recursive: true });

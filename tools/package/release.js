@@ -10,18 +10,43 @@ import { preparePackageVersion } from './version.js';
 const execute = promisify(execFile);
 const repository = 'peroperoyui-lab/sciencescope_v0.1';
 
-/** @param {string} log @param {string|null} previous */
+/**
+ * @param {string} log
+ * @param {string|null} [previous]
+ * @returns {string}
+ */
 export function releaseNotes(log, previous = null) {
-  const entries = log.split(/(?=^## )/mu).filter((entry) => entry.startsWith('## '));
+  // Git blobs use LF while a Windows checkout may use CRLF for the same entry.
+  const entries = log
+    .replace(/\r\n?/gu, '\n')
+    .split(/(?=^## )/mu)
+    .filter((entry) => entry.startsWith('## '));
   if (!previous) return entries.join('\n').trim();
-  const old = new Set(previous.split(/(?=^## )/mu).map((entry) => entry.trim()));
+  const old = new Set(
+    previous
+      .replace(/\r\n?/gu, '\n')
+      .split(/(?=^## )/mu)
+      .map((entry) => entry.trim()),
+  );
   return entries
     .filter((entry) => !old.has(entry.trim()))
     .join('\n')
     .trim();
 }
 
-/** @param {{root:string,artifact:string,signature?:string,output:string,previousVersion?:string,since?:string,date?:string,url?:string}} options */
+/**
+ * @param {{
+ * root:string,
+ * artifact:string,
+ * signature?:string,
+ * output:string,
+ * previousVersion?:string,
+ * since?:string,
+ * date?:string,
+ * url?:string
+ * }} options
+ * @returns {Promise<{version:string,notes:string,pub_date:string,platforms:object}>}
+ */
 export async function generateRelease({
   root,
   artifact,
@@ -75,7 +100,10 @@ export async function generateRelease({
   return latest;
 }
 
-/** @param {string[]} args */
+/**
+ * @param {string[]} args
+ * @returns {Record<string,string>}
+ */
 function argumentsOf(args) {
   const parsed = {};
   const names = {

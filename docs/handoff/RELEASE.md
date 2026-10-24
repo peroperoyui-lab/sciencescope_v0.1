@@ -4,8 +4,8 @@
 
 ## 一次发布
 
-1. **选定版本。** 在发布工作区运行 `npm run package -- --version 1.0.0-alpha.1`，脚本会同步 `package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`，以及锁文件的根版本。没有 `--version` 时，三处不一致会在构建前停止。只改版本会复用生产依赖缓存；依赖或 npm 配置改变会使缓存失效。R6b 的演练改版本只在隔离工作区进行，正常提交保持 alpha.0。
-2. **准备签名环境并打包。** 首次生成 updater 密钥时，用现有 Tauri CLI：`node node_modules/@tauri-apps/cli/tauri.js signer generate -w "<更新私钥目录>\updater.key"`。该目录在仓库外，私钥和密码另行备份；公钥写入 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。现有密钥继续使用，不为每次发布重新生成。按下一节仅向当前构建子进程传入签名环境，再运行第 1 步的命令。
+1. **选定版本。** 确定本次版本，例如 `1.0.0-alpha.1`；在第 2 步准备签名环境后再执行 `npm run package -- --version 1.0.0-alpha.1`。脚本会同步 `package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`，以及锁文件的根版本。没有 `--version` 时，三处不一致会在构建前停止。只改版本会复用生产依赖缓存；依赖或 npm 配置改变会使缓存失效。R6b 的演练改版本只在隔离工作区进行，正常提交保持 alpha.0。
+2. **准备签名环境并打包。** 首次生成 updater 密钥时，由受控子进程调用现有 Tauri CLI 的 `signer generate`，将密钥写到 `<更新私钥目录>\updater.key`；按下一节处理输出，成功后只读取 `.pub` 文件核对公钥，再写入 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。该目录在仓库外，私钥和密码另行备份。现有密钥继续使用，不为每次发布重新生成。仅向当前构建子进程传入签名环境，再运行第 1 步的命令。
 3. **核对签名产物。** `bundle.createUpdaterArtifacts=true` 让 Tauri 在打包时完成 updater 签名。`.sciencescope-local/dist/` 应同时出现 NSIS `.exe` 与同名 `.exe.sig`，两者必须来自同一次构建。副本、改名和上传之后仍需保持安装包字节不变。此签名供 updater 验证，Authenticode 代码签名另等用户证书；当前 Windows SmartScreen 可能显示「未知发布者」或「Windows 已保护你的电脑」。签名步骤及产物格式见 [Tauri 官方 updater 文档](https://v2.tauri.app/plugin/updater/)。
 4. **生成本地发布材料。** 例如：
 
@@ -18,6 +18,8 @@
 6. **在已安装旧版的电脑复核。** 正式清单地址是 `https://github.com/peroperoyui-lab/sciencescope_v0.1/releases/latest/download/latest.json`。检查版本、说明与时间；同意更新后核对下载、验签、同目录覆盖、自动重开，以及对话、资料、设置和凭据。数据库有待执行迁移时，迁移前备份应出现在 `data/backups/`。完整标准见 [R6b 任务书](../plans/tasks/R6b_updates_upgrade.md)。
 
 ## 签名环境只传给当前构建进程
+
+**首次生成密钥时的输出处理：** Tauri CLI 可能向标准输出打印私钥。不要直接在会留终端记录的会话中执行生成命令，也不要使用 `tee`、转录或把 stdout/stderr 重定向到日志。用 `spawnSync` 等受控子进程捕获 stdout 和 stderr，完成后丢弃这两份输出；失败时只报告退出码，不打印返回对象、标准输出或标准错误。生成成功后，只读取 `<更新私钥目录>\updater.key.pub` 核对和复制公钥，不读取私钥作为检查输出。密码通过受控输入提供，不写进可留档的命令或脚本。
 
 下面从仓库根目录启动单独的 npm 构建子进程；父终端、用户级和系统级环境均不写入密钥。`<更新私钥目录>` 是占位符，真实目录和密码不得写进仓库、报告或日志。示例版本仅用于获授权的发布工作区。
 
@@ -48,7 +50,7 @@ try {
 
 `app/ui/native-update.js` 不包含界面，提供 `supported()`、`check()`、`install(onProgress)`；仅原生主窗口受支持。`check()` 返回 `{available,version,notes,date}`，手动检查不受间隔限制，也不写 `lastCheckedAt`。`updates.autoCheck` 默认 `true`；每次启动会判断是否距上次自动尝试满 24 小时，自动尝试在联网前保存 `updates.lastCheckedAt`，成功、无更新或失败都占用这次间隔。没有定时强制安装。
 
-安装先完成下载并验证 updater 签名，再调用现有宿主关闭通道，等待后台任务、SQLite 写入及 WAL/SHM 清理。下载中断、签名不匹配或清单不可达时保留当前版本并返回错误，可再次手动检查。Windows 安装使用已固定的 `tauri-plugin-updater =2.10.1`；其 NSIS 调用包含 `/P /UPDATE /R /ARGS …`，由安装程序在原位置更新并重开应用；不另加 process 插件。覆盖清理仅针对程序文件，`data/` 保留。参数与退出行为已对照 [2.10.1 官方源码](https://github.com/tauri-apps/plugins-workspace/blob/updater-v2.10.1/plugins/updater/src/updater.rs)；组件按 [Apache-2.0 OR MIT](https://github.com/tauri-apps/plugins-workspace/blob/updater-v2.10.1/Cargo.toml) 双许可使用。该版本的 Windows 安装调用未检查 `ShellExecuteW` 返回值；系统策略若阻止安装程序启动，应用可能已退出，需要手动重开当前版本后重试。
+安装先完成下载并验证 updater 签名，再调用现有宿主关闭通道，等待后台任务、SQLite 写入及 WAL/SHM 清理。下载中断、签名不匹配或清单不可达时保留当前版本并返回错误，可再次手动检查。Windows 安装使用已固定的 `tauri-plugin-updater =2.10.1`；其 NSIS 调用包含 `/P /UPDATE /R /ARGS …`，ScienceScope 最后追加 `/D=<当前可执行文件所在目录>`，明确使用当前安装位置，不依赖注册表或上次安装的默认目录，由安装程序覆盖后重开应用；不另加 process 插件。覆盖清理仅针对程序文件，`data/` 保留。参数与退出行为已对照 [2.10.1 官方源码](https://github.com/tauri-apps/plugins-workspace/blob/updater-v2.10.1/plugins/updater/src/updater.rs)；组件按 [Apache-2.0 OR MIT](https://github.com/tauri-apps/plugins-workspace/blob/updater-v2.10.1/Cargo.toml) 双许可使用。该版本的 Windows 安装调用未检查 `ShellExecuteW` 返回值；系统策略若阻止安装程序启动，应用可能已退出，需要手动重开当前版本后重试。
 
 ## 本地升级演练与最低配置
 

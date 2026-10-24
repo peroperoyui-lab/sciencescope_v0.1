@@ -4,9 +4,13 @@ import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 
-/** Version-only rehearsals reuse dependencies; every other manifest value and
+/**
+ * Version-only rehearsals reuse dependencies; every other manifest value and
  * the complete npm configuration remain part of the production cache key.
- * @param {string} manifestText @param {string} lockText @param {string} npmrc
+ * @param {string} manifestText
+ * @param {string} lockText
+ * @param {string} npmrc
+ * @returns {string}
  */
 export function productionDependencyFingerprint(manifestText, lockText, npmrc) {
   const manifest = JSON.parse(manifestText);
@@ -23,7 +27,10 @@ export function productionDependencyFingerprint(manifestText, lockText, npmrc) {
     .digest('hex');
 }
 
-/** @param {string} value */
+/**
+ * @param {string} value
+ * @returns {string}
+ */
 export function releaseVersion(value) {
   const parsed =
     /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/u.exec(
@@ -34,7 +41,10 @@ export function releaseVersion(value) {
   return value;
 }
 
-/** @param {string[]} args */
+/**
+ * @param {string[]} args
+ * @returns {string|null}
+ */
 export function packageVersionArgument(args) {
   if (!args.length) return null;
   if (args.length === 2 && args[0] === '--version') return releaseVersion(args[1]);
@@ -43,7 +53,11 @@ export function packageVersionArgument(args) {
   throw new Error('Usage: npm run package -- [--version 1.0.0-alpha.1]');
 }
 
-/** @param {string} root @param {string|null} [requested] */
+/**
+ * @param {string} root
+ * @param {string|null} [requested]
+ * @returns {Promise<{version:string,configuration:Record<string,any>}>}
+ */
 export async function preparePackageVersion(root, requested = null) {
   const locations = [
     'package.json',
