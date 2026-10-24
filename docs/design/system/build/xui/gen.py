@@ -6,35 +6,8 @@ PARTS = ROOT / 'docs/design/system/build/parts'
 COMP = ROOT / 'docs/design/system/project/components'
 background = (PARTS / 'shell_top.html').read_text() + (PARTS / 'settings_main.html').read_text() + (PARTS / 'shell_bottom.html').read_text()
 
-def info(tip):
-    return f'<button class="ss-info" type="button" aria-label="说明" data-tip="{tip}"><i data-i="info"></i></button>'
-
-NAV = [('settings', '通用'), ('palette', '外观'), ('plug', '模型与服务商'), ('shield-check', '执行与批准'), ('users', '专家'),
-       ('wrench', '工具'), ('graduation-cap', '技能'), ('server', 'MCP 服务器'), ('database', '数据与运行环境'), ('keyboard', '快捷键')]
-
-def dialog(active, inner):
-    items = ''.join(
-        f'<button class="ss-nav-item" type="button"{" aria-current=\"page\"" if label == active else ""}><i data-i="{icon}"></i><span class="ss-nav-item__label">{label}</span></button>\n        '
-        for icon, label in NAV)
-    return f'''
-<div class="ss-scrim" id="dlg-settings">
-  <div class="ss-dialog ss-dialog--settings" role="dialog" aria-modal="true" aria-label="设置">
-    <button class="ss-icon-btn ss-settings__close" type="button" aria-label="关闭" data-tip="关闭" data-kbd="Esc" data-close><i data-i="x"></i></button>
-    <div class="ss-settings">
-      <nav class="ss-settings__nav" aria-label="设置分类">
-        <div class="ss-settings__navtitle">设置</div>
-        {items}<div class="ss-settings__navsep"></div>
-        <button class="ss-nav-item" type="button"><i data-i="info"></i><span class="ss-nav-item__label">关于</span><span class="ss-nav-item__end">1.0.0-alpha</span></button>
-      </nav>
-      <div class="ss-settings__content">
-        <div class="ss-settings__inner">
-{inner}
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-'''
+sys.path.insert(0, str(ROOT / 'docs/design/system/build/settings'))
+from nav import info, dialog  # noqa: E402
 
 def card(name, meta, body):
     html = (f'<!-- @dsCard {meta} -->\n<!doctype html>\n<html lang="zh-CN">\n<head><meta charset="utf-8"><title>{name}</title></head>\n<body>\n'

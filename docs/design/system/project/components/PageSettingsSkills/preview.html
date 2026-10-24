@@ -88,16 +88,25 @@
     <div class="ss-settings">
       <nav class="ss-settings__nav" aria-label="设置分类">
         <div class="ss-settings__navtitle">设置</div>
+        <div class="ss-settings__navgroup">个人</div>
         <button class="ss-nav-item" type="button"><i data-i="settings"></i><span class="ss-nav-item__label">通用</span></button>
         <button class="ss-nav-item" type="button"><i data-i="palette"></i><span class="ss-nav-item__label">外观</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="keyboard"></i><span class="ss-nav-item__label">快捷键</span></button>
+        <div class="ss-settings__navgroup">研究协作</div>
         <button class="ss-nav-item" type="button"><i data-i="plug"></i><span class="ss-nav-item__label">模型与服务商</span></button>
-        <button class="ss-nav-item" type="button"><i data-i="shield-check"></i><span class="ss-nav-item__label">执行与批准</span></button>
         <button class="ss-nav-item" type="button"><i data-i="users"></i><span class="ss-nav-item__label">专家</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="clipboard-list"></i><span class="ss-nav-item__label">任务秘书</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="sparkle"></i><span class="ss-nav-item__label">全局助手</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="shield-check"></i><span class="ss-nav-item__label">执行与批准</span></button>
+        <div class="ss-settings__navgroup">工具</div>
         <button class="ss-nav-item" type="button"><i data-i="wrench"></i><span class="ss-nav-item__label">工具</span></button>
         <button class="ss-nav-item" type="button" aria-current="page"><i data-i="graduation-cap"></i><span class="ss-nav-item__label">技能</span></button>
         <button class="ss-nav-item" type="button"><i data-i="server"></i><span class="ss-nav-item__label">MCP 服务器</span></button>
-        <button class="ss-nav-item" type="button"><i data-i="database"></i><span class="ss-nav-item__label">数据与运行环境</span></button>
-        <button class="ss-nav-item" type="button"><i data-i="keyboard"></i><span class="ss-nav-item__label">快捷键</span></button>
+        <div class="ss-settings__navgroup">资料与环境</div>
+        <button class="ss-nav-item" type="button"><i data-i="book-open"></i><span class="ss-nav-item__label">知识库与检索</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="app-window"></i><span class="ss-nav-item__label">编辑台</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="package"></i><span class="ss-nav-item__label">Python 环境</span></button>
+        <button class="ss-nav-item" type="button"><i data-i="database"></i><span class="ss-nav-item__label">数据与备份</span></button>
         <div class="ss-settings__navsep"></div>
         <button class="ss-nav-item" type="button"><i data-i="info"></i><span class="ss-nav-item__label">关于</span><span class="ss-nav-item__end">1.0.0-alpha</span></button>
       </nav>
@@ -163,62 +172,6 @@
   </div>
 </div>
 
-<!-- shell menus: build/shell/gen.py -->
-<div class="ss-menu" id="m-tb-file" hidden>
-  <button class="ss-menu__item" type="button"><i data-i="square-pen"></i>新对话<span class="ss-menu__end">Ctrl N</span></button>
-  <button class="ss-menu__item" type="button"><i data-i="message-square"></i>独立快速对话<span class="ss-menu__end">Ctrl Alt N</span></button>
-  <button class="ss-menu__item" type="button"><i data-i="folder-plus"></i>新建项目</button>
-  <div class="ss-menu__sep"></div>
-  <button class="ss-menu__item" type="button"><i data-i="download"></i>导出当前对话（Markdown）</button>
-  <button class="ss-menu__item" type="button"><i data-i="package"></i>导出项目快照</button>
-</div>
-<div class="ss-menu" id="m-tb-edit" hidden>
-  <button class="ss-menu__item" type="button"><i data-i="search"></i>查找当前对话<span class="ss-menu__end">Ctrl F</span></button>
-  <button class="ss-menu__item" type="button"><i data-i="search"></i>搜索与命令<span class="ss-menu__end">Ctrl K</span></button>
-  <div class="ss-menu__sep"></div>
-  <button class="ss-menu__item" type="button"><i data-i="copy"></i>复制选中文字<span class="ss-menu__end">Ctrl C</span></button>
-</div>
-<div class="ss-menu" id="m-tb-view" hidden>
-  <button class="ss-menu__item" type="button"><i data-i="layout-list"></i>全部对话<span class="ss-menu__end">Ctrl Shift K</span></button>
-  <button class="ss-menu__item" type="button"><i data-i="box"></i>工作站</button>
-  <button class="ss-menu__item" type="button"><i data-i="file-pen"></i>编辑台</button>
-  <div class="ss-menu__sep"></div>
-  <button class="ss-menu__item" type="button"><i data-i="sparkle"></i>全局助手</button>
-  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="false" type="button"><i data-i="pin"></i>窗口置顶<i data-i="check" class="ss-menu__check"></i></button>
-  <div class="ss-menu__sep"></div>
-  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="false" type="button">显示滚动条<i data-i="check" class="ss-menu__check"></i></button>
-  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="true" type="button">简洁执行记录<i data-i="check" class="ss-menu__check"></i></button>
-  <div class="ss-menu__sep"></div>
-  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="true" type="button">中文<i data-i="check" class="ss-menu__check"></i></button>
-  <button class="ss-menu__item" role="menuitemcheckbox" aria-checked="false" type="button">English<i data-i="check" class="ss-menu__check"></i></button>
-</div>
-<div class="ss-menu" id="m-tb-help" hidden>
-  <button class="ss-menu__item" type="button"><i data-i="keyboard"></i>键盘快捷键</button>
-  <button class="ss-menu__item" type="button"><i data-i="info"></i>关于 ScienceScope</button>
-</div>
-<div class="ss-menu" id="m-side-chat" hidden>
-  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>重命名<span class="ss-menu__end">F2</span></button>
-  <button class="ss-menu__item" type="button"><i data-i="pin"></i>置顶</button>
-  <button class="ss-menu__item" type="button" data-menu="#m-side-move"><i data-i="folder"></i>移到项目…</button>
-  <div class="ss-menu__sep"></div>
-  <button class="ss-menu__item" type="button" aria-disabled="true"><i data-i="archive"></i>归档（运行中不能归档）</button>
-</div>
-<div class="ss-menu" id="m-side-move" hidden>
-  <button class="ss-menu__item" type="button"><i data-i="folder"></i>城市韧性研究</button>
-  <button class="ss-menu__item" type="button"><i data-i="folder"></i>劳动保障政策演化</button>
-  <div class="ss-menu__sep"></div>
-  <button class="ss-menu__item" type="button"><i data-i="message-square"></i>移出项目，变成独立对话</button>
-</div>
-<div class="ss-menu" id="m-side-project" hidden>
-  <button class="ss-menu__item" type="button"><i data-i="square-pen"></i>在项目中新对话</button>
-  <button class="ss-menu__item" type="button"><i data-i="box"></i>打开工作站</button>
-  <button class="ss-menu__item" type="button"><i data-i="folder-open"></i>打开项目文件夹</button>
-  <button class="ss-menu__item" type="button"><i data-i="pin"></i>置顶</button>
-  <button class="ss-menu__item" type="button"><i data-i="pencil"></i>重命名<span class="ss-menu__end">F2</span></button>
-  <div class="ss-menu__sep"></div>
-  <button class="ss-menu__item" type="button"><i data-i="archive"></i>归档项目</button>
-</div>
-<!-- /shell menus -->
 <script>window.SS && SS.mount(document.body)</script>
 </body>
 </html>

@@ -1843,6 +1843,42 @@ html[data-resizing] * {
   flex: 1;
   min-width: 0;
 }
+.ss-toast:has(> .ss-toast__body) {
+  max-width: 480px;
+}
+.ss-toast__body {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+  line-height: 18px;
+}
+.ss-toast__body > b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.ss-toast__body > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.ss-toast__body > .ss-progress {
+  margin: 4px 0 2px;
+}
+
+/* ---------- Progress bar ---------- */
+.ss-progress {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: var(--hover);
+}
+.ss-progress__bar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--t-med) var(--ease);
+}
 
 /* ---------- Count, tag, status dot ---------- */
 .ss-count {
@@ -3476,6 +3512,36 @@ button.ss-act__row:hover {
   height: 1px;
   margin: 6px 8px;
   background: var(--line);
+}
+.ss-settings__navgroup {
+  padding: 10px 8px 2px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+}
+.ss-settings__preview {
+  margin-top: var(--sp-8);
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--paper);
+}
+.ss-export {
+  display: grid;
+  gap: var(--sp-6);
+  margin-top: var(--sp-8);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+}
+.ss-export__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  color: var(--ink);
+  font-size: 13px;
 }
 .ss-settings__content {
   flex: 1;

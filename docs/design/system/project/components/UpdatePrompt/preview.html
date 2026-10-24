@@ -1,0 +1,18 @@
+<!-- @dsCard group="反馈" height=520 subtitle="更新提示：右下角一条，写版本和一句说明；下载进度、关闭前提示、失败原因各一种状态" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>UpdatePrompt</title></head>
+<body>
+<div class="ds" style="display:grid;gap:16px;max-width:560px">
+  <div class="ss-toast" role="status"><i data-i="download"></i><div class="ss-toast__body"><b>有新版本 1.0.0-alpha.2</b><span>修好了导出时偶尔卡住的问题。</span></div>
+    <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">查看说明</button><button class="ss-btn ss-btn--primary ss-btn--sm" type="button">更新并重启</button>
+    <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="稍后" data-tip="稍后再说"><i data-i="x"></i></button></div>
+  <div class="ss-toast" role="status"><span class="ss-spin"></span><div class="ss-toast__body"><b>正在下载更新 · 32 / 94 MB</b><div class="ss-progress"><span class="ss-progress__bar" style="width:34%"></span></div></div></div>
+  <div class="ss-toast" role="status"><span class="ss-spin"></span><div class="ss-toast__body"><b>正在保存数据并关闭…</b><span>安装完会自动重新打开，大约一两分钟。</span></div></div>
+  <div class="ss-toast" role="alert"><i data-i="circle-alert" style="color:var(--danger)"></i><div class="ss-toast__body"><b>更新没有完成，当前版本没有改动</b><span>下载中断了。请检查网络后重试。</span></div>
+    <button class="ss-btn ss-btn--sm" type="button">重试</button></div>
+  <p class="ds-note">启动后自动检查（每天最多一次），有新版本时在右下角提示一次，关掉就不再打扰，到「设置 → 关于」还能更新。下载和校验在后台，期间照常使用；只有点「更新并重启」后才关闭程序。</p>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>
