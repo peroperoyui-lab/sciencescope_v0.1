@@ -11,6 +11,7 @@ Var ScienceScopeCleanupOutput
   System::Call 'kernel32::GetTickCount64() l .s'
   Pop $ScienceScopePhaseTime
   FileOpen $ScienceScopePhaseLog "$TEMP\${PRODUCTNAME}-install-phases.log" a
+  FileSeek $ScienceScopePhaseLog 0 END
   FileWrite $ScienceScopePhaseLog "${phase} $ScienceScopePhaseTime$\r$\n"
   FileClose $ScienceScopePhaseLog
 !macroend

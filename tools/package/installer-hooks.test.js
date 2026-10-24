@@ -55,6 +55,7 @@ Section
   FileOpen $R0 "${root}\\detected-memory.txt" w
   FileWrite $R0 "$ScienceScopeMemory"
   FileClose $R0
+  !insertmacro NSIS_HOOK_POSTINSTALL
 SectionEnd
 `,
     );
@@ -64,6 +65,17 @@ SectionEnd
       env: { ...process.env, TEMP: root, TMP: root },
     });
     const detected = Number(await readFile(path.join(root, 'detected-memory.txt'), 'utf8'));
+    const phases = await readFile(
+      path.join(root, 'ScienceScope Install Test-install-phases.log'),
+      'utf8',
+    );
+    assert.deepEqual(
+      phases
+        .trim()
+        .split(/\r?\n/u)
+        .map((line) => line.split(' ')[0]),
+      ['preinstall', 'write-start', 'postinstall'],
+    );
     const powershell = path.join(
       process.env.SystemRoot || 'C:/Windows',
       'System32/WindowsPowerShell/v1.0/powershell.exe',
