@@ -66,10 +66,15 @@ export async function generateRelease({
   let base = since || (previousVersion ? `v${previousVersion}` : null);
   if (!base) {
     // A repository without release tags is the first local release draft.
-    base = await execute('git', ['describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*'], {
-      cwd: root,
-      windowsHide: true,
-    }).then(
+    // Only version tags count: the old line's `v0-prototype` tag is not a release.
+    base = await execute(
+      'git',
+      ['describe', '--tags', '--abbrev=0', '--match', 'v[0-9]*.[0-9]*.[0-9]*'],
+      {
+        cwd: root,
+        windowsHide: true,
+      },
+    ).then(
       (result) => result.stdout.trim(),
       () => null,
     );

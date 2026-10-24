@@ -42,10 +42,37 @@ function shellCommand(command) {
  * @param {number} pid
  */
 async function stopTree(pid) {
+  if (process.platform !== 'win32') {
+    try {
+      process.kill(-pid, 'SIGKILL');
+    } catch (error) {
+      if (error.code !== 'ESRCH') throw error;
+    }
+    return;
+  }
+  // Only without the Job owner: children of an exited shell can escape.
+  const executable = path.join(process.env.SystemRoot ?? 'C:/Windows', 'System32/taskkill.exe');
+  await new Promise((resolve, reject) => {
+    const child = spawn(executable, ['/PID', String(pid), '/T', '/F'], {
+      windowsHide: true,
+      stdio: 'ignore',
+    });
+    child.once('error', reject);
+    child.once('close', () => resolve(undefined));
+  });
+}
+
+/**
+ * The Job owner is compiled on first use. A machine without the .NET compiler
+ * still runs commands, with the older process-tree stop.
+ * @param {string} temp
+ */
+async function jobOwner(temp) {
+  if (process.platform !== 'win32') return null;
   try {
-    process.kill(-pid, 'SIGKILL');
-  } catch (error) {
-    if (error.code !== 'ESRCH') throw error;
+    return await windowsShellJob(temp);
+  } catch {
+    return null;
   }
 }
 
@@ -60,7 +87,7 @@ export async function runShell(args, { workFolder, env, signal, temp }) {
     throw new AppError('INVALID_TIMEOUT', 'timeoutSeconds must be a positive number.');
   const { executable, args: commandArgs } = shellCommand(args.command);
   const file = await outputPath(temp);
-  const owner = process.platform === 'win32' ? await windowsShellJob(temp) : null;
+  const owner = await jobOwner(temp);
   signal?.throwIfAborted();
   const output = await open(file, 'w');
   const childEnv = { ...process.env };

@@ -10,6 +10,9 @@ export async function versionFixture(work) {
   const parent = path.resolve('.sciencescope-local/temp/r6b/version');
   await mkdir(parent, { recursive: true });
   const root = await mkdtemp(path.join(parent, 'case-'));
+  // Keep git from reading the surrounding checkout's tags.
+  const ceiling = process.env.GIT_CEILING_DIRECTORIES;
+  process.env.GIT_CEILING_DIRECTORIES = parent;
   try {
     await mkdir(path.join(root, 'src-tauri'));
     await writeFile(
@@ -37,6 +40,8 @@ export async function versionFixture(work) {
     );
     await work(root);
   } finally {
+    if (ceiling === undefined) delete process.env.GIT_CEILING_DIRECTORIES;
+    else process.env.GIT_CEILING_DIRECTORIES = ceiling;
     assert.equal(path.dirname(root), parent);
     await rm(root, { recursive: true, force: true });
   }

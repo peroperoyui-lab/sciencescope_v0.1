@@ -15,7 +15,7 @@
 
    默认读取同名 `.exe.sig`；可用 `--signature` 指定。`--previous-version` 读取对应 `v<版本>` Git 标签的实施记录；没有该标签时改用 `--since <上次发布的提交或标签>`。两者都未指定时尝试最近的 `v*` 标签，无标签按首次发布取完整实施记录。脚本比较 `docs/log/IMPLEMENTATION_LOG.md`，生成 `latest.json`（`version`、`notes`、`pub_date`、`platforms.windows-x86_64.url/signature`）及 `发布说明.md` 草稿。默认下载地址为 `https://github.com/peroperoyui-lab/sciencescope_v0.1/releases/download/v<版本>/<安装包名>`；草稿经发布者核对后使用。
 5. **由用户或获得授权的发布者发布。** 在 `peroperoyui-lab/sciencescope_v0.1` 创建相应 `v<版本>` Release，上传安装包、同名 `.sig` 与 `latest.json`。alpha 版本不勾选 pre-release，使 `releases/latest` 能指向该发布。脚本只生成本地材料，不上传、不创建 Release。
-6. **在已安装旧版的电脑复核。** 正式清单地址是 `https://github.com/peroperoyui-lab/sciencescope_v0.1/releases/latest/download/latest.json`。检查版本、说明与时间；同意更新后核对下载、验签、同目录覆盖、自动重开，以及对话、资料、设置和凭据。数据库有待执行迁移时，迁移前备份应出现在 `data/backups/`。完整标准见 [R6b 任务书](../plans/tasks/R6b_updates_upgrade.md)。
+6. **在已安装旧版的电脑复核。** 正式清单地址是 `https://github.com/peroperoyui-lab/sciencescope_v0.1/releases/latest/download/latest.json`。检查版本、说明与时间；同意更新后核对下载、验签、同目录覆盖、自动重开，以及对话、资料、设置和凭据。数据库有待执行迁移时，迁移前备份应出现在 `data/backups/`。完整标准见 [R6b 任务书](../plans/tasks/done/R6b_updates_upgrade.md)。
 
 ## 签名环境只传给当前构建进程
 
