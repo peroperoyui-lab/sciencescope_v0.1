@@ -14,8 +14,8 @@ COMP = BUILD.parent / 'project' / 'components'
 background = (PARTS / 'shell_top.html').read_text() + (PARTS / 'settings_main.html').read_text() + (PARTS / 'shell_bottom.html').read_text()
 
 
-def card(name, subtitle, body, group='整页示例', page=True):
-    size = ' page height=900 width=1536' if page else ' height=520'
+def card(name, subtitle, body, group='整页示例', page=True, height=520):
+    size = ' page height=900 width=1536' if page else f' height={height}'
     html = (f'<!-- @dsCard group="{group}"{size} subtitle="{subtitle}" -->\n<!doctype html>\n<html lang="zh-CN">\n'
             f'<head><meta charset="utf-8"><title>{name}</title></head>\n<body>\n' + body +
             '\n<script>window.SS && SS.mount(document.body)</script>\n</body>\n</html>\n')
@@ -55,8 +55,9 @@ def seg(label, options, active, small=True):
     return f'<div class="ss-seg{" ss-seg--sm" if small else ""}" role="group" aria-label="{label}">{buttons}</div>'
 
 
-def select(value, width=200, small=False):
-    return (f'<button class="ss-select{" ss-select--sm" if small else ""}" type="button" aria-haspopup="menu" style="width:{width}px">'
+def select(value, width=200, small=False, menu=''):
+    m = f' aria-expanded="false" data-menu="{menu}"' if menu else ''
+    return (f'<button class="ss-select{" ss-select--sm" if small else ""}" type="button" aria-haspopup="menu"{m} style="width:{width}px">'
             f'<span class="ss-select__value">{value}</span><i data-i="chevron-down"></i></button>')
 
 
@@ -337,9 +338,9 @@ python = '\n'.join([
         f'{env("地图可视化", "Python 3.13 · 安装到一半停了：geopandas 下载失败", "<span class=\"ss-provider__status ss-provider__status--danger\"><span class=\"ss-dot ss-dot--danger\"></span>部分安装</span><button class=\"ss-btn ss-btn--sm\" type=\"button\">重试</button>")}</div>',
     ]), count=3, extra=btn('新建环境', 'plus', small=True)),
     section('下载源', '\n'.join([
-        row('软件包镜像', select('清华（国内）', 200), '装软件包时从这里下载'),
-        row('Python 下载源', select('官方', 200), '只在新建环境、需要下载 Python 本身时用'),
-    ])),
+        row('软件包镜像', select('清华（国内）', 200, menu='#m-index'), '装软件包时从这里下载'),
+        row('Python 下载源', select('官方', 200, menu='#m-pysrc'), '只在新建环境、需要下载 Python 本身时用'),
+    ]), tip='内置了几个常用的源。学校或单位有自己的镜像时，在下拉框里选「添加自定义源」。'),
     section('空间', '\n'.join([
         row('共享缓存', btn('清理未用到的', 'trash-2', 'ghost', True), '1.4 GB，几个环境共用；清理只删没有环境在用的部分'),
         row('系统 Python', '', '3.12.4 · 只读取，不修改'),
@@ -353,7 +354,67 @@ env_menu = '''
   <div class="ss-menu__sep"></div>
   <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>删除环境</button>
 </div>'''
-page('PageSettingsPython', 'Python 环境', '设置 → Python 环境：默认环境、环境列表（状态和失败原因写在行里）、下载源和缓存；点「管理」看包', python, env_menu)
+# 下载源：内置几个，用户可以添加、修改、删除自己的源
+def source(name, url, checked=False, custom=False):
+    tools = ('<span class="ss-menu__tools"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="修改" data-tip="修改" data-dialog="#dlg-source-edit"><i data-i="pencil"></i></button>'
+             '<button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="删除" data-tip="删除"><i data-i="trash-2"></i></button></span>') if custom else ''
+    return (f'<div class="ss-menu__item ss-menu__item--rich" role="menuitemradio" tabindex="-1" aria-checked="{"true" if checked else "false"}">'
+            f'<span class="ss-menu__text"><span>{name}</span><span class="ss-menu__desc ss-mono">{url}</span></span>{tools}'
+            '<i data-i="check" class="ss-menu__check"></i></div>')
+
+def source_menu(id_, builtin, custom, static=False):
+    attrs = ' data-static style="width:340px"' if static else f' id="{id_}" hidden style="width:340px"'
+    items = ['  <div class="ss-menu__label">内置</div>'] + ['  ' + source(*b) for b in builtin]
+    if custom:
+        rows = [source(*c, custom=True) for c in custom]
+        if static:  # show the hover tools on the first row the user added
+            rows[0] = rows[0].replace('role="menuitemradio"', 'data-active role="menuitemradio"', 1)
+        items += ['  <div class="ss-menu__sep"></div>', '  <div class="ss-menu__label">自己添加的</div>'] + ['  ' + r for r in rows]
+    items += ['  <div class="ss-menu__sep"></div>',
+              '  <button class="ss-menu__item" type="button" data-dialog="#dlg-source"><i data-i="plus"></i>添加自定义源…</button>']
+    return f'<div class="ss-menu"{attrs}>\n' + '\n'.join(items) + '\n</div>'
+
+index_builtin = [('官方 PyPI', 'https://pypi.org/simple'), ('清华（国内）', 'https://pypi.tuna.tsinghua.edu.cn/simple', True),
+                 ('阿里云（国内）', 'https://mirrors.aliyun.com/pypi/simple')]
+index_custom = [('学校镜像', 'https://mirrors.example.edu.cn/pypi/simple')]
+py_builtin = [('官方', 'GitHub · python-build-standalone', True)]
+
+def source_dialog(id_, title, name, url, hint, extra='', static=False, save='添加'):
+    wrap_open = '' if static else f'<div class="ss-scrim" id="{id_}" hidden>\n'
+    wrap_close = '' if static else '\n</div>'
+    attrs = ' data-static style="width:440px"' if static else ' aria-modal="true"'
+    return (wrap_open + f'''<div class="ss-dialog"{attrs} role="dialog" aria-label="{title}">
+  <div class="ss-dialog__head"><h2 class="ss-dialog__title">{title}</h2><button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭" data-kbd="Esc" data-close><i data-i="x"></i></button></div>
+  <div class="ss-dialog__body">
+    <label class="ss-field"><span class="ss-field__label">名称</span><span class="ss-input"><input value="{name}" placeholder="例如 学校镜像" aria-label="名称" /></span></label>
+    <label class="ss-field"><span class="ss-field__label">地址</span><span class="ss-input"><i data-i="link"></i><input class="ss-mono" value="{url}" placeholder="https://…/simple" aria-label="地址" /></span>{hint}</label>{extra}
+  </div>
+  <div class="ss-dialog__foot"><button class="ss-btn" type="button" data-close>取消</button><button class="ss-btn ss-btn--primary" type="button" data-close>{save}</button></div>
+</div>''' + wrap_close)
+
+add_hint = '<span class="ss-field__hint">填 pip 能用的索引地址，一般以 /simple 结尾。保存前会先试着连一下。</span>'
+edit_error = '<span class="ss-field__error"><i data-i="circle-alert" class="ss-i--sm"></i>连不上这个地址（超时 10 秒）。请检查地址或网络；确定没错也可以仍然保存。</span>'
+source_overlays = '\n'.join([
+    source_menu('m-index', index_builtin, index_custom),
+    source_menu('m-pysrc', py_builtin, []),
+    source_dialog('dlg-source', '添加软件包镜像', '', '', add_hint),
+    source_dialog('dlg-source-edit', '修改「学校镜像」', '学校镜像', 'https://mirrors.example.edu.cn/pypi/simple', add_hint, save='保存'),
+])
+page('PageSettingsPython', 'Python 环境', '设置 → Python 环境：默认环境、环境列表（状态和失败原因写在行里）、下载源和缓存；点「管理」看包，下载源可以添加自己的', python, env_menu + source_overlays)
+
+picker = f'''<div class="ds" style="grid-template-columns:auto auto;justify-content:start;align-items:start;gap:24px">
+  <div class="ds-col">
+{source_menu('', index_builtin, index_custom, static=True)}
+    <span class="ds-label">下拉框：内置的在上，自己添加的在下，悬停出现修改和删除</span>
+  </div>
+  <div class="ds-col">
+{source_dialog('', '添加软件包镜像', '学校镜像', 'https://mirrors.example.edu.cn/pypi/simple', add_hint, static=True)}
+    <span class="ds-label">添加：名称加地址，保存前试连一次</span>
+{source_dialog('', '修改「学校镜像」', '学校镜像', 'https://mirrors.example.edu.cn/pypi/simpel', edit_error, static=True, save='仍然保存')}
+    <span class="ds-label">连不上：原因写在地址下面，可以改地址，也可以仍然保存</span>
+  </div>
+</div>'''
+card('SourcePicker', '下载源选择：内置几个常用源，用户可以添加、修改、删除自己的源；删掉正在用的源时退回内置默认', picker, group='输入', page=False, height=640)
 
 pkgs = ''.join(f'<div class="ss-list-row"><div class="ss-list-row__main"><span class="ss-list-row__title ss-mono">{p}</span></div><span class="ss-list-row__meta">{v}</span></div>'
                for p, v in [('jieba', '0.42.1'), ('pandas', '2.3.3'), ('scikit-learn', '1.7.2'), ('spacy', '3.8.7'), ('wordcloud', '1.9.4')])

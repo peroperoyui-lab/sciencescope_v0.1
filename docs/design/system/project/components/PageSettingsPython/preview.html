@@ -1,4 +1,4 @@
-<!-- @dsCard group="整页示例" page height=900 width=1536 subtitle="设置 → Python 环境：默认环境、环境列表（状态和失败原因写在行里）、下载源和缓存；点「管理」看包" -->
+<!-- @dsCard group="整页示例" page height=900 width=1536 subtitle="设置 → Python 环境：默认环境、环境列表（状态和失败原因写在行里）、下载源和缓存；点「管理」看包，下载源可以添加自己的" -->
 <!doctype html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><title>PageSettingsPython</title></head>
@@ -126,14 +126,14 @@
             <div class="ss-list"><div class="ss-list-row ss-list-row--2"><i data-i="package" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">内置 · 科学分析</span><span class="ss-list-row__sub">Python 3.14 · 86 个包 · pandas、numpy、matplotlib 等</span></div><span class="ss-provider__status"><span class="ss-dot ss-dot--ok"></span>就绪</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">管理</button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-env"><i data-i="ellipsis"></i></button></div><div class="ss-list-row ss-list-row--2"><i data-i="package" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">访谈文本分析</span><span class="ss-list-row__sub">Python 3.14 · 41 个包 · 2 个对话在用</span></div><span class="ss-provider__status"><span class="ss-dot ss-dot--ok"></span>就绪</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">管理</button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-env"><i data-i="ellipsis"></i></button></div><div class="ss-list-row ss-list-row--2"><i data-i="package" class="ss-list-row__icon"></i><div class="ss-list-row__main"><span class="ss-list-row__title">地图可视化</span><span class="ss-list-row__sub">Python 3.13 · 安装到一半停了：geopandas 下载失败</span></div><span class="ss-provider__status ss-provider__status--danger"><span class="ss-dot ss-dot--danger"></span>部分安装</span><button class="ss-btn ss-btn--sm" type="button">重试</button><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">管理</button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="更多" data-menu="#m-env"><i data-i="ellipsis"></i></button></div></div>
           </section>
           <section class="ss-setting-section">
-            <div class="ss-setting-section__head"><h3 class="ss-setting-section__title">下载源</h3></div>
+            <div class="ss-setting-section__head"><h3 class="ss-setting-section__title">下载源 <button class="ss-info" type="button" aria-label="说明" data-tip="内置了几个常用的源。学校或单位有自己的镜像时，在下拉框里选「添加自定义源」。"><i data-i="info"></i></button></h3></div>
             <div class="ss-setting-row">
               <div class="ss-setting-row__text"><span class="ss-setting-row__label">软件包镜像</span><span class="ss-setting-row__desc">装软件包时从这里下载</span></div>
-              <div class="ss-setting-row__control"><button class="ss-select" type="button" aria-haspopup="menu" style="width:200px"><span class="ss-select__value">清华（国内）</span><i data-i="chevron-down"></i></button></div>
+              <div class="ss-setting-row__control"><button class="ss-select" type="button" aria-haspopup="menu" aria-expanded="false" data-menu="#m-index" style="width:200px"><span class="ss-select__value">清华（国内）</span><i data-i="chevron-down"></i></button></div>
             </div>
             <div class="ss-setting-row">
               <div class="ss-setting-row__text"><span class="ss-setting-row__label">Python 下载源</span><span class="ss-setting-row__desc">只在新建环境、需要下载 Python 本身时用</span></div>
-              <div class="ss-setting-row__control"><button class="ss-select" type="button" aria-haspopup="menu" style="width:200px"><span class="ss-select__value">官方</span><i data-i="chevron-down"></i></button></div>
+              <div class="ss-setting-row__control"><button class="ss-select" type="button" aria-haspopup="menu" aria-expanded="false" data-menu="#m-pysrc" style="width:200px"><span class="ss-select__value">官方</span><i data-i="chevron-down"></i></button></div>
             </div>
           </section>
           <section class="ss-setting-section">
@@ -159,6 +159,42 @@
   <button class="ss-menu__item" type="button"><i data-i="file-output"></i>导出清单</button>
   <div class="ss-menu__sep"></div>
   <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>删除环境</button>
+</div><div class="ss-menu" id="m-index" hidden style="width:340px">
+  <div class="ss-menu__label">内置</div>
+  <div class="ss-menu__item ss-menu__item--rich" role="menuitemradio" tabindex="-1" aria-checked="false"><span class="ss-menu__text"><span>官方 PyPI</span><span class="ss-menu__desc ss-mono">https://pypi.org/simple</span></span><i data-i="check" class="ss-menu__check"></i></div>
+  <div class="ss-menu__item ss-menu__item--rich" role="menuitemradio" tabindex="-1" aria-checked="true"><span class="ss-menu__text"><span>清华（国内）</span><span class="ss-menu__desc ss-mono">https://pypi.tuna.tsinghua.edu.cn/simple</span></span><i data-i="check" class="ss-menu__check"></i></div>
+  <div class="ss-menu__item ss-menu__item--rich" role="menuitemradio" tabindex="-1" aria-checked="false"><span class="ss-menu__text"><span>阿里云（国内）</span><span class="ss-menu__desc ss-mono">https://mirrors.aliyun.com/pypi/simple</span></span><i data-i="check" class="ss-menu__check"></i></div>
+  <div class="ss-menu__sep"></div>
+  <div class="ss-menu__label">自己添加的</div>
+  <div class="ss-menu__item ss-menu__item--rich" role="menuitemradio" tabindex="-1" aria-checked="false"><span class="ss-menu__text"><span>学校镜像</span><span class="ss-menu__desc ss-mono">https://mirrors.example.edu.cn/pypi/simple</span></span><span class="ss-menu__tools"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="修改" data-tip="修改" data-dialog="#dlg-source-edit"><i data-i="pencil"></i></button><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="删除" data-tip="删除"><i data-i="trash-2"></i></button></span><i data-i="check" class="ss-menu__check"></i></div>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button" data-dialog="#dlg-source"><i data-i="plus"></i>添加自定义源…</button>
+</div>
+<div class="ss-menu" id="m-pysrc" hidden style="width:340px">
+  <div class="ss-menu__label">内置</div>
+  <div class="ss-menu__item ss-menu__item--rich" role="menuitemradio" tabindex="-1" aria-checked="true"><span class="ss-menu__text"><span>官方</span><span class="ss-menu__desc ss-mono">GitHub · python-build-standalone</span></span><i data-i="check" class="ss-menu__check"></i></div>
+  <div class="ss-menu__sep"></div>
+  <button class="ss-menu__item" type="button" data-dialog="#dlg-source"><i data-i="plus"></i>添加自定义源…</button>
+</div>
+<div class="ss-scrim" id="dlg-source" hidden>
+<div class="ss-dialog" aria-modal="true" role="dialog" aria-label="添加软件包镜像">
+  <div class="ss-dialog__head"><h2 class="ss-dialog__title">添加软件包镜像</h2><button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭" data-kbd="Esc" data-close><i data-i="x"></i></button></div>
+  <div class="ss-dialog__body">
+    <label class="ss-field"><span class="ss-field__label">名称</span><span class="ss-input"><input value="" placeholder="例如 学校镜像" aria-label="名称" /></span></label>
+    <label class="ss-field"><span class="ss-field__label">地址</span><span class="ss-input"><i data-i="link"></i><input class="ss-mono" value="" placeholder="https://…/simple" aria-label="地址" /></span><span class="ss-field__hint">填 pip 能用的索引地址，一般以 /simple 结尾。保存前会先试着连一下。</span></label>
+  </div>
+  <div class="ss-dialog__foot"><button class="ss-btn" type="button" data-close>取消</button><button class="ss-btn ss-btn--primary" type="button" data-close>添加</button></div>
+</div>
+</div>
+<div class="ss-scrim" id="dlg-source-edit" hidden>
+<div class="ss-dialog" aria-modal="true" role="dialog" aria-label="修改「学校镜像」">
+  <div class="ss-dialog__head"><h2 class="ss-dialog__title">修改「学校镜像」</h2><button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭" data-kbd="Esc" data-close><i data-i="x"></i></button></div>
+  <div class="ss-dialog__body">
+    <label class="ss-field"><span class="ss-field__label">名称</span><span class="ss-input"><input value="学校镜像" placeholder="例如 学校镜像" aria-label="名称" /></span></label>
+    <label class="ss-field"><span class="ss-field__label">地址</span><span class="ss-input"><i data-i="link"></i><input class="ss-mono" value="https://mirrors.example.edu.cn/pypi/simple" placeholder="https://…/simple" aria-label="地址" /></span><span class="ss-field__hint">填 pip 能用的索引地址，一般以 /simple 结尾。保存前会先试着连一下。</span></label>
+  </div>
+  <div class="ss-dialog__foot"><button class="ss-btn" type="button" data-close>取消</button><button class="ss-btn ss-btn--primary" type="button" data-close>保存</button></div>
+</div>
 </div>
 <script>window.SS && SS.mount(document.body)</script>
 </body>

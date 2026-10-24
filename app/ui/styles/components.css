@@ -1552,6 +1552,27 @@ html[data-resizing] * {
   font-size: 12px;
   line-height: 18px;
 }
+.ss-menu__desc.ss-mono {
+  overflow: hidden;
+  font-size: 11px;
+  text-overflow: ellipsis;
+}
+/* Edit and delete buttons on a menu row the user added; shown on hover or keyboard focus. */
+.ss-menu__tools {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  margin-left: auto;
+  visibility: hidden;
+}
+.ss-menu__item:hover > .ss-menu__tools,
+.ss-menu__item:focus-within > .ss-menu__tools,
+.ss-menu__item[data-active] > .ss-menu__tools {
+  visibility: visible;
+}
+.ss-menu__tools + .ss-menu__check {
+  margin-left: 4px;
+}
 .ss-menu__item--auto > .ss-i {
   color: var(--auto-ink);
 }
