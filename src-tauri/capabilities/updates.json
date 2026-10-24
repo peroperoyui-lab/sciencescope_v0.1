@@ -1,0 +1,6 @@
+{
+  "identifier": "main-updates",
+  "description": "Update checks and verified installation for the main window only.",
+  "windows": ["main"],
+  "permissions": ["allow-check-update", "allow-install-update"]
+}

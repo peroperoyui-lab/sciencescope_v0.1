@@ -9,6 +9,11 @@ import { fileURLToPath } from 'node:url';
 import { generateNotices } from './notices.js';
 import { buildOptions } from './build-options.js';
 import { pruneProductionModules } from './prune.js';
+import {
+  packageVersionArgument,
+  preparePackageVersion,
+  productionDependencyFingerprint,
+} from './version.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const local = path.join(root, '.sciencescope-local');
@@ -106,12 +111,20 @@ async function locateUv() {
 if (process.platform !== 'win32' || process.arch !== 'x64')
   throw new Error('Package requires Windows x64');
 if (!npm) throw new Error('Run using npm run package');
+const { version, configuration } = await preparePackageVersion(
+  root,
+  packageVersionArgument(process.argv.slice(2)),
+);
+console.log('Packaging ScienceScope ' + version);
 await mkdir(stage, { recursive: true });
 await mkdir(path.join(local, 'dist'), { recursive: true });
-const manifestHash = createHash('sha256');
-for (const file of ['package.json', 'package-lock.json', '.npmrc'])
-  manifestHash.update(await readFile(path.join(root, file)));
-const dependencyHash = manifestHash.digest('hex');
+const dependencyHash = productionDependencyFingerprint(
+  ...(await Promise.all(
+    ['package.json', 'package-lock.json', '.npmrc'].map((file) =>
+      readFile(path.join(root, file), 'utf8'),
+    ),
+  )),
+);
 const stamp = path.join(local, 'package/production-dependencies.sha256');
 const previousHash = await readFile(stamp, 'utf8').catch(() => '');
 const pruningStamp = path.join(local, 'package/production-pruned.sha256');
@@ -244,6 +257,7 @@ await writeFile(
     '!define MUI_HEADERIMAGE_RIGHT',
     '!define MUI_HEADERIMAGE_BITMAP_STRETCH AspectFitHeight',
     '!define MUI_WELCOMEFINISHPAGE_BITMAP_STRETCH AspectFitHeight',
+    ...(options.productName ? ['!define SCIENCESCOPE_INSTALL_TEST'] : []),
     `!include "${path.join(root, 'tools/package/installer-hooks.nsh')}"`,
     '',
   ].join('\n'),
@@ -261,7 +275,9 @@ await writeFile(
         ? { productName: options.productName, identifier: options.identifier }
         : {}),
       build: { frontendDist: path.join(local, 'package/frontend') },
+      ...(configuration.plugins ? { plugins: configuration.plugins } : {}),
       bundle: {
+        ...configuration.bundle,
         active: true,
         useLocalToolsDir: true,
         targets: ['nsis'],

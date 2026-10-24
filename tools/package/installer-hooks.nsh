@@ -18,6 +18,7 @@
 !macroend
 
 !macro NSIS_HOOK_PREINSTALL
+  !insertmacro ScienceScopeMinimumRequirements
   ; An empty/new destination must not be treated as an old installation.
   IfFileExists "$INSTDIR\${MAINBINARYNAME}.exe" 0 ScienceScopeCleanupDone
   ; Tauri normally checks after this hook: do it before removing any program files.

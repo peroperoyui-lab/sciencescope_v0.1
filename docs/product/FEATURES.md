@@ -434,7 +434,7 @@ data/
 
 **用户能做什么**
 
-- `npm run package` 在 Windows 上生成未签名的 NSIS 安装包（`1.0.0-alpha.0`），按当前用户安装，位置可选。
+- `npm run package` 在 Windows 上生成带 updater 签名的 NSIS 安装包（当前版本 `1.0.0-alpha.0`），按当前用户安装，位置可选；Authenticode 代码签名待用户证书。
 - 安装包自带 Node 22.22.2、uv 0.12.19、`app/`、生产依赖、Python 与模型清单、`LICENSE` 和自动生成的 `THIRD_PARTY_NOTICES`。
 - 覆盖安装前删除旧版本的程序文件，不动 `data\`；卸载默认保留数据，只有勾选"删除应用程序数据"才删除 `<安装目录>\data`。
 - 原生宿主保留上一次启动的日志（`desktop-host.previous.log`）。
@@ -447,8 +447,27 @@ data/
 
 **已知限制**
 
-- 没有自动更新和升级通道（R6b）；没有代码签名。
+- 更新提示、按钮和进度界面尚未接入；没有 Authenticode 代码签名。
 - 只打 Windows x64 包；Node 和 uv 下载时校验校验和，不换源。
+
+### 2.16 更新通道与最低配置
+
+**用户能做什么**
+
+- 原生主窗口提供检查和明确调用安装的接口；后台自动检查默认开启，同一安装的数据目录中每 24 小时最多自动尝试一次，成功或失败都记录尝试时间。手动检查不受间隔限制，也不改变自动检查时间。
+- 更新包先下载、验签，再等待 Node 宿主和数据库关闭，NSIS 在原安装目录以被动模式覆盖程序并自动重开，`data/` 保留。正式清单指向 GitHub Releases 的 `latest.json`；演练可用进程环境变量改成本机 `127.0.0.1` 地址。
+- 安装要求 Windows build 19045 及更新的 x64 系统；AVX2、8 GiB 内存、5 GiB 安装盘空间不足会显示影响并允许继续或取消。静默和更新安装只记日志，系统/架构硬要求仍生效。模拟参数只编译进测试产品。
+- 打包前检查 npm/Cargo/Tauri 版本一致，`--version` 同步三处及锁文件根版本；本地脚本生成签名更新清单和发布说明草稿。[发布步骤](../handoff/RELEASE.md)说明密钥保管、签名、上传与验证流程。
+
+**实现位置**：`src-tauri/src/updates.rs`、`src-tauri/installer-hooks.nsh`、`app/ui/native-update.js`、`tools/package/version.js`、`release.js`；复用官方 `tauri-plugin-updater =2.10.1`（Apache-2.0 OR MIT）。
+
+**关键数据**：设置 `updates.autoCheck`、`updates.lastCheckedAt`；Tauri 公钥、`latest.json` 及安装包 `.sig`；私钥和密码在仓库外，不写入产品数据。
+
+**已知限制**
+
+- 本轮提供原生能力，不含更新界面；尚未发布 Release。升级演练结果单独记录，不以本节替代验收。
+- 仅支持 HTTPS 或 `http://127.0.0.1` 更新地址；Windows SmartScreen 可能因未做 Authenticode 代码签名显示未知发布者提示。
+- updater 2.10.1 的 Windows 安装调用未检查 `ShellExecuteW` 返回值；系统策略阻止安装程序启动时需手动重开当前版本后重试，下载、验签及清单获取失败仍在关闭宿主前返回。
 
 ---
 

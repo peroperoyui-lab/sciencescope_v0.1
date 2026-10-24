@@ -7,6 +7,85 @@ import path from 'node:path';
 
 const execute = promisify(execFile);
 
+test('minimum requirements inspect actual host memory in a bilingual fixture without installing', async (t) => {
+  if (process.platform !== 'win32') return t.skip('Windows NSIS compiler');
+  const compiler = path.resolve(
+    process.env.SCIENCESCOPE_MAKENSIS || '.sciencescope-local/build/tauri/.tauri/NSIS/makensis.exe',
+  );
+  if (
+    !(await access(compiler).then(
+      () => true,
+      () => false,
+    ))
+  )
+    return t.skip('Set SCIENCESCOPE_MAKENSIS to a cached compiler');
+  const parent = path.resolve('.sciencescope-local/temp/r6b/installer-checks');
+  await mkdir(parent, { recursive: true });
+  const root = await mkdtemp(path.join(parent, 'case-'));
+  try {
+    const executable = path.join(root, 'fixture.exe');
+    const source = path.join(root, 'fixture.nsi');
+    await writeFile(
+      source,
+      '\uFEFF' +
+        `
+Unicode true
+!include LogicLib.nsh
+!include MUI2.nsh
+Name "ScienceScope Install Test"
+OutFile "${executable}"
+InstallDir "$TEMP\\ScienceScope fixture"
+RequestExecutionLevel user
+SilentInstall silent
+!define MAINBINARYNAME "test-app"
+!define PRODUCTNAME "ScienceScope Install Test"
+!define SCIENCESCOPE_INSTALL_TEST
+Var PassiveMode
+Var UpdateMode
+!macro CheckIfAppIsRunning executablePath productName
+!macroend
+!include "${path.resolve('tools/package/installer-hooks.nsh')}"
+!insertmacro MUI_LANGUAGE "SimpChinese"
+!insertmacro MUI_LANGUAGE "English"
+Section
+  !insertmacro NSIS_HOOK_PREINSTALL
+  FileOpen $R0 "${root}\\detected-memory.txt" w
+  FileWrite $R0 "$ScienceScopeMemory"
+  FileClose $R0
+SectionEnd
+`,
+    );
+    await execute(compiler, ['/V2', source], { windowsHide: true });
+    await execute(executable, [], {
+      windowsHide: true,
+      env: { ...process.env, TEMP: root, TMP: root },
+    });
+    const detected = Number(await readFile(path.join(root, 'detected-memory.txt'), 'utf8'));
+    const powershell = path.join(
+      process.env.SystemRoot || 'C:/Windows',
+      'System32/WindowsPowerShell/v1.0/powershell.exe',
+    );
+    const expected = await execute(
+      powershell,
+      [
+        '-NoProfile',
+        '-Command',
+        '[math]::Floor((Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize / 1024)',
+      ],
+      { windowsHide: true },
+    );
+    assert.equal(
+      detected,
+      Number(expected.stdout.trim()),
+      'NSIS GlobalMemoryStatusEx matches Windows visible physical memory',
+    );
+    t.diagnostic(`NSIS and Windows visible physical memory: ${detected} MiB`);
+  } finally {
+    assert.equal(path.dirname(root), parent);
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('NSIS overlay removes old program paths while preserving data and user files', async (t) => {
   if (process.platform !== 'win32') return t.skip('Windows NSIS integration');
   const compiler = path.resolve(
@@ -46,6 +125,8 @@ RequestExecutionLevel user
 SilentInstall silent
 !define MAINBINARYNAME "test-app"
 !define PRODUCTNAME "ScienceScope cleanup fixture"
+Var PassiveMode
+Var UpdateMode
 !macro CheckIfAppIsRunning executablePath productName
 !macroend
 !include "${path.resolve('tools/package/installer-hooks.nsh')}"

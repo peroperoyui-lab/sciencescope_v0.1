@@ -41,6 +41,8 @@ export const DEFAULT_SETTINGS = {
   composer: { sendKey: 'enter', hideWindowOnScreenshot: true },
   // Native launch visibility; ordinary browsers continue to use the panel.
   assistant: { startup: 'closed' },
+  // Native update checks persist their attempt time, including failed checks.
+  updates: { autoCheck: true, lastCheckedAt: null },
   python: { defaultEnvironment: null, indexUrl: null, installMirror: null },
   // Academic sites on the welcome page.
   sites: [

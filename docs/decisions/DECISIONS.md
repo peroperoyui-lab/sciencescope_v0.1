@@ -123,6 +123,7 @@
 
 ## 打包与发布
 
+- **2026-10-24** R6b 采用带 updater 签名的 GitHub Releases alpha 更新通道，alpha 发布不标 pre-release；私钥和密码保存在仓库外，只传入当前构建进程，公钥随产品发布。安装前等待宿主及数据库安全关闭，NSIS 在原目录更新并重开，`data/` 保留；Windows build 19045/x64 硬性检查，其余最低配置说明影响后允许继续。更新界面由 Claude 接入，创建 Release 和上传由用户或获授权者执行；Authenticode 另等用户证书。（来源：所有者 2026-10-24 授权；`plans/tasks/R6b_updates_upgrade.md`）
 - **2026-10-16** R5（删除旧线）和 R6b（更新与升级）推到界面重做之后。（来源：`reviews/REVIEW_2026-10-16.md` §2 D4）
 - **2026-10-12** 程序给用户下载的内容（Python 包、本地检索模型等）默认用官方源，设置里提供镜像选项（清华、阿里云、ModelScope、HF 镜像、自定义）。理由：全球用户不用改设置。（来源：`design/INTERACTION_CONTRACTS.md` 2026-10-12 第 2 条）
 - **2026-10-12** 1.0.0-alpha 的标准：在 Windows 候选安装包上走完一次真实研究流程（导入资料、多专家讨论、秘书纪要、修改计划导图日志与文稿），退出后无残留进程，升级后数据完整，卸载默认保留数据；开发服务器上的测试不能代替。（来源：`plans/ROADMAP.md` 目标；`reviews/REVIEW_2026-10-07.md` §2）

@@ -6,6 +6,9 @@
 mod new_app;
 mod screenshot;
 mod desk_window;
+mod host_http;
+mod updates;
+mod update_error;
 
 use std::{
     fs,
@@ -46,6 +49,21 @@ impl HostProcess {
         let child = self.child.lock().ok().and_then(|mut slot| slot.take());
         if let Some(child) = child { child.shutdown(); }
     }
+
+    fn shutdown_for_update(&self, data_root: &std::path::Path) -> Result<(), String> {
+        let mut slot = self.child.lock().map_err(|_| "Host process state is unavailable")?;
+        let child = slot.as_mut().ok_or("The local host is not running")?;
+        let target = child.shutdown.as_ref().ok_or("The local host cannot close gracefully")?;
+        ChildHandle::request_shutdown(target).map_err(|error| error.to_string())?;
+        updates::wait_for_host_close(
+            || child.child.try_wait().map(|status| status.map(|status| status.success())).map_err(|error| error.to_string()),
+            &data_root.join("sciencescope.sqlite-wal"),
+            Duration::from_secs(60),
+        )?;
+        // Dropping the exited process also closes its job and remaining tools.
+        slot.take();
+        Ok(())
+    }
 }
 
 struct ShutdownTarget {
@@ -58,6 +76,7 @@ struct ShutdownTarget {
 struct WebviewDataDirectory(PathBuf);
 
 // Per-launch authority, never persisted or derived from a navigated window URL.
+#[derive(Clone)]
 struct HostAccess {
     url: url::Url,
     api_token: String,
@@ -615,7 +634,8 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![open_secondary_window, set_assistant_mode, get_assistant_mode, show_assistant_menu, hide_assistant, pick_folder, screenshot::capture_screenshot])
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .invoke_handler(tauri::generate_handler![open_secondary_window, set_assistant_mode, get_assistant_mode, show_assistant_menu, hide_assistant, pick_folder, screenshot::capture_screenshot, updates::check_update, updates::install_update])
         .on_menu_event(|app, event| {
             let id = event.id().as_ref();
             if id == "assistant-exit" {
@@ -706,7 +726,20 @@ fn main() {
                 dimensions_path,
             });
 
-            let (url, api_token, child) = host_url(&native_data.join("logs"), &launch, native_started)?;
+            let (url, api_token, child) = match host_url(&native_data.join("logs"), &launch, native_started) {
+                Ok(ready) => ready,
+                Err(error) => {
+                    let log_path = native_data.join("logs").join("desktop-host.log");
+                    let log = fs::read_to_string(&log_path).unwrap_or_default();
+                    let reason = if log.contains("DATA_TOO_NEW") {
+                        "数据由更新版本的 ScienceScope 写入，请先升级程序再打开。\nThis data was written by a newer ScienceScope. Upgrade the program before opening it."
+                    } else {
+                        "ScienceScope 本地服务启动失败。请查看 data/logs/desktop-host.log 后重试。\nThe local service could not start. See data/logs/desktop-host.log and try again."
+                    };
+                    app.dialog().message(reason).title("ScienceScope").kind(tauri_plugin_dialog::MessageDialogKind::Error).blocking_show();
+                    return Err(error);
+                }
+            };
             let mut config = app.config().app.windows[0].clone();
             let parsed_url = url::Url::parse(&url)?;
             let mut capability: serde_json::Value = serde_json::from_str(include_str!("../capabilities/main.json"))?;
@@ -721,14 +754,24 @@ fn main() {
             folder_capability["local"] = serde_json::json!(false);
             folder_capability["remote"] = serde_json::json!({"urls": [format!("{}/*", parsed_url.origin().ascii_serialization())]});
             app.add_capability(serde_json::to_string(&folder_capability)?)?;
+            let mut update_capability: serde_json::Value = serde_json::from_str(include_str!("../capabilities/updates.json"))?;
+            update_capability["local"] = serde_json::json!(false);
+            update_capability["remote"] = serde_json::json!({"urls": [format!("{}/*", parsed_url.origin().ascii_serialization())]});
+            app.add_capability(serde_json::to_string(&update_capability)?)?;
             config.url = tauri::WebviewUrl::External(parsed_url.clone());
             app.manage(HostAccess { url: parsed_url, api_token });
             app.manage(HostProcess {
                 child: Mutex::new(Some(child)),
             });
+            app.manage(updates::UpdateState::new(native_data));
             WebviewWindowBuilder::from_config(app.handle(), &config)?
                 .initialization_script(api_initialization(app.handle()))
                 .data_directory(webview_data)
+                .on_page_load(|window, payload| {
+                    if payload.event() == tauri::webview::PageLoadEvent::Finished {
+                        updates::start_automatic(window.app_handle());
+                    }
+                })
                 .build()?;
             Ok(())
         })

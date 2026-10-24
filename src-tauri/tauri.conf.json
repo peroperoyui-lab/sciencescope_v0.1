@@ -22,11 +22,24 @@
       }
     ],
     "security": {
-      "capabilities": ["main-window-controls"]
+      "capabilities": ["main-window-controls", "main-updates"]
     }
   },
   "bundle": {
     "active": false,
+    "createUpdaterArtifacts": true,
     "icon": ["../tools/package/brand/icon.ico"]
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDcwNDI5RTM1Q0ZFMEI5RjcKUldUM3VlRFBOWjVDY0VERGY0TDgzUEo5L0VnYTEzdDlLVmlSQ0JOa2NhVUUvMC9ZRFA5bzgySXkK",
+      "windows": {
+        "installMode": "passive"
+      },
+      "endpoints": [
+        "https://github.com/peroperoyui-lab/sciencescope_v0.1/releases/latest/download/latest.json"
+      ],
+      "dangerousInsecureTransportProtocol": true
+    }
   }
 }
