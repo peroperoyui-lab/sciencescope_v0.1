@@ -9,13 +9,20 @@ const execute = promisify(execFile);
 const builds = new Map();
 
 /**
- * Node-only tools also run outside the desktop host. Compile the small Job
- * owner with Windows' existing .NET compiler instead of adding a native module
- * or making tool execution depend on the desktop IPC service.
+ * Installed tools use the build-time Job owner. Node-only tools also run
+ * outside the desktop host, so retain compilation with the existing Windows
+ * .NET compiler when no packaged owner is available.
  * @param {string} temp
  * @returns {Promise<string>}
  */
 export async function windowsShellJob(temp) {
+  const packaged = new URL('../../../runtime/windows-shell-job.exe', import.meta.url);
+  try {
+    await access(packaged);
+    return fileURLToPath(packaged);
+  } catch {
+    // Source checkouts and standalone Node tools retain their existing fallback.
+  }
   const source = new URL('./windows-shell-job.cs', import.meta.url);
   const hash = createHash('sha256')
     .update(await readFile(source))
