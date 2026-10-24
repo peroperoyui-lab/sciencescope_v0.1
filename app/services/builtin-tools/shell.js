@@ -5,6 +5,7 @@ import { open } from 'node:fs/promises';
 import path from 'node:path';
 import { AppError } from '../../core/errors.js';
 import { outputPath, previewFile } from './output.js';
+import { windowsShellJob } from './windows-shell-job.js';
 
 function shellCommand(command) {
   if (process.platform !== 'win32') return { executable: 'bash', args: ['-c', command] };
@@ -41,23 +42,11 @@ function shellCommand(command) {
  * @param {number} pid
  */
 async function stopTree(pid) {
-  if (process.platform !== 'win32') {
-    try {
-      process.kill(-pid, 'SIGKILL');
-    } catch (error) {
-      if (error.code !== 'ESRCH') throw error;
-    }
-    return;
+  try {
+    process.kill(-pid, 'SIGKILL');
+  } catch (error) {
+    if (error.code !== 'ESRCH') throw error;
   }
-  const executable = path.join(process.env.SystemRoot ?? 'C:/Windows', 'System32/taskkill.exe');
-  await new Promise((resolve, reject) => {
-    const child = spawn(executable, ['/PID', String(pid), '/T', '/F'], {
-      windowsHide: true,
-      stdio: 'ignore',
-    });
-    child.once('error', reject);
-    child.once('close', () => resolve(undefined));
-  });
 }
 
 /**
@@ -71,6 +60,8 @@ export async function runShell(args, { workFolder, env, signal, temp }) {
     throw new AppError('INVALID_TIMEOUT', 'timeoutSeconds must be a positive number.');
   const { executable, args: commandArgs } = shellCommand(args.command);
   const file = await outputPath(temp);
+  const owner = process.platform === 'win32' ? await windowsShellJob(temp) : null;
+  signal?.throwIfAborted();
   const output = await open(file, 'w');
   const childEnv = { ...process.env };
   // Windows treats environment names case-insensitively. Avoid a stale Path
@@ -78,19 +69,30 @@ export async function runShell(args, { workFolder, env, signal, temp }) {
   if (env?.PATH != null)
     for (const key of Object.keys(childEnv)) if (key.toUpperCase() === 'PATH') delete childEnv[key];
   Object.assign(childEnv, env);
-  const child = spawn(executable, commandArgs, {
+  const child = spawn(owner ?? executable, owner ? [executable, ...commandArgs] : commandArgs, {
     cwd: workFolder,
     env: childEnv,
     windowsHide: true,
     detached: process.platform !== 'win32',
-    stdio: ['ignore', 'pipe', 'pipe'],
+    stdio: [owner ? 'pipe' : 'ignore', 'pipe', 'pipe'],
   });
   let timedOut = false;
   let writeError;
   let writes = Promise.resolve();
   let stopping;
+  // The owner remains alive even after PowerShell exits. It acknowledges stop
+  // by exiting only after every Job member is gone and both output pipes end.
+  child.stdin?.on('error', () => {});
   const stop = () => {
-    if (child.pid && !stopping) stopping = stopTree(child.pid);
+    if (child.pid && !stopping) {
+      if (owner) {
+        if (child.exitCode !== null || child.signalCode !== null) stopping = Promise.resolve();
+        else {
+          stopping = new Promise((resolve) => child.once('close', resolve));
+          child.stdin.end('stop\n');
+        }
+      } else stopping = stopTree(child.pid);
+    }
     return stopping;
   };
   const capture = (stream) =>

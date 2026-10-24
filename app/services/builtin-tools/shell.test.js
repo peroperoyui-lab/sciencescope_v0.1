@@ -89,3 +89,130 @@ test('shell timeout terminates the command and provides an explicit explanation'
     await cleanup();
   }
 });
+
+async function readPid(file) {
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    const pid = Number(await readFile(file, 'utf8').catch(() => ''));
+    if (pid) return pid;
+    await delay(20);
+  }
+  assert.fail(`Process did not start: ${file}`);
+}
+
+async function waitForExit(pid) {
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    try {
+      process.kill(pid, 0);
+    } catch (error) {
+      if (error.code === 'ESRCH') return;
+      throw error;
+    }
+    await delay(20);
+  }
+  assert.fail(`Process did not exit: ${pid}`);
+}
+
+function killFixture(pid) {
+  try {
+    process.kill(pid);
+  } catch (error) {
+    if (error.code !== 'ESRCH') throw error;
+  }
+}
+
+for (const action of ['timeout', 'stop']) {
+  test(
+    `Windows shell ${action} ends descendants after their parent exits with output still open`,
+    {
+      skip: process.platform !== 'win32',
+      timeout: 20000,
+    },
+    async () => {
+      const { dir, cleanup } = await tempDir(`builtin-orphan-${action}`);
+      const controller = new AbortController();
+      let running;
+      const pids = [];
+      try {
+        const shellPidFile = path.join(dir, 'shell.pid');
+        const childPidFile = path.join(dir, 'child.pid');
+        const grandchildPidFile = path.join(dir, 'grandchild.pid');
+        const grandchild = path.join(dir, 'grandchild.cjs');
+        const child = path.join(dir, 'child.cjs');
+        await writeFile(
+          grandchild,
+          `require('node:fs').writeFileSync(${JSON.stringify(grandchildPidFile)},String(process.pid));setInterval(()=>{},1000);`,
+        );
+        await writeFile(
+          child,
+          `require('node:fs').writeFileSync(${JSON.stringify(childPidFile)},String(process.pid));require('node:child_process').spawn(process.execPath,[${JSON.stringify(grandchild)}],{stdio:'inherit'});setInterval(()=>{},1000);`,
+        );
+        running = runShell(
+          {
+            command: `[IO.File]::WriteAllText(${quote(shellPidFile)},[string]$PID); Start-Process -FilePath ${quote(process.execPath)} -ArgumentList ${quote('"' + child + '"')} -NoNewWindow; exit 0`,
+            timeoutSeconds: action === 'timeout' ? 3 : 10,
+          },
+          { workFolder: dir, temp: dir, signal: controller.signal },
+        );
+        const shellPid = await readPid(shellPidFile);
+        pids.push(await readPid(childPidFile), await readPid(grandchildPidFile));
+        await waitForExit(shellPid);
+        // The parent is already gone; a PID-based taskkill cannot find this tree.
+        for (const pid of pids) process.kill(pid, 0);
+        if (action === 'stop') controller.abort();
+        const result = await running;
+        assert.equal(result.timedOut, action === 'timeout');
+        assert.equal(result.cancelled, action === 'stop');
+        for (const pid of pids) assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
+      } finally {
+        controller.abort();
+        await running;
+        for (const pid of pids) killFixture(pid);
+        await cleanup();
+      }
+    },
+  );
+}
+
+test(
+  'Windows shell normal completion preserves a background process with redirected output',
+  {
+    skip: process.platform !== 'win32',
+    timeout: 20000,
+  },
+  async () => {
+    const { dir, cleanup } = await tempDir('builtin-background');
+    let pid;
+    try {
+      const pidFile = path.join(dir, 'background.pid');
+      const script = path.join(dir, 'background.cjs');
+      const launcher = path.join(dir, 'launcher.cjs');
+      await writeFile(
+        script,
+        `require('node:fs').writeFileSync(${JSON.stringify(pidFile)},String(process.pid));setInterval(()=>{},1000);`,
+      );
+      await writeFile(
+        launcher,
+        `const fs=require('node:fs');require('node:child_process').spawn(process.execPath,[${JSON.stringify(script)}],{cwd:${JSON.stringify(path.dirname(dir))},detached:true,stdio:['ignore',fs.openSync('stdout.txt','w'),fs.openSync('stderr.txt','w')]}).unref();`,
+      );
+      const result = await runShell(
+        {
+          command: command(launcher),
+          timeoutSeconds: 5,
+        },
+        { workFolder: dir, temp: dir },
+      );
+      assert.equal(result.exitCode, 0);
+      assert.equal(result.timedOut, false);
+      pid = await readPid(pidFile);
+      process.kill(pid, 0);
+    } finally {
+      if (pid) {
+        killFixture(pid);
+        await waitForExit(pid);
+      }
+      await cleanup();
+    }
+  },
+);
