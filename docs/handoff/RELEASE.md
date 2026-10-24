@@ -1,6 +1,6 @@
 # Windows 更新通道与发布
 
-更新通道使用 GitHub Releases，当前仅提供 Windows x64。R6b 提供原生检查、签名校验、安装和重开能力，以及本地发布材料脚本；更新提示、按钮、设置开关和进度界面由 Claude 接入。本次代码仍为 `1.0.0-alpha.0`，尚未创建或上传 Release。升级演练结论和耗时另记验收报告。
+更新通道使用 GitHub Releases，当前仅提供 Windows x64。R6b 提供原生检查、签名校验、安装和重开能力，以及本地发布材料脚本；更新提示、按钮、设置开关和进度界面由 Claude 接入。本次代码仍为 `1.0.0-alpha.0`，尚未创建或上传 Release。升级演练结论、耗时和待发布事项见本文末尾。
 
 ## 一次发布
 
@@ -60,4 +60,60 @@ Claude 接界面时监听原生事件 `update:available`（与 `check()` 返回�
 
 安装前硬性要求 Windows 10 22H2（build 19045）及更新的 x64 系统。缺 AVX2、内存低于 8 GiB 或安装盘空闲不足 5 GiB 会列出影响，让用户继续或取消：前两项关闭向量检索，关键词检索仍可用；空间不足时资料和 Python 环境可能装不下。提示随安装语言切换中文或英文。静默、被动及更新模式只写检查日志，系统/架构硬性要求仍会拒绝；日志位于当前进程 `$TEMP\<产品名>-install-check.log`。硬拒绝退出码 1633，用户取消为 1602。
 
-只有 installtest 构建接受 `/SCIENCESCOPE_TEST_BUILD=19044`、`/SCIENCESCOPE_TEST_X64=0`、`/SCIENCESCOPE_TEST_AVX2=0`、`/SCIENCESCOPE_TEST_MEMORY=4096`、`/SCIENCESCOPE_TEST_FREE=4096` 模拟参数；内存和空间单位为 MiB。正式构建不编译这些参数。演练 A/B、断流/签名修改/不可达失败路径，以及低内存继续和旧系统拒绝的截图与原始结果留在 `.sciencescope-local/temp/r6b/`，验收完成后另填报告。
+只有 installtest 构建接受 `/SCIENCESCOPE_TEST_BUILD=19044`、`/SCIENCESCOPE_TEST_X64=0`、`/SCIENCESCOPE_TEST_AVX2=0`、`/SCIENCESCOPE_TEST_MEMORY=4096`、`/SCIENCESCOPE_TEST_FREE=4096` 模拟参数；内存和空间单位为 MiB。正式构建不编译这些参数。演练 A/B、断流/签名修改/不可达失败路径，以及低内存继续和旧系统拒绝的截图与原始结果留在 `.sciencescope-local/temp/r6b/`；结论如下。
+
+## R6b 本轮验收记录（2026-10-24）
+
+以下均在隔离测试产品完成；证据根目录为 `.sciencescope-local/temp/r6b/`。尚未发布 Release。包体积按 MiB，时间为实测墙钟时间。
+
+| 项目 | 结果 | 耗时 | 证据文件 |
+| --- | --- | --- | --- |
+| alpha.1 构建 | 94.58 MiB，签名齐全 | 187.230 秒 | `package-1.0.0-alpha.1.json` |
+| alpha.2 更新演练包 | 94.56 MiB，签名齐全 | 212.943 秒 | `before-shell-fix/package-alpha2.json` |
+| alpha.2 最终包，含 shell 修复 | 94.58 MiB，99,172,234 字节，签名齐全 | 314.162 秒 | `package-1.0.0-alpha.2.json` |
+| R6a-6 源码旧包 | 92.98 MiB，供 B 演练 | 1474.944 秒 | `package-old-r6a6.json` |
+| A：alpha.1 全新安装 | 通过 | 457.253 秒 | `install-a-fresh.json` |
+| A：更新至 alpha.2 并重开 | 通过 | 904.237 秒 | `a-rehearsal.json` |
+| A：正常卸载及隔离清理 | exit 0，注册项移除；测试数据另显式清理后目录移除 | 73.089 秒 | `uninstall-a.json` |
+| 最低配置交互 | 4096 MiB 提示后继续成功；build 19044 拒绝、退出码 1633 | 943.852 / 4.385 秒 | `installer-native-acceptance-summary.json` |
+| B：旧包全新安装 | 后续旧版原生启动通过；辅助脚本失败，NSIS exit unknown | wrapper 925.007 秒 | `b-rehearsal-first-helper-failure.json` |
+| B：最终 alpha.2 覆盖 | exit 0，安装后的 shell 修复文件逐字节核对通过 | NSIS 1418.037 秒；wrapper 1419.135 秒 | `b-rehearsal.json` |
+| B：新原生启动、迁移及关闭 | schema 22 → 29，通过 | 10.534 秒 | `b-rehearsal.json` |
+| B：数据及备份核对 | 原记录保留，新增状态符合启动/迁移预期 | 0.536 秒 | `b-upgrade-preserved.json` |
+| B：原生对话及关键词检索 | 合成 SSE 回答及检索命中通过 | 9.535 秒 | `b-rehearsal.json` |
+| B：过新版拒绝并截图/关闭 | schema 999 拒绝，副本和原 B 数据哈希保持 | 175.956 秒，含隐藏窗口夹具恢复 | `b-too-new-capture-recovery.json` |
+| B：正常卸载及隔离清理 | exit 0，目录、注册项、进程均清理 | 68.864 秒 | `uninstall-b.json` |
+
+A 核对内部/外部项目、分支对话、资料、实体、稿件批注、记忆、技能、MCP 和假凭据；前后各 24 个数据文件、1 个外部文件、70 张表，逐文件哈希、行数及 SQLite 物理文件哈希均一致（按约定排除 logs/webview）。三类失败后数据也一致：断流、签名修改、地址不可达分别返回可重试错误，宿主仍可响应。自动检查首次一次、重启跳过；升级退出清理 WAL/SHM。升级后合成 SSE 对话成功：本地 mock 1 请求、合成 42 tokens，真实模型请求 0。最低配置截图是原生 100% 窗口捕获，系统缩放未改。
+
+三次失败的原生接口消息通过验收脚本放入现有提示组件截图，更新交互界面仍由 Claude 接入：
+
+| 场景 | 返回消息 | 耗时 | 100% 截图 |
+| --- | --- | --- | --- |
+| 下载断流 | 更新下载未完成，当前版本没有改动。请检查网络后重试。 | 8.696 秒 | `screenshots/a-interrupted-100.png` |
+| 签名被改 | 更新包签名校验未通过，当前版本没有改动。请重新检查并下载更新。 | 9.233 秒 | `screenshots/a-bad-signature-100.png` |
+| 清单不可达 | 检查更新未完成，当前版本没有改动。请检查网络后重试。 | 21.722 秒 | `screenshots/a-unreachable-100.png` |
+
+包的 SHA-256：alpha.1 为 `3d29fcf05c1918e1335fee20f5c42a953d8fcdf3a21a728fbce8a3518a8072df`；A 使用的 alpha.2 为 `3957794c3df16cb777ff9b27d6ec739b1a19ec6ad99c89e8b8ecd4c70c8dc860`；含 shell 修复的最终 alpha.2 为 `36119acfe07883eae051c7bb1ec1e312e1367df58aaf862f8dab68bced4b4b39`。最终包位于 `.sciencescope-local/dist/ScienceScope Install Test_1.0.0-alpha.2_x64-setup.exe`，本地清单和发布说明草稿在证据目录 `release-final/`。
+
+旧包由 R6a-6 的 `2c3029f7fed7261d58bbc1afec109fd2915f39fa` 源码和其锁文件独立构建，应用与原生代码保持该版本；仅构建环境辅助脚本适配本机 Windows SDK 路径。旧包 SHA-256 为 `5f0cc570ad0b572c000e7b669fa88d588e3674ab432aca7112497bad966418f4`。旧包首次安装的辅助脚本在安装后的 `Get-FileHash` 调用失败，留下 925.007 秒的 wrapper 时间，NSIS 退出码未采集，记为 unknown；后续核对注册项、程序文件及旧版原生启动，并从安装版生成 schema 22 的基准数据。原失败、恢复耗时和中间包覆盖记录均保留。
+
+B 的 23–29 号迁移依次完成，`backups/` 中 v22 副本与基准相符；原有表记录及原件、外部文件和假凭据保留。新启动增加卡片整理参与者 1 条、修订 1 条、事件 2 条、位置 3 条和跳过的后台任务 3 条，以及 `agents/actor_card_builder.md`。这些增量逐项验证，严格零增量对照的差异另存 `b-upgrade-strict.json`。旧版尚无编辑台批注表，当前批注保留由 A 覆盖。B 首次打开旧库前先覆盖过一个未含 shell 修复的中间包，耗时 291.740 秒；未启动该中间版本，数据库仍是 22，随后使用最终包覆盖并首次迁移。
+
+B 旧版数据生成 10.089 秒、旧版原生启动及关闭 13.026 秒、基准清单 0.169 秒；首次安装辅助脚本失败后的恢复墙钟时间为 342.739 秒，含调查，实际恢复重跑 24.367 秒。过新库探测的 `windowsHide:true` 使首次错误窗口隐藏，显示该测试进程拥有的窗口后捕获并正常点击确定；程序显示「数据由更新版本的 ScienceScope 写入，请先升级程序再打开。」及英文。该窗口实际 DPI 120（125%），截图名 `screenshots/b-data-too-new.png`，没有标作 100%。A 三类失败和两项最低配置截图为 100%。对照脚本改为读取隔离数据库副本，避免只读探测留下空 WAL/SHM，原库物理哈希同时核对。
+
+A/B 正式验收各 1 次本地脚本化 SSE 对话，合计 2 请求、输入 48 / 输出 36 / 总计 84 **合成 tokens**；真实模型请求及真实 tokens 均为 0。两次演练关闭后都无所属残留进程，WAL/SHM 已清理；测试产品正常卸载后才显式删除隔离测试数据，未改变默认保留数据的卸载行为。`b-rehearsal.json` 最终 `ok:true`，完整执行记录与截图留在证据目录。用户现有预览安装、数据及备份未操作。
+
+发现与修复：点号事件名被 Tauri 拒绝，改为冒号并限制主窗口，13 项 Rust 测试通过；Git 日志 LF 与工作树 CRLF 导致发布说明全量误入，统一换行后只保留新增条目；NSIS System 寄存器大小写混用，修正后实测内存与 Windows 查询同为 32175 MiB；alpha.2 并行复制出现 EBUSY，串行重打解决。原失败材料及发布清单 `release-a/before-fix/` 保留。
+
+完整检查两轮均在 103 项通过后卡在既有 shell 超时用例：父 shell 已退出，子 Node 仍持有输出管道，`taskkill` 已找不到父进程，工具等待 `close`。原始 0.2 秒调用连续 20 次未复现；同类后台子进程能受控复现。原现场保留于 `shell-timeout-handoff.md`、`clean-check-timeout-hang.json`、`clean-check-second-timeout-hang.json` 及同名日志。调查期间排除该用例的运行已主动停止，未作为完整检查通过的依据。
+
+用户随后授权扩展 shell 白名单并延长约一小时，修复独立提交 `ea061346a2f0e5b8a4f6bf2781a6f915badafa5f`：复用原生外壳的 Windows Job API 做法，由系统 .NET 编译器生成独立守护程序，供不依赖桌面宿主的 Node 工具使用，没有新增 npm/Cargo 依赖。命令挂起创建、归入 Job 后才恢复；超时或取消时终止整棵树，确认成员归零后关闭输出；正常完成解除 kill-on-close，保留重定向后台进程。显式继承句柄列表避免 CLR 附加句柄使输出不能结束。原 0.2 秒超时值及 Linux 进程组路径不变。定向 6/6、父 Job 下 6/6、旧实现正常后台对照 1/1、独立双层调用均通过，相关记录为 `shell-job-test-final-2.log`、`shell-job-nested-test.log`、`shell-job-legacy-background-test.log`、`independent-nested-runshell/report.json`。
+
+在干净检出 `ea061346`、独立 `npm ci` 后，最终完整 `npm run check` 通过格式、lint、types 和全部 **463/463** 测试，失败/取消/跳过均为 0，进程退出码 0，测试阶段耗时 **1789.700 秒**。其中 Windows NSIS 覆盖清理、最低配置模拟及 shell 回归均执行。日志为 `clean-check-after-shell-fix.log`；`cargo test` **13/13**，0 忽略，记录为 `cargo-test.log`。此前中断或卡住的检查保留原结果，没有替代或计入最终通过数。
+
+A 演练使用 shell 修复前的签名包，更新原生代码与最终版本相同；该包、签名和清单保留在 `before-shell-fix/`。最终 alpha.2 已包含独立 shell 修复，B 在打开旧数据库前使用最终包覆盖。
+
+依赖复用官方 updater 2.10.1（Apache-2.0 OR MIT），来源见上文；构建使用国内 npm 镜像、rsproxy 及本地缓存。原始截图在证据目录 `screenshots/`，不入 Git；私钥、密码与个人绝对路径不写入本记录。
+
+正式发布前仍需 Claude 接更新提示、按钮、进度和设置开关，发布者审核说明并创建/上传 Release。Authenticode 等用户提供证书；当前安装器可能触发 SmartScreen 的「未知发布者」或「Windows 已保护你的电脑」提示。私钥及密码保存在仓库外 `<更新私钥目录>` 并应另行备份；丢失且无备份时，需要用户手动覆盖安装使用新公钥的版本。此次未创建 PR、未合并、未发布 Release。
