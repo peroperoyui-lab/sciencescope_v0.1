@@ -13,6 +13,7 @@ import { navigate } from '../route.js';
 import { Dialog } from './dialog.js';
 import { effortName } from './model-picker.js';
 import { ChoiceMenu } from './popover.js';
+import { SecretRows, secretRowsOf, secretValues } from './secret-rows.js';
 
 /** How the presets read in the list; the server supplies which presets exist. */
 const PRESETS = {
@@ -614,20 +615,6 @@ export function ModelsPage() {
   </div>`;
 }
 
-/** "名称: 值" lines ↔ a headers object. */
-const headersText = (headers) =>
-  Object.entries(headers ?? {})
-    .map(([name, value]) => `${name}: ${value}`)
-    .join('\n');
-function parseHeaders(text) {
-  const headers = {};
-  for (const line of text.split('\n')) {
-    const at = line.indexOf(':');
-    if (at > 0) headers[line.slice(0, at).trim()] = line.slice(at + 1).trim();
-  }
-  return headers;
-}
-
 /**
  * Any OpenAI- or Anthropic-compatible service: address, protocol, key and the
  * model IDs. Capacities come from the catalog, so there are no fields for them.
@@ -642,9 +629,9 @@ export function ProviderPage({ index }) {
     name: editing?.name ?? '',
     api: editing?.api ?? '',
     baseUrl: editing?.baseUrl ?? '',
-    headers: headersText(editing?.headers),
     models: (editing?.models ?? []).map((model) => model.id).join('\n'),
   });
+  const [headers, setHeaders] = useState(secretRowsOf(editing?.headers));
   const [key, setKey] = useState('');
   const [errors, setErrors] = useState(/** @type {Record<string, string>} */ ({}));
   const [busy, setBusy] = useState(false);
@@ -681,7 +668,7 @@ export function ProviderPage({ index }) {
         api: draft.api,
         key: key || undefined,
         keyRef: editing?.keyRef,
-        headers: parseHeaders(draft.headers),
+        headers: secretValues(headers),
       });
       setDraft({ ...draft, models: [...new Set([...ids, ...models])].join('\n') });
       setNotice(t('已获取 {n} 个模型。', { n: models.length }));
@@ -703,13 +690,14 @@ export function ProviderPage({ index }) {
         providers.map((p) => p.id),
       );
     const keyRef = editing?.keyRef ?? keyRefOf(id);
+    const values = secretValues(headers);
     const provider = {
       id,
       name: draft.name.trim(),
       api: draft.api,
       baseUrl: draft.baseUrl.trim(),
       keyRef,
-      ...(draft.headers.trim() ? { headers: parseHeaders(draft.headers) } : {}),
+      ...(Object.keys(values).length ? { headers: values } : {}),
       models: ids.map((modelId) => {
         const name = editing?.models.find((model) => model.id === modelId)?.name;
         return name ? { id: modelId, name } : { id: modelId };
@@ -815,17 +803,18 @@ export function ProviderPage({ index }) {
       </span>
       <span class="ss-field__hint">${t('只保存在本机的密钥文件里。')}</span>
     </label>
-    <label class="ss-field">
+    <div class="ss-field">
       <span class="ss-field__label">${t('附加请求头')}</span>
-      <textarea
-        class="ss-textarea"
-        rows="2"
-        placeholder="x-session: …"
-        value=${draft.headers}
-        onInput=${field('headers')}
-      ></textarea>
-      <span class="ss-field__hint">${t('少数服务需要，每行一个，格式为 名称: 值。')}</span>
-    </label>
+      <${SecretRows}
+        label=${t('请求头')}
+        rows=${headers}
+        onChange=${setHeaders}
+        placeholder="x-session"
+      />
+      <span class="ss-field__hint">
+        ${t('少数服务需要。值只存在本机的密钥文件里，保存后不再显示。')}
+      </span>
+    </div>
     <div class="ss-field">
       <div class="ss-setting-section__head">
         <span class="ss-field__label" style="flex:1">${t('模型 ID')}</span>

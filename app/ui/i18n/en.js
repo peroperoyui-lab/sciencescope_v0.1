@@ -1107,8 +1107,8 @@ export const en = {
   '密钥无效（HTTP {status}），请检查后重新粘贴。':
     'The key was rejected (HTTP {status}). Check it and paste it again.',
   '密钥无效，请重新填写': 'Key rejected, enter it again',
-  '少数服务需要，每行一个，格式为 名称: 值。':
-    'Only some services need these. One per line, as name: value.',
+  '少数服务需要。值只存在本机的密钥文件里，保存后不再显示。':
+    'Only a few services need these. Values are kept only in the key file on this computer and are not shown again.',
   '已保存，留空则不变': 'Saved; leave empty to keep it',
   已添加: 'Added',
   快速添加: 'Quick add',

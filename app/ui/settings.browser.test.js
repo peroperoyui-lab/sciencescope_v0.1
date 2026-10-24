@@ -68,7 +68,9 @@ test(
       await page.getByRole('menuitemradio', { name: 'OpenAI Chat Completions' }).click();
       await page.getByLabel('接口地址').fill('https://proxy.example.com/v1');
       await page.getByLabel('API 密钥').fill('sk-lab');
-      await page.getByLabel('附加请求头').fill('x-session: s1');
+      await page.getByRole('button', { name: '添加一行' }).click();
+      await page.getByLabel('请求头名称').fill('x-session');
+      await page.getByLabel('请求头的值').fill('s1');
       await page.getByRole('textbox', { name: '模型 ID' }).fill('deepseek-v4.1-flash');
       await shot('settings-provider-form');
       await page.getByRole('button', { name: '保存服务' }).click();
@@ -84,6 +86,21 @@ test(
         'SCIENCESCOPE_LAB_PROXY_KEY',
         'provider.lab-proxy.headers.x-session',
       ]);
+
+      // Editing again shows the header as saved and keeps it unless replaced.
+      await lab.getByRole('button', { name: 'Lab Proxy 的更多操作' }).click();
+      await page.getByRole('menuitem', { name: '编辑地址与模型' }).click();
+      await page.getByText('已保存在密钥文件').waitFor();
+      await page.getByRole('button', { name: '保存服务' }).click();
+      await lab.waitFor();
+      assert.deepEqual((await settings()).providers[1].headers, {
+        'x-session': { keyRef: 'provider.lab-proxy.headers.x-session' },
+      });
+      const { readCredentials } = await import('../services/providers.js');
+      assert.equal(
+        (await readCredentials(app.core.paths)).refs['provider.lab-proxy.headers.x-session'],
+        's1',
+      );
 
       await lab.getByRole('button', { name: 'Lab Proxy 的更多操作' }).click();
       await page.getByRole('menuitem', { name: '移除服务商' }).click();

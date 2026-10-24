@@ -12,6 +12,7 @@ import { navigate } from '../route.js';
 import { Dialog } from './dialog.js';
 import { ChoiceMenu } from './popover.js';
 import { Info } from './settings-models.js';
+import { SecretRows, secretRowsOf, secretValues } from './secret-rows.js';
 
 const NPM_OFFICIAL = 'https://registry.npmjs.org';
 
@@ -50,11 +51,6 @@ function pasted(text) {
   };
 }
 
-/** One name/value row; `saved` is a stored key reference that is kept unless replaced. */
-function emptyRow() {
-  return { name: '', value: '', saved: null };
-}
-
 /** @param {{ server?: any, onClose: () => void, onSaved: () => void }} props */
 function ServerDialog({ server, onClose, onSaved }) {
   const actions = useActions();
@@ -64,30 +60,21 @@ function ServerDialog({ server, onClose, onSaved }) {
     server?.command ? joinCommand(server.command, server.args) : '',
   );
   const [url, setUrl] = useState(server?.url ?? '');
-  const rowsOf = (field) =>
-    Object.entries(server?.[field] ?? {}).map(([key, value]) => ({
-      name: key,
-      value: '',
-      saved: value,
-    }));
-  const [rows, setRows] = useState({ stdio: rowsOf('env'), http: rowsOf('headers') });
+  const [rows, setRows] = useState({
+    stdio: secretRowsOf(server?.env),
+    http: secretRowsOf(server?.headers),
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(
     server?.status === 'failed' ? t('上次连接失败：{error}', { error: server.error }) : '',
   );
   const list = rows[transport];
   const setList = (next) => setRows({ ...rows, [transport]: next });
-  const change = (index, patch) =>
-    setList(list.map((row, i) => (i === index ? { ...row, ...patch } : row)));
 
   async function save() {
     if (busy) return;
     if (!name.trim()) return setError(t('请填写名称。'));
-    const values = Object.fromEntries(
-      list
-        .filter((row) => row.name.trim() && (row.saved || row.value))
-        .map((row) => [row.name.trim(), row.value ? row.value : row.saved]),
-    );
+    const values = secretValues(list);
     const [first = '', ...args] = splitCommand(command);
     const input =
       transport === 'stdio'
@@ -180,66 +167,12 @@ function ServerDialog({ server, onClose, onSaved }) {
       }
       <div class="ss-field">
         <span class="ss-field__label">${label}</span>
-        ${
-          list.length > 0 &&
-          html`<div class="ss-kv">
-            ${list.map(
-              (row, index) =>
-                html`<span class="ss-input ss-input--sm" key=${`name-${index}`}>
-                    <input
-                      class="ss-mono"
-                      aria-label=${t('{field}名称', { field: label })}
-                      value=${row.name}
-                      placeholder=${transport === 'stdio' ? 'API_KEY' : 'Authorization'}
-                      onInput=${(event) => change(index, { name: event.currentTarget.value })}
-                    />
-                  </span>
-                  ${
-                    row.saved && !row.replacing
-                      ? html`<span class="ss-kv__saved" key=${`value-${index}`}>
-                          <${Lucide} name="key-round" small />${t('已保存在密钥文件')}
-                          <button
-                            type="button"
-                            class="ss-linkbtn"
-                            onClick=${() => change(index, { replacing: true })}
-                          >
-                            ${t('更换')}
-                          </button>
-                        </span>`
-                      : html`<span class="ss-input ss-input--sm" key=${`value-${index}`}>
-                          <${Lucide} name="key-round" small />
-                          <input
-                            class="ss-mono"
-                            type="password"
-                            aria-label=${t('{field}的值', { field: label })}
-                            value=${row.value}
-                            placeholder=${row.saved ? t('粘贴新的值') : ''}
-                            onInput=${(event) => change(index, { value: event.currentTarget.value })}
-                          />
-                        </span>`
-                  }
-                  <button
-                    type="button"
-                    class="ss-icon-btn ss-icon-btn--sm"
-                    key=${`remove-${index}`}
-                    aria-label=${t('删除这一行')}
-                    data-tip=${t('删除这一行')}
-                    onClick=${() => setList(list.filter((_, i) => i !== index))}
-                  >
-                    <${Lucide} name="x" />
-                  </button>`,
-            )}
-          </div>`
-        }
-        <div>
-          <button
-            type="button"
-            class="ss-btn ss-btn--ghost ss-btn--sm"
-            onClick=${() => setList([...list, emptyRow()])}
-          >
-            <${Lucide} name="plus" />${t('添加一行')}
-          </button>
-        </div>
+        <${SecretRows}
+          label=${label}
+          rows=${list}
+          onChange=${setList}
+          placeholder=${transport === 'stdio' ? 'API_KEY' : 'Authorization'}
+        />
         <span class="ss-field__hint">
           ${t('值只存在本机的密钥文件里，不写进配置，也不会再显示出来。')}
         </span>
