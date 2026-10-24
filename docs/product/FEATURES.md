@@ -370,6 +370,10 @@ data/
 
 **关键数据**：设置 `providers`（`id`、`preset`、`baseUrl`、`api`：`openai-completions`/`openai-responses`/`anthropic-messages`、`keyRef`、`headers`、`models`）、`models.default`、`context.compactPercent`；密钥在 `data/secret/credentials.yaml`；会话在 `data/runtime/pi/sessions/`；表 `runtime_sessions`；每次请求一行元数据写入 `data/logs/model-requests.jsonl`（不含密钥、请求和回答，超过 5 MB 轮换一份）。
 
+服务商 `headers` 保存为 `{ 名称: { keyRef: "provider.<id>.headers.<名称>" } }`，值只写凭据文件；请求与模型发现时读取最新值。删除 header 或服务商会删除对应凭据，缺失时提示重新填写。旧文本框仍能提交明文，返回设置只含引用。工作区编辑、撤回、历史版本恢复与外部设置修改共用该处理。
+
+启动迁移先备份数据库，再在同一事务清理 `revisions`、`resource_snapshots`、`tool_calls` 和 `events` 中明确的服务商 header 字段，保留行数、其余字段并重算相关哈希。旧运行时会话的工具参数及按 `toolCallId` 匹配的设置修改结果另行原样备份后原子替换，重复运行跳过已清理文件；备份位于 `data/backups/`，保留迁移前内容供恢复。结果中的 JSON 文本先解析，不能解析的保留原样并记录相对文件名和调用 id。
+
 **已知限制**
 
 - 模型容量和思考强度只来自 pi-ai 的模型目录；查不到的自定义模型按 131,072 上下文、32,768 输出计算并标明"默认值"，不能手动覆盖。
@@ -440,8 +444,9 @@ data/
 **用户能做什么**
 
 - `npm run package` 在 Windows 上生成带 updater 签名的 NSIS 安装包（当前版本 `1.0.0-alpha.0`），按当前用户安装，位置可选；Authenticode 代码签名待用户证书。
-- 安装包自带 Node 22.22.2、uv 0.12.19、`app/`、生产依赖、Python 与模型清单、`LICENSE` 和自动生成的 `THIRD_PARTY_NOTICES`。
-- 覆盖安装前删除旧版本的程序文件，不动 `data\`；卸载默认保留数据，只有勾选"删除应用程序数据"才删除 `<安装目录>\data`。
+- 安装包自带 Node 22.22.2、uv 0.12.19、`app/`、生产依赖、Python 与模型清单、`LICENSE` 和自动生成的 `THIRD_PARTY_NOTICES`。打包时用现有 esbuild 合并纯 JS 依赖，应用与 worker 保留相对路径；原生模块、文档资源、字体和各包许可保留为文件。
+- 覆盖安装按 `program-files.txt` 只删除旧版有、新版没有的程序文件，再覆盖写入；旧包没有清单时只枚举既有程序目录。`data\` 不动，卸载默认保留数据，只有勾选"删除应用程序数据"才删除 `<安装目录>\data`。
+- Windows shell Job 守护程序随包预编译为 `runtime/windows-shell-job.exe`；运行时优先使用，缺失时保留现场编译及编译失败后的 taskkill 后备路径。
 - 原生宿主保留上一次启动的日志（`desktop-host.previous.log`）。
 
 **实现位置**：`tools/package/`（`windows.js`、`build-options.js`、`prune.js` 打包裁剪、`notices.js`、`installer-hooks.nsh`、`build-native.ps1`）、`src-tauri/`；首测指南 `docs/handoff/PREVIEW_TEST.md`。

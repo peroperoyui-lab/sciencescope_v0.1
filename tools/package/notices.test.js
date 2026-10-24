@@ -30,6 +30,26 @@ test('installer notices include nested production packages and native library no
     assert.match(text, /child 1\.2\.3/);
     assert.match(text, /Original license text/);
     assert.match(text, /libvips: LGPLv3/);
+    const development = path.join(modules, 'eslint');
+    await mkdir(development);
+    await writeFile(
+      path.join(development, 'package.json'),
+      JSON.stringify({ name: 'eslint', version: '1', license: 'MIT' }),
+    );
+    assert.equal(
+      await generateNotices(
+        modules,
+        output,
+        [],
+        [
+          path.join(modules, '@img/sharp-win32-x64'),
+          path.join(modules, 'parent'),
+          path.join(modules, 'parent/node_modules/child'),
+        ],
+      ),
+      3,
+    );
+    assert.doesNotMatch(await readFile(output, 'utf8'), /## eslint /u);
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

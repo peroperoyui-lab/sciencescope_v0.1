@@ -18,6 +18,8 @@ import { createBackgroundRunner } from './services/secretary/background.js';
 import { projectBrief } from './services/secretary/project-brief.js';
 import { createMemoryService } from './services/memory/index.js';
 import { createProviderService } from './services/providers.js';
+import { providerSettings } from './services/provider-settings.js';
+import { migrateProviderHeaders } from './services/provider-header-migration.js';
 import { createTools } from './services/tools.js';
 import { createSkills } from './services/skills/index.js';
 import { createMcp } from './services/mcp/index.js';
@@ -49,7 +51,13 @@ export async function createApp({
   startup,
 }) {
   startup?.mark('createCoreStart');
-  const core = await createCore({ dataRoot });
+  const core = await createCore({ dataRoot, settingsResource: providerSettings(dataRoot) });
+  try {
+    await migrateProviderHeaders(core);
+  } catch (error) {
+    core.close();
+    throw error;
+  }
   startup?.mark('createCoreEnd');
   const versions = createVersions(core);
   const knowledge = createKnowledgeStore(core);

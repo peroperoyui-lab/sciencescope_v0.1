@@ -1,6 +1,5 @@
-// Resources preserve Node's module resolution and readable application sources.
-// Sidecars suit single binaries; native modules and document assets need
-// their complete neighbouring package trees instead.
+// Keep application and worker paths while bundling their pure JS dependencies.
+// Native loaders, package launchers and document assets retain real files.
 import { spawn } from 'node:child_process';
 import { cp, mkdir, readFile, writeFile, access, rm } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -9,17 +8,16 @@ import { fileURLToPath } from 'node:url';
 import { generateNotices } from './notices.js';
 import { buildOptions } from './build-options.js';
 import { pruneProductionModules } from './prune.js';
-import {
-  packageVersionArgument,
-  preparePackageVersion,
-  productionDependencyFingerprint,
-} from './version.js';
+import { build } from 'esbuild';
+import { bundleRuntime } from './bundle.js';
+import { compileShellJob } from './shell-job.js';
+import { writeProgramManifest } from './program-manifest.js';
+import { packageVersionArgument, preparePackageVersion } from './version.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const local = path.join(root, '.sciencescope-local');
 const stage = path.join(local, 'package/runtime-bundle');
 const npm = process.env.npm_execpath;
-const registry = process.env.SCIENCESCOPE_BUILD_REGISTRY || 'https://registry.npmmirror.com';
 const options = buildOptions(process.env);
 
 function run(command, args, cwd = root, successCodes = [0]) {
@@ -116,50 +114,18 @@ const { version, configuration } = await preparePackageVersion(
   packageVersionArgument(process.argv.slice(2)),
 );
 console.log('Packaging ScienceScope ' + version);
+// Dependency input is read-only. Recreate only this fixed generated output so a
+// prior bundle's selected packages can never masquerade as a complete npm tree.
+if (path.dirname(stage) !== path.join(local, 'package'))
+  throw new Error('Invalid staging directory');
+await rm(stage, { recursive: true, force: true });
 await mkdir(stage, { recursive: true });
 await mkdir(path.join(local, 'dist'), { recursive: true });
-const dependencyHash = productionDependencyFingerprint(
-  ...(await Promise.all(
-    ['package.json', 'package-lock.json', '.npmrc'].map((file) =>
-      readFile(path.join(root, file), 'utf8'),
-    ),
-  )),
-);
-const stamp = path.join(local, 'package/production-dependencies.sha256');
-const previousHash = await readFile(stamp, 'utf8').catch(() => '');
-const pruningStamp = path.join(local, 'package/production-pruned.sha256');
-const previousPruning = await readFile(pruningStamp, 'utf8').catch(() => '');
-const restoreDependencies =
-  previousHash !== dependencyHash || (!options.prune && previousPruning.length > 0);
-for (const file of ['package.json', 'package-lock.json', '.npmrc', 'LICENSE'])
-  await cp(path.join(root, file), path.join(stage, file));
-if (restoreDependencies) {
-  await run(
-    process.execPath,
-    [
-      npm,
-      'ci',
-      '--omit=dev',
-      '--registry=' + registry,
-      '--cache=' + path.join(local, 'npm-cache'),
-      '--prefer-offline',
-      '--no-audit',
-      '--no-fund',
-    ],
-    stage,
-  );
-  await writeFile(stamp, dependencyHash);
-  await rm(pruningStamp, { force: true });
-}
-// onnxruntime-node's tarball includes other architectures even after npm's
-// platform selection. Keep only the Windows x64 native payload in this bundle.
-const nativeRoot = path.join(stage, 'node_modules/onnxruntime-node/bin/napi-v6');
-for (const relative of ['linux', 'darwin', 'win32/arm64']) {
-  const target = path.resolve(nativeRoot, relative);
-  if (!target.startsWith(nativeRoot + path.sep)) throw new Error('Invalid native staging path');
-  await rm(target, { recursive: true, force: true });
-}
-for (const folder of ['app', 'python', 'models']) {
+const modules = path.join(root, 'node_modules');
+const bundled = await bundleRuntime({ root, modules, output: stage, build });
+await writeFile(path.join(local, 'package/bundle.json'), JSON.stringify(bundled, null, 2));
+await cp(path.join(root, 'LICENSE'), path.join(stage, 'LICENSE'));
+for (const folder of ['python', 'models']) {
   // Remove only the checked, fixed staging subdirectory; updates must not retain
   // a deleted program file from a prior build. This directory never contains data.
   const target = path.resolve(stage, folder);
@@ -188,10 +154,12 @@ try {
   if (!response.ok) throw new Error(`Node license HTTP ${response.status}`);
   await writeFile(nodeLicense, await response.text());
 }
-// Repeated builds reuse the complete pre-pruning notice catalog. An explicitly
-// unpruned timing build restores npm's full tree instead of reusing a slim one.
-if (restoreDependencies || previousPruning !== dependencyHash)
-  await generateNotices(path.join(stage, 'node_modules'), path.join(stage, 'THIRD_PARTY_NOTICES'), [
+// Read notices from the actual source packages used by either bundle or copied
+// runtime closure, before pruning. Development-only packages are never staged.
+await generateNotices(
+  modules,
+  path.join(stage, 'THIRD_PARTY_NOTICES'),
+  [
     {
       name: 'Node.js',
       version: '22.22.2',
@@ -209,13 +177,16 @@ if (restoreDependencies || previousPruning !== dependencyHash)
         await readFile(path.join(local, 'runtimes/uv/LICENSE-APACHE'), 'utf8'),
       ],
     },
-  ]);
+  ],
+  bundled.packages,
+);
 if (options.prune) {
   const pruning = await pruneProductionModules(path.join(stage, 'node_modules'));
   await writeFile(path.join(local, 'package/pruning.json'), JSON.stringify(pruning, null, 2));
   console.log('Production pruning: ' + JSON.stringify(pruning));
-  await writeFile(pruningStamp, dependencyHash);
 }
+await compileShellJob(root, stage);
+const manifest = await writeProgramManifest(stage, { mainBinary: 'sciencescope-desktop.exe' });
 // Tauri copies every resource serially during its build script. Pre-stage with
 // Windows' parallel copy, then reference the exact destination so tauri-build
 // skips redundant copies. Data is never part of either staging directory.
@@ -223,7 +194,7 @@ if (options.prune) {
 // build, and the release root itself also holds Cargo's output, so it is not mirrored.
 const release = path.join(local, 'build/tauri/release');
 const folders = ['app', 'python', 'models', 'reference', 'runtime', 'node_modules'];
-const files = ['package.json', 'LICENSE', 'THIRD_PARTY_NOTICES'];
+const files = ['package.json', 'LICENSE', 'THIRD_PARTY_NOTICES', 'program-files.txt'];
 await mkdir(release, { recursive: true });
 for (const folder of folders)
   await run(
@@ -258,6 +229,7 @@ await writeFile(
     '!define MUI_HEADERIMAGE_BITMAP_STRETCH AspectFitHeight',
     '!define MUI_WELCOMEFINISHPAGE_BITMAP_STRETCH AspectFitHeight',
     ...(options.productName ? ['!define SCIENCESCOPE_INSTALL_TEST'] : []),
+    `!define SCIENCESCOPE_PROGRAM_MANIFEST "${manifest}"`,
     `!include "${path.join(root, 'tools/package/installer-hooks.nsh')}"`,
     '',
   ].join('\n'),

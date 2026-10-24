@@ -7,6 +7,7 @@
 import { closeKnowledgeTurn } from './knowledge/versions.js';
 import { AppError } from '../core/errors.js';
 import { createTurnActivity } from './turn-activity.js';
+import { redactProviderToolArgs } from './export/sanitize.js';
 
 /** @type {Record<string, 'done' | 'max_tokens' | 'cancelled' | 'failed'>} */
 const STATUS_BY_STOP = {
@@ -209,7 +210,7 @@ export function createTurnRunner({
           turnId: turn.id,
           callId: event.callId,
           name: event.name,
-          args: event.args,
+          args: redactProviderToolArgs(event.name, event.args),
           preamble,
         });
         preamble = '';

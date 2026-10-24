@@ -16,7 +16,7 @@ test(
   {
     timeout: 90_000,
   },
-  () =>
+  (t) =>
     withExportFixture(async (f) => {
       const data = await populateExportFixture(f);
       const { core } = f;
@@ -30,6 +30,9 @@ test(
       });
       await vectors.upsertDocuments(createSemanticDocuments(core).documents());
       await vectors.close();
+      // Keep both exports in the same named minute so this checks collisions,
+      // even when slow disk work crosses a real wall-clock minute boundary.
+      t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-24T00:00:00Z') });
       const service = createFullExport(core);
       const finished = exportEvent(core, 'export.finished');
       try {

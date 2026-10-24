@@ -1,16 +1,19 @@
 // Provider choices live in settings.json; capacities come from the runtime's
 // shared model catalog. API keys live only in secret/credentials.yaml and are
 // referenced by name, never put in environment variables or the database.
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import path from 'node:path';
 import YAML from 'yaml';
 import { AppError } from '../core/errors.js';
+import { renameWithRetry } from '../core/rename.js';
+import { headerReference, REMOVED_VALUE } from './export/sanitize.js';
 
 /**
  * @typedef {{ id: string, name?: string, baseUrl: string,
  *   preset?: 'opencode-go' | 'deepseek',
  *   api: 'openai-completions' | 'openai-responses' | 'anthropic-messages',
- *   keyRef: string, headers?: Record<string, string>,
+ *   keyRef: string, headers?: Record<string, string | {keyRef:string}>,
  *   models: Array<{ id: string, name?: string, contextWindow?: number, maxTokens?: number }> }} Provider
  */
 
@@ -44,11 +47,13 @@ export async function keyRefs(paths) {
  * Ask a provider which models it offers (`GET <baseUrl>/models`). Uses the
  * given key, or the stored key under `keyRef`.
  * @param {ReturnType<typeof import('../core/paths.js').dataPaths>} paths
- * @param {{ baseUrl: string, api: string, keyRef?: string, key?: string,
- *   headers?: Record<string, string> }} provider
+ * @param {{ id?:string, name?:string, baseUrl: string, api: string, keyRef?: string, key?: string,
+ *   headers?: Record<string, string | {keyRef:string}> }} provider
  * @returns {Promise<string[]>}
  */
-export async function discoverModels(paths, { baseUrl, api, keyRef, key, headers = {} }) {
+export async function discoverModels(paths, provider) {
+  const { baseUrl, api, keyRef, key } = provider;
+  const headers = await resolveProviderHeaders(paths, provider);
   const secret = key || (keyRef ? (await readCredentials(paths)).refs?.[keyRef] : '') || '';
   const auth =
     api === 'anthropic-messages'
@@ -86,15 +91,23 @@ const credentialWrites = new Map();
  * Serialize read/merge/write across provider and MCP configuration changes.
  * @param {ReturnType<typeof import('../core/paths.js').dataPaths>} paths
  * @param {Record<string, string>} refs
+ * @param {string[]} [remove]
  */
-export async function saveKeys(paths, refs) {
-  if (!Object.keys(refs).length) return;
+export async function saveKeys(paths, refs, remove = []) {
+  if (!Object.keys(refs).length && !remove.length) return;
   const file = credentialsFile(paths);
   const operation = (credentialWrites.get(file) ?? Promise.resolve()).then(async () => {
     const document = await readCredentials(paths);
     document.refs = { ...document.refs, ...refs };
+    for (const reference of remove) delete document.refs[reference];
     await mkdir(path.dirname(file), { recursive: true });
-    await writeFile(file, YAML.stringify(document), { encoding: 'utf8', mode: 0o600 });
+    const temporary = `${file}.${randomUUID()}.tmp`;
+    try {
+      await writeFile(temporary, YAML.stringify(document), { encoding: 'utf8', mode: 0o600 });
+      await renameWithRetry(temporary, file);
+    } finally {
+      await rm(temporary, { force: true });
+    }
   });
   const settled = operation.catch(() => {});
   credentialWrites.set(file, settled);
@@ -103,6 +116,84 @@ export async function saveKeys(paths, refs) {
   } finally {
     if (credentialWrites.get(file) === settled) credentialWrites.delete(file);
   }
+}
+
+/**
+ * Preserve reference objects received from the settings editor; plaintext is
+ * written before settings so an interrupted save never creates a missing key.
+ * @param {ReturnType<typeof import('../core/paths.js').dataPaths>} paths
+ * @param {any[]} providers
+ * @returns {Promise<any[]>}
+ */
+export async function storeProviderHeaders(paths, providers) {
+  const secrets = /** @type {Record<string,string>} */ ({});
+  const result = providers.map((provider) => ({
+    ...provider,
+    ...(provider.headers == null
+      ? {}
+      : {
+          headers: Object.fromEntries(
+            Object.entries(provider.headers).map(([name, value]) => {
+              if (headerReference(value)) return [name, value];
+              const keyRef = `provider.${provider.id}.headers.${name}`;
+              if (value !== REMOVED_VALUE) secrets[keyRef] = String(value);
+              return [name, { keyRef }];
+            }),
+          ),
+        }),
+  }));
+  await saveKeys(paths, secrets);
+  return result;
+}
+
+/**
+ * Resolve only at the host request boundary, never in a settings response.
+ * Unsaved discovery requests may still supply plaintext from the old editor.
+ * @param {ReturnType<typeof import('../core/paths.js').dataPaths>} paths
+ * @param {{id?:string,name?:string,headers?:Record<string,any>}} provider
+ * @returns {Promise<Record<string,string>>}
+ */
+export async function resolveProviderHeaders(paths, provider) {
+  const { refs = {} } = await readCredentials(paths);
+  return Object.fromEntries(
+    Object.entries(provider.headers ?? {}).map(([name, reference]) => {
+      const value = headerReference(reference) ? refs[reference.keyRef] : reference;
+      if (value == null)
+        throw new AppError(
+          'PROVIDER_CREDENTIAL',
+          `请重新填写 ${provider.name ?? provider.id ?? '服务商'} 的 ${name}。`,
+        );
+      return [name, String(value)];
+    }),
+  );
+}
+
+/**
+ * Remove only header credentials no longer referenced by the saved settings.
+ * @param {ReturnType<typeof import('../core/paths.js').dataPaths>} paths
+ * @param {any} before
+ * @param {any} after
+ */
+export async function removeProviderHeaders(paths, before, after) {
+  const previous = new Set(
+    (before.providers ?? []).flatMap((provider) =>
+      Object.values(provider.headers ?? {})
+        .filter(headerReference)
+        .map((entry) => entry.keyRef),
+    ),
+  );
+  const retained = new Set();
+  function collect(value) {
+    if (!value || typeof value !== 'object') return;
+    if (typeof value.keyRef === 'string') retained.add(value.keyRef);
+    for (const entry of Object.values(value)) collect(entry);
+  }
+  collect(after);
+  await saveKeys(
+    paths,
+    {},
+    [...previous].filter((reference) => !retained.has(reference)),
+  );
 }
 
 /**

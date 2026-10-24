@@ -11,7 +11,7 @@ import { deepseekProvider } from '@earendil-works/pi-ai/providers/deepseek';
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
 import { openAIResponsesApi } from '@earendil-works/pi-ai/api/openai-responses.lazy';
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy';
-import { readCredentials, saveKey } from '../../services/providers.js';
+import { readCredentials, saveKey, resolveProviderHeaders } from '../../services/providers.js';
 import { AppError } from '../../core/errors.js';
 
 const presets = new Map([
@@ -153,11 +153,18 @@ export function createModelCatalog({ paths, providers }) {
   async function resolve(choice) {
     const entry = (await providers()).find((provider) => provider.id === choice.provider);
     if (!entry) throw new AppError('PROVIDER_REQUIRED', '请先在设置中添加这个服务商。');
-    models.setProvider(configuredProvider(entry));
+    const resolved = { ...entry, headers: await resolveProviderHeaders(paths, entry) };
+    models.setProvider(configuredProvider(resolved));
     const model = models.getModel(entry.id, choice.model);
     if (!model)
       throw new AppError('MODEL_NOT_FOUND', '找不到这个模型，请在设置中检查模型 ID。', 404);
-    return { model, entry, models, descriptor: describeModel(entry, choice.model) };
+    return {
+      model,
+      entry: resolved,
+      models,
+      descriptor: describeModel(entry, choice.model),
+      resolveHeaders: () => resolveProviderHeaders(paths, entry),
+    };
   }
 
   return {

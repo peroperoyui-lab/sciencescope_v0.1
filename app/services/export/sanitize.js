@@ -11,7 +11,8 @@ function tokenLike(value) {
   return !/^[\d.:/-]+$/u.test(value) && !/^[a-z]+\/[a-z0-9.+-]+$/iu.test(value);
 }
 
-function reference(value) {
+/** @param {any} value */
+export function headerReference(value) {
   return (
     value &&
     typeof value === 'object' &&
@@ -31,7 +32,8 @@ function identity(key) {
   );
 }
 
-function configurationKind(value, scope) {
+/** @param {any} value @param {string} scope */
+export function headerConfigurationKind(value, scope) {
   if (scope === 'provider') return 'provider';
   if (scope === 'server') return 'server';
   if (typeof value.baseUrl === 'string' && (value.api || Array.isArray(value.models)))
@@ -42,6 +44,84 @@ function configurationKind(value, scope) {
   )
     return 'server';
   return '';
+}
+
+/**
+ * Header-only redaction is also used by the startup migration. Keep MCP env,
+ * ordinary text and identity fields intact when changing the live database.
+ * @param {any} value
+ * @param {string} [scope]
+ * @returns {{value:any,changed:boolean}}
+ */
+export function redactProviderHeaders(value, scope = 'settings') {
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      if (parsed && typeof parsed === 'object') {
+        const result = redactProviderHeaders(parsed, scope);
+        if (result.changed) return { value: JSON.stringify(result.value), changed: true };
+      }
+    } catch {
+      // Only the outer settings JSON is decoded, never ordinary nested strings.
+    }
+    return { value, changed: false };
+  }
+  const providers = scope === 'providers' ? value : value?.providers;
+  if (!Array.isArray(providers)) return { value, changed: false };
+  let changed = false;
+  const result = providers.map((provider) => {
+    if (
+      !provider?.headers ||
+      typeof provider.headers !== 'object' ||
+      Array.isArray(provider.headers)
+    )
+      return provider;
+    let modified = false;
+    const headers = Object.fromEntries(
+      Object.entries(provider.headers).map(([name, field]) => {
+        const next = headerReference(field) ? field : REMOVED_VALUE;
+        modified ||= next !== field;
+        return [name, next];
+      }),
+    );
+    changed ||= modified;
+    return modified ? { ...provider, headers } : provider;
+  });
+  return {
+    value: changed ? (scope === 'providers' ? result : { ...value, providers: result }) : value,
+    changed,
+  };
+}
+
+/**
+ * The execution receives the original arguments; only the durable tool receipt
+ * loses provider header values. Other settings and tool arguments keep meaning.
+ * @param {string} name
+ * @param {any} args
+ * @returns {any}
+ */
+export function redactProviderToolArgs(name, args) {
+  if (name !== 'workspace_edit' || args?.resource !== 'settings') return args;
+  const field = args.op === 'write' ? 'settings' : args.op === 'patch' ? 'changes' : null;
+  const value = field && args.args?.[field];
+  if (!Array.isArray(value?.providers)) return args;
+  const result = redactProviderHeaders(value.providers, 'providers');
+  if (!result.changed) return args;
+  return { ...args, args: { ...args.args, [field]: { ...value, providers: result.value } } };
+}
+
+/**
+ * Historical workspace_edit receipts return the complete settings as `value`.
+ * Match the original call before interpreting that result as settings.
+ * @param {string} name
+ * @param {any} args
+ * @param {any} result
+ * @returns {any}
+ */
+export function redactProviderToolResult(name, args, result) {
+  if (name !== 'workspace_edit' || args?.resource !== 'settings' || !result?.value) return result;
+  const next = redactProviderHeaders(result.value);
+  return next.changed ? { ...result, value: next.value } : result;
 }
 
 /**
@@ -93,7 +173,7 @@ export function sanitizeSnapshot(db, configuration, check) {
       const result = discover || protectedValue ? value : replaceText(value);
       return { value: result, changed: result !== value, found: false };
     }
-    if (!value || typeof value !== 'object' || reference(value))
+    if (!value || typeof value !== 'object' || headerReference(value))
       return { value, changed: false, found: false };
     if (Array.isArray(value)) {
       let changed = false;
@@ -108,7 +188,7 @@ export function sanitizeSnapshot(db, configuration, check) {
       });
       return { value: changed ? result : value, changed, found };
     }
-    const kind = configurationKind(value, scope);
+    const kind = headerConfigurationKind(value, scope);
     const result = {};
     let changed = false;
     let found = false;
@@ -121,7 +201,7 @@ export function sanitizeSnapshot(db, configuration, check) {
       ) {
         const fields = {};
         for (const [name, field] of Object.entries(entry)) {
-          if (reference(field)) fields[name] = field;
+          if (headerReference(field)) fields[name] = field;
           else {
             if (discover) {
               remember(field);

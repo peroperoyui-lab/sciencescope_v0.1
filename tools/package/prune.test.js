@@ -18,6 +18,8 @@ test('production pruning preserves live assets and licenses, with complete pre-p
     'ordinary/tests/live.js',
     'ordinary/lib/index.js',
     'ordinary/font.woff2',
+    'npm/lib/commands/test.js',
+    'npm/node_modules/example/test/LICENSE',
   ];
   const remove = [
     'ordinary/index.d.ts',
@@ -31,6 +33,8 @@ test('production pruning preserves live assets and licenses, with complete pre-p
     'ordinary/docs/manual.md',
     'onnxruntime-web/index.js',
     'onnxruntime-web/LICENSE',
+    'npm/node_modules/example/test/unused.js',
+    'npm/node_modules/example/examples/demo.js',
   ];
   try {
     for (const file of [...keep, ...remove]) {

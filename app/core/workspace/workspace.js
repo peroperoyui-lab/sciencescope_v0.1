@@ -12,7 +12,9 @@ import { hashText, readText, removeFile, writeTextAtomic } from './files.js';
  *   projectDir: (projectId: string) => string,
  *   meetingBase: (meetingId: string) => string }} Locate
  * @typedef {{ name: string, ops: string[], file: (locate: Locate, key: string) => string,
- *   apply: (text: string | null, op: string, args: any) => string | null,
+ *   apply: (text: string | null, op: string, args: any) => string | null | Promise<string | null>,
+ *   prepare?: (text:string|null) => Promise<string|null>,
+ *   afterEdit?: (before: string | null, after: string | null) => Promise<void>,
  *   parse?: (text: string | null) => any,
  *   projectText?: (key:string,text:string|null) => void,
  *   list?: (locate: Locate, scope: string) => Promise<string[]> }} Resource
@@ -135,8 +137,14 @@ export function createWorkspace({ db, events, paths, now, newId, resources }) {
 
   /** Record a change made outside ScienceScope, if any. Returns the current text. */
   async function currentText(resource, key, file) {
-    const text = await readText(file);
-    resourceOf(resource).projectText?.(key, text);
+    const handler = resourceOf(resource);
+    const stored = await readText(file);
+    const text = handler.prepare ? await handler.prepare(stored) : stored;
+    if (text !== stored) {
+      if (text == null) await removeFile(file);
+      else await writeTextAtomic(file, text);
+    }
+    handler.projectText?.(key, text);
     const last = lastRevision(`${resource}:${key}`);
     if (last && hashText(text) !== (last.after_hash == null ? null : String(last.after_hash))) {
       const before = last.after_text == null ? null : String(last.after_text);
@@ -144,6 +152,9 @@ export function createWorkspace({ db, events, paths, now, newId, resources }) {
         insertRevision({ resource, key, op: 'external', before, after: text, actor: {} }),
       );
     }
+    // External deletion has already disappeared from the file. The previous
+    // revision still identifies the credentials that must now be removed.
+    await handler.afterEdit?.(last?.after_text == null ? stored : String(last.after_text), text);
     return text;
   }
 
@@ -186,7 +197,8 @@ export function createWorkspace({ db, events, paths, now, newId, resources }) {
       ) {
         throw new AppError('REVISION_CONFLICT', '内容已被更新，请刷新后再编辑。', 409);
       }
-      const after = handler.apply(before, op, args);
+      const applied = await handler.apply(before, op, args);
+      const after = handler.prepare ? await handler.prepare(applied) : applied;
       const value = handler.parse ? handler.parse(after) : after;
       if (after === before && !change.forceRevision) return { revisionId: null, value };
       if (after == null) await removeFile(file);
@@ -194,6 +206,7 @@ export function createWorkspace({ db, events, paths, now, newId, resources }) {
       const revisionId = db.transaction(() =>
         insertRevision({ resource, key, op, before, after, actor }),
       );
+      await handler.afterEdit?.(before, after);
       return { revisionId, value };
     });
   }
@@ -210,16 +223,18 @@ export function createWorkspace({ db, events, paths, now, newId, resources }) {
     if (row.undone_by != null) throw new AppError('ALREADY_UNDONE', '这条修改已经撤销过。', 409);
     const resource = String(row.resource);
     const key = toRevision(row).key;
-    const file = resourceOf(resource).file(locate, key);
+    const handler = resourceOf(resource);
+    const file = handler.file(locate, key);
     return queued(`${resource}:${key}`, async () => {
       const current = await currentText(resource, key, file);
       if (hashText(current) !== (row.after_hash == null ? null : String(row.after_hash))) {
         throw new AppError('REVISION_CONFLICT', '之后还有新的修改，请先撤销更新的那一条。', 409);
       }
-      const restored = row.before_text == null ? null : String(row.before_text);
+      const saved = row.before_text == null ? null : String(row.before_text);
+      const restored = handler.prepare ? await handler.prepare(saved) : saved;
       if (restored == null) await removeFile(file);
       else await writeTextAtomic(file, restored);
-      return db.transaction(() => {
+      const result = db.transaction(() => {
         const undoId = insertRevision({
           resource,
           key,
@@ -236,6 +251,8 @@ export function createWorkspace({ db, events, paths, now, newId, resources }) {
         );
         return { revisionId: undoId };
       });
+      await handler.afterEdit?.(current, restored);
+      return result;
     });
   }
 

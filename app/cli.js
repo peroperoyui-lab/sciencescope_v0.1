@@ -34,7 +34,9 @@ const dataRoot =
 
 const { createCore } = await import('./core/index.js');
 const { LOCAL_USER_ID } = await import('./core/defaults.js');
-const core = await createCore({ dataRoot });
+const { providerSettings } = await import('./services/provider-settings.js');
+const { migrateProviderHeaders } = await import('./services/provider-header-migration.js');
+const core = await createCore({ dataRoot, settingsResource: providerSettings(dataRoot) });
 const user = { actorId: LOCAL_USER_ID };
 const [command, ...args] = positionals;
 
@@ -69,6 +71,7 @@ const commands = {
 };
 
 try {
+  await migrateProviderHeaders(core);
   const run = commands[command];
   if (!run) {
     console.error(`Unknown command. Available: ${Object.keys(commands).join(', ')}`);
