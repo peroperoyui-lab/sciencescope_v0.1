@@ -4,7 +4,7 @@
 
 ## 一次发布
 
-1. **选定版本。** 确定本次版本，例如 `1.0.0-alpha.1`；在第 2 步准备签名环境后再执行 `npm run package -- --version 1.0.0-alpha.1`。脚本会同步 `package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`，以及锁文件的根版本。没有 `--version` 时，三处不一致会在构建前停止。只改版本会复用生产依赖缓存；依赖或 npm 配置改变会使缓存失效。R6b 的演练改版本只在隔离工作区进行，正常提交保持 alpha.0。
+1. **选定版本。** 确定本次版本，例如 `1.0.0-alpha.1`；在第 2 步准备签名环境后再执行 `npm run package -- --version 1.0.0-alpha.1`。脚本会同步 `package.json`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`，以及锁文件的根版本。没有 `--version` 时，三处不一致会在构建前停止。先按锁文件安装开发依赖；R6c 从它们只读选择实际生产依赖，每次重建暂存 bundle，复用已校验的 Node/uv 下载和 Rust 编译缓存。演练改版本只在隔离工作区进行，正常提交保持 alpha.0。
 2. **准备签名环境并打包。** 首次生成 updater 密钥时，由受控子进程调用现有 Tauri CLI 的 `signer generate`，将密钥写到 `<更新私钥目录>\updater.key`；按下一节处理输出，成功后只读取 `.pub` 文件核对公钥，再写入 `src-tauri/tauri.conf.json` 的 `plugins.updater.pubkey`。该目录在仓库外，私钥和密码另行备份。现有密钥继续使用，不为每次发布重新生成。仅向当前构建子进程传入签名环境，再运行第 1 步的命令。
 3. **核对签名产物。** `bundle.createUpdaterArtifacts=true` 让 Tauri 在打包时完成 updater 签名。`.sciencescope-local/dist/` 应同时出现 NSIS `.exe` 与同名 `.exe.sig`，两者必须来自同一次构建。副本、改名和上传之后仍需保持安装包字节不变。此签名供 updater 验证，Authenticode 代码签名另等用户证书；当前 Windows SmartScreen 可能显示「未知发布者」或「Windows 已保护你的电脑」。签名步骤及产物格式见 [Tauri 官方 updater 文档](https://v2.tauri.app/plugin/updater/)。
 4. **生成本地发布材料。** 例如：
@@ -117,26 +117,36 @@ A 演练使用 shell 修复前的签名包，更新原生代码与最终版本�
 依赖复用官方 updater 2.10.1（Apache-2.0 OR MIT），来源见上文；构建使用国内 npm 镜像、rsproxy 及本地缓存。原始截图在证据目录 `screenshots/`，不入 Git；私钥、密码与个人绝对路径不写入本记录。
 
 正式发布前仍需 Claude 接更新提示、按钮、进度和设置开关，发布者审核说明并创建/上传 Release。Authenticode 等用户提供证书；当前安装器可能触发 SmartScreen 的「未知发布者」或「Windows 已保护你的电脑」提示。私钥及密码保存在仓库外 `<更新私钥目录>` 并应另行备份；丢失且无备份时，需要用户手动覆盖安装使用新公钥的版本。此次未创建 PR、未合并、未发布 Release。
-# R6c Windows 验收记录（2026-10-24）
+## R6c Windows 验收记录（2026-10-24）
 
 第一段在改动前重测 R6b 原测试包，使用同一块 USB 机械盘、同一测试产品；现有预览安装及其数据、备份均不动。主版本仍为 alpha.0，演练包临时使用 alpha.1/alpha.2，不创建 Release。
 
 | 项目 | 原 R6b 包 | R6c 包 |
 | --- | ---: | ---: |
-| 程序文件数 | 13,487 | 待最终安装统计 |
-| 程序字节数 | 400,095,347 | 待最终安装统计 |
-| 全新安装 | 215.073 秒 | 待测 |
-| 覆盖安装 | 377.568 秒 | 待测 |
-| 更新并重开 | 323.105 秒 | 待测 |
+| 程序文件数 | 13,487 | 3,191 |
+| 程序字节数 | 400,095,347 | 334,167,748 |
+| 全新安装 | 215.073 秒 | 54.598 秒 |
+| 覆盖安装 | 377.568 秒 | 72.631 秒 |
+| 更新并重开 | 323.105 秒 | 109.056 秒 |
+
+程序统计排除 `data/`，包含主程序、运行时、资源、许可与卸载器；暂存目录 3,185 个文件，安装完成为 3,191 个。文件数减少 76.34%，仍比 3,000 目标多 **191 个（6.37%）**：保留原生及路径资源、npm 动态命令行依赖和完整许可。下一步可单独核对 npm 动态依赖闭包与 transformers 延迟入口，继续打包可合并的 JS 文件；本轮保留这些已验证功能与许可。
+
+最终全新安装的 NSIS 标记：预安装阶段 0.078 秒，解压写入 53.375 秒；完整安装器 54.598 秒，达到 240 秒目标。最终安装版再次正常启动、加载原生桥接和 reader 资源，启动 12.593 秒，未调用模型，关闭后所属进程与 WAL/SHM 清理。
+
+最终同版覆盖安装 72.631 秒，达到 240 秒目标。清理程序检查清单 3,190 项，内部用时 0.588 秒，没有过期文件需要删除；NSIS 预安装共 2.297 秒，其中清理子进程含 PowerShell 启动为 2.141 秒，解压写入 69.062 秒。安装前后全部 **317 个数据文件**的 SHA-256 及 SQLite 物理文件 SHA-256 一致，证据 `after/overlay-data-preserved.json`。
+
+最终 A 演练从原 alpha.1 更新至最终 alpha.2 并重开为 **109.056 秒**，达到 180 秒目标。清理旧包 10,363 个过期文件，内部 16.888 秒，含 PowerShell 启动 18.484 秒；此前预处理 0.110 秒，解压写入 80.531 秒。更新后程序同样为 3,191 文件、334,167,748 字节，和全新安装一致。详细标记及清理计数见 `after/optimized-phase-summary.json`。
+
+A 的断流、签名不匹配、清单不可达及恢复重试均通过；数据、外部文件和 SQLite 物理哈希保持，更新后新进程对话通过，WAL/SHM 清理。对话使用本地模拟模型 **1 次请求、42 个合成 tokens**，与真实 flash 用量分开；原包对照 A 同样是 1 次模拟请求。最终记录为 `after/a-rehearsal.json`，根目录同名文件是原包基线。A、B 测试安装均正常卸载、显式清理隔离数据，目录及注册项移除；不涉及用户预览目录。
 
 基线覆盖安装外部观察到删除约 118.526 秒、写入约 256.700 秒、收尾约 1.388 秒；这些是文件系统变化观测区间。测量时系统已有 Defender 实时保护为关闭状态且无 MsMpEng 进程，未更改系统设置或添加排除项；观察到扫描占用为零。原始基线、各阶段和包清单保留在工作区忽略目录 `.sciencescope-local/temp/r6c/`。
 
-第一段实现及初步验证：
+第一段实现与验证：
 
-- `tools/package/bundle.js` 使用既有 esbuild 合并纯 JS 依赖，应用入口保留原路径，浏览器 reader 的 vendor 仅在产物中打包；未修改 `app/ui/` 源码。
+- `tools/package/bundle.js` 使用既有 esbuild 合并纯 JS 依赖，应用入口保留原路径，浏览器 reader 的 vendor 仅在产物中打包；界面组件、样式和文案保持。第二段仅同步 `settings.browser.test.js` 的 header 返回引用契约断言。
 - `npm` 和 `esbuild` 保留命令行及动态模块路径；`pdfjs-dist` 保留 worker、字体和解码资源；`sqlite-vec`、`onnxruntime-node/common`、`@napi-rs/canvas`、`@huggingface/transformers` 及其平台依赖保留原生加载与模型路径。`trash` 保留资源定位，pi-ai 的 Bedrock 延迟入口保留动态加载路径；其余静态依赖进入共享 chunk。完整许可与第三方声明保留。
 - `program-manifest.js`、`cleanup-program.ps1` 和 NSIS 钩子按清单只删过期文件；兼容旧包无清单、长路径和目录链接，数据与用户文件保留。`shell-job.js` 打包时预编译守护程序，运行时保留既有后备路径。
-- 定向包装测试 6/6、Windows 清单与真实 NSIS 测试 3/3 通过；暂存宿主、PDF/DOCX 解析、检索、布局/比较/向量 worker、预编译 shell、导出和 npm 离线执行通过。安装版及干净检出结果交付时补齐。
+- 定向包装测试 6/6、Windows 清单与真实 NSIS 测试 3/3 通过；暂存宿主、PDF/DOCX 解析、检索、布局/比较/向量 worker、预编译 shell、导出和 npm 离线执行通过。NSIS 阶段日志的追加模式原先覆盖文件头，补上写前移到文件末尾，实际安装钩子测试 2/2 通过。
 
 基线文件数最多的 20 个包（按包自身路径计数，嵌套包独立计数）：
 
@@ -162,3 +172,31 @@ A 演练使用 shell 修复前的签名包，更新原生代码与最终版本�
 | yaml | 154 | 585425 | 否 |
 | json-schema-to-ts | 134 | 20639 | 否 |
 | @aws-sdk/core | 127 | 375462 | 否 |
+
+第二段实现与授权补充：
+
+- `providers.js`、新增 `provider-settings.js` 保存/解析/删除 header 凭据；`catalog.js` 与 `requests.js` 每次使用时解析引用，缺失提示重新填写。工作区资源由应用和 CLI 在组合入口注入，编辑、外部文件读取、撤回及快照恢复共用，因而涉及 `app.js`、`cli.js`、`core/index.js`、`workspace.js`、`snapshots.js` 的最小接线；运行时执行仍接收原始参数，只有持久化副本脱敏。
+- 新增 `provider-header-migration.js`：数据库先备份，四表同事务处理并重算哈希。隔离夹具清理 `revisions` 2 行、`resource_snapshots` 2 行、`tool_calls` 1 行、`events` 2 行；后两表合计 **3 行**，各表行数及其他字段不变。末表故障后的回滚、重跑与假值检索通过。
+- 明文曾存在的位置：`settings.json` 的 providers.headers；`revisions.before_text/after_text`、`resource_snapshots.content_text`；`tool_calls.args_json/result_json`、`events.payload_json` 中的 settings workspace_edit 记录；运行时会话中的对应 assistant 工具参数，以及匹配 `toolCallId` 的 toolResult.details 与 content JSON 文本。迁移按明确路径处理，普通文本和其他设置保持。
+- 新增 `provider-session-migration.js`：先备份原文件至 `data/backups/provider-header-sessions-YYYY-MM-DD/<会话 id>-<原文 SHA-256>.json`，再逐文件临时写入、改名。参数夹具 2 文件/3 值，details 与 content 夹具各 1 文件/1 值，合计 **4 文件/5 值**；跨日重跑复用原备份，已清理文件跳过，其他字节、行数和字段顺序保持。
+- 无法解析的 content 夹具保留原文：`runtime/pi/sessions/result-content.json`，`toolCallId=matched`，共 1 处。实际启动把计数、相对备份路径和无法解析项写入 `data/logs/provider-header-migration.log`，不记录值。这里的计数均来自假夹具，未迁移用户预览数据；数据库与会话备份按授权保留迁移前原件。
+- header 保存/请求/模型发现/删除/缺失错误、同会话更新凭据、CLI 与工作区路径测试通过；旧会话参数/结果专项及设置浏览器契约 2/2 通过，独立只读审阅通过。新增结果测试初轮的共享对象预期错误已纠正，原始日志保留；完整检查与安装版结果见最终验收数据。
+- 设置页“已保存，可替换”的 header 编辑由 Claude 后续接入；本轮保留现有输入框提交明文的兼容路径，读取接口只返回 `{ keyRef }`，没有修改界面组件、样式或文案。
+
+新增源文件均为项目实现；复用现有 esbuild（MIT）及既有 Windows Job 守护源码，未添加依赖、复制新的第三方实现或改动界面实现。所有截图、夹具、构建产物和原始日志均留忽略目录，公开记录只用相对路径。
+
+完整检查中的发现与处理：
+
+- 导出重名测试的两次导出跨过系统分钟边界，第二次得到新的时间名，原 `(2)` 断言失败。只在该测试固定 Date、保留真实计时器，重名断言原样通过；定向 1/1，33.601 秒。没有修改导出行为。
+- 首轮验收辅助脚本的 PATH 省略本机正常使用的 PowerShell 7，改走 PowerShell 5。正常后台进程用例在当前代码 6.148 秒失败、基线 `162f393` 同样 6.184 秒失败，PS7 1.400 秒通过。时序记录表明 PS5 主进程约 1.093 秒已退出，但 stdout 被后台进程持有，直到原有超时触发才关闭；PS7 正常释放。此为基线已有的 PS5 兼容问题，未调大超时或更改 shell。第二轮完整检查使用本机 PS7 环境；PS5 定位与三组日志保留在 `shell-background-compare/` 交 Claude。
+
+安装版功能验收（证据 `installed-smoke.json`）：
+
+- 从全新测试安装的设置页添加兼容服务商；模型列表返回 37 个模型，实际 header 值只在凭据文件中，公共设置返回引用。真实 OpenCode Go `deepseek-v4.1-flash` 对话并调用 shell 成功，共 **2 次模型请求、11,845 tokens**（输入 11,717，输出 128）；模型发现另 1 次 HTTP 请求，未算入模型请求。计数代理只记录用量与 header 匹配布尔值。
+- 中文路径 PDF/DOCX 导入、解析及项目内关键词检索命中第 1 页；中文 XeLaTeX 编译 9.417 秒，项目文件哈希和目录清单保持不变；完整导出 94 个文件。窗口关闭后宿主 exit 0，全部所属进程退出，WAL/SHM 清理，页面无未捕获错误。没有更改用户预览安装。
+- 初轮检索夹具漏传 `projectId`，修正为项目范围后命中；初轮 TeX 使用了 pdflatex，刷新已安装引擎列表后取得 XeLaTeX 并编译成功。两次失败原始记录分别保留在 `installed-smoke-before-project-scope.json`、`installed-smoke-before-tex-refresh.json`，恢复验收没有重复付费请求，也没有修改检索或 TeX 产品代码。
+- 原生截图位于 `screenshots/r6c-{fresh,provider,chat-shell,library}-native-{100,125}.png`；100%/125% 使用 WebView2 的逻辑尺寸和设备缩放模拟，系统显示设置保持。最终阶段日志修正版与功能验收安装版的应用及共享 chunks 共 498 个文件逐项 SHA-256 一致，证明文件为 `installed-payload-equivalence.json`。
+
+最终安装器为测试产品 `ScienceScope Install Test_1.0.0-alpha.2_x64-setup.exe`，位于工作区忽略目录 `.sciencescope-local/dist/`，**92,089,708 字节**，SHA-256 **`ef005fec7c51000ebe8b1d948103a269a321d2da1a0f59c35cb7836eab33faad`**，对应 `.sig` 已生成；原 R6b 对照包为 99,172,234 字节，SHA-256 `36119acfe07883eae051c7bb1ec1e312e1367df58aaf862f8dab68bced4b4b39`。Rust 离线 `cargo test` 为 **13/13**，没有失败或忽略项，日志 `cargo-test-final.log`。
+
+干净检出独立执行国内源 `npm ci` 后，最终在源码 `210e60b45b41bedaa703822aa4740b341cff4cef` 上运行 `npm run check`：**474/474 通过，0 失败、0 跳过**，含 Windows 测试；完整命令 2,045.416 秒，测试部分 2,010.712 秒。证据 `clean-check-final.json`、`clean-check-final.log`。首轮 **472/474** 的结果和日志保留在 `clean-check-first-ps5.*`，上述日期测试及 PS5 环境原因均已分别说明；最终源码之后只有交付文档变动。
