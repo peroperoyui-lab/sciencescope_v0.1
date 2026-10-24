@@ -370,6 +370,10 @@ data/
 
 **关键数据**：设置 `providers`（`id`、`preset`、`baseUrl`、`api`：`openai-completions`/`openai-responses`/`anthropic-messages`、`keyRef`、`headers`、`models`）、`models.default`、`context.compactPercent`；密钥在 `data/secret/credentials.yaml`；会话在 `data/runtime/pi/sessions/`；表 `runtime_sessions`；每次请求一行元数据写入 `data/logs/model-requests.jsonl`（不含密钥、请求和回答，超过 5 MB 轮换一份）。
 
+服务商 `headers` 保存为 `{ 名称: { keyRef: "provider.<id>.headers.<名称>" } }`，值只写凭据文件；请求与模型发现时读取最新值。删除 header 或服务商会删除对应凭据，缺失时提示重新填写。旧文本框仍能提交明文，返回设置只含引用。工作区编辑、撤回、历史版本恢复与外部设置修改共用该处理。
+
+启动迁移先备份数据库，再在同一事务清理 `revisions`、`resource_snapshots`、`tool_calls` 和 `events` 中明确的服务商 header 字段，保留行数、其余字段并重算相关哈希。旧运行时会话的工具参数及按 `toolCallId` 匹配的设置修改结果另行原样备份后原子替换，重复运行跳过已清理文件；备份位于 `data/backups/`，保留迁移前内容供恢复。结果中的 JSON 文本先解析，不能解析的保留原样并记录相对文件名和调用 id。
+
 **已知限制**
 
 - 模型容量和思考强度只来自 pi-ai 的模型目录；查不到的自定义模型按 131,072 上下文、32,768 输出计算并标明"默认值"，不能手动覆盖。

@@ -74,9 +74,15 @@ test(
       const lab = page.locator('[data-provider="lab-proxy"]');
       await lab.getByText('proxy.example.com · 1 个模型 · 密钥已保存').waitFor();
       const saved = await settings();
-      assert.equal(saved.providers[1].headers['x-session'], 's1');
+      assert.deepEqual(saved.providers[1].headers['x-session'], {
+        keyRef: 'provider.lab-proxy.headers.x-session',
+      });
       assert.deepEqual(saved.providers[1].models, [{ id: 'deepseek-v4.1-flash' }]);
-      assert.deepEqual(await keyRefs(), ['opencode-go', 'SCIENCESCOPE_LAB_PROXY_KEY']);
+      assert.deepEqual(await keyRefs(), [
+        'opencode-go',
+        'SCIENCESCOPE_LAB_PROXY_KEY',
+        'provider.lab-proxy.headers.x-session',
+      ]);
 
       await lab.getByRole('button', { name: 'Lab Proxy 的更多操作' }).click();
       await page.getByRole('menuitem', { name: '移除服务商' }).click();

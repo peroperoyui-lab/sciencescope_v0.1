@@ -23,9 +23,15 @@ import { settings } from './workspace/resources/settings.js';
 import { createWorkspace } from './workspace/workspace.js';
 
 /**
- * @param {{ dataRoot: string, now?: () => string, newId?: (prefix: string) => string }} options
+ * @param {{ dataRoot: string, now?: () => string, newId?: (prefix: string) => string,
+ *   settingsResource?:import('./workspace/workspace.js').Resource }} options
  */
-export async function createCore({ dataRoot, now = nowIso, newId = defaultNewId }) {
+export async function createCore({
+  dataRoot,
+  now = nowIso,
+  newId = defaultNewId,
+  settingsResource = settings,
+}) {
   const paths = dataPaths(dataRoot);
   const db = await openDatabase(paths.database, { migrations, backupDir: paths.backups });
   const events = createEvents(db, { now });
@@ -42,7 +48,7 @@ export async function createCore({ dataRoot, now = nowIso, newId = defaultNewId 
       minutes,
       notes,
       agent,
-      settings,
+      settingsResource,
       versionNotesResource(db),
     ],
   });

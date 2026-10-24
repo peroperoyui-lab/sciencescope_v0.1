@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { redactProviderToolArgs } from '../../services/export/sanitize.js';
 
 /**
  * Completed model steps are durable, including thinking and tool receipts.
@@ -21,7 +22,19 @@ export function sessionStore(home) {
     async write(id, messages) {
       await mkdir(folder, { recursive: true });
       const temporary = file(id) + `.${randomUUID()}.tmp`;
-      await writeFile(temporary, JSON.stringify({ schema: 1, messages }), 'utf8');
+      const saved = messages.map((message) =>
+        message.role !== 'assistant' || !Array.isArray(message.content)
+          ? message
+          : {
+              ...message,
+              content: message.content.map((block) =>
+                block.type !== 'toolCall'
+                  ? block
+                  : { ...block, arguments: redactProviderToolArgs(block.name, block.arguments) },
+              ),
+            },
+      );
+      await writeFile(temporary, JSON.stringify({ schema: 1, messages: saved }), 'utf8');
       await rename(temporary, file(id));
     },
   };

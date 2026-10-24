@@ -137,3 +137,28 @@ A 演练使用 shell 修复前的签名包，更新原生代码与最终版本�
 - `npm` 和 `esbuild` 保留命令行及动态模块路径；`pdfjs-dist` 保留 worker、字体和解码资源；`sqlite-vec`、`onnxruntime-node/common`、`@napi-rs/canvas`、`@huggingface/transformers` 及其平台依赖保留原生加载与模型路径。`trash` 保留资源定位，pi-ai 的 Bedrock 延迟入口保留动态加载路径；其余静态依赖进入共享 chunk。完整许可与第三方声明保留。
 - `program-manifest.js`、`cleanup-program.ps1` 和 NSIS 钩子按清单只删过期文件；兼容旧包无清单、长路径和目录链接，数据与用户文件保留。`shell-job.js` 打包时预编译守护程序，运行时保留既有后备路径。
 - 定向包装测试 6/6、Windows 清单与真实 NSIS 测试 3/3 通过；暂存宿主、PDF/DOCX 解析、检索、布局/比较/向量 worker、预编译 shell、导出和 npm 离线执行通过。安装版及干净检出结果交付时补齐。
+
+基线文件数最多的 20 个包（按包自身路径计数，嵌套包独立计数）：
+
+| 包 | 文件数 | 字节数 | 包自身含原生模块 |
+| --- | ---: | ---: | --- |
+| highlight.js | 1558 | 5278203 | 否 |
+| openai | 794 | 3294156 | 否 |
+| typebox | 693 | 868357 | 否 |
+| underscore | 496 | 611127 | 否 |
+| @huggingface/transformers | 457 | 8829425 | 否 |
+| @smithy/core | 408 | 1309221 | 否 |
+| @anthropic-ai/sdk | 392 | 1841480 | 否 |
+| pdfjs-dist | 388 | 16156370 | 否 |
+| hono | 384 | 905559 | 否 |
+| npm | 297 | 2102561 | 否 |
+| ajv | 294 | 709496 | 否 |
+| zod | 259 | 2313596 | 否 |
+| @babel/runtime | 248 | 246948 | 否 |
+| @earendil-works/pi-ai | 236 | 1766962 | 否 |
+| @codemirror/legacy-modes | 209 | 1883592 | 否 |
+| cytoscape | 193 | 5390804 | 否 |
+| @modelcontextprotocol/sdk | 178 | 1673058 | 否 |
+| yaml | 154 | 585425 | 否 |
+| json-schema-to-ts | 134 | 20639 | 否 |
+| @aws-sdk/core | 127 | 375462 | 否 |

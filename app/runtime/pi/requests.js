@@ -83,6 +83,7 @@ export function controlledStream({
         let visible = false;
         let usageReported = false;
         let final;
+        let credentialFailure;
         let partial = emptyMessage(model);
         let iterator;
         const started = performance.now();
@@ -104,7 +105,12 @@ export function controlledStream({
             // Auxiliary requests do not pass through Agent, but providers still
             // need the same session routing/cache identity (e.g. OpenCode Go).
             sessionId: options.sessionId ?? sessionId,
-            headers: { ...selection.entry.headers, ...options.headers },
+            headers: {
+              ...(selection.resolveHeaders
+                ? await selection.resolveHeaders()
+                : selection.entry.headers),
+              ...options.headers,
+            },
             signal,
             maxRetries: 0,
             timeoutMs: limits.timeoutMs,
@@ -153,6 +159,8 @@ export function controlledStream({
           }
           final ??= await abortable(stream.result(), signal);
         } catch (error) {
+          if (error.code === 'PROVIDER_CREDENTIAL')
+            credentialFailure = { status: null, message: error.message, retryable: false };
           final = { ...partial, stopReason: 'error', errorMessage: String(error.message ?? error) };
         } finally {
           clearTimeout(timer);
@@ -171,17 +179,20 @@ export function controlledStream({
           parent.aborted ||
           final.stopReason === 'error' ||
           final.stopReason === 'aborted';
-        const explanation = failed
-          ? explainFailure({
-              message: final,
-              status,
-              timeout,
-              attempt,
-              provider: selection.entry.name ?? model.provider,
-              hostname,
-              cancelled: parent.aborted,
-            })
-          : null;
+        const explanation =
+          !parent.aborted && credentialFailure
+            ? credentialFailure
+            : failed
+              ? explainFailure({
+                  message: final,
+                  status,
+                  timeout,
+                  attempt,
+                  provider: selection.entry.name ?? model.provider,
+                  hostname,
+                  cancelled: parent.aborted,
+                })
+              : null;
         const known = usageReported || final.usage?.totalTokens > 0;
         requests.push({ usage: final.usage, known });
         await log({

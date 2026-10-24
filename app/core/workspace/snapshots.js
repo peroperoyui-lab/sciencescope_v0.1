@@ -186,12 +186,18 @@ export function createSnapshots({
    */
   async function restoreSnapshot(id, actor = {}) {
     const snapshot = getSnapshot(id);
-    const { resource, key, text } = snapshot;
-    const file = resourceOf(resource).file(locate, key);
+    const { resource, key } = snapshot;
+    const handler = resourceOf(resource);
+    const file = handler.file(locate, key);
     return queued(resource + ':' + key, async () => {
       const current = await currentText(resource, key, file);
+      const text = handler.prepare ? await handler.prepare(snapshot.text) : snapshot.text;
       if (current === text)
-        return { revisionId: null, value: snapshot.value, preservedSnapshotId: null };
+        return {
+          revisionId: null,
+          value: handler.parse ? handler.parse(text) : text,
+          preservedSnapshotId: null,
+        };
       // Preserve before touching the file, even if the subsequent write fails.
       const preserved = db.transaction(() =>
         insert({
@@ -222,7 +228,12 @@ export function createSnapshots({
         );
         return revision;
       });
-      return { revisionId, value: snapshot.value, preservedSnapshotId: preserved.id };
+      await handler.afterEdit?.(current, text);
+      return {
+        revisionId,
+        value: handler.parse ? handler.parse(text) : text,
+        preservedSnapshotId: preserved.id,
+      };
     });
   }
 

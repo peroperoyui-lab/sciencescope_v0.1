@@ -52,7 +52,8 @@ export const DEFAULT_SETTINGS = {
     { name: '万方数据', url: 'https://www.wanfangdata.com.cn' },
     { name: 'Springer', url: 'https://link.springer.com' },
   ],
-  // Model providers (keys are stored separately, see services/providers.js).
+  // Provider API keys and header values are stored separately. The host injects
+  // the credential preparation at the resource boundary before recording edits.
   providers: [],
   // The model AIs use unless their own definition names one.
   models: { default: null },
