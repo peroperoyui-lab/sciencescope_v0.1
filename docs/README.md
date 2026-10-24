@@ -4,12 +4,13 @@
 
 ## 第一次来，按顺序读
 
-1. 根目录 `AGENTS.md`：产品原则、工程规则、分工。
-2. `product/VISION.md`：ScienceScope 是什么、给谁用、alpha 的范围。
-3. `product/FEATURES.md`：新核心现在能做什么，代码在哪里。
-4. `plans/ROADMAP.md`：主线、任务顺序、当前进度。
-5. `process/WORKFLOW.md`：谁做什么、一个任务怎么走完。
-6. 当前任务的 `plans/tasks/*.md`。
+1. `MUST_READ.md`：开发必读，写项目定位、前后端都要守的规则、前端设计准则、后端开发准则、美术素材和资源，长期固定。
+2. 根目录 `AGENTS.md`：产品原则、工程规则、分工。
+3. `product/VISION.md`：ScienceScope 是什么、给谁用、alpha 的范围。
+4. `product/FEATURES.md`：新核心现在能做什么，代码在哪里。
+5. `plans/ROADMAP.md`：主线、任务顺序、当前进度。
+6. `process/WORKFLOW.md`：谁做什么、一个任务怎么走完。
+7. 当前任务的 `plans/tasks/*.md`。
 
 ## 目录
 

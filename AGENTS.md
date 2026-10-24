@@ -4,7 +4,8 @@ Rewritten 2026-10-05 after the overall review (`docs/reviews/REVIEW_2026-10-05.m
 Architecture (first principles: participants, tools, meetings, workspace,
 events): `docs/architecture/ARCHITECTURE.md`.
 The previous rule set is archived in `docs/archive/AGENTS_2026-10-05.md`.
-Docs index: `docs/README.md` (reorganized 2026-10-18). The owner's decisions
+Read `docs/MUST_READ.md` first (positioning, shared rules, frontend design and
+backend development guidelines, art assets; stable). Docs index: `docs/README.md` (reorganized 2026-10-18). The owner's decisions
 are in `docs/decisions/DECISIONS.md`; what exists now is in
 `docs/product/FEATURES.md`; how the work flows is in `docs/process/WORKFLOW.md`.
 
