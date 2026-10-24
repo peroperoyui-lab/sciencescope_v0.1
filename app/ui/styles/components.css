@@ -5650,3 +5650,77 @@ button.ss-act__row:hover {
 .ss-desk .ss-titlebar__title {
   margin-right: 12px;
 }
+/* The page being edited (U2): ProseMirror's own rules, then the objects the desk keeps. */
+.ss-page--edit {
+  outline: none;
+  white-space: pre-wrap;
+  white-space: break-spaces;
+  overflow-wrap: break-word;
+  font-variant-ligatures: none;
+  counter-reset: desk-note;
+}
+.ss-page--edit .ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.ProseMirror-hideselection *::selection {
+  background: transparent;
+}
+.ProseMirror-hideselection {
+  caret-color: transparent;
+}
+.ss-page--edit p.ss-page__li {
+  padding-left: 2em;
+  text-indent: -1em;
+}
+.ss-page--edit p.ss-page__li::before {
+  content: '•';
+  display: inline-block;
+  width: 1em;
+  color: var(--muted);
+  text-indent: 0;
+}
+.ss-page--edit td > p {
+  margin: 0;
+  text-indent: 0;
+}
+.ss-desk-tab {
+  display: inline-block;
+  min-width: 2em;
+}
+.ss-atom--footnote {
+  padding: 0 1px;
+  border: 0;
+  color: var(--accent-ink);
+  font: 600 0.7em/1 var(--font-sans);
+}
+.ss-atom--footnote::after {
+  content: counter(desk-note);
+  counter-increment: desk-note;
+}
+.ss-atom--math {
+  border-style: solid;
+  border-color: transparent;
+  background: var(--sunken);
+  font-family: 'Latin Modern Math', 'STIX Two Math', 'Cambria Math', var(--font-serif);
+  font-style: italic;
+}
+.ss-atom--field {
+  border-style: dotted;
+}
+.ss-atom--image:has(img) {
+  padding: 0;
+  border: 0;
+}
+.ss-atom--image img {
+  display: block;
+  max-width: 100%;
+}
+.ss-desk-opaque {
+  margin: 0 0 6px;
+  padding: 2px 8px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-xs);
+  color: var(--ink-2);
+  text-indent: 0;
+}

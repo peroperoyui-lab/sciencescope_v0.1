@@ -1705,7 +1705,6 @@ export const en = {
   功能区: 'Ribbon',
   加粗: 'Bold',
   '只在 ScienceScope 里': 'Only in ScienceScope',
-  '只读，未修改': 'Read-only, unchanged',
   '在左栏选一份 docx、tex、md 或 pdf 打开，可以同时开几份，在顶部切换。':
     'Pick a docx, tex, md or pdf on the left. You can open several and switch between them at the top.',
   在左栏选一份文稿打开: 'Pick a document on the left',
@@ -1738,8 +1737,6 @@ export const en = {
   索引: 'Index',
   编号: 'Numbering',
   '编译 PDF': 'Compile PDF',
-  '编辑、批注和保存正在接入，现在只能阅读':
-    'Editing, comments and saving are on the way; for now documents are read-only',
   编辑台: 'Editing desk',
   '编辑台只打开 docx、tex、md 和 pdf 文稿。':
     'The editing desk opens docx, tex, md and pdf documents only.',
@@ -2109,4 +2106,48 @@ export const en = {
   '顺着知识库里的关系多找几条：用词不同但讲同一件事的资料也能找到':
     'Follows links in the knowledge base to find more: sources that use different words for the same thing are found too',
   默认环境: 'Default environment',
+  同步失败: 'Sync failed',
+  图片: 'Picture',
+  引用或域: 'Citation or field',
+  脚注: 'Footnote',
+  文本框: 'Text box',
+  对象: 'Object',
+  '{name}：编辑台保留原样，可在 Word 里修改':
+    '{name}: kept as it is on the desk; change it in Word',
+  '跨段落的域：编辑台保留原样，可在 Word 里修改':
+    'A field spanning paragraphs: kept as it is on the desk; change it in Word',
+  文稿正文: 'Document text',
+  文稿源码: 'Document source',
+  '没有打开这份文稿。': 'The document was not opened.',
+  '{name} 在编辑台外被改过': '{name} was changed outside the desk',
+  '项目文件夹里的这份文稿被其他程序改过，编辑台里还有没写回的修改。两边的内容都会留在版本里。':
+    'Another program changed this document in the project folder, and the desk has changes not yet written back. Both texts are kept as versions.',
+  以外部版本为准重新打开: 'Reopen with the outside version',
+  保留我的修改另存为分支: 'Keep my changes as a branch',
+  '另一边的内容已留作 v{n}': 'The other text is kept as v{n}',
+  只读: 'Read-only',
+  '历史版本只读；要修改，请打开项目文件夹里的文稿':
+    'Past versions are read-only; to edit, open the document in the project folder',
+  'PDF 正文只读，批注和索引稍后接入': 'PDF text is read-only; comments and indexes come later',
+  '渲染视图只读，切到「源码」编辑': 'The rendered view is read-only; switch to Source to edit',
+  '写回项目文件？': 'Write back to the project file?',
+  '项目文件现在是 v{n} 的内容，不是这次打开时的版本。写回会用编辑台里的内容替换它，v{n} 仍留在版本里。':
+    'The project file now holds v{n}, not the version opened here. Writing back replaces it with the desk text; v{n} stays in the versions.',
+  写回: 'Write back',
+  写回项目文件夹里的文稿: 'Write back to the document in the project folder',
+  '同步失败：{message}': 'Sync failed: {message}',
+  '正在同步…': 'Syncing…',
+  有修改未写回: 'Changes not written back',
+  已写回项目文件: 'Written back to the project file',
+  '已另存为 v{n}，项目文件保持外部版本':
+    'Saved as v{n}; the project file keeps the outside version',
+  '你的修改已留作 v{n}': 'Your changes are kept as v{n}',
+  '写回 {name}？': 'Write back {name}?',
+  '编辑台里有没写回项目文件的修改。不写回的话，修改会留作一个版本。':
+    'The desk has changes not written back to the project file. If you do not write them back, they are kept as a version.',
+  不写回: "Don't write back",
+  写回并关闭: 'Write back and close',
+  '项目文件在外面被改过，没有写回。':
+    'The project file was changed outside, so nothing was written back.',
+  '这次的修改已留作 v{n}': 'These changes are kept as v{n}',
 };

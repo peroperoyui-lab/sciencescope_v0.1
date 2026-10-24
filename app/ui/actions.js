@@ -4,6 +4,7 @@
 import { createOutboxActions } from './outbox-actions.js';
 import { createActivityActions } from './activity-actions.js';
 import { createVersionActions } from './version-actions.js';
+import { createDeskActions } from './desk-actions.js';
 import { createDeliverableActions } from './deliverable-actions.js';
 import { createSnapshotActions } from './snapshot-actions.js';
 import { createResearchActions } from './research-actions.js';
@@ -569,6 +570,7 @@ export function createActions(api, store) {
     ...outbox,
     ...activity,
     ...createVersionActions(api),
+    ...createDeskActions(api),
     ...createDeliverableActions(api),
     ...createSnapshotActions(api, store, () => resourceEdits.catch(() => {})),
     ...createResearchActions(api),

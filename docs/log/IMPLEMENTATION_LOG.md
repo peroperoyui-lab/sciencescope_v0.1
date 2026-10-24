@@ -1,5 +1,14 @@
 # 实施记录
 
+## 2026-10-24 U2 编辑台直接编辑（Claude）
+
+- docx 用 ProseMirror 按页面编辑，md、tex 用 CodeMirror 编辑源码；依赖（prosemirror-model/state/view/transform/commands/keymap/history、@codemirror/commands，均锁定版本）打进现有的 `readers/vendor.js`。
+- 段落和服务器块之间的转换、比较、提交内容和合并放在不依赖编辑器的 `desk-blocks.js`，同步控制在 `desk-session.js`，都有 node 测试；编辑器本体在 `readers/desk-editor.js`。
+- 后端两处小改：docx 块返回 `cell:{table,row,cell}`（表格单元格的位置）和 `section:true`（分节符段落）；打开时 `DESK_EXTERNAL_CHANGE` 的 details 加 `sessionId`。界面的 `ApiError` 带上 `details`，事件目录加 `desk.changed`、`desk.session`。
+- md 默认改成源码视图（渲染视图到 U6 才能编辑，现在是按会话内容显示的只读预览）；历史版本标签仍只读。
+- 调试中发现：两次在同一个两秒内生成的 docx 字节完全相同（ZIP 时间精度），测试里的「外部修改」改成写不同内容。
+- 还没有：段落样式、列表、Shift+Enter 换行、增删表格行列；切换标签会丢撤销历史（会话和修改都在）。
+
 ## 2026-10-24 R6c 审查合并（Claude）
 
 - 服务商 header 改存引用后，旧的设置界面会把引用显示成 `[object Object]`，再保存一次就把这串字当成新值覆盖掉密钥。改成和 MCP 一样的逐行编辑：已保存的显示「已保存在密钥文件 · 更换」，原样回传引用；行编辑组件抽成 `secret-rows.js`，MCP 和服务商共用。浏览器测试补了「编辑后再保存，引用和密钥都不变」。

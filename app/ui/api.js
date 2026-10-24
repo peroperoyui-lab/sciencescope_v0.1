@@ -38,6 +38,8 @@ export const EVENT_TYPES = [
   'python.changed',
   'knowledge.changed',
   'knowledge.layout.changed',
+  'desk.changed',
+  'desk.session',
   'desk.entered',
   'desk.focus',
   'desk.compiled',
@@ -46,11 +48,12 @@ export const EVENT_TYPES = [
 ];
 
 export class ApiError extends Error {
-  /** @param {string} code @param {string} message @param {number} status */
-  constructor(code, message, status) {
+  /** @param {string} code @param {string} message @param {number} status @param {any} [details] */
+  constructor(code, message, status, details = undefined) {
     super(message);
     this.code = code;
     this.status = status;
+    this.details = details;
   }
 }
 
@@ -92,6 +95,7 @@ export function createApi() {
         value?.code ?? 'HTTP',
         value?.message ?? response.statusText,
         response.status,
+        value?.details,
       );
     }
     return value;
@@ -120,6 +124,7 @@ export function createApi() {
     get: (route) => request('GET', route),
     post: (route, body = {}) => request('POST', route, body),
     patch: (route, body = {}) => request('PATCH', route, body),
+    put: (route, body = {}) => request('PUT', route, body),
     async bytes(route) {
       const response = await fetch(route, { headers: { authorization: `Bearer ${token}` } });
       if (!response.ok) throw new ApiError('HTTP', response.statusText, response.status);

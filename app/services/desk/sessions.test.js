@@ -243,6 +243,16 @@ test('writer failures leave the journal, sequence and file unchanged; idle batch
       await callback();
       assert.equal(writes, 1);
       await assert.rejects(readFile(previousWorking), { code: 'ENOENT' });
+      // Cells carry their table, row and cell so the editor can draw the table.
+      const cells = (await desk.getSession(session.id)).blocks.filter(
+        (block) => block.kind === 'table-cell',
+      );
+      assert.ok(cells.length >= 2);
+      assert.ok(cells.every((block) => Number.isInteger(block.cell?.cell)));
+      assert.equal(
+        cells.find((block) => block.id === split.inserted.new).cell.cell,
+        cells.find((block) => block.id === 'p:00000005').cell.cell,
+      );
       const parsed = await readDocx(await readFile(working));
       assert.equal(
         parsed.blocks.find((block) => block.id === split.inserted.new).kind,
@@ -283,9 +293,14 @@ test('open and save import external versions, retain dirty copies and confirm an
         blocks: { 'p:00000002': text('编辑台未保存') },
       });
       await modify('Word 再次修改');
-      await assert.rejects(desk.openSession({ groupId: group.id }), {
-        code: 'DESK_EXTERNAL_CHANGE',
-      });
+      // The desk names the open session so the person can reopen or keep it.
+      await assert.rejects(
+        desk.openSession({ groupId: group.id }),
+        (/** @type {any} */ error) =>
+          error.code === 'DESK_EXTERNAL_CHANGE' &&
+          error.details.sessionId === fresh.session.id &&
+          versions.get(error.details.versionId).origin === 'external',
+      );
       assert.equal((await desk.getSession(fresh.session.id)).blocks[1].text, '编辑台未保存');
       const branch = await desk.save(fresh.session.id, { to: 'version' });
       assert.equal(branch.version.parentId, fresh.session.baseVersionId);

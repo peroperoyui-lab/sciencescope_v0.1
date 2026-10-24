@@ -1,7 +1,8 @@
 // The editing desk window (docs/architecture/EDITING_DESK.md §7; gallery group
 // 「编辑台」): document tabs in the title bar, a ribbon, files and outline on the
 // left, the page in the middle, comments and the bound chat on the right, and a
-// status bar. U1 is the frame: documents open read-only until the editor (U2).
+// status bar. U2 edits a project's docx, Markdown and TeX in a desk session;
+// Ctrl+S writes the project file.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { initialDeskTarget, listenForDeskTargets } from '../desk-window.js';
@@ -9,7 +10,9 @@ import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
 import { LogoMark } from '../illustrations.js';
-import { DeskDocument } from './desk-document.js';
+import { writeBack } from '../desk-session.js';
+import { Dialog } from './dialog.js';
+import { DeskDocument, externalQuestion } from './desk-document.js';
 import { DeskNav, FileType, deskKind, latestVersion } from './desk-nav.js';
 import { Splitter } from './splitter.js';
 
@@ -97,11 +100,66 @@ function RibbonButton({ icon, text, onClick, disabled = false, pressed, tip }) {
 
 const Sep = () => html`<span class="ss-ribbon__sep"></span>`;
 
-/** Read-only for now: a tag with the reason instead of a tip on each disabled button. */
-const ReadOnly = () =>
-  html`<span class="ss-tag" data-tip=${t('编辑、批注和保存正在接入，现在只能阅读')}>
-    <${Lucide} name="eye" small />${t('只读预览')}
-  </span>`;
+/** A tag with the reason instead of a tip on each disabled button. @param {{ tip: string }} props */
+const ReadOnly = ({ tip }) =>
+  html`<span class="ss-tag" data-tip=${tip}> <${Lucide} name="eye" small />${t('只读')} </span>`;
+
+/** Why a tab cannot be edited. @param {any} tab @param {string} view */
+function readOnlyReason(tab, view) {
+  if (tab.kind === 'version') return t('历史版本只读；要修改，请打开项目文件夹里的文稿');
+  if (tab.format === 'pdf') return t('PDF 正文只读，批注和索引稍后接入');
+  if (tab.format === 'md' && view === 'rendered') return t('渲染视图只读，切到「源码」编辑');
+  return '';
+}
+
+/**
+ * One question with a few answers, as a promise. Esc or 取消 answers null.
+ * @returns {[any, (question: { title: string, text: string, options: { value: string, label: string, primary?: boolean }[] }) => Promise<string | null>]}
+ */
+function useQuestion() {
+  const [question, setQuestion] = useState(/** @type {any} */ (null));
+  const ask = useRef(
+    (value) => new Promise((resolve) => setQuestion({ ...value, resolve })),
+  ).current;
+  const answer = (value) => {
+    question.resolve(value);
+    setQuestion(null);
+  };
+  const dialog =
+    question &&
+    html`<${Dialog}
+      title=${question.title}
+      size="sm"
+      onClose=${() => answer(null)}
+      foot=${html`<button type="button" class="ss-btn" onClick=${() => answer(null)}>
+          ${t('取消')}
+        </button>
+        ${question.options.map(
+          (option) =>
+            html`<button
+              key=${option.value}
+              type="button"
+              class=${option.primary ? 'ss-btn ss-btn--primary' : 'ss-btn'}
+              onClick=${() => answer(option.value)}
+            >
+              ${option.label}
+            </button>`,
+        )}`}
+    >
+      <p>${question.text}</p>
+    <//>`;
+  return [dialog, ask];
+}
+
+/** @param {number} number */
+const confirmQuestion = (number) => ({
+  title: t('写回项目文件？'),
+  text: t(
+    '项目文件现在是 v{n} 的内容，不是这次打开时的版本。写回会用编辑台里的内容替换它，v{n} 仍留在版本里。',
+    { n: number },
+  ),
+  options: [{ value: 'write', label: t('写回'), primary: true }],
+});
 
 /** @param {{ views: string[], view: string, onView: (view: string) => void, enabled?: string[] }} props */
 function ViewSwitch({ views, view, onView, enabled = views }) {
@@ -127,7 +185,7 @@ function ViewSwitch({ views, view, onView, enabled = views }) {
  * @param {{ tab: any, view: string, onView: (view: string) => void, ribbon: string,
  *   onRibbon: (name: string) => void, collapsed: boolean, onCollapse: () => void,
  *   nav: boolean, onNav: () => void, panel: boolean, onPanel: () => void,
- *   page: any, pdf: any }} props
+ *   page: any, pdf: any, edit: any, editing: any, onSave: () => void }} props
  */
 function Ribbon({
   tab,
@@ -143,6 +201,9 @@ function Ribbon({
   onPanel,
   page,
   pdf,
+  edit,
+  editing,
+  onSave,
 }) {
   const actions = useActions();
   const format = tab?.format;
@@ -159,6 +220,19 @@ function Ribbon({
         ];
   const current = tabs.some(([name]) => name === ribbon) ? ribbon : 'home';
   const off = true;
+  const docx = edit?.format === 'docx';
+  const reason = tab ? readOnlyReason(tab, view) : '';
+  const run = (name) => () => editing.current?.command(name);
+  /** @param {string} name @param {string} icon @param {string} label @param {string} [kbd] */
+  const markButton = (name, icon, label, kbd) =>
+    html`<${IconButton}
+      icon=${icon}
+      label=${label}
+      kbd=${kbd}
+      disabled=${!docx}
+      pressed=${docx ? edit.marks.includes(name) : undefined}
+      onClick=${run(name)}
+    />`;
   const openOriginal = () =>
     actions.attempt(() =>
       actions.openPreviewOriginal(
@@ -211,15 +285,27 @@ function Ribbon({
       <${RibbonButton} icon="highlighter" text=${t('标记')} disabled=${off} />
       ${marks}
       <span class="ss-ribbon__spacer"></span>
-      <${ReadOnly} />
+      <${ReadOnly} tip=${reason} />
       <${RibbonButton}
         icon="external-link"
         text=${t('用系统阅读器打开')}
         onClick=${openOriginal}
       />`;
   else if (current === 'home')
-    bar = html`<${IconButton} icon="undo-2" label=${t('撤销')} kbd="Ctrl Z" disabled=${off} />
-      <${IconButton} icon="redo-2" label=${t('重做')} kbd="Ctrl Y" disabled=${off} />
+    bar = html`<${IconButton}
+        icon="undo-2"
+        label=${t('撤销')}
+        kbd="Ctrl Z"
+        disabled=${!edit?.undo}
+        onClick=${run('undo')}
+      />
+      <${IconButton}
+        icon="redo-2"
+        label=${t('重做')}
+        kbd="Ctrl Y"
+        disabled=${!edit?.redo}
+        onClick=${run('redo')}
+      />
       <${Sep} />
       ${format === 'tex' && html`${views}<${Sep} />`}
       <button
@@ -231,13 +317,12 @@ function Ribbon({
         <span class="ss-select__value">${format === 'tex' ? '\\section' : t('正文')}</span>
         <${Lucide} name="chevron-down" />
       </button>
-      <${IconButton} icon="bold" label=${t('加粗')} kbd="Ctrl B" disabled=${off} />
-      <${IconButton} icon="italic" label=${t('斜体')} kbd="Ctrl I" disabled=${off} />
+      ${markButton('b', 'bold', t('加粗'), 'Ctrl B')}
+      ${markButton('i', 'italic', t('斜体'), 'Ctrl I')}
       ${
         format === 'docx' &&
-        html`<${IconButton} icon="underline" label=${t('下划线')} kbd="Ctrl U" disabled=${off} />
-          <${IconButton} icon="superscript" label=${t('上标')} disabled=${off} />
-          <${IconButton} icon="subscript" label=${t('下标')} disabled=${off} />`
+        html`${markButton('u', 'underline', t('下划线'), 'Ctrl U')}
+        ${markButton('sup', 'superscript', t('上标'))} ${markButton('sub', 'subscript', t('下标'))}`
       }
       ${
         format === 'tex' &&
@@ -252,14 +337,21 @@ function Ribbon({
       <${Sep} />
       ${marks}
       <span class="ss-ribbon__spacer"></span>
-      <${ReadOnly} />
+      ${!edit && reason && html`<${ReadOnly} tip=${reason} />`}
       ${
         format === 'tex' &&
         html`<button type="button" class="ss-btn ss-btn--sm" disabled=${off}>
           <${Lucide} name="file-output" />${t('编译 PDF')}
         </button>`
       }
-      <button type="button" class="ss-btn ss-btn--primary ss-btn--sm" disabled=${off}>
+      <button
+        type="button"
+        class="ss-btn ss-btn--primary ss-btn--sm"
+        disabled=${!edit}
+        data-tip=${edit ? t('写回项目文件夹里的文稿') : undefined}
+        data-kbd=${edit ? 'Ctrl S' : undefined}
+        onClick=${onSave}
+      >
         <${Lucide} name="save" />${t('保存')}
       </button>`;
   else if (current === 'review')
@@ -385,8 +477,25 @@ function Titlebar({ tabs, active, onSelect, onClose, onAdd, title }) {
   </header>`;
 }
 
-/** @param {{ tab: any, group: any, info: any }} props */
-function Statusbar({ tab, group, info }) {
+/** @param {{ status: any }} props */
+function SaveState({ status }) {
+  const [dot, text] =
+    status?.state === 'error'
+      ? ['danger', t('同步失败：{message}', { message: status.message })]
+      : status?.state === 'syncing'
+        ? ['live', t('正在同步…')]
+        : status?.state === 'unsaved'
+          ? ['warn', t('有修改未写回')]
+          : status
+            ? ['ok', t('已写回项目文件')]
+            : ['', t('只读')];
+  return html`<span class="ss-statusbar__item" data-save=${status?.state ?? 'read-only'}
+    ><span class=${`ss-dot${dot ? ` ss-dot--${dot}` : ''}`}></span>${text}</span
+  >`;
+}
+
+/** @param {{ tab: any, group: any, info: any, edit: any }} props */
+function Statusbar({ tab, group, info, edit }) {
   const version =
     tab?.kind === 'version'
       ? group?.versions.find((entry) => entry.id === tab.id)
@@ -401,7 +510,7 @@ function Statusbar({ tab, group, info }) {
           ><${FileType} kind=${tab.type ?? 'group'} />${tab.label}</span
         >
         <span class="ss-statusbar__item">${versionText}</span>
-        <span class="ss-statusbar__item"><span class="ss-dot"></span>${t('只读，未修改')}</span>
+        <${SaveState} status=${edit?.status} />
         ${
           info.words != null &&
           html`<span class="ss-statusbar__item"
@@ -498,10 +607,15 @@ export function DeskWindow() {
   const [info, setInfo] = useState(/** @type {any} */ ({ outline: [], words: null }));
   const [jump, setJump] = useState(null);
   const [heading, setHeading] = useState(-1);
+  const [edit, setEdit] = useState(/** @type {any} */ (null));
+  const [question, ask] = useQuestion();
   const pdf = useRef(null);
+  const editing = useRef(/** @type {any} */ (null));
+  const sessions = useRef(/** @type {Record<string, string>} */ ({}));
   const canvas = useRef(/** @type {HTMLElement | null} */ (null));
   const tab = tabs.find((entry) => entry.key === active) ?? null;
-  const view = (tab && views[tab.key]) ?? (tab?.format === 'md' ? 'rendered' : 'source');
+  // Markdown opens as source: the rendered view is read-only until U6.
+  const view = (tab && views[tab.key]) ?? 'source';
   const panels = settings?.appearance?.panels ?? {};
 
   const open = (target) => {
@@ -517,11 +631,80 @@ export function DeskWindow() {
     setActive(next.key);
     setProjectId(target.projectId);
   };
-  const close = (key) => {
-    const index = tabs.findIndex((entry) => entry.key === key);
-    const rest = tabs.filter((entry) => entry.key !== key);
-    setTabs(rest);
-    if (key === active) setActive(rest[Math.min(index, rest.length - 1)]?.key ?? null);
+  // Ctrl+S: send what is typed, then write the project file, asking first
+  // when the file is at another version or was changed outside.
+  const save = async () => {
+    const current = editing.current;
+    if (!current || !tab) return;
+    try {
+      let result = await current.session.save();
+      if (result.confirm) {
+        if ((await ask(confirmQuestion(result.confirm.versionNumber))) !== 'write') return;
+        result = await current.session.save(true);
+      }
+      if (!result.external) return;
+      const choice = await ask(externalQuestion(tab.name));
+      if (choice === 'mine') {
+        const version = await current.session.saveVersion();
+        actions.toast(t('已另存为 v{n}，项目文件保持外部版本', { n: version.number }));
+      } else if (choice === 'external') {
+        const closed = await current.session.close();
+        if (closed.version) actions.toast(t('你的修改已留作 v{n}', { n: closed.version.number }));
+        current.reopen();
+      }
+    } catch (failure) {
+      actions.toast(failure.message);
+    }
+  };
+  /** Close a tab's session; unsaved text is written back or kept as a version. */
+  const finish = async (key) => {
+    const sessionId = sessions.current[key];
+    if (!sessionId) return true;
+    const entry = tabs.find((item) => item.key === key);
+    try {
+      if (key === active) await editing.current?.session.flush();
+      const { session } = await actions.deskSession(sessionId);
+      if (session.seq !== session.savedSeq) {
+        const choice = await ask({
+          title: t('写回 {name}？', { name: entry?.label ?? '' }),
+          text: t('编辑台里有没写回项目文件的修改。不写回的话，修改会留作一个版本。'),
+          options: [
+            { value: 'keep', label: t('不写回') },
+            { value: 'write', label: t('写回并关闭'), primary: true },
+          ],
+        });
+        if (!choice) return false;
+        if (choice === 'write') {
+          let result = await writeBack(actions, sessionId);
+          if (result.confirm) {
+            if ((await ask(confirmQuestion(result.confirm.versionNumber))) !== 'write')
+              return false;
+            result = await writeBack(actions, sessionId, true);
+          }
+          if (result.external) actions.toast(t('项目文件在外面被改过，没有写回。'));
+        }
+      }
+      const closed = await actions.closeDesk(sessionId);
+      if (closed.version) actions.toast(t('这次的修改已留作 v{n}', { n: closed.version.number }));
+    } catch (failure) {
+      if (failure.code !== 'DESK_SESSION_CLOSED' && failure.status !== 404) {
+        actions.toast(failure.message);
+        return false;
+      }
+    }
+    delete sessions.current[key];
+    return true;
+  };
+  const close = async (key) => {
+    if (!(await finish(key))) return;
+    setTabs((current) => {
+      const index = current.findIndex((entry) => entry.key === key);
+      const rest = current.filter((entry) => entry.key !== key);
+      setActive((selected) =>
+        selected === key ? (rest[Math.min(index, rest.length - 1)]?.key ?? null) : selected,
+      );
+      return rest;
+    });
   };
 
   useEffect(() => {
@@ -568,10 +751,16 @@ export function DeskWindow() {
         event.preventDefault();
         setCollapsed((value) => !value);
       }
+      if (event.key.toLowerCase() === 's' && (event.ctrlKey || event.metaKey) && !event.altKey) {
+        event.preventDefault();
+        saveRef.current();
+      }
     };
     addEventListener('keydown', key);
     return () => removeEventListener('keydown', key);
   }, []);
+  const saveRef = useRef(save);
+  saveRef.current = save;
 
   // The outline marks the last heading above the top of the visible page.
   const onScroll = () => {
@@ -626,6 +815,9 @@ export function DeskWindow() {
       onPanel=${() => setPanel(!panel)}
       page=${info}
       pdf=${pdf}
+      edit=${edit}
+      editing=${editing}
+      onSave=${save}
     />
     <div class="ss-shell__body">
       ${
@@ -660,6 +852,12 @@ export function DeskWindow() {
                 view=${view}
                 jump=${jump}
                 pdf=${pdf}
+                editing=${editing}
+                onEdit=${setEdit}
+                ask=${ask}
+                onSession=${(id) => {
+                  if (id) sessions.current[tab.key] = id;
+                }}
                 onInfo=${(next) => setInfo((known) => ({ ...known, ...next }))}
               />`
             : html`<div class="ss-empty ss-desk-canvas__state">
@@ -682,6 +880,7 @@ export function DeskWindow() {
         />`
       }
     </div>
-    <${Statusbar} tab=${tab} group=${group} info=${info} />
+    <${Statusbar} tab=${tab} group=${group} info=${info} edit=${edit} />
+    ${question}
   </div>`;
 }

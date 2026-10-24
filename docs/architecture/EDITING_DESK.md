@@ -37,7 +37,7 @@
 
 ### 3.1 模块位置
 
-后端在 `app/services/desk/`：`index.js`（会话）、`docx/read.js`、`docx/write.js`、`docx/comments.js`、`tex.js`、`markdown.js`、`compare.js`、`bindings.js`、`compile.js`；路由 `app/server/routes/desk.js`。界面在 `app/ui/components/desk*.js`，独立窗口用 `index.html?surface=desk` 加载（U1 定，不另建入口页），`app/ui/desk-window.js` 负责打开窗口和把文稿交给已开的窗口；编辑器依赖打进 `app/ui/readers/editor-vendor.js`。原生窗口沿用全局助手窗口的机制（`src-tauri/src/main.rs`，标签 `secondary-desk`，所有项目共用一个）。
+后端在 `app/services/desk/`：`index.js`（会话）、`docx/read.js`、`docx/write.js`、`docx/comments.js`、`tex.js`、`markdown.js`、`compare.js`、`bindings.js`、`compile.js`；路由 `app/server/routes/desk.js`。界面在 `app/ui/components/desk*.js`，独立窗口用 `index.html?surface=desk` 加载（U1 定，不另建入口页），`app/ui/desk-window.js` 负责打开窗口和把文稿交给已开的窗口；编辑器依赖和阅读器一起打进 `app/ui/readers/vendor.js`（U2 定：只有一个浏览器包，按需加载）。原生窗口沿用全局助手窗口的机制（`src-tauri/src/main.rs`，标签 `secondary-desk`，所有项目共用一个）。
 
 ### 3.2 文档模型
 
@@ -65,6 +65,8 @@
 - **同步：** 服务端会话持有块列表和递增的 `seq`，是正本。浏览器停止输入 800 毫秒后，把改过的块（docx）或整份文本（tex）连同 `baseSeq` 发给服务端，服务端记修改、`seq` 加一、广播 `desk.changed`。AI 的修改走同一入口。冲突按块处理：用户在同一块有未发出的修改时先等它提交；之后 AI 的 `find` 找不到就返回 `TEXT_NOT_FOUND`，模型重读再改，用户的字不被覆盖。
 
 **D3b 服务现状：** tex、md 共用 UTF-8 文本会话，按空行切块，Markdown 围栏内的空行不切块；显示块为 `{id:'t:<n>',kind,level,text}`，序号在会话内递增、不复用。保留 BOM、CRLF/LF、分隔空白和末尾换行；修改记录中的文字切片包含相邻分隔空白，使撤回与重启能逐字节恢复。全文提交用 `diffArrays` 配对相同块、同一空档按位置配对修改；必须使用当前 `baseSeq`，全文相同时不增序号。空闲写、撤回/保留、保存和版本均复用 D3a。非 UTF-8 返回 `DESK_ENCODING`。界面（U2）提交全文时要原样带回 BOM 和换行：CodeMirror 按文件的换行设 `lineSeparator`，否则 CRLF 文件每块都会记成修改；用户自己加或去掉 BOM 时，逐处撤回可能多留或少一个 BOM（审阅时随机测试发现，界面不提供这种操作，不处理）。DOCX 图片原子有可读取的嵌入图片时带 `media:true`，按原始包关系读第一张图片；包括 EMF 等浏览器不支持的格式，界面决定占位。
+
+**U2 界面现状：** `app/ui/readers/desk-editor.js` 是两个编辑器：docx 用 ProseMirror（段落节点带 `id/kind/level/style/section/like`，表格 table>row>cell 按会话返回的 `cell:{table,row,cell}` 分组，跨段落的域是不可编辑的块，内联原子保留 `atom/ref/run/wrap`，文字的 run 和超链接等外层用 `origin` 标记带着），md/tex 用 CodeMirror（按文件换行设 `lineSeparator`，BOM 单独记，提交时加回）。纯逻辑在 `app/ui/desk-blocks.js`：两边按同一规范比较（标记顺序 b,i,u,sup,sub，去掉空文字和 `media`，同 run 同标记的相邻文字合并），没改的段落不提交；新段落的 `after` 取同一单元格或正文里的前一段，`like` 取分出来的那段，普通段落没有时取最近的普通段落（避免标题后回车又成标题、分节符被复制）。`app/ui/desk-session.js` 是同步控制：停 0.8 秒提交一次、同时只有一个请求，返回的新 id 回填到编辑器；`DESK_CONFLICT` 时拉会话，冲突段落用服务器的，其他没提交的修改保留后重发；序号跳过（别人写过）或事件序号更大时也拉一次会话合并；服务器拒绝的修改（如删分节符）提示后回到服务器内容。编辑器里另有三条保护：新段落和重复 id 自动给临时 id（`n:<k>`）；书签和批注范围随文字删掉时放回原处；删表格单元格、分节符段落、跨段落的域的操作直接不生效。打开时 `DESK_EXTERNAL_CHANGE` 的 `details` 带 `sessionId`，界面据此关闭旧会话重开或继续旧会话。历史版本标签仍走只读阅读器；同一文稿只有一个会话，以项目文件为准。
 
 ### 3.3 E0 试验和之后的决定规则
 
@@ -341,7 +343,7 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 | E1 **A** | tex 渲染与公式编辑试验：LaTeX.js 对比自写转换、KaTeX、MathLive；md 往返                                             | Claude | 三份真实 tex（含中文、公式、表格）渲染对照截图，选定方案；md 改一处其余原文不变     |
 | U0 **A** | 编辑台设计稿：窗口布局、docx、tex、md、pdf、比较、版本树、浮动工具条、右键菜单（2026-10-22 已出，画廊「编辑台」组） | Claude | 所有者认可                                                                          |
 | U1 ✅    | 窗口骨架、入口、左栏、底部栏、文稿标签、`features.editingDesk`，撤掉工作站版本管理                                  | Claude | 100%、125% 截图；开关关闭时无入口                                                   |
-| U2 **A** | ProseMirror 编辑器、原子节点、块同步、Ctrl+S                                                                        | Claude | 浏览器测试：改字保存后重开一致                                                      |
+| U2 ✅    | ProseMirror 编辑器、原子节点、块同步、Ctrl+S                                                                        | Claude | 浏览器测试：改字保存后重开一致                                                      |
 | D4 ✅    | `diffVersions`：段落配对加段内词级比较和格式改动；生成版本时后台算好存进版本，任意两版现算缓存                      | Sol    | 插段、删段、拆段、改词、改格式测试；生成版本后 `diff_json` 存在                     |
 | U3 **A** | 比较视图：左右两页并排、同步滚动、上一处下一处，`version-diff.js` 改用新结果                                        | Claude | 截图；上一处、下一处可用                                                            |
 | D5 ✅    | `manuscript` 读写、`chg_` 撤回、`desk_suggest`、提示词                                                              | Sol    | 脚本运行时测试；`deepseek-v4.1-flash` 真跑一次，报请求数和 token                    |

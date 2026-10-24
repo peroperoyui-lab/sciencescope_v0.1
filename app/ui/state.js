@@ -66,6 +66,10 @@ export const initialState = {
   /** @type {any} */ modelCatalog: null,
   /** Bumped after the person changes files in a project folder. */
   filesVersion: 0,
+  /** Latest journal sequence per editing-desk session (`desk.changed`). */
+  /** @type {Record<string, number>} */ deskSeqs: {},
+  /** Last `desk.session` notice per session, such as a failed working-copy write. */
+  /** @type {Record<string, any>} */ deskSessions: {},
   /** Popups over the window: one menu, one dialog, one toast, the search palette. */
   overlay: {
     /** @type {null | { items: any[], label: string, x: number, y: number }} */ menu: null,
@@ -111,6 +115,17 @@ export function applyEvent(state, { type, payload }) {
       return { ...state, versionsVersion: state.versionsVersion + 1 };
     case 'python.changed':
       return { ...state, pythonVersion: state.pythonVersion + 1 };
+    case 'desk.changed':
+      if ((state.deskSeqs[payload.sessionId] ?? -1) >= payload.seq) return state;
+      return { ...state, deskSeqs: { ...state.deskSeqs, [payload.sessionId]: payload.seq } };
+    case 'desk.session':
+      return {
+        ...state,
+        deskSessions: {
+          ...state.deskSessions,
+          [payload.sessionId]: { ...payload, at: Date.now() },
+        },
+      };
     case 'research.input.changed':
       if ((state.researchDrafts[payload.ownerId]?.version ?? -1) > payload.value.version)
         return state;

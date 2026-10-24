@@ -216,7 +216,7 @@ export function createDeskSessions(
         throw conflict(
           'DESK_EXTERNAL_CHANGE',
           '项目文件已在外部修改，请重新打开外部版本，或将当前修改另存为版本。',
-          { versionId: source.version.id },
+          { versionId: source.version.id, sessionId: existing.id },
         );
       await close(state, {}, true);
     }
