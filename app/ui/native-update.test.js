@@ -33,7 +33,9 @@ test('update bridge is unavailable outside the native main window and installs o
       },
       event: {
         async listen(name, callback) {
-          assert.equal(name, 'update.progress');
+          // Match the native event contract, including Tauri's event-name rules.
+          assert.match(name, /^[\p{L}\p{N}\-/:_]+$/u);
+          assert.equal(name, 'update:progress');
           listener = callback;
           return () => removed++;
         },
@@ -54,6 +56,34 @@ test('update bridge is unavailable outside the native main window and installs o
       message: 'Synthetic signature mismatch',
     });
     assert.equal(removed, 2);
+  } finally {
+    if (previous === undefined) delete globalThis.__TAURI__;
+    else globalThis.__TAURI__ = previous;
+  }
+});
+
+test('listener setup errors receive a code and never invoke installation', async () => {
+  const previous = globalThis.__TAURI__;
+  let invoked = false;
+  try {
+    globalThis.__TAURI__ = {
+      window: { getCurrentWindow: () => ({ label: 'main' }) },
+      core: {
+        async invoke() {
+          invoked = true;
+        },
+      },
+      event: {
+        async listen() {
+          throw new Error('Native listener could not be registered');
+        },
+      },
+    };
+    await assert.rejects(install(), {
+      code: 'UPDATE_FAILED',
+      message: 'Native listener could not be registered',
+    });
+    assert.equal(invoked, false);
   } finally {
     if (previous === undefined) delete globalThis.__TAURI__;
     else globalThis.__TAURI__ = previous;

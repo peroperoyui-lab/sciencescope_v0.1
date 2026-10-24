@@ -16,7 +16,6 @@ function requireNative() {
 }
 
 function updateError(error) {
-  if (error instanceof Error) return error;
   return Object.assign(new Error(error?.message ?? String(error)), {
     code: error?.code ?? 'UPDATE_FAILED',
   });
@@ -42,14 +41,13 @@ export async function check() {
  */
 export async function install(onProgress = () => {}) {
   const native = requireNative();
-  const unlisten = await native.event.listen('update.progress', ({ payload }) =>
-    onProgress(payload),
-  );
+  let unlisten;
   try {
+    unlisten = await native.event.listen('update:progress', ({ payload }) => onProgress(payload));
     await native.core.invoke('install_update');
   } catch (error) {
     throw updateError(error);
   } finally {
-    unlisten();
+    unlisten?.();
   }
 }

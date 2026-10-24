@@ -23,6 +23,9 @@ use tauri_plugin_updater::{Update, UpdaterExt};
 const ENDPOINT: &str =
     "https://github.com/peroperoyui-lab/sciencescope_v0.1/releases/latest/download/latest.json";
 const DAY_MS: u64 = 24 * 60 * 60 * 1000;
+const AVAILABLE_EVENT: &str = "update:available";
+const ERROR_EVENT: &str = "update:error";
+const PROGRESS_EVENT: &str = "update:progress";
 
 fn installation_directory_arg(executable: &Path) -> Result<OsString, UpdateError> {
     let directory = executable.parent().ok_or_else(update_error::check_failed)?;
@@ -89,10 +92,8 @@ struct Progress {
     total: Option<u64>,
 }
 
-fn emit(app: &AppHandle, event: &str, payload: impl Serialize + Clone) {
-    if let Some(window) = app.get_webview_window("main") {
-        let _ = window.emit(event, payload);
-    }
+fn emit<R: tauri::Runtime>(app: &AppHandle<R>, event: &str, payload: impl Serialize + Clone) {
+    let _ = app.emit_to("main", event, payload);
 }
 
 fn require_main(window: &WebviewWindow) -> Result<(), UpdateError> {
@@ -189,7 +190,7 @@ async fn check(app: &AppHandle) -> Result<CheckResult, UpdateError> {
         .map_err(|_| UpdateError::new("UPDATE_STATE_FAILED", "Update state is unavailable."))? =
         release;
     if result.available {
-        emit(app, "update.available", result.clone());
+        emit(app, AVAILABLE_EVENT, result.clone());
     }
     Ok(result)
 }
@@ -203,7 +204,7 @@ pub async fn check_update(
     // Manual checks leave settings untouched and are never throttled.
     let result = check(&app).await;
     if let Err(error) = &result {
-        emit(&app, "update.error", error.clone());
+        emit(&app, ERROR_EVENT, error.clone());
     }
     result
 }
@@ -230,7 +231,7 @@ pub fn start_automatic(app: &AppHandle) {
         }
         .await;
         if let Err(error) = result {
-            emit(&app, "update.error", error);
+            emit(&app, ERROR_EVENT, error);
         }
     });
 }
@@ -252,7 +253,7 @@ pub async fn install_update(window: WebviewWindow, app: AppHandle) -> Result<(),
     let result = install(&app).await;
     state.installing.store(false, Ordering::Release);
     if let Err(error) = &result {
-        emit(&app, "update.error", error.clone());
+        emit(&app, ERROR_EVENT, error.clone());
     }
     result
 }
@@ -275,7 +276,7 @@ async fn install(app: &AppHandle) -> Result<(), UpdateError> {
     let mut downloaded = 0;
     emit(
         app,
-        "update.progress",
+        PROGRESS_EVENT,
         Progress {
             phase: "downloading",
             downloaded,
@@ -289,7 +290,7 @@ async fn install(app: &AppHandle) -> Result<(), UpdateError> {
                 downloaded += length as u64;
                 emit(
                     app,
-                    "update.progress",
+                    PROGRESS_EVENT,
                     Progress {
                         phase: "downloading",
                         downloaded,
@@ -304,7 +305,7 @@ async fn install(app: &AppHandle) -> Result<(), UpdateError> {
     let total = Some(bytes.len() as u64);
     emit(
         app,
-        "update.progress",
+        PROGRESS_EVENT,
         Progress {
             phase: "verified",
             downloaded,
@@ -313,7 +314,7 @@ async fn install(app: &AppHandle) -> Result<(), UpdateError> {
     );
     emit(
         app,
-        "update.progress",
+        PROGRESS_EVENT,
         Progress {
             phase: "stopping",
             downloaded,
@@ -332,7 +333,7 @@ async fn install(app: &AppHandle) -> Result<(), UpdateError> {
     .map_err(|_| update_error::stop_failed())?;
     emit(
         app,
-        "update.progress",
+        PROGRESS_EVENT,
         Progress {
             phase: "installing",
             downloaded,
@@ -348,6 +349,48 @@ async fn install(app: &AppHandle) -> Result<(), UpdateError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tauri::Listener;
+
+    #[test]
+    fn native_events_pass_tauri_validation_and_reach_only_the_main_window() {
+        let app = tauri::test::mock_app();
+        let main = tauri::WebviewWindowBuilder::new(&app, "main", tauri::WebviewUrl::default())
+            .build()
+            .unwrap();
+        let secondary = tauri::WebviewWindowBuilder::new(
+            &app,
+            "secondary-assistant",
+            tauri::WebviewUrl::default(),
+        )
+        .build()
+        .unwrap();
+        let received = std::sync::Arc::new(Mutex::new(Vec::new()));
+        for name in [AVAILABLE_EVENT, ERROR_EVENT, PROGRESS_EVENT] {
+            let received_main = received.clone();
+            main.listen(name, move |event| {
+                received_main
+                    .lock()
+                    .unwrap()
+                    .push(("main", event.payload().to_owned()))
+            });
+            let received_secondary = received.clone();
+            secondary.listen(name, move |event| {
+                received_secondary
+                    .lock()
+                    .unwrap()
+                    .push(("secondary", event.payload().to_owned()))
+            });
+            emit(
+                app.handle(),
+                name,
+                json!({"phase":"downloading","downloaded":10,"total":20}),
+            );
+        }
+        let received = received.lock().unwrap();
+        assert_eq!(received.len(), 3);
+        assert!(received.iter().all(|(window, payload)| *window == "main"
+            && serde_json::from_str::<Value>(payload).unwrap()["downloaded"] == 10));
+    }
 
     #[test]
     #[cfg(windows)]

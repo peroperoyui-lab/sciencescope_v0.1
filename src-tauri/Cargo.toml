@@ -17,6 +17,9 @@ serde = { version = "1", features = ["derive"] }
 url = "2"
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Security", "Win32_System_JobObjects", "Win32_System_Threading"] }
 
+[dev-dependencies]
+tauri = { version = "2", features = ["test"] }
+
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]

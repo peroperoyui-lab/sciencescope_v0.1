@@ -50,6 +50,8 @@ try {
 
 `app/ui/native-update.js` 不包含界面，提供 `supported()`、`check()`、`install(onProgress)`；仅原生主窗口受支持。`check()` 返回 `{available,version,notes,date}`，手动检查不受间隔限制，也不写 `lastCheckedAt`。`updates.autoCheck` 默认 `true`；每次启动会判断是否距上次自动尝试满 24 小时，自动尝试在联网前保存 `updates.lastCheckedAt`，成功、无更新或失败都占用这次间隔。没有定时强制安装。
 
+Claude 接界面时监听原生事件 `update:available`（与 `check()` 返回的四字段相同）、`update:error`（`{code,message}`）及 `update:progress`（`{phase,downloaded,total}`；阶段为 `downloading`、`verified`、`stopping`、`installing`，`total` 未知时为 `null`）。事件使用 Tauri 支持的冒号命名，并通过 `emit_to("main", …)` 只发送给主窗口；点号事件名无法注册。`install(onProgress)` 先注册进度监听再调用安装命令，监听注册失败也会返回带 `code` 的错误。
+
 安装先完成下载并验证 updater 签名，再调用现有宿主关闭通道，等待后台任务、SQLite 写入及 WAL/SHM 清理。下载中断、签名不匹配或清单不可达时保留当前版本并返回错误，可再次手动检查。Windows 安装使用已固定的 `tauri-plugin-updater =2.10.1`；其 NSIS 调用包含 `/P /UPDATE /R /ARGS …`，ScienceScope 最后追加 `/D=<当前可执行文件所在目录>`，明确使用当前安装位置，不依赖注册表或上次安装的默认目录，由安装程序覆盖后重开应用；不另加 process 插件。覆盖清理仅针对程序文件，`data/` 保留。参数与退出行为已对照 [2.10.1 官方源码](https://github.com/tauri-apps/plugins-workspace/blob/updater-v2.10.1/plugins/updater/src/updater.rs)；组件按 [Apache-2.0 OR MIT](https://github.com/tauri-apps/plugins-workspace/blob/updater-v2.10.1/Cargo.toml) 双许可使用。该版本的 Windows 安装调用未检查 `ShellExecuteW` 返回值；系统策略若阻止安装程序启动，应用可能已退出，需要手动重开当前版本后重试。
 
 ## 本地升级演练与最低配置
