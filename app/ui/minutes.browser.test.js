@@ -97,46 +97,67 @@ test(
 
         await page.goto(new URL('/?token=ui-token#/settings/secretary-settings', page.url()).href);
         const form = page.locator('[data-summary-settings]');
-        await form.getByLabel('有序讨论结束后', { exact: true }).check();
-        await form.getByLabel('按消息数自动总结').check();
-        await form.getByLabel('主对话消息间隔').fill('7');
-        await form.getByLabel('主对话消息间隔').press('Tab');
-        await form.getByLabel('按 token 数自动总结').check();
-        await form.getByLabel('新 token 间隔').fill('8000');
-        await form.getByLabel('新 token 间隔').press('Tab');
-        await form.getByLabel('进入项目时', { exact: true }).check();
-        await form.getByLabel('离开项目时', { exact: true }).check();
-        await form.getByLabel('导图自动更新').selectOption('apply');
-        await form.getByLabel('计划自动更新').selectOption('apply');
-        await form.getByLabel('日志自动更新').selectOption('apply');
-        await form.getByText('自动总结设置已保存。', { exact: true }).waitFor();
-        const rules = (await app.core.workspace.read({ resource: 'settings', key: 'app' })).value
-          .summary;
-        assert.deepEqual(rules, {
+        const choose = async (label, option) => {
+          await form.getByRole('button', { name: label, exact: true }).click();
+          await page.getByRole('menuitemradio', { name: option, exact: true }).click();
+        };
+        await form.getByRole('switch', { name: '有序讨论结束后', exact: true }).check();
+        await form.getByRole('switch', { name: '按消息数整理', exact: true }).check();
+        await choose('消息间隔', '10 条消息');
+        await form.getByRole('switch', { name: '按长度整理', exact: true }).check();
+        await choose('长度间隔', '约 1 万字');
+        await form.getByRole('switch', { name: '进入项目时', exact: true }).check();
+        await form.getByRole('switch', { name: '离开项目时', exact: true }).check();
+        const updates = page.locator('section', { hasText: '整理纪要时顺便更新' });
+        for (const name of ['研究导图', '计划', '日志'])
+          await updates
+            .getByRole('group', { name: `${name}自动更新`, exact: true })
+            .getByRole('button', { name: '直接更新', exact: true })
+            .click();
+        const expected = {
           afterDiscussion: true,
-          everyMessages: { enabled: true, n: 7 },
-          everyTokens: { enabled: true, n: 8000 },
+          everyMessages: { enabled: true, n: 10 },
+          everyTokens: { enabled: true, n: 10000 },
           onEnterProject: true,
           onLeaveProject: true,
           workbench: { map: 'apply', plans: 'apply', log: 'apply', versions: 'off' },
-        });
+        };
+        const rules = async () =>
+          (await app.core.workspace.read({ resource: 'settings', key: 'app' })).value.summary;
+        for (let tries = 0; tries < 50; tries++) {
+          if (JSON.stringify(await rules()) === JSON.stringify(expected)) break;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        assert.deepEqual(await rules(), expected);
         await page.reload();
-        await form.getByLabel('主对话消息间隔').waitFor();
-        assert.equal(await form.getByLabel('主对话消息间隔').inputValue(), '7');
-        assert.equal(await form.getByLabel('导图自动更新').inputValue(), 'apply');
-        assert.equal(await form.locator('option[value="propose"]').count(), 0);
+        await form.getByRole('button', { name: '消息间隔', exact: true }).waitFor();
+        assert.equal(
+          await form.getByRole('button', { name: '消息间隔', exact: true }).innerText(),
+          '10 条消息',
+        );
+        assert.equal(
+          await updates
+            .getByRole('group', { name: '研究导图自动更新', exact: true })
+            .getByRole('button', { name: '直接更新', exact: true })
+            .getAttribute('aria-pressed'),
+          'true',
+        );
         await form.scrollIntoViewIfNeeded();
         await shot('r4-4a-secretary-rules-zh');
-        await page.getByRole('button', { name: '视图', exact: true }).click();
-        await page.getByRole('menuitemcheckbox', { name: 'English', exact: true }).click();
-        await form.locator('h2', { hasText: 'Automatic summary' }).waitFor();
+        await app.core.workspace.edit({
+          resource: 'settings',
+          key: 'app',
+          op: 'patch',
+          args: { changes: { appearance: { language: 'en' } } },
+        });
+        await form.locator('h3', { hasText: 'When to write minutes' }).waitFor();
         assert.doesNotMatch(await form.innerText(), /[一-鿿]/u);
         await shot('r4-4a-secretary-rules-en');
         await page.goto(new URL('/?token=ui-token#/meeting/' + meeting.id, page.url()).href);
         await page.getByRole('button', { name: 'Workspace menu', exact: true }).click();
         await page.getByRole('menuitem', { name: 'Conversation minutes', exact: true }).click();
         await page.locator('[data-minutes-meta]', { hasText: 'Covers messages' }).waitFor();
-        await page.locator('[data-minutes-next]', { hasText: '7 more messages' }).waitFor();
+        await page.locator('[data-minutes-next]', { hasText: '10 more messages' }).waitFor();
         assert.doesNotMatch(await page.locator('.minutes-dialog').innerText(), /[一-鿿]/u);
         await page
           .locator('.modal')

@@ -1,6 +1,6 @@
 // The whole window in the old interface's layout: top bar, sidebar, the
 // current page, the status bar and the popups.
-import { useEffect, useLayoutEffect } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { comboOf } from '../appearance.js';
 import { html } from '../html.js';
@@ -15,7 +15,9 @@ import { MaterialsPanel } from './materials-panel.js';
 import { FilePreview } from './file-preview.js';
 import { Overlays } from './overlays.js';
 import { ProjectNew } from './project-new.js';
-import { SettingsView } from './settings.js';
+import { SettingsDialog } from './settings.js';
+import { UpdatePrompt } from './update-prompt.js';
+import { listenForUpdates } from '../update-state.js';
 import { Footbar, Topbar } from './shell.js';
 import { Sidebar } from './sidebar.js';
 import { Workbench } from './workbench.js';
@@ -55,7 +57,12 @@ function useShortcuts(projectId) {
 }
 
 export function App() {
-  const route = useRoute();
+  const address = useRoute();
+  // Settings open as a dialog over the page the person came from.
+  const behind = useRef(/** @type {import('../route.js').Route} */ ({ view: 'home' }));
+  if (address.view !== 'settings') behind.current = address;
+  const route = behind.current;
+  const settingsPage = address.view === 'settings' ? address.id : null;
   const assistantOpen = useAppState((state) => state.assistantOpen);
   const materialsTarget = useAppState((state) => state.materialsTarget);
   // Re-render everything when the language changes.
@@ -87,6 +94,7 @@ export function App() {
     void actions.attempt(() => actions.focusProject(projectId));
   }, [projectId]);
   useShortcuts(projectId);
+  useEffect(listenForUpdates, []);
   const projectName = useAppState(
     (state) => state.projects.find((project) => project.id === projectId)?.name,
   );
@@ -138,8 +146,6 @@ export function App() {
   else if (route.view === 'project-new') page = html`<${ProjectNew} />`;
   else if (route.view === 'plans' || route.view === 'journal' || route.view === 'files') {
     page = html`<${WorkbenchPage} view=${route.view} projectId=${route.id} />`;
-  } else if (route.view === 'settings') {
-    page = html`<${SettingsView} page=${route.id} projectName=${projectName} />`;
   } else page = html`<${Welcome} projectId=${route.view === 'new' ? route.id : null} />`;
 
   // The map editor takes the whole window, as in the prototype, while the
@@ -156,5 +162,10 @@ export function App() {
       meetingId=${route.view === 'meeting' ? route.id.split('/')[0] : null}
       projectId=${projectId}
     />
+    ${
+      settingsPage !== null &&
+      html`<${SettingsDialog} page=${settingsPage} onClose=${() => navigate(behind.current)} />`
+    }
+    <${UpdatePrompt} />
     <${Overlays} />`;
 }

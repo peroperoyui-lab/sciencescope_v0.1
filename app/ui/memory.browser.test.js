@@ -187,28 +187,34 @@ test(
         );
         await page.goto(new URL('/?token=ui-token#/settings/secretary-settings', page.url()).href);
         const form = page.locator('[data-memory-consolidation-settings]');
-        await form.getByLabel('Consolidate memory candidates while idle', { exact: true }).check();
-        await form.getByLabel('Idle time (minutes)', { exact: true }).fill('12');
-        await form.getByLabel('Idle time (minutes)', { exact: true }).press('Tab');
-        await form.getByLabel('Total token budget per consolidation', { exact: true }).fill('');
-        await form.getByLabel('Total token budget per consolidation', { exact: true }).press('Tab');
-        await form.getByText('Memory consolidation settings saved.', { exact: true }).waitFor();
-        assert.equal(
-          (await app.core.workspace.read({ resource: 'settings', key: 'app' })).value.memory
-            .tokenLimit,
-          null,
-        );
+        const choose = async (label, option) => {
+          await form.getByRole('button', { name: label, exact: true }).click();
+          await page.getByRole('menuitemradio', { name: option, exact: true }).click();
+        };
+        await form
+          .getByRole('switch', { name: 'Consolidate memory candidates while idle', exact: true })
+          .check();
+        await choose('After idle for', '5 minutes');
+        await choose('Limit per run', '100k tokens');
+        await choose('Limit per run', 'Unlimited');
+        const memory = async () =>
+          (await app.core.workspace.read({ resource: 'settings', key: 'app' })).value.memory;
+        for (let tries = 0; tries < 50; tries++) {
+          const value = await memory();
+          if (value.idleMinutes === 5 && value.tokenLimit === null) break;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        assert.equal((await memory()).idleMinutes, 5);
+        assert.equal((await memory()).tokenLimit, null);
         await page.reload();
-        await form.getByLabel('Idle time (minutes)', { exact: true }).waitFor();
+        await form.getByRole('button', { name: 'After idle for', exact: true }).waitFor();
         assert.equal(
-          await form.getByLabel('Idle time (minutes)', { exact: true }).inputValue(),
-          '12',
+          await form.getByRole('button', { name: 'After idle for', exact: true }).innerText(),
+          '5 minutes',
         );
         assert.equal(
-          await form
-            .getByLabel('Total token budget per consolidation', { exact: true })
-            .inputValue(),
-          '',
+          await form.getByRole('button', { name: 'Limit per run', exact: true }).innerText(),
+          'Unlimited',
         );
         await form.scrollIntoViewIfNeeded();
         await shot('r4-4c-memory-settings-en');

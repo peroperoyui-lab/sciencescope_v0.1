@@ -44,8 +44,12 @@ export function Composer({
   const discussion = useDiscussion(meetingId);
   // Approval is part of the meeting's rules; before the meeting exists the
   // choice waits here and is passed when the first message creates it.
-  const [draftApproval, setDraftApproval] = useState('ask');
-  const approval = meetingId ? (discussion.policy.approval ?? 'ask') : draftApproval;
+  // A new chat starts in the mode chosen in Settings → 执行与批准.
+  const defaultApproval = useAppState((state) => state.settings?.approvals?.defaultApproval);
+  const [draftApproval, setDraftApproval] = useState(/** @type {string | null} */ (null));
+  const approval = meetingId
+    ? (discussion.policy.approval ?? 'ask')
+    : (draftApproval ?? defaultApproval ?? 'ask');
   // The model also belongs to the meeting; the default model in settings is
   // what a meeting without its own choice (and Main's definition) follows.
   const [draftModel, setDraftModel] = useState(/** @type {any} */ (null));

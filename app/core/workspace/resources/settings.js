@@ -43,7 +43,14 @@ export const DEFAULT_SETTINGS = {
   assistant: { startup: 'closed' },
   // Native update checks persist their attempt time, including failed checks.
   updates: { autoCheck: true, lastCheckedAt: null },
-  python: { defaultEnvironment: null, indexUrl: null, installMirror: null },
+  // Download sources the person added in Settings → Python 环境, as { name, url }.
+  python: {
+    defaultEnvironment: null,
+    indexUrl: null,
+    installMirror: null,
+    customIndexes: [],
+    customInstallMirrors: [],
+  },
   // Academic sites on the welcome page.
   sites: [
     { name: 'Elsevier', url: 'https://www.sciencedirect.com' },
@@ -57,7 +64,8 @@ export const DEFAULT_SETTINGS = {
   // The model AIs use unless their own definition names one.
   models: { default: null },
   context: { compactPercent: 80 },
-  approvals: { rules: [] },
+  // defaultApproval: the execution mode a new chat starts in ('ask' or 'auto').
+  approvals: { rules: [], defaultApproval: 'ask' },
   skills: { disabled: [] },
   mcp: { servers: [], npmRegistry: null },
   semantic: DEFAULT_SEMANTIC_SETTINGS,
@@ -108,6 +116,8 @@ function parse(text) {
 function format(value) {
   if (typeof value.knowledge?.retrievalExpansion !== 'boolean')
     throw new AppError('INVALID_RETRIEVAL_EXPANSION', '知识图检索扩展设置必须为开启或关闭。');
+  if (!['ask', 'auto'].includes(value.approvals?.defaultApproval))
+    throw new AppError('INVALID_DEFAULT_APPROVAL', '新对话默认的执行方式只能是请求批准或常规。');
   if (!['auto', 'xelatex', 'lualatex', 'pdflatex'].includes(value.desk?.tex?.engine))
     throw new AppError('INVALID_TEX_ENGINE', '请选择自动或已支持的 TeX 引擎。');
   for (const server of value.mcp.servers)

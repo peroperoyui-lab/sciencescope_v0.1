@@ -22,6 +22,18 @@ export function createVersionActions(api) {
       return api.post('/api/versions/import', { projectId, files: encoded, groupId, groupName });
     },
     renameVersionGroup: (id, name) => api.patch(`/api/version-groups/${id}`, { name }),
+    /** Renames a manuscript tier everywhere it is used. @param {string} from @param {string} to */
+    renameTier: (from, to) => api.post('/api/version-tiers/rename', { from, to }),
+    /** The TeX engines found on this computer; `refresh` looks again. @param {boolean} [refresh] */
+    texEngines: (refresh = false) => api.get(`/api/desk/tex/engines${refresh ? '?refresh=1' : ''}`),
+    /** @param {{ target: string, includeProjectCopies?: boolean }} input */
+    startExport: (input) => api.post('/api/export/all', input),
+    /** @param {string} jobId */
+    exportStatus: (jobId) => api.get(`/api/export/all/${jobId}`),
+    /** @param {string} jobId */
+    cancelExport: (jobId) => api.request('DELETE', `/api/export/all/${jobId}`),
+    /** @param {string} jobId */
+    openExport: (jobId) => api.post(`/api/export/all/${jobId}/open`),
     deleteVersion: (id) => api.request('DELETE', `/api/versions/${id}`),
     openVersion: (id, reveal = false) => api.post(`/api/versions/${id}/open`, { reveal }),
     readVersion: (id) => api.get(`/api/versions/${id}`),

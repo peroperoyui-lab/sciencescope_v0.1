@@ -1,159 +1,25 @@
-// Settings pages for AI participants, in the old interface's markup: the role
-// pages (人格与记忆 for the main expert, 任务秘书, 全局助手) and the expert
-// roster (专家角色). Each AI's definition is its file `agents/<id>.md`; saving
-// writes a revision, so earlier versions can be restored.
+// Settings → 专家 (design system PageSettingsExperts, PageSettingsExpertDetail):
+// the roster of the main expert, the discussion experts and the independent
+// reviewers, and one detail page for any AI role (the secretary and the
+// assistant open it too). Each AI's definition is its file `agents/<id>.md`;
+// every change writes a revision that can be undone.
 import { useEffect, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { formatTime, t } from '../i18n/index.js';
+import { Lucide } from '../icons.js';
 import { thinkingChoices, useModelCatalog } from '../model-catalog.js';
+import { navigate } from '../route.js';
+import { effortName } from './model-picker.js';
+import { usePopover } from './popover.js';
 import { SkillBinding } from './settings-skills.js';
-import { InfoTip } from './info-tip.js';
+import { AutoText, Head, Row, Saved, Section, Seg, Select, Switch } from './settings-kit.js';
 
-/** Model choices from the configured providers, plus the stored one if it disappeared. */
-function useModelChoices() {
-  const providers = useModelCatalog();
-  return providers.flatMap((provider) =>
-    provider.models.map((model) => ({
-      value: JSON.stringify({ provider: provider.id, model: model.id }),
-      label: `${provider.name ?? provider.id} / ${model.name ?? model.id}`,
-      efforts: thinkingChoices(model),
-    })),
-  );
-}
-
-/** @param {{ model: any, onChange: (model: any) => void, emptyLabel: string }} props */
-function ModelFields({ model, onChange, emptyLabel }) {
-  const choices = useModelChoices();
-  const value = model?.model
-    ? JSON.stringify({ provider: model.provider, model: model.model })
-    : '';
-  const known = choices.find((choice) => choice.value === value);
-  const efforts = known?.efforts ?? [];
-  return html`<div class="field">
-      <label>${t('模型')}</label>
-      <select
-        value=${value}
-        onChange=${(event) => {
-          const next = event.currentTarget.value;
-          onChange(next ? { ...JSON.parse(next) } : null);
-        }}
-      >
-        <option value="">${emptyLabel}</option>
-        ${choices.map((choice) => html`<option key=${choice.value} value=${choice.value}>${choice.label}</option>`)}
-        ${value && !known && html`<option value=${value}>${model.model}（${t('当前服务列表中不存在')}）</option>`}
-      </select>
-    </div>
-    <div class="field">
-      <label>${t('默认思考强度')}<${InfoTip} text=${t('只列出当前模型公开支持的强度。')} /></label>
-      <select
-        value=${model?.effort ?? ''}
-        disabled=${!model?.model}
-        onChange=${(event) =>
-          onChange({ ...model, effort: event.currentTarget.value || undefined })}
-      >
-        <option value="">${t('模型默认')}</option>
-        ${efforts.map((effort) => html`<option key=${effort} value=${effort}>${effort}</option>`)}
-        ${model?.effort && !efforts.includes(model.effort) && html`<option value=${model.effort}>${model.effort}</option>`}
-      </select>
-    </div>`;
-}
-
-/** Saved versions of an AI's definition, each restorable. @param {{ participantId: string }} props */
-function DefinitionHistory({ participantId }) {
-  const actions = useActions();
-  const version = useAppState((state) => state.workspaceVersion);
-  const [revisions, setRevisions] = useState(null);
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (open)
-      actions.history({ resource: 'agent', key: participantId, limit: 20 }).then(setRevisions);
-  }, [open, version]);
-  return html`<details onToggle=${(event) => setOpen(event.currentTarget.open)}>
-    <summary>${t('最近修改记录')}</summary>
-    ${(revisions ?? []).map(
-      (revision) =>
-        html`<div class="listrow" key=${revision.id}>
-          <span class="grow">${formatTime(revision.createdAt)}</span>
-          ${
-            revision.undoneBy
-              ? html`<small>${t('已撤销')}</small>`
-              : html`<button
-                  class="btn tiny"
-                  type="button"
-                  onClick=${() => actions.attempt(() => actions.undo(revision.id))}
-                >
-                  ${t('撤销')}
-                </button>`
-          }
-        </div>`,
-    )}
-  </details>`;
-}
-
-/**
- * The prompt and model of one built-in role.
- * @param {{ participantId: string, title: string, tip: string }} props
- */
-export function RolePage({ participantId, title, tip }) {
-  const actions = useActions();
-  const version = useAppState((state) => state.workspaceVersion);
-  const [definition, setDefinition] = useState(/** @type {any} */ (null));
-  const [saved, setSaved] = useState(0);
-  const [feedback, setFeedback] = useState('');
-  useEffect(() => {
-    actions.attempt(async () => {
-      const participant = await actions.getParticipant(participantId);
-      setDefinition(participant.definition);
-      const history = await actions.history({ resource: 'agent', key: participantId, limit: 100 });
-      setSaved(history.length);
-    });
-  }, [participantId, version]);
-
-  if (!definition) return html`<p role="status">${t('正在读取…')}</p>`;
-  async function submit(event) {
-    event.preventDefault();
-    const result = await actions.attempt(() =>
-      actions.updateParticipant(participantId, {
-        prompt: definition.prompt,
-        model: definition.model,
-        skills: definition.skills ?? [],
-      }),
-    );
-    if (result !== undefined) setFeedback(t('已保存，下一轮发言生效。'));
-  }
-  return html`<section>
-    <form onSubmit=${submit}>
-      <h2>${title}<${InfoTip} text=${tip} /></h2>
-      <div class="field">
-        <label>${t('角色 system prompt')}</label>
-        <textarea
-          required
-          style="min-height:240px"
-          value=${definition.prompt}
-          onInput=${(event) => setDefinition({ ...definition, prompt: event.currentTarget.value })}
-        ></textarea>
-      </div>
-      <${ModelFields}
-        model=${definition.model}
-        emptyLabel=${t('由输入框选择')}
-        onChange=${(model) => setDefinition({ ...definition, model })}
-      />
-      <${SkillBinding}
-        value=${definition.skills ?? []}
-        onChange=${(skills) => setDefinition({ ...definition, skills })}
-      />
-      <p>
-        ${t('已保存版本 {n}', { n: saved })}<${InfoTip}
-          text=${t('保存后从下一轮发言开始使用，已有对话的历史保留。每次保存都留有记录，可以撤销。')}
-        />
-      </p>
-      <p role="status">${feedback}</p>
-      <div class="saverow"><button type="submit" class="btn primary">${t('保存配置')}</button></div>
-      <${DefinitionHistory} participantId=${participantId} />
-    </form>
-  </section>`;
-}
+const BUILT_IN = {
+  agent_main: { name: '主专家', avatar: '主', back: ['experts', '专家'] },
+  agent_secretary: { name: '任务秘书', avatar: '秘', back: ['secretary', '任务秘书'] },
+  agent_assistant: { name: '全局助手', avatar: '助', back: ['assistant', '全局助手'] },
+};
 
 const NEW_PROMPTS = {
   expert:
@@ -162,194 +28,414 @@ const NEW_PROMPTS = {
     'You are an independent research reviewer. Check facts, evidence, methods and conclusions for consistency. Identify unsupported claims and concrete corrections. Answer in the language the user writes in.',
 };
 
-/** @param {{ expert: any, index: number, first: boolean, last: boolean, onChange: any, onMove: any, onRemove: any }} props */
-function ExpertCard({ expert, index, first, last, onChange, onMove, onRemove }) {
-  const set = (key) => (event) => onChange({ ...expert, [key]: event.currentTarget.value });
-  return html`<fieldset
-    class="expert-card"
-    style="border:1px solid var(--line,#e3e5de);border-radius:10px;padding:12px 14px;margin:0 0 12px"
-  >
-    <legend>
-      <small>${index + 1}</small> ${expert.name || t('未命名专家')}
-      <small>${expert.id ?? ''}</small>
-    </legend>
-    <div class="row" style="gap:10px;flex-wrap:wrap">
-      <div class="field" style="flex:1 1 160px">
-        <label>${t('名称')}</label><input required value=${expert.name} onInput=${set('name')} />
-      </div>
-      <div class="field" style="flex:1 1 160px">
-        <label>${t('职责标签')}</label><input value=${expert.role} onInput=${set('role')} />
-      </div>
-      <div class="row" style="flex:3 1 420px;gap:10px">
-        <${ModelFields}
-          model=${expert.model}
-          emptyLabel=${t('使用对话所选模型')}
-          onChange=${(model) => onChange({ ...expert, model })}
-        />
-      </div>
-    </div>
-    <div class="field">
-      <label
-        >${t('角色提示词')}<${InfoTip}
-          text=${t('写明职责、侧重和必查清单。提示词不授予工具权限。')}
-      /></label>
-      <textarea
-        required
-        style="min-height:120px"
-        value=${expert.prompt}
-        onInput=${set('prompt')}
-      ></textarea>
-    </div>
-    <${SkillBinding}
-      value=${expert.skills ?? []}
-      onChange=${(skills) => onChange({ ...expert, skills })}
-    />
-    <div class="row" style="gap:8px;align-items:center">
-      <label style="display:flex;gap:6px;align-items:center">
-        <input
-          type="checkbox"
-          checked=${expert.enabled !== false}
-          onChange=${(event) => onChange({ ...expert, enabled: event.currentTarget.checked })}
-        />${t('启用')}
-      </label>
-      <span class="spacer"></span>
-      <button type="button" class="btn tiny" disabled=${first} onClick=${() => onMove(-1)}>
-        ${t('上移')}
-      </button>
-      <button type="button" class="btn tiny" disabled=${last} onClick=${() => onMove(1)}>
-        ${t('下移')}
-      </button>
-      <button type="button" class="btn tiny" onClick=${onRemove}>${t('移除')}</button>
-    </div>
-  </fieldset>`;
+/** The first character of a name, for the avatar. @param {string} name */
+export const avatarOf = (name) => [...(name || '?').trim()][0] ?? '?';
+
+/** "deepseek-v4-pro", or 跟随对话 when the role uses the conversation's model. @param {any} model */
+export const modelLabel = (model) => model?.model ?? t('跟随对话');
+
+/** Every model of the configured providers, with its thinking levels. */
+function useModelChoices() {
+  const providers = useModelCatalog();
+  return providers.flatMap((provider) =>
+    provider.models.map((model) => ({
+      key: JSON.stringify({ provider: provider.id, model: model.id }),
+      provider: provider.name ?? provider.id,
+      text: model.name ?? model.id,
+      efforts: thinkingChoices(model),
+    })),
+  );
 }
 
-/** The roster for discussions and @ invitations. */
+/** "主专家 · 统筹当前任务 · 跟随对话 · 1 个技能" without the name. @param {any} definition */
+function summaryOf(definition) {
+  const skills = definition.skills?.length ?? 0;
+  return [
+    definition.role,
+    modelLabel(definition.model),
+    skills ? t('{n} 个技能', { n: skills }) : '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/**
+ * One AI on the roster, opening its detail page.
+ * @param {{ participant: any, menu?: any, toggle?: boolean }} props
+ */
+export function RoleRow({ participant, menu, toggle = false }) {
+  const actions = useActions();
+  const definition = participant.definition;
+  const name = definition.name || t(BUILT_IN[participant.id]?.name ?? '未命名专家');
+  const enabled = definition.enabled !== false;
+  const open = () => navigate({ view: 'settings', id: `experts/${participant.id}` });
+  return html`<div
+    class=${`ss-list-row ss-list-row--2 ss-list-row--link ${enabled ? '' : 'ss-list-row--done'}`}
+    data-expert=${participant.id}
+    onClick=${(event) => !event.target.closest('button, input') && open()}
+  >
+    <span class="ss-avatar">${BUILT_IN[participant.id]?.avatar ?? avatarOf(name)}</span>
+    <div class="ss-list-row__main">
+      <span class="ss-list-row__title">${name}</span>
+      <span class="ss-list-row__sub">${summaryOf(definition)}</span>
+    </div>
+    ${
+      toggle &&
+      html`<${Switch}
+        label=${t('启用 {name}', { name })}
+        checked=${enabled}
+        onChange=${(on) =>
+          actions.attempt(() => actions.updateParticipant(participant.id, { enabled: on }))}
+      />`
+    }
+    ${menu}
+    <button
+      type="button"
+      class="ss-icon-btn ss-icon-btn--sm"
+      aria-label=${t('打开 {name}', { name })}
+      onClick=${open}
+    >
+      <${Lucide} name="chevron-right" />
+    </button>
+  </div>`;
+}
+
+/** 上移 / 下移 / 复制一份 / 删除专家 for one roster row. */
+function ExpertMenu({ participant, first, last, onMove, onCopy, onRemove }) {
+  const pop = usePopover({ placement: 'bottom-end' });
+  const name = participant.definition.name;
+  const item = (icon, text, run, extra = {}) =>
+    html`<button
+      type="button"
+      role="menuitem"
+      class=${`ss-menu__item ${extra.danger ? 'ss-menu__item--danger' : ''}`}
+      aria-disabled=${extra.disabled ? 'true' : undefined}
+      onClick=${() => {
+        if (extra.disabled) return;
+        pop.setOpen(false);
+        run();
+      }}
+    >
+      <${Lucide} name=${icon} />${text}
+    </button>`;
+  return html`<button
+      type="button"
+      ref=${pop.trigger}
+      class="ss-icon-btn ss-icon-btn--sm"
+      aria-label=${t('{name}的更多操作', { name })}
+      aria-haspopup="menu"
+      aria-expanded=${pop.open}
+      data-tip=${t('更多')}
+      onClick=${pop.toggle}
+    >
+      <${Lucide} name="ellipsis" />
+    </button>
+    ${
+      pop.open &&
+      html`<div ref=${pop.layer} class="ss-menu" role="menu" aria-label=${name}>
+        ${item('arrow-up', t('上移'), () => onMove(-1), { disabled: first })}
+        ${item('arrow-down', t('下移'), () => onMove(1), { disabled: last })}
+        ${item('copy', t('复制一份'), onCopy)}
+        <div class="ss-menu__sep" role="separator"></div>
+        ${item('trash-2', t('删除专家'), onRemove, { danger: true })}
+      </div>`
+    }`;
+}
+
+/** Names that share one model, for the 同一个模型 note, or null. @param {any[]} experts */
+function sameModel(experts) {
+  const groups = new Map();
+  for (const expert of experts) {
+    const key = expert.definition.model?.model ?? '';
+    groups.set(key, [...(groups.get(key) ?? []), expert.definition.name]);
+  }
+  const shared = [...groups.values()].find((names) => names.length > 1);
+  if (!shared) return null;
+  return shared.length === 2 ? shared.join(t('和')) : shared.join('、');
+}
+
+/** Settings → 专家: the roster. */
 export function ExpertsPage() {
   const actions = useActions();
-  const [roster, setRoster] = useState(/** @type {any[] | null} */ (null));
-  const [removed, setRemoved] = useState(/** @type {string[]} */ ([]));
-  const [feedback, setFeedback] = useState('');
-
-  async function load() {
-    const full = await actions.loadParticipantDefinitions();
-    setRoster(
-      full
-        .filter((p) => p.definition.panel)
-        .map((p) => ({ id: p.id, ...p.definition }))
-        .sort((a, b) => a.position - b.position),
-    );
-    setRemoved([]);
-  }
+  const definitions = useAppState((state) => state.participantDefinitions);
   useEffect(() => {
-    actions.attempt(load);
+    void actions.attempt(() => actions.loadParticipantDefinitions());
   }, []);
-  if (!roster)
-    return html`<h2>${t('专家角色')}</h2>
-      <p role="status">${t('正在读取专家名册…')}</p>`;
+  const all = Object.values(definitions ?? {}).filter((participant) => participant.definition);
+  const main = all.find((participant) => participant.id === 'agent_main');
+  const panel = (kind) =>
+    all
+      .filter((participant) => participant.definition.panel === kind)
+      .sort((a, b) => (a.definition.position ?? 0) - (b.definition.position ?? 0));
+  const experts = panel('expert');
+  const reviewers = panel('reviewer');
+  const shared = sameModel(experts.filter((expert) => expert.definition.enabled !== false));
 
-  const change = (next) => {
-    setRoster(next);
-    setFeedback(t('有未保存的修改。'));
-  };
-  const active = roster.filter((expert) => expert.enabled !== false && expert.panel === 'expert');
-  const models = new Set(active.map((expert) => expert.model?.model ?? '(conversation)'));
-
-  async function save(event) {
-    event.preventDefault();
-    const result = await actions.attempt(async () => {
-      for (const id of removed) await actions.updateParticipant(id, { panel: null });
-      for (const [position, expert] of roster.entries()) {
-        const definition = {
-          name: expert.name.trim(),
-          role: expert.role.trim(),
-          prompt: expert.prompt,
-          model: expert.model,
-          skills: expert.skills ?? [],
-          panel: expert.panel,
-          enabled: expert.enabled !== false,
-          position,
-        };
-        if (expert.id) await actions.updateParticipant(expert.id, definition);
-        else await actions.createParticipant({ kind: 'ai', name: definition.name, definition });
-      }
-      await load();
-      return true;
-    });
-    if (result) setFeedback(t('名册已保存。'));
+  async function add(kind, from = null) {
+    const roster = [...experts, ...reviewers];
+    const source = from?.definition;
+    const name = source
+      ? t('{name}（副本）', { name: source.name })
+      : kind === 'reviewer'
+        ? t('独立审核人')
+        : t('新专家');
+    const definition = {
+      name,
+      role: source?.role ?? '',
+      prompt: source?.prompt ?? NEW_PROMPTS[kind],
+      model: source?.model ?? null,
+      skills: source?.skills ?? [],
+      panel: kind,
+      enabled: true,
+      position: roster.length,
+    };
+    const created = await actions.attempt(() =>
+      actions.createParticipant({ kind: 'ai', name, definition }),
+    );
+    if (created?.id) navigate({ view: 'settings', id: `experts/${created.id}` });
   }
+  /** @param {any[]} group @param {number} index @param {number} step */
+  async function move(group, index, step) {
+    const next = group.slice();
+    [next[index], next[index + step]] = [next[index + step], next[index]];
+    await actions.attempt(async () => {
+      for (const [position, participant] of next.entries())
+        if (participant.definition.position !== position)
+          await actions.updateParticipant(participant.id, { position });
+    });
+  }
+  const remove = (participant) =>
+    actions.attempt(() => actions.updateParticipant(participant.id, { panel: null }));
 
-  return html`<form onSubmit=${save}>
-    <h2>
-      ${t('专家角色')}<${InfoTip}
-        text=${t('有序讨论时，所选专家读取同一份前文后并行独立作答，按下面的顺序展示，可指定一位审核专家最后核查。\n工作模式中用 @名称 邀请专家回答。\n专家的侧重由提示词决定，工具权限仍由对话的执行策略决定。')}
-      />
-    </h2>
-    ${
-      active.length > 1 &&
-      models.size === 1 &&
-      html`<p class="hint" role="note">
-        ${t('当前参加讨论的专家都使用同一个模型。为不同专家选择不同厂商的模型，分歧通常更有信息量。')}
-      </p>`
-    }
-    ${['expert', 'reviewer'].map((kind) => {
-      const group = roster
-        .map((expert, index) => ({ expert, index }))
-        .filter(({ expert }) => expert.panel === kind);
-      return html`<section key=${kind}>
-        <div class="row">
-          <h3>
-            ${kind === 'reviewer' ? t('独立审核') : t('参加专家')}<${InfoTip}
-              text=${kind === 'reviewer' ? t('只在讨论最后审核各专家的回答，不参与作答。') : t('参加有序讨论并作答，也可以被选为审核。')}
-            />
-          </h3>
-          <span class="spacer"></span>
-          <button
-            type="button"
-            class="btn tiny"
-            onClick=${() =>
-              change([
-                ...roster,
-                {
-                  name: kind === 'reviewer' ? t('独立审核人') : t('新专家'),
-                  role: '',
-                  prompt: NEW_PROMPTS[kind],
-                  model: null,
-                  panel: kind,
-                  enabled: true,
-                },
-              ])}
-          >
-            ${kind === 'reviewer' ? t('添加独立审核') : t('添加专家')}
-          </button>
-        </div>
-        ${group.map(
-          ({ expert, index }, n) =>
-            html`<${ExpertCard}
-              key=${expert.id ?? `new-${index}`}
-              expert=${expert}
-              index=${n}
-              first=${n === 0}
-              last=${n === group.length - 1}
-              onChange=${(next) => change(roster.map((e, i) => (i === index ? next : e)))}
-              onMove=${(step) => {
-                const target = group[n + step].index;
-                const next = roster.slice();
-                [next[index], next[target]] = [next[target], next[index]];
-                change(next);
-              }}
-              onRemove=${() => {
-                if (expert.id) setRemoved([...removed, expert.id]);
-                change(roster.filter((_, i) => i !== index));
-              }}
-            />`,
-        )}
-      </section>`;
-    })}
-    <div class="saverow">
-      <span class="spacer"></span
-      ><button type="submit" class="btn primary">${t('保存名册')}</button>
+  /** @param {any[]} group */
+  const rows = (group) =>
+    html`<div class="ss-list">
+      ${group.map(
+        (participant, index) =>
+          html`<${RoleRow}
+            key=${participant.id}
+            participant=${participant}
+            toggle
+            menu=${html`<${ExpertMenu}
+              participant=${participant}
+              first=${index === 0}
+              last=${index === group.length - 1}
+              onMove=${(step) => move(group, index, step)}
+              onCopy=${() => add(participant.definition.panel, participant)}
+              onRemove=${() => remove(participant)}
+            />`}
+          />`,
+      )}
+    </div>`;
+
+  return html`<div class="ss-settings__inner" data-settings="experts">
+    <${Head}
+      title=${t('专家')}
+      desc=${t('点开一位专家，改名字、提示词、模型和技能。改了自动保存，下一轮发言生效。')}
+      tip=${t('有序讨论时，选中的专家读同一份前文、各自作答，按这里的顺序显示；独立审核在最后核查。平时在输入框里用 @名字 请某位专家发言。')}
+    />
+    <${Section} title=${t('主专家')} tip=${t('主专家负责统筹，一般不给它特定角色。')}>
+      ${main && html`<div class="ss-list"><${RoleRow} participant=${main} /></div>`}
+    <//>
+    <${Section}
+      title=${t('参加讨论的专家')}
+      count=${experts.length}
+      extra=${html`<button type="button" class="ss-btn ss-btn--sm" onClick=${() => add('expert')}>
+        <${Lucide} name="plus" />${t('添加专家')}
+      </button>`}
+    >
+      ${
+        experts.length
+          ? rows(experts)
+          : html`<p class="ss-settings__desc">
+              ${t('还没有专家。添加几位不同方向的专家，有序讨论时各自作答。')}
+            </p>`
+      }
+      ${
+        shared &&
+        html`<div class="ss-callout ss-callout--warn" style="margin-top:8px">
+          <${Lucide} name="lightbulb" />
+          <div class="ss-callout__body">
+            ${t('{names}用的是同一个模型。换成不同厂商的模型，观点更不容易雷同。', { names: shared })}
+          </div>
+        </div>`
+      }
+    <//>
+    <${Section}
+      title=${t('独立审核')}
+      tip=${t('只在有序讨论最后核查各位专家的回答，不参与作答。审核意见经你采纳才进入后面的对话。')}
+      extra=${html`<button
+        type="button"
+        class="ss-btn ss-btn--ghost ss-btn--sm"
+        onClick=${() => add('reviewer')}
+      >
+        <${Lucide} name="plus" />${t('添加审核')}
+      </button>`}
+    >
+      ${reviewers.length ? rows(reviewers) : html`<p class="ss-settings__desc">${t('没有独立审核。')}</p>`}
+    <//>
+  </div>`;
+}
+
+/** Saved versions of an AI's definition, each with 撤销. @param {{ participantId: string }} props */
+function DefinitionHistory({ participantId }) {
+  const actions = useActions();
+  const version = useAppState((state) => state.workspaceVersion);
+  const definition = useAppState((state) => state.participantDefinitions?.[participantId]);
+  const [revisions, setRevisions] = useState(/** @type {any[] | null} */ (null));
+  useEffect(() => {
+    void actions.attempt(async () =>
+      setRevisions(await actions.history({ resource: 'agent', key: participantId, limit: 20 })),
+    );
+  }, [participantId, version, definition]);
+  if (!revisions?.length) return null;
+  return html`<${Section} title=${t('修改记录')} count=${revisions.length}>
+    <div class="ss-list" data-definition-history>
+      ${revisions.map((revision, index) => {
+        // The oldest revision of a short history created the file; undoing it would remove the role.
+        const first = index === revisions.length - 1 && revisions.length < 20;
+        const what = revision.op === 'undo' ? t('撤销了一次修改') : first ? t('新建') : t('修改');
+        return html`<div class="ss-list-row" key=${revision.id}>
+          <div class="ss-list-row__main">
+            <span class="ss-list-row__title">${what}</span>
+          </div>
+          <span class="ss-list-row__meta ss-list-row__meta--time">
+            ${formatTime(revision.createdAt)}
+          </span>
+          ${
+            revision.undoneBy
+              ? html`<span class="ss-list-row__meta">${t('已撤销')}</span>`
+              : !first &&
+                revision.op !== 'undo' &&
+                html`<button
+                  type="button"
+                  class="ss-btn ss-btn--ghost ss-btn--sm"
+                  onClick=${() => actions.attempt(() => actions.undo(revision.id))}
+                >
+                  ${t('撤销')}
+                </button>`
+          }
+        </div>`;
+      })}
     </div>
-    <p role="status">${feedback}</p>
-  </form>`;
+  <//>`;
+}
+
+/**
+ * One AI role: name, model, prompt and skills, saved as they change.
+ * @param {{ participantId: string }} props
+ */
+export function RoleDetail({ participantId }) {
+  const actions = useActions();
+  const participant = useAppState((state) => state.participantDefinitions?.[participantId]);
+  const choices = useModelChoices();
+  const [savedAt, setSavedAt] = useState(0);
+  useEffect(() => {
+    if (!participant) void actions.attempt(() => actions.loadParticipantDefinitions());
+  }, [participantId]);
+  if (!participant?.definition)
+    return html`<div class="ss-settings__inner"><p role="status">${t('正在读取…')}</p></div>`;
+  const definition = participant.definition;
+  const builtIn = BUILT_IN[participantId];
+  const onPanel = Boolean(definition.panel);
+  const name = definition.name || t(builtIn?.name ?? '未命名专家');
+  const back = builtIn?.back ?? ['experts', '专家'];
+  /** @param {Record<string, any>} changes */
+  const save = async (changes) => {
+    const result = await actions.attempt(() => actions.updateParticipant(participantId, changes));
+    if (result !== undefined) setSavedAt(Date.now());
+  };
+  const model = definition.model;
+  const modelKey = model?.model
+    ? JSON.stringify({ provider: model.provider, model: model.model })
+    : '';
+  const known = choices.find((choice) => choice.key === modelKey);
+  const efforts = known?.efforts ?? [];
+  const groups = [...new Set(choices.map((choice) => choice.provider))];
+  const modelOptions = [
+    { value: '', text: t('跟随对话') },
+    ...groups.flatMap((group) => [
+      { group },
+      ...choices
+        .filter((choice) => choice.provider === group)
+        .map((choice) => ({ value: choice.key, text: choice.text })),
+    ]),
+    ...(modelKey && !known
+      ? [{ value: modelKey, text: t('{model}（服务商里已经没有）', { model: model.model }) }]
+      : []),
+  ];
+
+  return html`<div
+    class="ss-settings__inner"
+    data-settings="expert"
+    data-participant=${participantId}
+  >
+    <${Head}
+      back=${{ id: back[0], label: t(back[1]) }}
+      title=${html`<span class="ss-settings__role">
+        <span class="ss-avatar ss-avatar--lg">${builtIn?.avatar ?? avatarOf(name)}</span>${name}
+      </span>`}
+      end=${html`<${Saved} at=${savedAt} text=${t('已保存 · 下一轮发言生效')} />`}
+    />
+    <${Section} title=${t('基本')}>
+      ${
+        onPanel &&
+        html`<${Row} label=${t('名称')}>
+            <${AutoText}
+              label=${t('名称')}
+              width=${240}
+              value=${definition.name}
+              onSave=${(next) => next.trim() && save({ name: next.trim() })}
+            />
+          <//>
+          <${Row} label=${t('职责标签')} desc=${t('显示在名字旁边')}>
+            <${AutoText}
+              label=${t('职责标签')}
+              width=${240}
+              value=${definition.role ?? ''}
+              onSave=${(role) => save({ role: role.trim() })}
+            />
+          <//>`
+      }
+      <${Row} label=${t('模型')} desc=${t('「跟随对话」就用输入框里选的模型')}>
+        <${Select}
+          label=${t('模型')}
+          width=${240}
+          value=${modelKey}
+          options=${modelOptions}
+          onChange=${(key) => save({ model: key ? JSON.parse(key) : null })}
+        />
+      <//>
+      <${Row}
+        label=${t('默认思考强度')}
+        desc=${model?.model ? t('只列这个模型支持的档位') : t('先选一个模型')}
+      >
+        ${
+          efforts.length > 0 &&
+          html`<${Seg}
+            label=${t('默认思考强度')}
+            value=${model?.effort ?? ''}
+            options=${[['', t('模型默认')], ...efforts.map((effort) => [effort, effortName(effort)])]}
+            onChange=${(effort) => save({ model: { ...model, effort: effort || undefined } })}
+          />`
+        }
+      <//>
+    <//>
+    <${Section} title=${t('提示词')} tip=${t('停止输入一秒后自动保存，每次保存都能在下面撤销。')}>
+      <${AutoText}
+        multiline
+        label=${t('提示词')}
+        value=${definition.prompt}
+        attrs=${{ style: 'min-height:180px' }}
+        onSave=${(prompt) => prompt.trim() && save({ prompt })}
+      />
+      <p class="ss-field__hint">
+        ${t('写清职责、关注点和检查清单。提示词不改变工具权限，那由对话的执行方式决定。')}
+      </p>
+    <//>
+    <section class="ss-setting-section">
+      <${SkillBinding} value=${definition.skills ?? []} onChange=${(skills) => save({ skills })} />
+    </section>
+    <${DefinitionHistory} participantId=${participantId} />
+  </div>`;
 }

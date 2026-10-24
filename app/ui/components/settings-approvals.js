@@ -1,11 +1,12 @@
-// Settings → 运行环境 → 总是允许的操作: the rules saved from 总是允许 on an
-// approval card, grouped by the project (or single chat) they apply to. A rule
-// is only listed and removed here; new ones come from the card.
+// Settings → 执行与批准 (design system PageSettingsApprovals): the execution
+// mode new chats start in, and the rules saved from 总是允许 on an approval
+// card, grouped by the project (or single chat) they apply to. A rule is only
+// listed and removed here; new ones come from the card.
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
-import { InfoTip } from './info-tip.js';
+import { Head, Row, Section, Seg, useSetting } from './settings-kit.js';
 
 const TOOLS = {
   shell: { icon: 'square-terminal', name: '运行命令' },
@@ -28,7 +29,7 @@ function scopeOf(rule) {
   };
 }
 
-export function ApprovalRulesSettings() {
+function ApprovalRules() {
   const actions = useActions();
   const rules = useAppState((state) => state.settings?.approvals?.rules ?? []);
   const projects = useAppState((state) => state.projects);
@@ -52,14 +53,14 @@ export function ApprovalRulesSettings() {
       actions.updateSettings({ approvals: { rules: rules.filter((rule) => rule.id !== id) } }),
     );
 
-  return html`<section class="ss-setting-section" data-settings="approval-rules">
-    <div class="ss-setting-section__head">
-      <h3 class="ss-setting-section__title">
-        ${t('总是允许的操作')}<${InfoTip}
-          text=${t('在批准卡片上选「总是允许」后记在这里。规则只在定下它的项目里生效；不属于项目的对话，只管那个对话。删掉后，同类操作会重新询问。')}
-        />
-      </h3>
-    </div>
+  return html`<${Section}
+    title=${t('总是允许的操作')}
+    count=${rules.length}
+    attrs=${{ 'data-settings': 'approval-rules' }}
+  >
+    <p class="ss-settings__desc" style="margin:0 0 8px">
+      ${t('在批准卡片上选「总是允许」后记在这里，只在当时的项目或对话里生效。删掉一条，下次就再问你。')}
+    </p>
     ${
       rules.length
         ? html`<div class="ss-list">
@@ -112,5 +113,33 @@ export function ApprovalRulesSettings() {
           </div>`
         : html`<p class="ss-muted">${t('还没有规则。')}</p>`
     }
-  </section>`;
+  <//>`;
+}
+
+export function ApprovalsPage() {
+  const [mode, write] = useSetting((settings) => settings.approvals?.defaultApproval ?? 'ask');
+  return html`<div class="ss-settings__inner" data-settings="approvals">
+    <${Head} title=${t('执行与批准')} />
+    <${Section}
+      title=${t('执行方式')}
+      tip=${t('每个对话还能在输入框底栏单独切换，只对那个对话有效。')}
+    >
+      <${Row}
+        label=${t('新对话默认')}
+        desc=${t('请求批准：运行命令、写项目文件夹、安装软件包之前先问你。常规：不问，直接执行，每一步都在时间线上看得见')}
+      >
+        <${Seg}
+          label=${t('新对话默认')}
+          small=${false}
+          value=${mode}
+          options=${[
+            ['ask', t('请求批准')],
+            ['auto', t('常规')],
+          ]}
+          onChange=${(next) => write({ approvals: { defaultApproval: next } })}
+        />
+      <//>
+    <//>
+    <${ApprovalRules} />
+  </div>`;
 }

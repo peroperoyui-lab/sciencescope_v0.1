@@ -13,10 +13,10 @@ test(
       async ({ page }) => {
         await page.route('**/api/python', (route) => route.abort('failed'));
         await page.evaluate(() => {
-          location.hash = '#/settings/environment';
+          location.hash = '#/settings/python';
         });
         await page
-          .locator('.python-settings')
+          .locator('[data-settings="python"]')
           .getByText('Failed to fetch', { exact: true })
           .waitFor();
       },
@@ -41,33 +41,45 @@ test(
           op: 'patch',
           args: { changes: { models: { default: { provider: 'test', model: 'test' } } } },
         });
+        const until = async (check) => {
+          for (let tries = 0; tries < 50 && !(await check()); tries++)
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          assert.ok(await check());
+        };
         await page.evaluate(() => {
-          location.hash = '#/settings/environment';
+          location.hash = '#/settings/python';
         });
-        await page.getByLabel('环境名称', { exact: true }).fill('统计环境');
         await page.getByRole('button', { name: '新建环境', exact: true }).click();
+        const create = page.getByRole('dialog', { name: '新建环境' });
+        await create.getByLabel('环境名称', { exact: true }).fill('统计环境');
+        await create.getByRole('button', { name: '新建', exact: true }).click();
         await page.locator('[data-python-editor]').waitFor();
         await page.getByLabel('软件包清单', { exact: true }).fill('pandas==3.0.6');
-        await page.getByRole('button', { name: '同步到清单', exact: true }).click();
-        await page
-          .locator('.python-packages')
-          .getByText('pandas==3.0.6', { exact: true })
-          .waitFor();
+        await page.getByRole('button', { name: '按清单同步', exact: true }).click();
+        await page.locator('.python-packages [title="pandas==3.0.6"]').waitFor();
         const entry = (await app.python.list()).environments[0];
-        await page.locator('#python-default').selectOption(entry.id);
-        const source = page.getByLabel('Python 下载源', { exact: true });
-        const address = page.getByLabel('Python 下载地址', { exact: true });
-        await source.selectOption('custom');
-        // Clearing the address while typing keeps the custom choice.
-        await address.fill('https://');
-        await address.fill('');
-        assert.equal(await source.inputValue(), 'custom');
-        await address.fill('https://example.test/python');
-        await page.getByRole('button', { name: '保存环境设置' }).click();
-        await page.getByText('环境操作已完成', { exact: true }).waitFor();
-        assert.equal(
-          (await app.python.list()).settings.installMirror,
-          'https://example.test/python',
+        await page
+          .locator('[data-python-editor]')
+          .getByRole('button', { name: 'Python 环境', exact: true })
+          .click();
+        await page.getByRole('button', { name: '默认环境', exact: true }).click();
+        await page.getByRole('menuitemradio', { name: '统计环境', exact: true }).click();
+        await until(async () => (await app.python.list()).settings.defaultEnvironment === entry.id);
+        // A custom source is tried once before it is saved.
+        await page.route('**/api/python/probe', (route) => route.fulfill({ json: { ok: true } }));
+        await page.getByRole('button', { name: 'Python 下载源', exact: true }).click();
+        await page.getByRole('menuitem', { name: '添加自定义源…', exact: true }).click();
+        const source = page.getByRole('dialog', { name: '添加Python 下载源' });
+        await source.getByLabel('名称', { exact: true }).fill('学校镜像');
+        await source.getByLabel('地址', { exact: true }).fill('https://example.test/python');
+        await source.getByRole('button', { name: '添加', exact: true }).click();
+        await page
+          .getByRole('button', { name: 'Python 下载源', exact: true })
+          .getByText('学校镜像')
+          .waitFor();
+        await until(
+          async () =>
+            (await app.python.list()).settings.installMirror === 'https://example.test/python',
         );
         await shot('python-settings-zh');
         await page.evaluate(() => {
@@ -118,14 +130,16 @@ test(
           args: { changes: { appearance: { language: 'en' } } },
         });
         await page.evaluate(() => {
-          location.hash = '#/settings/environment';
+          location.hash = '#/settings/python';
         });
         await page.getByRole('button', { name: 'Create environment', exact: true }).waitFor();
         await shot('python-settings-en');
-        await page.getByRole('button', { name: 'Delete', exact: true }).click();
-        await page.getByRole('dialog').getByText('分析项目', { exact: true }).waitFor();
-        await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
-        await page.getByText('Environment operation completed', { exact: true }).waitFor();
+        await page.getByRole('button', { name: 'More actions for 统计环境', exact: true }).click();
+        await page.getByRole('menuitem', { name: 'Delete environment', exact: true }).click();
+        const remove = page.getByRole('dialog', { name: /统计环境/u });
+        await remove.getByText('分析项目', { exact: true }).waitFor();
+        await remove.getByRole('button', { name: 'Delete', exact: true }).click();
+        await page.locator('[data-environment]').first().waitFor({ state: 'detached' });
         assert.equal((await app.python.list()).environments.length, 0);
         assert.equal(app.python.binding('project', project.id), null);
       },

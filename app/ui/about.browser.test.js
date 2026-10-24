@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { browserSkip, withBrowserApp } from './browser-testing.js';
 
 test(
-  'the About page shows the version, credits and data folder',
+  'the About page shows the version and credits, and the data page the data folder',
   { skip: browserSkip, timeout: 60000 },
   async () => {
     const { version } = JSON.parse(
@@ -26,10 +26,15 @@ test(
         await about.getByText(version, { exact: true }).waitFor();
         assert.match(await about.innerText(), /peroperoyui/u);
         assert.match(await about.innerText(), /Claude（Anthropic/u);
-        await about.getByRole('button', { name: '打开文件夹' }).waitFor();
         // A checkout has no third-party notices file, so the button stays hidden.
         assert.equal(await about.getByRole('button', { name: '第三方声明' }).count(), 0);
         await shot('about-page');
+        await page.locator('.ss-settings__nav').getByText('数据与备份', { exact: true }).click();
+        await page
+          .locator('[data-settings="data"]')
+          .getByRole('button', { name: /打开/u })
+          .first()
+          .waitFor();
       },
     );
   },

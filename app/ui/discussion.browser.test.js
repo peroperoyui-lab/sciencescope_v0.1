@@ -379,16 +379,13 @@ test(
         await page.goto(new URL('/?token=ui-token#/settings/experts', page.url()).href);
         await page.getByRole('button', { name: '添加专家', exact: true }).waitFor();
         await page.getByRole('button', { name: '添加专家', exact: true }).click();
-        await page
-          .locator('.expert-card')
-          .filter({ hasText: '新专家' })
-          .locator('input:not([type="checkbox"])')
-          .first()
-          .fill('第十位专家');
-        await page.getByRole('button', { name: '保存名册', exact: true }).click();
-        await page.getByText('名册已保存。', { exact: true }).waitFor();
+        const detail = page.locator('[data-settings="expert"]');
+        await detail.getByLabel('名称', { exact: true }).fill('第十位专家');
+        await detail.getByLabel('名称', { exact: true }).blur();
+        await detail.getByText('已保存 · 下一轮发言生效').waitFor();
+        await page.goto(new URL('/?token=ui-token#/settings/experts', page.url()).href);
         await page.reload();
-        await page.locator('.expert-card', { hasText: '第十位专家' }).waitFor();
+        await page.locator('[data-expert]', { hasText: '第十位专家' }).waitFor();
         await page.goto(new URL('/?token=ui-token#/meeting/' + meeting.id, page.url()).href);
         await page.locator('[data-panel-toggle]').nth(9).waitFor();
         assert.equal(await page.locator('[data-panel-toggle]').count(), 10);

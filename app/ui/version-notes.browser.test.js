@@ -118,14 +118,14 @@ test(
         await page.getByRole('button', { name: 'Save additional notes', exact: true }).waitFor();
         await shot('version-notes-english');
         await page.goto(new URL('/#/settings/secretary-settings', page.url()).href);
-        await page.getByLabel('Version notes template').fill('# Edited template');
-        await page.getByRole('button', { name: 'Save template', exact: true }).click();
-        await page.getByText('Notes template saved.', { exact: true }).waitFor();
-        assert.equal(
+        await page.getByLabel('Manuscript version note template').fill('# Edited template');
+        await page.getByLabel('Manuscript version note template').blur();
+        const template = async () =>
           (await app.core.workspace.read({ resource: 'settings', key: 'app' })).value.versionNotes
-            .template,
-          '# Edited template',
-        );
+            .template;
+        for (let tries = 0; (await template()) !== '# Edited template' && tries < 50; tries++)
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        assert.equal(await template(), '# Edited template');
       },
     );
   },

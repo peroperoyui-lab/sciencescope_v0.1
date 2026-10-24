@@ -52,7 +52,7 @@ test(
         await rows.nth(1).click();
         await activity.getByText('按规则自动允许').waitFor();
 
-        await page.goto(new URL('/?token=ui-token#/settings/environment', page.url()).href);
+        await page.goto(new URL('/?token=ui-token#/settings/approvals', page.url()).href);
         const section = page.locator('[data-settings="approval-rules"]');
         const rule = section.locator('[data-rule]');
         await rule.waitFor();

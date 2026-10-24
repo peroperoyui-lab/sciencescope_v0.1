@@ -19,6 +19,8 @@ export function createPythonActions(api, store) {
     pythonExport: (id) => api.get(`/api/python/${id}/manifest`),
     pythonImport: (id, text) => api.post(`/api/python/${id}/manifest`, { text }),
     pythonPrune: () => api.post('/api/python/cache/prune', {}),
+    /** Whether a download source answers. @param {string} url */
+    pythonProbe: (url) => api.post('/api/python/probe', { url }),
     async pythonMenu(meetingId, anchor) {
       const [snapshot, binding] = await Promise.all([
         api.get('/api/python'),

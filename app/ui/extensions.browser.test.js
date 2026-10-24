@@ -57,18 +57,24 @@ test(
           await shot('skills-page');
 
           await page.goto(settingsUrl(page, 'experts'));
-          const expert = page.locator('.expert-card').first();
+          await page.locator('[data-expert]').first().click();
+          const expert = page.locator('[data-settings="expert"]');
           await expert.getByRole('button', { name: '添加' }).click();
           await page.getByRole('dialog', { name: '绑定的技能' }).getByText('统计审稿清单').click();
           await expert.locator('.ss-chip', { hasText: '统计审稿清单' }).waitFor();
           await shot('skills-binding');
           await page.keyboard.press('Escape');
-          await page.getByRole('button', { name: '保存名册' }).click();
-          await page.getByText('名册已保存。').waitFor();
-          const participants = await Promise.all(
-            app.core.participants.list().map((item) => app.core.participants.get(item.id)),
-          );
-          assert.ok(participants.some((item) => item.definition?.skills?.includes('stats-review')));
+          // The binding saves as soon as it changes.
+          const bound = async () =>
+            (
+              await Promise.all(
+                app.core.participants.list().map((item) => app.core.participants.get(item.id)),
+              )
+            ).some((item) => item.definition?.skills?.includes('stats-review'));
+          for (let tries = 0; !(await bound()) && tries < 50; tries++)
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          assert.ok(await bound());
+          assert.equal(await page.locator('[data-settings="expert"]').count(), 1);
 
           await page.goto(settingsUrl(page, 'skills'));
           await page.locator('[data-skill="stats-review"] .ss-tag').waitFor();

@@ -64,8 +64,9 @@ test(
         await page.locator('.mainhead').getByText('Manuscript versions', { exact: true }).waitFor();
         assert.match(await page.locator('.versionlist').innerText(), /Awaiting notes/);
         await shot('versions-english');
-        await page.goto(new URL('/#/settings/environment', page.url()).href);
-        await page.getByLabel('Model download source').selectOption('custom');
+        await page.goto(new URL('/#/settings/knowledge', page.url()).href);
+        await page.getByRole('button', { name: 'Model download source', exact: true }).click();
+        await page.getByRole('menuitemradio', { name: 'Custom URL', exact: true }).click();
         await page.getByLabel('Model source URL').fill('https://domestic.example');
         await page.getByLabel('Model source URL').blur();
         await page.waitForFunction(async () => {

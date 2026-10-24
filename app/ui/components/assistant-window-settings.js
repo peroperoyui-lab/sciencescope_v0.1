@@ -1,64 +1,63 @@
-import { useLayoutEffect, useState } from 'preact/hooks';
+// Settings → 全局助手 (design system PageSettingsAssistant): the role and its
+// desktop window, which opens at launch as configured and can be shown or
+// hidden now.
 import { hideAssistantWindow, isNative, openAssistantWindow } from '../assistant-window.js';
-import { useActions, useAppState } from '../context.js';
+import { useActions } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
-import { InfoTip } from './info-tip.js';
+import { Lucide } from '../icons.js';
+import { BuiltInRole } from './settings-secretary.js';
+import { Head, Row, Section, Seg, useSetting } from './settings-kit.js';
 
-/** @returns {import('preact').VNode} */
-export function AssistantWindowSettings() {
+export function AssistantPage() {
   const actions = useActions();
-  const saved = useAppState((state) => state.settings?.assistant?.startup ?? 'closed');
-  const [startup, setStartup] = useState(saved);
-  const [feedback, setFeedback] = useState('');
-  useLayoutEffect(() => setStartup(saved), [saved]);
+  const [startup, write] = useSetting((settings) => settings.assistant?.startup ?? 'closed');
   const native = isNative();
-  return html`<section data-assistant-window-settings>
-    <h2>${t('桌面浮球与启动')}</h2>
-    <form
-      onSubmit=${async (event) => {
-        event.preventDefault();
-        const result = await actions.attempt(async () => {
-          await actions.updateSettings({ assistant: { startup } });
-          return true;
-        });
-        if (result) setFeedback(t('已保存，下次启动客户端生效。'));
-      }}
-    >
-      <div class="field">
-        <label for="assistant-startup"
-          >${t('启动客户端时')}<${InfoTip} text=${t('下次启动生效；关闭客户端仍会完全退出。')}
-        /></label>
-        <select
-          id="assistant-startup"
-          name="startup"
+  return html`<div class="ss-settings__inner" data-settings="assistant">
+    <${Head} title=${t('全局助手')} desc=${t('跨项目查阅和整理，可以独立成一个小窗口。')} />
+    <${BuiltInRole} id="agent_assistant" />
+    <${Section} title=${t('窗口')} attrs=${{ 'data-assistant-window-settings': '' }}>
+      <${Row}
+        label=${t('启动 ScienceScope 时')}
+        desc=${native ? t('下次启动生效') : t('只在桌面版里有效')}
+      >
+        <${Seg}
+          label=${t('启动时')}
           value=${startup}
-          onChange=${(event) => setStartup(event.currentTarget.value)}
-        >
-          <option value="closed">${t('不打开助手')}</option>
-          <option value="orb">${t('只显示浮球')}</option>
-          <option value="expanded">${t('显示浮球与助手对话')}</option>
-        </select>
-      </div>
-      <div class="saverow"><button class="btn" type="submit">${t('保存启动设置')}</button></div>
-    </form>
-    ${
-      native &&
-      html`<div class="saverow">
-        <button class="btn" onClick=${() => actions.attempt(() => openAssistantWindow(true))}>
-          ${t('显示浮球')}
-        </button>
-        <button class="btn" onClick=${() => actions.attempt(() => openAssistantWindow())}>
-          ${t('打开助手对话')}
-        </button>
-        <button class="btn" onClick=${() => actions.attempt(hideAssistantWindow)}>
-          ${t('隐藏浮球与对话')}
-        </button>
-        <${InfoTip}
-          text=${t('隐藏只影响窗口，不清除历史，也不停止正在运行的任务；停止请使用助手输入框的中断按钮。')}
+          options=${[
+            ['closed', t('不打开')],
+            ['orb', t('只显示浮球')],
+            ['expanded', t('浮球和对话')],
+          ]}
+          onChange=${(next) => write({ assistant: { startup: next } })}
         />
-      </div>`
-    }
-    <p role="status">${feedback}</p>
-  </section>`;
+      <//>
+      ${
+        native &&
+        html`<${Row} label=${t('现在')} desc=${t('隐藏只关窗口，不清记录，也不停止正在做的事')}>
+          <button
+            type="button"
+            class="ss-btn ss-btn--sm"
+            onClick=${() => actions.attempt(() => openAssistantWindow(true))}
+          >
+            <${Lucide} name="eye" />${t('显示浮球')}
+          </button>
+          <button
+            type="button"
+            class="ss-btn ss-btn--sm"
+            onClick=${() => actions.attempt(() => openAssistantWindow())}
+          >
+            <${Lucide} name="message-square" />${t('打开助手对话')}
+          </button>
+          <button
+            type="button"
+            class="ss-btn ss-btn--ghost ss-btn--sm"
+            onClick=${() => actions.attempt(hideAssistantWindow)}
+          >
+            <${Lucide} name="eye-off" />${t('隐藏')}
+          </button>
+        <//>`
+      }
+    <//>
+  </div>`;
 }

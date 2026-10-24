@@ -1,148 +1,168 @@
-// Settings in the old interface's markup (`.settings` with `.settingsnav`):
-// the shell, 个人资料与常规, 快捷键 and the folder pages. Model, role and
-// expert pages live in settings-models.js and settings-roles.js.
-import { useEffect, useState } from 'preact/hooks';
+// Settings (design system PageSettings*): a centred dialog over the page the
+// person came from, navigation in four groups on the left, one page on the
+// right. This file holds the frame and the 通用, 外观 and 快捷键 pages; the
+// other pages live in settings-*.js. Every change applies at once.
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { comboOf } from '../appearance.js';
 import { useActions, useAppState } from '../context.js';
-import { PythonSettings } from './settings-python.js';
-import { ApprovalRulesSettings } from './settings-approvals.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
-import { Icon } from '../icons.js';
+import { Lucide } from '../icons.js';
 import { navigate } from '../route.js';
-import { InfoTip } from './info-tip.js';
-import { MainHead } from './mainhead.js';
-import { SemanticSettings } from './settings-semantic.js';
-import { MemorySettings } from './settings-memory.js';
-import { SecretarySettings } from './settings-secretary.js';
+import { AutoText, Head, Row, Section, Seg, Select, Switch, useSetting } from './settings-kit.js';
 import { ModelsPage, ProviderPage } from './settings-models.js';
-import { ExpertsPage, RolePage } from './settings-roles.js';
-import { AssistantWindowSettings } from './assistant-window-settings.js';
-import { AboutPage } from './settings-about.js';
+import { ExpertsPage, RoleDetail } from './settings-roles.js';
+import { SecretaryPage } from './settings-secretary.js';
+import { AssistantPage } from './assistant-window-settings.js';
+import { ApprovalsPage } from './settings-approvals.js';
 import { ToolsPage } from './settings-tools.js';
 import { SkillsPage } from './settings-skills.js';
 import { McpPage } from './settings-mcp.js';
+import { KnowledgePage } from './settings-semantic.js';
+import { DeskPage } from './settings-desk.js';
+import { PythonEnvironmentPage, PythonPage } from './settings-python.js';
+import { DataPage } from './settings-data.js';
+import { AboutPage } from './settings-about.js';
 
 /**
- * Settings pages, grouped as in the old navigation: [group, [[id, nav label, page title]]].
+ * The navigation: [group, [[page id, icon, label]]].
  * @type {Array<[string, string[][]]>}
  */
 const GROUPS = [
   [
-    '个人偏好',
+    '个人',
     [
-      ['general', '个人资料与常规', '常规设置'],
-      ['shortcuts', '快捷键', '快捷键设置'],
+      ['general', 'settings', '通用'],
+      ['appearance', 'palette', '外观'],
+      ['shortcuts', 'keyboard', '快捷键'],
     ],
   ],
   [
-    '科研协作',
+    '研究协作',
     [
-      ['models', '模型与服务商', '模型与服务商'],
-      ['persona', '人格与记忆', '人格与记忆'],
-      ['experts', '专家角色', '专家角色分配'],
-      ['secretary-settings', '任务秘书', '会议秘书设置'],
-      ['assistant-settings', '全局助手', '全局助手设置'],
+      ['models', 'plug', '模型与服务商'],
+      ['experts', 'users', '专家'],
+      ['secretary', 'clipboard-list', '任务秘书'],
+      ['assistant', 'sparkle', '全局助手'],
+      ['approvals', 'shield-check', '执行与批准'],
     ],
   ],
   [
-    '工具与环境',
+    '工具',
     [
-      ['tools', '工具', '工具'],
-      ['skills', '技能', '技能'],
-      ['mcp', 'MCP 服务器', 'MCP 服务器'],
-      ['library-settings', '数据库与文件', '数据库设置'],
-      ['environment', '运行环境', '环境配置 · 便携目录'],
+      ['tools', 'wrench', '工具'],
+      ['skills', 'graduation-cap', '技能'],
+      ['mcp', 'server', 'MCP 服务器'],
     ],
   ],
-  ['帮助', [['about', '关于 ScienceScope', '关于 ScienceScope']]],
+  [
+    '资料与环境',
+    [
+      ['knowledge', 'book-open', '知识库与检索'],
+      ['desk', 'app-window', '编辑台'],
+      ['python', 'package', 'Python 环境'],
+      ['data', 'database', '数据与备份'],
+    ],
+  ],
 ];
 
-/** @param {string} page */
-function titleOf(page) {
-  if (page.startsWith('provider')) return t('其他兼容服务');
-  for (const [, items] of GROUPS) {
-    const found = items.find(([id]) => id === page);
-    if (found) return t(found[2]);
-  }
-  return t('设置');
-}
+/** Page ids from the earlier navigation, kept so old links still open the right page. */
+const ALIASES = {
+  persona: 'experts/agent_main',
+  'secretary-settings': 'secretary',
+  'assistant-settings': 'assistant',
+  'library-settings': 'data',
+  environment: 'python',
+};
 
-/** One row of a settings form: heading with its tip on the left, control on the right. */
-function SettingRow({ title, tip, children }) {
-  return html`<div class="settingrow">
-    <div class="description">
-      <h3>
-        ${title}${tip && html`<${InfoTip} text=${tip} label=${t('{name}说明', { name: title })} />`}
-      </h3>
-    </div>
-    <div class="control">${children}</div>
+// ---------- 通用 ----------
+
+function GeneralPage() {
+  const [profile, writeProfile] = useSetting((settings) => settings.profile);
+  const [composer, writeComposer] = useSetting((settings) => settings.composer);
+  const [language, writeLanguage] = useSetting((settings) => settings.appearance.language);
+  const [desk, writeDesk] = useSetting((settings) => settings.features?.editingDesk === true);
+  return html`<div class="ss-settings__inner" data-settings="general">
+    <${Head} title=${t('通用')} desc=${t('改了立即生效。')} />
+    <${Section} title=${t('个人资料')}>
+      <${Row} label=${t('显示名称')} desc=${t('只在这台电脑上显示，不发给专家')}>
+        <${AutoText}
+          label=${t('显示名称')}
+          width=${320}
+          placeholder=${t('用户')}
+          value=${profile?.name ?? ''}
+          onSave=${(name) => writeProfile({ profile: { name: name.trim() } })}
+        />
+      <//>
+      <${Row} label=${t('一句话介绍')} desc=${t('写给自己看的，可以留空')}>
+        <${AutoText}
+          label=${t('一句话介绍')}
+          width=${320}
+          value=${profile?.bio ?? ''}
+          onSave=${(bio) => writeProfile({ profile: { bio } })}
+        />
+      <//>
+    <//>
+    <${Section} title=${t('使用')}>
+      <${Row} label=${t('界面语言')} desc=${t('只改界面文字，对话内容不变')}>
+        <${Select}
+          label=${t('界面语言')}
+          width=${160}
+          value=${language}
+          options=${[
+            { value: 'zh', text: '中文' },
+            { value: 'en', text: 'English' },
+          ]}
+          onChange=${(next) => writeLanguage({ appearance: { language: next } })}
+        />
+      <//>
+      <${Row} label=${t('发送消息')} desc=${t('另一种组合用来换行；Shift Enter 总是换行')}>
+        <${Seg}
+          label=${t('发送消息')}
+          value=${composer?.sendKey ?? 'enter'}
+          options=${[
+            ['enter', 'Enter'],
+            ['ctrl-enter', 'Ctrl Enter'],
+          ]}
+          onChange=${(sendKey) => writeComposer({ composer: { sendKey } })}
+        />
+      <//>
+      <${Row}
+        label=${t('截图时隐藏窗口')}
+        desc=${t('用「添加 → 截图」时，先把 ScienceScope 藏起来')}
+      >
+        <${Switch}
+          label=${t('截图时隐藏窗口')}
+          checked=${composer?.hideWindowOnScreenshot !== false}
+          onChange=${(on) => writeComposer({ composer: { hideWindowOnScreenshot: on } })}
+        />
+      <//>
+    <//>
+    <${Section}
+      title=${t('试用功能')}
+      tip=${t('试用功能还没做完，可能会变。关掉后，已有的内容不会丢。')}
+    >
+      <${Row}
+        label=${t('编辑台')}
+        desc=${t('还在开发中。打开后，左栏「工作站」下面出现编辑台入口')}
+      >
+        <${Switch}
+          label=${t('编辑台')}
+          checked=${desk}
+          onChange=${(on) => writeDesk({ features: { editingDesk: on } })}
+        />
+      <//>
+    <//>
   </div>`;
 }
 
-function ProfileCard() {
-  const actions = useActions();
-  const profile = useAppState((state) => state.settings?.profile);
-  const [name, setName] = useState(profile?.name || '');
-  const [bio, setBio] = useState(profile?.bio || '');
-  const [feedback, setFeedback] = useState('');
-  async function submit(event) {
-    event.preventDefault();
-    const saved = await actions.attempt(() =>
-      actions.updateSettings({ profile: { name: name.trim(), bio } }),
-    );
-    if (saved !== undefined) setFeedback(t('已保存。'));
-  }
-  return html`<section class="card profile-settings">
-    <h2>
-      ${t('个人资料')}<${InfoTip}
-        text=${t('仅用于本机界面显示，不会自动发送给专家或写入研究上下文。')}
-        label=${t('个人资料说明')}
-      />
-    </h2>
-    <form onSubmit=${submit}>
-      <div class="field">
-        <label for="profile-name">${t('显示名称')}</label>
-        <input
-          id="profile-name"
-          required
-          placeholder=${t('用户')}
-          value=${name}
-          onInput=${(event) => setName(event.currentTarget.value)}
-        />
-      </div>
-      <div class="field">
-        <label for="profile-bio">${t('个人简介')}</label>
-        <textarea
-          id="profile-bio"
-          value=${bio}
-          onInput=${(event) => setBio(event.currentTarget.value)}
-        ></textarea>
-      </div>
-      <p role="status">${feedback}</p>
-      <button class="btn primary" type="submit">${t('保存个人资料')}</button>
-    </form>
-  </section>`;
-}
+// ---------- 外观 ----------
 
-const LOOK_DEFAULTS = {
-  language: 'zh',
-  font: '',
-  theme: 'light',
-  density: 'standard',
-  codeFontSize: 14,
-  chatFontSize: 14,
-  chatLineHeight: 1.6,
-  sideFontSize: 14,
-  reduceMotion: false,
-  scrollbars: false,
-};
-
-/** Chat line heights (multiples of the text size) and their names. */
+/** Chat line heights (multiples of the text size) and their names. @type {Array<[number, string]>} */
 const LINE_HEIGHTS = [
-  { value: 1.45, label: '紧凑' },
-  { value: 1.6, label: '标准' },
-  { value: 1.75, label: '宽松' },
+  [1.45, '紧凑'],
+  [1.6, '标准'],
+  [1.75, '宽松'],
 ];
 
 /** Fonts installed on this computer (Local Font Access), names only. */
@@ -153,191 +173,144 @@ async function installedFonts() {
   return [...new Set(fonts.map((font) => font.family))].sort((a, b) => a.localeCompare(b));
 }
 
-function PreferencesForm() {
-  const actions = useActions();
-  const settings = useAppState((state) => state.settings);
-  const [look, setLook] = useState({ ...LOOK_DEFAULTS, ...settings?.appearance });
-  const [sendKey, setSendKey] = useState(settings?.composer?.sendKey ?? 'enter');
-  const [hideWindow, setHideWindow] = useState(settings?.composer?.hideWindowOnScreenshot ?? true);
-  const [desk, setDesk] = useState(settings?.features?.editingDesk === true);
+/** @param {number[]} sizes */
+const sizeOptions = (sizes) => sizes.map((size) => ({ value: size, text: `${size} px` }));
+
+function AppearancePage() {
+  const [look, write] = useSetting((settings) => settings.appearance);
   const [fonts, setFonts] = useState(/** @type {string[]} */ ([]));
   const [fontStatus, setFontStatus] = useState('');
-  const [feedback, setFeedback] = useState('');
-  const set = (key) => (event) => setLook({ ...look, [key]: event.currentTarget.value });
-  const setFlag = (key) => (event) =>
-    setLook({ ...look, [key]: event.currentTarget.value === 'true' });
-  const setNumber = (key) => (event) =>
-    setLook({ ...look, [key]: Number(event.currentTarget.value) });
-
+  if (!look) return null;
+  const set = (changes) => write({ appearance: changes });
+  // Fonts are read only when the person asks: reading them makes WebView2 ask
+  // for the "local fonts" permission, which should not pop up on opening settings.
   async function readFonts() {
     try {
       const found = await installedFonts();
       setFonts(found);
-      setFontStatus(found.length ? '' : t('无法读取本机字体，只能使用内置字体。'));
+      setFontStatus(found.length ? '' : t('读不到本机字体，只能用内置字体。'));
     } catch (error) {
       setFontStatus(error.message);
     }
   }
-  // Fonts are read only when the person asks: reading them makes WebView2 ask
-  // for the "local fonts" permission, which should not pop up on opening settings.
-
-  async function submit(event) {
-    event.preventDefault();
-    const saved = await actions.attempt(() =>
-      actions.updateSettings({
-        appearance: look,
-        composer: { sendKey, hideWindowOnScreenshot: hideWindow },
-        features: { editingDesk: desk },
-      }),
-    );
-    if (saved !== undefined) setFeedback(t('已保存并应用。'));
-  }
-
-  return html`<form onSubmit=${submit}>
-    <h2>${t('阅读与操作')}</h2>
-    <${SettingRow}
-      title=${t('界面语言')}
-      tip=${t('界面文字、菜单和提示的语言。对话内容、资料和你输入的名称保持原样。')}
-    >
-      <select value=${look.language} onChange=${set('language')}>
-        <option value="zh">中文</option>
-        <option value="en">English</option>
-      </select>
+  const fontChoices = [
+    { value: '', text: t('思源黑体（内置）') },
+    ...(look.font && !fonts.includes(look.font) ? [{ value: look.font, text: look.font }] : []),
+    ...fonts.map((family) => ({ value: family, text: family })),
+  ];
+  return html`<div class="ss-settings__inner" data-settings="appearance">
+    <${Head} title=${t('外观')} />
+    <${Section} title=${t('主题与字体')}>
+      <${Row} label=${t('主题')}>
+        <${Seg}
+          label=${t('主题')}
+          small=${false}
+          value=${look.theme}
+          options=${[
+            ['light', html`<${Lucide} name="sun" />${t('浅色')}`],
+            ['dark', html`<${Lucide} name="moon" />${t('深色')}`],
+            ['system', html`<${Lucide} name="monitor" />${t('跟随系统')}`],
+          ]}
+          onChange=${(theme) => set({ theme })}
+        />
+      <//>
+      <${Row} label=${t('界面字体')} desc=${fontStatus || t('没有中文字形的字体会用替代字显示')}>
+        <${Select}
+          label=${t('界面字体')}
+          value=${look.font ?? ''}
+          options=${fontChoices}
+          onChange=${(font) => set({ font })}
+        />
+        <button type="button" class="ss-linkbtn" onClick=${readFonts}>
+          ${fonts.length ? t('重新读取') : t('读取本机字体')}
+        </button>
+      <//>
+      <${Row} label=${t('界面密度')} desc=${t('只改左栏和设置的间距，不缩放对话文字')}>
+        <${Seg}
+          label=${t('界面密度')}
+          value=${look.density}
+          options=${[
+            ['standard', t('标准')],
+            ['compact', t('紧凑')],
+          ]}
+          onChange=${(density) => set({ density })}
+        />
+      <//>
     <//>
-    <${SettingRow}
-      title=${t('界面字体')}
-      tip=${t('全局界面字体。默认使用随客户端安装的思源黑体；也可以选择这台电脑已安装的任何字体。字体不含中文时，中文会显示为替代字形。')}
-    >
-      <div class="font-choice">
-        <div class="font-choice-row">
-          <select aria-label=${t('界面字体')} value=${look.font} onChange=${set('font')}>
-            <option value="">${t('思源黑体（内置）')}</option>
-            ${look.font && !fonts.includes(look.font) && html`<option value=${look.font}>${look.font}</option>`}
-            ${fonts.map(
-              (family) =>
-                html`<option key=${family} value=${family} style=${{ fontFamily: `'${family}'` }}>
-                  ${family}
-                </option>`,
-            )}
-          </select>
-          <button type="button" class="btn tiny" title=${t('读取本机字体')} onClick=${readFonts}>
-            ${fonts.length ? t('重新读取') : t('读取本机字体')}
-          </button>
+    <${Section} title=${t('对话文字')}>
+      <${Row} label=${t('对话字号')}>
+        <${Select}
+          label=${t('对话字号')}
+          small
+          width=${96}
+          value=${look.chatFontSize}
+          options=${sizeOptions([13, 14, 15, 16, 18, 20])}
+          onChange=${(chatFontSize) => set({ chatFontSize })}
+        />
+      <//>
+      <${Row} label=${t('对话行距')}>
+        <${Seg}
+          label=${t('对话行距')}
+          value=${look.chatLineHeight}
+          options=${LINE_HEIGHTS.map(([value, label]) => [value, t(String(label))])}
+          onChange=${(chatLineHeight) => set({ chatLineHeight })}
+        />
+      <//>
+      <${Row} label=${t('侧栏字号')} desc=${t('左栏，以及右边的任务秘书和全局助手')}>
+        <${Select}
+          label=${t('侧栏字号')}
+          small
+          width=${96}
+          value=${look.sideFontSize}
+          options=${sizeOptions([12, 13, 14, 15, 16])}
+          onChange=${(sideFontSize) => set({ sideFontSize })}
+        />
+      <//>
+      <${Row} label=${t('代码字号')} desc=${t('只改消息里的代码块')}>
+        <${Select}
+          label=${t('代码字号')}
+          small
+          width=${96}
+          value=${look.codeFontSize}
+          options=${sizeOptions([12, 13, 14, 15, 16, 18])}
+          onChange=${(codeFontSize) => set({ codeFontSize })}
+        />
+      <//>
+      <div class="ss-settings__preview ss-thread" aria-label=${t('预览')}>
+        <div class="ss-msg">
+          <div class="ss-msg__head">
+            <span class="ss-avatar">${t('主')}</span
+            ><span class="ss-msg__name">${t('主专家')}</span>
+          </div>
+          <div class="ss-msg__body message-text rendered-markdown">
+            <p>
+              ${t('三份访谈都提到「老街坊搬走以后，茶馆就散了」。可以把茶馆当作社区记忆的载体来写，先列出它在访谈里出现的场合。')}
+            </p>
+            <p><code>quotes = interviews.search("茶馆")</code></p>
+          </div>
         </div>
-        <span
-          class="font-preview"
-          style=${{ fontFamily: look.font ? `'${look.font}'` : 'var(--ss-font-default)' }}
-          >研究 ScienceScope 0123 · ${t('数据与方法')}</span
-        >
-        <span class="font-status" role="status">${fontStatus}</span>
       </div>
     <//>
-    <${SettingRow} title=${t('主题')} tip=${t('浅色保留原设计；跟随系统会响应系统主题变化。')}>
-      <select value=${look.theme} onChange=${set('theme')}>
-        <option value="light">${t('浅色')}</option>
-        <option value="dark">${t('深色')}</option>
-        <option value="system">${t('跟随系统')}</option>
-      </select>
+    <${Section} title=${t('动效与滚动条')}>
+      <${Row} label=${t('减少过渡动画')} desc=${t('打开后，菜单和面板直接出现，不做淡入和滑动')}>
+        <${Switch}
+          label=${t('减少过渡动画')}
+          checked=${Boolean(look.reduceMotion)}
+          onChange=${(reduceMotion) => set({ reduceMotion })}
+        />
+      <//>
+      <${Row} label=${t('始终显示滚动条')} desc=${t('关掉时，滚动条只在滚动时出现')}>
+        <${Switch}
+          label=${t('始终显示滚动条')}
+          checked=${Boolean(look.scrollbars)}
+          onChange=${(scrollbars) => set({ scrollbars })}
+        />
+      <//>
     <//>
-    <${SettingRow} title=${t('界面密度')} tip=${t('调整导航和设置间距，不缩放聊天正文。')}>
-      <select value=${look.density} onChange=${set('density')}>
-        <option value="standard">${t('标准')}</option>
-        <option value="compact">${t('紧凑')}</option>
-      </select>
-    <//>
-    <${SettingRow} title=${t('代码字号')} tip=${t('仅调整消息里的代码块，不改变正文。')}>
-      <select value=${String(look.codeFontSize)} onChange=${setNumber('codeFontSize')}>
-        ${[12, 13, 14, 15, 16, 18].map((size) => html`<option key=${size} value=${size}>${size}px</option>`)}
-      </select>
-    <//>
-    <${SettingRow} title=${t('对话字号')} tip=${t('主对话的正文和你的消息。')}>
-      <select
-        aria-label=${t('对话字号')}
-        value=${String(look.chatFontSize)}
-        onChange=${setNumber('chatFontSize')}
-      >
-        ${[13, 14, 15, 16, 18, 20].map((size) => html`<option key=${size} value=${size}>${size}px</option>`)}
-      </select>
-    <//>
-    <${SettingRow}
-      title=${t('对话行距')}
-      tip=${t('主对话和侧栏对话的行高；段落间距随行距一起变。')}
-    >
-      <select
-        aria-label=${t('对话行距')}
-        value=${String(look.chatLineHeight)}
-        onChange=${setNumber('chatLineHeight')}
-      >
-        ${LINE_HEIGHTS.map(({ value, label }) => html`<option key=${value} value=${value}>${t(label)}</option>`)}
-      </select>
-    <//>
-    <${SettingRow} title=${t('侧栏字号')} tip=${t('左侧导航，以及右侧任务秘书和全局助手的对话。')}>
-      <select
-        aria-label=${t('侧栏字号')}
-        value=${String(look.sideFontSize)}
-        onChange=${setNumber('sideFontSize')}
-      >
-        ${[12, 13, 14, 15, 16].map((size) => html`<option key=${size} value=${size}>${size}px</option>`)}
-      </select>
-    <//>
-    <button
-      class="btn tiny"
-      type="button"
-      onClick=${() => setLook({ ...LOOK_DEFAULTS, language: look.language })}
-    >
-      ${t('恢复阅读与操作默认设置')}
-    </button>
-    <${SettingRow}
-      title=${t('发送快捷键')}
-      tip=${t('Shift + Enter 始终换行；不改变导图编辑键位。')}
-    >
-      <select value=${sendKey} onChange=${(event) => setSendKey(event.currentTarget.value)}>
-        <option value="enter">${t('Enter 发送')}</option>
-        <option value="ctrl-enter">${t('Ctrl + Enter 发送')}</option>
-      </select>
-    <//>
-    <${SettingRow}
-      title=${t('截图时隐藏 ScienceScope 窗口')}
-      tip=${t('输入框「添加 → 截图」开始前先隐藏所有 ScienceScope 窗口，截完恢复。只在桌面版生效。')}
-    >
-      <select
-        aria-label=${t('截图时隐藏 ScienceScope 窗口')}
-        value=${String(hideWindow)}
-        onChange=${(event) => setHideWindow(event.currentTarget.value === 'true')}
-      >
-        <option value="true">${t('开启')}</option>
-        <option value="false">${t('关闭')}</option>
-      </select>
-    <//>
-    <${SettingRow} title=${t('减少过渡动画')} tip=${t('即时生效。')}>
-      <select value=${String(look.reduceMotion)} onChange=${setFlag('reduceMotion')}>
-        <option value="false">${t('关闭')}</option>
-        <option value="true">${t('开启')}</option>
-      </select>
-    <//>
-    <${SettingRow} title=${t('显示滚动条')} tip=${t('聊天和设置滚动区域。')}>
-      <select value=${String(look.scrollbars)} onChange=${setFlag('scrollbars')}>
-        <option value="false">${t('自动隐藏')}</option>
-        <option value="true">${t('始终显示')}</option>
-      </select>
-    <//>
-    <${SettingRow}
-      title=${t('编辑台（试用）')}
-      tip=${t('还在开发：打开后左栏「工作站」下面出现「编辑台」，工作站的文献版本管理换成「在编辑台打开」。现在只能阅读文稿。')}
-    >
-      <select
-        aria-label=${t('编辑台（试用）')}
-        value=${String(desk)}
-        onChange=${(event) => setDesk(event.currentTarget.value === 'true')}
-      >
-        <option value="false">${t('关闭')}</option>
-        <option value="true">${t('开启')}</option>
-      </select>
-    <//>
-    <p role="status">${feedback}</p>
-    <div class="saverow"><button class="btn primary" type="submit">${t('保存并应用')}</button></div>
-  </form>`;
+  </div>`;
 }
+
+// ---------- 快捷键 ----------
 
 const SHORTCUT_DEFAULTS = {
   search: 'Ctrl+K',
@@ -351,207 +324,245 @@ const SHORTCUT_LABELS = [
   ['newChat', '新建项目内对话'],
   ['independentChat', '独立新对话'],
 ];
-/** Keys the window keeps for editing and the browser shell. */
-const RESERVED = [
-  'Ctrl+C',
-  'Ctrl+V',
-  'Ctrl+X',
-  'Ctrl+A',
-  'Ctrl+Z',
-  'Ctrl+Y',
-  'Ctrl+F',
-  'Ctrl+R',
-  'Ctrl+W',
-];
+/** Keys the window keeps for editing and the browser shell, and what they do. */
+const RESERVED = {
+  'Ctrl+C': '复制',
+  'Ctrl+V': '粘贴',
+  'Ctrl+X': '剪切',
+  'Ctrl+A': '全选',
+  'Ctrl+Z': '撤销',
+  'Ctrl+Y': '重做',
+  'Ctrl+F': '查找',
+  'Ctrl+R': '刷新',
+  'Ctrl+W': '关闭窗口',
+};
+/** "Ctrl+Shift+K" shown as "Ctrl Shift K". @param {string} combo */
+const shown = (combo) => combo.replaceAll('+', ' ');
 
-function ShortcutsForm() {
-  const actions = useActions();
-  const saved = useAppState((state) => state.settings?.shortcuts);
-  const [keys, setKeys] = useState({ ...SHORTCUT_DEFAULTS, ...saved });
-  const [feedback, setFeedback] = useState('');
-
-  function record(name, event) {
+/** One shortcut field: click, press the keys; a clash is explained under the label. */
+function ShortcutRow({ name, label, keys, onSave }) {
+  const [recording, setRecording] = useState(false);
+  const [error, setError] = useState('');
+  function record(event) {
     if (event.key === 'Tab') return;
     event.preventDefault();
+    if (event.key === 'Escape') return event.currentTarget.blur();
     const combo = comboOf(event);
     if (!combo) return;
-    if (!/^(Ctrl|Alt)\+/.test(combo)) return setFeedback(t('快捷键需要包含 Ctrl 或 Alt。'));
-    if (RESERVED.includes(combo)) return setFeedback(t('{key} 保留给编辑操作。', { key: combo }));
-    const taken = Object.entries(keys).find(([other, value]) => other !== name && value === combo);
-    if (taken) return setFeedback(t('{key} 已被其他操作使用。', { key: combo }));
-    setFeedback('');
-    setKeys({ ...keys, [name]: combo });
+    if (!/^(Ctrl|Alt)\+/.test(combo)) return setError(t('要带上 Ctrl 或 Alt'));
+    if (RESERVED[combo])
+      return setError(
+        t('{key} 是{action}，不能占用', { key: shown(combo), action: t(RESERVED[combo]) }),
+      );
+    const taken = SHORTCUT_LABELS.find(([other]) => other !== name && keys[other] === combo);
+    if (taken)
+      return setError(t('{key} 已经给了「{name}」', { key: shown(combo), name: t(taken[1]) }));
+    setError('');
+    onSave({ ...keys, [name]: combo });
+    event.currentTarget.blur();
   }
-
-  async function save(next) {
-    const result = await actions.attempt(() => actions.updateSettings({ shortcuts: next }));
-    if (result !== undefined) {
-      setKeys(next);
-      setFeedback(t('已保存并应用。'));
+  return html`<${Row}
+    label=${t(label)}
+    desc=${
+      error &&
+      html`<span class="ss-field__error"><${Lucide} name="circle-alert" small />${error}</span>`
     }
-  }
-
-  return html`<form
-    data-shortcut-form
-    onSubmit=${(event) => {
-      event.preventDefault();
-      save(keys);
-    }}
   >
-    <h2>
-      ${t('快捷键')}<${InfoTip}
-        text=${t('点击输入框后按下组合键。保留复制、粘贴、查找和浏览器保护按键；发送键在常规设置修改。仅在客户端窗口内生效。')}
-        label=${t('快捷键说明')}
+    <span class="ss-input ss-input--sm" style="width:180px" data-invalid=${error ? '' : undefined}>
+      <input
+        id=${`shortcut-${name}`}
+        data-shortcut-input
+        readonly
+        value=${recording ? '' : shown(keys[name])}
+        placeholder=${t('按下组合键…')}
+        aria-label=${t('{name}快捷键', { name: t(label) })}
+        onFocus=${() => setRecording(true)}
+        onBlur=${() => setRecording(false)}
+        onKeyDown=${record}
       />
-    </h2>
-    ${SHORTCUT_LABELS.map(
-      ([name, label]) =>
-        html`<div class="settingrow" key=${name}>
-          <label for=${`shortcut-${name}`}>${t(label)}</label>
-          <input
-            id=${`shortcut-${name}`}
-            data-shortcut-input
-            readonly
-            value=${keys[name]}
-            aria-label=${t('{name}快捷键', { name: t(label) })}
-            onKeyDown=${(event) => record(name, event)}
-          />
-        </div>`,
-    )}
-    <p role="status">${feedback}</p>
-    <div class="saverow">
-      <button class="btn primary" type="submit">${t('保存并应用')}</button>
-      <button class="btn" type="button" onClick=${() => save({ ...SHORTCUT_DEFAULTS })}>
-        ${t('恢复默认快捷键')}
-      </button>
-    </div>
-  </form>`;
+    </span>
+  <//>`;
 }
 
-const FOLDERS = [
-  ['root', '客户端目录'],
-  ['database', '应用数据库与设置'],
-  ['projects', '默认项目目录'],
-  ['library', '资料库原件'],
-  ['runtime', '智能体运行会话'],
-];
-
-/** Where this installation keeps its data (数据库与文件 / 运行环境). @param {{ title: string }} props */
-function FoldersPage({ title }) {
-  const actions = useActions();
-  const [info, setInfo] = useState(/** @type {any} */ (null));
-  useEffect(() => {
-    actions.attempt(async () => setInfo(await actions.systemInfo()));
-  }, []);
-  return html`<div>
-    <h2>
-      ${title}<${InfoTip}
-        text=${t('以下是此客户端实际使用的位置。\nSQLite 保存应用记录，运行会话是智能体的工作记忆；原始材料保存在资料库。此处不提供清空历史或索引的一键操作。')}
-      />
-    </h2>
-    ${
-      info &&
-      FOLDERS.map(
+function ShortcutsPage() {
+  const [saved, write] = useSetting((settings) => settings.shortcuts);
+  const [sendKey] = useSetting((settings) => settings.composer?.sendKey ?? 'enter');
+  const keys = { ...SHORTCUT_DEFAULTS, ...saved };
+  const save = (next) => write({ shortcuts: next });
+  const fixed = [
+    ['发送消息', sendKey === 'ctrl-enter' ? 'Ctrl Enter' : 'Enter'],
+    ['换行', sendKey === 'ctrl-enter' ? 'Enter' : 'Shift Enter'],
+    ['停止回答、关闭弹层', 'Esc'],
+    ['重命名左栏里选中的项目或对话', 'F2'],
+  ];
+  return html`<div class="ss-settings__inner" data-settings="shortcuts">
+    <${Head}
+      title=${t('快捷键')}
+      desc=${t('点一下输入框，再按组合键。只在 ScienceScope 窗口里有效。')}
+    />
+    <${Section}
+      title=${t('可以改的')}
+      extra=${html`<button
+        type="button"
+        class="ss-btn ss-btn--ghost ss-btn--sm"
+        onClick=${() => save({ ...SHORTCUT_DEFAULTS })}
+      >
+        <${Lucide} name="undo-2" />${t('恢复默认')}
+      </button>`}
+    >
+      ${SHORTCUT_LABELS.map(
         ([name, label]) =>
-          html`<div class="settingrow" key=${name}>
-            <div class="description">
-              <h3>${t(label)}</h3>
-              <p><code class="settings-path">${info.folders[name]}</code></p>
-            </div>
-            <div class="control">
-              <button
-                class="btn tiny"
-                onClick=${() => actions.attempt(() => actions.openFolder(name))}
-              >
-                ${t('打开文件夹')}
-              </button>
-            </div>
-          </div>`,
-      )
-    }
-    ${
-      info &&
-      html`<div class="settingrow">
-        <div class="description">
-          <h3>${t('运行时')}</h3>
-          <p>Node ${info.runtime.node} · ${info.runtime.platform} · ${info.runtime.arch}</p>
-        </div>
-      </div>`
-    }
+          html`<${ShortcutRow}
+            key=${name}
+            name=${name}
+            label=${label}
+            keys=${keys}
+            onSave=${save}
+          />`,
+      )}
+    <//>
+    <${Section}
+      title=${t('固定的')}
+      tip=${t('复制、粘贴、撤销、查找这些系统按键也保留，不能改。发送键在「通用」里换。')}
+    >
+      <div class="ss-list">
+        ${fixed.map(
+          ([action, key]) =>
+            html`<div class="ss-list-row" key=${action}>
+              <div class="ss-list-row__main">
+                <span class="ss-list-row__title">${t(action)}</span>
+              </div>
+              <span class="ss-kbd">${key}</span>
+            </div>`,
+        )}
+      </div>
+    <//>
   </div>`;
 }
 
-/** @param {{ page: string, projectName?: string }} props */
-export function SettingsView({ page, projectName }) {
-  let content;
-  if (page === 'general') content = html`<${ProfileCard} /><${PreferencesForm} />`;
-  else if (page === 'shortcuts') content = html`<${ShortcutsForm} />`;
-  else if (page === 'models') content = html`<${ModelsPage} />`;
-  else if (page.startsWith('provider'))
-    content = html`<${ProviderPage} index=${page.split('/')[1] ?? 'new'} />`;
-  else if (page === 'persona')
-    content = html`<${RolePage}
-      participantId="agent_main"
-      title=${t('主专家设置')}
-      tip=${t('它是统筹者，不建议给予主专家特定角色。')}
-    />`;
-  else if (page === 'secretary-settings')
-    content = html`<${RolePage}
-        participantId="agent_secretary"
-        title=${t('任务秘书设置')}
-        tip=${t('提示词描述职责，不代替工具权限设置。')}
-      /><${SecretarySettings} /><${MemorySettings} />`;
-  else if (page === 'assistant-settings')
-    content = html`<${RolePage}
-        participantId="agent_assistant"
-        title=${t('全局助手设置')}
-        tip=${t('提示词描述职责，不代替工具权限设置。')}
-      /><${AssistantWindowSettings} />`;
-  else if (page === 'experts') content = html`<${ExpertsPage} />`;
-  else if (page === 'library-settings')
-    content = html`<${FoldersPage} title=${t('数据库与文件')} />`;
-  else if (page === 'environment')
-    content = html`<${FoldersPage}
-        title=${t('运行环境')}
-      /><${ApprovalRulesSettings} /><${PythonSettings} /><${SemanticSettings} />`;
-  else if (page === 'tools') content = html`<${ToolsPage} />`;
-  else if (page === 'skills') content = html`<${SkillsPage} />`;
-  else if (page === 'mcp') content = html`<${McpPage} />`;
-  else if (page === 'about') content = html`<${AboutPage} />`;
-  else content = html`<div class="empty">${t('没有这个设置页。')}</div>`;
-  const active = page.startsWith('provider') ? 'models' : page;
+// ---------- the frame ----------
 
-  return html`<main class="main">
-    <${MainHead}
-      crumb=${projectName ?? 'ScienceScope'}
-      section=${t('设置')}
-      title=${titleOf(page)}
-    />
-    <div class="mainbody">
-      <div class="settings">
-        <nav class="settingsnav">
-          <button class="nav" onClick=${() => navigate({ view: 'home' })}>
-            <${Icon} name="back" />${t('返回工作区')}
-          </button>
+/** @param {string} id */
+function pageFor(id) {
+  const [section, ...rest] = id.split('/');
+  const sub = rest.join('/');
+  if (section === 'general') return html`<${GeneralPage} />`;
+  if (section === 'appearance') return html`<${AppearancePage} />`;
+  if (section === 'shortcuts') return html`<${ShortcutsPage} />`;
+  if (section === 'models') return html`<${ModelsPage} />`;
+  if (section === 'provider') return html`<${ProviderPage} index=${sub || 'new'} />`;
+  if (section === 'experts')
+    return sub ? html`<${RoleDetail} key=${sub} participantId=${sub} />` : html`<${ExpertsPage} />`;
+  if (section === 'secretary') return html`<${SecretaryPage} />`;
+  if (section === 'assistant') return html`<${AssistantPage} />`;
+  if (section === 'approvals') return html`<${ApprovalsPage} />`;
+  if (section === 'tools') return html`<${ToolsPage} />`;
+  if (section === 'skills') return html`<${SkillsPage} />`;
+  if (section === 'mcp') return html`<${McpPage} />`;
+  if (section === 'knowledge') return html`<${KnowledgePage} />`;
+  if (section === 'desk') return html`<${DeskPage} />`;
+  if (section === 'python')
+    return sub
+      ? html`<${PythonEnvironmentPage} key=${sub} environmentId=${sub} />`
+      : html`<${PythonPage} />`;
+  if (section === 'data') return html`<${DataPage} />`;
+  if (section === 'about') return html`<${AboutPage} />`;
+  return html`<div class="ss-settings__inner">
+    <p class="ss-settings__desc">${t('没有这个设置页。')}</p>
+  </div>`;
+}
+
+/** The navigation entry a page belongs to. @param {string} id */
+function activeOf(id) {
+  const section = id.split('/')[0];
+  return section === 'provider' ? 'models' : section;
+}
+
+/**
+ * The settings dialog. `page` is the id from `#/settings/<page>`; closing
+ * returns to the page underneath.
+ * @param {{ page: string, onClose: () => void }} props
+ */
+export function SettingsDialog({ page, onClose }) {
+  const actions = useActions();
+  const id = ALIASES[page] ?? page;
+  const active = activeOf(id);
+  const desk = useAppState((state) => state.settings?.features?.editingDesk === true);
+  const [version, setVersion] = useState('');
+  const content = useRef(/** @type {HTMLElement | null} */ (null));
+  useEffect(() => {
+    actions.attempt(async () => setVersion((await actions.systemInfo()).version ?? ''));
+  }, []);
+  // Esc closes settings unless a menu, popover or dialog inside it took the key first.
+  useEffect(() => {
+    /** @param {KeyboardEvent} event */
+    const key = (event) => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      if (
+        document.querySelector('.ss-menu, .ss-pop, #v-menu, .ss-scrim:not([data-settings-scrim])')
+      )
+        return;
+      event.preventDefault();
+      onClose();
+    };
+    addEventListener('keydown', key);
+    return () => removeEventListener('keydown', key);
+  }, [onClose]);
+  useEffect(() => {
+    content.current?.scrollTo?.(0, 0);
+  }, [id]);
+  const go = (next) => navigate({ view: 'settings', id: next });
+  const item = (pageId, icon, label, end = null) =>
+    html`<button
+      key=${pageId}
+      type="button"
+      class="ss-nav-item"
+      aria-current=${active === pageId ? 'page' : undefined}
+      onClick=${() => go(pageId)}
+    >
+      <${Lucide} name=${icon} /><span class="ss-nav-item__label">${t(label)}</span>${end}
+    </button>`;
+  return html`<div
+    class="ss-scrim"
+    data-settings-scrim
+    onPointerDown=${(event) => event.target === event.currentTarget && onClose()}
+  >
+    <div
+      class="ss-dialog ss-dialog--settings"
+      role="dialog"
+      aria-modal="true"
+      aria-label=${t('设置')}
+    >
+      <button
+        type="button"
+        class="ss-icon-btn ss-settings__close"
+        aria-label=${t('关闭')}
+        data-tip=${t('关闭')}
+        data-kbd="Esc"
+        onClick=${onClose}
+      >
+        <${Lucide} name="x" />
+      </button>
+      <div class="ss-settings">
+        <nav class="ss-settings__nav" aria-label=${t('设置分类')}>
+          <div class="ss-settings__navtitle">${t('设置')}</div>
           ${GROUPS.map(
             ([group, items]) =>
-              html`<div class="navsection" key=${group}>${t(group)}</div>
-                ${items.map(
-                  ([id, label]) =>
-                    html`<button
-                      key=${id}
-                      class=${`nav ${active === id ? 'active' : ''}`}
-                      onClick=${() => navigate({ view: 'settings', id })}
-                    >
-                      ${t(label)}
-                    </button>`,
-                )}`,
+              html`<div class="ss-settings__navgroup" key=${group}>${t(group)}</div>
+                ${items
+                  .filter(([pageId]) => pageId !== 'desk' || desk)
+                  .map(([pageId, icon, label]) => item(pageId, icon, label))}`,
+          )}
+          <div class="ss-settings__navsep"></div>
+          ${item(
+            'about',
+            'info',
+            '关于',
+            version && html`<span class="ss-nav-item__end">${version}</span>`,
           )}
         </nav>
-        <div class="settingscontent">
-          <div class="settingform" key=${page}>${content}</div>
-        </div>
+        <div class="ss-settings__content" ref=${content} key=${id}>${pageFor(id)}</div>
       </div>
     </div>
-  </main>`;
+  </div>`;
 }

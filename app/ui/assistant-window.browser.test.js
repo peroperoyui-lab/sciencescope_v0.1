@@ -22,22 +22,29 @@ test(
           .href;
         await page.goto(settingsUrl);
         const settings = page.locator('[data-assistant-window-settings]');
-        await settings.getByLabel('启动客户端时').selectOption('orb');
-        await settings.getByRole('button', { name: '保存启动设置', exact: true }).click();
-        await settings.getByText('已保存，下次启动客户端生效。', { exact: true }).waitFor();
+        const LABELS = { closed: '不打开', orb: '只显示浮球', expanded: '浮球和对话' };
+        const startupButton = (value) =>
+          settings
+            .getByRole('group', { name: '启动时', exact: true })
+            .getByRole('button', { name: LABELS[value], exact: true });
+        // Each choice saves at once; wait until the settings file has it.
+        const pick = async (value) => {
+          await startupButton(value).click();
+          for (let tries = 0; tries < 50; tries++) {
+            const saved = await app.core.workspace.read({ resource: 'settings', key: 'app' });
+            if (saved.value.assistant.startup === value) return;
+            await new Promise((resolve) => setTimeout(resolve, 100));
+          }
+          assert.fail(`startup ${value} was not saved`);
+        };
+        await pick('orb');
         assert.equal(
           await settings.getByRole('button', { name: '显示浮球', exact: true }).count(),
           0,
         );
         await page.reload();
-        await page.waitForFunction(
-          () =>
-            /** @type {HTMLSelectElement} */ (document.querySelector('#assistant-startup'))
-              ?.value === 'orb',
-        );
-        await settings.getByLabel('启动客户端时').selectOption('closed');
-        await settings.getByRole('button', { name: '保存启动设置', exact: true }).click();
-        await settings.getByText('已保存，下次启动客户端生效。', { exact: true }).waitFor();
+        await settings.locator('button[aria-pressed="true"]', { hasText: '只显示浮球' }).waitFor();
+        await pick('closed');
         await page.context().exposeBinding('nativeEmitTo', async (_, target, name, payload) => {
           assert.equal(target, 'main');
           await page.evaluate(
@@ -92,15 +99,13 @@ test(
         await page.goto(
           new URL('/?token=wrong-url-token#/settings/assistant-settings', page.url()).href,
         );
-        await settings.getByLabel('启动客户端时').waitFor();
+        await startupButton('closed').waitFor();
         assert.equal(
           (await calls()).filter(([command]) => command === 'open_secondary_window').length,
           0,
         );
         for (const startup of ['orb', 'expanded']) {
-          await settings.getByLabel('启动客户端时').selectOption(startup);
-          await settings.getByRole('button', { name: '保存启动设置', exact: true }).click();
-          await settings.getByText('已保存，下次启动客户端生效。', { exact: true }).waitFor();
+          await pick(startup);
           await page.reload();
           await page.waitForFunction(() =>
             /** @type {any} */ (window).nativeAssistantTest.calls.some(
@@ -111,6 +116,8 @@ test(
           assert.equal(opens.length, 1);
           assert.equal(opens[0][1].request.collapsed, startup === 'orb');
         }
+        await page.keyboard.press('Escape');
+        await page.locator('[data-settings-scrim]').waitFor({ state: 'detached' });
         await page
           .locator('.ss-sidebar__foot')
           .getByRole('button', { name: '全局助手', exact: true })
@@ -181,11 +188,13 @@ test(
           await button.dispatchEvent('contextmenu');
           assert.ok((await calls(orb)).some(([command]) => command === 'show_assistant_menu'));
           await page.goto(settingsUrl);
-          await page.getByRole('button', { name: '视图', exact: true }).click();
-          await page.getByRole('menuitemcheckbox', { name: 'English', exact: true }).click();
-          await settings
-            .getByRole('button', { name: 'Save startup setting', exact: true })
-            .waitFor();
+          await app.core.workspace.edit({
+            resource: 'settings',
+            key: 'app',
+            op: 'patch',
+            args: { changes: { appearance: { language: 'en' } } },
+          });
+          await settings.locator('h3', { hasText: 'Window' }).waitFor();
           assert.doesNotMatch(await settings.innerText(), /[一-鿿]/u);
           await shot('r4-5c-assistant-settings-browser-en');
         } finally {

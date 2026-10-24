@@ -88,9 +88,12 @@ test(
       await page.evaluate(() => {
         location.hash = '#/settings/general';
       });
-      await page.getByLabel('编辑台（试用）', { exact: true }).selectOption('true');
-      await page.getByRole('button', { name: '保存并应用' }).click();
-      await page.getByText('已保存并应用。').waitFor();
+      const saved = page.waitForResponse(
+        (response) =>
+          response.url().includes('/api/settings') && response.request().method() === 'PATCH',
+      );
+      await page.getByRole('switch', { name: '编辑台', exact: true }).check();
+      await saved;
       await page.evaluate((id) => {
         location.hash = '#/workbench/' + id;
       }, project.id);

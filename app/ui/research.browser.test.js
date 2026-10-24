@@ -500,31 +500,31 @@ test(
         await route.fulfill({ json: status });
       });
       await page.evaluate(() => {
-        location.hash = '#/settings/environment';
+        location.hash = '#/settings/knowledge';
       });
       await page.getByRole('heading', { name: '本地混合检索' }).waitFor();
       assert.equal(downloads, 0);
-      await page.getByRole('button', { name: '开启语义检索' }).click();
+      await page.getByRole('switch', { name: '语义检索', exact: true }).check();
       await staleRead;
       status = { ...status, enabled: true, state: 'model-missing' };
       app.core.events.transient('research.semantic.changed', status);
-      await page.getByText('模型未下载', { exact: true }).waitFor();
+      await page.getByText('还没有下载模型', { exact: true }).waitFor();
       releaseReads();
       await page.waitForFunction(
         () =>
           /** @type {HTMLButtonElement} */ (
-            document.querySelector('[data-semantic-settings] button')
+            document.querySelector('[data-semantic-settings] [role="switch"]')
           )?.disabled === false,
       );
       assert.equal((await request(page, '/api/settings')).semantic.enabled, true);
-      await page.getByText('模型未下载', { exact: true }).waitFor();
-      await page.getByRole('button', { name: '下载或修复本地模型' }).click();
+      await page.getByText('还没有下载模型', { exact: true }).waitFor();
+      await page.getByRole('button', { name: '下载或修复模型' }).click();
       await page.getByText('正在下载模型', { exact: true }).waitFor();
       assert.equal(downloads, 1);
       status = { ...status, state: 'ready', indexed: 3, download: null };
       app.core.events.transient('research.semantic.changed', status);
       await page.getByText('混合检索就绪', { exact: true }).waitFor();
-      await page.getByRole('button', { name: '重新检查索引' }).click();
+      await page.getByRole('button', { name: '重新建立索引' }).click();
       await page.getByText('正在建立索引', { exact: true }).waitFor();
       assert.equal(rebuilds, 1);
       const before = reads;

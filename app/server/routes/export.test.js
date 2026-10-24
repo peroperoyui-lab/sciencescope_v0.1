@@ -53,6 +53,7 @@ test(
       assert.equal(cancelFinished.status, 200);
       assert.equal(cancelFinished.body.phase, 'finished');
       assert.equal((await call('GET', '/api/export/all/missing')).status, 404);
+      assert.equal((await call('POST', '/api/export/all/missing/open', {})).status, 404);
     } finally {
       unsubscribe();
       await server.close();

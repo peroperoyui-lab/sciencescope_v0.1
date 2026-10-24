@@ -2298,6 +2298,14 @@ html[data-resizing] * {
 .ss-list-row[data-menu-open] .ss-list-row__actions {
   opacity: 1;
 }
+.ss-list-row--link {
+  cursor: pointer;
+}
+.ss-settings__role {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
 .ss-list-row--2 {
   min-height: 52px;
   padding-top: 6px;

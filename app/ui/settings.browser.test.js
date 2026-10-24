@@ -25,7 +25,8 @@ test(
             })
           ).json()
         ).refs;
-      await page.locator('.settingsnav').getByRole('button', { name: '模型与服务商' }).click();
+      const nav = page.locator('.ss-settings__nav');
+      await nav.getByRole('button', { name: '模型与服务商' }).click();
 
       // Quick add: only the key; the test request runs before the dialog closes.
       await page.getByRole('button', { name: '添加 OpenCode Go 订阅' }).click();
@@ -90,18 +91,29 @@ test(
         ['opencode-go'],
       );
 
-      await page.locator('.settingsnav').getByRole('button', { name: '个人资料与常规' }).click();
-      await page.locator('.settingrow', { hasText: '主题' }).locator('select').selectOption('dark');
-      await page.getByRole('combobox', { name: '对话字号' }).selectOption('16');
-      await page.getByRole('combobox', { name: '对话行距' }).selectOption({ label: '宽松' });
-      await page.getByRole('combobox', { name: '侧栏字号' }).selectOption('13');
-      await page.getByRole('button', { name: '保存并应用' }).click();
+      await nav.getByRole('button', { name: '外观', exact: true }).click();
+      const choose = async (label, option) => {
+        await page.getByRole('button', { name: label, exact: true }).click();
+        await page.getByRole('menuitemradio', { name: option, exact: true }).click();
+      };
+      await page.getByRole('group', { name: '主题' }).getByRole('button', { name: '深色' }).click();
+      await choose('对话字号', '16 px');
+      await page
+        .getByRole('group', { name: '对话行距' })
+        .getByRole('button', { name: '宽松' })
+        .click();
+      await choose('侧栏字号', '13 px');
       await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
-      const look = (await settings()).appearance;
-      assert.deepEqual(
-        [look.theme, look.chatFontSize, look.chatLineHeight, look.sideFontSize],
-        ['dark', 16, 1.75, 13],
-      );
+      const appearance = async () => {
+        const look = (await settings()).appearance;
+        return [look.theme, look.chatFontSize, look.chatLineHeight, look.sideFontSize];
+      };
+      for (let tries = 0; tries < 50; tries++) {
+        if ((await appearance()).join() === 'dark,16,1.75,13') break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      assert.deepEqual(await appearance(), ['dark', 16, 1.75, 13]);
+      await shot('settings-appearance');
       assert.equal(
         await page
           .locator('.ss-sidebar .ss-nav-item')
@@ -110,11 +122,12 @@ test(
         '13px',
       );
 
-      await page.locator('.settingsnav').getByRole('button', { name: '专家角色' }).click();
-      const first = page.locator('.expert-card').first();
-      await first.locator('input').first().fill('研究设计专家');
-      await page.getByRole('button', { name: '保存名册' }).click();
-      await page.getByText('名册已保存。').waitFor();
+      await nav.getByRole('button', { name: '专家', exact: true }).click();
+      await page.locator('[data-expert="agent_methodologist"]').click();
+      const detail = page.locator('[data-settings="expert"]');
+      await detail.getByLabel('名称', { exact: true }).fill('研究设计专家');
+      await detail.getByLabel('名称', { exact: true }).blur();
+      await detail.getByText('已保存 · 下一轮发言生效').waitFor();
       await shot('settings-experts');
       const expert = await app.core.participants.get('agent_methodologist');
       assert.equal(expert.name, '研究设计专家');
