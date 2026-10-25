@@ -1,4 +1,5 @@
-# Builds the editing-desk gallery cards (U0): six page mocks of the desk window and one entry card.
+# Builds the editing-desk gallery cards (U0): page mocks of the desk window, the entry card,
+# menus and the index picker (U5).
 # Run from the repo root: python3 -I docs/design/system/build/desk/gen.py .
 import sys, pathlib
 ROOT = pathlib.Path(sys.argv[1])
@@ -240,7 +241,7 @@ def notes_panel(active_tab='批注与索引', composer=True, filt='全部'):
     comp = '''<div class="ss-desk-card" style="border-color:var(--accent-line);box-shadow:0 0 0 1px var(--accent-line)">
           <div class="ss-desk-card__head"><i data-i="message-square-plus" class="ss-i--sm" style="color:var(--accent)"></i><span>新批注</span></div>
           <p class="ss-desk-card__quote">经济韧性指数采用熵权法合成，涵盖抵抗力、恢复力与再组织能力三个维度</p>
-          <textarea class="ss-textarea" rows="2" placeholder="写批注，@ 专家可以请他看这里"></textarea>
+          <textarea class="ss-textarea" rows="2" placeholder="写下你的意见或要核对的地方"></textarea>
           <div class="ss-desk-card__foot"><button class="ss-btn ss-btn--ghost" type="button"><i data-i="link-2"></i>改成索引</button><span style="flex:1"></span><button class="ss-btn ss-btn--ghost" type="button">取消</button><button class="ss-btn ss-btn--primary" type="button">添加</button></div>
         </div>''' if composer else ''
     idx_extra = '<dl class="ss-props" style="margin:0"><dt>数据</dt><dd>data/city_panel.csv</dd><dt>脚本</dt><dd>scripts/sample.py</dd></dl>'
@@ -787,4 +788,74 @@ card('DeskMenus', 'group="编辑台" height=410 subtitle="浮动工具条（docx
 - PDF：只有标记、批注、索引、引用到对话、复制。
 - 改写发出后，工具条变成进度行，可以停止；改完直接写进正文（不显示修订标记），弹提示「看改了什么 / 撤销」。
 - 版本右键：打开（只读）、从这一版开始编辑、比较、改名和备注、层级、另存为文件、用这一版覆盖项目文件（先确认）；有后续版本时不能删，菜单写明原因。
+''')
+
+
+# ---------- 9. index picker (U5) ----------
+def pick_row(icon, title, checked=False, sub=''):
+    on = ' checked' if checked else ''
+    two = ' ss-list-row--2' if sub else ''
+    subline = f'<span class="ss-list-row__sub">{sub}</span>' if sub else ''
+    return (f'<label class="ss-list-row ss-desk-picker__row{two}" role="option" aria-selected="{"true" if checked else "false"}">'
+            f'<span class="ss-check"><input type="checkbox"{on} /></span><i data-i="{icon}" class="ss-list-row__icon"></i>'
+            f'<span class="ss-list-row__main"><span class="ss-list-row__title">{title}</span>{subline}</span></label>')
+
+
+def picker(tab, rows, crumbs='', chips=(), note='', title='添加索引'):
+    seg = ''.join(f'<button type="button" aria-pressed="{"true" if name == tab else "false"}">{name}</button>' for name in ('项目文件', '资料库', '对话消息'))
+    holder = '消息里的关键词' if tab == '对话消息' else '按名称筛选'
+    chip_html = ''.join(f'<span class="ss-chip"><i data-i="{icon}" class="ss-i--sm"></i><span class="ss-truncate">{label}</span><button type="button" aria-label="移除 {label}"><i data-i="x" class="ss-i--sm"></i></button></span>' for icon, label in chips)
+    chips_block = f'<div class="ss-chips ss-chips--inline" aria-label="已选来源">{chip_html}</div>' if chips else ''
+    hint = '' if chips else '<span class="ss-muted ss-desk-picker__hint">至少选一项来源</span>'
+    return f'''<div class="ss-dialog" data-static role="dialog" aria-label="{title}" style="width:420px">
+      <div class="ss-dialog__head"><h2 class="ss-dialog__title">{title}</h2><button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭" data-kbd="Esc"><i data-i="x"></i></button></div>
+      <div class="ss-dialog__body"><div class="ss-desk-picker">
+        <p class="ss-desk-card__quote">98 个地级市</p>
+        <div class="ss-desk-picker__bar"><div class="ss-seg ss-seg--sm" role="group" aria-label="来源类型">{seg}</div><span class="ss-input ss-input--sm ss-desk-picker__search"><i data-i="search"></i><input type="search" placeholder="{holder}" aria-label="查找来源" /></span></div>
+        {crumbs}
+        <div class="ss-list ss-desk-picker__list" role="listbox" style="height:200px">{''.join(rows)}</div>
+        {chips_block}
+        <label class="ss-field"><span class="ss-field__label">说明</span><textarea class="ss-textarea" rows="2" placeholder="这段文字是什么、怎么得来的，例如「去重后进入分析的企业数」">{note}</textarea></label>
+      </div></div>
+      <div class="ss-dialog__foot">{hint}<button class="ss-btn" type="button">取消</button><button class="ss-btn ss-btn--primary" type="button"{'' if chips else ' disabled'}>添加索引</button></div>
+    </div>'''
+
+
+CRUMBS = '<nav class="ss-desk-picker__crumbs" aria-label="文件夹"><button type="button" class="ss-linkbtn">项目文件夹</button><span aria-hidden="true">/</span><button type="button" class="ss-linkbtn">data</button></nav>'
+files_rows = [
+    pick_row('file', 'city_panel.csv', checked=True),
+    pick_row('file', 'city_panel_raw.csv'),
+    pick_row('file', 'codebook.xlsx'),
+]
+scripts_row = pick_row('file-code', 'sample.py', checked=True)
+library_rows = [
+    pick_row('book-open', 'Wang 2021 城市经济韧性的测度与时空演变', sub='资料 · PDF'),
+    pick_row('book-marked', '熵权法', checked=True, sub='条目'),
+    pick_row('book-open', 'Ragin 2008 Redesigning Social Inquiry', sub='资料 · PDF'),
+]
+message_rows = [
+    pick_row('message-square', '主专家：去重后剩 98 个城市，删掉了 3 个数据缺失超过一半的', checked=True, sub='样本口径讨论 · 10-19'),
+    pick_row('message-square', '你：样本要不要加上直辖市？', sub='样本口径讨论 · 10-19'),
+]
+picker_parts = f'''<div class="ds" style="grid-template-columns:auto auto;justify-content:start;align-items:start;gap:16px 24px">
+  <div class="ds-col">
+    {picker('项目文件', files_rows + [scripts_row], CRUMBS, chips=(('file', 'data/city_panel.csv'), ('file-code', 'scripts/sample.py')), note='去重后进入分析的城市数')}
+    <span class="ds-label">项目文件：按文件夹浏览，脚本单独标出；可以多选，选中的在下面列成标签</span>
+  </div>
+  <div class="ds-col">
+    {picker('资料库', library_rows, chips=(('book-marked', '熵权法'),))}
+    <span class="ds-label">资料库：资料和条目</span>
+    {picker('对话消息', message_rows)}
+    <span class="ds-label">对话消息：输入关键词查找这个项目对话里的消息；一项都没选时「添加索引」停用</span>
+  </div>
+</div>'''
+card('DeskIndexPicker', 'group="编辑台" height=1090 subtitle="添加索引：把选中的文字连到项目文件、资料库或对话消息，写一句说明"', picker_parts, '''
+编辑台的「添加索引」对话框（U5）。划选文字后从功能区「索引」、浮动工具条或右键「添加索引…」打开；卡片上的「编辑」打开同一个框，标题是「修改索引」。
+
+- 顶部一行是选中的原文。
+- 三类来源用分段按钮切换：项目文件（按文件夹浏览，面包屑回到上层，脚本用代码图标）、资料库（资料和条目）、对话消息（关键词查找这个项目对话里的消息）。右边的框按名称筛选，或在消息里查关键词。
+- 可以多选，跨类也行；选中的列成标签，点 × 去掉。
+- 说明写这段文字是什么、怎么得来的。
+- 至少选一项来源才能添加，左下角写明原因。添加后侧栏打开「批注与索引」，新卡片亮起。
+- 只用已有组件：对话框、分段按钮、输入框、列表行、复选框、标签、文本框。
 ''')

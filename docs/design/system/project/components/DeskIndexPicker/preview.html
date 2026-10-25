@@ -1,0 +1,53 @@
+<!-- @dsCard group="编辑台" height=1090 subtitle="添加索引：把选中的文字连到项目文件、资料库或对话消息，写一句说明" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>DeskIndexPicker</title></head>
+<body>
+<div class="ds" style="grid-template-columns:auto auto;justify-content:start;align-items:start;gap:16px 24px">
+  <div class="ds-col">
+    <div class="ss-dialog" data-static role="dialog" aria-label="添加索引" style="width:420px">
+      <div class="ss-dialog__head"><h2 class="ss-dialog__title">添加索引</h2><button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭" data-kbd="Esc"><i data-i="x"></i></button></div>
+      <div class="ss-dialog__body"><div class="ss-desk-picker">
+        <p class="ss-desk-card__quote">98 个地级市</p>
+        <div class="ss-desk-picker__bar"><div class="ss-seg ss-seg--sm" role="group" aria-label="来源类型"><button type="button" aria-pressed="true">项目文件</button><button type="button" aria-pressed="false">资料库</button><button type="button" aria-pressed="false">对话消息</button></div><span class="ss-input ss-input--sm ss-desk-picker__search"><i data-i="search"></i><input type="search" placeholder="按名称筛选" aria-label="查找来源" /></span></div>
+        <nav class="ss-desk-picker__crumbs" aria-label="文件夹"><button type="button" class="ss-linkbtn">项目文件夹</button><span aria-hidden="true">/</span><button type="button" class="ss-linkbtn">data</button></nav>
+        <div class="ss-list ss-desk-picker__list" role="listbox" style="height:200px"><label class="ss-list-row ss-desk-picker__row" role="option" aria-selected="true"><span class="ss-check"><input type="checkbox" checked /></span><i data-i="file" class="ss-list-row__icon"></i><span class="ss-list-row__main"><span class="ss-list-row__title">city_panel.csv</span></span></label><label class="ss-list-row ss-desk-picker__row" role="option" aria-selected="false"><span class="ss-check"><input type="checkbox" /></span><i data-i="file" class="ss-list-row__icon"></i><span class="ss-list-row__main"><span class="ss-list-row__title">city_panel_raw.csv</span></span></label><label class="ss-list-row ss-desk-picker__row" role="option" aria-selected="false"><span class="ss-check"><input type="checkbox" /></span><i data-i="file" class="ss-list-row__icon"></i><span class="ss-list-row__main"><span class="ss-list-row__title">codebook.xlsx</span></span></label><label class="ss-list-row ss-desk-picker__row" role="option" aria-selected="true"><span class="ss-check"><input type="checkbox" checked /></span><i data-i="file-code" class="ss-list-row__icon"></i><span class="ss-list-row__main"><span class="ss-list-row__title">sample.py</span></span></label></div>
+        <div class="ss-chips ss-chips--inline" aria-label="已选来源"><span class="ss-chip"><i data-i="file" class="ss-i--sm"></i><span class="ss-truncate">data/city_panel.csv</span><button type="button" aria-label="移除 data/city_panel.csv"><i data-i="x" class="ss-i--sm"></i></button></span><span class="ss-chip"><i data-i="file-code" class="ss-i--sm"></i><span class="ss-truncate">scripts/sample.py</span><button type="button" aria-label="移除 scripts/sample.py"><i data-i="x" class="ss-i--sm"></i></button></span></div>
+        <label class="ss-field"><span class="ss-field__label">说明</span><textarea class="ss-textarea" rows="2" placeholder="这段文字是什么、怎么得来的，例如「去重后进入分析的企业数」">去重后进入分析的城市数</textarea></label>
+      </div></div>
+      <div class="ss-dialog__foot"><button class="ss-btn" type="button">取消</button><button class="ss-btn ss-btn--primary" type="button">添加索引</button></div>
+    </div>
+    <span class="ds-label">项目文件：按文件夹浏览，脚本单独标出；可以多选，选中的在下面列成标签</span>
+  </div>
+  <div class="ds-col">
+    <div class="ss-dialog" data-static role="dialog" aria-label="添加索引" style="width:420px">
+      <div class="ss-dialog__head"><h2 class="ss-dialog__title">添加索引</h2><button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭" data-kbd="Esc"><i data-i="x"></i></button></div>
+      <div class="ss-dialog__body"><div class="ss-desk-picker">
+        <p class="ss-desk-card__quote">98 个地级市</p>
+        <div class="ss-desk-picker__bar"><div class="ss-seg ss-seg--sm" role="group" aria-label="来源类型"><button type="button" aria-pressed="false">项目文件</button><button type="button" aria-pressed="true">资料库</button><button type="button" aria-pressed="false">对话消息</button></div><span class="ss-input ss-input--sm ss-desk-picker__search"><i data-i="search"></i><input type="search" placeholder="按名称筛选" aria-label="查找来源" /></span></div>
+        
+        <div class="ss-list ss-desk-picker__list" role="listbox" style="height:200px"><label class="ss-list-row ss-desk-picker__row ss-list-row--2" role="option" aria-selected="false"><span class="ss-check"><input type="checkbox" /></span><i data-i="book-open" class="ss-list-row__icon"></i><span class="ss-list-row__main"><span class="ss-list-row__title">Wang 2021 城市经济韧性的测度与时空演变</span><span class="ss-list-row__sub">资料 · PDF</span></span></label><label class="ss-list-row ss-desk-picker__row ss-list-row--2" role="option" aria-selected="true"><span class="ss-check"><input type="checkbox" checked /></span><i data-i="book-marked" class="ss-list-row__icon"></i><span class="ss-list-row__main"><span class="ss-list-row__title">熵权法</span><span class="ss-list-row__sub">条目</span></span></label><label class="ss-list-row ss-desk-picker__row ss-list-row--2" role="option" aria-selected="false"><span class="ss-check"><input type="checkbox" /></span><i data-i="book-open" class="ss-list-row__icon"></i><span class="ss-list-row__main"><span class="ss-list-row__title">Ragin 2008 Redesigning Social Inquiry</span><span class="ss-list-row__sub">资料 · PDF</span></span></label></div>
+        <div class="ss-chips ss-chips--inline" aria-label="已选来源"><span class="ss-chip"><i data-i="book-marked" class="ss-i--sm"></i><span class="ss-truncate">熵权法</span><button type="button" aria-label="移除 熵权法"><i data-i="x" class="ss-i--sm"></i></button></span></div>
+        <label class="ss-field"><span class="ss-field__label">说明</span><textarea class="ss-textarea" rows="2" placeholder="这段文字是什么、怎么得来的，例如「去重后进入分析的企业数」"></textarea></label>
+      </div></div>
+      <div class="ss-dialog__foot"><button class="ss-btn" type="button">取消</button><button class="ss-btn ss-btn--primary" type="button">添加索引</button></div>
+    </div>
+    <span class="ds-label">资料库：资料和条目</span>
+    <div class="ss-dialog" data-static role="dialog" aria-label="添加索引" style="width:420px">
+      <div class="ss-dialog__head"><h2 class="ss-dialog__title">添加索引</h2><button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭" data-kbd="Esc"><i data-i="x"></i></button></div>
+      <div class="ss-dialog__body"><div class="ss-desk-picker">
+        <p class="ss-desk-card__quote">98 个地级市</p>
+        <div class="ss-desk-picker__bar"><div class="ss-seg ss-seg--sm" role="group" aria-label="来源类型"><button type="button" aria-pressed="false">项目文件</button><button type="button" aria-pressed="false">资料库</button><button type="button" aria-pressed="true">对话消息</button></div><span class="ss-input ss-input--sm ss-desk-picker__search"><i data-i="search"></i><input type="search" placeholder="消息里的关键词" aria-label="查找来源" /></span></div>
+        
+        <div class="ss-list ss-desk-picker__list" role="listbox" style="height:200px"><label class="ss-list-row ss-desk-picker__row ss-list-row--2" role="option" aria-selected="true"><span class="ss-check"><input type="checkbox" checked /></span><i data-i="message-square" class="ss-list-row__icon"></i><span class="ss-list-row__main"><span class="ss-list-row__title">主专家：去重后剩 98 个城市，删掉了 3 个数据缺失超过一半的</span><span class="ss-list-row__sub">样本口径讨论 · 10-19</span></span></label><label class="ss-list-row ss-desk-picker__row ss-list-row--2" role="option" aria-selected="false"><span class="ss-check"><input type="checkbox" /></span><i data-i="message-square" class="ss-list-row__icon"></i><span class="ss-list-row__main"><span class="ss-list-row__title">你：样本要不要加上直辖市？</span><span class="ss-list-row__sub">样本口径讨论 · 10-19</span></span></label></div>
+        
+        <label class="ss-field"><span class="ss-field__label">说明</span><textarea class="ss-textarea" rows="2" placeholder="这段文字是什么、怎么得来的，例如「去重后进入分析的企业数」"></textarea></label>
+      </div></div>
+      <div class="ss-dialog__foot"><span class="ss-muted ss-desk-picker__hint">至少选一项来源</span><button class="ss-btn" type="button">取消</button><button class="ss-btn ss-btn--primary" type="button" disabled>添加索引</button></div>
+    </div>
+    <span class="ds-label">对话消息：输入关键词查找这个项目对话里的消息；一项都没选时「添加索引」停用</span>
+  </div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>
