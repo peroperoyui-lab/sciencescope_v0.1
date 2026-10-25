@@ -95,11 +95,24 @@ export const externalQuestion = (name) => ({
 /**
  * @param {{ tab: any, view: string, jump: any, onInfo: (info: any) => void, pdf: any,
  *   editing: any, onEdit: (state: any) => void, ask: (question: any) => Promise<string|null>,
- *   onSession: (sessionId: string | null) => void }} props
+ *   onSession: (sessionId: string | null) => void, onSelection?: () => void,
+ *   onReady?: () => void }} props
  * `jump` is the outline entry to scroll to; `pdf` receives the PDF reader's controls;
  * `editing` receives the editor's commands, and `onEdit` its state for the ribbon.
  */
-export function DeskDocument({ tab, view, jump, onInfo, pdf, editing, onEdit, ask, onSession }) {
+export function DeskDocument({
+  tab,
+  view,
+  jump,
+  onInfo,
+  pdf,
+  editing,
+  onEdit,
+  ask,
+  onSession,
+  onSelection,
+  onReady,
+}) {
   const actions = useActions();
   const host = useRef(/** @type {HTMLElement | null} */ (null));
   const reader = useRef(/** @type {any} */ (null));
@@ -157,6 +170,7 @@ export function DeskDocument({ tab, view, jump, onInfo, pdf, editing, onEdit, as
           state = next;
           publish();
         },
+        onSelection: () => onSelection?.(),
       };
       const pictures = new Map();
       if (docx) {
@@ -200,6 +214,7 @@ export function DeskDocument({ tab, view, jump, onInfo, pdf, editing, onEdit, as
         words: editor.words(),
       });
       publish();
+      onReady?.();
       reader.current = {
         dispose() {
           const current = session.current;

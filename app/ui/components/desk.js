@@ -5,13 +5,20 @@
 // Ctrl+S writes the project file.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
-import { initialDeskTarget, listenForDeskTargets } from '../desk-window.js';
+import { textBlockStart } from '../desk-assist.js';
+import {
+  initialDeskTarget,
+  listenForDeskFocus,
+  listenForDeskTargets,
+  takeDeskFocus,
+} from '../desk-window.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
 import { LogoMark } from '../illustrations.js';
 import { writeBack } from '../desk-session.js';
 import { Dialog } from './dialog.js';
+import { useDeskAssist } from './desk-assist.js';
 import { DeskDocument, externalQuestion } from './desk-document.js';
 import { DeskNav, FileType, deskKind, latestVersion } from './desk-nav.js';
 import { Splitter } from './splitter.js';
@@ -633,6 +640,10 @@ export function DeskWindow() {
   const sessions = useRef(/** @type {Record<string, string>} */ ({}));
   const canvas = useRef(/** @type {HTMLElement | null} */ (null));
   const tab = tabs.find((entry) => entry.key === active) ?? null;
+  const assist = useDeskAssist({ tab, editing, canvas });
+  // A sentence a chat mark points at, shown once its document is open.
+  const [focus, setFocus] = useState(/** @type {any} */ (null));
+  const [ready, setReady] = useState(0);
   // Markdown opens as source: the rendered view is read-only until U6.
   const view = (tab && views[tab.key]) ?? 'source';
   const panels = settings?.appearance?.panels ?? {};
@@ -726,15 +737,50 @@ export function DeskWindow() {
     });
   };
 
+  /** @param {any} found where the cited sentence is now (POST /api/desk/focus) */
+  const goTo = (found) => {
+    setFocus(found);
+    open({ projectId: found.projectId, path: found.path });
+  };
   useEffect(() => {
     const initial = initialDeskTarget();
-    if (initial.projectId && initial.path) open(initial);
+    const waiting = takeDeskFocus();
+    if (waiting) goTo(waiting);
+    else if (initial.projectId && initial.path) open(initial);
     else if (initial.projectId) setProjectId(initial.projectId);
-    return listenForDeskTargets((target) => {
-      if (target.path) open(target);
+    const stopFocus = listenForDeskFocus(goTo);
+    const stopTargets = listenForDeskTargets((target) => {
+      const next = takeDeskFocus();
+      if (next) goTo(next);
+      else if (target.path) open(target);
       else if (target.projectId) setProjectId(target.projectId);
     });
+    return () => {
+      stopFocus();
+      stopTargets();
+    };
   }, []);
+  // Scroll to the cited sentence once its document's editor is up.
+  useEffect(() => {
+    const current = editing.current;
+    if (!focus || !current?.session || tab?.kind !== 'project' || tab.path !== focus.path) return;
+    setFocus(null);
+    if (focus.status === 'missing') {
+      actions.toast(t('引用的这句已经找不到了，可能被改掉或删掉了。'));
+      return;
+    }
+    if (focus.status === 'moved') actions.toast(t('引用的这句改过，已定位到最接近的位置。'));
+    if (tab.format === 'docx') current.reveal(focus.blockId, focus.from, focus.to);
+    else
+      actions
+        .deskSession(current.session.id)
+        .then(({ blocks }) => {
+          const index = blocks.findIndex((block) => block.id === focus.blockId);
+          const start = index < 0 ? null : textBlockStart(current.text(), tab.format, index);
+          if (start != null) current.reveal(start + (focus.from ?? 0), start + (focus.to ?? 0));
+        })
+        .catch(() => {});
+  }, [focus, ready, tab?.key]);
   useEffect(() => writeTabs(tabs, active), [tabs, active]);
   // The file list follows the open document's project, else the latest project.
   useEffect(() => {
@@ -783,6 +829,7 @@ export function DeskWindow() {
 
   // The outline marks the last heading above the top of the visible page.
   const onScroll = () => {
+    assist.onScroll();
     const root = canvas.current;
     if (!root || !info.outline.length || info.outline[0].line) return;
     const top = root.getBoundingClientRect().top + 80;
@@ -892,7 +939,12 @@ export function DeskWindow() {
               onPick=${(left, right) => setComparison({ ...comparison, left, right })}
               onExit=${() => setComparison(null)}
             />`
-          : html`<main class="ss-desk-canvas" ref=${canvas} onScroll=${onScroll}>
+          : html`<main
+              class="ss-desk-canvas"
+              ref=${canvas}
+              onScroll=${onScroll}
+              onContextMenu=${assist.onContextMenu}
+            >
               ${
                 tab
                   ? html`<${DeskDocument}
@@ -907,6 +959,8 @@ export function DeskWindow() {
                       onSession=${(id) => {
                         if (id) sessions.current[tab.key] = id;
                       }}
+                      onSelection=${assist.onSelection}
+                      onReady=${() => setReady((value) => value + 1)}
                       onInfo=${(next) => setInfo((known) => ({ ...known, ...next }))}
                     />`
                   : html`<div class="ss-empty ss-desk-canvas__state">
@@ -917,6 +971,7 @@ export function DeskWindow() {
                       </div>
                     </div>`
               }
+              ${assist.layer}
             </main>`
       }
       ${

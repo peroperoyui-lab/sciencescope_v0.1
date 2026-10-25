@@ -19,7 +19,15 @@ export function createDeskNavigation(core, { sessions, store, registerDocument }
         ? core.meetings.get(meetingId)
         : core.meetings
             .list({ projectId })
-            .filter((candidate) => !candidate.attachedToMeetingId)
+            // The person's own chats, as the sidebar lists them: not archived,
+            // not temporary (such as 文献版本整理), not attached, not the assistant's.
+            .filter(
+              (candidate) =>
+                !candidate.archived &&
+                !candidate.temporary &&
+                !candidate.attachedToMeetingId &&
+                candidate.policy?.respondent !== 'agent_assistant',
+            )
             .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0];
       if (meeting && meeting.projectId !== projectId)
         throw new AppError('DESK_MEETING_PROJECT', '请选择这个项目里的对话。');

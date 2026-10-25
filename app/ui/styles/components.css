@@ -4995,6 +4995,91 @@ button.ss-act__row:hover {
   color: var(--ink);
 }
 
+/* The desk's toolbar follows the selection on screen and fades as the pointer leaves. */
+.ss-desk-ftb {
+  position: fixed;
+  width: auto;
+  min-width: 360px;
+  transition: opacity var(--t-med) var(--ease);
+}
+.ss-desk-ftb[data-faded='true'] {
+  opacity: 0;
+  pointer-events: none;
+}
+.ss-ftb__ask > input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+}
+.ss-ftb__ask > input::placeholder {
+  color: var(--faint);
+}
+.ss-ftb__ask:focus-within {
+  box-shadow: 0 0 0 2px var(--focus);
+}
+/* The note after an expert's edit, at the bottom of the page area. */
+.ss-desk-note {
+  position: sticky;
+  bottom: 16px;
+  z-index: var(--z-sticky);
+  width: fit-content;
+  max-width: min(560px, calc(100% - 32px));
+  margin: 0 auto;
+}
+.ss-desk-note .ss-avatar {
+  flex: none;
+}
+/* Where the desk sends the reader: a short highlight. */
+.ss-desk-flash {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  transition: background var(--t-med) var(--ease);
+}
+/* A paragraph's change history and "看改了什么". */
+.ss-desk-changes {
+  display: grid;
+  gap: var(--sp-12);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ss-desk-change {
+  display: grid;
+  gap: var(--sp-6);
+  padding-bottom: var(--sp-12);
+  border-bottom: 1px solid var(--line);
+}
+.ss-desk-change:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+.ss-desk-change__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.ss-desk-change__head > b {
+  color: var(--ink);
+  font-weight: 500;
+}
+.ss-desk-change__end {
+  flex: 1;
+}
+.ss-desk-change__text {
+  margin: 0;
+  color: var(--ink);
+  font: 400 14px/1.75 var(--font-serif);
+}
+
 /* A menu placed at a point (right-click), for mocks and the app alike. */
 .ss-at {
   position: absolute;

@@ -49,6 +49,7 @@ import {
   textShape,
   toDocJSON,
 } from '../desk-blocks.js';
+import { sentenceAround } from '../desk-assist.js';
 import { t } from '../i18n/index.js';
 import { atomElement } from './desk-atoms.js';
 
@@ -286,6 +287,71 @@ const outlinePlugin = () =>
     props: { decorations: (state) => outlineKey.getState(state).decorations },
   });
 
+// A short highlight where the desk sends the reader (a chat mark, a change).
+const flashKey = new PluginKey('desk-flash');
+const flashPlugin = () =>
+  new Plugin({
+    key: flashKey,
+    state: {
+      init: () => DecorationSet.empty,
+      apply(tr, set) {
+        const range = tr.getMeta(flashKey);
+        if (range === null) return DecorationSet.empty;
+        if (!range) return set.map(tr.mapping, tr.doc);
+        return DecorationSet.create(tr.doc, [
+          range.node
+            ? Decoration.node(range.from, range.to, { class: 'ss-desk-flash' })
+            : Decoration.inline(range.from, range.to, { class: 'ss-desk-flash' }),
+        ]);
+      },
+    },
+    props: { decorations: (state) => flashKey.getState(state) },
+  });
+
+/** How many characters an inline node takes in the server's block text. @param {any} node */
+const inlineLength = (node) =>
+  node.isText ? node.text.length : String(node.attrs.display ?? '').length;
+
+/** The paragraph (or cross-paragraph field) with this id. @param {any} doc @param {string} id */
+function findBlock(doc, id) {
+  let found = null;
+  doc.descendants((node, pos) => {
+    if (found) return false;
+    if (node.type !== para && node.type !== opaque) return true;
+    if (node.attrs.id === id) found = { node, pos };
+    return false;
+  });
+  return found;
+}
+
+/** A character offset in a paragraph's text as a document position. */
+function offsetToPos(node, pos, offset) {
+  let at = 0;
+  let result = pos + 1;
+  node.forEach((child, start) => {
+    const length = inlineLength(child);
+    if (at >= offset) return;
+    if (child.isText && offset <= at + length) result = pos + 1 + start + (offset - at);
+    else result = pos + 1 + start + child.nodeSize;
+    at += length;
+  });
+  return at < offset ? pos + 1 + node.content.size : result;
+}
+
+/** A document position inside a paragraph as a character offset in its text. */
+function posToOffset(node, pos, target) {
+  let at = 0;
+  node.forEach((child, start) => {
+    const begin = pos + 1 + start;
+    if (begin >= target) return;
+    at += child.isText ? Math.min(child.text.length, target - begin) : inlineLength(child);
+  });
+  return at;
+}
+
+/** Text of a range, with objects written as their display text. */
+const leafText = (node) => String(node.attrs?.display ?? '');
+
 // Enter: the new paragraph is like the old one, except after a heading's end.
 const split = splitBlockAs((node, atEnd) => {
   if (node.type !== para) return null;
@@ -327,9 +393,11 @@ function paragraphs(doc) {
 /**
  * @param {HTMLElement} surface the page element (`ss-page`)
  * @param {{ blocks: any[], media: (ref: any) => Promise<string>,
- *   onChange: () => void, onState: (state: { marks: string[], undo: boolean, redo: boolean }) => void }} options
+ *   onChange: () => void, onState: (state: { marks: string[], undo: boolean, redo: boolean }) => void,
+ *   onSelection?: () => void }} options
+ * `onSelection` is told when the selection may have changed; read it with `selection()`.
  */
-export function mountDeskDocx(surface, { blocks, media, onChange, onState }) {
+export function mountDeskDocx(surface, { blocks, media, onChange, onState, onSelection }) {
   const markTypes = Object.fromEntries(MARKS.map((name) => [name, schema.marks[name]]));
   const create = (content) =>
     PMState.create({
@@ -353,6 +421,7 @@ export function mountDeskDocx(surface, { blocks, media, onChange, onState }) {
         markerPlugin(),
         shapePlugin(),
         outlinePlugin(),
+        flashPlugin(),
       ],
     });
   let frame = 0;
@@ -388,10 +457,21 @@ export function mountDeskDocx(surface, { blocks, media, onChange, onState }) {
       dispatchTransaction(tr) {
         view.updateState(view.state.apply(tr));
         if (tr.docChanged && !remote(tr)) onChange();
+        if (tr.docChanged || tr.selectionSet) onSelection?.();
         report();
       },
     },
   );
+  /** @type {any} */
+  let flashTimer = 0;
+  /** @param {any} range */
+  const flash = (range) => {
+    clearTimeout(flashTimer);
+    view.dispatch(view.state.tr.setMeta(flashKey, range));
+    flashTimer = setTimeout(() => {
+      if (!view.isDestroyed) view.dispatch(view.state.tr.setMeta(flashKey, null));
+    }, 1800);
+  };
   report();
   const run = (command) => {
     command(view.state, view.dispatch);
@@ -448,12 +528,133 @@ export function mountDeskDocx(surface, { blocks, media, onChange, onState }) {
       else if (name === 'redo') run(pmRedo);
       else run(toggleMark(markTypes[name]));
     },
+    /**
+     * The selected text and where it is: the paragraph it starts in, offsets in
+     * that paragraph's text when it stays inside it, and its box on screen.
+     * @returns {{ blockId: string | null, quote: string, from: number | null, to: number | null,
+     *   rect: DOMRect } | null}
+     */
+    selection() {
+      const { state } = view;
+      const { from, to, empty, $from, $to } = state.selection;
+      if (empty) return null;
+      const quote = state.doc.textBetween(from, to, '\n', leafText);
+      if (!quote.trim()) return null;
+      const start = view.coordsAtPos(from);
+      const end = view.coordsAtPos(to);
+      const rect = new DOMRect(
+        Math.min(start.left, end.left),
+        Math.min(start.top, end.top),
+        Math.abs(end.right - start.left),
+        Math.max(start.bottom, end.bottom) - Math.min(start.top, end.top),
+      );
+      const block = $from.parent.type === para ? $from.parent : null;
+      const blockPos = block ? $from.before() : 0;
+      const same = block && $to.parent === block;
+      return {
+        blockId: block?.attrs.id ?? null,
+        quote,
+        from: same ? posToOffset(block, blockPos, from) : null,
+        to: same ? posToOffset(block, blockPos, to) : null,
+        rect,
+      };
+    },
+    /** Put the caret where the pointer is, as a right-click outside the selection does. @param {number} x @param {number} y */
+    caretAt(x, y) {
+      const found = view.posAtCoords({ left: x, top: y });
+      if (!found) return;
+      const $at = view.state.doc.resolve(found.pos);
+      if (!$at.parent.inlineContent) return;
+      view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, found.pos)));
+    },
+    /** The paragraph the cursor is in. */
+    currentBlock() {
+      const { $from } = view.state.selection;
+      return $from.parent.type === para ? $from.parent.attrs.id : null;
+    },
+    /** Select the sentence around the cursor when nothing is selected. */
+    selectSentence() {
+      const { empty, $from, from } = view.state.selection;
+      if (!empty || $from.parent.type !== para) return;
+      const node = $from.parent;
+      const pos = $from.before();
+      const text = view.state.doc.textBetween(pos + 1, pos + 1 + node.content.size, '\n', leafText);
+      const [start, end] = sentenceAround(text, posToOffset(node, pos, from));
+      if (end <= start) return;
+      view.dispatch(
+        view.state.tr.setSelection(
+          TextSelection.create(
+            view.state.doc,
+            offsetToPos(node, pos, start),
+            offsetToPos(node, pos, end),
+          ),
+        ),
+      );
+    },
+    /** 1-based position of a block among all blocks, as the server counts paragraphs. @param {string} id */
+    paragraphOf(id) {
+      let index = 0;
+      let found = 0;
+      view.state.doc.descendants((node) => {
+        if (found) return false;
+        if (node.type !== para && node.type !== opaque) return true;
+        index++;
+        if (node.attrs.id === id) found = index;
+        return false;
+      });
+      return found;
+    },
+    /** The heading a block sits under, or ''. @param {string} id */
+    sectionOf(id) {
+      let heading = '';
+      let done = false;
+      view.state.doc.descendants((node) => {
+        if (done) return false;
+        if (node.type !== para && node.type !== opaque) return true;
+        if (node.attrs.id === id) done = true;
+        else if (node.type === para && node.attrs.kind === 'heading' && node.textContent.trim())
+          heading = node.textContent.trim();
+        return false;
+      });
+      return done ? heading : '';
+    },
+    /**
+     * Scroll to characters `from`–`to` of a paragraph (the whole paragraph
+     * without them) and highlight them for a moment.
+     * @param {string} blockId @param {number} [from] @param {number} [to]
+     */
+    reveal(blockId, from, to) {
+      const found = findBlock(view.state.doc, blockId);
+      if (!found) return false;
+      const { node, pos } = found;
+      const ranged = node.type === para && from != null && to != null && to > from;
+      const start = ranged ? offsetToPos(node, pos, from) : pos;
+      const end = ranged ? offsetToPos(node, pos, to) : pos + node.nodeSize;
+      flash({ from: start, to: end, node: !ranged });
+      const element = /** @type {HTMLElement | null} */ (view.nodeDOM(pos));
+      element?.scrollIntoView({ block: 'center' });
+      return true;
+    },
+    /** Copy the selection as plain text; `cut` also removes it. @param {boolean} [cut] */
+    async copy(cut = false) {
+      const text = this.selection()?.quote;
+      if (!text) return;
+      await navigator.clipboard.writeText(text);
+      if (cut) view.dispatch(view.state.tr.deleteSelection().scrollIntoView());
+      view.focus();
+    },
+    /** @param {string} text */
+    paste(text) {
+      view.focus();
+      view.pasteText(text);
+    },
     outline: () => outlineKey.getState(view.state).list,
     words: () =>
       countWords(view.state.doc.textBetween(0, view.state.doc.content.size, '\n', () => '')),
     focus: () => view.focus(),
     dispose() {
       cancelAnimationFrame(frame);
+      clearTimeout(flashTimer);
       view.destroy();
     },
   };
@@ -462,9 +663,10 @@ export function mountDeskDocx(surface, { blocks, media, onChange, onState }) {
 /**
  * @param {HTMLElement} surface
  * @param {{ text: string, format: string, onChange: () => void,
- *   onState: (state: { marks: string[], undo: boolean, redo: boolean }) => void }} options
+ *   onState: (state: { marks: string[], undo: boolean, redo: boolean }) => void,
+ *   onSelection?: () => void }} options
  */
-export function mountDeskText(surface, { text, format, onChange, onState }) {
+export function mountDeskText(surface, { text, format, onChange, onState, onSelection }) {
   const { bom, separator, body } = textShape(text);
   const report = (state) =>
     onState({ marks: [], undo: undoDepth(state) > 0, redo: redoDepth(state) > 0 });
@@ -488,6 +690,7 @@ export function mountDeskText(surface, { text, format, onChange, onState }) {
             update.transactions.some((tr) => tr.docChanged && !tr.annotation(Transaction.remote))
           )
             onChange();
+          if (update.docChanged || update.selectionSet) onSelection?.();
           report(update.state);
         }),
       ],
@@ -498,8 +701,91 @@ export function mountDeskText(surface, { text, format, onChange, onState }) {
     command(view);
     view.focus();
   };
+  // Editor positions count a line break as one character; file offsets count the separator.
+  const toOffset = (position) => {
+    const line = view.state.doc.lineAt(position);
+    return position + (line.number - 1) * (separator.length - 1);
+  };
+  const toPosition = (offset) => {
+    const before = view.state.sliceDoc().slice(0, offset);
+    return before.length - (before.split(separator).length - 1) * (separator.length - 1);
+  };
   return {
     view,
+    /**
+     * The selected text, its offsets in the file text (without the BOM) and its box.
+     * @returns {{ quote: string, from: number, to: number, rect: DOMRect } | null}
+     */
+    selection() {
+      const { from, to, empty } = view.state.selection.main;
+      if (empty) return null;
+      const quote = view.state.sliceDoc(from, to);
+      if (!quote.trim()) return null;
+      const start = view.coordsAtPos(from);
+      const end = view.coordsAtPos(to);
+      if (!start || !end) return null;
+      return {
+        quote,
+        from: toOffset(from),
+        to: toOffset(to),
+        rect: new DOMRect(
+          Math.min(start.left, end.left),
+          start.top,
+          Math.abs(end.right - start.left),
+          end.bottom - start.top,
+        ),
+      };
+    },
+    /** File offset of the cursor. */
+    cursor: () => toOffset(view.state.selection.main.head),
+    /** Select the sentence around the cursor when nothing is selected. */
+    /** @param {number} x @param {number} y */
+    caretAt(x, y) {
+      const at = view.posAtCoords({ x, y });
+      if (at != null) view.dispatch({ selection: { anchor: at } });
+    },
+    selectSentence() {
+      const range = view.state.selection.main;
+      if (!range.empty) return;
+      const line = view.state.doc.lineAt(range.head);
+      const [start, end] = sentenceAround(line.text, range.head - line.from);
+      if (end > start)
+        view.dispatch({ selection: { anchor: line.from + start, head: line.from + end } });
+    },
+    /** Put source markup around the selection (\\textbf{…}, **…**). @param {string} before @param {string} after */
+    wrap(before, after) {
+      const range = view.state.selection.main;
+      view.dispatch({
+        changes: [
+          { from: range.from, insert: before },
+          { from: range.to, insert: after },
+        ],
+        selection: { anchor: range.from + before.length, head: range.to + before.length },
+      });
+      view.focus();
+    },
+    /** Select file offsets `from`–`to` and bring them into view. @param {number} from @param {number} to */
+    reveal(from, to) {
+      view.dispatch({
+        selection: { anchor: toPosition(from), head: toPosition(to) },
+        effects: EditorView.scrollIntoView(toPosition(from), { y: 'center' }),
+      });
+      view.focus();
+      return true;
+    },
+    /** @param {boolean} [cut] */
+    async copy(cut = false) {
+      const range = view.state.selection.main;
+      if (range.empty) return;
+      await navigator.clipboard.writeText(view.state.sliceDoc(range.from, range.to));
+      if (cut) view.dispatch({ changes: { from: range.from, to: range.to, insert: '' } });
+      view.focus();
+    },
+    /** @param {string} value */
+    paste(value) {
+      view.dispatch(view.state.replaceSelection(value));
+      view.focus();
+    },
     /** The file's text, with its BOM and line endings. */
     snapshot: () => (bom ? '﻿' : '') + view.state.sliceDoc(),
     /** Take the server's text as one change, so the cursor stays put. @param {string} next */

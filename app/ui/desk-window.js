@@ -2,6 +2,7 @@
 // a native window in the desktop app, a browser tab otherwise. Opening it again
 // brings that window forward and opens the requested document in a tab.
 import { isNative } from './assistant-window.js';
+import { t } from './i18n/index.js';
 
 const CHANNEL = 'sciencescope-desk';
 /** @type {Window | null} */
@@ -82,4 +83,53 @@ export function listenForDeskTargets(onOpen) {
 export function initialDeskTarget() {
   const query = new URLSearchParams(location.search);
   return { projectId: query.get('projectId'), path: query.get('path') };
+}
+
+// A chat mark's sentence travels to the desk window through local storage:
+// both windows share it, a storage event reaches a desk that is already open,
+// and a desk that opens later reads it on start.
+const FOCUS_KEY = 'sciencescope.desk.focus';
+const FOCUS_FRESH = 60000;
+
+/**
+ * Show a cited sentence on the desk: locate it in the open working text, then
+ * open the desk on its document.
+ * @param {any} actions @param {any} reference a schema 1 version or project-file reference
+ */
+export async function focusDesk(actions, reference) {
+  const found = await actions.deskFocus(reference);
+  if (!found.path) throw new Error(t('这份文稿只在应用里，编辑台还不能从这里打开它。'));
+  try {
+    localStorage.setItem(FOCUS_KEY, JSON.stringify({ ...found, at: Date.now() }));
+  } catch {
+    // Without storage the desk still opens on the document.
+  }
+  await openDesk({ projectId: found.projectId, path: found.path });
+}
+
+/** The desk side: a waiting sentence, taken once. */
+export function takeDeskFocus() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(FOCUS_KEY) ?? 'null');
+    localStorage.removeItem(FOCUS_KEY);
+    return saved && Date.now() - saved.at < FOCUS_FRESH ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+/** @param {(focus: any) => void} onFocus */
+export function listenForDeskFocus(onFocus) {
+  const receive = (event) => {
+    if (event.key !== FOCUS_KEY || !event.newValue) return;
+    // Another desk window may already have taken it; the event still carries it.
+    try {
+      const focus = JSON.parse(event.newValue);
+      if (Date.now() - focus.at < FOCUS_FRESH) onFocus(focus);
+    } catch {
+      // Not ours to read.
+    }
+  };
+  addEventListener('storage', receive);
+  return () => removeEventListener('storage', receive);
 }

@@ -7,6 +7,8 @@ import { Lucide } from '../icons.js';
 import { InfoTip } from './info-tip.js';
 import { MarksPopover } from './marks-popover.js';
 import { navigate } from '../route.js';
+import { deskReference } from '../desk-assist.js';
+import { deskEnabled, focusDesk } from '../desk-window.js';
 
 const EMPTY = { materials: [], marks: [] };
 
@@ -203,7 +205,10 @@ export function showInputContext(actions, input) {
  */
 export function InputReceipt({ message }) {
   const actions = useActions();
+  const desk = useAppState((state) => deskEnabled(state.settings));
   const input = message.researchInput ?? EMPTY;
+  // Sentences of desk documents open on the desk; other marks stay in the receipt.
+  const cited = desk ? input.marks.filter((mark) => deskReference(mark)) : [];
   if (!input.materials.length && !input.marks.length) return null;
   const images = input.materials.filter((entry) => entry.type === 'image');
   const files = input.materials.filter((entry) => entry.type !== 'image');
@@ -243,8 +248,23 @@ export function InputReceipt({ message }) {
           </button>
         </span>`,
     )}
+    ${cited.map(
+      (mark, index) =>
+        html`<span class="ss-file-chip" key=${mark.selectionId ?? mark.id ?? index}>
+          <${Lucide} name="file-pen" />
+          <button
+            type="button"
+            class="ss-file-chip__open"
+            data-desk-mark
+            data-tip=${t('在编辑台打开这句：{text}', { text: mark.text })}
+            onClick=${() => actions.attempt(() => focusDesk(actions, deskReference(mark)))}
+          >
+            ${[mark.title, mark.location?.description].filter(Boolean).join(' · ')}
+          </button>
+        </span>`,
+    )}
     ${
-      input.marks.length > 0 &&
+      input.marks.length > cited.length &&
       html`<span class="ss-file-chip">
         <${Lucide} name="sticky-note" />
         <button
@@ -252,7 +272,7 @@ export function InputReceipt({ message }) {
           class="ss-file-chip__open"
           onClick=${() => showInputContext(actions, input)}
         >
-          ${t('标记 {count} 条', { count: input.marks.length })}
+          ${t('标记 {count} 条', { count: input.marks.length - cited.length })}
         </button>
       </span>`
     }

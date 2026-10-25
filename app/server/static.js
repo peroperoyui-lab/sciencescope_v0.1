@@ -45,7 +45,8 @@ function inside(root, relative) {
 function locate(pathname) {
   const relative = decodeURIComponent(pathname).replace(/^\/+/, '');
   if (relative === '' || relative === 'index.html') return path.join(uiRoot, 'index.html');
-  if (relative === 'shared/journal.js') return path.join(repoRoot, 'app/shared/journal.js');
+  if (relative.startsWith('shared/'))
+    return inside(path.join(repoRoot, 'app/shared'), relative.slice('shared/'.length));
   if (relative === 'assets/logo.png') return LOGO;
   if (relative.startsWith('vendor/fonts/noto-sans-sc/')) {
     return inside(FONT_ROOT, relative.slice('vendor/fonts/noto-sans-sc/'.length));

@@ -81,3 +81,36 @@ test('afterCommit callbacks run only when the transaction commits', async () => 
     await cleanup();
   }
 });
+
+test('a callback added while commit callbacks run waits for the ones before it', async () => {
+  const { dir, cleanup } = await tempDir('database-order');
+  try {
+    const db = await openDatabase(path.join(dir, 'app.sqlite'), {
+      migrations: [first],
+      backupDir: path.join(dir, 'backups'),
+    });
+    const calls = [];
+    db.transaction(() => {
+      db.afterCommit(() => {
+        calls.push('a');
+        // A listener's own change, outside a transaction and inside a rolled back one.
+        db.afterCommit(() => calls.push('c'));
+        assert.throws(() =>
+          db.transaction(() => {
+            db.afterCommit(() => calls.push('rolled back'));
+            throw new Error('stop');
+          }),
+        );
+        db.transaction(() => db.afterCommit(() => calls.push('d')));
+        assert.deepEqual(calls, ['a']);
+      });
+      db.afterCommit(() => calls.push('b'));
+    });
+    assert.deepEqual(calls, ['a', 'b', 'c', 'd']);
+    db.afterCommit(() => calls.push('now'));
+    assert.equal(calls.at(-1), 'now');
+    db.close();
+  } finally {
+    await cleanup();
+  }
+});

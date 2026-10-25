@@ -70,6 +70,9 @@ export const initialState = {
   filesVersion: 0,
   /** Latest journal sequence per editing-desk session (`desk.changed`). */
   /** @type {Record<string, number>} */ deskSeqs: {},
+  /** Edits an expert (not the person) made to each desk session: the last few `desk.changed` events. */
+  /** @type {Record<string, { seq: number, actorId: string, meetingId: string | null, changeIds: string[], blockIds: string[] }[]>} */ deskEdits:
+    {},
   /** Last `desk.session` notice per session, such as a failed working-copy write. */
   /** @type {Record<string, any>} */ deskSessions: {},
   /** Popups over the window: one menu, one dialog, one toast, the search palette. */
@@ -108,18 +111,32 @@ function without(record, key) {
 
 /**
  * @param {State} state
- * @param {{ type: string, payload: any }} event
+ * @param {{ type: string, payload: any, actorId?: string | null, meetingId?: string | null }} event
  * @returns {State}
  */
-export function applyEvent(state, { type, payload }) {
+export function applyEvent(state, event) {
+  const { type, payload } = event;
   switch (type) {
     case 'versions.changed':
       return { ...state, versionsVersion: state.versionsVersion + 1 };
     case 'python.changed':
       return { ...state, pythonVersion: state.pythonVersion + 1 };
-    case 'desk.changed':
+    case 'desk.changed': {
       if ((state.deskSeqs[payload.sessionId] ?? -1) >= payload.seq) return state;
-      return { ...state, deskSeqs: { ...state.deskSeqs, [payload.sessionId]: payload.seq } };
+      const deskSeqs = { ...state.deskSeqs, [payload.sessionId]: payload.seq };
+      const actorId = event.actorId;
+      if (!actorId || actorId === 'person_user' || !payload.changeIds?.length)
+        return { ...state, deskSeqs };
+      const edit = {
+        seq: payload.seq,
+        actorId,
+        meetingId: event.meetingId ?? null,
+        changeIds: payload.changeIds,
+        blockIds: payload.blockIds ?? [],
+      };
+      const edits = [...(state.deskEdits[payload.sessionId] ?? []), edit].slice(-20);
+      return { ...state, deskSeqs, deskEdits: { ...state.deskEdits, [payload.sessionId]: edits } };
+    }
     case 'desk.session':
       return {
         ...state,

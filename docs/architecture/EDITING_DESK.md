@@ -70,6 +70,8 @@
 
 **U3 比较现状：** `app/ui/components/version-compare.js` 是编辑台和版本比较页共用的组件，读 `GET /api/versions/:id/diff?baseline=`（左页是 baseline）。纯逻辑在 `app/ui/desk-compare.js`：成对段落里沿两边相同的文字同步走，把位置相接的删和增合成一处（hunk），格式范围和增叠在一起时并进那一处；连着几段只有一边有算一处，删掉的段落在右页前一段末尾留缺口；没有改动时按段落一一配对。页面用 `readers/desk-compare-page.js` 直接画 DOM（不进 ProseMirror），原子和编辑器共用 `readers/desk-atoms.js`；diff 的 docx 块补了 `cell`（`model.js` 的 `cellPlace`，和会话共用）以便画表格。同步滚动是分段线性映射：每对段落的顶和底各一个对应点，中间按比例拉伸，以视口上三分之一处为准；程序设的滚动位置记下来，回来的滚动事件不再反推。
 
+**U4 界面现状：** 选区的帮手在 `app/ui/components/desk-assist.js`（`useDeskAssist`，desk.js 把它挂在画布上），纯逻辑在 `app/ui/desk-assist.js`（句子范围、md/tex 块的位置、对话标记、修改记录合成一段一段的改动、按中文词的前后对照，有 node 测试）。编辑器加了 `selection()`（docx 带 blockId 和段内偏移，md/tex 是去掉 BOM 后的文件偏移）、`selectSentence()`、`caretAt(x,y)`、`reveal()` 和闪一下的高亮。md/tex 的选区按 `app/shared/text-blocks.js`（从 `services/desk/text.js` 挪出来，前后端共用；静态服务现在提供整个 `app/shared/`）数到第几块，再对上会话的块 id。改写走 `POST /api/desk/sessions/:id/rewrite`；没绑对话时先 `POST /api/desk/enter {mode:'continue'}` 绑到项目最新的对话（没有就新建「编辑台」），再重发（接续时和左栏一样跳过归档、临时、附属和全局助手的对话，免得绑到「文献版本整理」）。专家的修改从 `desk.changed` 事件里认（事件的 actorId 不是用户），`state.deskEdits` 每个会话留最近 20 条；提示条的「撤销」按 changeIds 倒序逐条 `POST /api/desk/changes/:id/undo`。等待中的提示条看这次发言的 `turn.ended`，没改正文或失败时提示一句并收起。对话里的标记带 version 引用，点击先 `POST /api/desk/focus`，结果经 localStorage 交给编辑台窗口（60 秒内有效），编辑台打开对应标签后选中并高亮这句；位置变了或原文没了时提示。调试时发现并修了一个老问题：提交后的回调里又记了新事件时，新事件会先发出去，事件流按序号去重会把前一个（如 `turn.ended`）丢掉；现在提交回调期间新加的回调排在后面（`core/db/database.js`）。
+
 ### 3.3 E0 试验和之后的决定规则
 
 E0 是第一步，约 2–3 天，报告放 `.sciencescope-local/temp/desk-e0/`：① eigenpal docx-editor：读 LICENSE 和 `packages/pro` 的许可文本，把框架无关的核心挂进 Preact（不行再试 `preact/compat`），量体积和首屏时间，3 份真实稿件往返；② 自研回写最小原型（`docx/read.js`、`write.js`），同样 3 份稿件、同样的第 11 节检查；③ 句子对齐：同一论文的两个真实修订稿跑第 4.4 节算法，人工检查误标。
@@ -268,7 +270,7 @@ D6 工具已接入 `workspace_edit manuscript`：`comment {block,quote,text}`、
 
 D3c：`POST /api/desk/enter {projectId,meetingId?,mode:'continue'|'branch',atMessageId?}` 返回 `{meeting:{id,title,parentMeetingId},mode,created,sessionIds}`。接续指定对话或选未归档、最近活动的项目对话；无对话时以用户和主专家为成员新建“编辑台”，工作文件夹沿用项目默认。分支沿用 fork，省略消息取最新一条；空对话报 `DESK_BRANCH_EMPTY`，跨项目报 `DESK_MEETING_PROJECT`。改绑本项目打开的会话，旧修改归属不变；之后用户修改默认归属所绑定对话，明确传入的 actor 归属保留。已有同组会话再次打开时传 meetingId 也会改绑。进入会 touch 并发 `desk.entered {projectId,meetingId,mode}`，不触发回答。
 
-`POST /api/desk/focus {reference}` 接受 schema 1 的 project-file 或 version 引用；location 至少带 blockId 或 quote.exact，可含 characters 和 quote 前后文。在打开的工作副本中定位，无会话时自动打开；旧版引用也定位当前文稿。返回及 `desk.focus` 事件均为 `{projectId,path,groupId,sessionId,versionId,status:'exact'|'moved'|'missing',blockId?,from?,to?}`，versionId 保留所引版本（项目文件引用取会话基础版本），missing 不带范围。复用 D6 relocate；tex/md 的块编号跨会话不稳定，始终用原文及前后文消歧。仅有块 id 时定位整块。横条、点击及滚动高亮由 U4/U8 接入。
+`POST /api/desk/focus {reference}` 接受 schema 1 的 project-file 或 version 引用；location 至少带 blockId 或 quote.exact，可含 characters 和 quote 前后文。在打开的工作副本中定位，无会话时自动打开；旧版引用也定位当前文稿。返回及 `desk.focus` 事件均为 `{projectId,path,groupId,sessionId,versionId,status:'exact'|'moved'|'missing',blockId?,from?,to?}`，versionId 保留所引版本（项目文件引用取会话基础版本），missing 不带范围。复用 D6 relocate；tex/md 的块编号跨会话不稳定，始终用原文及前后文消歧。仅有块 id 时定位整块。点击标记跳转和高亮已由 U4 接入，进入横条由 U8 接入。
 
 D4：`GET /api/versions/:id/diff?baseline=` 返回 `{baseline:{id,number,branch},version:{id,number,branch},format,old:{blocks},new:{blocks},diff}`。省略 baseline 取父版本，无父返回 `{status:'first'}`；跨分支可比，跨组报 `INVALID_BASELINE`。不支持或解析失败时 old/new 为 null、diff 为 `{status:'originals-only'}`。有缓存复用差异，无缓存排队计算后保存。
 
@@ -349,7 +351,7 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 | D4 ✅    | `diffVersions`：段落配对加段内词级比较和格式改动；生成版本时后台算好存进版本，任意两版现算缓存                      | Sol    | 插段、删段、拆段、改词、改格式测试；生成版本后 `diff_json` 存在                     |
 | U3 ✅    | 比较视图：左右两页并排、同步滚动、上一处下一处，`version-diff.js` 改用新结果                                        | Claude | 截图；上一处、下一处可用                                                            |
 | D5 ✅    | `manuscript` 读写、`chg_` 撤回、`desk_suggest`、提示词                                                              | Sol    | 脚本运行时测试；`deepseek-v4.1-flash` 真跑一次，报请求数和 token                    |
-| U4 **A** | 浮动工具条、右键菜单、AI 修改后的提示条（看改了什么、撤销）、对话标记跳转                                           | Claude | 场景 2、9 浏览器测试；全新安装加服务商后真跑一次                                    |
+| U4 ✅    | 浮动工具条、右键菜单、AI 修改后的提示条（看改了什么、撤销）、对话标记跳转                                           | Claude | 场景 2、9 浏览器测试；全新安装加服务商后真跑一次                                    |
 | D6 ✅    | 批注和索引的表、服务、接口（增删改查，含专家的）、打开时重新定位，原文删光时删除                                    | Sol    | 外部修改后仍定位；原文删掉后这条被删除并记进版本说明                                |
 | U5 **A** | 「批注与索引」侧栏、批注和索引跟着文字走的标记（全删才删、撤销一起恢复）、查看索引菜单、索引选择框                  | Claude | 场景 5、6 浏览器测试；删字和撤销的锚点测试                                          |
 | U6 **A** | tex 源码加实时渲染、公式编辑框、md 两种视图、PDF 阅览与标记、编译按钮                                               | Claude | 场景 7、8 浏览器测试；无引擎时编译按钮停用有提示                                    |

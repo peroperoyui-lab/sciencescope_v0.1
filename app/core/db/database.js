@@ -10,7 +10,21 @@ import { AppError } from '../errors.js';
  */
 function wrap(raw) {
   let depth = 0;
-  let pending = [];
+  const pending = [];
+  // While commit callbacks run, newer callbacks wait their turn: an event
+  // recorded by a listener must not reach other listeners before the event
+  // that caused it (the event stream drops sequence numbers it has passed).
+  let flushing = false;
+
+  function flush() {
+    if (flushing) return;
+    flushing = true;
+    try {
+      while (pending.length) pending.shift()();
+    } finally {
+      flushing = false;
+    }
+  }
 
   return {
     raw,
@@ -35,21 +49,22 @@ function wrap(raw) {
         }
       }
       depth = 1;
+      // Callbacks still waiting from an outer commit stay when this one rolls back.
+      const waiting = pending.length;
       raw.exec('BEGIN IMMEDIATE');
+      let result;
       try {
-        const result = work();
+        result = work();
         raw.exec('COMMIT');
-        depth = 0;
-        const callbacks = pending;
-        pending = [];
-        for (const callback of callbacks) callback();
-        return result;
       } catch (error) {
         raw.exec('ROLLBACK');
         depth = 0;
-        pending = [];
+        pending.length = waiting;
         throw error;
       }
+      depth = 0;
+      flush();
+      return result;
     },
 
     /**
@@ -57,8 +72,8 @@ function wrap(raw) {
      * @param {() => void} callback
      */
     afterCommit(callback) {
-      if (depth > 0) pending.push(callback);
-      else callback();
+      pending.push(callback);
+      if (depth === 0) flush();
     },
 
     close: () => raw.close(),

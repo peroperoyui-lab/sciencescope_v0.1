@@ -488,6 +488,8 @@ test(
         }, top);
       const topOf = (column) => column.evaluate((node) => node.scrollTop);
       await scrollTo(left, 0);
+      // Let the left page's own scroll event settle first, or it pulls the right page back.
+      await desk.waitForTimeout(300);
       await scrollTo(right, 900);
       await desk.waitForFunction(() => document.querySelector('.ss-cmp__col').scrollTop > 200);
       // The right page has 25 paragraphs the left one lacks; the left page waits while they pass.
@@ -520,4 +522,115 @@ test(
       await desk.locator('.ss-page--edit h1', { hasText: '第三章' }).waitFor();
       if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
     }),
+);
+
+test(
+  'a selection is rewritten by the expert, shown, undone, quoted to the chat and found again from it',
+  { skip: browserSkip },
+  () =>
+    withBrowserApp(
+      'u4-desk-assist',
+      async function* ({ call, input, instructions }) {
+        const key = /manuscript="([^"]+)"/u.exec(input)?.[1];
+        // Only the main expert answers the request; the secretary's minutes leave it.
+        if (!key || instructions.includes('你是项目的任务秘书')) {
+          yield '好的。';
+          return;
+        }
+        const read = await call('workspace_read', { target: 'manuscript', key });
+        const block = read.blocks.find((entry) => entry.text.includes('98 个地级市'));
+        await call('workspace_edit', {
+          resource: 'manuscript',
+          key,
+          op: 'replace',
+          args: { block: block.id, find: '98 个地级市', with: '98 个城市' },
+        });
+        yield '把「地级市」改成了「城市」。';
+      },
+      async ({ page, app }) => {
+        const project = await app.core.projects.create({ name: '城市韧性研究' });
+        const root = path.join(app.core.paths.projects, project.dirName);
+        await mkdir(root, { recursive: true });
+        await writeFile(path.join(root, 'thesis.docx'), await thesis());
+        await app.core.workspace.edit({
+          resource: 'settings',
+          key: 'app',
+          op: 'patch',
+          args: {
+            changes: {
+              features: { editingDesk: true },
+              models: { default: { provider: 'test', model: 'test' } },
+            },
+          },
+        });
+        const desk = await page.context().newPage();
+        const errors = [];
+        desk.on('pageerror', (error) => errors.push(error.message));
+        const base = page.url().split('?')[0];
+        await desk.goto(
+          `${base}?token=ui-token&surface=desk&projectId=${project.id}&path=thesis.docx`,
+        );
+        const body = desk.locator('.ss-page--edit');
+        const sample = body.locator('p', { hasText: '研究样本为' });
+        await sample.waitFor();
+
+        // Select the start of a paragraph: the floating toolbar comes up above it.
+        await sample.click();
+        await desk.keyboard.press('Home');
+        for (let index = 0; index < 12; index++) await desk.keyboard.press('Shift+ArrowRight');
+        const toolbar = desk.locator('.ss-desk-ftb');
+        await toolbar.waitFor();
+        assert.equal(await toolbar.getByRole('button', { name: '润色' }).count(), 1);
+        const folder = process.env.SCIENCESCOPE_SCREENSHOTS;
+        if (folder) await desk.screenshot({ path: path.join(folder, 'u4-desk-toolbar.png') });
+
+        // Rewrite: with no chat bound yet the project gets one; the edit lands in the page.
+        await toolbar.getByRole('textbox', { name: '改写指令' }).fill('语气缓和些');
+        await desk.keyboard.press('Enter');
+        const note = desk.locator('.ss-desk-note[data-note="edit"]');
+        await note.waitFor({ timeout: 20000 });
+        assert.match(await note.textContent(), /主专家改写了「3\.2\u3000样本与数据」1 段/u);
+        await sample.filter({ hasText: '98 个城市' }).waitFor();
+        if (folder) await desk.screenshot({ path: path.join(folder, 'u4-desk-note.png') });
+
+        await note.getByRole('button', { name: '看改了什么' }).click();
+        const changes = desk.getByRole('dialog', { name: '改了什么' });
+        await desk.waitForTimeout(300);
+        assert.equal(await changes.locator('.ss-rev-ins').first().textContent(), '城市');
+        assert.equal(await changes.locator('.ss-diff-del').first().textContent(), '地级市');
+        if (folder) await desk.screenshot({ path: path.join(folder, 'u4-desk-changes.png') });
+        await changes.getByRole('button', { name: '关闭' }).last().click();
+        await note.getByRole('button', { name: '撤销' }).click();
+        await sample.filter({ hasText: '98 个地级市' }).waitFor();
+        await desk.locator('.ss-desk-note').waitFor({ state: 'detached' });
+
+        // Right-click menu: rewrite and quote are there; comments and indexes come with U5.
+        await sample.click({ button: 'right' });
+        const menu = desk.getByRole('menu', { name: '文字' });
+        await menu.getByRole('menuitem', { name: /这句的修改记录/u }).waitFor();
+        assert.equal(
+          await menu.getByRole('menuitem', { name: /添加批注/u }).getAttribute('aria-disabled'),
+          'true',
+        );
+        if (folder) await desk.screenshot({ path: path.join(folder, 'u4-desk-menu.png') });
+        await menu.getByRole('menuitem', { name: /引用到对话/u }).click();
+        await desk.getByText('已引用到对话，回到主窗口的对话里可以接着问').waitFor();
+        const meeting = app.core.meetings.list({ projectId: project.id })[0];
+        const draft = await app.researchInput.draft(meeting.id);
+        assert.equal(draft.marks.length, 1);
+        assert.equal(draft.marks[0].reference.kind, 'version');
+
+        // The rewrite request in the chat carries the sentence; clicking it shows it on the desk.
+        await page.evaluate((id) => {
+          location.hash = '#/meeting/' + id;
+        }, meeting.id);
+        const chip = page.locator('[data-desk-mark]').first();
+        await chip.waitFor();
+        const popup = page.waitForEvent('popup').catch(() => null);
+        await chip.click();
+        await desk.locator('.ss-desk-flash').first().waitFor();
+        await (await popup)?.close();
+        if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
+      },
+    ),
 );

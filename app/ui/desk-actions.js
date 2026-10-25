@@ -20,6 +20,15 @@ export function createDeskActions(api) {
     saveDesk: (id, body) => api.post(`${session(id)}/save`, body),
     /** @param {string} id */
     closeDesk: (id) => api.post(`${session(id)}/close`),
+    /** Ask the bound chat's expert to rewrite a selection. @param {string} id @param {{blockId:string,quote:any,instruction:string}} body */
+    rewriteDesk: (id, body) => api.post(`${session(id)}/rewrite`, body),
+    /** Bind open sessions to the project's latest chat (or a new one). @param {{projectId:string,mode:'continue'|'branch',meetingId?:string}} body */
+    enterDesk: (body) => api.post('/api/desk/enter', body),
+    /** Withdraw one recorded change. @param {string} changeId */
+    undoDeskChange: (changeId) =>
+      api.post(`/api/desk/changes/${encodeURIComponent(changeId)}/undo`),
+    /** Where a cited sentence is now in the open working text. @param {any} reference */
+    deskFocus: (reference) => api.post('/api/desk/focus', { reference }),
     /** A picture inside a docx, as a local object URL. @param {string} id @param {string|number} ref */
     async deskMedia(id, ref) {
       const bytes = await api.bytes(`${session(id)}/media/${encodeURIComponent(String(ref))}`);

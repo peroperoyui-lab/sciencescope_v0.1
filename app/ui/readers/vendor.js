@@ -36,3 +36,4 @@ export {
   undoDepth,
   redoDepth,
 } from '@codemirror/commands';
+export { diffArrays } from 'diff';

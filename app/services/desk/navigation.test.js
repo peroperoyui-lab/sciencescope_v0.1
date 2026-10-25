@@ -34,6 +34,14 @@ test('desk entry continues, forks or chooses recent activity and rebinds only fu
     const unsubscribe = core.events.subscribe((event) => events.push(event));
     try {
       const projectId = f.project.id;
+      // A temporary secretary chat (文献版本整理) is not the person's chat to continue.
+      core.meetings.create({
+        projectId,
+        title: '文献版本整理',
+        temporary: true,
+        policy: { mode: 'direct', respondent: 'agent_secretary' },
+        members: [{ participantId: 'agent_secretary' }],
+      });
       const first = await api.post('enter', { projectId, mode: 'continue' });
       assert.equal(first.created, true);
       assert.equal(first.meeting.title, '编辑台');
