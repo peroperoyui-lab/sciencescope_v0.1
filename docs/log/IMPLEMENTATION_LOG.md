@@ -2,10 +2,10 @@
 
 ## 2026-10-25 SH1 PowerShell 5 后台输出（Codex）
 - 定位：PS5 在执行前已有同一 stdout 对象的额外可继承副本，经 native launcher 继续传给后台；守护的继承清单只能约束第一层。清标准句柄会丢前台输出，清副本又不足以覆盖 Start-Process；PS7 的 Node 场景没有该额外副本。依据为本机句柄比较与 [Windows 继承规则](https://learn.microsoft.com/en-us/windows/win32/sysinfo/handle-inheritance)、[libuv 1.51.0](https://github.com/libuv/libuv/blob/v1.51.0/src/win/process.c)。
-- 修复 `shell.js`、`windows-shell-job.cs`：PS5 直接追加既有输出文件，正常退出保留后台，无 Job 同样处理。无 Job 停止时用内置 PS5 固定并核验进程身份，先停根进程再核查后代；身份丢失明确报错。正常 Job/PS7/Linux 路径、默认超时保持，无新依赖或界面改动。
+- 修复 `shell.js`、`windows-shell-job.cs`：PS5 直接追加既有输出文件，正常退出保留后台，无 Job 同样处理。无 Job 停止时用内置 PS5 固定并核验进程身份，先停根进程再核查后代；身份丢失明确报错，首次快照前已退出的中间父进程仍无法追溯。正常 Job/PS7/Linux 路径、默认超时保持，无新依赖或界面改动。
 - 显式 PS5/PS7 与无 Job 定向测试 21/21，包含持续输出、中文长输出、取消/超时子孙清理和身份丢失，原两秒取消断言保留；同夹具 PS5 Node 5.564→0.577 秒、Start-Process 5.285→0.508 秒，PS7 Node 0.778→0.664 秒。PS7 重定向 Start-Process 的原有超时 5.338→5.266 秒保留供审阅，原始证据在忽略目录 `temp/sh1/diagnosis/`。
 - 首轮检查 499 通过、1 失败、2 跳过：`taskkill /T` 遍历期间仍可创建 Node 而漏杀，增加启动竞争的 30 次试验复现 5 次；收尾找到的原夹具残留已核验身份并清理。另有进程全退后的短暂 `EBUSY`，分别用停止后核查与有限文件系统重试修复；缺 NSIS 路径的两项已补配置，失败日志均保留。
-- 验证进度：基于 `c309169`，独立干净检出 `npm ci`（npmmirror）后此前检查 502/502、零跳过，含 NSIS 3.11 两项；无 Job 补修后将再完整复验。隔离安装版正常 Job 路径真实 flash 为 2 请求、11,834 tokens，PS5 shell 967 毫秒返回且后台继续输出；关窗全树退出、WAL/SHM 清净，测试产品已正常卸载。100%/125% WebView2 截图与记录在忽略目录 `temp/sh1/`，预览安装及数据未动。
+- 最终验证：基于 `c309169`，独立干净检出 `npm ci`（npmmirror），无 Job 补修后的 `fbf7a0` 完整检查 503/503、零失败/跳过，含 NSIS 3.11 两项，耗时 26 分 40 秒；随后全量核查测试进程剩余 0。隔离安装版 `428fb45` 的正常 Job 路径真实 flash 为 2 请求、11,834 tokens，PS5 shell 967 毫秒返回且后台继续输出；后续补修仅涉及无 Job 退路及测试。关窗全树退出、WAL/SHM 清净，测试产品已正常卸载；100%/125% WebView2 截图与记录在忽略目录 `temp/sh1/`，预览安装及数据未动。
 
 ## 2026-10-24 U2 编辑台直接编辑（Claude）
 
