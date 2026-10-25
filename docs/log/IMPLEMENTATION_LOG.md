@@ -4,6 +4,7 @@
 - 定位：PS5 在执行前已有同一 stdout 对象的额外可继承副本，经 native launcher 继续传给后台；守护的继承清单只能约束第一层。清标准句柄会丢前台输出，清副本又不足以覆盖 Start-Process；PS7 的 Node 场景没有该额外副本。依据为本机句柄比较与 [Windows 继承规则](https://learn.microsoft.com/en-us/windows/win32/sysinfo/handle-inheritance)、[libuv 1.51.0](https://github.com/libuv/libuv/blob/v1.51.0/src/win/process.c)。
 - 修复仅改 `shell.js`、`windows-shell-job.cs`：PS5 直接写既有追加输出文件，正常退出释放 Job 中的后台进程；无 Job 退路一致。PS7/Linux、默认超时及运行中取消/超时杀树保持，无新增依赖或界面改动。
 - 显式 PS5/PS7 与无 Job 定向测试 20/20，包含持续输出、中文长输出、存活子孙的取消/超时；同夹具 PS5 Node 5.564→0.577 秒、Start-Process 5.285→0.508 秒，PS7 Node 0.778→0.664 秒。PS7 重定向 Start-Process 的原有超时 5.338→5.266 秒保留，另交审阅；原始失败与句柄证据留忽略目录 `temp/sh1/diagnosis/`。
+- 完整检查首轮遇到 PS5 无 Job 超时夹具清理的 `EBUSY`；40 次隔离复现中出现一次，返回时 PowerShell、taskkill 和 Node 均已退出，目录在返回后约 58 毫秒可删除。仅把已有的有限文件系统重试用于所有 shell 夹具清理，命令超时与耗时断言不变；原失败与复现日志保留。
 
 ## 2026-10-24 U2 编辑台直接编辑（Claude）
 

@@ -46,7 +46,7 @@ for (const configuration of configurations) {
   const run = (args, context) => runShell(args, context, configuration.options);
 
   test(`${configuration.name} shell uses the meeting environment, preserves long output and reports exit status`, async () => {
-    const { dir, cleanup } = await tempDir('builtin-shell');
+    const { dir } = await tempDir('builtin-shell');
     try {
       const script = path.join(dir, '中文脚本.cjs');
       await writeFile(
@@ -68,12 +68,12 @@ for (const configuration of configurations) {
       const full = await readFile(result.fullOutputPath, 'utf8');
       assert.equal(full.includes('中'.repeat(40000)), true);
     } finally {
-      await cleanup();
+      await removeShellFixture(dir);
     }
   });
 
   test(`${configuration.name} shell interruption ends both the shell and its nested command process`, async () => {
-    const { dir, cleanup } = await tempDir('builtin-stop');
+    const { dir } = await tempDir('builtin-stop');
     const controller = new AbortController();
     let result;
     try {
@@ -102,12 +102,12 @@ for (const configuration of configurations) {
     } finally {
       controller.abort();
       await result;
-      await cleanup();
+      await removeShellFixture(dir);
     }
   });
 
   test(`${configuration.name} shell timeout terminates the command and provides an explicit explanation`, async () => {
-    const { dir, cleanup } = await tempDir('builtin-timeout');
+    const { dir } = await tempDir('builtin-timeout');
     try {
       const script = path.join(dir, 'wait.cjs');
       await writeFile(script, 'setInterval(()=>{},1000);');
@@ -118,7 +118,7 @@ for (const configuration of configurations) {
       assert.equal(result.timedOut, true);
       assert.match(result.message, /0.2 seconds/);
     } finally {
-      await cleanup();
+      await removeShellFixture(dir);
     }
   });
 }
@@ -155,7 +155,7 @@ function killFixture(pid) {
   }
 }
 
-async function removeBackgroundFixture(dir) {
+async function removeShellFixture(dir) {
   // TerminateProcess can report an exited PID before Windows releases its
   // inherited file/console handles. Retry that filesystem result, not assertions.
   await rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
@@ -173,7 +173,7 @@ for (const action of ['timeout', 'stop']) {
         timeout: 20000,
       },
       async () => {
-        const { dir, cleanup } = await tempDir(`builtin-orphan-${action}`);
+        const { dir } = await tempDir(`builtin-orphan-${action}`);
         const controller = new AbortController();
         let running;
         const pids = [];
@@ -215,7 +215,7 @@ for (const action of ['timeout', 'stop']) {
           controller.abort();
           await running;
           for (const pid of pids) killFixture(pid);
-          await cleanup();
+          await removeShellFixture(dir);
         }
       },
     );
@@ -291,7 +291,7 @@ for (const configuration of configurations.filter(() => windows)) {
           killFixture(pid);
           await waitForExit(pid);
         }
-        await removeBackgroundFixture(dir);
+        await removeShellFixture(dir);
       }
     },
   );
@@ -342,7 +342,7 @@ for (const configuration of configurations.filter((entry) => entry.name.startsWi
         killFixture(pid);
         await waitForExit(pid);
       }
-      await removeBackgroundFixture(dir);
+      await removeShellFixture(dir);
     }
   });
 }
