@@ -49,9 +49,23 @@ import {
   textShape,
   toDocJSON,
 } from '../desk-blocks.js';
-import { sentenceAround } from '../desk-assist.js';
+import { sentenceAround, textBlockSpans } from '../desk-assist.js';
 import { t } from '../i18n/index.js';
 import { atomElement } from './desk-atoms.js';
+import { findBlock, offsetToPos, posToOffset } from './desk-positions.js';
+import {
+  activatePage,
+  activateText,
+  applyPageIndexes,
+  applyTextNotes,
+  indexMarkSpec,
+  pageIndexRanges,
+  pageNotesAt,
+  pageNotesPlugin,
+  textNoteRanges,
+  textNotes,
+  textNotesAt,
+} from './desk-notes.js';
 
 const schema = new Schema({
   nodes: {
@@ -115,6 +129,8 @@ const schema = new Schema({
         run: { default: null },
         wrap: { default: null },
         media: { default: false },
+        // The Word comment a range delimiter belongs to.
+        comment: { default: null },
       },
       // Only tabs, breaks and symbols may be pasted again; a formula or field exists once.
       parseDOM: [
@@ -153,6 +169,7 @@ const schema = new Schema({
       inclusive: true,
       toDOM: () => ['span', 0],
     },
+    index: indexMarkSpec,
   },
 });
 const { para, opaque, cell, atom } = schema.nodes;
@@ -308,47 +325,6 @@ const flashPlugin = () =>
     props: { decorations: (state) => flashKey.getState(state) },
   });
 
-/** How many characters an inline node takes in the server's block text. @param {any} node */
-const inlineLength = (node) =>
-  node.isText ? node.text.length : String(node.attrs.display ?? '').length;
-
-/** The paragraph (or cross-paragraph field) with this id. @param {any} doc @param {string} id */
-function findBlock(doc, id) {
-  let found = null;
-  doc.descendants((node, pos) => {
-    if (found) return false;
-    if (node.type !== para && node.type !== opaque) return true;
-    if (node.attrs.id === id) found = { node, pos };
-    return false;
-  });
-  return found;
-}
-
-/** A character offset in a paragraph's text as a document position. */
-function offsetToPos(node, pos, offset) {
-  let at = 0;
-  let result = pos + 1;
-  node.forEach((child, start) => {
-    const length = inlineLength(child);
-    if (at >= offset) return;
-    if (child.isText && offset <= at + length) result = pos + 1 + start + (offset - at);
-    else result = pos + 1 + start + child.nodeSize;
-    at += length;
-  });
-  return at < offset ? pos + 1 + node.content.size : result;
-}
-
-/** A document position inside a paragraph as a character offset in its text. */
-function posToOffset(node, pos, target) {
-  let at = 0;
-  node.forEach((child, start) => {
-    const begin = pos + 1 + start;
-    if (begin >= target) return;
-    at += child.isText ? Math.min(child.text.length, target - begin) : inlineLength(child);
-  });
-  return at;
-}
-
 /** Text of a range, with objects written as their display text. */
 const leafText = (node) => String(node.attrs?.display ?? '');
 
@@ -422,6 +398,7 @@ export function mountDeskDocx(surface, { blocks, media, onChange, onState, onSel
         shapePlugin(),
         outlinePlugin(),
         flashPlugin(),
+        pageNotesPlugin(),
       ],
     });
   let frame = 0;
@@ -457,7 +434,8 @@ export function mountDeskDocx(surface, { blocks, media, onChange, onState, onSel
       dispatchTransaction(tr) {
         view.updateState(view.state.apply(tr));
         if (tr.docChanged && !remote(tr)) onChange();
-        if (tr.docChanged || tr.selectionSet) onSelection?.();
+        // Marks and text from the server do not bring back a closed toolbar.
+        if (tr.selectionSet || (tr.docChanged && !remote(tr))) onSelection?.();
         report();
       },
     },
@@ -483,6 +461,8 @@ export function mountDeskDocx(surface, { blocks, media, onChange, onState, onSel
     snapshot: () => fromDocJSON(view.state.doc.toJSON()),
     /** Take paragraphs from the server, keeping the selection where the shape allows. @param {any[]} next */
     adopt(next) {
+      // The server's paragraphs carry no indexes: keep the ones on the page.
+      const kept = pageIndexRanges(view.state.doc);
       const doc = schema.nodeFromJSON(toDocJSON(next));
       const current = view.state.doc;
       if (doc.eq(current)) return;
@@ -502,6 +482,7 @@ export function mountDeskDocx(surface, { blocks, media, onChange, onState, onSel
         }
       } else tr.replaceWith(0, current.content.size, doc.content);
       view.dispatch(tr.setMeta('addToHistory', false).setMeta('desk-remote', true));
+      if (kept.length) applyPageIndexes(view, kept);
     },
     /** Server ids for new paragraphs. @param {Record<string, string>} ids */
     rename(ids) {
@@ -648,6 +629,14 @@ export function mountDeskDocx(surface, { blocks, media, onChange, onState, onSel
       view.focus();
       view.pasteText(text);
     },
+    /** Index ranges for the server, with each sync. */
+    noteRanges: () => pageIndexRanges(view.state.doc),
+    /** Indexes from the server; Word comments come with the paragraphs. @param {any[]} items */
+    applyNotes: (items) => applyPageIndexes(view, items),
+    /** Comments and indexes at the cursor or selection. */
+    notesAt: () => pageNotesAt(view.state, view.state.selection.from, view.state.selection.to),
+    /** @param {string|null} id */
+    activate: (id) => activatePage(view, id),
     outline: () => outlineKey.getState(view.state).list,
     words: () =>
       countWords(view.state.doc.textBetween(0, view.state.doc.content.size, '\n', () => '')),
@@ -668,6 +657,7 @@ export function mountDeskDocx(surface, { blocks, media, onChange, onState, onSel
  */
 export function mountDeskText(surface, { text, format, onChange, onState, onSelection }) {
   const { bom, separator, body } = textShape(text);
+  const blockFormat = format === 'latex' ? 'tex' : 'md';
   const report = (state) =>
     onState({ marks: [], undo: undoDepth(state) > 0, redo: redoDepth(state) > 0 });
   const view = new EditorView({
@@ -683,6 +673,7 @@ export function mountDeskText(surface, { text, format, onChange, onState, onSele
         EditorView.lineWrapping,
         syntaxHighlighting(defaultHighlightStyle),
         ...(format === 'latex' ? [StreamLanguage.define(stex)] : []),
+        textNotes(),
         EditorView.contentAttributes.of({ 'aria-label': t('文稿源码'), spellcheck: 'false' }),
         EditorView.updateListener.of((update) => {
           if (
@@ -821,6 +812,54 @@ export function mountDeskText(surface, { text, format, onChange, onState, onSele
       if (name === 'undo') run(undo);
       else if (name === 'redo') run(redo);
     },
+    /**
+     * Comment and index ranges for the server: block order in this text and
+     * offsets in that block's text.
+     */
+    noteRanges() {
+      const spans = textBlockSpans(view.state.sliceDoc(), blockFormat);
+      return textNoteRanges(view.state).flatMap((note) => {
+        const from = toOffset(note.from);
+        let index = spans.findIndex((span) => from < span.start + span.length);
+        if (index < 0) index = spans.length - 1;
+        const span = spans[index];
+        const start = from - span.start;
+        const end = Math.min(toOffset(note.to) - span.start, span.length);
+        return start >= 0 && end > start
+          ? [{ id: note.id, block: index, from: start, to: end }]
+          : [];
+      });
+    },
+    /**
+     * Items from the server, placed by their block's order in the session.
+     * @param {any[]} items @param {{id:string}[]} blocks the session's blocks
+     */
+    applyNotes(items, blocks) {
+      const spans = textBlockSpans(view.state.sliceDoc(), blockFormat);
+      const order = new Map(blocks.map((block, index) => [block.id, index]));
+      applyTextNotes(
+        view,
+        items.flatMap((item) => {
+          const span = spans[order.get(item.blockId) ?? -1];
+          if (!span) return [];
+          return [
+            {
+              id: item.id,
+              type: item.type,
+              quiet: !!item.quiet,
+              from: toPosition(span.start + item.from),
+              to: toPosition(span.start + item.to),
+            },
+          ];
+        }),
+      );
+    },
+    notesAt: () => {
+      const { from, to } = view.state.selection.main;
+      return textNotesAt(view.state, from, to);
+    },
+    /** @param {string|null} id */
+    activate: (id) => activateText(view, id),
     text: () => view.state.sliceDoc(),
     words: () => countWords(view.state.sliceDoc()),
     /** @param {number} number 1-based */

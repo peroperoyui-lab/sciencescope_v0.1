@@ -73,6 +73,8 @@ export const initialState = {
   /** Edits an expert (not the person) made to each desk session: the last few `desk.changed` events. */
   /** @type {Record<string, { seq: number, actorId: string, meetingId: string | null, changeIds: string[], blockIds: string[] }[]>} */ deskEdits:
     {},
+  /** Bumped per desk session when its comments or indexes change (`desk.annotations.changed`). */
+  /** @type {Record<string, number>} */ deskNotes: {},
   /** Last `desk.session` notice per session, such as a failed working-copy write. */
   /** @type {Record<string, any>} */ deskSessions: {},
   /** Popups over the window: one menu, one dialog, one toast, the search palette. */
@@ -137,6 +139,14 @@ export function applyEvent(state, event) {
       const edits = [...(state.deskEdits[payload.sessionId] ?? []), edit].slice(-20);
       return { ...state, deskSeqs, deskEdits: { ...state.deskEdits, [payload.sessionId]: edits } };
     }
+    case 'desk.annotations.changed':
+      return {
+        ...state,
+        deskNotes: {
+          ...state.deskNotes,
+          [payload.sessionId]: (state.deskNotes[payload.sessionId] ?? 0) + 1,
+        },
+      };
     case 'desk.session':
       return {
         ...state,

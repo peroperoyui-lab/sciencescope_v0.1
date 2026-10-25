@@ -604,13 +604,13 @@ test(
         await sample.filter({ hasText: '98 个地级市' }).waitFor();
         await desk.locator('.ss-desk-note').waitFor({ state: 'detached' });
 
-        // Right-click menu: rewrite and quote are there; comments and indexes come with U5.
+        // Right-click menu: rewrite, quote, comments and indexes are there.
         await sample.click({ button: 'right' });
         const menu = desk.getByRole('menu', { name: '文字' });
         await menu.getByRole('menuitem', { name: /这句的修改记录/u }).waitFor();
         assert.equal(
           await menu.getByRole('menuitem', { name: /添加批注/u }).getAttribute('aria-disabled'),
-          'true',
+          null,
         );
         if (folder) await desk.screenshot({ path: path.join(folder, 'u4-desk-menu.png') });
         await menu.getByRole('menuitem', { name: /引用到对话/u }).click();
@@ -633,4 +633,178 @@ test(
         if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
       },
     ),
+);
+
+test(
+  'comments and indexes are added from a selection, follow the text and come back on undo',
+  { skip: browserSkip },
+  () =>
+    withBrowserApp('u5-desk-notes', silent, async ({ page, app }) => {
+      const { readFile } = await import('node:fs/promises');
+      const project = await app.core.projects.create({ name: '城市韧性研究' });
+      const root = path.join(app.core.paths.projects, project.dirName);
+      await mkdir(path.join(root, 'data'), { recursive: true });
+      const thesisFile = path.join(root, 'thesis.docx');
+      await writeFile(thesisFile, await thesis());
+      await writeFile(path.join(root, 'data', 'cities.csv'), 'city,year\n');
+      await app.core.workspace.edit({
+        resource: 'settings',
+        key: 'app',
+        op: 'patch',
+        args: { changes: { features: { editingDesk: true } } },
+      });
+      const desk = await page.context().newPage();
+      const errors = [];
+      desk.on('pageerror', (error) => errors.push(error.message));
+      const base = page.url().split('?')[0];
+      await desk.goto(
+        `${base}?token=ui-token&surface=desk&projectId=${project.id}&path=thesis.docx`,
+      );
+      const folder = process.env.SCIENCESCOPE_SCREENSHOTS;
+      const body = desk.locator('.ss-page--edit');
+      const ribbon = desk.locator('.ss-ribbon');
+      const cards = desk.locator('.ss-desk-notes .ss-desk-card:not(.ss-desk-card--new)');
+      const sample = body.locator('p', { hasText: '研究样本为' });
+      await sample.waitFor();
+      await desk.locator('.ss-statusbar').getByText('已写回项目文件').waitFor();
+      /** Select the first `count` characters of a paragraph (again if the page was still settling). */
+      const selectStart = async (paragraph, count) => {
+        for (let attempt = 0; attempt < 3; attempt++) {
+          await paragraph.click({ position: { x: 4, y: 6 } });
+          await desk.keyboard.press('Home');
+          for (let index = 0; index < count; index++) await desk.keyboard.press('Shift+ArrowRight');
+          await desk.waitForTimeout(100);
+          if ((await desk.evaluate(() => String(getSelection()))).length === count) return;
+        }
+        throw new Error('Could not select the start of the paragraph');
+      };
+
+      // A comment from the ribbon: the panel opens on a new card for the selected words.
+      await selectStart(sample, 5);
+      await ribbon.getByRole('button', { name: '批注', exact: true }).click();
+      const content = desk.getByRole('textbox', { name: '批注内容' });
+      await content.fill('样本口径要和第二章一致');
+      await desk.getByRole('button', { name: '添加', exact: true }).click();
+      await cards.filter({ hasText: '样本口径要和第二章一致' }).waitFor();
+      await body.locator('.ss-cmt', { hasText: '研究样本为' }).waitFor();
+
+      // An index from the right-click menu, pointing at a data file.
+      const threshold = body.locator('p', { hasText: '案例频数阈值' });
+      await selectStart(threshold, 5);
+      // Right-click on the selected words.
+      const box = await desk.evaluate(() => {
+        const rect = getSelection().getRangeAt(0).getBoundingClientRect();
+        return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+      });
+      await desk.mouse.click(box.x, box.y, { button: 'right' });
+      await desk
+        .getByRole('menu', { name: '文字' })
+        .getByRole('menuitem', { name: /添加索引/u })
+        .click();
+      const picker = desk.getByRole('dialog', { name: '添加索引' });
+      await picker.getByRole('button', { name: 'data' }).click();
+      await picker.getByRole('option', { name: 'cities.csv' }).click();
+      await picker.getByRole('textbox', { name: '说明' }).fill('阈值来自敏感性分析');
+      if (folder) await desk.screenshot({ path: path.join(folder, 'u5-desk-picker.png') });
+      await picker.getByRole('button', { name: '添加索引' }).click();
+      const index = cards.filter({ hasText: '阈值来自敏感性分析' });
+      await index.getByRole('button', { name: 'data/cities.csv' }).waitFor();
+      await body.locator('.ss-bind', { hasText: '一致性阈值' }).waitFor();
+      assert.equal(await cards.count(), 2);
+      assert.equal(await desk.locator('.ss-desk-panel .ss-tab__count').textContent(), '2');
+      if (folder) await desk.screenshot({ path: path.join(folder, 'u5-desk-notes.png') });
+
+      // The type filter shows one kind.
+      await desk.getByRole('group', { name: '类型' }).getByRole('button', { name: '索引' }).click();
+      assert.equal(await cards.count(), 1);
+      await desk.getByRole('group', { name: '类型' }).getByRole('button', { name: '全部' }).click();
+
+      // Deleting all the marked words takes the index; undo brings both back.
+      await selectStart(threshold, 5);
+      await desk.keyboard.press('Backspace');
+      await desk.getByText('删掉的文字带走了 1 条索引').waitFor();
+      await index.waitFor({ state: 'detached' });
+      await desk.locator('.ss-toast').getByRole('button', { name: '撤销' }).click();
+      await body.locator('.ss-bind', { hasText: '一致性阈值' }).waitFor();
+      // The card comes back once the server has the restored words.
+      await index.waitFor();
+
+      // Saved: the comment goes into Word; the index stays in ScienceScope.
+      await desk.keyboard.press('Control+s');
+      await desk.locator('.ss-statusbar').getByText('已写回项目文件').waitFor();
+      const zip = await JSZip.loadAsync(await readFile(thesisFile));
+      assert.match(await zip.file('word/comments.xml').async('string'), /样本口径要和第二章一致/u);
+      assert.match(await zip.file('word/document.xml').async('string'), /commentRangeStart/u);
+
+      // Deleting a card removes its mark.
+      await index.getByRole('button', { name: '删除' }).click();
+      await body.locator('.ss-bind').waitFor({ state: 'detached' });
+      assert.equal(await cards.count(), 1);
+      if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
+    }),
+);
+
+test(
+  'a Markdown comment gets a reply, is resolved and returns with its words on undo',
+  { skip: browserSkip },
+  () =>
+    withBrowserApp('u5-desk-notes-md', silent, async ({ page, app }) => {
+      const project = await app.core.projects.create({ name: '城市韧性研究' });
+      const root = path.join(app.core.paths.projects, project.dirName);
+      await mkdir(root, { recursive: true });
+      await writeFile(
+        path.join(root, 'notes.md'),
+        '# 札记\n\n城市韧性的测度仍有争议。\n\n第二段文字。\n',
+      );
+      await app.core.workspace.edit({
+        resource: 'settings',
+        key: 'app',
+        op: 'patch',
+        args: { changes: { features: { editingDesk: true } } },
+      });
+      const desk = await page.context().newPage();
+      const errors = [];
+      desk.on('pageerror', (error) => errors.push(error.message));
+      const base = page.url().split('?')[0];
+      await desk.goto(`${base}?token=ui-token&surface=desk&projectId=${project.id}&path=notes.md`);
+      const folder = process.env.SCIENCESCOPE_SCREENSHOTS;
+      const source = desk.locator('.ss-desk-source .cm-content');
+      const line = source.getByText('城市韧性的测度仍有争议。');
+      await line.waitFor();
+      await desk.locator('.ss-statusbar').getByText('已写回项目文件').waitFor();
+      const card = desk.locator('.ss-desk-notes .ss-desk-card:not(.ss-desk-card--new)');
+
+      // From the floating toolbar.
+      await line.click();
+      await desk.keyboard.press('Home');
+      for (let index = 0; index < 4; index++) await desk.keyboard.press('Shift+ArrowRight');
+      await desk.locator('.ss-desk-ftb').getByRole('button', { name: '添加批注' }).click();
+      await desk.getByRole('textbox', { name: '批注内容' }).fill('先说明用的哪种测度');
+      await desk.keyboard.press('Control+Enter');
+      await card.waitFor();
+      await source.locator('.ss-cmt', { hasText: '城市韧性' }).waitFor();
+
+      // Reply, then resolve: the mark goes quiet but the card stays.
+      await card.getByRole('button', { name: '回复' }).click();
+      await card.getByRole('textbox', { name: '回复' }).fill('用熵权法合成的指数');
+      await card.getByRole('button', { name: '回复' }).click();
+      await card.locator('.ss-desk-reply', { hasText: '用熵权法合成的指数' }).waitFor();
+      await card.getByRole('button', { name: '标为已解决' }).click();
+      await card.locator('.ss-tag', { hasText: '已解决' }).waitFor();
+      await source.locator('.ss-cmt').waitFor({ state: 'detached' });
+      if (folder) await desk.screenshot({ path: path.join(folder, 'u5-desk-notes-md.png') });
+      await card.getByRole('button', { name: '重新打开' }).click();
+      await source.locator('.ss-cmt', { hasText: '城市韧性' }).waitFor();
+
+      // 定位 selects the words; deleting them takes the comment, Ctrl+Z brings it back.
+      await card.getByRole('button', { name: '定位' }).click();
+      await desk.waitForFunction(() => String(getSelection()) === '城市韧性');
+      await desk.keyboard.press('Backspace');
+      await desk.getByText('删掉的文字带走了 1 条批注').waitFor();
+      await card.waitFor({ state: 'detached' });
+      await desk.keyboard.press('Control+z');
+      await card.locator('.ss-desk-reply', { hasText: '用熵权法合成的指数' }).waitFor();
+      await source.locator('.ss-cmt', { hasText: '城市韧性' }).waitFor();
+      if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
+    }),
 );

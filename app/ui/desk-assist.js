@@ -39,6 +39,21 @@ export function textBlockAt(text, format, offset) {
 }
 
 /**
+ * Where each block's text starts in the file text, and its length, in the
+ * server's order. One pass for a whole list of ranges.
+ * @param {string} text the file text without its BOM @param {'md' | 'tex'} format
+ * @returns {{ start: number, length: number }[]}
+ */
+export function textBlockSpans(text, format) {
+  let at = 0;
+  return splitText(text, format).map((block) => {
+    const start = at + Math.max(0, block.raw.indexOf(block.text));
+    at += block.raw.length;
+    return { start, length: block.text.length };
+  });
+}
+
+/**
  * The start of block `index`'s text in the file text.
  * @param {string} text @param {'md' | 'tex'} format @param {number} index
  */

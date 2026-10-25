@@ -148,6 +148,7 @@ export function createDesk(
         }),
       });
     const proposal = propose(state, input);
+    proposal.held = annotations.editorRanges(proposal, input.annotations);
     const result = store.commit(state, proposal, actor);
     if (proposal.records.length) sessions.requestFlush(state);
     return result;
@@ -274,7 +275,7 @@ export function createDesk(
     updateBlocks: (id, input, actor = {}) => serial(() => updateBlocks(id, input, actor)),
     /**
      * @param {string} id
-     * @param {{baseSeq:number,text:string}} input
+     * @param {{baseSeq:number,text:string,annotations?:{id:string,block:number,from:number,to:number}[]}} input
      * @param {any} [actor]
      */
     updateText: (id, input, actor = {}) =>
@@ -285,6 +286,7 @@ export function createDesk(
         if (state.document.format === 'docx')
           throw new AppError('DESK_FORMAT', 'DOCX 会话请按段落提交修改。');
         const proposal = proposeText(state, input);
+        proposal.held = annotations.editorRanges(proposal, input.annotations);
         const result = store.commit(state, proposal, actor);
         if (proposal.records.length) sessions.requestFlush(state);
         return result;

@@ -70,6 +70,7 @@ function inlineJSON(inline) {
         run: inline.run ?? null,
         wrap: inline.wrap ?? null,
         media: !!inline.media,
+        comment: inline.comment ?? null,
       },
     };
   if (!inline.text) return null;

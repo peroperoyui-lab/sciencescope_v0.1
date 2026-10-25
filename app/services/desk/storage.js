@@ -113,7 +113,14 @@ export function createDeskStore(core, annotations) {
     const seq = state.session.seq + 1;
     const ids = proposal.records.map(() => newId('chg'));
     const deltas = proposal.records.flatMap((record) => record.annotations ?? []);
-    const removedAnnotations = deltas.filter((delta) => delta.before && !delta.after).length;
+    const removed = deltas
+      .filter((delta) => delta.before && !delta.after)
+      .map(({ before }) => ({
+        id: before.id,
+        type: before.type,
+        ...(before.parentId ? { parentId: before.parentId } : {}),
+      }));
+    const removedAnnotations = removed.length;
     db.transaction(() => {
       for (const [index, record] of proposal.records.entries())
         db.prepare(
@@ -168,7 +175,7 @@ export function createDeskStore(core, annotations) {
     state.blocks = proposal.blocks;
     annotations?.accept(state, proposal.records);
     state.session = get(state.session.id);
-    return { seq, inserted: proposal.inserted, removedAnnotations };
+    return { seq, inserted: proposal.inserted, removedAnnotations, removed };
   }
   return {
     get,

@@ -21,6 +21,8 @@ import { Dialog } from './dialog.js';
 import { useDeskAssist } from './desk-assist.js';
 import { DeskDocument, externalQuestion } from './desk-document.js';
 import { DeskNav, FileType, deskKind, latestVersion } from './desk-nav.js';
+import { useDeskNotes } from './desk-notes.js';
+import { FilePreview } from './file-preview.js';
 import { Splitter } from './splitter.js';
 import { VersionCompare } from './version-compare.js';
 
@@ -194,8 +196,9 @@ function ViewSwitch({ views, view, onView, enabled = views }) {
  *   onRibbon: (name: string) => void, collapsed: boolean, onCollapse: () => void,
  *   nav: boolean, onNav: () => void, panel: boolean, onPanel: () => void,
  *   page: any, pdf: any, edit: any, editing: any, onSave: () => void,
- *   compare: string, comparing: boolean, onCompare: () => void }} props
- * `compare` is why 比较 is off, or '' when it can start.
+ *   compare: string, comparing: boolean, onCompare: () => void,
+ *   onNote: (type: 'comment' | 'index') => void }} props
+ * `compare` is why 比较 is off, or '' when it can start; `onNote` starts a comment or index.
  */
 function Ribbon({
   tab,
@@ -217,6 +220,7 @@ function Ribbon({
   compare,
   comparing,
   onCompare,
+  onNote,
 }) {
   const actions = useActions();
   const format = tab?.format;
@@ -265,12 +269,22 @@ function Ribbon({
             enabled=${['source']}
           />`
         : null;
+  // PDF comments and indexes come with PDF marks (U6).
+  const noteless = !edit || format === 'pdf';
   const marks = html`<${RibbonButton}
       icon="message-square-plus"
       text=${t('批注')}
-      disabled=${off}
+      tip=${t('给选中的文字加批注')}
+      disabled=${noteless}
+      onClick=${() => onNote('comment')}
     />
-    <${RibbonButton} icon="link-2" text=${t('索引')} disabled=${off} />`;
+    <${RibbonButton}
+      icon="link-2"
+      text=${t('索引')}
+      tip=${t('把选中的文字连到数据、脚本、资料或消息')}
+      disabled=${noteless}
+      onClick=${() => onNote('index')}
+    />`;
   let bar;
   if (!tab) bar = html`<span class="ss-muted ss-ribbon__hint">${t('在左栏选一份文稿打开')}</span>`;
   else if (current === 'home' && format === 'pdf')
@@ -558,8 +572,12 @@ function Statusbar({ tab, group, info, edit, comparing }) {
   </footer>`;
 }
 
-/** @param {{ tab: string, onTab: (tab: string) => void, onClose: () => void, width: number, onWidth: (width: number) => void }} props */
-function DeskPanel({ tab, onTab, onClose, width, onWidth }) {
+/**
+ * @param {{ tab: string, onTab: (tab: string) => void, onClose: () => void, width: number,
+ *   onWidth: (width: number) => void, notes: any, count: number }} props
+ * `notes` is the 「批注与索引」 tab's content, `count` its number of items.
+ */
+function DeskPanel({ tab, onTab, onClose, width, onWidth, notes, count }) {
   const tabs = [
     ['notes', t('批注与索引')],
     ['chat', t('对话')],
@@ -585,30 +603,26 @@ function DeskPanel({ tab, onTab, onClose, width, onWidth }) {
               aria-selected=${String(name === tab)}
               onClick=${() => onTab(name)}
             >
-              ${text}
+              ${text}${name === 'notes' && count > 0 && html`<span class="ss-tab__count">${count}</span>`}
             </button>`,
         )}
       </nav>
       <span class="ss-titlebar__spacer"></span>
       <${IconButton} icon="x" label=${t('关闭侧栏')} onClick=${onClose} />
     </div>
-    <div class="ss-panel__body">
-      <div class="ss-empty">
-        <div class="ss-empty__icon">
-          <${Lucide} name=${tab === 'notes' ? 'message-square' : 'message-square-plus'} />
-        </div>
-        <div class="ss-empty__title">
-          ${tab === 'notes' ? t('还没有批注和索引') : t('还没有绑定对话')}
-        </div>
-        <div class="ss-empty__text">
-          ${
-            tab === 'notes'
-              ? t('划选文字后可以添加批注或索引，专家加的也会列在这里。')
-              : t('从对话进入编辑台时，这里显示那段对话，可以接着和专家讨论这份文稿。')
-          }
-        </div>
-      </div>
-    </div>
+    ${
+      tab === 'notes'
+        ? notes
+        : html`<div class="ss-panel__body">
+            <div class="ss-empty">
+              <div class="ss-empty__icon"><${Lucide} name="message-square-plus" /></div>
+              <div class="ss-empty__title">${t('还没有绑定对话')}</div>
+              <div class="ss-empty__text">
+                ${t('从对话进入编辑台时，这里显示那段对话，可以接着和专家讨论这份文稿。')}
+              </div>
+            </div>
+          </div>`
+    }
   </aside>`;
 }
 
@@ -640,7 +654,15 @@ export function DeskWindow() {
   const sessions = useRef(/** @type {Record<string, string>} */ ({}));
   const canvas = useRef(/** @type {HTMLElement | null} */ (null));
   const tab = tabs.find((entry) => entry.key === active) ?? null;
-  const assist = useDeskAssist({ tab, editing, canvas });
+  const notes = useDeskNotes({
+    tab,
+    editing,
+    onOpen: () => {
+      setPanel(true);
+      setPanelTab('notes');
+    },
+  });
+  const assist = useDeskAssist({ tab, editing, canvas, notes });
   // A sentence a chat mark points at, shown once its document is open.
   const [focus, setFocus] = useState(/** @type {any} */ (null));
   const [ready, setReady] = useState(0);
@@ -904,6 +926,7 @@ export function DeskWindow() {
       compare=${compareBlocked}
       comparing=${comparing}
       onCompare=${toggleCompare}
+      onNote=${notes.add}
     />
     <div class="ss-shell__body">
       ${
@@ -959,7 +982,11 @@ export function DeskWindow() {
                       onSession=${(id) => {
                         if (id) sessions.current[tab.key] = id;
                       }}
-                      onSelection=${assist.onSelection}
+                      onSelection=${() => {
+                        assist.onSelection();
+                        notes.onSelection();
+                      }}
+                      onRemoved=${notes.onRemoved}
                       onReady=${() => setReady((value) => value + 1)}
                       onInfo=${(next) => setInfo((known) => ({ ...known, ...next }))}
                     />`
@@ -983,8 +1010,11 @@ export function DeskWindow() {
           onClose=${() => setPanel(false)}
           width=${panelWidth}
           onWidth=${savePanel('deskPanel')}
+          notes=${notes.panel}
+          count=${notes.count}
         />`
       }
+      ${notes.layer}<${FilePreview} />
     </div>
     <${Statusbar} tab=${tab} group=${group} info=${info} edit=${edit} comparing=${comparing} />
     ${question}

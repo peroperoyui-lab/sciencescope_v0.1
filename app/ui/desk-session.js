@@ -30,13 +30,16 @@ export async function writeBack(actions, id, confirm = false) {
 
 /**
  * @typedef {{ state: 'saved'|'unsaved'|'syncing'|'error', message?: string }} DeskStatus
- * @typedef {{ snapshot: () => any, adopt: (value: any) => void, rename?: (ids: Record<string,string>) => void }} DeskEditor
+ * @typedef {{ snapshot: () => any, adopt: (value: any) => void, rename?: (ids: Record<string,string>) => void,
+ *   noteRanges?: () => any[] }} DeskEditor
  */
 
 /**
  * @param {{ actions: any, opened: any, editor: DeskEditor,
  *   onStatus?: (status: DeskStatus) => void, onError?: (message: string) => void,
+ *   onRemoved?: (items: {id:string,type:string}[]) => void,
  *   delay?: number, schedule?: (run: () => void, ms: number) => any, cancel?: (timer: any) => void }} options
+ * `onRemoved` hears of comments and indexes whose text this side deleted.
  */
 export function createDeskSession({
   actions,
@@ -44,6 +47,7 @@ export function createDeskSession({
   editor,
   onStatus = () => {},
   onError = () => {},
+  onRemoved = () => {},
   delay = SYNC_DELAY,
   schedule = setTimeout,
   cancel = clearTimeout,
@@ -73,13 +77,16 @@ export function createDeskSession({
             : { state: 'saved' },
     );
 
+  // The editor's comment and index ranges go with each change, so the server
+  // keeps them where the editor moved them and brings back what undo restored.
   function build() {
+    const annotations = editor.noteRanges?.();
     if (docx) {
       const delta = blockDelta(confirmed, editor.snapshot());
-      return delta && { delta };
+      return delta && { delta, annotations };
     }
     const text = editor.snapshot();
-    return text === confirmed ? null : { text };
+    return text === confirmed ? null : { text, annotations };
   }
 
   function accept(body, result) {
@@ -114,6 +121,8 @@ export function createDeskSession({
     }
   }
 
+  const notes = (body) => (body.annotations ? { annotations: body.annotations } : {});
+
   async function send() {
     for (let round = 0; round < 3; round++) {
       const counted = edits;
@@ -126,10 +135,11 @@ export function createDeskSession({
       const before = seq;
       try {
         const result = docx
-          ? await actions.patchDeskBlocks(id, { baseSeq: seq, ...body.delta })
-          : await actions.putDeskText(id, { baseSeq: seq, text: body.text });
+          ? await actions.patchDeskBlocks(id, { baseSeq: seq, ...body.delta, ...notes(body) })
+          : await actions.putDeskText(id, { baseSeq: seq, text: body.text, ...notes(body) });
         accept(body, result);
         sentEdits = counted;
+        if (result.removed?.length) onRemoved(result.removed);
         // Someone else wrote between our two requests: pick up their text.
         if (result.seq > before + 1 || remote > result.seq) await refresh();
         return;
@@ -215,6 +225,10 @@ export function createDeskSession({
       saved = result.session.savedSeq;
       report();
       return result.version;
+    },
+    /** True while typing here is not yet with the session. */
+    get pending() {
+      return timer != null || running != null || edits !== sentEdits;
     },
     /** True when something is not yet written to the project file. */
     get unsaved() {

@@ -17,6 +17,28 @@ import {
   originalComments,
 } from './annotation-docx.js';
 
+// Journal operations that change text; annotations they remove may come back.
+const TEXT_OPS = new Set(['edit', 'insert-block', 'remove-block']);
+
+/**
+ * The block text when `range` is a non-empty range inside it.
+ * @param {any[]} blocks
+ * @param {{blockId:string,from:number,to:number}} range
+ * @returns {string|null}
+ */
+function within(blocks, range) {
+  const block = blocks.find((entry) => entry.id === range.blockId);
+  const text = block && annotationText(block);
+  return text != null &&
+    Number.isInteger(range.from) &&
+    Number.isInteger(range.to) &&
+    range.from >= 0 &&
+    range.to > range.from &&
+    range.to <= text.length
+    ? text
+    : null;
+}
+
 /**
  * @param {import('../../core/index.js').Core} core
  * @returns {any}
@@ -285,16 +307,27 @@ export function createAnnotations(core) {
     }
     const ranges =
       state.document.format === 'docx' ? commentRanges(state.document, proposal.blocks) : new Map();
+    const held = (!undo && proposal.held) || new Map();
+    const touched = new Set(proposal.records.map((record) => record.blockId));
+    const recordFor = (...ids) =>
+      ids.map((id) => proposal.records.find((entry) => entry.blockId === id)).find(Boolean);
+    const live = new Set(all(state).map((item) => item.id));
     for (const item of all(state)) {
       if (explicit.has(item.id) || item.status === 'lost') continue;
-      const record = proposal.records.find((entry) => entry.blockId === item.blockId);
+      const docx = item.id.startsWith('docx:');
+      // The editor's own range wins where it holds one: its marks moved with
+      // the typing, including into a paragraph split off this one.
+      const kept = !docx && held.get(item.id);
+      const own = kept && (touched.has(item.blockId) || touched.has(kept.blockId)) && kept;
+      const record = recordFor(item.blockId, ...(own ? [own.blockId] : []));
       if (!record) continue;
       const oldBlock = state.blocks.find((block) => block.id === item.blockId);
-      const block = proposal.blocks.find((entry) => entry.id === item.blockId);
-      const docx = item.id.startsWith('docx:');
+      const block = proposal.blocks.find((entry) => entry.id === (own?.blockId ?? item.blockId));
       const range = docx
         ? ranges.get(item.id)
-        : block && mapRange(annotationText(oldBlock), annotationText(block), item);
+        : own && within(proposal.blocks, own)
+          ? own
+          : block && mapRange(annotationText(oldBlock), annotationText(block), item);
       const survives =
         !docx ||
         range?.endBlockId !== item.blockId ||
@@ -321,14 +354,89 @@ export function createAnnotations(core) {
       )
         continue;
       (record.annotations ??= []).push({ before: item, after });
-      if (docx && !after && block) {
-        block.inlines = block.inlines.filter(
-          (part) => commentIdentity(state.document, part) !== item.id,
-        );
-        record.after = block.inlines;
-      }
+      if (docx && !after && block) live.delete(item.id);
+    }
+    // Undo in the editor brings back text together with its marks; an item the
+    // server removed with that text returns when the same words are back.
+    const restore = (id, range) => {
+      const record = recordFor(range.blockId);
+      const text = record && within(proposal.blocks, range);
+      const removed = text && removedWithText(state.session.id, id);
+      if (!removed || text.slice(range.from, range.to) !== removed.quote.exact) return false;
+      const after = {
+        ...removed,
+        blockId: range.blockId,
+        from: range.from,
+        to: range.to,
+        quote: quoteAt(text, range.from, range.to),
+        versionId: state.session.baseVersionId,
+        status: 'anchored',
+        updatedAt: nowIso(),
+      };
+      if (id.startsWith('docx:')) after.endBlockId = range.blockId;
+      (record.annotations ??= []).push({ before: null, after });
+      live.add(id);
+      return true;
+    };
+    for (const [id, range] of held)
+      if (!live.has(id) && !explicit.has(id) && !id.startsWith('docx:')) restore(id, range);
+    for (const [id, range] of ranges)
+      if (!live.has(id) && !explicit.has(id) && range.endBlockId === range.blockId)
+        restore(id, range);
+    // Word comment delimiters of a removed comment never reach document.xml.
+    for (const record of proposal.records) {
+      const block = proposal.blocks.find((entry) => entry.id === record.blockId);
+      if (!block?.inlines) continue;
+      const inlines = block.inlines.filter((part) => {
+        const id = commentIdentity(state.document, part);
+        return !id || live.has(id) || explicit.has(id);
+      });
+      if (inlines.length === block.inlines.length) continue;
+      block.inlines = inlines;
+      if (record.op === 'insert-block') record.after = { ...record.after, inlines };
+      else record.after = inlines;
     }
     return proposal;
+  }
+  /**
+   * The item as it was when text removed it in this session, if that removal
+   * is its latest change. Explicit deletes and lost anchors do not come back.
+   * @param {string} sessionId
+   * @param {string} id
+   */
+  function removedWithText(sessionId, id) {
+    const rows = core.db
+      .prepare(
+        'SELECT op,annotations_json FROM desk_changes WHERE session_id=? AND instr(annotations_json,?)>0 ORDER BY seq DESC,rowid DESC',
+      )
+      .all(sessionId, JSON.stringify(id));
+    for (const row of rows) {
+      const delta = JSON.parse(String(row.annotations_json))
+        .reverse()
+        .find((entry) => (entry.after ?? entry.before).id === id);
+      if (!delta) continue;
+      return !delta.after && TEXT_OPS.has(String(row.op)) ? delta.before : null;
+    }
+    return null;
+  }
+  /**
+   * Ranges the editor holds, keyed by item id, in the proposal's block ids.
+   * A docx paragraph new in this request has the editor's temporary id; a
+   * Markdown or TeX block is named by its order in the submitted text.
+   * @param {any} proposal
+   * @param {any} input
+   * @returns {Map<string,{blockId:string,from:number,to:number}>}
+   */
+  function editorRanges(proposal, input) {
+    const held = new Map();
+    for (const range of Array.isArray(input) ? input : []) {
+      const blockId = Number.isInteger(range?.block)
+        ? proposal.blocks[range.block]?.id
+        : (proposal.inserted[range?.blockId] ?? range?.blockId);
+      if (typeof range?.id === 'string' && blockId)
+        held.set(range.id, { blockId, from: range.from, to: range.to });
+    }
+    return held;
   }
   function applyDatabase(records) {
     for (const record of records) for (const delta of record.annotations ?? []) table.apply(delta);
@@ -415,6 +523,7 @@ export function createAnnotations(core) {
     accept,
     reanchor,
     inverse,
+    editorRanges,
     forVersion,
     get,
     table,

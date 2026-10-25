@@ -27,6 +27,16 @@ export function createDeskActions(api) {
     /** Withdraw one recorded change. @param {string} changeId */
     undoDeskChange: (changeId) =>
       api.post(`/api/desk/changes/${encodeURIComponent(changeId)}/undo`),
+    /** Comments and indexes of a session, in text order. @param {string} id */
+    deskAnnotations: (id) => api.get(`${session(id)}/annotations`),
+    /** @param {string} id @param {any} body {type, blockId, from, to, ...} */
+    addDeskAnnotation: (id, body) => api.post(`${session(id)}/annotations`, body),
+    /** @param {string} id @param {any} body */
+    updateDeskAnnotation: (id, body) =>
+      api.patch(`/api/desk/annotations/${encodeURIComponent(id)}`, body),
+    /** @param {string} id */
+    removeDeskAnnotation: (id) =>
+      api.request('DELETE', `/api/desk/annotations/${encodeURIComponent(id)}`),
     /** Where a cited sentence is now in the open working text. @param {any} reference */
     deskFocus: (reference) => api.post('/api/desk/focus', { reference }),
     /** A picture inside a docx, as a local object URL. @param {string} id @param {string|number} ref */

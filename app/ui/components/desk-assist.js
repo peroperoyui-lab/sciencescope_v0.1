@@ -52,12 +52,13 @@ function ChangeText({ run, diff }) {
 }
 
 /**
- * @param {{ tab: any, editing: any, canvas: any }} props
- * `editing.current` is the open editor with its `session` and `opened` session.
+ * @param {{ tab: any, editing: any, canvas: any, notes: any }} props
+ * `editing.current` is the open editor with its `session` and `opened` session;
+ * `notes` starts comments and indexes (useDeskNotes).
  * @returns {{ layer: any, onContextMenu: (event: MouseEvent) => void, onSelection: () => void,
  *   onScroll: () => void, revealBlock: (blockId: string) => Promise<any> }}
  */
-export function useDeskAssist({ tab, editing, canvas }) {
+export function useDeskAssist({ tab, editing, canvas, notes }) {
   const actions = useActions();
   const participants = useAppState((state) => state.participants);
   const turns = useAppState((state) => state.turns);
@@ -66,6 +67,7 @@ export function useDeskAssist({ tab, editing, canvas }) {
   const [info, setInfo] = useState(/** @type {any} */ (null));
   const [faded, setFaded] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const pressed = useRef(false);
   const [instruction, setInstruction] = useState('');
   const [note, setNote] = useState(/** @type {any} */ (null));
   const [dialog, setDialog] = useState(/** @type {any} */ (null));
@@ -132,10 +134,14 @@ export function useDeskAssist({ tab, editing, canvas }) {
 
   useEffect(() => {
     const down = (event) => {
-      if (canvas.current?.contains(event.target) && !bar.current?.contains(event.target))
-        setDragging(true);
+      if (!canvas.current?.contains(event.target) || bar.current?.contains(event.target)) return;
+      pressed.current = true;
+      setDragging(true);
     };
+    // Only a selection made in the page: a click in a dialog leaves the toolbar closed.
     const up = () => {
+      if (!pressed.current) return;
+      pressed.current = false;
       setDragging(false);
       read();
     };
@@ -171,9 +177,10 @@ export function useDeskAssist({ tab, editing, canvas }) {
       removeEventListener('pointerup', up, true);
       removeEventListener('pointermove', move);
       removeEventListener('keydown', key);
-      cancelAnimationFrame(frame.current);
     };
   });
+  // Only on close: a render in between must not drop the pending selection read.
+  useEffect(() => () => cancelAnimationFrame(frame.current), []);
 
   /** With nothing selected, menus and shortcuts act on the sentence at the cursor. */
   const selectionOrSentence = () => {
@@ -369,8 +376,25 @@ export function useDeskAssist({ tab, editing, canvas }) {
         { text: t('改写…'), icon: 'wand-sparkles', key: 'Ctrl J', run: openAsk },
         { text: t('引用到对话'), icon: 'text-quote', key: 'Ctrl Shift L', run: () => quote() },
         { sep: true },
-        { text: `${t('添加批注')}（${later}）`, icon: 'message-square-plus', disabled: true },
-        { text: `${t('添加索引…')}（${later}）`, icon: 'link-2', disabled: true },
+        {
+          text: t('添加批注'),
+          icon: 'message-square-plus',
+          run: () => {
+            setInfo(null);
+            void notes.add('comment');
+          },
+        },
+        {
+          text: t('添加索引…'),
+          icon: 'link-2',
+          run: () => {
+            setInfo(null);
+            void notes.add('index');
+          },
+        },
+        ...(notes.indexAt()
+          ? [{ text: t('查看索引'), icon: 'link-2', run: () => notes.viewAt() }]
+          : []),
         { sep: true },
         { text: t('这句的修改记录'), icon: 'history', run: () => history() },
         { text: `${t('在版本树里定位')}（${later}）`, icon: 'git-fork', disabled: true },
@@ -387,6 +411,7 @@ export function useDeskAssist({ tab, editing, canvas }) {
   const toolbar =
     info &&
     !dragging &&
+    !notes.layer &&
     edit?.session &&
     html`<div
       class="ss-ftb ss-desk-ftb"
@@ -440,8 +465,12 @@ export function useDeskAssist({ tab, editing, canvas }) {
           type="button"
           class="ss-icon-btn"
           aria-label=${t('添加批注')}
-          data-tip=${t('添加批注（稍后接入）')}
-          disabled
+          data-tip=${t('添加批注')}
+          onMouseDown=${(event) => event.preventDefault()}
+          onClick=${() => {
+            setInfo(null);
+            void notes.add('comment');
+          }}
         >
           <${Lucide} name="message-square-plus" />
         </button>
@@ -449,8 +478,12 @@ export function useDeskAssist({ tab, editing, canvas }) {
           type="button"
           class="ss-icon-btn"
           aria-label=${t('添加索引')}
-          data-tip=${t('添加索引（稍后接入）')}
-          disabled
+          data-tip=${t('添加索引')}
+          onMouseDown=${(event) => event.preventDefault()}
+          onClick=${() => {
+            setInfo(null);
+            void notes.add('index');
+          }}
         >
           <${Lucide} name="link-2" />
         </button>

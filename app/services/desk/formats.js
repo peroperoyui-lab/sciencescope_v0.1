@@ -4,7 +4,7 @@ import { paragraphIds } from './docx/ids.js';
 import { aggregate, cellPlace, replay, publicBlock } from './model.js';
 import { readText, replayText, joinText } from './text.js';
 import { indexMedia } from './media.js';
-import { commentWriteOptions } from './annotation-docx.js';
+import { commentIdentity, commentWriteOptions } from './annotation-docx.js';
 
 /**
  * @param {Uint8Array} bytes
@@ -101,10 +101,13 @@ export function documentResponse(state) {
   return {
     blocks: state.blocks.map((block) => {
       const value = publicBlock(block);
+      // Word comment delimiters name their comment, so the editor can show its range.
       value.inlines = value.inlines.map((inline) =>
         inline.atom === 'image' && state.document.media.has(inline.ref)
           ? { ...inline, media: true }
-          : inline,
+          : inline.atom?.startsWith('comment-')
+            ? { ...inline, comment: commentIdentity(state.document, inline) }
+            : inline,
       );
       // Cells group by span index so the editor can draw the table; a paragraph
       // that ends a section cannot be removed (DOCX_SECTION_BREAK).

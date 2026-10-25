@@ -5146,6 +5146,116 @@ button.ss-act__row:hover {
   display: grid;
   gap: var(--sp-8);
 }
+/* 批注与索引 (U5): the panel, its cards and replies. */
+.ss-desk-notes__bar {
+  gap: var(--sp-6);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.ss-desk-notes {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-8);
+  padding: 12px;
+}
+.ss-desk-card--new {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 1px var(--accent-line);
+}
+.ss-desk-card[data-done] > .ss-desk-card__quote,
+.ss-desk-card[data-done] > .ss-desk-card__body {
+  color: var(--muted);
+}
+.ss-desk-card__kind--comment {
+  flex: none;
+  color: var(--warn);
+}
+.ss-desk-card__kind--index {
+  flex: none;
+  color: var(--accent);
+}
+.ss-desk-card__head > .ss-tag {
+  flex: none;
+}
+.ss-desk-card__spacer {
+  flex: 1;
+}
+.ss-desk-card__sources {
+  grid-template-columns: 40px minmax(0, 1fr);
+  gap: var(--sp-2) var(--sp-8);
+}
+.ss-desk-card__sources .ss-linkbtn {
+  display: block;
+  max-width: 100%;
+  text-align: left;
+}
+.ss-desk-reply {
+  display: grid;
+  gap: var(--sp-4);
+  padding: 6px 0 0 10px;
+  border-left: 2px solid var(--line);
+}
+.ss-desk-reply > .ss-desk-card__head {
+  font-weight: 400;
+}
+/* The text of the item whose card is active. */
+.ss-note-active {
+  background: var(--accent-soft);
+}
+/* The index dialog: where to look, what is there, what is picked. */
+.ss-desk-picker {
+  display: grid;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+.ss-desk-picker__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.ss-desk-picker__search {
+  flex: 1;
+  min-width: 0;
+}
+.ss-desk-picker__crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: 12px;
+}
+.ss-desk-picker__list {
+  align-content: start;
+  height: 240px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--paper);
+}
+.ss-desk-picker__row {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ss-desk-picker__note {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.ss-desk-picker .ss-chip {
+  max-width: 100%;
+}
+.ss-desk-picker__hint {
+  margin-right: auto;
+  font-size: 12px;
+}
 
 /* Status bar extras: a small button and the save state. */
 .ss-statusbar__btn {

@@ -43,6 +43,22 @@ export async function applyAssistantStartup(settings, surface) {
 }
 
 /**
+ * Open a route in the main window from another window (the desk, the
+ * detached assistant); the main window comes forward.
+ * @param {string} hash
+ */
+export function navigateMain(hash) {
+  const payload = { type: 'navigate', hash };
+  if (isNative()) {
+    void globalThis.__TAURI__.event.emitTo('main', 'assistant-navigate', payload);
+    return;
+  }
+  const channel = new BroadcastChannel('sciencescope-navigation');
+  channel.postMessage(payload);
+  channel.close();
+}
+
+/**
  * A detached assistant link navigates Main while its own transcript stays open.
  * @param {string | null} surface
  * @returns {() => void}
@@ -78,9 +94,7 @@ export function installAssistantNavigation(surface) {
     const url = new URL(link.href, location.href);
     if (url.origin !== location.origin || !url.hash.startsWith('#/')) return;
     event.preventDefault();
-    const payload = { type: 'navigate', hash: url.hash };
-    if (isNative()) void globalThis.__TAURI__.event.emitTo('main', 'assistant-navigate', payload);
-    else channel.postMessage(payload);
+    navigateMain(url.hash);
   };
   document.addEventListener('click', forward);
   return () => {

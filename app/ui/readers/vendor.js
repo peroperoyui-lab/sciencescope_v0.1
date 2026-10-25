@@ -1,6 +1,11 @@
 // A local browser bundle served by the host; dependencies remain replaceable.
-export { EditorState, Transaction } from '@codemirror/state';
-export { EditorView, lineNumbers, drawSelection } from '@codemirror/view';
+export { EditorState, Transaction, StateField, StateEffect } from '@codemirror/state';
+export {
+  EditorView,
+  lineNumbers,
+  drawSelection,
+  Decoration as CMDecoration,
+} from '@codemirror/view';
 export { StreamLanguage, syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language';
 export { stex } from '@codemirror/legacy-modes/mode/stex';
 export { javascript } from '@codemirror/legacy-modes/mode/javascript';
@@ -35,5 +40,6 @@ export {
   redo,
   undoDepth,
   redoDepth,
+  invertedEffects,
 } from '@codemirror/commands';
 export { diffArrays } from 'diff';
