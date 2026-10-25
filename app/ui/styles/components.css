@@ -5002,6 +5002,10 @@ button.ss-act__row:hover {
   min-width: 360px;
   transition: opacity var(--t-med) var(--ease);
 }
+/* PDF: marks and quoting only, no format or rewrite rows. */
+.ss-desk-ftb--read {
+  min-width: 0;
+}
 .ss-desk-ftb[data-faded='true'] {
   opacity: 0;
   pointer-events: none;
@@ -5960,6 +5964,30 @@ button.ss-act__row:hover {
 .ss-desk-source.reader-surface {
   padding: 0;
   background: var(--raised);
+}
+/* PDF comments and indexes (U6c): boxes under pdf.js's text layer, multiplied
+   onto the page (white in both themes) so its print shows through. */
+.ss-pdf-marks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ss-pdf-mark {
+  position: absolute;
+  mix-blend-mode: multiply;
+}
+.ss-pdf-mark[data-type='comment'] {
+  border-bottom: 2px solid var(--warn-line);
+  background: color-mix(in srgb, var(--warn) 18%, transparent);
+}
+.ss-pdf-mark[data-type='comment'][data-active] {
+  border-bottom-color: var(--warn);
+}
+.ss-pdf-mark[data-type='index'] {
+  border-bottom: 1.5px dotted var(--accent);
+}
+.ss-pdf-mark[data-type='index'][data-active] {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 /* tex (U6): source, rule and page in one grid row; each view hides columns.
    The compiled PDF takes the page's column. */

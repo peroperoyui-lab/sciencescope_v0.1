@@ -65,6 +65,8 @@ export async function mountPdf(surface, bytes, options) {
   await viewer.firstPagePromise;
   options.onPage(options.page ?? 1, doc.numPages);
   return {
+    viewer,
+    eventBus,
     focus,
     zoom: (factor) => {
       viewer.currentScale *= factor;

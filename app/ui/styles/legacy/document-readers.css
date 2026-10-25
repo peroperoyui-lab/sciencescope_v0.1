@@ -75,6 +75,12 @@
 .reader-pdf .textLayer {
   user-select: text;
 }
+/* pdf.js sizes pages as content boxes inside their border; with the global
+   border-box the canvas shrank by the border and the text layer drifted off
+   the print (selections and marks ~2% to the right by the line's end). */
+.reader-pdf .pdfViewer .page {
+  box-sizing: content-box;
+}
 .reader-error {
   color: var(--danger);
   padding: 4px;

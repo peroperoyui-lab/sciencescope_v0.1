@@ -2128,7 +2128,12 @@ export const en = {
   只读: 'Read-only',
   '历史版本只读；要修改，请打开项目文件夹里的文稿':
     'Past versions are read-only; to edit, open the document in the project folder',
-  'PDF 正文只读，批注和索引稍后接入': 'PDF text is read-only; comments and indexes come later',
+  'PDF 正文只读，可以划选加批注和索引':
+    'PDF text is read-only; select words to add comments and indexes',
+  'PDF 正文不会改动，批注和索引只在 ScienceScope 里，不写进 PDF。':
+    'The PDF itself is never changed; comments and indexes stay in ScienceScope and are not written into the PDF.',
+  把选中的文字引用到编辑台的对话里: "Quote the selected words in the desk's chat",
+  请在同一段里划选: 'Select words within one paragraph',
   '写回项目文件？': 'Write back to the project file?',
   '项目文件现在是 v{n} 的内容，不是这次打开时的版本。写回会用编辑台里的内容替换它，v{n} 仍留在版本里。':
     'The project file now holds v{n}, not the version opened here. Writing back replaces it with the desk text; v{n} stays in the versions.',

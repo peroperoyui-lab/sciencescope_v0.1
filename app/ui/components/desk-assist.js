@@ -55,14 +55,19 @@ function ChangeText({ run, diff }) {
 const inDialog = (event) => !!(/** @type {Element} */ (event.target).closest?.('[role="dialog"]'));
 // The tex page beside the source is for reading and formulas; its text is not the selection.
 const inRender = (event) =>
-  !!(/** @type {Element} */ (event.target).closest?.('.ss-split__render, .ss-desk-pdf'));
+  !!(
+    /** @type {Element} */ (event.target).closest?.(
+      '.ss-split__render, .ss-desk-split > .ss-desk-pdf',
+    )
+  );
 
 /**
  * @param {{ tab: any, editing: any, canvas: any, notes: any }} props
  * `editing.current` is the open editor with its `session` and `opened` session;
  * `notes` starts comments and indexes (useDeskNotes).
  * @returns {{ layer: any, onContextMenu: (event: MouseEvent) => void, onSelection: () => void,
- *   onScroll: () => void, revealBlock: (blockId: string) => Promise<any> }}
+ *   onScroll: () => void, revealBlock: (blockId: string) => Promise<any>,
+ *   quote: () => Promise<any> }}
  */
 export function useDeskAssist({ tab, editing, canvas, notes }) {
   const actions = useActions();
@@ -84,6 +89,9 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
   const frame = useRef(0);
   const format = tab?.format;
   const docx = format === 'docx';
+  // A PDF is marked, commented and quoted, never changed (U6c).
+  const pdf = format === 'pdf';
+  const placed = docx || pdf;
 
   const read = () => {
     cancelAnimationFrame(frame.current);
@@ -167,7 +175,7 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
       }
       const mod = event.ctrlKey || event.metaKey;
       if (!mod || !editing.current?.session) return;
-      if (event.key.toLowerCase() === 'j' && !event.shiftKey) {
+      if (event.key.toLowerCase() === 'j' && !event.shiftKey && !pdf) {
         event.preventDefault();
         openAsk();
       } else if (event.key.toLowerCase() === 'l' && event.shiftKey) {
@@ -216,7 +224,7 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
     let paragraph;
     let from = selected.from;
     let to = selected.to;
-    if (docx) {
+    if (placed) {
       blockId = current.selection()?.blockId ?? selected.blockId;
       paragraph = current.paragraphOf(blockId);
     } else {
@@ -265,6 +273,7 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
     setInfo(null);
     try {
       const place = await locate(selected);
+      if (!place.blockId) return actions.toast(t('请在同一段里划选'));
       const meetingId = await bindChat(place.session);
       const mark = deskMark({
         version: { id: place.session.baseVersionId, projectId: tab.projectId },
@@ -287,7 +296,7 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
   async function revealBlock(blockId) {
     const current = editing.current;
     if (!current) return;
-    if (docx) return current.reveal(blockId);
+    if (placed) return current.reveal(blockId);
     const { blocks } = await actions.deskSession(current.session.id);
     const index = blocks.findIndex((block) => block.id === blockId);
     const start = index < 0 ? null : textBlockStart(current.text(), format, index);
@@ -353,6 +362,47 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
       selected = null;
     }
     const later = t('稍后接入');
+    const comment = {
+      text: t('添加批注'),
+      icon: 'message-square-plus',
+      run: () => {
+        setInfo(null);
+        void notes.add('comment');
+      },
+    };
+    const index = {
+      text: t('添加索引…'),
+      icon: 'link-2',
+      run: () => {
+        setInfo(null);
+        void notes.add('index');
+      },
+    };
+    const viewIndex = notes.indexAt()
+      ? [{ text: t('查看索引'), icon: 'link-2', run: () => notes.viewAt() }]
+      : [];
+    if (pdf) {
+      actions.openMenu(
+        event,
+        [
+          {
+            text: t('复制'),
+            icon: 'copy',
+            key: 'Ctrl C',
+            disabled: !selected,
+            run: () => current.copy().catch(() => actions.toast(t('请用 Ctrl C 复制'))),
+          },
+          { sep: true },
+          { text: t('引用到对话'), icon: 'text-quote', key: 'Ctrl Shift L', run: () => quote() },
+          { sep: true },
+          comment,
+          index,
+          ...viewIndex,
+        ],
+        t('文字'),
+      );
+      return;
+    }
     actions.openMenu(
       event,
       [
@@ -384,25 +434,9 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
         { text: t('改写…'), icon: 'wand-sparkles', key: 'Ctrl J', run: openAsk },
         { text: t('引用到对话'), icon: 'text-quote', key: 'Ctrl Shift L', run: () => quote() },
         { sep: true },
-        {
-          text: t('添加批注'),
-          icon: 'message-square-plus',
-          run: () => {
-            setInfo(null);
-            void notes.add('comment');
-          },
-        },
-        {
-          text: t('添加索引…'),
-          icon: 'link-2',
-          run: () => {
-            setInfo(null);
-            void notes.add('index');
-          },
-        },
-        ...(notes.indexAt()
-          ? [{ text: t('查看索引'), icon: 'link-2', run: () => notes.viewAt() }]
-          : []),
+        comment,
+        index,
+        ...viewIndex,
         { sep: true },
         { text: t('这句的修改记录'), icon: 'history', run: () => history() },
         { text: `${t('在版本树里定位')}（${later}）`, icon: 'git-fork', disabled: true },
@@ -423,7 +457,7 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
     !dialog &&
     edit?.session &&
     html`<div
-      class="ss-ftb ss-desk-ftb"
+      class=${pdf ? 'ss-ftb ss-desk-ftb ss-desk-ftb--read' : 'ss-ftb ss-desk-ftb'}
       role="toolbar"
       aria-label=${t('划选工具')}
       ref=${bar}
@@ -433,43 +467,45 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
     >
       <div class="ss-ftb__row">
         ${
-          docx
-            ? html`${[
-                ['b', 'bold', t('加粗'), 'Ctrl B'],
-                ['i', 'italic', t('斜体'), 'Ctrl I'],
-                ['u', 'underline', t('下划线'), 'Ctrl U'],
-                ['sup', 'superscript', t('上标'), ''],
-                ['sub', 'subscript', t('下标'), ''],
-              ].map(
-                ([name, icon, label, kbd]) =>
-                  html`<button
-                    type="button"
-                    class="ss-icon-btn"
-                    aria-label=${label}
-                    data-tip=${label}
-                    data-kbd=${kbd || undefined}
-                    onMouseDown=${(event) => event.preventDefault()}
-                    onClick=${() => run(name)}
-                  >
-                    <${Lucide} name=${icon} />
-                  </button>`,
-              )}`
-            : (SOURCE_MARKUP[format] ?? []).map(
-                ([before, after, label]) =>
-                  html`<button
-                    type="button"
-                    class="ss-ftb__label"
-                    onMouseDown=${(event) => event.preventDefault()}
-                    onClick=${() => {
-                      edit.wrap(before, after);
-                      read();
-                    }}
-                  >
-                    ${t(label)}
-                  </button>`,
-              )
+          pdf
+            ? ''
+            : docx
+              ? html`${[
+                  ['b', 'bold', t('加粗'), 'Ctrl B'],
+                  ['i', 'italic', t('斜体'), 'Ctrl I'],
+                  ['u', 'underline', t('下划线'), 'Ctrl U'],
+                  ['sup', 'superscript', t('上标'), ''],
+                  ['sub', 'subscript', t('下标'), ''],
+                ].map(
+                  ([name, icon, label, kbd]) =>
+                    html`<button
+                      type="button"
+                      class="ss-icon-btn"
+                      aria-label=${label}
+                      data-tip=${label}
+                      data-kbd=${kbd || undefined}
+                      onMouseDown=${(event) => event.preventDefault()}
+                      onClick=${() => run(name)}
+                    >
+                      <${Lucide} name=${icon} />
+                    </button>`,
+                )}`
+              : (SOURCE_MARKUP[format] ?? []).map(
+                  ([before, after, label]) =>
+                    html`<button
+                      type="button"
+                      class="ss-ftb__label"
+                      onMouseDown=${(event) => event.preventDefault()}
+                      onClick=${() => {
+                        edit.wrap(before, after);
+                        read();
+                      }}
+                    >
+                      ${t(label)}
+                    </button>`,
+                )
         }
-        <span class="ss-ribbon__sep"></span>
+        ${!pdf && html`<span class="ss-ribbon__sep"></span>`}
         <button
           type="button"
           class="ss-icon-btn"
@@ -506,42 +542,45 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
           <${Lucide} name="text-quote" />${t('引用到对话')}
         </button>
       </div>
-      <div class="ss-ftb__row">
-        <label class="ss-ftb__ask">
-          <${Lucide} name="wand-sparkles" />
-          <input
-            ref=${input}
-            type="text"
-            aria-label=${t('改写指令')}
-            placeholder=${t('告诉专家怎么改，例如「语气缓和些」')}
-            value=${instruction}
-            onInput=${(event) => setInstruction(event.currentTarget.value)}
-            onKeyDown=${(event) => {
-              if (event.key === 'Enter' && !event.isComposing && event.keyCode !== 229) {
-                event.preventDefault();
-                void rewrite(instruction);
-              } else if (event.key === 'Escape') {
-                setInfo(null);
-                edit.focus();
-              }
-            }}
-          />
-          <span class="ss-kbd">Enter</span>
-        </label>
-      </div>
-      <div class="ss-ftb__chips">
-        ${PRESETS.map(
-          (preset) =>
-            html`<button
-              type="button"
-              key=${preset}
-              onMouseDown=${(event) => event.preventDefault()}
-              onClick=${() => rewrite(t(preset))}
-            >
-              ${t(preset)}
-            </button>`,
-        )}
-      </div>
+      ${
+        !pdf &&
+        html`<div class="ss-ftb__row">
+            <label class="ss-ftb__ask">
+              <${Lucide} name="wand-sparkles" />
+              <input
+                ref=${input}
+                type="text"
+                aria-label=${t('改写指令')}
+                placeholder=${t('告诉专家怎么改，例如「语气缓和些」')}
+                value=${instruction}
+                onInput=${(event) => setInstruction(event.currentTarget.value)}
+                onKeyDown=${(event) => {
+                  if (event.key === 'Enter' && !event.isComposing && event.keyCode !== 229) {
+                    event.preventDefault();
+                    void rewrite(instruction);
+                  } else if (event.key === 'Escape') {
+                    setInfo(null);
+                    edit.focus();
+                  }
+                }}
+              />
+              <span class="ss-kbd">Enter</span>
+            </label>
+          </div>
+          <div class="ss-ftb__chips">
+            ${PRESETS.map(
+              (preset) =>
+                html`<button
+                  type="button"
+                  key=${preset}
+                  onMouseDown=${(event) => event.preventDefault()}
+                  onClick=${() => rewrite(t(preset))}
+                >
+                  ${t(preset)}
+                </button>`,
+            )}
+          </div>`
+      }
     </div>`;
 
   const section =
@@ -660,5 +699,6 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
     onSelection: read,
     onScroll: () => info && read(),
     revealBlock,
+    quote,
   };
 }

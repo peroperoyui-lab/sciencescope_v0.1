@@ -3,7 +3,8 @@
 // page or its source (U6b), TeX as source beside its live page (U6a). A click
 // on a formula opens the formula editor; a compiled PDF can take the TeX
 // page's place. Typing is synced to the session; Save writes the project
-// file. Versions and PDF stay read-only (docs/architecture/EDITING_DESK.md §10).
+// file. Versions and PDF stay read-only; a project PDF opens a read-only
+// session for comments and indexes (U6c, docs/architecture/EDITING_DESK.md §10).
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { countWords } from '../desk-blocks.js';
@@ -581,12 +582,46 @@ export function DeskDocument({
       let mounted;
       if (doc.format === 'pdf') {
         surface.className = 'ss-desk-pdf reader-pdf';
-        const { mountPdf } = await import('../readers/pdf.js');
+        // A project PDF gets a read-only session for its comments and indexes.
+        const [{ mountPdf }, opened] = await Promise.all([
+          import('../readers/pdf.js'),
+          tab.kind === 'project'
+            ? openSession(actions, tab, ask).then((result) => result.opened)
+            : null,
+        ]);
         if (!active) return;
-        mounted = await mountPdf(surface, await bytes(), {
+        const reading = await mountPdf(surface, await bytes(), {
           onPage: (page, count) => active && onInfo({ page, pages: count }),
         });
-        pdf.current = mounted;
+        pdf.current = reading;
+        mounted = reading;
+        // Closed before it showed: nobody else knows this session.
+        if (opened && !active) void actions.closeDesk(opened.session.id).catch(() => {});
+        if (opened && active) {
+          const { mountPdfNotes } = await import('../readers/pdf-notes.js');
+          const marks = mountPdfNotes(surface, reading, {
+            blocks: opened.blocks,
+            onSelection: () => onSelection?.(),
+          });
+          const readOnly = {
+            id: opened.session.id,
+            pending: false,
+            flush: async () => {},
+            remoteSeq() {},
+          };
+          session.current = readOnly;
+          editing.current = { ...marks, session: readOnly, command() {} };
+          mounted = {
+            ...reading,
+            dispose() {
+              marks.dispose();
+              reading.dispose();
+            },
+          };
+          setSessionId(opened.session.id);
+          onSession(opened.session.id);
+          onEdit({ format: 'pdf', marks: [], undo: false, redo: false });
+        }
       } else {
         const page = doc.format === 'docx' || (doc.format === 'markdown' && view === 'rendered');
         surface.className = page

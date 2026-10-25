@@ -60,6 +60,9 @@ export function useDeskNotes({ tab, editing, onOpen }) {
   const frame = useRef(0);
   const format = tab?.format;
   const docx = format === 'docx';
+  const pdf = format === 'pdf';
+  // docx and PDF selections come with their session block; Markdown and TeX are found by order.
+  const placed = docx || pdf;
   const editable = !!sessionId;
 
   /** Try again shortly, with the newest list. @param {any} current */
@@ -163,7 +166,7 @@ export function useDeskNotes({ tab, editing, onOpen }) {
     }
     await current.session.flush();
     const single = t('批注和索引请在同一段里划选');
-    if (docx) {
+    if (placed) {
       selected = current.selection() ?? selected;
       if (selected.from == null || !selected.blockId) {
         actions.toast(single);
@@ -236,7 +239,7 @@ export function useDeskNotes({ tab, editing, onOpen }) {
     const current = editing.current;
     if (!current || item.status === 'lost') return;
     activate(item.id);
-    if (docx) {
+    if (placed) {
       current.reveal(item.blockId, item.from, item.to);
       return;
     }
@@ -613,8 +616,12 @@ export function useDeskNotes({ tab, editing, onOpen }) {
         roots.length
           ? html`<div class="ss-desk-list">${shown.map(card)}</div>
               <p class="ss-prov">
-                ${t('标记的文字全部删掉时，批注或索引跟着删掉；撤销会把文字和它们一起恢复。')}
-                ${docx ? t('批注保存时写进 Word 批注，索引只在 ScienceScope 里。') : t('批注和索引只在 ScienceScope 里。')}
+                ${
+                  pdf
+                    ? t('PDF 正文不会改动，批注和索引只在 ScienceScope 里，不写进 PDF。')
+                    : html`${t('标记的文字全部删掉时，批注或索引跟着删掉；撤销会把文字和它们一起恢复。')}
+                      ${docx ? t('批注保存时写进 Word 批注，索引只在 ScienceScope 里。') : t('批注和索引只在 ScienceScope 里。')}`
+                }
               </p>`
           : !draft &&
             html`<div class="ss-empty">

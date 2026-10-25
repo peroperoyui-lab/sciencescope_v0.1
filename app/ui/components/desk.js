@@ -117,7 +117,7 @@ const ReadOnly = ({ tip }) =>
 /** Why a tab cannot be edited. @param {any} tab */
 function readOnlyReason(tab) {
   if (tab.kind === 'version') return t('历史版本只读；要修改，请打开项目文件夹里的文稿');
-  if (tab.format === 'pdf') return t('PDF 正文只读，批注和索引稍后接入');
+  if (tab.format === 'pdf') return t('PDF 正文只读，可以划选加批注和索引');
   return '';
 }
 
@@ -244,7 +244,7 @@ function CompileButtons({ edit, editing, engines, onCompile }) {
  *   nav: boolean, onNav: () => void, panel: boolean, onPanel: () => void,
  *   page: any, pdf: any, edit: any, editing: any, onSave: () => void,
  *   compare: string, comparing: boolean, onCompare: () => void,
- *   onNote: (type: 'comment' | 'index') => void, texEngines: any[] | null, onCompile: () => void }} props
+ *   onNote: (type: 'comment' | 'index') => void, onQuote: () => void, texEngines: any[] | null, onCompile: () => void }} props
  * `compare` is why 比较 is off, or '' when it can start; `onNote` starts a comment or index;
  * `texEngines` is the TeX found on this computer (null while looking).
  */
@@ -269,6 +269,7 @@ function Ribbon({
   comparing,
   onCompare,
   onNote,
+  onQuote,
   texEngines,
   onCompile,
 }) {
@@ -328,8 +329,7 @@ function Ribbon({
             onView=${onView}
           />`
         : null;
-  // PDF comments and indexes come with PDF marks (U6).
-  const noteless = !edit || format === 'pdf';
+  const noteless = !edit;
   const marks = html`<${RibbonButton}
       icon="message-square-plus"
       text=${t('批注')}
@@ -344,6 +344,13 @@ function Ribbon({
       disabled=${noteless}
       onClick=${() => onNote('index')}
     />`;
+  const quoteButton = html`<${RibbonButton}
+    icon="text-quote"
+    text=${t('引用到对话')}
+    tip=${t('把选中的文字引用到编辑台的对话里')}
+    disabled=${noteless}
+    onClick=${onQuote}
+  />`;
   let bar;
   if (!tab) bar = html`<span class="ss-muted ss-ribbon__hint">${t('在左栏选一份文稿打开')}</span>`;
   else if (current === 'home' && format === 'pdf')
@@ -368,8 +375,7 @@ function Ribbon({
         onClick=${() => pdf.current?.focus({ page: page.page + 1 })}
       />
       <${Sep} />
-      <${RibbonButton} icon="highlighter" text=${t('标记')} disabled=${off} />
-      ${marks}
+      ${marks}${quoteButton}
       <span class="ss-ribbon__spacer"></span>
       <${ReadOnly} tip=${reason} />
       <${RibbonButton}
@@ -463,8 +469,7 @@ function Ribbon({
         <${Lucide} name="save" />${t('保存')}
       </button>`;
   else if (current === 'review')
-    bar = html`${marks}
-      <${RibbonButton} icon="text-quote" text=${t('引用到对话')} disabled=${off} />
+    bar = html`${marks}${quoteButton}
       <${Sep} />
       <${RibbonButton}
         icon="git-compare"
@@ -825,7 +830,8 @@ export function DeskWindow() {
     try {
       if (key === active) await editing.current?.session.flush();
       const { session } = await actions.deskSession(sessionId);
-      if (session.seq !== session.savedSeq) {
+      // A PDF's comments live in the app; there is nothing to write back.
+      if (entry?.format !== 'pdf' && session.seq !== session.savedSeq) {
         const choice = await ask({
           title: t('写回 {name}？', { name: entry?.label ?? '' }),
           text: t('编辑台里有没写回项目文件的修改。不写回的话，修改会留作一个版本。'),
@@ -1054,6 +1060,7 @@ export function DeskWindow() {
       comparing=${comparing}
       onCompare=${toggleCompare}
       onNote=${notes.add}
+      onQuote=${assist.quote}
       texEngines=${texEngines}
       onCompile=${compile}
     />

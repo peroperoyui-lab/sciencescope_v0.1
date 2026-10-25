@@ -1,5 +1,13 @@
 # 实施记录
 
+## 2026-10-25 U6c 编辑台 PDF：批注、索引、引用到对话（Claude）
+
+- 后端 D6 早已支持 PDF 只读标注会话，这次只做界面。PDF 打开时并行建会话；会话的块来自资料库的 PDF 解析（行拼段、去页眉页码、NFKC、去中文间空格和行尾连字符），pdf.js 文字层是原始文字项。`app/ui/pdf-text.js` 两边都去掉空白和连字符逐字比较，重复的词按前后 24 字上下文挑；node 测试 3 组（连字符、连字 ﬁ、中文间空格、页码不属任何块、跨段返回空）。
+- `readers/pdf-notes.js` 提供和 docx 编辑器同名的 selection/reveal/notesAt/applyNotes/activate，`desk-notes.js`、`desk-assist.js` 把 PDF 当作按块定位的格式（和 docx 一样），工具条和右键菜单去掉格式、改写和剪切粘贴。标记是垫在文字层下的框，用页面百分比定位，`textlayerrendered` 时重画；点击按坐标查框。
+- 发现 pdf.js 的 `.page` 被全局 `box-sizing: border-box` 压窄 18px，画布比文字层窄，划选高亮越往行尾越偏右（约 2%）；`document-readers.css` 给 `.pdfViewer .page` 改回 content-box，资料库等所有 PDF 预览都对齐了。
+- 功能区「引用到对话」（阅览和审阅两处）接上了，以前是停用的占位；关 PDF 文稿时不再走写回询问。
+- 浏览器测试 `desk-pdf.browser.test.js`：功能区加批注、右键加索引（选 data 文件）、双击选词后工具条只有三项并引用到对话、点标记亮卡片、第二页批注定位、关闭不问写回且 PDF 字节不变、重开标记还在。
+
 ## 2026-10-25 U6b 编辑台 md：渲染视图直接编辑（Claude）
 
 - 没用 prosemirror-markdown：它要 markdown-it，读法会和只读视图（marked）不一样。`app/ui/md-blocks.js` 直接用 marked 的词法结果建 ProseMirror 块，每块记源码文字、前面的空白和逐字位置对照；全部顶层块拼回来和源码逐字相同。仓库里所有文档逐块读出再写回都和原文一致，随机编辑后写回也都能读回同样的内容（node 测试 4 组，另用随机编辑脚本跑过约 2700 次）。
