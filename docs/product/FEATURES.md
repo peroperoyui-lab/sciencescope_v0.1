@@ -451,6 +451,7 @@ data/
 - 安装包自带 Node 22.22.2、uv 0.12.19、`app/`、生产依赖、Python 与模型清单、`LICENSE` 和自动生成的 `THIRD_PARTY_NOTICES`。打包时用现有 esbuild 合并纯 JS 依赖，应用与 worker 保留相对路径；原生模块、文档资源、字体和各包许可保留为文件。
 - 覆盖安装按 `program-files.txt` 只删除旧版有、新版没有的程序文件，再覆盖写入；旧包没有清单时只枚举既有程序目录。`data\` 不动，卸载默认保留数据，只有勾选"删除应用程序数据"才删除 `<安装目录>\data`。
 - Windows shell Job 守护程序随包预编译为 `runtime/windows-shell-job.exe`；运行时优先使用，缺失时保留现场编译及编译失败后的 taskkill 后备路径。
+- PowerShell 5 的 stdout/stderr 直接追加到工具输出文件，主 shell 退出即可返回，后台进程继续运行和写输出；无 Job 时也走文件输出。运行中的取消和超时仍结束整个进程树，默认超时保持 600 秒。PowerShell 7 与 Linux 保留现有管道路径；测试通过内部 `shellExecutable` 参数显式覆盖 PS5/PS7，安装 PS7 不会跳过 PS5 回归。
 - 原生宿主保留上一次启动的日志（`desktop-host.previous.log`）。
 
 **实现位置**：`tools/package/`（`windows.js`、`build-options.js`、`prune.js` 打包裁剪、`notices.js`、`installer-hooks.nsh`、`build-native.ps1`）、`src-tauri/`；首测指南 `docs/handoff/PREVIEW_TEST.md`。

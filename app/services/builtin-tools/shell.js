@@ -7,19 +7,21 @@ import { AppError } from '../../core/errors.js';
 import { outputPath, previewFile } from './output.js';
 import { windowsShellJob } from './windows-shell-job.js';
 
-function shellCommand(command) {
+function shellCommand(command, selectedExecutable) {
   if (process.platform !== 'win32') return { executable: 'bash', args: ['-c', command] };
   const system = path.join(process.env.SystemRoot ?? 'C:/Windows', 'System32');
-  let executable;
-  try {
-    executable = execFileSync(path.join(system, 'where.exe'), ['pwsh.exe'], {
-      encoding: 'utf8',
-      windowsHide: true,
-    })
-      .trim()
-      .split(/\r?\n/)[0];
-  } catch {
-    executable = path.join(system, 'WindowsPowerShell/v1.0/powershell.exe');
+  let executable = selectedExecutable;
+  if (!executable) {
+    try {
+      executable = execFileSync(path.join(system, 'where.exe'), ['pwsh.exe'], {
+        encoding: 'utf8',
+        windowsHide: true,
+      })
+        .trim()
+        .split(/\r?\n/)[0];
+    } catch {
+      executable = path.join(system, 'WindowsPowerShell/v1.0/powershell.exe');
+    }
   }
   const script =
     '[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new(); $OutputEncoding = [Console]::OutputEncoding;\n' +
@@ -63,8 +65,8 @@ async function stopTree(pid) {
 }
 
 /**
- * The Job owner is compiled on first use. A machine without the .NET compiler
- * still runs commands, with the older process-tree stop.
+ * Prefer the packaged Job owner, compiling it in source checkouts. A machine
+ * without either still runs commands with the older process-tree stop.
  * @param {string} temp
  */
 async function jobOwner(temp) {
@@ -79,36 +81,52 @@ async function jobOwner(temp) {
 /**
  * @param {{command:string,timeoutSeconds?:number}} args
  * @param {{workFolder:string,env?:{PATH?:string,VIRTUAL_ENV?:string},signal?:AbortSignal,temp:string}} context
+ * @param {{shellExecutable?:string,createJobOwner?:typeof jobOwner}} [options]
  */
-export async function runShell(args, { workFolder, env, signal, temp }) {
+export async function runShell(
+  args,
+  { workFolder, env, signal, temp },
+  { shellExecutable, createJobOwner = jobOwner } = {},
+) {
   signal?.throwIfAborted();
   const timeoutSeconds = args.timeoutSeconds ?? 600;
   if (!Number.isFinite(timeoutSeconds) || timeoutSeconds <= 0)
     throw new AppError('INVALID_TIMEOUT', 'timeoutSeconds must be a positive number.');
-  const { executable, args: commandArgs } = shellCommand(args.command);
+  const { executable, args: commandArgs } = shellCommand(args.command, shellExecutable);
   const file = await outputPath(temp);
-  const owner = await jobOwner(temp);
+  const owner = await createJobOwner(temp);
   signal?.throwIfAborted();
-  const output = await open(file, 'w');
+  // PS5 duplicates inheritable standard handles into native/background children,
+  // even when their actual output is redirected. A regular append-only output
+  // file has no pipe EOF to hold open, and preserves ongoing background writes.
+  const fileOutput =
+    process.platform === 'win32' && path.basename(executable).toLowerCase() === 'powershell.exe';
+  const output = await open(file, fileOutput ? 'a' : 'w');
   const childEnv = { ...process.env };
   // Windows treats environment names case-insensitively. Avoid a stale Path
   // shadowing the meeting's PATH when Node builds the child environment block.
   if (env?.PATH != null)
     for (const key of Object.keys(childEnv)) if (key.toUpperCase() === 'PATH') delete childEnv[key];
   Object.assign(childEnv, env);
-  const child = spawn(owner ?? executable, owner ? [executable, ...commandArgs] : commandArgs, {
+  const ownerArgs = [executable, ...commandArgs];
+  if (fileOutput) ownerArgs.unshift('--output-file', file);
+  const child = spawn(owner ?? executable, owner ? ownerArgs : commandArgs, {
     cwd: workFolder,
     env: childEnv,
     windowsHide: true,
     detached: process.platform !== 'win32',
-    stdio: [owner ? 'pipe' : 'ignore', 'pipe', 'pipe'],
+    stdio: [
+      owner ? 'pipe' : 'ignore',
+      !owner && fileOutput ? output.fd : 'pipe',
+      !owner && fileOutput ? output.fd : 'pipe',
+    ],
   });
   let timedOut = false;
   let writeError;
   let writes = Promise.resolve();
   let stopping;
-  // The owner remains alive even after PowerShell exits. It acknowledges stop
-  // by exiting only after every Job member is gone and both output pipes end.
+  // The owner acknowledges stop only after every Job member is gone. Normal
+  // PS5 completion releases background processes without waiting for pipe EOF.
   child.stdin?.on('error', () => {});
   const stop = () => {
     if (child.pid && !stopping) {
@@ -123,7 +141,7 @@ export async function runShell(args, { workFolder, env, signal, temp }) {
     return stopping;
   };
   const capture = (stream) =>
-    stream.on('data', (chunk) => {
+    stream?.on('data', (chunk) => {
       stream.pause();
       writes = writes
         .then(async () => {

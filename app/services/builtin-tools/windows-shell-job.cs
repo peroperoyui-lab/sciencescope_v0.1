@@ -1,7 +1,9 @@
 // Uses the same Windows Job API as src-tauri/src/main.rs. A separate owner is
 // needed here: a shell can exit while its descendants still own output pipes.
-// Keep the job until output completes, and release normal background processes
-// without terminating them. Only cancellation, timeout or owner loss kills it.
+// PS5 writes to the append-only output file: its inherited duplicate handles
+// must not delay completion or break background writers when the shell exits.
+// Pipe-based shells still drain their output. Only cancellation, timeout or
+// owner loss kills the job; normal completion releases background processes.
 using System;
 using System.ComponentModel;
 using System.IO;
@@ -173,6 +175,15 @@ internal static class WindowsShellJob
         }
     }
 
+    private static IntPtr OpenOutput(string file, ref SecurityAttributes security)
+    {
+        // FILE_APPEND_DATA avoids independent stdout/stderr cursors overwriting
+        // each other; share reading and writing with the caller and descendants.
+        IntPtr handle = CreateFileW(file, 0x4, 7, ref security, 4, 0x80, IntPtr.Zero);
+        Check(handle != new IntPtr(-1));
+        return handle;
+    }
+
     private static int Main(string[] args)
     {
         ProcessInfo process = new ProcessInfo();
@@ -181,20 +192,30 @@ internal static class WindowsShellJob
         IntPtr attributes = IntPtr.Zero, inheritedHandles = IntPtr.Zero;
         try
         {
+            bool fileOutput = args[0] == "--output-file";
+            int commandStart = fileOutput ? 2 : 0;
             job = CreateJobObjectW(IntPtr.Zero, IntPtr.Zero);
             Check(job != IntPtr.Zero);
             SetKillOnClose(true);
-            // Only the private command pipes are inherited, never the owner's
-            // control pipe or its Node-facing output handles.
+            // Only command output handles are inherited, never the owner's
+            // control pipe or its Node-facing diagnostic output handles.
             for (int kind = -10; kind >= -12; kind--)
                 Check(SetHandleInformation(GetStdHandle(kind), 1, 0));
             var security = new SecurityAttributes();
             security.Length = Marshal.SizeOf(typeof(SecurityAttributes));
             security.Inherit = 1;
-            Check(CreatePipe(out outputRead, out outputWrite, ref security, 0));
-            Check(CreatePipe(out errorRead, out errorWrite, ref security, 0));
-            Check(SetHandleInformation(outputRead, 1, 0));
-            Check(SetHandleInformation(errorRead, 1, 0));
+            if (fileOutput)
+            {
+                outputWrite = OpenOutput(args[1], ref security);
+                errorWrite = OpenOutput(args[1], ref security);
+            }
+            else
+            {
+                Check(CreatePipe(out outputRead, out outputWrite, ref security, 0));
+                Check(CreatePipe(out errorRead, out errorWrite, ref security, 0));
+                Check(SetHandleInformation(outputRead, 1, 0));
+                Check(SetHandleInformation(errorRead, 1, 0));
+            }
             input = CreateFileW("NUL", 0x80000000, 3, ref security, 3, 0, IntPtr.Zero);
             Check(input != new IntPtr(-1));
             var startup = new StartupInfoEx();
@@ -215,18 +236,23 @@ internal static class WindowsShellJob
                 inheritedHandles, new IntPtr(IntPtr.Size * 3), IntPtr.Zero, IntPtr.Zero));
             startup.Attributes = attributes;
             var command = new StringBuilder();
-            foreach (string argument in args) command.Append(Quote(argument)).Append(' ');
+            for (int index = commandStart; index < args.Length; index++)
+                command.Append(Quote(args[index])).Append(' ');
             // No descendant can escape between creation and assignment.
-            Check(CreateProcessW(args[0], command, IntPtr.Zero, IntPtr.Zero, true,
+            Check(CreateProcessW(args[commandStart], command, IntPtr.Zero, IntPtr.Zero, true,
                 0x08080004, IntPtr.Zero, null, ref startup, out process));
             Check(AssignProcessToJobObject(job, process.Process));
             CloseHandle(outputWrite); outputWrite = IntPtr.Zero;
             CloseHandle(errorWrite); errorWrite = IntPtr.Zero;
             CloseHandle(input); input = IntPtr.Zero;
-            var outputThread = Forward(outputRead, Console.OpenStandardOutput());
-            outputRead = IntPtr.Zero;
-            var errorThread = Forward(errorRead, Console.OpenStandardError());
-            errorRead = IntPtr.Zero;
+            Thread outputThread = null, errorThread = null;
+            if (!fileOutput)
+            {
+                outputThread = Forward(outputRead, Console.OpenStandardOutput());
+                outputRead = IntPtr.Zero;
+                errorThread = Forward(errorRead, Console.OpenStandardError());
+                errorRead = IntPtr.Zero;
+            }
             var control = new Thread(delegate()
             {
                 try { Console.OpenStandardInput().ReadByte(); Stop(); }
@@ -238,8 +264,8 @@ internal static class WindowsShellJob
             Check(WaitForSingleObject(process.Process, uint.MaxValue) == 0);
             uint code;
             Check(GetExitCodeProcess(process.Process, out code));
-            outputThread.Join();
-            errorThread.Join();
+            if (outputThread != null) outputThread.Join();
+            if (errorThread != null) errorThread.Join();
             lock (Gate)
             {
                 // Redirected background processes survive a normal completion,
