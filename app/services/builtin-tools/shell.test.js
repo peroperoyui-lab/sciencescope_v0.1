@@ -108,16 +108,29 @@ for (const configuration of configurations) {
 
   test(`${configuration.name} shell timeout terminates the command and provides an explicit explanation`, async () => {
     const { dir } = await tempDir('builtin-timeout');
+    const pidFile = path.join(dir, 'child.pid');
     try {
       const script = path.join(dir, 'wait.cjs');
-      await writeFile(script, 'setInterval(()=>{},1000);');
+      await writeFile(
+        script,
+        `require('node:fs').writeFileSync(${JSON.stringify(pidFile)},String(process.pid));setInterval(()=>{},1000);`,
+      );
       const result = await run(
         { command: command(script), timeoutSeconds: 0.2 },
         { workFolder: dir, temp: dir },
       );
       assert.equal(result.timedOut, true);
       assert.match(result.message, /0.2 seconds/);
+      // A slow shell can launch Node while the timeout's process enumeration
+      // runs. If it started, prove it stopped instead of trusting timedOut or rm.
+      const pid = Number(await readFile(pidFile, 'utf8').catch(() => ''));
+      if (pid) assert.throws(() => process.kill(pid, 0), { code: 'ESRCH' });
     } finally {
+      const pid = Number(await readFile(pidFile, 'utf8').catch(() => ''));
+      if (pid) {
+        killFixture(pid);
+        await waitForExit(pid);
+      }
       await removeShellFixture(dir);
     }
   });
@@ -160,6 +173,58 @@ async function removeShellFixture(dir) {
   // inherited file/console handles. Retry that filesystem result, not assertions.
   await rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
 }
+
+test(
+  'PS5 fallback reports an unverified stop when the root exits during cancellation',
+  { skip: !windows },
+  async () => {
+    const { dir } = await tempDir('builtin-stop-exited-root');
+    const controller = new AbortController();
+    const pidFile = path.join(dir, 'background.pid');
+    let running;
+    let pid;
+    try {
+      const release = path.join(dir, 'release');
+      const script = path.join(dir, 'background.cjs');
+      const launcher = path.join(dir, 'launcher.cjs');
+      await writeFile(
+        script,
+        `require('node:fs').writeFileSync(${JSON.stringify(pidFile)},String(process.pid));setInterval(()=>{},1000);`,
+      );
+      await writeFile(
+        launcher,
+        `require('node:child_process').spawn(process.execPath,[${JSON.stringify(script)}],{cwd:${JSON.stringify(path.dirname(dir))},detached:true,stdio:'ignore'}).unref();`,
+      );
+      running = runShell(
+        {
+          command: `${command(launcher)}; while (-not [IO.File]::Exists(${quote(release)})) { [Threading.Thread]::Sleep(10) }`,
+          timeoutSeconds: 10,
+        },
+        { workFolder: dir, temp: dir, signal: controller.signal },
+        { shellExecutable: powershell5, createJobOwner: async () => null },
+      );
+      const rejected = assert.rejects(running, {
+        code: 'SHELL_STOP_FAILED',
+        message:
+          'Could not confirm that all command descendants stopped. Check for tasks still running.',
+      });
+      pid = await readPid(pidFile);
+      controller.abort();
+      await writeFile(release, 'exit before the stop helper obtains the root identity');
+      await rejected;
+      process.kill(pid, 0);
+    } finally {
+      controller.abort();
+      await running?.catch(() => {});
+      pid ??= Number(await readFile(pidFile, 'utf8').catch(() => ''));
+      if (pid) {
+        killFixture(pid);
+        await waitForExit(pid);
+      }
+      await removeShellFixture(dir);
+    }
+  },
+);
 
 for (const action of ['timeout', 'stop']) {
   for (const configuration of configurations.filter(() => windows)) {
