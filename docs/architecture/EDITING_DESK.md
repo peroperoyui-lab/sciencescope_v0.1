@@ -68,6 +68,8 @@
 
 **U2 界面现状：** `app/ui/readers/desk-editor.js` 是两个编辑器：docx 用 ProseMirror（段落节点带 `id/kind/level/style/section/like`，表格 table>row>cell 按会话返回的 `cell:{table,row,cell}` 分组，跨段落的域是不可编辑的块，内联原子保留 `atom/ref/run/wrap`，文字的 run 和超链接等外层用 `origin` 标记带着），md/tex 用 CodeMirror（按文件换行设 `lineSeparator`，BOM 单独记，提交时加回）。纯逻辑在 `app/ui/desk-blocks.js`：两边按同一规范比较（标记顺序 b,i,u,sup,sub，去掉空文字和 `media`，同 run 同标记的相邻文字合并），没改的段落不提交；新段落的 `after` 取同一单元格或正文里的前一段，`like` 取分出来的那段，普通段落没有时取最近的普通段落（避免标题后回车又成标题、分节符被复制）。`app/ui/desk-session.js` 是同步控制：停 0.8 秒提交一次、同时只有一个请求，返回的新 id 回填到编辑器；`DESK_CONFLICT` 时拉会话，冲突段落用服务器的，其他没提交的修改保留后重发；序号跳过（别人写过）或事件序号更大时也拉一次会话合并；服务器拒绝的修改（如删分节符）提示后回到服务器内容。编辑器里另有三条保护：新段落和重复 id 自动给临时 id（`n:<k>`）；书签和批注范围随文字删掉时放回原处；删表格单元格、分节符段落、跨段落的域的操作直接不生效。打开时 `DESK_EXTERNAL_CHANGE` 的 `details` 带 `sessionId`，界面据此关闭旧会话重开或继续旧会话。历史版本标签仍走只读阅读器；同一文稿只有一个会话，以项目文件为准。
 
+**U3 比较现状：** `app/ui/components/version-compare.js` 是编辑台和版本比较页共用的组件，读 `GET /api/versions/:id/diff?baseline=`（左页是 baseline）。纯逻辑在 `app/ui/desk-compare.js`：成对段落里沿两边相同的文字同步走，把位置相接的删和增合成一处（hunk），格式范围和增叠在一起时并进那一处；连着几段只有一边有算一处，删掉的段落在右页前一段末尾留缺口；没有改动时按段落一一配对。页面用 `readers/desk-compare-page.js` 直接画 DOM（不进 ProseMirror），原子和编辑器共用 `readers/desk-atoms.js`；diff 的 docx 块补了 `cell`（`model.js` 的 `cellPlace`，和会话共用）以便画表格。同步滚动是分段线性映射：每对段落的顶和底各一个对应点，中间按比例拉伸，以视口上三分之一处为准；程序设的滚动位置记下来，回来的滚动事件不再反推。
+
 ### 3.3 E0 试验和之后的决定规则
 
 E0 是第一步，约 2–3 天，报告放 `.sciencescope-local/temp/desk-e0/`：① eigenpal docx-editor：读 LICENSE 和 `packages/pro` 的许可文本，把框架无关的核心挂进 Preact（不行再试 `preact/compat`），量体积和首屏时间，3 份真实稿件往返；② 自研回写最小原型（`docx/read.js`、`write.js`），同样 3 份稿件、同样的第 11 节检查；③ 句子对齐：同一论文的两个真实修订稿跑第 4.4 节算法，人工检查误标。
@@ -345,7 +347,7 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 | U1 ✅    | 窗口骨架、入口、左栏、底部栏、文稿标签、`features.editingDesk`，撤掉工作站版本管理                                  | Claude | 100%、125% 截图；开关关闭时无入口                                                   |
 | U2 ✅    | ProseMirror 编辑器、原子节点、块同步、Ctrl+S                                                                        | Claude | 浏览器测试：改字保存后重开一致                                                      |
 | D4 ✅    | `diffVersions`：段落配对加段内词级比较和格式改动；生成版本时后台算好存进版本，任意两版现算缓存                      | Sol    | 插段、删段、拆段、改词、改格式测试；生成版本后 `diff_json` 存在                     |
-| U3 **A** | 比较视图：左右两页并排、同步滚动、上一处下一处，`version-diff.js` 改用新结果                                        | Claude | 截图；上一处、下一处可用                                                            |
+| U3 ✅    | 比较视图：左右两页并排、同步滚动、上一处下一处，`version-diff.js` 改用新结果                                        | Claude | 截图；上一处、下一处可用                                                            |
 | D5 ✅    | `manuscript` 读写、`chg_` 撤回、`desk_suggest`、提示词                                                              | Sol    | 脚本运行时测试；`deepseek-v4.1-flash` 真跑一次，报请求数和 token                    |
 | U4 **A** | 浮动工具条、右键菜单、AI 修改后的提示条（看改了什么、撤销）、对话标记跳转                                           | Claude | 场景 2、9 浏览器测试；全新安装加服务商后真跑一次                                    |
 | D6 ✅    | 批注和索引的表、服务、接口（增删改查，含专家的）、打开时重新定位，原文删光时删除                                    | Sol    | 外部修改后仍定位；原文删掉后这条被删除并记进版本说明                                |

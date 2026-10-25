@@ -1,7 +1,7 @@
 import { readDocx } from './docx/read.js';
 import { writeDocx } from './docx/write.js';
 import { paragraphIds } from './docx/ids.js';
-import { aggregate, replay, publicBlock } from './model.js';
+import { aggregate, cellPlace, replay, publicBlock } from './model.js';
 import { readText, replayText, joinText } from './text.js';
 import { indexMedia } from './media.js';
 import { commentWriteOptions } from './annotation-docx.js';
@@ -98,12 +98,6 @@ export function documentResponse(state) {
       text: joinText(state.blocks),
       blocks: state.blocks.map(({ id, kind, level, text }) => ({ id, kind, level, text })),
     };
-  const { spans } = state.document;
-  const nearest = (index, tag) => {
-    for (let span = spans[index]; span; span = spans[span.parent])
-      if (span.tag === tag) return span;
-    return null;
-  };
   return {
     blocks: state.blocks.map((block) => {
       const value = publicBlock(block);
@@ -114,10 +108,8 @@ export function documentResponse(state) {
       );
       // Cells group by span index so the editor can draw the table; a paragraph
       // that ends a section cannot be removed (DOCX_SECTION_BREAK).
-      const cell = block.kind === 'table-cell' ? nearest(block.parent, 'w:tc') : null;
-      const row = cell && nearest(cell.parent, 'w:tr');
-      const table = row && nearest(row.parent, 'w:tbl');
-      if (table) value.cell = { table: table.index, row: row.index, cell: cell.index };
+      const cell = cellPlace(state.document.spans, block);
+      if (cell) value.cell = cell;
       if (block.pPr && state.document.inside(block.pPr).some((span) => span.tag === 'w:sectPr'))
         value.section = true;
       return value;

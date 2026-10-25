@@ -39,6 +39,9 @@ export function createVersionActions(api) {
     readVersion: (id) => api.get(`/api/versions/${id}`),
     compareVersions: (id, baselineId) =>
       api.get(`/api/versions/${id}/compare?baseline=${encodeURIComponent(baselineId ?? '')}`),
+    /** Block diff of two versions of one group; `baselineId` is the left page. */
+    diffVersions: (id, baselineId) =>
+      api.get(`/api/versions/${id}/diff?baseline=${encodeURIComponent(baselineId)}`),
     saveVersionAsNew: (id) => api.post(`/api/versions/${id}/save-as-new`),
     editVersionNotes: (id, text, revisionId) =>
       api.patch(`/api/versions/${id}/notes`, { text, revisionId }),

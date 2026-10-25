@@ -13,7 +13,10 @@ const heading = (level, text) =>
 const para = (text) => `<w:p><w:r><w:t>${text}</w:t></w:r></w:p>`;
 
 /** A small Word file mammoth reads with real headings. @param {string} [extra] a last paragraph */
-async function thesis(extra = '') {
+const thesis = (extra = '') => docx(thesisBody(extra));
+
+/** @param {string} body document.xml body */
+async function docx(body) {
   const zip = new JSZip();
   zip.file(
     '[Content_Types].xml',
@@ -36,7 +39,13 @@ async function thesis(extra = '') {
       )
       .join('')}</w:styles>`,
   );
-  const body = [
+  zip.file('word/document.xml', `<w:document xmlns:w="${W}"><w:body>${body}</w:body></w:document>`);
+  return zip.generateAsync({ type: 'nodebuffer' });
+}
+
+/** @param {string} extra */
+function thesisBody(extra) {
+  return [
     heading(1, '第三章　研究设计'),
     heading(2, '3.1　研究方法'),
     para(
@@ -51,8 +60,6 @@ async function thesis(extra = '') {
     para('一致性阈值设为 0.85，案例频数阈值设为 2；校准锚点分别取各条件的第 95、50、5 百分位。'),
     ...(extra ? [para(extra)] : []),
   ].join('');
-  zip.file('word/document.xml', `<w:document xmlns:w="${W}"><w:body>${body}</w:body></w:document>`);
-  return zip.generateAsync({ type: 'nodebuffer' });
 }
 
 test(
@@ -382,6 +389,135 @@ test(
       assert.equal(xml.match(/<w:tc>/gu)?.length, 4);
       const folder = process.env.SCIENCESCOPE_SCREENSHOTS;
       if (folder) await desk.screenshot({ path: path.join(folder, 'u2-desk-table.png') });
+      if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
+    }),
+);
+
+test(
+  'two versions compare side by side, step through changes and scroll together until unlocked',
+  { skip: browserSkip },
+  () =>
+    withBrowserApp('u3-desk-compare', silent, async ({ page, app }) => {
+      const project = await app.core.projects.create({ name: '城市韧性研究' });
+      const root = path.join(app.core.paths.projects, project.dirName);
+      await mkdir(root, { recursive: true });
+      const filler = (from, count, word) =>
+        Array.from({ length: count }, (_, index) =>
+          para(`第 ${from + index} 段${word}：校准与稳健性检验的补充说明，篇幅足够让页面滚动。`),
+        ).join('');
+      const first = thesisBody('') + filler(1, 60, '');
+      await writeFile(path.join(root, 'thesis.docx'), await docx(first));
+      const group = await app.desk.registerDocument({ projectId: project.id, path: 'thesis.docx' });
+      // v2: a number changed, a paragraph removed, words made bold, a block of paragraphs added.
+      const second = first
+        .replace('2010–2022', '2010–2024')
+        .replace(para('经济韧性指数采用熵权法合成，涵盖抵抗力、恢复力与再组织能力三个维度。'), '')
+        .replace(
+          para(
+            '一致性阈值设为 0.85，案例频数阈值设为 2；校准锚点分别取各条件的第 95、50、5 百分位。',
+          ),
+          '<w:p><w:r><w:t>一致性阈值设为 0.85，</w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>案例频数阈值设为 2</w:t></w:r><w:r><w:t>；校准锚点分别取各条件的第 95、50、5 百分位。</w:t></w:r></w:p>' +
+            filler(100, 25, '（新增）'),
+        );
+      await app.versions.importFiles(
+        {
+          projectId: project.id,
+          groupId: group.id,
+          files: [{ name: 'thesis.docx', base64: (await docx(second)).toString('base64') }],
+        },
+        { actorId: 'person_user' },
+      );
+      const desk = await page.context().newPage();
+      const errors = [];
+      desk.on('pageerror', (error) => errors.push(error.message));
+      const base = page.url().split('?')[0];
+      await desk.goto(
+        `${base}?token=ui-token&surface=desk&projectId=${project.id}&path=thesis.docx`,
+      );
+      await desk.locator('.ss-page--edit h1', { hasText: '第三章' }).waitFor();
+      await desk.getByRole('tab', { name: '审阅' }).click();
+      const start = desk.getByRole('button', { name: '比较', exact: true });
+      await desk.waitForFunction(
+        () =>
+          !(
+            /** @type {HTMLButtonElement | null} */ (
+              document.querySelector('.ss-ribbon__bar button[data-tip*="两个版本"]')
+            )?.disabled
+          ),
+      );
+      await start.click();
+      const compare = desk.locator('[data-compare="ready"]');
+      await compare.locator('.ss-cmp__col').first().waitFor();
+      const [left, right] = [
+        compare.locator('.ss-cmp__col').first(),
+        compare.locator('.ss-cmp__col').last(),
+      ];
+      assert.match(await left.locator('.ss-cmp__label').textContent(), /旧 · v1/u);
+      assert.match(await right.locator('.ss-cmp__label').textContent(), /新 · v2/u);
+      assert.match(
+        await left
+          .locator('.ss-diff-del')
+          .allTextContents()
+          .then((v) => v.join('')),
+        /2022/u,
+      );
+      assert.match(
+        await right
+          .locator('.ss-rev-ins')
+          .allTextContents()
+          .then((v) => v.join('')),
+        /2024/u,
+      );
+      assert.equal(await right.locator('.ss-diff-gap').getAttribute('data-tip'), '这里删了一段');
+      assert.equal(
+        await right.locator('strong.ss-diff-fmt, .ss-diff-fmt strong').first().textContent(),
+        '案例频数阈值设为 2',
+      );
+      // F7 steps to the first change and marks it on both pages.
+      await desk.keyboard.press('F7');
+      assert.match(await compare.locator('.ss-cmp__pos').textContent(), /^1 \/ \d+$/u);
+      assert.ok((await left.locator('.ss-diff-cur').count()) > 0);
+      assert.ok((await right.locator('.ss-diff-cur').count()) > 0);
+      const folder = process.env.SCIENCESCOPE_SCREENSHOTS;
+      if (folder) await desk.screenshot({ path: path.join(folder, 'u3-desk-compare.png') });
+
+      // Locked: scrolling the right page moves the left one; unlocked it stays.
+      const scrollTo = (column, top) =>
+        column.evaluate((node, value) => {
+          node.scrollTop = value;
+        }, top);
+      const topOf = (column) => column.evaluate((node) => node.scrollTop);
+      await scrollTo(left, 0);
+      await scrollTo(right, 900);
+      await desk.waitForFunction(() => document.querySelector('.ss-cmp__col').scrollTop > 200);
+      // The right page has 25 paragraphs the left one lacks; the left page waits while they pass.
+      const added = await right
+        .locator('p', { hasText: '第 100 段' })
+        .evaluate(
+          (node) =>
+            node.getBoundingClientRect().top -
+            node.closest('.ss-cmp__col').getBoundingClientRect().top +
+            node.closest('.ss-cmp__col').scrollTop,
+        );
+      await scrollTo(right, added - 200);
+      await desk.waitForTimeout(100);
+      const before = await topOf(left);
+      await scrollTo(right, added + 400);
+      await desk.waitForTimeout(100);
+      const held = await topOf(left);
+      assert.ok(held - before < 100, `left page moved ${held - before}px`);
+      await compare.getByRole('button', { name: '解锁，两页各自滚动' }).click();
+      await scrollTo(right, 0);
+      await desk.waitForTimeout(100);
+      assert.equal(await topOf(left), held);
+      await compare.getByRole('button', { name: '锁定，两页同步滚动' }).waitFor();
+
+      // Swap: v2 on the left, so the pages say only their versions.
+      await compare.getByRole('button', { name: '交换两侧' }).click();
+      await desk.locator('[data-compare="ready"] .ss-cmp__label').first().waitFor();
+      assert.match(await desk.locator('.ss-cmp__label').first().textContent(), /^v2 · /u);
+      await desk.getByRole('button', { name: '退出比较' }).click();
+      await desk.locator('.ss-page--edit h1', { hasText: '第三章' }).waitFor();
       if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
     }),
 );

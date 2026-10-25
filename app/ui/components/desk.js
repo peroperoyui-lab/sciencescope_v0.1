@@ -15,6 +15,7 @@ import { Dialog } from './dialog.js';
 import { DeskDocument, externalQuestion } from './desk-document.js';
 import { DeskNav, FileType, deskKind, latestVersion } from './desk-nav.js';
 import { Splitter } from './splitter.js';
+import { VersionCompare } from './version-compare.js';
 
 const TABS_KEY = 'sciencescope.desk.tabs';
 const NAV = { min: 180, max: 360, default: 232 };
@@ -185,7 +186,9 @@ function ViewSwitch({ views, view, onView, enabled = views }) {
  * @param {{ tab: any, view: string, onView: (view: string) => void, ribbon: string,
  *   onRibbon: (name: string) => void, collapsed: boolean, onCollapse: () => void,
  *   nav: boolean, onNav: () => void, panel: boolean, onPanel: () => void,
- *   page: any, pdf: any, edit: any, editing: any, onSave: () => void }} props
+ *   page: any, pdf: any, edit: any, editing: any, onSave: () => void,
+ *   compare: string, comparing: boolean, onCompare: () => void }} props
+ * `compare` is why 比较 is off, or '' when it can start.
  */
 function Ribbon({
   tab,
@@ -204,6 +207,9 @@ function Ribbon({
   edit,
   editing,
   onSave,
+  compare,
+  comparing,
+  onCompare,
 }) {
   const actions = useActions();
   const format = tab?.format;
@@ -358,7 +364,14 @@ function Ribbon({
     bar = html`${marks}
       <${RibbonButton} icon="text-quote" text=${t('引用到对话')} disabled=${off} />
       <${Sep} />
-      <${RibbonButton} icon="git-compare" text=${t('比较')} disabled=${off} />
+      <${RibbonButton}
+        icon="git-compare"
+        text=${t('比较')}
+        tip=${compare || t('并排比较这份文稿的两个版本')}
+        disabled=${!!compare}
+        pressed=${comparing}
+        onClick=${onCompare}
+      />
       <${RibbonButton} icon="git-fork" text=${t('版本树')} disabled=${off} />
       <span class="ss-ribbon__spacer"></span>
       <${RibbonButton}
@@ -494,8 +507,8 @@ function SaveState({ status }) {
   >`;
 }
 
-/** @param {{ tab: any, group: any, info: any, edit: any }} props */
-function Statusbar({ tab, group, info, edit }) {
+/** @param {{ tab: any, group: any, info: any, edit: any, comparing: boolean }} props */
+function Statusbar({ tab, group, info, edit, comparing }) {
   const version =
     tab?.kind === 'version'
       ? group?.versions.find((entry) => entry.id === tab.id)
@@ -510,7 +523,11 @@ function Statusbar({ tab, group, info, edit }) {
           ><${FileType} kind=${tab.type ?? 'group'} />${tab.label}</span
         >
         <span class="ss-statusbar__item">${versionText}</span>
-        <${SaveState} status=${edit?.status} />
+        ${
+          comparing
+            ? html`<span class="ss-statusbar__item">${t('正在比较两个版本')}</span>`
+            : html`<${SaveState} status=${edit?.status} />`
+        }
         ${
           info.words != null &&
           html`<span class="ss-statusbar__item"
@@ -608,6 +625,8 @@ export function DeskWindow() {
   const [jump, setJump] = useState(null);
   const [heading, setHeading] = useState(-1);
   const [edit, setEdit] = useState(/** @type {any} */ (null));
+  // The side-by-side comparison of one tab's versions, {key, left, right}.
+  const [comparison, setComparison] = useState(/** @type {any} */ (null));
   const [question, ask] = useQuestion();
   const pdf = useRef(null);
   const editing = useRef(/** @type {any} */ (null));
@@ -782,6 +801,23 @@ export function DeskWindow() {
       : tabGroups.find((entry) => entry.sourcePath === tab?.path);
   const savePanel = (key) => (width) =>
     actions.updateSettings({ appearance: { panels: { [key]: width } } });
+  const comparing = !!tab && comparison?.key === tab.key;
+  const compareBlocked = !tab
+    ? t('先打开一份文稿')
+    : !['docx', 'md', 'tex'].includes(tab.format)
+      ? t('这种文稿不能并排比较')
+      : (group?.versions.length ?? 0) < 2
+        ? t('这份文稿至少要有两个版本才能比较')
+        : '';
+  /** Start with the open version (or the latest) against the one before it. */
+  const toggleCompare = () => {
+    if (comparing) return setComparison(null);
+    const versions = group.versions;
+    const right = versions.find((entry) => entry.id === tab.id) ?? versions[0];
+    const older = versions.filter((entry) => entry.number < right.number);
+    const left = versions.find((entry) => entry.id === right.parentId) ?? older[0] ?? versions[1];
+    setComparison({ key: tab.key, left: left.id, right: right.id });
+  };
   const navWidth = Math.max(NAV.min, Math.min(NAV.max, panels.deskNav ?? NAV.default));
   const panelWidth = Math.max(PANEL.min, Math.min(PANEL.max, panels.deskPanel ?? PANEL.default));
 
@@ -818,6 +854,9 @@ export function DeskWindow() {
       edit=${edit}
       editing=${editing}
       onSave=${save}
+      compare=${compareBlocked}
+      comparing=${comparing}
+      onCompare=${toggleCompare}
     />
     <div class="ss-shell__body">
       ${
@@ -843,34 +882,46 @@ export function DeskWindow() {
           />
         </aside>`
       }
-      <main class="ss-desk-canvas" ref=${canvas} onScroll=${onScroll}>
-        ${
-          tab
-            ? html`<${DeskDocument}
-                key=${tab.key}
-                tab=${tab}
-                view=${view}
-                jump=${jump}
-                pdf=${pdf}
-                editing=${editing}
-                onEdit=${setEdit}
-                ask=${ask}
-                onSession=${(id) => {
-                  if (id) sessions.current[tab.key] = id;
-                }}
-                onInfo=${(next) => setInfo((known) => ({ ...known, ...next }))}
-              />`
-            : html`<div class="ss-empty ss-desk-canvas__state">
-                <div class="ss-empty__icon"><${Lucide} name="file-pen" /></div>
-                <div class="ss-empty__title">${t('还没有打开文稿')}</div>
-                <div class="ss-empty__text">
-                  ${t('在左栏选一份 docx、tex、md 或 pdf 打开，可以同时开几份，在顶部切换。')}
-                </div>
-              </div>`
-        }
-      </main>
+      ${
+        comparing
+          ? html`<${VersionCompare}
+              tag="main"
+              versions=${group?.versions ?? []}
+              left=${comparison.left}
+              right=${comparison.right}
+              onPick=${(left, right) => setComparison({ ...comparison, left, right })}
+              onExit=${() => setComparison(null)}
+            />`
+          : html`<main class="ss-desk-canvas" ref=${canvas} onScroll=${onScroll}>
+              ${
+                tab
+                  ? html`<${DeskDocument}
+                      key=${tab.key}
+                      tab=${tab}
+                      view=${view}
+                      jump=${jump}
+                      pdf=${pdf}
+                      editing=${editing}
+                      onEdit=${setEdit}
+                      ask=${ask}
+                      onSession=${(id) => {
+                        if (id) sessions.current[tab.key] = id;
+                      }}
+                      onInfo=${(next) => setInfo((known) => ({ ...known, ...next }))}
+                    />`
+                  : html`<div class="ss-empty ss-desk-canvas__state">
+                      <div class="ss-empty__icon"><${Lucide} name="file-pen" /></div>
+                      <div class="ss-empty__title">${t('还没有打开文稿')}</div>
+                      <div class="ss-empty__text">
+                        ${t('在左栏选一份 docx、tex、md 或 pdf 打开，可以同时开几份，在顶部切换。')}
+                      </div>
+                    </div>`
+              }
+            </main>`
+      }
       ${
         panel &&
+        !comparing &&
         html`<${DeskPanel}
           tab=${panelTab}
           onTab=${setPanelTab}
@@ -880,7 +931,7 @@ export function DeskWindow() {
         />`
       }
     </div>
-    <${Statusbar} tab=${tab} group=${group} info=${info} edit=${edit} />
+    <${Statusbar} tab=${tab} group=${group} info=${info} edit=${edit} comparing=${comparing} />
     ${question}
   </div>`;
 }

@@ -36,5 +36,5 @@ GROUPS = [
     ('remove-formatting','清除格式'),('heading','标题级别'),('list','项目符号'),('list-ordered','编号'),('list-tree','大纲'),
     ('message-square-plus','添加批注'),('link-2','绑定来源'),('text-quote','引用到对话'),('wand-sparkles','改写'),('highlighter','标记'),
     ('scissors','剪切'),('git-fork','版本树'),('git-compare','比较'),('columns-2','并排视图'),('radical','公式'),('file-output','编译 PDF'),
-    ('chevron-left','上一处'),('arrow-left-right','交换两侧')]),
+    ('chevron-left','上一处'),('arrow-left-right','交换两侧'),('lock','同步滚动（锁定）'),('lock-open','各自滚动（解锁）')]),
 ]

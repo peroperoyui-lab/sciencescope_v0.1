@@ -646,13 +646,13 @@ cmp_main = f'''<main class="ss-cmp">
         {icon_btn('arrow-left-right', '交换两侧')}
         <button class="ss-select ss-select--sm" type="button"><span class="ss-select__value">v7 · 主线</span><i data-i="chevron-down"></i></button>
         <span style="flex:1"></span>
-        <span class="ss-muted" style="font-size:12px"><span class="ss-diff-del" style="padding:0 4px">删 6 处</span>　<span class="ss-rev-ins" style="padding:0 4px">增 9 处</span>　<span class="ss-diff-fmt" style="padding:0 4px">格式 1 处</span></span>
-        <label class="ss-check" style="font-size:12px"><input type="checkbox" class="ss-switch" checked /><span>同步滚动</span></label>
-        {icon_btn('chevron-up', '上一处 Shift F7')}<span style="font-size:12px">5 / 16</span>{icon_btn('chevron-down', '下一处 F7')}
+        <span class="ss-cmp__counts"><span class="ss-diff-del">删 6 处</span><span class="ss-rev-ins">增 9 处</span><span class="ss-diff-fmt">格式 1 处</span></span>
+        {icon_btn('chevron-up', '上一处 Shift F7')}<span class="ss-cmp__pos">5 / 12</span>{icon_btn('chevron-down', '下一处 F7')}
         <button class="ss-btn ss-btn--sm" type="button"><i data-i="x"></i>退出比较</button>
       </div>
       <div class="ss-cmp__pages">
         <div class="ss-cmp__col"><div class="ss-cmp__label"><b>旧 · v5 修改方法部分</b>主专家 10-20 16:12</div>{old_page}</div>
+        <div class="ss-cmp__gutter"><button class="ss-cmp__lock" type="button" aria-pressed="true" aria-label="解锁，两页各自滚动" data-tip="解锁，两页各自滚动"><i data-i="lock"></i></button></div>
         <div class="ss-cmp__col"><div class="ss-cmp__label"><b>新 · v7 主线</b>你 10-22 14:06 存版本</div>{new_page}</div>
       </div>
     </main>'''
@@ -664,14 +664,15 @@ card('PageDeskCompare', 'group="编辑台" page height=900 width=1536 subtitle="
 
 ## 区域
 
-- 比较栏：左右两个版本选择、交换两侧、三种改动的计数（删、增、格式）、「同步滚动」、上一处下一处（F7）、退出比较。
-- 两页：像 Word 的并排查看，左边旧版、右边新版，各自按原来的版式排，页头写版本、作者和时间；默认同步滚动。
+- 比较栏：左右两个版本选择、交换两侧、三种改动的计数（删、增、格式，0 处的不显示）、上一处下一处（F7）、退出比较。
+- 两页：像 Word 的并排查看，左边旧版、右边新版，各自按原来的版式排，页头写版本、作者和时间。两页各自能滚动。
+- 两页中间的缝里有一把锁：锁上（默认）时两页同步滚动，成对的段落顶对顶、底对底，只有一边有的段落经过时另一边停着等；打开锁两页各自滚动，再锁上时右页跟到左页的位置。
 
 ## 演示的规则
 
 - 旧版里被删掉的字标红（diff-del 底、diff-del-ink 字），不加删除线；新版里新加的字和改过格式的字标淡黄（diff-ins），格式改动另有点线和提示（“格式：加粗”）。
 - 新版里整段删掉的位置留一根红色细竖线，悬停提示“这里删了一段”。
-- 上一处下一处时，当前这处两边都有强调色描边。
+- 上一处下一处时，当前这处两边都有强调色描边。替换掉的一个词是一处（左删右增合在一起），连着几段只有一边有也算一处。
 - 差异在存版本时（离开编辑台、存为版本、外部修改导入）后台算好，存在这个版本上；任意两版比较时现算一次再缓存。正文编辑时不显示修订标记。
 ''')
 

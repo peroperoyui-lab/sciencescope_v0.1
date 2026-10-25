@@ -1,5 +1,13 @@
 # 实施记录
 
+## 2026-10-25 U3 编辑台并排比较（Claude）
+
+- 新组件 `version-compare.js`（编辑台「审阅 → 比较」和工作台版本比较页共用），读 D4 的 `/diff` 结果；纯逻辑 `desk-compare.js` 有 node 测试，页面由 `readers/desk-compare-page.js` 直接画 DOM。
+- Yui 加的需求：两页中缝放锁定/解锁按钮，代替设计稿比较栏里的「同步滚动」开关；设计稿 PageDeskCompare 同步改了（`build/desk/gen.py`），图标加了 lock、lock-open。
+- 后端小改：diff 的 docx 块带 `cell`，和会话返回的一样（抽成 `model.js` 的 `cellPlace`）。原子的画法从 `desk-editor.js` 抽到 `desk-atoms.js`。
+- 工作台版本比较页去掉了「统一差异」视图和页内说明卡片，改成页头的「版本说明」按钮转到说明页；`/compare` 接口暂留。
+- 还没有：版本树里右键比较、和未存版本的草稿比较、比较页显示图片。
+
 ## 2026-10-24 U2 编辑台直接编辑（Claude）
 
 - docx 用 ProseMirror 按页面编辑，md、tex 用 CodeMirror 编辑源码；依赖（prosemirror-model/state/view/transform/commands/keymap/history、@codemirror/commands，均锁定版本）打进现有的 `readers/vendor.js`。

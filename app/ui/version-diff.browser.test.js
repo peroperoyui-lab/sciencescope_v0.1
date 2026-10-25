@@ -32,33 +32,35 @@ test(
         await page.goto(
           new URL(`/?token=ui-token#/version-diff/${project.id}/${current.id}`, page.url()).href,
         );
-        await page.getByRole('status').getByText('可比较', { exact: true }).waitFor();
+        await page.locator('[data-compare="ready"] .ss-cmp__col').first().waitFor();
         assert.match(
           await page
-            .locator('del')
+            .locator('.ss-cmp__col')
+            .first()
+            .locator('.ss-diff-del')
             .allTextContents()
             .then((values) => values.join('')),
           /社会|画像/u,
         );
         assert.match(
           await page
-            .locator('ins')
+            .locator('.ss-cmp__col')
+            .last()
+            .locator('.ss-rev-ins')
             .allTextContents()
             .then((values) => values.join('')),
           /环境|聚类/u,
         );
-        await page.getByRole('button', { name: '下一处变化', exact: true }).click();
-        assert.equal(
-          await page.locator('[data-version-diff]').getAttribute('data-diff-position'),
-          '0',
-        );
-        await page.getByRole('button', { name: '上一处变化', exact: true }).click();
-        assert.notEqual(
-          await page.locator('[data-version-diff]').getAttribute('data-diff-position'),
-          '0',
-        );
-        await page.getByRole('button', { name: '统一差异', exact: true }).click();
-        assert.equal(await page.locator('.version-diff-text').count(), 1);
+        const position = page.locator('.ss-cmp__pos');
+        await page.getByRole('button', { name: '下一处', exact: true }).click();
+        assert.match(await position.textContent(), /^1 \/ \d+$/u);
+        assert.equal((await page.locator('.ss-diff-cur').count()) > 0, true);
+        await page.getByRole('button', { name: '上一处', exact: true }).click();
+        assert.doesNotMatch(await position.textContent(), /^1 \//u);
+        const lock = page.locator('.ss-cmp__lock');
+        assert.equal(await lock.getAttribute('aria-pressed'), 'true');
+        await lock.click();
+        assert.equal(await lock.getAttribute('aria-pressed'), 'false');
         await shot('version-diff');
         await page.getByRole('button', { name: '另存为新版本', exact: true }).click();
         await page.getByRole('button', { name: '确认另存', exact: true }).click();
@@ -147,6 +149,7 @@ test(
         );
         await page.goto(new URL(`/#/version-diff/${project.id}/${current.id}`, page.url()).href);
         await page.getByRole('button', { name: 'Next change', exact: true }).waitFor();
+        await page.getByRole('button', { name: 'Swap sides', exact: true }).waitFor();
         await shot('version-diff-english');
       },
     );

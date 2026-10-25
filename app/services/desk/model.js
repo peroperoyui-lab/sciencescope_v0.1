@@ -24,6 +24,26 @@ export function publicBlock(block) {
 }
 
 /**
+ * Which table, row and cell a table-cell paragraph sits in, by span index, so
+ * readers can draw the table around the paragraphs.
+ * @param {any[]} spans
+ * @param {any} block
+ * @returns {{table:number,row:number,cell:number}|null}
+ */
+export function cellPlace(spans, block) {
+  if (block.kind !== 'table-cell') return null;
+  const nearest = (index, tag) => {
+    for (let span = spans[index]; span; span = spans[span.parent])
+      if (span.tag === tag) return span;
+    return null;
+  };
+  const cell = nearest(block.parent, 'w:tc');
+  const row = cell && nearest(cell.parent, 'w:tr');
+  const table = row && nearest(row.parent, 'w:tbl');
+  return table ? { table: table.index, row: row.index, cell: cell.index } : null;
+}
+
+/**
  * @param {string} code
  * @param {string} message
  * @param {any} [details]

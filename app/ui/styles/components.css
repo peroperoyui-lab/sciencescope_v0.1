@@ -5419,18 +5419,44 @@ button.ss-act__row:hover {
   border-bottom: 1px solid var(--line);
   background: var(--paper);
 }
+.ss-cmp__bar > .ss-i {
+  color: var(--ink-2);
+}
+.ss-cmp__spacer {
+  flex: 1;
+}
+.ss-cmp__counts {
+  display: flex;
+  gap: var(--sp-8);
+  color: var(--muted);
+  font-size: 12px;
+}
+.ss-cmp__counts > span {
+  padding: 0 4px;
+}
+.ss-cmp__pos {
+  min-width: 44px;
+  color: var(--ink-2);
+  font-size: 12px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+/* Each page scrolls on its own; the lock in the gap between them ties them together. */
 .ss-cmp__pages {
   display: flex;
   flex: 1;
   justify-content: center;
-  gap: var(--sp-24);
   min-height: 0;
-  overflow: auto;
-  padding: 0 24px;
+  padding: 0 12px;
 }
 .ss-cmp__col {
-  display: grid;
-  align-content: start;
+  flex: 0 1 600px;
+  min-width: 0;
+  overflow: hidden auto;
+  padding: 0 12px;
+}
+.ss-cmp__state {
+  align-self: center;
 }
 .ss-cmp__label {
   position: sticky;
@@ -5450,10 +5476,61 @@ button.ss-act__row:hover {
   font-weight: 500;
 }
 .ss-cmp .ss-page {
-  width: 560px;
-  margin: 0 0 32px;
+  width: min(560px, 100%);
+  margin: 0 auto 32px;
   padding: 48px 56px 56px;
   font-size: 14px;
+}
+.ss-cmp__gutter {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 24px;
+}
+.ss-cmp__gutter::before {
+  position: absolute;
+  inset: 0 auto 0 50%;
+  border-left: 1px dashed var(--line-strong);
+  content: '';
+}
+.ss-cmp__gutter:has([aria-pressed='true'])::before {
+  border-left-style: solid;
+  border-color: var(--line);
+}
+.ss-cmp__lock {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-full);
+  background: var(--paper);
+  color: var(--muted);
+  box-shadow: var(--shadow-1);
+  transition:
+    color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease);
+}
+.ss-cmp__lock:hover {
+  color: var(--ink);
+}
+.ss-cmp__lock[aria-pressed='true'] {
+  border-color: var(--accent-line);
+  color: var(--accent-ink);
+}
+/* Markdown and TeX compare as source text. */
+.ss-cmp .ss-page p.ss-cmp__src {
+  margin: 0 0 10px;
+  font: 400 13px/1.7 var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-indent: 0;
+}
+.ss-cmp__src--head {
+  font-weight: 600;
 }
 /* Text only the old version has (left page). */
 .ss-diff-del {

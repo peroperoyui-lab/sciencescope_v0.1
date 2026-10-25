@@ -4,7 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { readDocx } from './docx/read.js';
-import { publicBlock } from './model.js';
+import { cellPlace, publicBlock } from './model.js';
 import { readText } from './text.js';
 
 const normalize = (text) => text.normalize('NFKC').replace(/\s+/gu, ' ').trim();
@@ -59,7 +59,13 @@ export async function readDiffBlocks(version) {
     const document = await readDocx(bytes);
     return {
       format,
-      items: document.blocks.map((block) => describeBlock(publicBlock(block), document)),
+      items: document.blocks.map((block) => {
+        // Cells keep their place so the comparison pages can draw tables.
+        const value = publicBlock(block);
+        const cell = cellPlace(document.spans, block);
+        if (cell) value.cell = cell;
+        return describeBlock(value, document);
+      }),
     };
   }
   if (format === 'pdf') {
