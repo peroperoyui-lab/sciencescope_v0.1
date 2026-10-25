@@ -116,6 +116,9 @@ function without(record, key) {
  * @param {{ type: string, payload: any, actorId?: string | null, meetingId?: string | null }} event
  * @returns {State}
  */
+
+/** Desk change kinds that touch only comments and indexes. */
+const NOTE_OPS = new Set(['comment', 'annotation', 'annotation-lost']);
 export function applyEvent(state, event) {
   const { type, payload } = event;
   switch (type) {
@@ -127,14 +130,17 @@ export function applyEvent(state, event) {
       if ((state.deskSeqs[payload.sessionId] ?? -1) >= payload.seq) return state;
       const deskSeqs = { ...state.deskSeqs, [payload.sessionId]: payload.seq };
       const actorId = event.actorId;
-      if (!actorId || actorId === 'person_user' || !payload.changeIds?.length)
-        return { ...state, deskSeqs };
+      // Only changes to the words are news; added or moved comments and indexes are not.
+      const text = (payload.changeIds ?? []).flatMap((id, index) =>
+        NOTE_OPS.has(payload.ops?.[index]) ? [] : [index],
+      );
+      if (!actorId || actorId === 'person_user' || !text.length) return { ...state, deskSeqs };
       const edit = {
         seq: payload.seq,
         actorId,
         meetingId: event.meetingId ?? null,
-        changeIds: payload.changeIds,
-        blockIds: payload.blockIds ?? [],
+        changeIds: text.map((index) => payload.changeIds[index]),
+        blockIds: [...new Set(text.map((index) => payload.blockIds?.[index]).filter(Boolean))],
       };
       const edits = [...(state.deskEdits[payload.sessionId] ?? []), edit].slice(-20);
       return { ...state, deskSeqs, deskEdits: { ...state.deskEdits, [payload.sessionId]: edits } };

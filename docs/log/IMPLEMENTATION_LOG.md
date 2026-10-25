@@ -7,6 +7,12 @@
 - 对照：PS5 Node 5.564→0.577 秒，Start-Process 5.285→0.508 秒，PS7 Node 0.778→0.664 秒；Windows 干净检出完整检查 503/503，安装版真实模型跑一次 shell 967 毫秒返回、后台继续输出。
 - 遗留：PS7 重定向 Start-Process 的原有超时未改；无 Job 时首次快照前已退出的中间父进程仍追溯不到。
 
+## 2026-10-25 U5A 编辑台批注与索引的 Windows 验收（Codex，Claude 修界面）
+
+- Sol 在 main@675edbd 上验收，没改代码：Windows `npm run check` 521/521；Word 往返（改批注、加批注、跨段批注、删字撤销后保存）不提示修复、没有空批注，索引不进 Word；md 回复和已解决重开保留；原生窗口里预览、消息跳转、「查看索引」都通过。
+- 真跑（`deepseek-v4.1-flash`，全新安装）：润色 3 次请求 21,943 token；专家加索引和批注 3 次请求 31,010 token；版本说明 2 次请求 13,886 token。
+- Claude 修了交回的三处：中文 Word 的标题（样式 id 是「1」「2」）按 `styles.xml` 里的样式名、大纲级别和基于的样式认出来，进大纲；「看改了什么」弹窗打开时浮动工具条收起，弹窗里的点击和右键不再当成正文的；专家只加批注或索引时不再提示「改写了 N 段」（`desk.changed` 带上每条修改的 `ops`）。
+
 ## 2026-10-25 U5 编辑台批注与索引（Claude）
 
 - 右侧栏「批注与索引」在 `components/desk-notes.js`，索引选择框 `components/desk-index-picker.js`（用现有的列表、分段按钮、标签和对话框拼的，画廊的设计稿等 Yui 看过截图再补）；编辑器里的标记在 `readers/desk-notes.js`，docx 的位置换算挪到 `readers/desk-positions.js`。新图标 `reply`。

@@ -51,6 +51,9 @@ function ChangeText({ run, diff }) {
   </p>`;
 }
 
+/** Events inside a dialog over the page are not the page's. @param {Event} event */
+const inDialog = (event) => !!(/** @type {Element} */ (event.target).closest?.('[role="dialog"]'));
+
 /**
  * @param {{ tab: any, editing: any, canvas: any, notes: any }} props
  * `editing.current` is the open editor with its `session` and `opened` session;
@@ -135,6 +138,7 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
   useEffect(() => {
     const down = (event) => {
       if (!canvas.current?.contains(event.target) || bar.current?.contains(event.target)) return;
+      if (inDialog(event)) return;
       pressed.current = true;
       setDragging(true);
     };
@@ -297,6 +301,7 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
         import('../readers/vendor.js'),
       ]);
       const runs = changeRuns(changes.filter(pick)).reverse();
+      setInfo(null);
       setDialog({ title, runs, diff: diffArrays, allowUndo });
       if (runs[0]) void revealBlock(runs.at(-1).blockId);
     } catch (failure) {
@@ -336,7 +341,7 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
   /** @param {MouseEvent} event */
   function onContextMenu(event) {
     const current = editing.current;
-    if (!current?.session) return;
+    if (!current?.session || inDialog(event)) return;
     let selected = current.selection();
     const { clientX: x, clientY: y } = event;
     const { rect } = selected ?? {};
@@ -412,6 +417,7 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
     info &&
     !dragging &&
     !notes.layer &&
+    !dialog &&
     edit?.session &&
     html`<div
       class="ss-ftb ss-desk-ftb"

@@ -158,6 +158,7 @@ export function createDeskStore(core, annotations) {
           seq,
           blockIds: proposal.records.map((record) => record.blockId),
           changeIds: ids,
+          ops: proposal.records.map((record) => record.op),
           removedAnnotations,
         },
         actor,

@@ -598,6 +598,8 @@ test(
         await desk.waitForTimeout(300);
         assert.equal(await changes.locator('.ss-rev-ins').first().textContent(), '城市');
         assert.equal(await changes.locator('.ss-diff-del').first().textContent(), '地级市');
+        // The floating toolbar stays out of the way while the dialog is open.
+        assert.equal(await desk.locator('.ss-desk-ftb').count(), 0);
         if (folder) await desk.screenshot({ path: path.join(folder, 'u4-desk-changes.png') });
         await changes.getByRole('button', { name: '关闭' }).last().click();
         await note.getByRole('button', { name: '撤销' }).click();

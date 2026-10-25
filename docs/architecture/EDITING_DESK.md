@@ -246,7 +246,7 @@ DOCX 批注 id 为 `docx:<版本组 id>:<Word 批注编号>`，其他标注用�
 
 **存盘时：** 锚点放 `data/`（docx 的批注另写进 Word 批注范围），记 `block_id`、块内起止和 `quote`。打开时先按 `block_id` 和起止定位，对不上（外部修改过）时在全文里找 `quote.exact`，多处命中用 `prefix`、`suffix` 消歧；唯一命中就更新，找不到或仍有多处时删除，并记可撤回的 `annotation-lost` 修改。tex/md 每次新建会话都按原文重找。修改记录的 `annotations` 保存标注快照，原文删光时与文字一起恢复；原文比较复用 jsdiff `diffChars`，按仍保留的原字符映射，范围内的插字随范围伸长。`annotation-lost` 的撤回只恢复原标注快照和引用，状态为 `lost`，正文保持外部版本；重开后仍保留。列表以 `status: anchored|lost` 告知界面，lost 显示「需重新定位」，旧偏移只作为记录，不能用于高亮。用户对 lost 条目 PATCH `{blockId,from,to}` 后恢复 anchored；再次打开时原文唯一命中也自动恢复。DOCX 的 lost 批注由原件和会话历史恢复，保存时不写入 `comments.xml`，重新定位后才重建原生范围和批注。
 
-**编辑器带范围（U5 补的后端）：** D6 只按文字差异映射范围，编辑器里删字后再撤销时，服务端已经删了条目，撤销回来的文字带不回它；md/tex 拆段时范围也会丢。现在同步请求可带 `annotations`：块被这次修改碰到时，编辑器给的范围（仍在块内、非空）优先于文字映射。这一会话里因改字删掉的条目，编辑器又送回它的范围、且那里的文字和删掉时的 `quote.exact` 一样时，按原 id 恢复（记一条 `{before:null,after}` 的标注快照）；明确删除的条目不会因此回来，换了别的字也不回来。DOCX 批注没有单独的范围，看段落里送回的 comment-start/end 原子。碰到的段落里，不属于任何现存条目的 Word 批注原子在保存前去掉，不会写出孤立的 `commentRange`。修改返回多了 `removed:[{id,type,parentId?}]`。
+**编辑器带范围（U5 补的后端）：** D6 只按文字差异映射范围，编辑器里删字后再撤销时，服务端已经删了条目，撤销回来的文字带不回它；md/tex 拆段时范围也会丢。现在同步请求可带 `annotations`：块被这次修改碰到时，编辑器给的范围（仍在块内、非空）优先于文字映射。这一会话里因改字删掉的条目，编辑器又送回它的范围、且那里的文字和删掉时的 `quote.exact` 一样时，按原 id 恢复（记一条 `{before:null,after}` 的标注快照）；明确删除的条目不会因此回来，换了别的字也不回来。DOCX 批注没有单独的范围，看段落里送回的 comment-start/end 原子。碰到的段落里，不属于任何现存条目的 Word 批注原子在保存前去掉，不会写出孤立的 `commentRange`。修改返回多了 `removed:[{id,type,parentId?}]`。`desk.changed` 另带 `ops`（与 changeIds 一一对应），界面据此只把改字的修改算作专家改写。
 
 ### 6.3 界面与 tex 批注
 
