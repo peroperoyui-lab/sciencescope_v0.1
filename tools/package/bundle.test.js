@@ -88,6 +88,7 @@ async function fixture(root) {
     dompurify: ['dist/purify.es.mjs'],
     cytoscape: ['dist/cytoscape.esm.min.mjs'],
     katex: ['dist/katex.mjs'],
+    mathlive: ['mathlive.min.mjs'],
     '@fontsource-variable/noto-sans-sc': ['index.css', 'files/fixture.woff2'],
   };
   for (const [name, files] of Object.entries(browser)) {

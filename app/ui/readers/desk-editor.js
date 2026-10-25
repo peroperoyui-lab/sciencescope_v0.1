@@ -655,7 +655,12 @@ export function mountDeskDocx(surface, { blocks, media, onChange, onState, onSel
  *   onState: (state: { marks: string[], undo: boolean, redo: boolean }) => void,
  *   onSelection?: () => void }} options
  */
-export function mountDeskText(surface, { text, format, onChange, onState, onSelection }) {
+/**
+ * @param {HTMLElement} surface
+ * @param {{ text: string, format: 'latex' | 'markdown', onChange: () => void, onState: (state: any) => void,
+ *   onSelection?: () => void, onDoc?: () => void }} options `onDoc` follows every change, the server's too.
+ */
+export function mountDeskText(surface, { text, format, onChange, onState, onSelection, onDoc }) {
   const { bom, separator, body } = textShape(text);
   const blockFormat = format === 'latex' ? 'tex' : 'md';
   const report = (state) =>
@@ -681,6 +686,7 @@ export function mountDeskText(surface, { text, format, onChange, onState, onSele
             update.transactions.some((tr) => tr.docChanged && !tr.annotation(Transaction.remote))
           )
             onChange();
+          if (update.docChanged) onDoc?.();
           if (update.docChanged || update.selectionSet) onSelection?.();
           report(update.state);
         }),
@@ -861,6 +867,33 @@ export function mountDeskText(surface, { text, format, onChange, onState, onSele
     /** @param {string|null} id */
     activate: (id) => activateText(view, id),
     text: () => view.state.sliceDoc(),
+    /** The text with \n line breaks, so its offsets are editor positions. */
+    plain: () => view.state.doc.sliceString(0, view.state.doc.length, '\n'),
+    /** Replace editor positions `from`–`to` as a typed change. @param {number} from @param {number} to @param {string} insert */
+    replaceRange(from, to, insert) {
+      view.dispatch({
+        changes: { from, to, insert },
+        selection: { anchor: from + insert.length },
+        userEvent: 'input.replace',
+      });
+    },
+    /** Put the cursor at an editor position and bring it to the middle. @param {number} position */
+    revealAt(position) {
+      const at = Math.max(0, Math.min(position, view.state.doc.length));
+      view.dispatch({
+        selection: { anchor: at },
+        effects: EditorView.scrollIntoView(at, { y: 'center' }),
+      });
+      view.focus();
+    },
+    /** The cursor's 1-based line and column. */
+    lineColumn() {
+      const head = view.state.selection.main.head;
+      const line = view.state.doc.lineAt(head);
+      return { line: line.number, column: head - line.from + 1 };
+    },
+    /** @param {number} position */
+    lineAt: (position) => view.state.doc.lineAt(Math.min(position, view.state.doc.length)).number,
     words: () => countWords(view.state.sliceDoc()),
     /** @param {number} number 1-based */
     scrollToLine(number) {

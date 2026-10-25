@@ -145,15 +145,16 @@ test(
       const folder = process.env.SCIENCESCOPE_SCREENSHOTS;
       if (folder) await desk.screenshot({ path: path.join(folder, 'u1-desk-docx.png') });
 
-      // A folder expands in place; tex opens as source with its sections as the outline.
+      // A folder expands in place; tex opens as source beside its page, numbered sections as the outline.
       await files.getByRole('button', { name: 'chapters' }).click();
       await files.getByRole('button', { name: /method\.tex/ }).click();
       await desk.locator('.ss-desk-source .cm-content').waitFor();
-      assert.deepEqual(await outline.allTextContents(), ['研究方法', '指标合成']);
+      await desk.locator('.ss-page--tex h3', { hasText: '指标合成' }).waitFor();
+      assert.deepEqual(await outline.allTextContents(), ['1 研究方法', '1.1 指标合成']);
       await desk.getByRole('tab', { name: '视图' }).click();
       assert.equal(
-        await desk.getByRole('button', { name: '渲染', exact: true }).isDisabled(),
-        true,
+        await desk.getByRole('button', { name: '并排', exact: true }).getAttribute('aria-pressed'),
+        'true',
       );
 
       // A second request from the main window adds a tab in the same desk.

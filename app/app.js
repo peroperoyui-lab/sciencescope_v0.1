@@ -38,8 +38,9 @@ import { createVersionOrganizer } from './services/versions/organizer.js';
  * @param {{ dataRoot: string, token: string,
  *   runtime?: import('./runtime/port.js').Runtime, runtimeName?: string,
  *   pythonOptions?:Parameters<typeof createPython>[1],
- *   startup?: {mark:(name:string)=>void,finish:(page?:any)=>Promise<void>}, onShutdown?: () => void }} options
- *   `runtime` supplies a scripted model in tests.
+ *   startup?: {mark:(name:string)=>void,finish:(page?:any)=>Promise<void>}, onShutdown?: () => void,
+ *   deskOptions?: Partial<Parameters<typeof createDesk>[1]> }} options
+ *   `runtime` supplies a scripted model in tests; `deskOptions` a stand-in TeX.
  */
 export async function createApp({
   dataRoot,
@@ -49,6 +50,7 @@ export async function createApp({
   pythonOptions,
   onShutdown,
   startup,
+  deskOptions = {},
 }) {
   startup?.mark('createCoreStart');
   const core = await createCore({ dataRoot, settingsResource: providerSettings(dataRoot) });
@@ -71,7 +73,7 @@ export async function createApp({
     indexEntry: (id, relative) => projectIndex.entry(id, relative),
   });
   const projectIndex = createProjectIndex({ core, research, files: projectFiles });
-  const desk = createDesk(core, { versions, projectFiles });
+  const desk = createDesk(core, { versions, projectFiles, ...deskOptions });
   const researchInput = createResearchInput({ core, research });
   startup?.mark('pythonStart');
   const python = createPython(core, pythonOptions);

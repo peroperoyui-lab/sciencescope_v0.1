@@ -39,6 +39,13 @@ export function createDeskActions(api) {
       api.request('DELETE', `/api/desk/annotations/${encodeURIComponent(id)}`),
     /** Where a cited sentence is now in the open working text. @param {any} reference */
     deskFocus: (reference) => api.post('/api/desk/focus', { reference }),
+    /**
+     * Compile the session's saved TeX project. The main file is found from the
+     * open file unless `root` names it. @param {string} id @param {{root?:string}} [body]
+     */
+    compileDesk: (id, body = {}) => api.post(`${session(id)}/compile`, body),
+    /** The last PDF compiled for a session. @param {string} id */
+    deskPdf: (id) => api.bytes(`${session(id)}/pdf`),
     /** A picture inside a docx, as a local object URL. @param {string} id @param {string|number} ref */
     async deskMedia(id, ref) {
       const bytes = await api.bytes(`${session(id)}/media/${encodeURIComponent(String(ref))}`);

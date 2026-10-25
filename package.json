@@ -38,6 +38,7 @@
     "katex": "0.18.9",
     "mammoth": "1.12.3",
     "marked": "18.0.13",
+    "mathlive": "0.111.0",
     "npm": "11.6.2",
     "onnxruntime-node": "1.30.0",
     "papaparse": "5.7.0",

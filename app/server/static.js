@@ -19,6 +19,8 @@ const VENDOR = {
   'purify.js': path.join(modules, 'dompurify', 'dist', 'purify.es.mjs'),
   'katex.js': path.join(modules, 'katex', 'dist', 'katex.mjs'),
   'cytoscape.js': path.join(modules, 'cytoscape', 'dist', 'cytoscape.esm.min.mjs'),
+  // The formula editor; its fonts are KaTeX's (/vendor/katex/fonts/).
+  'mathlive.js': path.join(modules, 'mathlive', 'mathlive.min.mjs'),
 };
 const FONT_ROOT = path.join(modules, '@fontsource-variable', 'noto-sans-sc');
 const LOGO = path.join(repoRoot, 'reference', 'ScienceScope_Logo.png');

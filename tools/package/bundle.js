@@ -45,6 +45,7 @@ async function copyBrowserAssets(modules, output) {
     dompurify: ['dist/purify.es.mjs'],
     cytoscape: ['dist/cytoscape.esm.min.mjs'],
     katex: ['dist'],
+    mathlive: ['mathlive.min.mjs'],
     '@fontsource-variable/noto-sans-sc': ['index.css', 'files'],
   };
   for (const [name, assets] of Object.entries(picks)) {

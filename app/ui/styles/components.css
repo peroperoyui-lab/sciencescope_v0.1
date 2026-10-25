@@ -5902,6 +5902,234 @@ button.ss-act__row:hover {
   padding: 0;
   background: var(--raised);
 }
+/* tex (U6): source, rule and page in one grid row; each view hides columns.
+   The compiled PDF takes the page's column. */
+.ss-desk-split {
+  position: absolute;
+  inset: 0;
+  grid-template-rows: minmax(0, 1fr);
+}
+.ss-desk-split > * {
+  grid-row: 1;
+  min-height: 0;
+}
+.ss-desk-split > .ss-desk-source {
+  position: relative;
+  inset: auto;
+  grid-column: 1;
+}
+.ss-desk-split > .ss-split__rule {
+  grid-column: 2;
+}
+.ss-desk-split > .ss-split__render,
+.ss-desk-split > .ss-desk-pdf {
+  position: relative;
+  inset: auto;
+  grid-column: 3;
+}
+.ss-desk-split[data-view='source'] {
+  grid-template-columns: minmax(0, 1fr) 0 0;
+}
+.ss-desk-split[data-view='source'] > :not(.ss-desk-source),
+.ss-desk-split[data-view='rendered'] > :is(.ss-desk-source, .ss-split__rule),
+.ss-desk-split[data-pdf] > .ss-split__render,
+.ss-desk-split > .ss-desk-pdf[hidden] {
+  display: none;
+}
+.ss-desk-split[data-view='rendered'] {
+  grid-template-columns: 0 0 minmax(0, 1fr);
+}
+.ss-desk-split[data-view='rendered'] > .ss-split__render > .ss-page {
+  max-width: 720px;
+  margin: 24px auto 40px;
+}
+/* The tex page: what the desk's renderer writes (app/ui/tex-render.js). */
+.ss-page--tex {
+  font-size: 14px;
+}
+.ss-page--tex h4 {
+  margin: 12px 0 4px;
+  font: 600 14px/22px var(--font-sans);
+}
+.ss-page--tex :is(ul, ol) {
+  margin: 0 0 6px;
+  padding-left: 2em;
+}
+.ss-page--tex li[data-label] {
+  list-style: none;
+}
+.ss-page--tex li[data-label]::before {
+  content: attr(data-label);
+  display: inline-block;
+  min-width: 1.4em;
+  margin-left: -1.4em;
+  color: var(--muted);
+}
+.ss-page--tex dl {
+  margin: 0 0 6px;
+}
+.ss-page--tex dt {
+  font-weight: 600;
+}
+.ss-page--tex dd {
+  margin: 0 0 4px 2em;
+}
+.ss-page--tex blockquote {
+  margin: 0 0 6px;
+  padding: 0 2em;
+  color: var(--ink-2);
+}
+.ss-page--tex code {
+  font: 400 0.9em var(--font-mono);
+}
+.ss-page--tex :is(th, td)[data-align='l'] {
+  text-align: left;
+}
+.ss-page--tex :is(th, td)[data-align='r'] {
+  text-align: right;
+}
+.ss-page__cite,
+.ss-page__url,
+.ss-page__fn {
+  color: var(--accent-ink);
+}
+.ss-page__url {
+  font: 400 0.9em var(--font-mono);
+}
+.ss-page__fn {
+  font-size: 0.7em;
+}
+/* What the renderer does not know, shown as written. */
+.ss-page__raw,
+.ss-page p.ss-page__raw {
+  color: var(--faint);
+  font: 400 12.5px/1.6 var(--font-mono);
+  text-indent: 0;
+}
+.ss-page__pre {
+  margin: 6px 0 10px;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  background: var(--sunken);
+  font: 400 12.5px/1.6 var(--font-mono);
+  white-space: pre-wrap;
+}
+.ss-page p.ss-page__center,
+.ss-page__center {
+  text-align: center;
+  text-indent: 0;
+}
+.ss-page__title {
+  margin-bottom: 18px;
+}
+.ss-page__abstract {
+  margin: 0 2em 16px;
+  font-size: 13.5px;
+}
+.ss-page__abstract h3 {
+  text-align: center;
+}
+.ss-page__float {
+  margin: 10px 0 14px;
+}
+.ss-page p.ss-page__caption {
+  margin: 6px 0 10px;
+  font: 600 13px/20px var(--font-sans);
+  text-align: center;
+  text-indent: 0;
+}
+.ss-page__fig {
+  display: block;
+  margin: 6px auto;
+  padding: 24px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+  color: var(--faint);
+  font: 400 12px/18px var(--font-mono);
+  text-align: center;
+  text-indent: 0;
+}
+.ss-page__thm {
+  margin: 8px 0;
+}
+.ss-page p.ss-page__qed {
+  text-align: right;
+  text-indent: 0;
+}
+.ss-page__bib ol,
+.ss-page__notes ol {
+  margin: 0;
+  padding-left: 2em;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.ss-page__bib ol {
+  padding-left: 0;
+  list-style: none;
+}
+.ss-page__notes {
+  margin-top: 20px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.ss-eqbox .katex-display {
+  margin: 0;
+}
+.ss-eqbox--inline {
+  padding: 0 1px;
+}
+.ss-eqbox--wide {
+  display: block;
+  width: 100%;
+}
+.ss-mathedit math-field {
+  width: 100%;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ink);
+  font-size: 20px;
+}
+.ss-mathedit math-field::part(menu-toggle),
+.ss-mathedit math-field::part(virtual-keyboard-toggle) {
+  display: none;
+}
+.ss-mathedit__hint {
+  font-size: 12px;
+}
+.ss-mathedit__pal .ss-frac {
+  font-size: 10px;
+}
+.ss-mathedit__actions {
+  display: flex;
+  gap: var(--sp-6);
+}
+/* A failed compile: the errors over the page, each line a jump into the source. */
+.ss-desk-compile {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2;
+  width: min(440px, calc(100% - 32px));
+  background-color: var(--raised);
+  background-image: linear-gradient(var(--danger-soft), var(--danger-soft));
+  box-shadow: var(--shadow-2);
+}
+.ss-desk-compile__line {
+  margin-right: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--danger);
+  font: 500 12px/18px var(--font-mono);
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.ss-desk-compile__line:disabled {
+  text-decoration: none;
+  cursor: default;
+}
 .ss-desk-canvas__state {
   position: absolute;
   inset: 0;

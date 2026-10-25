@@ -191,14 +191,63 @@ function ViewSwitch({ views, view, onView, enabled = views }) {
   </div>`;
 }
 
+/** "TeX Live 2025" or "MiKTeX 25.12" from an engine's version line. @param {any} engine */
+const texName = (engine) =>
+  /TeX Live \d{4}|MiKTeX [\d.]+\d/u.exec(engine.version)?.[0] ??
+  { miktex: 'MiKTeX', texlive: 'TeX Live' }[engine.distribution] ??
+  'TeX';
+
+/**
+ * 编译 PDF, with the PDF/page switch once a PDF exists. Without TeX the button
+ * is off and a tag says how to get it.
+ * @param {{ edit: any, editing: any, engines: any[] | null, onCompile: () => void }} props
+ */
+function CompileButtons({ edit, editing, engines, onCompile }) {
+  const tex = edit?.tex;
+  const missing = engines != null && !engines.length;
+  return html`${
+      missing &&
+      html`<span
+        class="ss-tag"
+        data-tip=${t('没找到 TeX。装好 MiKTeX 或 TeX Live 后，到「设置 → 编辑台」点「重新检查」。不装也能编辑和看渲染。')}
+        ><${Lucide} name="info" small />${t('未装 TeX')}</span
+      >`
+    }
+    ${
+      tex?.pdf &&
+      html`<${IconButton}
+        icon="file-text"
+        label=${tex.showing ? t('回到实时渲染') : t('看编译的 PDF')}
+        pressed=${tex.showing}
+        onClick=${() => editing.current?.togglePdf()}
+      />`
+    }
+    <button
+      type="button"
+      class="ss-btn ss-btn--sm"
+      disabled=${!tex || !engines?.length || tex.compiling}
+      data-tip=${
+        engines?.length
+          ? t('先写回项目文件，再用本机的 {name} 编译，结果在渲染栏预览', {
+              name: texName(engines[0]),
+            })
+          : undefined
+      }
+      onClick=${onCompile}
+    >
+      ${tex?.compiling ? html`<span class="ss-spin"></span>${t('正在编译…')}` : html`<${Lucide} name="file-output" />${t('编译 PDF')}`}
+    </button>`;
+}
+
 /**
  * @param {{ tab: any, view: string, onView: (view: string) => void, ribbon: string,
  *   onRibbon: (name: string) => void, collapsed: boolean, onCollapse: () => void,
  *   nav: boolean, onNav: () => void, panel: boolean, onPanel: () => void,
  *   page: any, pdf: any, edit: any, editing: any, onSave: () => void,
  *   compare: string, comparing: boolean, onCompare: () => void,
- *   onNote: (type: 'comment' | 'index') => void }} props
- * `compare` is why 比较 is off, or '' when it can start; `onNote` starts a comment or index.
+ *   onNote: (type: 'comment' | 'index') => void, texEngines: any[] | null, onCompile: () => void }} props
+ * `compare` is why 比较 is off, or '' when it can start; `onNote` starts a comment or index;
+ * `texEngines` is the TeX found on this computer (null while looking).
  */
 function Ribbon({
   tab,
@@ -221,9 +270,12 @@ function Ribbon({
   comparing,
   onCompare,
   onNote,
+  texEngines,
+  onCompile,
 }) {
   const actions = useActions();
   const format = tab?.format;
+  const texEdit = edit?.format === 'tex';
   const tabs =
     format === 'pdf'
       ? [
@@ -240,15 +292,17 @@ function Ribbon({
   const docx = edit?.format === 'docx';
   const reason = tab ? readOnlyReason(tab, view) : '';
   const run = (name) => () => editing.current?.command(name);
+  // In TeX, bold and italic put the command around the selection.
+  const TEX_MARKS = { b: ['\\textbf{', '}'], i: ['\\emph{', '}'] };
   /** @param {string} name @param {string} icon @param {string} label @param {string} [kbd] */
   const markButton = (name, icon, label, kbd) =>
     html`<${IconButton}
       icon=${icon}
-      label=${label}
-      kbd=${kbd}
-      disabled=${!docx}
+      label=${texEdit ? `${label}（${TEX_MARKS[name][0]}…}）` : label}
+      kbd=${texEdit ? undefined : kbd}
+      disabled=${!docx && !texEdit}
       pressed=${docx ? edit.marks.includes(name) : undefined}
-      onClick=${run(name)}
+      onClick=${texEdit ? () => editing.current?.wrap(...TEX_MARKS[name]) : run(name)}
     />`;
   const openOriginal = () =>
     actions.attempt(() =>
@@ -266,7 +320,6 @@ function Ribbon({
             views=${['source', 'split', 'rendered']}
             view=${view}
             onView=${onView}
-            enabled=${['source']}
           />`
         : null;
   // PDF comments and indexes come with PDF marks (U6).
@@ -353,7 +406,21 @@ function Ribbon({
       }
       ${
         format === 'tex' &&
-        html`<${RibbonButton} icon="radical" text=${t('公式')} disabled=${off} />`
+        html`<${RibbonButton}
+            icon="radical"
+            text=${t('公式')}
+            tip=${t('在光标处插入公式；点渲染里的公式可以改它')}
+            disabled=${!texEdit}
+            onClick=${(event) =>
+              editing.current?.newFormula(event.currentTarget.getBoundingClientRect())}
+          />
+          <${RibbonButton}
+            icon="quote"
+            text=${t('引用')}
+            tip=${t('插入 {cite}，在括号里写文献的键', { cite: '\\cite{}' })}
+            disabled=${!texEdit}
+            onClick=${() => editing.current?.wrap('\\cite{', '}')}
+          />`
       }
       ${
         format !== 'tex' &&
@@ -365,12 +432,7 @@ function Ribbon({
       ${marks}
       <span class="ss-ribbon__spacer"></span>
       ${!edit && reason && html`<${ReadOnly} tip=${reason} />`}
-      ${
-        format === 'tex' &&
-        html`<button type="button" class="ss-btn ss-btn--sm" disabled=${off}>
-          <${Lucide} name="file-output" />${t('编译 PDF')}
-        </button>`
-      }
+      ${format === 'tex' && html`<${CompileButtons} edit=${edit} editing=${editing} engines=${texEngines} onCompile=${onCompile} />`}
       <button
         type="button"
         class="ss-btn ss-btn--primary ss-btn--sm"
@@ -528,8 +590,8 @@ function SaveState({ status }) {
   >`;
 }
 
-/** @param {{ tab: any, group: any, info: any, edit: any, comparing: boolean }} props */
-function Statusbar({ tab, group, info, edit, comparing }) {
+/** @param {{ tab: any, group: any, info: any, edit: any, comparing: boolean, view: string }} props */
+function Statusbar({ tab, group, info, edit, comparing, view }) {
   const version =
     tab?.kind === 'version'
       ? group?.versions.find((entry) => entry.id === tab.id)
@@ -558,6 +620,28 @@ function Statusbar({ tab, group, info, edit, comparing }) {
         ${
           info.pages != null &&
           html`<span class="ss-statusbar__item">${t('共 {n} 页', { n: info.pages })}</span>`
+        }
+        ${
+          edit &&
+          edit.format !== 'docx' &&
+          info.cursor &&
+          html`<span class="ss-statusbar__item"
+            >${t('第 {line} 行，第 {column} 列', info.cursor)}</span
+          >`
+        }
+        ${
+          edit?.tex &&
+          view !== 'source' &&
+          html`<span class="ss-statusbar__item"
+            >${
+              edit.tex.showing
+                ? t('预览：编译的 PDF（{engine}，{s} 秒）', {
+                    engine: edit.tex.result?.engine ?? '',
+                    s: ((edit.tex.result?.durationMs ?? 0) / 1000).toFixed(1),
+                  })
+                : t('渲染：内置，不需要装 TeX')
+            }</span
+          >`
         }`
     }
     <span class="ss-statusbar__spacer"></span>
@@ -666,8 +750,10 @@ export function DeskWindow() {
   // A sentence a chat mark points at, shown once its document is open.
   const [focus, setFocus] = useState(/** @type {any} */ (null));
   const [ready, setReady] = useState(0);
-  // Markdown opens as source: the rendered view is read-only until U6.
-  const view = (tab && views[tab.key]) ?? 'source';
+  // Markdown opens as source (its rendered view is read-only until U6b); TeX side by side.
+  const view = (tab && views[tab.key]) ?? (tab?.format === 'tex' ? 'split' : 'source');
+  // The TeX found on this computer, looked up when a TeX file is first open.
+  const [texEngines, setTexEngines] = useState(/** @type {any[] | null} */ (null));
   const panels = settings?.appearance?.panels ?? {};
 
   const open = (target) => {
@@ -677,6 +763,8 @@ export function DeskWindow() {
       return;
     }
     const next = tabFor(target);
+    // A TeX file needs the width for source and page; the side panel opens again with a note.
+    if (next.format === 'tex' && !tabs.some((entry) => entry.key === next.key)) setPanel(false);
     setTabs((current) =>
       current.some((entry) => entry.key === next.key) ? current : [...current, next],
     );
@@ -848,6 +936,24 @@ export function DeskWindow() {
   }, []);
   const saveRef = useRef(save);
   saveRef.current = save;
+  useEffect(() => {
+    if (tab?.format !== 'tex' || texEngines) return;
+    actions
+      .texEngines()
+      .then((found) => setTexEngines(found.engines ?? []))
+      .catch(() => setTexEngines([]));
+  }, [tab?.format]);
+  // TeX compiles the project file, so what is typed is written back first.
+  const compile = async () => {
+    await save();
+    const current = editing.current;
+    if (!current?.compile) return;
+    if (current.session.unsaved) {
+      actions.toast(t('没有写回项目文件，所以没有编译。'));
+      return;
+    }
+    await current.compile();
+  };
 
   // The outline marks the last heading above the top of the visible page.
   const onScroll = () => {
@@ -927,6 +1033,8 @@ export function DeskWindow() {
       comparing=${comparing}
       onCompare=${toggleCompare}
       onNote=${notes.add}
+      texEngines=${texEngines}
+      onCompile=${compile}
     />
     <div class="ss-shell__body">
       ${
@@ -988,6 +1096,7 @@ export function DeskWindow() {
                       }}
                       onRemoved=${notes.onRemoved}
                       onReady=${() => setReady((value) => value + 1)}
+                      onView=${(next) => setViews((known) => ({ ...known, [tab.key]: next }))}
                       onInfo=${(next) => setInfo((known) => ({ ...known, ...next }))}
                     />`
                   : html`<div class="ss-empty ss-desk-canvas__state">
@@ -1016,7 +1125,14 @@ export function DeskWindow() {
       }
       ${notes.layer}<${FilePreview} />
     </div>
-    <${Statusbar} tab=${tab} group=${group} info=${info} edit=${edit} comparing=${comparing} />
+    <${Statusbar}
+      tab=${tab}
+      group=${group}
+      info=${info}
+      edit=${edit}
+      comparing=${comparing}
+      view=${view}
+    />
     ${question}
   </div>`;
 }

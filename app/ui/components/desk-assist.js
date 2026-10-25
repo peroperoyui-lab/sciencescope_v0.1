@@ -53,6 +53,9 @@ function ChangeText({ run, diff }) {
 
 /** Events inside a dialog over the page are not the page's. @param {Event} event */
 const inDialog = (event) => !!(/** @type {Element} */ (event.target).closest?.('[role="dialog"]'));
+// The tex page beside the source is for reading and formulas; its text is not the selection.
+const inRender = (event) =>
+  !!(/** @type {Element} */ (event.target).closest?.('.ss-split__render, .ss-desk-pdf'));
 
 /**
  * @param {{ tab: any, editing: any, canvas: any, notes: any }} props
@@ -138,7 +141,7 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
   useEffect(() => {
     const down = (event) => {
       if (!canvas.current?.contains(event.target) || bar.current?.contains(event.target)) return;
-      if (inDialog(event)) return;
+      if (inDialog(event) || inRender(event)) return;
       pressed.current = true;
       setDragging(true);
     };
@@ -341,7 +344,7 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
   /** @param {MouseEvent} event */
   function onContextMenu(event) {
     const current = editing.current;
-    if (!current?.session || inDialog(event)) return;
+    if (!current?.session || inDialog(event) || inRender(event)) return;
     let selected = current.selection();
     const { clientX: x, clientY: y } = event;
     const { rect } = selected ?? {};
