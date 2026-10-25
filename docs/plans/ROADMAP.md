@@ -92,7 +92,8 @@ Windows 应用图标全套尺寸（16–256 px、`.ico`）、安装程序图（N
 | P4         | 启动和页面性能；后台功能（纪要、记忆整理、版本说明、知识库整理）在真实项目上的用量体检；安装和更新耗时（R6b 演练在 USB 机械盘上：全新安装 7.6 分钟，更新 15 分钟，覆盖安装 23.6 分钟，主要是约 1.3 万个小文件，要减少文件数）；第三轮首测（用户用新安装包走完整流程，含知识库和编辑台） | Sol + Claude |
 | R5         | ✅ 2026-10-23 旧线已删除（393 个文件、DSH 开发依赖），全量导出后端合并；导出按钮和进度由 Claude 接入设置页。任务书 `tasks/done/R5_remove_old_line_full_export.md`，验收见 `handoff/reports/R5.md` | Sol          |
 | R6b        | ✅ 2026-10-24 更新通道（GitHub Releases，签名校验）、两次升级演练、安装时最低配置检测已合并。还差：更新提示界面（Claude）、首次正式发布（用户）、Authenticode 证书（用户） | Sol          |
-| R6c        | 安装和更新提速（文件数降到 3,000 以内，更新 3 分钟内），服务商 header 改存凭据。2026-10-24 任务书 `tasks/R6c_install_speed_header_secrets.md` | Sol          |
+| R6c        | ✅ 2026-10-24 安装 3,191 个文件、全新安装 55 秒、更新 109 秒；服务商 header 改存凭据。任务书 `tasks/done/R6c_install_speed_header_secrets.md` | Sol          |
+| SH1        | ✅ 2026-10-25 Windows 自带 PowerShell 5 启动后台进程时不再等到超时。任务书 `tasks/done/SH1_ps5_background_output.md` | Sol          |
 | alpha 候选 | 候选安装包上的完整流程实测证据；发布前另开一个 astra 审阅线程，跑全部测试并模拟真人从头用一遍（用户 2026-10-23）。之前要补齐设置页和各项功能的界面 | Sol + 用户 + astra |
 
 ## alpha 之后（用户决定是否以及何时做）

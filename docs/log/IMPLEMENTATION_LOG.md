@@ -1,5 +1,12 @@
 # 实施记录
 
+## 2026-10-25 SH1 PowerShell 5 后台输出（Codex，Claude 审）
+
+- 原因：PS5 执行前已有一份可继承的 stdout 副本，经 native launcher 传给后台进程，后台不退出时管道一直不结束，前台要等到超时；PS7 的 Node 场景没有这份副本。
+- 修复（`shell.js`、`windows-shell-job.cs`）：PS5 的 stdout/stderr 直接追加到工具输出文件，主 shell 退出就返回，后台继续写；无 Job 时停止改用内置 PS5 核验进程身份，先停根进程再复查后代，确认不了返回 `SHELL_STOP_FAILED`。PS7、Linux 和默认超时不变。
+- 对照：PS5 Node 5.564→0.577 秒，Start-Process 5.285→0.508 秒，PS7 Node 0.778→0.664 秒；Windows 干净检出完整检查 503/503，安装版真实模型跑一次 shell 967 毫秒返回、后台继续输出。
+- 遗留：PS7 重定向 Start-Process 的原有超时未改；无 Job 时首次快照前已退出的中间父进程仍追溯不到。
+
 ## 2026-10-25 U4 编辑台改写交互（Claude）
 
 - 浮动工具条、右键菜单、专家修改提示条在 `components/desk-assist.js`，纯逻辑 `desk-assist.js` 有 node 测试；编辑器加了选区、句子、按坐标放光标、定位高亮。md/tex 的块切分挪到 `app/shared/text-blocks.js`，前后端共用。
