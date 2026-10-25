@@ -13,12 +13,13 @@ export { python } from '@codemirror/legacy-modes/mode/python';
 export { default as Papa } from 'papaparse';
 export { renderAsync as renderDocx } from 'docx-preview';
 // The editing desk (U2): ProseMirror for docx pages, CodeMirror commands for sources.
-export { Schema } from 'prosemirror-model';
+export { Schema, Fragment, Slice } from 'prosemirror-model';
 export {
   EditorState as PMState,
   Plugin,
   PluginKey,
   TextSelection,
+  NodeSelection,
   Selection,
 } from 'prosemirror-state';
 export { EditorView as PMView, Decoration, DecorationSet } from 'prosemirror-view';
@@ -30,7 +31,15 @@ export {
   undoDepth as pmUndoDepth,
   redoDepth as pmRedoDepth,
 } from 'prosemirror-history';
-export { baseKeymap, toggleMark, splitBlockAs, chainCommands } from 'prosemirror-commands';
+export {
+  baseKeymap,
+  toggleMark,
+  splitBlockAs,
+  chainCommands,
+  setBlockType,
+  exitCode,
+} from 'prosemirror-commands';
+export { splitListItem, liftListItem, sinkListItem, wrapInList } from 'prosemirror-schema-list';
 export { keymap } from '@codemirror/view';
 export {
   history,
@@ -42,4 +51,4 @@ export {
   redoDepth,
   invertedEffects,
 } from '@codemirror/commands';
-export { diffArrays } from 'diff';
+export { diffArrays, diffChars } from 'diff';

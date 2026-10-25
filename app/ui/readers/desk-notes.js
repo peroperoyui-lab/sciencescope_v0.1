@@ -230,6 +230,9 @@ export const textNotes = () => [textField, undoNotes];
 /** @param {any} state @returns {any[]} ranges in editor positions */
 export const textNoteRanges = (state) => [...state.field(textField).notes.values()];
 
+/** The notes' state, a new object whenever they or the active one change. @param {any} state */
+export const textNotesValue = (state) => state.field(textField);
+
 /**
  * Put the server's items in, outside the undo history.
  * @param {any} view @param {{id:string,type:string,quiet?:boolean,from:number,to:number}[]} notes

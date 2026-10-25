@@ -110,7 +110,9 @@ workflow, helping the user understand and advance their own research project
   look for a mature open-source library or reference implementation first; name
   it and its licence in the report.
 - Verification: related tests while working; the full `npm run check` once before
-  delivery. When the user can see the change,
+  delivery. Claude hands simple tasks and fixed regression checks (`npm run check`,
+  single tests, reading briefs and docs) to Haiku subagents to save quota
+  (user 2026-10-22, 10-25). When the user can see the change,
   screenshots at 100% and 125% scaling. AI paths are accepted from a fresh
   install: add the provider in Settings, then run the task.
   Native acceptance only if native code changed.

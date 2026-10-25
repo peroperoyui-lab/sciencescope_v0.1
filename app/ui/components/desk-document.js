@@ -1,10 +1,9 @@
 // The editing desk's page area. A project's docx, Markdown and TeX open in a
-// desk session and are edited in place (U2): docx as a page, Markdown as
-// source, TeX as source beside its live page (U6), where a click on a formula
-// opens the formula editor and a compiled PDF can take the page's place.
-// Typing is synced to the session; Save writes the project file. Versions,
-// PDF and the Markdown rendered view stay read-only for now
-// (docs/architecture/EDITING_DESK.md §10).
+// desk session and are edited in place (U2): docx as a page, Markdown as its
+// page or its source (U6b), TeX as source beside its live page (U6a). A click
+// on a formula opens the formula editor; a compiled PDF can take the TeX
+// page's place. Typing is synced to the session; Save writes the project
+// file. Versions and PDF stay read-only (docs/architecture/EDITING_DESK.md §10).
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { countWords } from '../desk-blocks.js';
@@ -58,6 +57,65 @@ function pageOutline(root) {
     node.setAttribute('data-outline', String(index));
     return { level: Number(node.tagName[1]) - top, text: node.textContent.trim(), index };
   });
+}
+
+// The editor commands a Markdown page answers while it is shown, instead of the source.
+const ROUTED = [
+  'selection',
+  'cursor',
+  'caretAt',
+  'selectSentence',
+  'reveal',
+  'copy',
+  'paste',
+  'notesAt',
+  'command',
+  'focus',
+  'scrollToLine',
+  'lineColumn',
+];
+const PICTURE_TYPES = {
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  gif: 'image/gif',
+  webp: 'image/webp',
+  svg: 'image/svg+xml',
+};
+
+/**
+ * A picture a Markdown file links to, from the project folder, as an object
+ * URL; null for web addresses and paths outside the project.
+ * @param {any} actions @param {any} tab @param {string} src
+ * @returns {Promise<string | null>}
+ */
+async function projectPicture(actions, tab, src) {
+  if (/^[a-z][a-z\d+.-]*:/iu.test(src) || src.startsWith('/')) return null;
+  const parts = tab.path.split('/').slice(0, -1);
+  for (const part of decodeURI(src.split(/[?#]/u)[0]).split('/')) {
+    if (part === '..') {
+      if (!parts.length) return null;
+      parts.pop();
+    } else if (part && part !== '.') parts.push(part);
+  }
+  const path = parts.join('/');
+  const type = PICTURE_TYPES[path.split('.').pop().toLowerCase()];
+  if (!type) return null;
+  try {
+    const bytes = await actions.previewBytes({ kind: 'project', projectId: tab.projectId, path });
+    return URL.createObjectURL(new Blob([bytes], { type }));
+  } catch {
+    return null;
+  }
+}
+
+/** A new formula in Markdown source: on its own when the line is empty. @param {any} editor @param {string} latex */
+function insertSourceFormula(editor, latex) {
+  const cursor = editor.view.state.selection.main;
+  const line = editor.view.state.doc.lineAt(cursor.head);
+  if (!line.text.trim()) editor.replaceRange(line.from, line.to, `$$\n${latex}\n$$`);
+  else editor.replaceRange(cursor.from, cursor.to, `$${latex}$`);
+  editor.focus();
 }
 
 // The last page's final sync, so the next view of the same file includes it.
@@ -147,7 +205,7 @@ export function DeskDocument({
     tab.kind === 'version'
       ? { kind: 'version', id: tab.id }
       : { kind: 'project', projectId: tab.projectId, path: tab.path };
-  const editable = editableTab(tab) && !(tab.format === 'md' && view === 'rendered');
+  const editable = editableTab(tab);
 
   useEffect(() => {
     let active = true;
@@ -166,7 +224,11 @@ export function DeskDocument({
       const surface = document.createElement('div');
       const docx = tab.format === 'docx';
       const latex = tab.format === 'tex';
+      const md = tab.format === 'md';
       const format = latex ? 'latex' : 'markdown';
+      // md: the source and the page, one of them shown.
+      const mdHost = document.createElement('div');
+      const mdShown = () => md && !mdHost.hidden;
       // tex: source | rule | render pane, with the compiled PDF over the pane.
       const split = document.createElement('div');
       const pane = document.createElement('div');
@@ -184,8 +246,13 @@ export function DeskDocument({
         pane.append(page);
         split.append(surface, rule, pane, pdfHost);
         root.replaceChildren(split);
+      } else if (md) {
+        mdHost.hidden = viewRef.current !== 'rendered';
+        surface.hidden = !mdHost.hidden;
+        root.replaceChildren(surface, mdHost);
       } else root.replaceChildren(surface);
       let editor;
+      let mdPage = null;
       let texRender = null;
       let texOutline = [];
       let pdfReader = null;
@@ -216,7 +283,7 @@ export function DeskDocument({
           info();
         },
         onState: (next) => {
-          state = next;
+          state = mdShown() ? { ...next, marks: mdPage?.marks() ?? [] } : next;
           publish();
         },
         onSelection: () => {
@@ -224,10 +291,14 @@ export function DeskDocument({
           if (docx) return;
           cancelAnimationFrame(cursorFrame);
           cursorFrame = requestAnimationFrame(
-            () => active && onInfo({ cursor: editor.lineColumn() }),
+            () => active && onInfo({ cursor: (mdShown() ? mdPage : editor).lineColumn() }),
           );
         },
-        onDoc: () => texRender?.changed(),
+        onDoc: () => {
+          texRender?.changed();
+          mdPage?.sourceChanged();
+        },
+        onUpdate: (update) => mdPage?.sourceUpdated(update),
       };
       const pictures = new Map();
       if (docx) {
@@ -247,6 +318,34 @@ export function DeskDocument({
         const { mountDeskText } = await import('../readers/desk-editor.js');
         if (!active) return;
         editor = mountDeskText(surface, { text: opened.text, format, ...handlers });
+      }
+      if (md) {
+        const { mountMdPage } = await import('../readers/md-page.js');
+        if (!active) {
+          editor.dispose();
+          return;
+        }
+        mdPage = mountMdPage(mdHost, editor, {
+          visible: () => !mdHost.hidden,
+          onSelection: handlers.onSelection,
+          onMarks: (marks) => {
+            state = { ...state, marks };
+            publish();
+          },
+          onFormula: (found) =>
+            setFormula({
+              source: found.tex,
+              number: '',
+              line: found.line,
+              rect: found.rect,
+              from: found.pos,
+              apply: (value) => mdPage.setFormula(found.pos, value),
+            }),
+          media: (src) => {
+            if (!pictures.has(src)) pictures.set(src, projectPicture(actions, tab, src));
+            return pictures.get(src);
+          },
+        });
       }
       if (latex) {
         const { mountTexRender } = await import('../readers/tex-split.js');
@@ -361,8 +460,15 @@ export function DeskDocument({
         onError: (message) => actions.toast(message),
         onRemoved: (items) => onRemoved?.(items),
       });
+      // md: what acts on the text goes to the page while it is shown.
+      const routed = md
+        ? Object.fromEntries(
+            ROUTED.map((name) => [name, (...args) => (mdShown() ? mdPage : editor)[name](...args)]),
+          )
+        : {};
       editing.current = {
         ...editor,
+        ...routed,
         session: session.current,
         // After choosing the outside version: mount the page again.
         reopen: () => setReload((value) => value + 1),
@@ -380,7 +486,21 @@ export function DeskDocument({
                   rect,
                 }),
             }
-          : {}),
+          : md
+            ? {
+                /** @param {DOMRect} rect */
+                newFormula: (rect) =>
+                  setFormula({
+                    insert: true,
+                    source: '',
+                    number: '',
+                    line: routed.lineColumn().line,
+                    rect,
+                    apply: (value) =>
+                      mdShown() ? mdPage.insertFormula(value) : insertSourceFormula(editor, value),
+                  }),
+              }
+            : {}),
       };
       tex.current = latex
         ? {
@@ -391,7 +511,21 @@ export function DeskDocument({
               if (next !== 'source') requestAnimationFrame(() => texRender?.refresh());
             },
           }
-        : null;
+        : md
+          ? {
+              editor,
+              setView(next) {
+                mdHost.hidden = next !== 'rendered';
+                surface.hidden = !mdHost.hidden;
+                if (mdShown()) mdPage.shown();
+                else /** @type {any} */ (editor).view.requestMeasure();
+                handlers.onState({ ...state, marks: [] });
+                handlers.onSelection();
+              },
+            }
+          : null;
+      // A view chosen while the page was opening.
+      tex.current?.setView(viewRef.current);
       setSessionId(opened.session.id);
       onSession(opened.session.id);
       onInfo({
@@ -401,7 +535,7 @@ export function DeskDocument({
             ? texOutline
             : sourceOutline(editor.text(), format),
         words: editor.words(),
-        ...(docx ? {} : { cursor: editor.lineColumn() }),
+        ...(docx ? {} : { cursor: (mdShown() ? mdPage : editor).lineColumn() }),
       });
       publish();
       onReady?.();
@@ -416,12 +550,14 @@ export function DeskDocument({
             .finally(() => {
               current.detach();
               texRender?.dispose();
+              mdPage?.dispose();
               pdfReader?.dispose();
               editor.dispose();
               for (const url of pictures.values()) url.then(URL.revokeObjectURL, () => {});
             });
         },
         scrollToLine(number) {
+          if (mdShown()) return mdPage.scrollToLine(number);
           if (!texRender) return editor.scrollToLine(number);
           if (split.dataset.view === 'rendered') return texRender.scrollToLine(number);
           editor.scrollToLine(number);
@@ -488,8 +624,8 @@ export function DeskDocument({
       setSessionId(null);
       onEdit(null);
     };
-    // A tex page changes its view in place; Markdown's rendered view is another reader.
-  }, [tab.key, tab.format === 'md' ? view : '', reload]);
+    // Pages being edited change their view in place; a read-only Markdown view is another reader.
+  }, [tab.key, tab.format === 'md' && !editable ? view : '', reload]);
 
   useEffect(() => tex.current?.setView(view), [view]);
 
@@ -514,6 +650,10 @@ export function DeskDocument({
   };
   /** Write the edited formula back as one change, unless its source moved meanwhile. */
   const applyFormula = (latex) => {
+    if (formula.apply) {
+      formula.apply(latex);
+      return closeFormula();
+    }
     const editor = tex.current?.editor;
     if (!editor) return closeFormula();
     if (formula.insert) {

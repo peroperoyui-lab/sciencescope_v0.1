@@ -114,11 +114,10 @@ const Sep = () => html`<span class="ss-ribbon__sep"></span>`;
 const ReadOnly = ({ tip }) =>
   html`<span class="ss-tag" data-tip=${tip}> <${Lucide} name="eye" small />${t('只读')} </span>`;
 
-/** Why a tab cannot be edited. @param {any} tab @param {string} view */
-function readOnlyReason(tab, view) {
+/** Why a tab cannot be edited. @param {any} tab */
+function readOnlyReason(tab) {
   if (tab.kind === 'version') return t('历史版本只读；要修改，请打开项目文件夹里的文稿');
   if (tab.format === 'pdf') return t('PDF 正文只读，批注和索引稍后接入');
-  if (tab.format === 'md' && view === 'rendered') return t('渲染视图只读，切到「源码」编辑');
   return '';
 }
 
@@ -290,20 +289,27 @@ function Ribbon({
   const current = tabs.some(([name]) => name === ribbon) ? ribbon : 'home';
   const off = true;
   const docx = edit?.format === 'docx';
-  const reason = tab ? readOnlyReason(tab, view) : '';
+  const reason = tab ? readOnlyReason(tab) : '';
   const run = (name) => () => editing.current?.command(name);
-  // In TeX, bold and italic put the command around the selection.
+  // In TeX and Markdown source, bold and italic put markup around the selection.
   const TEX_MARKS = { b: ['\\textbf{', '}'], i: ['\\emph{', '}'] };
+  const MD_MARKS = { b: ['**', '**'], i: ['*', '*'] };
+  const mdSource = edit?.format === 'md' && view === 'source';
+  const mdPage = edit?.format === 'md' && view === 'rendered';
+  const wrapping = texEdit ? TEX_MARKS : mdSource ? MD_MARKS : null;
   /** @param {string} name @param {string} icon @param {string} label @param {string} [kbd] */
-  const markButton = (name, icon, label, kbd) =>
-    html`<${IconButton}
+  const markButton = (name, icon, label, kbd) => {
+    // The ribbon can draw the next tab's buttons before its editor reports.
+    const markup = wrapping?.[name];
+    return html`<${IconButton}
       icon=${icon}
-      label=${texEdit ? `${label}（${TEX_MARKS[name][0]}…}）` : label}
-      kbd=${texEdit ? undefined : kbd}
-      disabled=${!docx && !texEdit}
-      pressed=${docx ? edit.marks.includes(name) : undefined}
-      onClick=${texEdit ? () => editing.current?.wrap(...TEX_MARKS[name]) : run(name)}
+      label=${markup ? `${label}（${markup.join('…')}）` : label}
+      kbd=${markup ? undefined : kbd}
+      disabled=${!docx && !markup && !mdPage}
+      pressed=${docx || mdPage ? edit.marks.includes(name) : undefined}
+      onClick=${markup ? () => editing.current?.wrap(...markup) : run(name)}
     />`;
+  };
   const openOriginal = () =>
     actions.attempt(() =>
       actions.openPreviewOriginal(
@@ -387,7 +393,7 @@ function Ribbon({
         onClick=${run('redo')}
       />
       <${Sep} />
-      ${format === 'tex' && html`${views}<${Sep} />`}
+      ${views && html`${views}<${Sep} />`}
       <button
         type="button"
         class="ss-select ss-select--sm"
@@ -405,28 +411,41 @@ function Ribbon({
         ${markButton('sup', 'superscript', t('上标'))} ${markButton('sub', 'subscript', t('下标'))}`
       }
       ${
+        (format === 'tex' || format === 'md') &&
+        html`<${RibbonButton}
+          icon="radical"
+          text=${t('公式')}
+          tip=${t('在光标处插入公式；点渲染里的公式可以改它')}
+          disabled=${!edit}
+          onClick=${(event) =>
+            editing.current?.newFormula(event.currentTarget.getBoundingClientRect())}
+        />`
+      }
+      ${
         format === 'tex' &&
         html`<${RibbonButton}
-            icon="radical"
-            text=${t('公式')}
-            tip=${t('在光标处插入公式；点渲染里的公式可以改它')}
-            disabled=${!texEdit}
-            onClick=${(event) =>
-              editing.current?.newFormula(event.currentTarget.getBoundingClientRect())}
-          />
-          <${RibbonButton}
-            icon="quote"
-            text=${t('引用')}
-            tip=${t('插入 {cite}，在括号里写文献的键', { cite: '\\cite{}' })}
-            disabled=${!texEdit}
-            onClick=${() => editing.current?.wrap('\\cite{', '}')}
-          />`
+          icon="quote"
+          text=${t('引用')}
+          tip=${t('插入 {cite}，在括号里写文献的键', { cite: '\\cite{}' })}
+          disabled=${!texEdit}
+          onClick=${() => editing.current?.wrap('\\cite{', '}')}
+        />`
       }
       ${
         format !== 'tex' &&
         html`<${Sep} />
-          <${IconButton} icon="list" label=${t('项目符号')} disabled=${off} />
-          <${IconButton} icon="list-ordered" label=${t('编号')} disabled=${off} />`
+          <${IconButton}
+            icon="list"
+            label=${t('项目符号')}
+            disabled=${!mdPage}
+            onClick=${run('ul')}
+          />
+          <${IconButton}
+            icon="list-ordered"
+            label=${t('编号')}
+            disabled=${!mdPage}
+            onClick=${run('ol')}
+          />`
       }
       <${Sep} />
       ${marks}
@@ -750,8 +769,10 @@ export function DeskWindow() {
   // A sentence a chat mark points at, shown once its document is open.
   const [focus, setFocus] = useState(/** @type {any} */ (null));
   const [ready, setReady] = useState(0);
-  // Markdown opens as source (its rendered view is read-only until U6b); TeX side by side.
-  const view = (tab && views[tab.key]) ?? (tab?.format === 'tex' ? 'split' : 'source');
+  // Markdown opens as its page (U6b); TeX side by side.
+  const view =
+    (tab && views[tab.key]) ??
+    (tab?.format === 'tex' ? 'split' : tab?.format === 'md' ? 'rendered' : 'source');
   // The TeX found on this computer, looked up when a TeX file is first open.
   const [texEngines, setTexEngines] = useState(/** @type {any[] | null} */ (null));
   const panels = settings?.appearance?.panels ?? {};

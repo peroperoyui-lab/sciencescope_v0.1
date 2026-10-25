@@ -2129,7 +2129,6 @@ export const en = {
   '历史版本只读；要修改，请打开项目文件夹里的文稿':
     'Past versions are read-only; to edit, open the document in the project folder',
   'PDF 正文只读，批注和索引稍后接入': 'PDF text is read-only; comments and indexes come later',
-  '渲染视图只读，切到「源码」编辑': 'The rendered view is read-only; switch to Source to edit',
   '写回项目文件？': 'Write back to the project file?',
   '项目文件现在是 v{n} 的内容，不是这次打开时的版本。写回会用编辑台里的内容替换它，v{n} 仍留在版本里。':
     'The project file now holds v{n}, not the version opened here. Writing back replaces it with the desk text; v{n} stays in the versions.',
@@ -2350,4 +2349,8 @@ export const en = {
   '渲染：内置，不需要装 TeX': 'Rendering: built in, no TeX needed',
   '没有写回项目文件，所以没有编译。':
     'The project file was not written back, so nothing was compiled.',
+  点公式可以改它: 'Click the formula to edit it',
+  表格请在源码里改: 'Edit tables in the source',
+  'HTML 请在源码里改': 'Edit HTML in the source',
+  '图片：{name}': 'Picture: {name}',
 };

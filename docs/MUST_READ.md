@@ -94,7 +94,7 @@ ScienceScope 是一个本地运行的学术研究助手。
 
 ### 2.6 协作分工（长期不变的部分）
 
-- **Claude**：设计和全部界面（设计稿加 `app/ui/` 实现），审阅分支并合并到 `main`，写任务书，维护文档。
+- **Claude**：设计和全部界面（设计稿加 `app/ui/` 实现），审阅分支并合并到 `main`，写任务书，维护文档。简单任务和固定的回归检查（跑 `npm run check`、单个测试、读任务书和文档）交给 Haiku 子代理，省额度（所有者 2026-10-22、10-25）。
 - **Sol**（Codex，在所有者的 Windows 电脑上）：后端、打包、原生、Windows 验收、真实模型检查、安装和升级演练。只在任务书点名时改 `app/ui/`，不设计，也不改界面样式。
 - 一个任务一份任务书（模板 `process/BRIEF_TEMPLATE.md`），约一到两小时的量；超出就停下汇报。具体流程见 `process/WORKFLOW.md`，审阅按 `process/REVIEW_CHECKLIST.md`。
 - 所有者的网络出境流量有限。在本机装依赖走国内镜像：npm 用 npmmirror，pip 和 uv 用阿里云或清华，模型用 ModelScope。只能用境外源时，在报告里说明。

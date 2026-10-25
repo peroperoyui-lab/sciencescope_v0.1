@@ -163,15 +163,13 @@ test(
           (await import(bridge)).openDesk({ projectId: id, path: 'outline.md' }),
         { id: project.id, bridge: '/desk-window.js' },
       );
-      // Markdown opens as source; the rendered view is a read-only preview.
-      await desk.locator('.ss-desk-source .cm-content', { hasText: '论文提纲' }).waitFor();
-      assert.equal(await desk.locator('.ss-doctab').count(), 3);
-      await desk.getByRole('tab', { name: '视图' }).click();
-      await desk.getByRole('button', { name: '渲染', exact: true }).click();
+      // Markdown opens as its page, edited in place; its source is one click away.
       await desk.locator('.ss-page--md h1', { hasText: '论文提纲' }).waitFor();
-      await desk.locator('.ss-statusbar').getByText('只读').waitFor();
+      assert.equal(await desk.locator('.ss-doctab').count(), 3);
+      assert.equal(await desk.locator('.ss-page--md').getAttribute('contenteditable'), 'true');
+      await desk.getByRole('tab', { name: '视图' }).click();
       await desk.getByRole('button', { name: '源码', exact: true }).click();
-      await desk.locator('.ss-desk-source .cm-content').waitFor();
+      await desk.locator('.ss-desk-source .cm-content', { hasText: '论文提纲' }).waitFor();
       if (folder) await desk.screenshot({ path: path.join(folder, 'u1-desk-md-source.png') });
 
       // Closing a tab selects its neighbour; tabs come back when the desk opens again.
@@ -298,6 +296,8 @@ test(
         { id: project.id },
       );
       const source = desk.locator('.ss-desk-source .cm-content');
+      await desk.locator('.ss-page--md h1', { hasText: '札记' }).waitFor();
+      await desk.getByRole('button', { name: '源码', exact: true }).click();
       await source.getByText('第一条。').waitFor();
       await source.getByText('第一条。').click();
       await desk.keyboard.press('End');
@@ -773,6 +773,7 @@ test(
       const folder = process.env.SCIENCESCOPE_SCREENSHOTS;
       const source = desk.locator('.ss-desk-source .cm-content');
       const line = source.getByText('城市韧性的测度仍有争议。');
+      await desk.getByRole('button', { name: '源码', exact: true }).click();
       await line.waitFor();
       await desk.locator('.ss-statusbar').getByText('已写回项目文件').waitFor();
       const card = desk.locator('.ss-desk-notes .ss-desk-card:not(.ss-desk-card--new)');

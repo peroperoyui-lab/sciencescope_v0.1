@@ -5847,6 +5847,65 @@ button.ss-act__row:hover {
   border-left: 3px solid var(--line-strong);
   color: var(--ink-2);
 }
+/* The Markdown page being edited (U6b): code blocks, formulas, kept blocks, pictures, task boxes. */
+.ss-page--md [data-tight] > li > p {
+  margin-bottom: 0;
+}
+.ss-page--md pre code {
+  padding: 0;
+  background: none;
+  font: inherit;
+}
+.ss-page--md hr {
+  margin: 14px 0;
+  border: 0;
+  border-top: 1px solid var(--line-strong);
+}
+.ss-md-math {
+  margin: 4px 0 10px;
+  text-align: center;
+}
+.ss-md-math .katex-display {
+  margin: 0;
+}
+.ss-md-raw {
+  margin: 0 0 10px;
+}
+.ss-md-raw.ss-page__raw {
+  white-space: pre-wrap;
+}
+.ss-md-img {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: bottom;
+}
+.ss-md-img img {
+  display: block;
+  max-width: 100%;
+  margin: 6px 0;
+}
+.ss-page--md li.ss-md-task {
+  position: relative;
+  list-style: none;
+}
+.ss-page--md li.ss-md-task::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: -20px;
+  width: 13px;
+  height: 13px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: var(--r-xs);
+  background: var(--raised);
+  cursor: pointer;
+}
+.ss-page--md li.ss-md-task[data-checked='true']::before {
+  border-color: var(--accent);
+  background: var(--accent)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.5 8.5l3 3 6-7' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 11px no-repeat;
+}
 /* The desk window in the app (U1): folder rows, the read-only readers inside the canvas. */
 .ss-desk-nav > .ss-desk-nav__files {
   flex: 1 1 55%;

@@ -20,7 +20,8 @@ function formulaMarkup(source, displayMode) {
   );
 }
 
-function mathExtensions(emit) {
+/** Marked extensions for $…$ and $$…$$; `emit` renders a formula. */
+export function mathExtensions(emit) {
   return [
     {
       name: 'scopeBlockMath',

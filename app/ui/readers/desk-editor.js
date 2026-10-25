@@ -651,16 +651,14 @@ export function mountDeskDocx(surface, { blocks, media, onChange, onState, onSel
 
 /**
  * @param {HTMLElement} surface
- * @param {{ text: string, format: string, onChange: () => void,
- *   onState: (state: { marks: string[], undo: boolean, redo: boolean }) => void,
- *   onSelection?: () => void }} options
- */
-/**
- * @param {HTMLElement} surface
  * @param {{ text: string, format: 'latex' | 'markdown', onChange: () => void, onState: (state: any) => void,
- *   onSelection?: () => void, onDoc?: () => void }} options `onDoc` follows every change, the server's too.
+ *   onSelection?: () => void, onDoc?: () => void, onUpdate?: (update: any) => void }} options
+ * `onDoc` follows every change, the server's too; `onUpdate` every update of the editor.
  */
-export function mountDeskText(surface, { text, format, onChange, onState, onSelection, onDoc }) {
+export function mountDeskText(
+  surface,
+  { text, format, onChange, onState, onSelection, onDoc, onUpdate },
+) {
   const { bom, separator, body } = textShape(text);
   const blockFormat = format === 'latex' ? 'tex' : 'md';
   const report = (state) =>
@@ -687,6 +685,7 @@ export function mountDeskText(surface, { text, format, onChange, onState, onSele
           )
             onChange();
           if (update.docChanged) onDoc?.();
+          onUpdate?.(update);
           if (update.docChanged || update.selectionSet) onSelection?.();
           report(update.state);
         }),
@@ -735,6 +734,9 @@ export function mountDeskText(surface, { text, format, onChange, onState, onSele
     },
     /** File offset of the cursor. */
     cursor: () => toOffset(view.state.selection.main.head),
+    /** Editor position to file offset and back. */
+    fileOffset: toOffset,
+    editorPosition: toPosition,
     /** Select the sentence around the cursor when nothing is selected. */
     /** @param {number} x @param {number} y */
     caretAt(x, y) {
