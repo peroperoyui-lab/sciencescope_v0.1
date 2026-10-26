@@ -63,7 +63,11 @@ function edited(node, edit) {
 test('blocks add up to the source and every block writes back as it was read', async () => {
   const sources = [
     SAMPLE,
-    await readFile(new URL('../../docs/decisions/DECISIONS.md', import.meta.url), 'utf8'),
+    // docs/ is not pinned to LF, so a Windows checkout reads CRLF; the page gets LF (plain()).
+    (await readFile(new URL('../../docs/decisions/DECISIONS.md', import.meta.url), 'utf8')).replace(
+      /\r\n?/gu,
+      '\n',
+    ),
   ];
   for (const source of sources) {
     const { blocks, tail } = parseMarkdown(source);
