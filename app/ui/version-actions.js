@@ -22,6 +22,10 @@ export function createVersionActions(api) {
       return api.post('/api/versions/import', { projectId, files: encoded, groupId, groupName });
     },
     renameVersionGroup: (id, name) => api.patch(`/api/version-groups/${id}`, { name }),
+    /** A group's versions with parents, branches and tiers (the version tree). @param {string} id */
+    versionGraph: (id) => api.get(`/api/version-groups/${id}/graph`),
+    /** Title, tier, branch and, with D10, description and key. @param {string} id @param {any} changes */
+    updateVersion: (id, changes) => api.patch(`/api/versions/${id}`, changes),
     /** Renames a manuscript tier everywhere it is used. @param {string} from @param {string} to */
     renameTier: (from, to) => api.post('/api/version-tiers/rename', { from, to }),
     /** The TeX engines found on this computer; `refresh` looks again. @param {boolean} [refresh] */

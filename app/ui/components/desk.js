@@ -25,6 +25,7 @@ import { useDeskNotes } from './desk-notes.js';
 import { FilePreview } from './file-preview.js';
 import { Splitter } from './splitter.js';
 import { VersionCompare } from './version-compare.js';
+import { VersionTree } from './version-tree.js';
 
 const TABS_KEY = 'sciencescope.desk.tabs';
 const NAV = { min: 180, max: 360, default: 232 };
@@ -244,7 +245,8 @@ function CompileButtons({ edit, editing, engines, onCompile }) {
  *   nav: boolean, onNav: () => void, panel: boolean, onPanel: () => void,
  *   page: any, pdf: any, edit: any, editing: any, onSave: () => void,
  *   compare: string, comparing: boolean, onCompare: () => void,
- *   onNote: (type: 'comment' | 'index') => void, onQuote: () => void, texEngines: any[] | null, onCompile: () => void }} props
+ *   onNote: (type: 'comment' | 'index') => void, onQuote: () => void, onVersions: () => void,
+ *   texEngines: any[] | null, onCompile: () => void }} props
  * `compare` is why 比较 is off, or '' when it can start; `onNote` starts a comment or index;
  * `texEngines` is the TeX found on this computer (null while looking).
  */
@@ -270,6 +272,7 @@ function Ribbon({
   onCompare,
   onNote,
   onQuote,
+  onVersions,
   texEngines,
   onCompile,
 }) {
@@ -479,7 +482,13 @@ function Ribbon({
         pressed=${comparing}
         onClick=${onCompare}
       />
-      <${RibbonButton} icon="git-fork" text=${t('版本树')} disabled=${off} />
+      <${RibbonButton}
+        icon="git-fork"
+        text=${t('版本树')}
+        tip=${t('这份文稿的版本分叉树')}
+        disabled=${!tab}
+        onClick=${onVersions}
+      />
       <span class="ss-ribbon__spacer"></span>
       <${RibbonButton}
         icon="panel-right"
@@ -614,12 +623,14 @@ function SaveState({ status }) {
   >`;
 }
 
-/** @param {{ tab: any, group: any, info: any, edit: any, comparing: boolean, view: string }} props */
-function Statusbar({ tab, group, info, edit, comparing, view }) {
+/**
+ * @param {{ tab: any, group: any, info: any, edit: any, comparing: boolean, view: string,
+ *   currentId: string | null, onVersions: () => void }} props
+ * `currentId` is the version the tab shows (an older one after 从这一版开始编辑).
+ */
+function Statusbar({ tab, group, info, edit, comparing, view, currentId, onVersions }) {
   const version =
-    tab?.kind === 'version'
-      ? group?.versions.find((entry) => entry.id === tab.id)
-      : latestVersion(group?.versions);
+    group?.versions.find((entry) => entry.id === currentId) ?? latestVersion(group?.versions);
   const versionText = version
     ? [`v${version.number}`, version.branch || t('主线'), version.tier].filter(Boolean).join(' · ')
     : t('还没有版本');
@@ -672,8 +683,9 @@ function Statusbar({ tab, group, info, edit, comparing, view }) {
     <button
       class="ss-statusbar__btn"
       type="button"
-      disabled
-      data-tip=${t('这份文稿的版本分叉树（稍后接入）')}
+      disabled=${!tab}
+      data-tip=${t('这份文稿的版本分叉树')}
+      onClick=${onVersions}
     >
       <${Lucide} name="git-fork" />${t('版本树')}
     </button>
@@ -682,10 +694,11 @@ function Statusbar({ tab, group, info, edit, comparing, view }) {
 
 /**
  * @param {{ tab: string, onTab: (tab: string) => void, onClose: () => void, width: number,
- *   onWidth: (width: number) => void, notes: any, count: number }} props
- * `notes` is the 「批注与索引」 tab's content, `count` its number of items.
+ *   onWidth: (width: number) => void, notes: any, count: number, versions: any }} props
+ * `notes` is the 「批注与索引」 tab's content, `count` its number of items; the
+ * version tree (`versions`) takes the whole panel with its own head.
  */
-function DeskPanel({ tab, onTab, onClose, width, onWidth, notes, count }) {
+function DeskPanel({ tab, onTab, onClose, width, onWidth, notes, count, versions }) {
   const tabs = [
     ['notes', t('批注与索引')],
     ['chat', t('对话')],
@@ -699,37 +712,41 @@ function DeskPanel({ tab, onTab, onClose, width, onWidth, notes, count }) {
       defaultWidth=${PANEL.default}
       onCommit=${onWidth}
     />
-    <div class="ss-panel__head">
-      <nav class="ss-tabs" role="tablist" aria-label=${t('侧栏')}>
-        ${tabs.map(
-          ([name, text]) =>
-            html`<button
-              key=${name}
-              class="ss-tab"
-              role="tab"
-              type="button"
-              aria-selected=${String(name === tab)}
-              onClick=${() => onTab(name)}
-            >
-              ${text}${name === 'notes' && count > 0 && html`<span class="ss-tab__count">${count}</span>`}
-            </button>`,
-        )}
-      </nav>
-      <span class="ss-titlebar__spacer"></span>
-      <${IconButton} icon="x" label=${t('关闭侧栏')} onClick=${onClose} />
-    </div>
     ${
-      tab === 'notes'
-        ? notes
-        : html`<div class="ss-panel__body">
-            <div class="ss-empty">
-              <div class="ss-empty__icon"><${Lucide} name="message-square-plus" /></div>
-              <div class="ss-empty__title">${t('还没有绑定对话')}</div>
-              <div class="ss-empty__text">
-                ${t('从对话进入编辑台时，这里显示那段对话，可以接着和专家讨论这份文稿。')}
-              </div>
+      tab === 'versions'
+        ? versions
+        : html`<div class="ss-panel__head">
+              <nav class="ss-tabs" role="tablist" aria-label=${t('侧栏')}>
+                ${tabs.map(
+                  ([name, text]) =>
+                    html`<button
+                      key=${name}
+                      class="ss-tab"
+                      role="tab"
+                      type="button"
+                      aria-selected=${String(name === tab)}
+                      onClick=${() => onTab(name)}
+                    >
+                      ${text}${name === 'notes' && count > 0 && html`<span class="ss-tab__count">${count}</span>`}
+                    </button>`,
+                )}
+              </nav>
+              <span class="ss-titlebar__spacer"></span>
+              <${IconButton} icon="x" label=${t('关闭侧栏')} onClick=${onClose} />
             </div>
-          </div>`
+            ${
+              tab === 'notes'
+                ? notes
+                : html`<div class="ss-panel__body">
+                    <div class="ss-empty">
+                      <div class="ss-empty__icon"><${Lucide} name="message-square-plus" /></div>
+                      <div class="ss-empty__title">${t('还没有绑定对话')}</div>
+                      <div class="ss-empty__text">
+                        ${t('从对话进入编辑台时，这里显示那段对话，可以接着和专家讨论这份文稿。')}
+                      </div>
+                    </div>
+                  </div>`
+            }`
     }
   </aside>`;
 }
@@ -1020,6 +1037,93 @@ export function DeskWindow() {
     const left = versions.find((entry) => entry.id === right.parentId) ?? older[0] ?? versions[1];
     setComparison({ key: tab.key, left: left.id, right: right.id });
   };
+  // The version the active tab shows: a version tab's own, or the edited session's base.
+  const [base, setBase] = useState(/** @type {string | null} */ (null));
+  const [opened, setOpened] = useState(0);
+  useEffect(() => {
+    setBase(null);
+    const sessionId = tab ? sessions.current[tab.key] : null;
+    if (!sessionId || tab?.kind !== 'project') return;
+    let alive = true;
+    actions
+      .deskSession(sessionId)
+      .then(({ session }) => alive && setBase(session.baseVersionId))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [tab?.key, opened, versionsVersion]);
+  const currentId =
+    tab?.kind === 'version' ? tab.id : (base ?? latestVersion(group?.versions)?.id ?? null);
+  const showVersions = () => {
+    setPanel(true);
+    setPanelTab((current) => (current === 'versions' ? 'notes' : 'versions'));
+  };
+  const editFrom = !group?.sourcePath
+    ? t('这个版本组没有对应的项目文件')
+    : tab?.format === 'pdf'
+      ? t('PDF 只读')
+      : '';
+  /** Close the file's session, then open it again from `version`; the new version branches from it. */
+  const startFrom = async (version) => {
+    const target = { projectId: tab.projectId, path: group.sourcePath };
+    const key = tabFor(target).key;
+    if (!(await finish(key))) return;
+    setTabs((current) => {
+      const found = current.find((entry) => entry.key === key);
+      const next = { ...(found ?? tabFor(target)), from: version.id };
+      next.restart = (found?.restart ?? 0) + 1;
+      return found
+        ? current.map((entry) => (entry.key === key ? next : entry))
+        : [...current, next];
+    });
+    setActive(key);
+    setComparison(null);
+  };
+  const openVersion = (node) => {
+    const version = group?.versions.find((entry) => entry.id === node.id);
+    open({
+      projectId: tab.projectId,
+      versionId: node.id,
+      name: version?.name ?? tab.name,
+      group: group?.name,
+    });
+  };
+  const versionTree =
+    tab && group
+      ? html`<${VersionTree}
+          key=${group.id}
+          group=${group}
+          name=${tab.label ?? tab.name}
+          currentId=${currentId}
+          editing=${tab.kind === 'project' && !!edit && tab.format !== 'pdf'}
+          canCompare=${!compareBlocked}
+          canEdit=${editFrom}
+          onClose=${() => setPanelTab('notes')}
+          onWiden=${() => savePanel('deskPanel')(PANEL.max)}
+          onOpen=${openVersion}
+          onEdit=${startFrom}
+          onCompare=${(left, right) => setComparison({ key: tab.key, left, right })}
+          ask=${ask}
+        />`
+      : html`<div class="ss-panel__head">
+            <span class="ss-panel__title">${t('版本树')}</span>
+            <span class="ss-titlebar__spacer"></span>
+            <${IconButton}
+              icon="x"
+              label=${t('关闭版本树')}
+              onClick=${() => setPanelTab('notes')}
+            />
+          </div>
+          <div class="ss-panel__body">
+            <div class="ss-empty">
+              <div class="ss-empty__icon"><${Lucide} name="git-fork" /></div>
+              <div class="ss-empty__title">${t('这份文稿还没有版本')}</div>
+              <div class="ss-empty__text">
+                ${t('保存为版本、关闭编辑或在外面改过文件后，这里会长出版本树。')}
+              </div>
+            </div>
+          </div>`;
   const navWidth = Math.max(NAV.min, Math.min(NAV.max, panels.deskNav ?? NAV.default));
   const panelWidth = Math.max(PANEL.min, Math.min(PANEL.max, panels.deskPanel ?? PANEL.default));
 
@@ -1061,6 +1165,7 @@ export function DeskWindow() {
       onCompare=${toggleCompare}
       onNote=${notes.add}
       onQuote=${assist.quote}
+      onVersions=${showVersions}
       texEngines=${texEngines}
       onCompile=${compile}
     />
@@ -1107,7 +1212,7 @@ export function DeskWindow() {
               ${
                 tab
                   ? html`<${DeskDocument}
-                      key=${tab.key}
+                      key=${`${tab.key}#${tab.restart ?? 0}`}
                       tab=${tab}
                       view=${view}
                       jump=${jump}
@@ -1116,7 +1221,16 @@ export function DeskWindow() {
                       onEdit=${setEdit}
                       ask=${ask}
                       onSession=${(id) => {
-                        if (id) sessions.current[tab.key] = id;
+                        if (!id) return;
+                        sessions.current[tab.key] = id;
+                        setOpened((count) => count + 1);
+                        // Opened from an older version once; reopening later starts from the file.
+                        if (tab.from)
+                          setTabs((current) =>
+                            current.map((entry) =>
+                              entry.key === tab.key ? { ...entry, from: undefined } : entry,
+                            ),
+                          );
                       }}
                       onSelection=${() => {
                         assist.onSelection();
@@ -1149,6 +1263,7 @@ export function DeskWindow() {
           onWidth=${savePanel('deskPanel')}
           notes=${notes.panel}
           count=${notes.count}
+          versions=${versionTree}
         />`
       }
       ${notes.layer}<${FilePreview} />
@@ -1160,6 +1275,8 @@ export function DeskWindow() {
       edit=${edit}
       comparing=${comparing}
       view=${view}
+      currentId=${currentId}
+      onVersions=${showVersions}
     />
     ${question}
   </div>`;

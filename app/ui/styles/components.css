@@ -5284,7 +5284,28 @@ button.ss-act__row:hover {
   height: var(--icon-sm);
 }
 
-/* Version fork tree: grows top-down, styled like the research map (cards, links, folds). */
+/* Version fork tree: grows top-down, styled like the research map (cards, links, folds).
+   In the desk panel: filter, the scrolling tree with its legend, then the details. */
+.ss-vtree__title {
+  flex: 1;
+  min-width: 0;
+}
+.ss-vtree__filter {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.ss-vtree__filter > .ss-input {
+  flex: 1;
+}
+.ss-vtree__wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.ss-vtree__canvas {
+  position: relative;
+}
 .ss-vtree {
   position: relative;
   flex: 1;
@@ -5382,6 +5403,18 @@ button.ss-act__row:hover {
 .ss-vnode[data-origin='external'] {
   border-style: dashed;
 }
+/* A key version (重点): accent number and a star; dimmed when the filter passes it by. */
+.ss-vnode[data-key] .ss-vnode__v,
+.ss-vnode[data-key] .ss-vnode__top > .ss-i {
+  color: var(--accent);
+}
+.ss-vnode[data-dim] {
+  opacity: 0.35;
+}
+button.ss-vbranch,
+button.ss-vfold {
+  cursor: pointer;
+}
 .ss-vbranch {
   position: absolute;
   display: inline-flex;
@@ -5418,6 +5451,22 @@ button.ss-act__row:hover {
   padding: 12px 16px;
   border-top: 1px solid var(--line);
   background: var(--paper);
+}
+.ss-vtree__fields {
+  display: grid;
+  gap: var(--sp-6);
+}
+.ss-vtree__fields .ss-input > .ss-mono {
+  font-size: 12px;
+}
+.ss-vtree__actions {
+  display: flex;
+  gap: var(--sp-6);
+  flex-wrap: wrap;
+}
+.ss-vtree__mark textarea {
+  min-height: 0;
+  resize: vertical;
 }
 .ss-vtree__legend {
   position: absolute;

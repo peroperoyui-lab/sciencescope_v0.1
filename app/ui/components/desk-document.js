@@ -133,7 +133,9 @@ export const editableTab = (tab) => tab?.kind === 'project' && EDITABLE.has(tab.
 async function openSession(actions, tab, ask) {
   const group = await actions.registerDeskDocument({ projectId: tab.projectId, path: tab.path });
   try {
-    return { opened: await actions.openDeskSession({ groupId: group.id }) };
+    // `from`: 从这一版开始编辑 picked an older version in the version tree.
+    const versionId = tab.from ? { versionId: tab.from } : {};
+    return { opened: await actions.openDeskSession({ groupId: group.id, ...versionId }) };
   } catch (failure) {
     if (failure.code !== 'DESK_EXTERNAL_CHANGE' || !failure.details?.sessionId) throw failure;
     const choice = await ask(externalQuestion(tab.name));
