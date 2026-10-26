@@ -176,6 +176,12 @@ export function createMinutesService({
           return status(meetingId);
         }
         const prepared = await runner.prepare(meetingId);
+        if (closed) return status(meetingId);
+        // Model and workspace preparation can yield while a foreground turn starts.
+        if (foregroundActive(meetingId)) {
+          deferred.set(meetingId, reason);
+          return status(meetingId);
+        }
         const batch = summaryBatch(prepared, previous, pending, (id) => names.get(id) ?? id);
         const response = await runner.run(
           meetingId,

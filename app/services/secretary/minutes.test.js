@@ -92,6 +92,71 @@ test('message thresholds debounce complete raw text into one background turn, wi
     assert.ok(background[0].payload.usage.context);
   }));
 
+test('minutes yield when a foreground turn starts during preparation and resume the pending manual update once', () =>
+  withMinutes(async ({ core, meeting, options, runtime, say, configure }) => {
+    await configure({
+      afterDiscussion: false,
+      everyMessages: { enabled: false },
+      everyTokens: { enabled: false },
+      onEnterProject: false,
+      onLeaveProject: false,
+    });
+    say('准备期间也不能丢失的研究决定');
+    let enterPreparation = () => {};
+    let releasePreparation = () => {};
+    const entered = new Promise((resolve) => {
+      enterPreparation = () => resolve(undefined);
+    });
+    const held = new Promise((resolve) => {
+      releasePreparation = () => resolve(undefined);
+    });
+    const service = createMinutesService({
+      ...options,
+      defaultModel: async () => {
+        enterPreparation();
+        await held;
+        return { provider: 'test', model: 'meeting-model' };
+      },
+    });
+    service.start();
+    let foreground;
+    try {
+      const refresh = service.refresh(meeting.id);
+      await entered;
+      foreground = core.turns.start({ meetingId: meeting.id, participantId: 'agent_main' });
+      releasePreparation();
+      await refresh;
+      await service.idle();
+      const waiting = await service.status(meeting.id);
+      assert.equal(runtime.sessions.size, 0);
+      assert.equal(waiting.newMessages, 1);
+      assert.equal(waiting.updating, true);
+      assert.equal(waiting.error, null);
+      assert.equal(core.events.since(0).filter((event) => event.type === 'turn.started').length, 1);
+      core.turns.end(foreground.id, { status: 'done' });
+      await service.idle();
+      const completed = await service.status(meeting.id);
+      assert.equal(completed.throughSeq, 1);
+      assert.equal(completed.newMessages, 0);
+      assert.equal(completed.updating, false);
+      assert.equal(completed.error, null);
+      assert.equal(runtime.sessions.size, 1);
+      const events = core.events.since(0);
+      assert.equal(events.filter((event) => event.type === 'minutes.updated').length, 1);
+      assert.deepEqual(
+        events
+          .filter((event) => event.type === 'turn.ended' && event.actorId === 'agent_secretary')
+          .map((event) => event.payload.status),
+        ['done'],
+      );
+    } finally {
+      releasePreparation();
+      if (foreground && core.turns.get(foreground.id).status === 'running')
+        core.turns.end(foreground.id, { status: 'cancelled' });
+      await service.close();
+    }
+  }));
+
 test('token thresholds, completed discussion and project focus consume only new messages', () =>
   withMinutes(async ({ core, meeting, project, runtime, minutes, say, configure }) => {
     await configure({ everyMessages: { enabled: false }, everyTokens: { enabled: true, n: 3 } });
