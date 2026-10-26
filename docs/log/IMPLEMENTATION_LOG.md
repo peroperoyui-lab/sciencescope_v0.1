@@ -4,7 +4,7 @@
 
 - 迁移 030 新增 description/is_key；版本列表、详情、图共用元数据，PATCH 校验后与旧字段一起提交，label 保留。
 - workspace_read manuscript 的 versions:true 返回只读版本列表；工具说明提示优先比较重点版本，修改描述或重点明确报错。
-- 迁移、HTTP 读取/更新、Unicode 长度、原子回滚及专家工具测试覆盖；Windows 完整检查和验收结果见交付报告。
+- 迁移、HTTP 读取/更新、Unicode 长度、原子回滚及专家工具测试覆盖；干净检出完整检查 553/553（含两项 Windows 测试），真实工具验收通过，累计 7 请求、10,180 tokens；详见 `docs/handoff/reports/D10.md`。
 - 最小范围扩展为 core/version-catalog.js 的公共 DTO 和 services/tools.js 的现有工具参数；未改界面、依赖或原生代码。
 
 ## 2026-10-26 U7 编辑台版本树（Claude）
