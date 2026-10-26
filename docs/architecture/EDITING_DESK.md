@@ -128,6 +128,8 @@ D3a 已接通 docx 会话。修改先经 D2 的结构校验，再在一个 SQLit
 
 ### 4.1 数据模型（新迁移）
 
+D10 的迁移 030 在 `manuscript_versions` 新增 `description TEXT NOT NULL DEFAULT ''`（版本描述）和 `is_key INTEGER NOT NULL DEFAULT 0`（重点）。旧版本默认描述为空、不是重点，现有短标签 `label` 保留。对外字段统一为 `description` 和布尔值 `key`。
+
 写设计时迁移最高编号是 020（`020-input-images.js`），A2-2 占 021、知识库占 022，023 后来给了项目文件索引（KB-2a）；编辑台实现时取目录里实际最高号加一。发布前不需兼容旧数据，但现有版本组保留：`parent_id` 取现有 `baseline_id`。
 
 ```sql
@@ -292,6 +294,10 @@ D5：`POST /api/desk/sessions/:id/rewrite {blockId,quote,instruction}` 沿用会
 
 `workspace_read manuscript` 列表返回 `{documents:[{key,name,format,versionNumber,sessionId}],truncated}`；块读取返回 `{groupId,versionId,sessionId,seq,blocks,remaining}`，块为 `{id,kind,level,text}`。历史读取 sessionId 为 null、seq 为 0；默认优先读会话未保存内容，否则读最新版本。
 
+D10：传 `workspace_read {target:'manuscript',key:'<projectId>/<groupId>',versions:true}` 返回 `{groupId,versions}`，每项为 `{number,id,branch,tier,title,description,key,parentId,origin,createdAt}`，按版本号从新到旧；这条读取不打开编辑会话。工具说明提示「重点版本是用户标出的关键版本，比较时优先考虑」。专家只读这些元数据；`workspace_edit manuscript` 的 `args` 含 `description` 或 `key` 时返回 `VERSION_METADATA_READ_ONLY`，未提供的操作仍返回 `UNKNOWN_OP`。
+
+`GET /api/versions` 的版本项、`GET /api/versions/:id` 的 `version`、版本图节点都返回 `description` 和布尔值 `key`。`PATCH /api/versions/:id` 只更新传入字段：描述先 trim，最多 2,000 个 Unicode 字符，超长返回 `VERSION_DESCRIPTION_TOO_LONG`；非文本描述或非布尔重点（含 null）返回 `INVALID_VERSION_METADATA`。与 title/label/tier/branch 在同一事务提交，失败一起回滚。沿用 `catalog.changed()` 发出的 `versions.changed` 事件：描述改变时 `action:'marked'`，否则重点改变时 `action:'key-changed'`；同时改变只发一条 marked 事件。
+
 D3a 已实现下表中的登记、开会话、重连、PATCH blocks、撤回、保留、保存和关闭八个接口，D3c 补齐进入与定位，其余未注明的接口仍为后续设计。登记仅收 `{projectId,path}` 并返回版本组；开会话/重连返回 `{session,blocks,changes}`（不含批注和绑定接口）。修改返回 `{seq,inserted}`，其中 inserted 是客户端 id 到 `p:<paraId>` 的映射；`writeDocx` 的插入项支持预分配的 `paraId`。冲突错误为 HTTP 409 的 `{code,message,details}`：`DESK_CONFLICT` 的 details 含 `seq,blockIds,blocks`（已删除块为 `{id,removed:true}`）；`DESK_EXTERNAL_CHANGE` 含 `versionId`，`DESK_SAVE_CONFIRM` 含 `versionId,versionNumber`。保存支持 `confirm?`，保留支持 `{ids?}`。服务调用的 actor 可传 `actorId,meetingId,turnId,instruction`；HTTP 修改统一记为用户。
 
 D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media/:ref`。登记接受 docx/tex/md/markdown，后两种均记格式 md。文本会话响应额外含 `text`；全文冲突的 `details` 为 `{seq,text}`，格式不符返回 `DESK_FORMAT`。文件列表返回 `{files,groups,truncated}`：文件含 `path,name,format,size,mtime,group`，mtime 为 ISO 时间；group 摘要含 `id,latest:{id,number,branch,tier},sourceVersionId`；仅在数据目录的组另含 name、format。递归跳过隐藏目录和 node_modules，自带项目根另跳过 workbench/notes/minutes/versions/desk，达到 2000 个文稿返回 truncated，读取失败的子目录跳过。列表只读。图片接口返回原字节和原 MIME，缺失为 404 `DESK_MEDIA_NOT_FOUND`。
@@ -314,7 +320,7 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 | `GET /api/desk/tex/engines[?refresh=1]`                                           | 已安装引擎的 id/path/distribution/version，以及 latexmk/biber/bibtex 路径；进程内缓存，refresh 重新检测         |
 | `POST /api/desk/sessions/:id/compile {root?}`                                     | 返回 status/root/engine/durationMs/pdf/errors/warnings/unsaved/logTail；desk.compiled 事件携带 sessionId/status |
 | `GET /api/desk/sessions/:id/pdf`                                                  | 最近一次成功的 PDF，application/pdf、no-store；没有成功产物返回 404                                             |
-| `GET /api/version-groups/:id/graph`、`PATCH /api/versions/:id`                    | 版本图（节点含说明前 200 字和修改指令）；改标题、层级、标签、分支名                                             |
+| `GET /api/version-groups/:id/graph`、`PATCH /api/versions/:id`                    | 版本图（节点含说明前 200 字、修改指令、description、key）；改标题、层级、标签、分支名、描述、重点                  |
 | `GET /api/versions/:id/compare?baseline=`                                         | 现有接口，返回值改为第 4.4 节的对齐行；允许跨分支比较同组任意两版                                               |
 
 事件：docx、tex、md 共用 `desk.changed {sessionId,seq,blockIds,changeIds}`；`desk.session` 为 `{sessionId,state:'open'|'closed'}`，空闲写入失败时另发瞬时 `{sessionId,state:'save-error',message}`，可重试保存。保留不改正文和 seq，也发 `desk.changed`；继续使用现有 `versions.changed`。D5 已记录 `desk.suggested {meetingId,reason,key}`；D3c 已接入 `desk.entered` 与 `desk.focus`，载荷见本节接口说明。
@@ -371,7 +377,7 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 | U8 **A** | 进入横条（接续或分支）、秘书悬浮按钮                                                                                           | Claude | 场景 1 走通，分支后原对话不变                                                       |
 | D9       | Tectonic 按需下载                                                                                                              | Sol    | 视第 12 节第 4 条                                                                   |
 
-**U7 补充（Yui 2026-10-25）：** 版本树右键菜单加「标记」和「重点」。标记给这个版本写一段描述，显示在节点和信息栏里，搜索也按它过滤；重点把版本标成重点版本，节点用着重色，比较的版本选择里也排在前面、带同样的颜色。专家能读到这两项（读版本列表的工具返回描述和是否重点），比如「和重点版本 v5 比较」。后端要加一列描述（或复用 `label`，做时定）和一列重点、迁移、`PATCH /api/versions/:id` 接受这两项，以及专家读版本列表的只读工具。
+**U7 补充（Yui 2026-10-25）：** 版本树右键菜单加「标记」和「重点」。标记给这个版本写一段描述，显示在节点和信息栏里，搜索也按它过滤；重点把版本标成重点版本，节点用着重色，比较的版本选择里也排在前面、带同样的颜色。专家能读到这两项（读版本列表的工具返回描述和是否重点），比如「和重点版本 v5 比较」。D10 已用迁移 030 独立保存 description 和 is_key，label 不动；PATCH 接受这两项，workspace_read manuscript 的 versions 参数提供只读版本列表。
 
 **U7 完成情况（2026-10-26）：** 版本树在右侧栏（底栏和「审阅 → 版本树」打开，和「批注与索引」切换），布局在 `app/ui/version-layout.js`：行是代数，和父版本同分支的子版本留在父版本那一列，其他子版本另起一列，分支名标签点一下收起成「分支名 · N 版」。当前版本到 v1 的路径加深。节点上是版本号、名称、日期和来源（外部修改虚线框），终稿和其他层级用左边色条。筛选框按标题、标签、备注、修改指令筛，不匹配的变淡。详情：改名、层级、分支、来自、派生、修改指令，「从这一版开始编辑」（关掉当前会话，以这一版为底重开，存版本时长出分支）和「和 vN 比较」（U3 比较视图）。右键菜单另有打开（只读）、删除这一版（有后续版本或正在打开时停用并说明原因，删前确认）。界面已为 D10 留好：接口返回 `description` 后详情出现「标记」框、右键出现「标记…」「设为重点」，重点节点用着重色。还没有：节点上的操作人和改动数、分支改名、另存为文件或覆盖项目文件、比较选择里重点版本排前（等 D10）、工作站入口（随 P3 工作站改版）。
 
