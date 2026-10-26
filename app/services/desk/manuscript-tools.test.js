@@ -216,6 +216,79 @@ test('manuscript tools page current/history blocks, preserve atom markers and re
     }
   }));
 
+test('manuscript version metadata is listed for experts while metadata writes stay unsupported', () =>
+  withCore('manuscript-version-metadata', async (core, dir) => {
+    const fixture = await setup(core, dir);
+    const { call, project, versions, tools } = fixture;
+    try {
+      const key = `${project.id}/path:稿件.docx`;
+      const first = await call('workspace_read', { target: 'manuscript', key, versions: true });
+      assert.equal(first.versions.length, 1);
+      assert.equal(first.versions[0].description, '');
+      assert.equal(first.versions[0].key, false);
+      assert.equal('blocks' in first, false);
+      assert.equal(core.db.prepare('SELECT count(*) AS n FROM desk_sessions').get().n, 0);
+      const original = first.versions[0];
+      await versions.updateMetadata(original.id, {
+        title: '导师审阅稿',
+        description: '第三章按意见修改',
+        key: true,
+      });
+      const copied = await versions.saveAsNew(original.id);
+      const result = await call('workspace_read', { target: 'manuscript', key, versions: true });
+      assert.deepEqual(
+        result.versions.map((version) => version.id),
+        [copied.versions[0].id, original.id],
+      );
+      const marked = result.versions[1];
+      assert.deepEqual(marked, {
+        number: original.number,
+        id: original.id,
+        branch: original.branch,
+        tier: original.tier,
+        title: '导师审阅稿',
+        description: '第三章按意见修改',
+        key: true,
+        parentId: original.parentId,
+        origin: original.origin,
+        createdAt: original.createdAt,
+      });
+      assert.equal(result.versions[0].parentId, original.id);
+      const blocks = await call('workspace_read', { target: 'manuscript', key, limit: 1 });
+      assert.equal(blocks.blocks[0].text, '研究结论 and baseline.');
+      assert.equal('versions' in blocks, false);
+      for (const args of [{ description: '试图覆盖描述' }, { key: false }]) {
+        const denied = await call('workspace_edit', {
+          resource: 'manuscript',
+          key,
+          op: 'save',
+          args: { to: 'version', ...args },
+        });
+        assert.equal(denied.code, 'VERSION_METADATA_READ_ONLY');
+      }
+      assert.equal(
+        (
+          await call('workspace_edit', {
+            resource: 'manuscript',
+            key,
+            op: 'mark',
+            args: { description: '不提供的操作', key: false },
+          })
+        ).code,
+        'UNKNOWN_OP',
+      );
+      assert.equal(versions.get(original.id).description, marked.description);
+      assert.equal(versions.get(original.id).key, true);
+      assert.equal(versions.list(project.id)[0].versions.length, 2);
+      assert.equal(core.db.prepare('SELECT count(*) AS n FROM desk_sessions').get().n, 0);
+      const spec = tools.specs.find((entry) => entry.name === 'workspace_read');
+      assert.equal(spec.parameters.versions.type, 'boolean');
+      assert.match(spec.description, /重点版本是用户标出的关键版本，比较时优先考虑/u);
+    } finally {
+      await fixture.close();
+    }
+  }));
+
 test('TeX and Markdown use full-text desk updates and preserve untouched text, BOM and line endings', () =>
   withCore('manuscript-text-tools', async (core, dir) => {
     const fixture = await setup(core, dir);

@@ -46,6 +46,8 @@ export function createVersionCatalog(core) {
       branch: String(row.branch),
       tier: String(row.tier),
       label: String(row.label),
+      description: String(row.description),
+      key: Boolean(row.is_key),
       title: String(row.title),
       origin: String(row.origin),
       contentHash: row.content_hash == null ? null : String(row.content_hash),

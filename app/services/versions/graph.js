@@ -49,6 +49,8 @@ export function createVersionGraph(core, serial) {
         branch: version.branch,
         tier: version.tier,
         label: version.label,
+        description: version.description,
+        key: version.key,
         title: version.title,
         displayTitle: version.title || version.name,
         origin: version.origin,
@@ -71,6 +73,21 @@ export function createVersionGraph(core, serial) {
           throw new AppError('INVALID_VERSION_METADATA', 'Version metadata must be text.');
         next[field] = changes[field];
       }
+      if (changes.description !== undefined) {
+        if (typeof changes.description !== 'string')
+          throw new AppError('INVALID_VERSION_METADATA', 'Version description must be text.');
+        next.description = changes.description.trim();
+        if (Array.from(next.description).length > 2000)
+          throw new AppError(
+            'VERSION_DESCRIPTION_TOO_LONG',
+            'Version description must contain at most 2,000 characters.',
+          );
+      }
+      if (changes.key !== undefined) {
+        if (typeof changes.key !== 'boolean')
+          throw new AppError('INVALID_VERSION_METADATA', 'Version key must be a boolean.');
+        next.key = changes.key;
+      }
       if (changes.tier !== undefined && next.tier) {
         const settings = await core.workspace.read({ resource: 'settings', key: 'app' });
         if (!settings.value.desk.tiers.includes(next.tier))
@@ -90,17 +107,17 @@ export function createVersionGraph(core, serial) {
             version.branch,
           );
         }
-        db.prepare('UPDATE manuscript_versions SET title=?,tier=?,label=? WHERE id=?').run(
-          next.title,
-          next.tier,
-          next.label,
-          id,
-        );
+        db.prepare(
+          'UPDATE manuscript_versions SET title=?,tier=?,label=?,description=?,is_key=? WHERE id=?',
+        ).run(next.title, next.tier, next.label, next.description, Number(next.key), id);
         db.prepare('UPDATE version_groups SET updated_at=? WHERE id=?').run(
           nowIso(),
           version.groupId,
         );
-        catalog.changed(version.projectId, 'metadata', id, actorId);
+        let action = 'metadata';
+        if (next.description !== version.description) action = 'marked';
+        else if (next.key !== version.key) action = 'key-changed';
+        catalog.changed(version.projectId, action, id, actorId);
       });
       return catalog.get(id);
     });

@@ -60,6 +60,26 @@ export function createManuscriptTools(core, desk, approvals) {
   async function read(args, context) {
     if (!args.key) return list(args.scope ?? core.meetings.get(context.meetingId).projectId);
     const group = await groupOf(args.key);
+    if (args.versions === true) {
+      const versions = catalog
+        .list(group.projectId)
+        .find((entry) => entry.id === group.id).versions;
+      return {
+        groupId: group.id,
+        versions: versions.map((version) => ({
+          number: version.number,
+          id: version.id,
+          branch: version.branch,
+          tier: version.tier,
+          title: version.title,
+          description: version.description,
+          key: version.key,
+          parentId: version.parentId,
+          origin: version.origin,
+          createdAt: version.createdAt,
+        })),
+      };
+    }
     const open = args.version ? null : store.open(group.id);
     let blocks,
       versionId,
@@ -145,13 +165,15 @@ export function createManuscriptTools(core, desk, approvals) {
       ].includes(args.op)
     )
       throw new AppError('UNKNOWN_OP', '这项文稿操作尚未提供。');
+    const input = args.args ?? {};
+    if (Object.hasOwn(input, 'description') || Object.hasOwn(input, 'key'))
+      throw new AppError('VERSION_METADATA_READ_ONLY', '文稿工具只能读取版本描述和重点。');
     const group = await groupOf(args.key);
     const actor = actorOf(context);
     const existing = store.open(group.id);
     const current = existing
       ? await desk.getSession(existing.id)
       : await desk.openSession({ groupId: group.id, meetingId: context.meetingId });
-    const input = args.args ?? {};
     const id = current.session.id;
     if (['unbind', 'uncomment'].includes(args.op)) {
       const item = (await desk.listAnnotations(id)).items.find((entry) => entry.id === input.id);
