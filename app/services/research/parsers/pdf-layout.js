@@ -50,9 +50,22 @@ function splitBand(items, pageWidth) {
   return segments;
 }
 
+// Items that touch join as they are: Word writes a number and the
+// full-width comma after it as two items, which must not gain a space.
+function joinItems(items) {
+  let text = '';
+  items.forEach((item, index) => {
+    const previous = items[index - 1];
+    const gap = previous ? item.x - previous.x - previous.width : 0;
+    const touching = previous && previous.width > 0 && gap < item.size * 0.15;
+    text += (index && !touching ? ' ' : '') + item.text;
+  });
+  return text;
+}
+
 function lineFromSegment(items) {
   return {
-    text: normalizeText(items.map((item) => item.text).join(' ')),
+    text: normalizeText(joinItems(items)),
     top: Math.min(...items.map((item) => item.top)),
     height: Math.max(...items.map((item) => item.height)),
     fontSize: Math.max(...items.map((item) => item.size)),
@@ -128,6 +141,22 @@ export function isPageNumber(text) {
 }
 
 /**
+ * A line followed or preceded in its column at body line spacing is body
+ * text, even near the page edge (the first line of a column under a
+ * running header sits there).
+ * @param {{lines:PdfLine[]}} page @param {PdfLine} line
+ */
+function inParagraph(page, line) {
+  return page.lines.some(
+    (other) =>
+      other !== line &&
+      other.column === line.column &&
+      Math.abs(other.fontSize - line.fontSize) < 0.5 &&
+      Math.abs(other.top - line.top) <= line.height * 1.8,
+  );
+}
+
+/**
  * @param {{page:number,height:number,lines:PdfLine[]}[]} pages
  * @returns {(PdfLine & {page:number})[]}
  */
@@ -149,7 +178,7 @@ export function removeRunningEdges(pages) {
       .filter((line) => {
         const edge = line.top < 70 || line.top + line.height > page.height - 60;
         const repeated = occurrences.get(headerKey(line.text)).size >= 2;
-        return !(edge && (repeated || isPageNumber(line.text)));
+        return !(edge && (isPageNumber(line.text) || (repeated && !inParagraph(page, line))));
       })
       .map((line) => ({ ...line, page: page.page })),
   );

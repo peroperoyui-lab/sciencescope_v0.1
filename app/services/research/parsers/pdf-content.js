@@ -23,14 +23,20 @@ function bodyFontSize(lines) {
   return 11;
 }
 
-function headingFor(line, isFirstLine, bodySize) {
+/** @param {any} line @param {boolean} isFirstLine @param {number} bodySize @param {boolean} [continues] the previous line runs on into this one */
+function headingFor(line, isFirstLine, bodySize, continues = false) {
   const text = line.text;
   if (isFirstLine && line.fontSize >= 16) return { level: 1, title: true };
   if (REFERENCES.test(text)) return { level: 1, references: true };
   if (isPageNumber(text) || text.length > 180 || isFormula(text)) return null;
   const numbered = /^(\d+(?:\.\d+)*)[.)]?\s+/u.exec(text);
+  // Not "0.75，…" (a number wrapped from the line before) or a line that
+  // carries on an unfinished sentence.
   if (
     numbered &&
+    !continues &&
+    !/^0\./u.test(numbered[1]) &&
+    !/^[，,。.、；;：:)）%％]/u.test(text.slice(numbered[0].length)) &&
     !/^\d+(?:[.)]|\s|$)/u.test(text.slice(numbered[0].length).trim()) &&
     /[A-Za-z\u3400-\u9fff]/u.test(text)
   )
@@ -63,7 +69,10 @@ function inferredReferencesPage(lines, floor) {
 
 function joinProse(left, right) {
   if (/[A-Za-z0-9]-$/u.test(left) && /^[a-z]/u.test(right)) return left.slice(0, -1) + right;
-  if (/[\u3400-\u9fff]$/u.test(left) && /^[\u3400-\u9fff]/u.test(right)) return left + right;
+  // Chinese runs on across a line break without a space, also next to
+  // full-width punctuation or a number.
+  const cjk = /[\u3000-\u303f\u3400-\u9fff\uff00-\uffef]/u;
+  if (cjk.test(left.at(-1) ?? '') || cjk.test(right[0] ?? '')) return left + right;
   return `${left} ${right}`;
 }
 
@@ -83,7 +92,14 @@ export function blocksFromLines(lines, pages) {
   let previousLine = null;
   for (const line of lines) {
     const isFirstLine = line.page === 1 && firstPageIndex++ === 0;
-    const heading = headingFor(line, isFirstLine, bodySize);
+    const continues =
+      blocks.at(-1)?.kind === 'paragraph' &&
+      previousLine?.column === line.column &&
+      blocks.at(-1).page === line.page &&
+      line.top - previousLine.top - previousLine.height <=
+        Math.max(12, previousLine.height * 1.4) &&
+      !/[.!?。！？:：;；]$/u.test(previousLine.text);
+    const heading = headingFor(line, isFirstLine, bodySize, continues);
     const isReferenceHeading = heading?.references && line.page >= referenceFloor;
     const isReferencePrefix = line.page >= referenceFloor && REFERENCE_PREFIX.test(line.text);
     const isInferred =

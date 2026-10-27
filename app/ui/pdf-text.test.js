@@ -76,3 +76,31 @@ test('block offsets are found again on the page', () => {
   const split = findOnPage(page, BLOCKS[1].text, hyphen, hyphen + 11);
   assert.equal(split && page.slice(split[0], split[1]), 'consistency');
 });
+
+test('whole sentences of a Word-exported Chinese PDF land in one block', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { parseDocument } = await import('../services/research/parsers/index.js');
+  const folder = new URL('../services/research/parsers/fixtures/u6a/', import.meta.url);
+  const name = 'word-export-zh.pdf';
+  const { blocks } = await parseDocument(await readFile(new URL(name, folder)), { name });
+  const content = JSON.parse(
+    await readFile(new URL('word-export-zh.textcontent.json', folder), 'utf8'),
+  );
+  for (const [index, layer] of content.pages.entries()) {
+    const page = skeleton(layer.items.map((item) => item.str).join('')).chars;
+    const own = blocks
+      .map((block, at) => ({ id: `b:${at}`, text: block.text, page: block.page }))
+      .filter((block) => block.page === index + 1);
+    for (const sentence of [
+      `左栏正文第 ${index + 1} 页：本研究的合成一致性阈值为0.75，案例频数阈值为 2。`,
+      `右栏正文第 ${index + 1} 页：较低阈值纳入更多合成案例，应当区分阈值口径。`,
+    ]) {
+      const needle = skeleton(sentence).chars;
+      const start = page.indexOf(needle);
+      assert.ok(start >= 0, sentence);
+      const placed = placeOnPage(page, start, start + needle.length, own);
+      const block = own.find((entry) => entry.id === placed?.blockId);
+      assert.equal(block?.text.slice(placed.from, placed.to), sentence);
+    }
+  }
+});

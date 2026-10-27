@@ -103,3 +103,25 @@ test('text source import preserves Markdown and LaTeX structure and every long p
   );
   assert.equal(chunks.at(-1).charEnd, longText.length);
 });
+
+test('Word-exported Chinese PDF keeps wrapped sentences and the column under the header', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const name = 'word-export-zh.pdf';
+  const bytes = await readFile(new URL(`./fixtures/u6a/${name}`, import.meta.url));
+  const { blocks } = await parseDocument(bytes, { name });
+  const texts = blocks.map((block) => block.text);
+  for (const page of [1, 2]) {
+    // "…阈值为" and "0.75，…" were two blocks, the second read as heading "0.75".
+    assert.ok(
+      texts.includes(`左栏正文第 ${page} 页：本研究的合成一致性阈值为0.75，案例频数阈值为 2。`),
+      texts.join('\n'),
+    );
+    // The right column's first line sits near the top edge, under the running header.
+    assert.ok(
+      texts.includes(`右栏正文第 ${page} 页：较低阈值纳入更多合成案例，应当区分阈值口径。`),
+      texts.join('\n'),
+    );
+  }
+  assert.ok(!texts.some((text) => text.includes('编辑台验收专用')), 'running header removed');
+  assert.ok(blocks.every((block) => block.kind !== 'heading' || !/^0\./u.test(block.text)));
+});
