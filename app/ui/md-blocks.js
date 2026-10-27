@@ -323,6 +323,10 @@ function inlines(r, tokens, marks, out) {
       case 'br':
         addAtom(r, out, S.nodes.hard_break.create({ raw: token.raw }), token.raw);
         break;
+      case 'checkbox':
+        // A loose task item's box sits in its paragraph; the item carries it.
+        if (start >= 0) r.cursor = start + token.raw.length;
+        break;
       case 'scopeInlineMath':
         addAtom(r, out, S.nodes.math_inline.create({ tex: token.text, raw: token.raw }), token.raw);
         break;
@@ -641,15 +645,22 @@ export function blockText(node, mode, known) {
   }
   if (name === 'bullet_list' || name === 'ordered_list') {
     const loose = node.attrs.loose;
+    const items = [];
+    node.forEach((item) => items.push({ item, kept: known?.get(item) }));
+    // A new item is tight when any kept item is: a list read as loose only
+    // because a blank line splits two groups keeps its groups tight.
+    const tight = items.some(
+      ({ kept }, index) => index > 0 && kept && !/\n[ \t]*\n/u.test(kept.gap),
+    );
+    const newGap = loose && !tight ? '\n\n' : '\n';
     let out = '';
     let number = node.attrs.start - 1;
-    node.forEach((item, _offset, index) => {
-      const kept = known?.get(item);
+    items.forEach(({ item, kept }, index) => {
       const previous = /^\s*(\d+)/u.exec(kept?.text ?? '');
       number = previous ? Number(previous[1]) : number + 1;
       const marker = name === 'bullet_list' ? node.attrs.marker : `${number}${node.attrs.delim}`;
       const text = kept ? kept.text : itemText(item, marker, loose, mode);
-      out += (index === 0 ? '' : kept ? kept.gap : loose ? '\n\n' : '\n') + text;
+      out += (index === 0 ? '' : kept ? kept.gap : newGap) + text;
     });
     return out;
   }

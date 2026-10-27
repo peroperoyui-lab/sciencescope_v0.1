@@ -157,3 +157,25 @@ test('a changed list keeps the items that did not change', () => {
   assert.equal(written.text, '* 第一条甲\n* 第二条\n  * 下一层');
   assert.ok(written.exact);
 });
+
+test('task boxes are not text, and new items are spaced like their neighbours', () => {
+  // One loose list to Markdown: a blank line splits the task group from the plain one.
+  const source = '- [ ] 核对样本\n- [ ] 复核权重\n\n- 第一条\n- 第二条';
+  const { blocks } = parseMarkdown(source);
+  const entry = blocks[0];
+  assert.equal(entry.node.attrs.loose, true);
+  assert.equal(entry.node.child(0).textContent, '核对样本');
+  const known = new WeakMap(listItems(entry));
+  // Ticking the first task writes one box.
+  const ticked = edited(entry.node, (tr) => tr.setNodeMarkup(1, null, { checked: true }));
+  assert.equal(
+    writeBlock(ticked, known).text,
+    '- [x] 核对样本\n- [ ] 复核权重\n\n- 第一条\n- 第二条',
+  );
+  // An item added after the last one gets no blank line before it.
+  const item = mdSchema.nodes.list_item.create(null, [
+    mdSchema.nodes.paragraph.create(null, mdSchema.text('第三条')),
+  ]);
+  const added = edited(entry.node, (tr) => tr.insert(entry.node.content.size + 1, item));
+  assert.equal(writeBlock(added, known).text, `${source}\n- 第三条`);
+});

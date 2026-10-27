@@ -243,7 +243,12 @@ export function mountMdPage(surface, editor, { onSelection, onMarks, onFormula, 
     const changes = [];
     let at = from;
     for (const part of diffChars(text.slice(from, to), middle)) {
-      if (part.added) changes.push({ from: at, insert: part.value });
+      // Split at \n into lines: the source keeps the file's own line separator.
+      if (part.added)
+        changes.push({
+          from: at,
+          insert: cm.state.toText(part.value.split('\n').join(cm.state.lineBreak)),
+        });
       else if (part.removed) {
         changes.push({ from: at, to: at + part.value.length });
         at += part.value.length;

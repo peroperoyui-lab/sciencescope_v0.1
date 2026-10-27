@@ -167,3 +167,53 @@ test(
       if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
     }),
 );
+
+test(
+  'a CRLF file with a BOM keeps its line breaks, task boxes and list spacing',
+  { skip: browserSkip },
+  () =>
+    withBrowserApp('u6-md-crlf', silent, async ({ page, app }) => {
+      const project = await app.core.projects.create({ name: '城市韧性研究' });
+      const root = path.join(app.core.paths.projects, project.dirName);
+      const lines = [
+        '# 待办',
+        '',
+        '- [ ] 核对样本',
+        '- [ ] 复核权重',
+        '',
+        '- 第一条',
+        '- 第二条',
+        '',
+      ];
+      await writeFile(path.join(root, 'todo.md'), `\ufeff${lines.join('\r\n')}`);
+      const desk = await page.context().newPage();
+      const errors = [];
+      desk.on('pageerror', (error) => errors.push(error.message));
+      const base = page.url().split('?')[0];
+      await desk.goto(`${base}?token=ui-token&surface=desk&projectId=${project.id}&path=todo.md`);
+      const pageView = desk.locator('.ss-page--md');
+      const status = desk.locator('.ss-statusbar');
+      await pageView.locator('li', { hasText: '核对样本' }).waitFor();
+      await status.getByText('已写回项目文件').waitFor();
+
+      // Tick the first task (its box hangs left of the item), then add an item after the last one.
+      const box = await pageView.locator('li.ss-md-task', { hasText: '核对样本' }).boundingBox();
+      await desk.mouse.click(box.x - 14, box.y + 13);
+      await pageView.locator('li.ss-md-task[data-checked="true"]').waitFor();
+      await pageView.locator('li', { hasText: '第二条' }).click();
+      await status.getByText('第 7 行，第 6 列').waitFor();
+      await desk.keyboard.press('End');
+      await desk.keyboard.press('Enter');
+      await desk.keyboard.type('第三条');
+      await pageView.locator('li', { hasText: '第三条' }).waitFor();
+      await desk.keyboard.press('Control+s');
+      await status.getByText('已写回项目文件').waitFor();
+
+      const saved = await readFile(path.join(root, 'todo.md'), 'utf8');
+      const expected = [...lines];
+      expected[2] = '- [x] 核对样本';
+      expected.splice(7, 0, '- 第三条');
+      assert.equal(saved, `\ufeff${expected.join('\r\n')}`);
+      if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
+    }),
+);

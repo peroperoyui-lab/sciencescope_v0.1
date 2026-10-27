@@ -367,7 +367,12 @@ test(
       await body.locator('td', { hasText: '乙' }).click();
       await desk.keyboard.press('End');
       await desk.keyboard.type('二');
+      await body.locator('td', { hasText: '乙二' }).waitFor();
       await desk.keyboard.press('Home');
+      // The editor reads the moved caret on selectionchange; Backspace waits for it,
+      // or under load it deletes back from the old caret (seen once on Windows).
+      await desk.waitForFunction(() => getSelection()?.anchorOffset === 0);
+      await desk.evaluate(() => new Promise((done) => requestAnimationFrame(() => done(null))));
       await desk.keyboard.press('Backspace');
       await desk.keyboard.press('Backspace');
       assert.equal(await body.locator('td').count(), 4);
