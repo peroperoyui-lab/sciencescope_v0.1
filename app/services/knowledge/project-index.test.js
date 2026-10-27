@@ -198,24 +198,46 @@ test('project files are indexed, changed once and readable after their folder mo
   }));
 
 test("a project's built-in folder leaves ScienceScope's own workspace out of the index", () =>
-  withCore('project-index-own', async (core) => {
+  withCore('project-index-own', async (core, dir) => {
     const project = await core.projects.create({ name: '自带文件夹' });
     const research = createResearch(core);
     const files = createProjectFiles(core);
     const index = createProjectIndex({ core, research, files });
     const root = files.rootOf(project.id);
     try {
-      for (const folder of ['workbench', 'notes', 'minutes', 'versions/g1', 'papers/notes'])
+      for (const folder of [
+        'workbench',
+        'notes',
+        'minutes',
+        'versions/g1',
+        'desk/session1',
+        'papers/notes',
+      ])
         await mkdir(path.join(root, folder), { recursive: true });
       await writeFile(path.join(root, 'workbench/plans.md'), '# 计划');
       await writeFile(path.join(root, 'notes/想法.md'), '笔记');
       await writeFile(path.join(root, 'minutes/m1.md'), '纪要');
       await writeFile(path.join(root, 'versions/g1/v1.md'), '稿子');
+      await writeFile(path.join(root, 'desk/session1/manuscript.md'), '编辑台内部工作副本');
       await writeFile(path.join(root, 'papers/notes/读书.md'), '用户放进来的');
       await index.scanAndWait(project.id);
       assert.deepEqual(
         research.store.listSources({ projectId: project.id }).map((source) => source.folderPath),
         ['papers/notes/读书.md'],
+      );
+      const externalRoot = path.join(dir, 'external-project');
+      await mkdir(path.join(externalRoot, 'desk'), { recursive: true });
+      await writeFile(path.join(externalRoot, 'desk/manuscript.md'), '用户项目的研究原文');
+      const external = await core.projects.create({ name: '用户文件夹', folder: externalRoot });
+      await index.scanAndWait(external.id);
+      const sources = research.store.listSources({ projectId: external.id });
+      assert.deepEqual(
+        sources.map((source) => source.folderPath),
+        ['desk/manuscript.md'],
+      );
+      assert.equal(sources[0].contentStatus, 'parsed');
+      assert.ok(
+        research.store.chunks(sources[0].id).some((chunk) => chunk.text.includes('研究原文')),
       );
     } finally {
       await index.close();

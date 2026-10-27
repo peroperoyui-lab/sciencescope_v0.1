@@ -7,8 +7,8 @@ import { setImmediate as yieldLoop } from 'node:timers/promises';
 
 const excluded = new Set(['node_modules', '__pycache__', 'renv']);
 /** ScienceScope's own workspace in a project's built-in folder: plans, notes,
- * minutes and editing-desk versions are not project files. */
-const ownFolders = new Set(['workbench', 'notes', 'minutes', 'versions']);
+ * minutes, versions and editing-desk working copies are not project files. */
+const ownFolders = new Set(['workbench', 'notes', 'minutes', 'versions', 'desk']);
 
 function stampKey(stamp) {
   return stamp?.fileSize == null || stamp.fileMtimeMs == null

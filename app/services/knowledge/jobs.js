@@ -84,17 +84,19 @@ export function createKnowledgeJobs({ core, research, semantic, derived, cards }
     ).run(value, error, attempts, nowIso(), job.source_id, job.topic);
     notify();
   }
-  function queue(id, topic, version) {
+  function queue(id, topic, version, publish = true) {
     db.prepare(
       `INSERT INTO kb_jobs(source_id,layer,topic,state,content_version,updated_at)
       VALUES(?,'derived',?,'queued',?,?) ON CONFLICT(source_id,layer,topic)
       DO UPDATE SET state='queued',content_version=excluded.content_version,
       error=NULL,attempts=0,updated_at=excluded.updated_at`,
     ).run(id, topic, version, nowIso());
-    notify();
-    schedule();
+    if (publish) {
+      notify();
+      schedule();
+    }
   }
-  function ensureSimilarityJob() {
+  function ensureSimilarityJob(publish = true) {
     if (!similarity || closed) return;
     const previous = fullJob(),
       version = digest(similarity);
@@ -115,11 +117,13 @@ export function createKnowledgeJobs({ core, research, semantic, derived, cards }
         checkpoint.attempts,
         nowIso(),
       );
-      notify();
-      schedule();
+      if (publish) {
+        notify();
+        schedule();
+      }
       return;
     }
-    if (sourceId) queue(sourceId, 'similar', version);
+    if (sourceId) queue(sourceId, 'similar', version, publish);
   }
   function loadSettings() {
     const revision = ++settingsRevision;
@@ -132,14 +136,14 @@ export function createKnowledgeJobs({ core, research, semantic, derived, cards }
     })();
     return settingsRead;
   }
-  function enqueue(id, force = false) {
+  function enqueue(id, force = false, publish = true) {
     const chunks = research.store.chunks(id);
     const version = paragraphHash(chunks);
     const previous = rowFor(id);
     if (previous?.content_version === version || (!force && !chunks.length && !previous)) return;
     reset.add(id);
-    queue(id, '', version);
-    ensureSimilarityJob();
+    queue(id, '', version, publish);
+    if (publish) ensureSimilarityJob();
   }
   function schedule() {
     if (closed || timer || running || busy() || !similarity) return;
@@ -242,8 +246,14 @@ export function createKnowledgeJobs({ core, research, semantic, derived, cards }
       if (event.type === 'turn.ended') schedule();
     });
     await loadSettings();
-    for (const source of research.store.listSources()) enqueue(source.id);
+    // Startup restores one catalog snapshot. Committing and rebuilding its
+    // status once avoids a disk sync and full queue summary for every source.
+    db.transaction(() => {
+      for (const source of research.store.listSources()) enqueue(source.id, false, false);
+      ensureSimilarityJob(false);
+    });
     if (semantic.status().state === 'ready') vectorsReady();
+    else notify();
     schedule();
   }
   async function idle() {
