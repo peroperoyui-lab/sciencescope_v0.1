@@ -226,6 +226,9 @@ export function VersionTree({
   const meta = (entry) => {
     if (entry.id === currentId)
       return html`<${Lucide} name="pencil" />${editing ? t('正在编辑') : t('正在看')}`;
+    // A mark (标记) says more than the date, so it takes the line.
+    if (entry.description)
+      return html`<${Lucide} name="tag" /><span class="ss-truncate">${entry.description}</span>`;
     const [icon, origin] = originOf(entry);
     return html`<${Lucide} name=${icon} />${entry.createdAt.slice(5, 10)} ·
       ${entry.tier || t(origin)}`;

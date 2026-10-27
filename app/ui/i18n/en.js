@@ -2395,6 +2395,7 @@ export const en = {
     'Describe this version, e.g. "the one my supervisor read"',
   '虚线：外部修改': 'Dashed: changed outside',
   设为重点: 'Mark as key version',
+  重点: 'Key version',
   '这一版的文件和版本说明会移到回收站，版本树里不再显示。':
     "This version's file and notes go to the recycle bin and leave the version tree.",
   'PDF 只读': 'PDF is read-only',

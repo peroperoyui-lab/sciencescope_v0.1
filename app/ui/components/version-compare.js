@@ -171,10 +171,16 @@ export function VersionCompare({ versions, left, right, onPick, onExit, tag = 'd
     if (!locked) follow(0);
   };
 
-  const options = versions.map((version) => ({
+  // Key versions (重点) come first, the rest keep their order.
+  const options = [
+    ...versions.filter((version) => version.key),
+    ...versions.filter((version) => !version.key),
+  ].map((version) => ({
     value: version.id,
     text: versionText(version),
-    description: formatTime(version.createdAt),
+    description: version.key
+      ? `${t('重点')} · ${formatTime(version.createdAt)}`
+      : formatTime(version.createdAt),
   }));
   const byId = (id) => versions.find((version) => version.id === id);
   const leftVersion = byId(left);

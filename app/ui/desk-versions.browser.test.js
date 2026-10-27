@@ -58,18 +58,38 @@ test(
             entry.textContent.includes('初稿') && entry.getAttribute('data-tier') === 'submit',
         ),
       );
+      // 标记 shows on the node and is found by the filter; 设为重点 accents it.
+      const markBox = desk.getByRole('textbox', { name: '标记' });
+      await markBox.fill('导师看过的版本');
+      await markBox.press('Tab');
+      await node(1).filter({ hasText: '导师看过的版本' }).waitFor();
+      await node(1).click({ button: 'right' });
+      await desk
+        .getByRole('menu', { name: '版本' })
+        .getByRole('menuitem', { name: '设为重点' })
+        .click();
+      await desk.waitForFunction(() =>
+        document.querySelector('.ss-vnode[data-key]')?.textContent.includes('初稿'),
+      );
       await shoot(desk, 'u7-tree');
 
       // The filter dims versions that do not match.
       const filter = desk.getByRole('searchbox', { name: '筛选版本' });
-      await filter.fill('初稿');
-      assert.equal(await node(2).getAttribute('data-dim'), '');
-      assert.equal(await node(1).getAttribute('data-dim'), null);
+      for (const words of ['初稿', '导师']) {
+        await filter.fill(words);
+        assert.equal(await node(2).getAttribute('data-dim'), '');
+        assert.equal(await node(1).getAttribute('data-dim'), null);
+      }
       await filter.fill('');
 
       // 和 v2 比较 opens the side-by-side comparison.
       await desk.getByRole('button', { name: '和 v2 比较' }).click();
       await status.getByText('正在比较两个版本').waitFor();
+      // The key version heads the version choices.
+      await desk.getByRole('button', { name: '右边的版本' }).click();
+      const first = desk.getByRole('menuitemradio').first();
+      assert.match(await first.textContent(), /^v1\b.*重点/su);
+      await desk.keyboard.press('Escape');
       await desk.getByRole('button', { name: '退出比较' }).click();
       await status.getByText('正在比较两个版本').waitFor({ state: 'detached' });
 

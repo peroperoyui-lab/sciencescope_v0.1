@@ -5375,6 +5375,7 @@ button.ss-act__row:hover {
 .ss-vnode__meta {
   display: flex;
   align-items: center;
+  min-width: 0;
   gap: var(--sp-4);
   color: var(--faint);
   font-size: 11px;
@@ -5407,6 +5408,12 @@ button.ss-act__row:hover {
 .ss-vnode[data-key] .ss-vnode__v,
 .ss-vnode[data-key] .ss-vnode__top > .ss-i {
   color: var(--accent);
+}
+.ss-vnode[data-key] .ss-vnode__top > .ss-i {
+  fill: currentColor;
+}
+.ss-vnode[data-key] {
+  background: var(--accent-soft);
 }
 .ss-vnode[data-dim] {
   opacity: 0.35;
