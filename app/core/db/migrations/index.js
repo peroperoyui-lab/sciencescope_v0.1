@@ -37,6 +37,7 @@ import * as knowledgePositions from './026-knowledge-positions.js';
 import * as deskSourceSync from './027-desk-source-sync.js';
 import * as versionDiffs from './028-version-diffs.js';
 import * as deskAnnotations from './029-desk-annotations.js';
+import * as versionMarks from './030-version-marks.js';
 
 export const migrations = [
   core,
@@ -68,4 +69,5 @@ export const migrations = [
   deskSourceSync,
   versionDiffs,
   deskAnnotations,
+  versionMarks,
 ];

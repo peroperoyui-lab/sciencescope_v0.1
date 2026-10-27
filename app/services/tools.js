@@ -106,7 +106,7 @@ export const TOOL_SPECS = [
       'Resources: "map", "log" (key = project id; Markdown entries may carry <!-- sciencescope:references [schema-1 reference objects] -->), "plans" (project id or "global"), "minutes" ' +
       '(meeting id), "notes" (project id/name; give scope = project id without key to list), "agent" ' +
       '(participant id), "settings", "versions" (scope = project id lists groups; key = project id/version id reads extracted paragraphs and notes; offset/limit pages original text). ' +
-      '"manuscript": scope=project id lists keys; key=project id/group id or project id/path:relative/path reads current editing blocks. offset/limit page blocks (default 40, maximum 200); remaining reports unread blocks. Optional version reads a historical version. Atoms appear as ⟦type:ref display⟧ and must be kept exactly.',
+      '"manuscript": scope=project id lists keys; key=project id/group id or project id/path:relative/path reads current editing blocks. offset/limit page blocks (default 40, maximum 200); remaining reports unread blocks. Optional version reads a historical version. With a manuscript key, versions=true lists its version metadata instead of blocks: number, id, branch, tier, title, description, key (boolean), parentId, origin, createdAt. 重点版本是用户标出的关键版本，比较时优先考虑。 Version description and key are read-only through manuscript tools. Atoms appear as ⟦type:ref display⟧ and must be kept exactly.',
     parameters: {
       target: {
         type: 'string',
@@ -116,6 +116,10 @@ export const TOOL_SPECS = [
       key: { type: 'string', description: 'Which item; see target.' },
       scope: { type: 'string', description: 'For listing notes: the project id.' },
       version: { type: 'string', description: 'For manuscript: read-only historical version id.' },
+      versions: {
+        type: 'boolean',
+        description: 'For manuscript with a key: list versions and their read-only metadata.',
+      },
       before: { type: 'integer', description: 'For meetings: read messages before this seq.' },
       limit: { type: 'integer', description: 'For meetings and changes: how many to return.' },
       offset: {
