@@ -7,6 +7,13 @@ import { t } from './i18n/index.js';
 const CHANNEL = 'sciencescope-desk';
 /** @type {Window | null} */
 let tab = null;
+// Inside the desk window itself (its 对话 tab, its file preview) a request is
+// handled here instead of opening another desk.
+const isDesk = new URLSearchParams(location.search).get('surface') === 'desk';
+/** @type {((target: DeskTarget) => void) | null} */
+let openHere = null;
+/** @type {((focus: any) => void) | null} */
+let focusHere = null;
 
 /** @typedef {{ projectId?: string | null, path?: string | null }} DeskTarget */
 
@@ -32,6 +39,7 @@ function deskUrl(target) {
 export async function openDesk(target = {}) {
   const projectId = target.projectId ?? null;
   const path = projectId ? (target.path ?? null) : null;
+  if (isDesk && openHere) return openHere({ projectId, path });
   if (isNative()) {
     await globalThis.__TAURI__.core.invoke('open_secondary_window', {
       request: { surface: 'desk', project_id: projectId, path, toggle: false, collapsed: false },
@@ -58,6 +66,7 @@ export function listenForDeskTargets(onOpen) {
     if (data && typeof data.projectId === 'string')
       onOpen({ projectId: data.projectId, path: typeof data.path === 'string' ? data.path : null });
   };
+  openHere = onOpen;
   if (isNative()) {
     let stop;
     let disposed = false;
@@ -70,13 +79,17 @@ export function listenForDeskTargets(onOpen) {
     return () => {
       disposed = true;
       stop?.();
+      openHere = null;
     };
   }
   const channel = new BroadcastChannel(CHANNEL);
   channel.onmessage = ({ data }) => {
     if (data?.type === 'open') receive(data);
   };
-  return () => channel.close();
+  return () => {
+    channel.close();
+    openHere = null;
+  };
 }
 
 /** The document the window was opened on (`?projectId=&path=`). @returns {DeskTarget} */
@@ -99,6 +112,7 @@ const FOCUS_FRESH = 60000;
 export async function focusDesk(actions, reference) {
   const found = await actions.deskFocus(reference);
   if (!found.path) throw new Error(t('这份文稿只在应用里，编辑台还不能从这里打开它。'));
+  if (isDesk && focusHere) return focusHere({ ...found, at: Date.now() });
   try {
     localStorage.setItem(FOCUS_KEY, JSON.stringify({ ...found, at: Date.now() }));
   } catch {
@@ -131,5 +145,9 @@ export function listenForDeskFocus(onFocus) {
     }
   };
   addEventListener('storage', receive);
-  return () => removeEventListener('storage', receive);
+  focusHere = onFocus;
+  return () => {
+    removeEventListener('storage', receive);
+    focusHere = null;
+  };
 }

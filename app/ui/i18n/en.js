@@ -1693,8 +1693,6 @@ export const en = {
   下划线: 'Underline',
   下标: 'Subscript',
   主线: 'Main line',
-  '从对话进入编辑台时，这里显示那段对话，可以接着和专家讨论这份文稿。':
-    'When you enter the desk from a chat, that chat shows here so you can keep discussing this document with the experts.',
   侧栏: 'Side panel',
   '共 {n} 页': '{n} pages',
   '关闭 {name}': 'Close {name}',
@@ -2206,8 +2204,6 @@ export const en = {
   '专家没有改动正文，回复在对话里。':
     'The expert did not change the text; the reply is in the chat.',
   先选中要引用的文字: 'Select the text to quote first',
-  '已引用到对话，回到主窗口的对话里可以接着问':
-    'Quoted to the chat; continue there in the main window',
   '这里之后又改过，请先撤销后来的修改。':
     'This was changed again later; undo the later change first.',
   这句的修改记录: 'Changes to this sentence',
@@ -2406,4 +2402,33 @@ export const en = {
   这份文稿还没有版本: 'This document has no versions yet',
   外部修改: 'Changed outside',
   分支: 'Branch',
+  // U8: entering the desk from a chat, and the chat in the desk.
+  这个项目还没有对话: 'This project has no chats yet',
+  换成别的对话: 'Switch to another chat',
+  '换成别的对话…': 'Switch to another chat…',
+  '绑定后可以在这里和专家讨论这份文稿，秘书也跟着这段对话。':
+    'Once bound, discuss this document with the experts here; the secretary follows this chat.',
+  接续最近的对话: 'Continue the latest chat',
+  '选一个对话…': 'Choose a chat…',
+  在主窗口打开: 'Open in the main window',
+  从最新消息开新分支: 'Branch from the latest message',
+  绑定的对话: 'Bound chat',
+  在主窗口打开这段对话: 'Open this chat in the main window',
+  '{day} 从「{title}」分出，原对话停在分出的地方':
+    'Branched from “{title}” on {day}; that chat stays where it was',
+  '和专家讨论这份文稿，@ 点名': 'Discuss this document with the experts; @ to name one',
+  '已从最新消息分出「{title}」，编辑台接着这段新对话':
+    'Branched “{title}” from the latest message; the desk continues in the new chat',
+  '要进入编辑台继续改吗？': 'Continue editing in the desk?',
+  '从最新消息分出一段新对话，这段对话停在这里':
+    'Starts a new chat from the latest message; this chat stays here',
+  开新分支进入: 'Enter on a new branch',
+  接续当前对话: 'Continue this chat',
+  不进入编辑台: 'Not now',
+  编辑台绑定的对话: 'The chat this desk is bound to',
+  这个对话的秘书: "This chat's secretary",
+  绑定对话后才有秘书: 'Bind a chat to use its secretary',
+  回到对话: 'Back to the chat',
+  返回: 'Back',
+  移除引用: 'Remove quote',
 };

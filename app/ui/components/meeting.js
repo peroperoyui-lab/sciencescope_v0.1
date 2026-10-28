@@ -10,6 +10,7 @@ import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
 import { navigate } from '../route.js';
 import { Composer } from './composer.js';
+import { DeskEntryBar } from './desk-entry.js';
 import { Message } from './chat-message.js';
 import { DiscussionStrip } from './discussion-strip.js';
 import { MinutesDialog } from './minutes-dialog.js';
@@ -414,6 +415,7 @@ export function MeetingView({ meetingId, focusMessageId }) {
             })}
           </div>
         </div>
+        <${DeskEntryBar} meeting=${meeting} />
         <${Composer}
           key=${meeting.id}
           meetingId=${meeting.id}

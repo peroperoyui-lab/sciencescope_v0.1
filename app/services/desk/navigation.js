@@ -64,6 +64,57 @@ export function createDeskNavigation(core, { sessions, store, registerDocument }
     });
   }
 
+  /**
+   * The chat's latest 「进入编辑台」 suggestion (desk_suggest) that nobody has
+   * answered yet: entering from this chat, or from a branch of it, answers it.
+   * @param {string} meetingId
+   */
+  function suggestion(meetingId) {
+    core.meetings.get(meetingId);
+    const row = core.db
+      .prepare(
+        "SELECT seq, payload_json, created_at FROM events WHERE type='desk.suggested' AND meeting_id=? ORDER BY seq DESC LIMIT 1",
+      )
+      .get(meetingId);
+    if (!row) return { suggestion: null };
+    const answered = core.db
+      .prepare("SELECT payload_json FROM events WHERE type='desk.entered' AND seq>?")
+      .all(row.seq)
+      .some(({ payload_json }) => {
+        const entered = JSON.parse(String(payload_json)).meetingId;
+        if (entered === meetingId) return true;
+        try {
+          return core.meetings.get(entered).parentMeetingId === meetingId;
+        } catch {
+          return false;
+        }
+      });
+    if (answered) return { suggestion: null };
+    const payload = JSON.parse(String(row.payload_json));
+    return {
+      suggestion: {
+        seq: Number(row.seq),
+        reason: String(payload.reason ?? ''),
+        createdAt: String(row.created_at),
+        document: documentOf(payload.key),
+      },
+    };
+  }
+  /** A manuscript key from workspace_read, as the project file it names. @param {string | null} key */
+  function documentOf(key) {
+    if (!key) return null;
+    const separator = String(key).indexOf('/');
+    const item = String(key).slice(separator + 1);
+    try {
+      const path = item.startsWith('path:')
+        ? item.slice(5)
+        : core.versionCatalog.group(item).sourcePath;
+      return path ? { path, name: path.split('/').pop() } : null;
+    } catch {
+      return null;
+    }
+  }
+
   async function focus({ reference }) {
     const location = reference?.location ?? {};
     if (
@@ -114,5 +165,5 @@ export function createDeskNavigation(core, { sessions, store, registerDocument }
     core.events.record('desk.focus', result);
     return result;
   }
-  return { enter, focus };
+  return { enter, suggestion, focus };
 }

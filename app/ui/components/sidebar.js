@@ -22,8 +22,8 @@ const SHOWN = 5;
 const DRAG_TYPE = 'application/x-sciencescope-chat';
 
 const byRecent = (a, b) => b.updatedAt.localeCompare(a.updatedAt);
-/** Meetings shown in the tree: not archived, not attached to another meeting. */
-const listed = (meeting) =>
+/** Meetings shown in the tree (and offered by the desk): not archived, not attached to another meeting. */
+export const listed = (meeting) =>
   !meeting.archived &&
   !meeting.temporary &&
   !meeting.attachedToMeetingId &&

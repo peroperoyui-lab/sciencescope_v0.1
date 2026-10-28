@@ -21,7 +21,10 @@ const LAYERS = '.ss-menu, .ss-pop, .ss-dialog, #v-menu, .modalback, .command-pal
 
 /**
  * @param {{ onSend: (text: string, input?:any, approval?:'ask' | 'auto', model?:any) => Promise<any>, running?: boolean,
- *   onStop?: () => void, inputRef?: any, meetingId?: string, projectId?:string|null }} props
+ *   onStop?: () => void, inputRef?: any, meetingId?: string, projectId?:string|null,
+ *   slim?: boolean, placeholder?: string }} props
+ * `slim` (the desk's side panel) leaves out the discussion mode, the context
+ * ring and the model picker; the chat's own settings still apply.
  */
 export function Composer({
   onSend,
@@ -30,6 +33,8 @@ export function Composer({
   inputRef,
   meetingId,
   projectId = null,
+  slim = false,
+  placeholder = '输入问题或下一步工作…',
 }) {
   const actions = useActions();
   const sendKey = useAppState((state) => state.settings?.composer?.sendKey ?? 'enter');
@@ -161,7 +166,7 @@ export function Composer({
         class="ss-composer__input"
         rows="1"
         value=${text}
-        placeholder=${t('输入问题或下一步工作…')}
+        placeholder=${t(placeholder)}
         aria-label=${t('主输入框')}
         onInput=${(event) => {
           setText(event.currentTarget.value);
@@ -183,20 +188,23 @@ export function Composer({
       ${mention.content}
       <div class="ss-composer__bar">
         <${InputAdd} owner=${owner} projectId=${projectId} value=${researchInput.value} />
-        <${DiscussionMode} meetingId=${meetingId} running=${running} />
+        ${!slim && html`<${DiscussionMode} meetingId=${meetingId} running=${running} />`}
         <${ExecutionMode}
           mode=${approval === 'ask' ? 'approval' : 'direct'}
           onChange=${chooseMode}
           locked=${running}
         />
         <span class="ss-composer__spacer"></span>
-        <${DiscussionUsageRing} meetingId=${meetingId} />
-        <${ModelPicker}
-          own=${ownModel}
-          inherited=${inheritedModel}
-          label="本对话的模型和思考强度"
-          onChange=${chooseModel}
-        />
+        ${
+          !slim &&
+          html`<${DiscussionUsageRing} meetingId=${meetingId} />
+            <${ModelPicker}
+              own=${ownModel}
+              inherited=${inheritedModel}
+              label="本对话的模型和思考强度"
+              onChange=${chooseModel}
+            />`
+        }
         ${
           stops
             ? html`<button

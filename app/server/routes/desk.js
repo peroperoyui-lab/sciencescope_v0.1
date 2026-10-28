@@ -24,6 +24,7 @@ export function registerDeskRoutes(router, desk, core, conductor) {
     response.end(bytes);
   });
   router.post('/api/desk/enter', ({ body }) => desk.enter(body));
+  router.get('/api/desk/suggestion', ({ query }) => desk.suggestion(query.get('meetingId')));
   router.post('/api/desk/focus', ({ body }) => desk.focus(body));
   router.get('/api/desk/sessions/:id/annotations', ({ params }) => desk.listAnnotations(params.id));
   router.post('/api/desk/sessions/:id/annotations', ({ params, body }) =>

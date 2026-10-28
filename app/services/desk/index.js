@@ -192,6 +192,8 @@ export function createDesk(
      * @param {{projectId:string,meetingId?:string,mode:'continue'|'branch',atMessageId?:string}} input
      */
     enter: (input) => serial(async () => navigation.enter(input)),
+    /** @param {string} meetingId */
+    suggestion: (meetingId) => navigation.suggestion(meetingId),
     /**
      * @param {{reference:import('../../core/references.js').ContentReference}} input
      */

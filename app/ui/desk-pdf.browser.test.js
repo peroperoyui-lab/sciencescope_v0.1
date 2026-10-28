@@ -136,13 +136,15 @@ test(
       assert.equal(await toolbar.getByRole('button', { name: '加粗' }).count(), 0);
       await shoot(desk, 'u6-pdf-toolbar');
       await toolbar.getByRole('button', { name: /引用到对话/u }).click();
-      await desk.getByText('已引用到对话，回到主窗口的对话里可以接着问').waitFor();
+      // The quote lands in the desk's own chat tab.
+      await desk.locator('.ss-desk-chat [data-desk-quote]').waitFor();
       const meeting = app.core.meetings.list({ projectId: project.id })[0];
       const draft = await app.researchInput.draft(meeting.id);
       assert.equal(draft.marks.length, 1);
       assert.match(JSON.stringify(draft.marks[0]), /outcome/u);
 
       // A click on marked words lights up their card.
+      await desk.getByRole('tab', { name: '批注与索引' }).click();
       await desk.mouse.click(middle.x, middle.y);
       await cards
         .filter({ hasText: '案例来自城市数据' })

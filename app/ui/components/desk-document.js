@@ -122,6 +122,9 @@ function insertSourceFormula(editor, latex) {
 // The last page's final sync, so the next view of the same file includes it.
 let leaving = Promise.resolve();
 
+/** The chat each project's desk is bound to (projectId → meetingId); sessions opened later join it. */
+export const deskChats = new Map();
+
 /** True when this tab opens in a desk session and can be edited. */
 export const editableTab = (tab) => tab?.kind === 'project' && EDITABLE.has(tab.format);
 
@@ -135,7 +138,11 @@ async function openSession(actions, tab, ask) {
   try {
     // `from`: 从这一版开始编辑 picked an older version in the version tree.
     const versionId = tab.from ? { versionId: tab.from } : {};
-    return { opened: await actions.openDeskSession({ groupId: group.id, ...versionId }) };
+    const chat = deskChats.get(tab.projectId);
+    const meetingId = chat ? { meetingId: chat } : {};
+    return {
+      opened: await actions.openDeskSession({ groupId: group.id, ...versionId, ...meetingId }),
+    };
   } catch (failure) {
     if (failure.code !== 'DESK_EXTERNAL_CHANGE' || !failure.details?.sessionId) throw failure;
     const choice = await ask(externalQuestion(tab.name));

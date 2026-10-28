@@ -15,7 +15,9 @@ const MAX_WIDTH = 640;
  * @param {{ name: 'secretary' | 'assistant' | 'preview' | 'materials' | 'knowledge', title: string, closeLabel: string,
  *   defaultWidth?: number,
  *   onClose: () => void, buttons?: any, onHeadPointerDown?: (event: PointerEvent) => void,
- *   detached?: boolean, className?: string, children: any }} props
+ *   detached?: boolean, className?: string, onBack?: () => void, backLabel?: string,
+ *   children: any }} props
+ * `onBack` puts an arrow before the title, for a panel opened from another one.
  */
 export function SidePanel({
   name,
@@ -27,6 +29,8 @@ export function SidePanel({
   detached = false,
   className = '',
   defaultWidth = DEFAULT_WIDTH,
+  onBack,
+  backLabel = '返回',
   children,
 }) {
   const actions = useActions();
@@ -56,6 +60,18 @@ export function SidePanel({
       data-tauri-drag-region=${detached || undefined}
       onPointerDown=${onHeadPointerDown}
     >
+      ${
+        onBack &&
+        html`<button
+          type="button"
+          class="ss-icon-btn"
+          aria-label=${t(backLabel)}
+          data-tip=${t(backLabel)}
+          onClick=${onBack}
+        >
+          <${Lucide} name="arrow-left" />
+        </button>`
+      }
       <span class="ss-panel__title">${t(title)}</span>
       ${buttons}
       <button

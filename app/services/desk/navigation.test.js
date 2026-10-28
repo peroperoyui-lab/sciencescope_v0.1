@@ -13,6 +13,14 @@ async function apiFor(core, f) {
   const url = await server.listen();
   return {
     close: () => server.close(),
+    async get(route) {
+      const response = await fetch(url + '/api/desk/' + route, {
+        headers: { authorization: 'Bearer desk-nav' },
+      });
+      const result = await response.json();
+      assert.equal(response.status, 200, JSON.stringify(result));
+      return result;
+    },
     async post(route, body, status = 200) {
       const response = await fetch(url + '/api/desk/' + route, {
         method: 'POST',
@@ -120,6 +128,61 @@ test('desk entry continues, forks or chooses recent activity and rebinds only fu
       assert.deepEqual(core.turns.running(), []);
     } finally {
       unsubscribe();
+      await api.close();
+      await f.close();
+    }
+  }));
+
+test('a desk suggestion shows until someone enters from that chat or a branch of it', () =>
+  withCore('desk-suggestion', async (core, dir) => {
+    const f = await setupAnnotations(core, dir, 'md');
+    const api = await apiFor(core, f);
+    try {
+      const projectId = f.project.id;
+      const meeting = core.meetings.create({
+        projectId,
+        title: '研究设计讨论',
+        members: [{ participantId: 'person_user' }, { participantId: 'agent_main' }],
+      });
+      core.messages.post({ meetingId: meeting.id, authorId: 'person_user', text: '初稿' });
+      const suggest = (key) =>
+        core.db.transaction(() =>
+          core.events.record(
+            'desk.suggested',
+            { meetingId: meeting.id, reason: '初稿已经成形', key },
+            { meetingId: meeting.id, projectId, actorId: 'agent_main' },
+          ),
+        );
+      const read = async () =>
+        (await api.get('suggestion?meetingId=' + encodeURIComponent(meeting.id))).suggestion;
+      assert.equal(await read(), null);
+      suggest(`${projectId}/${f.group.id}`);
+      const shown = await read();
+      assert.equal(shown.reason, '初稿已经成形');
+      assert.deepEqual(shown.document, { path: '论文.md', name: '论文.md' });
+      // Entering from another chat does not answer it.
+      const other = core.meetings.create({
+        projectId,
+        title: '另一段对话',
+        members: [{ participantId: 'person_user' }, { participantId: 'agent_main' }],
+      });
+      await api.post('enter', { projectId, meetingId: other.id, mode: 'continue' });
+      assert.equal((await read()).seq, shown.seq);
+      await api.post('enter', { projectId, meetingId: meeting.id, mode: 'branch' });
+      assert.equal(await read(), null);
+      // A later suggestion with a file path key, then entering this chat itself.
+      suggest(`${projectId}/path:章节/第三章.docx`);
+      assert.deepEqual((await read()).document, { path: '章节/第三章.docx', name: '第三章.docx' });
+      await api.post('enter', { projectId, meetingId: meeting.id, mode: 'continue' });
+      assert.equal(await read(), null);
+      // A document opened after entering (say, by the desk window opening on it) joins that chat.
+      await copyFile(f.file, path.join(f.folder, '另一份.md'));
+      const later = await f.desk.registerDocument({ projectId, path: '另一份.md' });
+      assert.equal(
+        (await api.post('sessions', { groupId: later.id })).session.meetingId,
+        meeting.id,
+      );
+    } finally {
       await api.close();
       await f.close();
     }

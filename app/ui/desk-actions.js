@@ -24,6 +24,9 @@ export function createDeskActions(api) {
     rewriteDesk: (id, body) => api.post(`${session(id)}/rewrite`, body),
     /** Bind open sessions to the project's latest chat (or a new one). @param {{projectId:string,mode:'continue'|'branch',meetingId?:string}} body */
     enterDesk: (body) => api.post('/api/desk/enter', body),
+    /** The chat's open 「进入编辑台」 suggestion, or null. @param {string} meetingId */
+    deskSuggestion: (meetingId) =>
+      api.get(`/api/desk/suggestion?meetingId=${encodeURIComponent(meetingId)}`),
     /** Withdraw one recorded change. @param {string} changeId */
     undoDeskChange: (changeId) =>
       api.post(`/api/desk/changes/${encodeURIComponent(changeId)}/undo`),

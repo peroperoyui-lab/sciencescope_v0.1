@@ -5854,6 +5854,38 @@ button.ss-vfold {
   font: 600 11px/1 var(--font-sans);
 }
 
+/* 要进入编辑台继续改吗？ above a chat's input (U8). */
+.ss-desk-entry {
+  flex: none;
+  align-items: center;
+  width: calc(100% - 48px);
+  max-width: var(--chat);
+  margin: 0 auto 8px;
+}
+.ss-desk-entry .ss-callout__body {
+  display: grid;
+}
+.ss-desk-entry__why {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* The canvas and the orb above it; the orb stays put while the page scrolls. */
+.ss-desk-stage {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+.ss-desk-stage > .ss-desk-orb {
+  right: 24px;
+}
+.ss-desk-orb[aria-pressed='true'] {
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
 /* The orb that opens this conversation's secretary from the desk. */
 .ss-desk-orb {
   position: absolute;
@@ -5890,14 +5922,18 @@ button.ss-vfold {
   font-weight: 600;
   font-size: 13px;
 }
-.ss-desk-chat__thread {
+.ss-desk-chat {
+  display: flex;
   flex: 1;
-  align-content: start;
-  gap: var(--sp-16);
-  width: 100%;
+  flex-direction: column;
   min-height: 0;
-  padding: 12px 14px;
-  overflow-y: auto;
+}
+.ss-desk-chat__thread > .ss-thread {
+  gap: var(--sp-16);
+  padding: 12px 14px 8px;
+}
+.ss-desk-chat__composer .ss-composer-wrap {
+  padding: 0;
 }
 .ss-desk-chat__origin {
   display: flex;

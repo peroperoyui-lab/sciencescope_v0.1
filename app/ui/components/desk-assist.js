@@ -17,6 +17,7 @@ import { html } from '../html.js';
 import { formatTime, t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
 import { Dialog } from './dialog.js';
+import { deskChats } from './desk-document.js';
 
 const SOURCE_MARKUP = {
   md: [
@@ -62,14 +63,15 @@ const inRender = (event) =>
   );
 
 /**
- * @param {{ tab: any, editing: any, canvas: any, notes: any }} props
+ * @param {{ tab: any, editing: any, canvas: any, notes: any, onQuoted?: () => void }} props
  * `editing.current` is the open editor with its `session` and `opened` session;
- * `notes` starts comments and indexes (useDeskNotes).
+ * `notes` starts comments and indexes (useDeskNotes); `onQuoted` shows the chat
+ * a quoted sentence went to.
  * @returns {{ layer: any, onContextMenu: (event: MouseEvent) => void, onSelection: () => void,
  *   onScroll: () => void, revealBlock: (blockId: string) => Promise<any>,
  *   quote: () => Promise<any> }}
  */
-export function useDeskAssist({ tab, editing, canvas, notes }) {
+export function useDeskAssist({ tab, editing, canvas, notes, onQuoted = () => {} }) {
   const actions = useActions();
   const participants = useAppState((state) => state.participants);
   const turns = useAppState((state) => state.turns);
@@ -239,7 +241,13 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
   }
   async function bindChat(session) {
     if (session.meetingId) return session.meetingId;
-    const entered = await actions.enterDesk({ projectId: tab.projectId, mode: 'continue' });
+    const chat = deskChats.get(tab.projectId);
+    const entered = await actions.enterDesk({
+      projectId: tab.projectId,
+      mode: 'continue',
+      ...(chat ? { meetingId: chat } : {}),
+    });
+    deskChats.set(tab.projectId, entered.meeting.id);
     return entered.meeting.id;
   }
 
@@ -286,7 +294,7 @@ export function useDeskAssist({ tab, editing, canvas, notes }) {
         to: place.to,
       });
       await actions.changeInput(meetingId, { op: 'mark-add', mark: { ...mark, comment: '' } });
-      actions.toast(t('已引用到对话，回到主窗口的对话里可以接着问'));
+      onQuoted();
     } catch (failure) {
       actions.toast(failure.message);
     }

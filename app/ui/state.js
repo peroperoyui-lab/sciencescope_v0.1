@@ -75,6 +75,10 @@ export const initialState = {
     {},
   /** Bumped per desk session when its comments or indexes change (`desk.annotations.changed`). */
   /** @type {Record<string, number>} */ deskNotes: {},
+  /** Bumped when an expert suggests the desk or someone enters it (`desk.suggested`, `desk.entered`). */
+  deskEntryVersion: 0,
+  /** The chat each project's desk was last entered with (`desk.entered`): projectId → meetingId. */
+  /** @type {Record<string, string>} */ deskBindings: {},
   /** Last `desk.session` notice per session, such as a failed working-copy write. */
   /** @type {Record<string, any>} */ deskSessions: {},
   /** Popups over the window: one menu, one dialog, one toast, the search palette. */
@@ -152,6 +156,14 @@ export function applyEvent(state, event) {
           ...state.deskNotes,
           [payload.sessionId]: (state.deskNotes[payload.sessionId] ?? 0) + 1,
         },
+      };
+    case 'desk.suggested':
+      return { ...state, deskEntryVersion: state.deskEntryVersion + 1 };
+    case 'desk.entered':
+      return {
+        ...state,
+        deskEntryVersion: state.deskEntryVersion + 1,
+        deskBindings: { ...state.deskBindings, [payload.projectId]: payload.meetingId },
       };
     case 'desk.session':
       return {

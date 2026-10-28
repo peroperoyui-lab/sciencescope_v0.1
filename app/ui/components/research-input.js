@@ -114,8 +114,35 @@ export function InputAdd({ owner, projectId = null }) {
 export function InputAttachments({ owner, value }) {
   const actions = useActions();
   if (!value.materials.length && !value.marks.length) return null;
+  // Sentences quoted from the desk show their words (PageDeskChat); other marks
+  // stay behind the 标记 toggle.
+  const quotes = value.marks.filter((mark) => mark.manuscriptKey && deskReference(mark));
+  const others = value.marks.filter((mark) => !quotes.includes(mark));
   return html`<div class="ss-composer__files attachmentbar">
-    <${MarksPopover} owner=${owner} marks=${value.marks} />
+    ${quotes.map(
+      (mark) =>
+        html`<span class="ss-file-chip" key=${mark.id} data-desk-quote>
+          <${Lucide} name="text-quote" />
+          <button
+            type="button"
+            class="ss-file-chip__open"
+            data-tip=${[mark.title, mark.location?.description].filter(Boolean).join(' · ')}
+            onClick=${() => actions.attempt(() => focusDesk(actions, deskReference(mark)))}
+          >
+            “${mark.text}”
+          </button>
+          <button
+            type="button"
+            aria-label=${t('移除引用')}
+            data-tip=${t('移除引用')}
+            onClick=${() =>
+              actions.attempt(() => actions.changeInput(owner, { op: 'mark-remove', id: mark.id }))}
+          >
+            <${Lucide} name="x" small=${true} />
+          </button>
+        </span>`,
+    )}
+    <${MarksPopover} owner=${owner} marks=${others} />
     ${value.materials.map(
       (entry) =>
         html`<span class="ss-file-chip" key=${entry.selectionId}>

@@ -19,10 +19,12 @@ import { LogoMark } from '../illustrations.js';
 import { writeBack } from '../desk-session.js';
 import { Dialog } from './dialog.js';
 import { useDeskAssist } from './desk-assist.js';
-import { DeskDocument, externalQuestion } from './desk-document.js';
+import { DeskChat } from './desk-chat.js';
+import { DeskDocument, deskChats, externalQuestion } from './desk-document.js';
 import { DeskNav, FileType, deskKind, latestVersion } from './desk-nav.js';
 import { useDeskNotes } from './desk-notes.js';
 import { FilePreview } from './file-preview.js';
+import { SecretaryPanel } from './secretary-panel.js';
 import { Splitter } from './splitter.js';
 import { VersionCompare } from './version-compare.js';
 import { VersionTree } from './version-tree.js';
@@ -625,10 +627,22 @@ function SaveState({ status }) {
 
 /**
  * @param {{ tab: any, group: any, info: any, edit: any, comparing: boolean, view: string,
- *   currentId: string | null, onVersions: () => void }} props
- * `currentId` is the version the tab shows (an older one after 从这一版开始编辑).
+ *   currentId: string | null, onVersions: () => void, chat: any, onChat: () => void }} props
+ * `currentId` is the version the tab shows (an older one after 从这一版开始编辑);
+ * `chat` is the bound chat, shown on the right.
  */
-function Statusbar({ tab, group, info, edit, comparing, view, currentId, onVersions }) {
+function Statusbar({
+  tab,
+  group,
+  info,
+  edit,
+  comparing,
+  view,
+  currentId,
+  onVersions,
+  chat,
+  onChat,
+}) {
   const version =
     group?.versions.find((entry) => entry.id === currentId) ?? latestVersion(group?.versions);
   const versionText = version
@@ -689,16 +703,27 @@ function Statusbar({ tab, group, info, edit, comparing, view, currentId, onVersi
     >
       <${Lucide} name="git-fork" />${t('版本树')}
     </button>
+    ${
+      chat &&
+      html`<button
+        class="ss-statusbar__btn"
+        type="button"
+        data-tip=${t('编辑台绑定的对话')}
+        onClick=${onChat}
+      >
+        <${Lucide} name="message-square" /><span class="ss-truncate">${chat.title}</span>
+      </button>`
+    }
   </footer>`;
 }
 
 /**
  * @param {{ tab: string, onTab: (tab: string) => void, onClose: () => void, width: number,
- *   onWidth: (width: number) => void, notes: any, count: number, versions: any }} props
- * `notes` is the 「批注与索引」 tab's content, `count` its number of items; the
- * version tree (`versions`) takes the whole panel with its own head.
+ *   onWidth: (width: number) => void, notes: any, count: number, versions: any, chat: any }} props
+ * `notes` is the 「批注与索引」 tab's content, `count` its number of items, `chat`
+ * the 「对话」 tab's; the version tree (`versions`) takes the whole panel with its own head.
  */
-function DeskPanel({ tab, onTab, onClose, width, onWidth, notes, count, versions }) {
+function DeskPanel({ tab, onTab, onClose, width, onWidth, notes, count, versions, chat }) {
   const tabs = [
     ['notes', t('批注与索引')],
     ['chat', t('对话')],
@@ -734,19 +759,7 @@ function DeskPanel({ tab, onTab, onClose, width, onWidth, notes, count, versions
               <span class="ss-titlebar__spacer"></span>
               <${IconButton} icon="x" label=${t('关闭侧栏')} onClick=${onClose} />
             </div>
-            ${
-              tab === 'notes'
-                ? notes
-                : html`<div class="ss-panel__body">
-                    <div class="ss-empty">
-                      <div class="ss-empty__icon"><${Lucide} name="message-square-plus" /></div>
-                      <div class="ss-empty__title">${t('还没有绑定对话')}</div>
-                      <div class="ss-empty__text">
-                        ${t('从对话进入编辑台时，这里显示那段对话，可以接着和专家讨论这份文稿。')}
-                      </div>
-                    </div>
-                  </div>`
-            }`
+            ${tab === 'notes' ? notes : chat}`
     }
   </aside>`;
 }
@@ -756,6 +769,8 @@ export function DeskWindow() {
   const settings = useAppState((state) => state.settings);
   const projects = useAppState((state) => state.projects);
   const versionsVersion = useAppState((state) => state.versionsVersion);
+  const bindings = useAppState((state) => state.deskBindings);
+  const meetings = useAppState((state) => state.meetings);
   const saved = useRef(readTabs());
   const [tabs, setTabs] = useState(/** @type {any[]} */ (saved.current.tabs));
   const [active, setActive] = useState(/** @type {string | null} */ (saved.current.active));
@@ -787,7 +802,17 @@ export function DeskWindow() {
       setPanelTab('notes');
     },
   });
-  const assist = useDeskAssist({ tab, editing, canvas, notes });
+  const assist = useDeskAssist({
+    tab,
+    editing,
+    canvas,
+    notes,
+    // 引用到对话 lands in the 对话 tab's input.
+    onQuoted: () => {
+      setPanel(true);
+      setPanelTab('chat');
+    },
+  });
   // A sentence a chat mark points at, shown once its document is open.
   const [focus, setFocus] = useState(/** @type {any} */ (null));
   const [ready, setReady] = useState(0);
@@ -1040,6 +1065,8 @@ export function DeskWindow() {
   // The version the active tab shows: a version tab's own, or the edited session's base.
   const [base, setBase] = useState(/** @type {string | null} */ (null));
   const [opened, setOpened] = useState(0);
+  // The chat the edited session is bound to, as {projectId, meetingId}.
+  const [sessionChat, setSessionChat] = useState(/** @type {any} */ (null));
   useEffect(() => {
     setBase(null);
     const sessionId = tab ? sessions.current[tab.key] : null;
@@ -1047,12 +1074,27 @@ export function DeskWindow() {
     let alive = true;
     actions
       .deskSession(sessionId)
-      .then(({ session }) => alive && setBase(session.baseVersionId))
+      .then(({ session }) => {
+        if (!alive) return;
+        setBase(session.baseVersionId);
+        if (session.meetingId)
+          setSessionChat({ projectId: tab.projectId, meetingId: session.meetingId });
+      })
       .catch(() => {});
     return () => {
       alive = false;
     };
   }, [tab?.key, opened, versionsVersion]);
+  // The bound chat: the project's latest entry (from any window), else the session's.
+  const chatProject = tab?.projectId ?? projectId;
+  const boundId =
+    (chatProject && bindings[chatProject]) ??
+    (sessionChat?.projectId === chatProject ? sessionChat.meetingId : null);
+  const bound = meetings.find((entry) => entry.id === boundId) ?? null;
+  // Documents opened later join the same chat.
+  useEffect(() => {
+    if (chatProject && boundId) deskChats.set(chatProject, boundId);
+  }, [chatProject, boundId]);
   const currentId =
     tab?.kind === 'version' ? tab.id : (base ?? latestVersion(group?.versions)?.id ?? null);
   const showVersions = () => {
@@ -1203,58 +1245,93 @@ export function DeskWindow() {
               onPick=${(left, right) => setComparison({ ...comparison, left, right })}
               onExit=${() => setComparison(null)}
             />`
-          : html`<main
-              class="ss-desk-canvas"
-              ref=${canvas}
-              onScroll=${onScroll}
-              onContextMenu=${assist.onContextMenu}
-            >
-              ${
-                tab
-                  ? html`<${DeskDocument}
-                      key=${`${tab.key}#${tab.restart ?? 0}`}
-                      tab=${tab}
-                      view=${view}
-                      jump=${jump}
-                      pdf=${pdf}
-                      editing=${editing}
-                      onEdit=${setEdit}
-                      ask=${ask}
-                      onSession=${(id) => {
-                        if (!id) return;
-                        sessions.current[tab.key] = id;
-                        setOpened((count) => count + 1);
-                        // Opened from an older version once; reopening later starts from the file.
-                        if (tab.from)
-                          setTabs((current) =>
-                            current.map((entry) =>
-                              entry.key === tab.key ? { ...entry, from: undefined } : entry,
-                            ),
-                          );
-                      }}
-                      onSelection=${() => {
-                        assist.onSelection();
-                        notes.onSelection();
-                      }}
-                      onRemoved=${notes.onRemoved}
-                      onReady=${() => setReady((value) => value + 1)}
-                      onView=${(next) => setViews((known) => ({ ...known, [tab.key]: next }))}
-                      onInfo=${(next) => setInfo((known) => ({ ...known, ...next }))}
-                    />`
-                  : html`<div class="ss-empty ss-desk-canvas__state">
-                      <div class="ss-empty__icon"><${Lucide} name="file-pen" /></div>
-                      <div class="ss-empty__title">${t('还没有打开文稿')}</div>
-                      <div class="ss-empty__text">
-                        ${t('在左栏选一份 docx、tex、md 或 pdf 打开，可以同时开几份，在顶部切换。')}
-                      </div>
-                    </div>`
-              }
-              ${assist.layer}
-            </main>`
+          : html`<div class="ss-desk-stage">
+              <button
+                type="button"
+                class="ss-desk-orb"
+                aria-label=${t('任务秘书')}
+                aria-disabled=${boundId ? undefined : 'true'}
+                aria-pressed=${String(panel && panelTab === 'secretary')}
+                data-tip=${boundId ? t('这个对话的秘书') : t('绑定对话后才有秘书')}
+                onClick=${() => {
+                  if (!boundId) return;
+                  const showing = panel && panelTab === 'secretary';
+                  setPanel(true);
+                  setPanelTab(showing ? 'chat' : 'secretary');
+                }}
+              >
+                <${Lucide} name="clipboard-list" />
+              </button>
+              <main
+                class="ss-desk-canvas"
+                ref=${canvas}
+                onScroll=${onScroll}
+                onContextMenu=${assist.onContextMenu}
+              >
+                ${
+                  tab
+                    ? html`<${DeskDocument}
+                        key=${`${tab.key}#${tab.restart ?? 0}`}
+                        tab=${tab}
+                        view=${view}
+                        jump=${jump}
+                        pdf=${pdf}
+                        editing=${editing}
+                        onEdit=${setEdit}
+                        ask=${ask}
+                        onSession=${(id) => {
+                          if (!id) return;
+                          sessions.current[tab.key] = id;
+                          setOpened((count) => count + 1);
+                          // Opened from an older version once; reopening later starts from the file.
+                          if (tab.from)
+                            setTabs((current) =>
+                              current.map((entry) =>
+                                entry.key === tab.key ? { ...entry, from: undefined } : entry,
+                              ),
+                            );
+                        }}
+                        onSelection=${() => {
+                          assist.onSelection();
+                          notes.onSelection();
+                        }}
+                        onRemoved=${notes.onRemoved}
+                        onReady=${() => setReady((value) => value + 1)}
+                        onView=${(next) => setViews((known) => ({ ...known, [tab.key]: next }))}
+                        onInfo=${(next) => setInfo((known) => ({ ...known, ...next }))}
+                      />`
+                    : html`<div class="ss-empty ss-desk-canvas__state">
+                        <div class="ss-empty__icon"><${Lucide} name="file-pen" /></div>
+                        <div class="ss-empty__title">${t('还没有打开文稿')}</div>
+                        <div class="ss-empty__text">
+                          ${t('在左栏选一份 docx、tex、md 或 pdf 打开，可以同时开几份，在顶部切换。')}
+                        </div>
+                      </div>`
+                }
+                ${assist.layer}
+              </main>
+            </div>`
       }
       ${
         panel &&
         !comparing &&
+        panelTab === 'secretary' &&
+        boundId &&
+        html`<${SecretaryPanel}
+          key=${boundId}
+          mainMeetingId=${boundId}
+          onBack=${() => setPanelTab('chat')}
+          backLabel="回到对话"
+          onClose=${() => {
+            setPanel(false);
+            setPanelTab('chat');
+          }}
+        />`
+      }
+      ${
+        panel &&
+        !comparing &&
+        !(panelTab === 'secretary' && boundId) &&
         html`<${DeskPanel}
           tab=${panelTab}
           onTab=${setPanelTab}
@@ -1264,6 +1341,11 @@ export function DeskWindow() {
           notes=${notes.panel}
           count=${notes.count}
           versions=${versionTree}
+          chat=${html`<${DeskChat}
+            meetingId=${boundId}
+            projectId=${chatProject}
+            onBound=${(id) => chatProject && deskChats.set(chatProject, id)}
+          />`}
         />`
       }
       ${notes.layer}<${FilePreview} />
@@ -1277,6 +1359,11 @@ export function DeskWindow() {
       view=${view}
       currentId=${currentId}
       onVersions=${showVersions}
+      chat=${bound}
+      onChat=${() => {
+        setPanel(true);
+        setPanelTab('chat');
+      }}
     />
     ${question}
   </div>`;

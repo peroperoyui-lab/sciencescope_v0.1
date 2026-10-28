@@ -41,6 +41,7 @@ export const EVENT_TYPES = [
   'desk.changed',
   'desk.annotations.changed',
   'desk.session',
+  'desk.suggested',
   'desk.entered',
   'desk.focus',
   'desk.compiled',

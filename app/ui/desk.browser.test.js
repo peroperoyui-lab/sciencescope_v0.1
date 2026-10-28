@@ -622,7 +622,8 @@ test(
         );
         if (folder) await desk.screenshot({ path: path.join(folder, 'u4-desk-menu.png') });
         await menu.getByRole('menuitem', { name: /引用到对话/u }).click();
-        await desk.getByText('已引用到对话，回到主窗口的对话里可以接着问').waitFor();
+        // The quote lands in the desk's own chat tab.
+        await desk.locator('.ss-desk-chat [data-desk-quote]').waitFor();
         const meeting = app.core.meetings.list({ projectId: project.id })[0];
         const draft = await app.researchInput.draft(meeting.id);
         assert.equal(draft.marks.length, 1);

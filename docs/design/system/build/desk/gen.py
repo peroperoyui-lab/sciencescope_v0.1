@@ -866,7 +866,7 @@ CHAT_HEAD = ('<div class="ss-toolbar ss-desk-chat__bar">'
              '<span class="ss-desk-chat__title ss-truncate">第三章：组态分析</span><span class="ss-tag">分支</span>'
              '<span style="flex:1"></span>'
              + icon_btn('app-window', '在主窗口打开这段对话') + icon_btn('ellipsis', '更多', ' aria-haspopup="menu"') + '</div>')
-CHAT_THREAD = f'''<div class="ss-thread ss-desk-chat__thread">
+CHAT_THREAD = f'''<div class="ss-content ss-desk-chat__thread"><div class="ss-thread ss-thread--panel">
         <p class="ss-desk-chat__origin"><i data-i="git-branch" class="ss-i--sm"></i>10-21 从「研究设计讨论」分出，原对话停在初稿</p>
         <div class="ss-msg ss-msg--user">
           <div class="ss-msg__bubble">3.2 节这两句帮我核对一下数据来源。</div>
@@ -882,7 +882,7 @@ CHAT_THREAD = f'''<div class="ss-thread ss-desk-chat__thread">
           <div class="ss-msg__head"><span class="ss-avatar">方</span><span class="ss-msg__name">方法专家</span><span class="ss-msg__role">deepseek-v4-flash</span></div>
           <div class="ss-msg__body"><p>补充一点：0.85 的一致性阈值建议在脚注里引 Ragin 2008 第 3 章，我在原文上留了一条批注。</p></div>
         </div>
-      </div>'''
+      </div></div>'''
 
 
 def chat_composer(running=False):
@@ -901,9 +901,9 @@ def chat_composer(running=False):
       </div>'''
 
 
-chat_inner = f'''{CHAT_HEAD}
+chat_inner = f'''<section class="ss-desk-chat">{CHAT_HEAD}
       {CHAT_THREAD}
-      {chat_composer()}'''
+      {chat_composer()}</section>'''
 chat_body = f'''{nav('thesis.docx', DOCX_OUTLINE)}
     <main class="ss-desk-canvas">{ORB}
       {docx_page(toolbar=False, flash=True)}
@@ -944,10 +944,10 @@ more_menu = '''<div class="ss-menu" data-static role="menu" aria-label="对话" 
     </div>'''
 secretary = f'''<aside class="ss-panel" style="width:330px;height:420px">
       <div class="ss-panel__head">{icon_btn('arrow-left', '回到对话')}<i data-i="clipboard-list" style="margin:0 6px;color:var(--ink-2)"></i><span class="ss-panel__title">任务秘书 · 第三章：组态分析</span>{icon_btn('x', '关闭侧栏')}</div>
-      <div class="ss-thread ss-desk-chat__thread">
+      <div class="ss-content ss-desk-chat__thread"><div class="ss-thread ss-thread--panel">
         <div class="ss-msg ss-msg--user"><div class="ss-msg__bubble">把今天在编辑台里定下的改动记进纪要。</div></div>
         <div class="ss-msg"><div class="ss-msg__head">{AV_SEC}<span class="ss-msg__name">任务秘书</span></div><div class="ss-msg__body"><p>已记入纪要第 4 版：3.2 节缺失值处理改为相邻年份均值；阈值依据待补 Ragin 2008。</p></div></div>
-      </div>
+      </div></div>
       <div class="ss-composer-wrap ss-desk-chat__composer"><div class="ss-composer"><textarea class="ss-composer__input" rows="1" placeholder="问秘书，或让它整理纪要…"></textarea><div class="ss-composer__bar"><span class="ss-composer__spacer"></span><button class="ss-send" type="button" aria-label="发送" disabled><i data-i="arrow-up"></i></button></div></div></div>
     </aside>'''
 orbs = f'''<div style="display:flex;gap:16px;align-items:center">

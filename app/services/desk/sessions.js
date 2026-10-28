@@ -196,6 +196,25 @@ export function createDeskSessions(
     return { session: store.get(state.session.id), version: result };
   }
   /**
+   * The chat the project's desk was last entered with, so a document opened
+   * afterwards (in any window) joins it. Archived or deleted chats are skipped.
+   * @param {string} projectId
+   */
+  function lastEntered(projectId) {
+    const row = core.db
+      .prepare(
+        "SELECT json_extract(payload_json, '$.meetingId') AS id FROM events WHERE type='desk.entered' AND json_extract(payload_json, '$.projectId')=? ORDER BY seq DESC LIMIT 1",
+      )
+      .get(projectId);
+    if (!row?.id) return undefined;
+    try {
+      const meeting = core.meetings.get(String(row.id));
+      return meeting.projectId === projectId && !meeting.archived ? meeting.id : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  /**
    * @param {{groupId:string,versionId?:string,meetingId?:string}} input
    */
   async function open({ groupId, versionId, meetingId }) {
@@ -225,7 +244,11 @@ export function createDeskSessions(
       throw new AppError('INVALID_VERSION', '请选择这个版本组里的版本。');
     const bytes = await readFile(catalog.file(version.id));
     const document = await readDocument(bytes, group.format);
-    const session = store.create(groupId, version.id, meetingId ?? existing?.meetingId);
+    const session = store.create(
+      groupId,
+      version.id,
+      meetingId ?? existing?.meetingId ?? lastEntered(group.projectId),
+    );
     try {
       const state = await initialize(session, document);
       const proposal = await annotations.reanchor(state);
