@@ -1,5 +1,11 @@
 # 实施记录
 
+## 2026-10-28 KB-12 对话里的资料和知识库改动（Claude）
+
+- 新组件 `turn-knowledge.js`：回答下面「本轮用到的资料」（新设计稿 UsedSources，画廊加卡片）和「本轮修改了知识库」（设计稿 KnowledgeChange）。资料清单的整理在 `app/ui/turn-sources.js`（单元测试）；撤回 / 恢复按版本的 `restoredBy` 链找最新一环再恢复，所以可以来回切换。
+- 后端小改：`revisionDetails` 给关系补 `from`、`to`（名称、种类）和 `evidence`。知识库页的选中请求从「资料」扩到任意节点（`openKnowledgeNode`）。
+- 测试：turn-knowledge.browser.test.js（脚本专家读资料、写 2 个实体 2 条关系，清单、缺证据、撤回、恢复、在图中查看）。场景 2、4 的真实模型验收留给 Sol。
+
 ## 2026-10-28 KB-11 项目资料页（Claude）
 
 - 按设计稿 PageProjectFolder 重写 `project-folder.js`：文件夹树（ss-tree-row--nested，状态点取自列表接口已有的 `index`），右侧选中文件的属性和正文前 6 段（`/api/research/sources/:id`），页头重新扫描、新建文件夹、导入到此文件夹、⋯；右键菜单含重新解析、整理卡片（`POST /api/knowledge/cards`）、在知识库（图）中查看。工作站卡片用同一棵树。

@@ -267,7 +267,8 @@ function useFileActions(project, reveal) {
         text: t('在知识库图中查看'),
         icon: 'waypoints',
         disabled: !id || !literature,
-        run: () => actions.openKnowledgeSource({ id, title: entry.name, graph: true }),
+        run: () =>
+          actions.openKnowledgeNode({ type: 'source', id, title: entry.name, graph: true }),
       },
       { sep: true },
       {
@@ -472,7 +473,8 @@ function FileDetails({ project, entry, version, files, listings }) {
         class="ss-btn ss-btn--sm"
         disabled=${!source}
         onClick=${() =>
-          actions.openKnowledgeSource({
+          actions.openKnowledgeNode({
+            type: 'source',
             id,
             title: entry.name,
             projectId: literature ? null : project.id,

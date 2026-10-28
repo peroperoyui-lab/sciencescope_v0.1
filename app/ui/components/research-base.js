@@ -112,8 +112,10 @@ export function ResearchBase({ view, projectId = null }) {
   useEffect(() => {
     if (!knowledgeRequest) return;
     actions.consumeKnowledgeRequest();
-    setTab('sources');
-    setSelection({ type: 'source', id: knowledgeRequest.id, title: knowledgeRequest.title });
+    const { type, id, title } = knowledgeRequest;
+    if (type === 'source') setTab('sources');
+    else if (type === 'entity') setTab('entities');
+    setSelection({ type, id, title });
     if (knowledgeRequest.graph && savedView !== 'graph')
       actions.updateSettings({ appearance: { knowledgeView: 'graph' } }).catch(() => {});
   }, [knowledgeRequest]);

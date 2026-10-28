@@ -4135,6 +4135,39 @@ button.ss-act__row:hover {
   padding: 4px 8px;
   border-top: 1px solid var(--line);
 }
+/* 本轮用到的资料: a source row, then the graph path that found it. */
+.ss-used {
+  display: grid;
+}
+.ss-used__label {
+  margin-right: var(--sp-6);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.ss-used__via {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  min-width: 0;
+  padding: 0 8px 4px 60px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.ss-used__path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ss-used__more {
+  justify-self: start;
+  margin: 2px 6px;
+}
+.ss-used__note {
+  margin: 8px 0 2px 28px;
+}
 /* File trees deeper than the sidebar's two levels: set --depth on the row. */
 .ss-tree-row--nested {
   padding-left: calc(6px + var(--depth, 0) * 16px);

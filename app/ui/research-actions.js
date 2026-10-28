@@ -35,6 +35,8 @@ export function createResearchActions(api) {
       api.get(`/api/knowledge/history?${query({ ref, limit: 20, offset })}`),
     restoreKnowledgeRevision: (id) => api.post(`/api/knowledge/revisions/${id}/restore`),
     restoreKnowledgeVersion: (id) => api.post(`/api/knowledge/versions/${id}/restore`),
+    knowledgeVersions: (options) => api.get(`/api/knowledge/versions?${query(options)}`),
+    knowledgeVersion: (id) => api.get(`/api/knowledge/versions/${id}`),
     knowledgeLabels: (ref, change, sessionId) =>
       api.post('/api/knowledge/labels', { ref, ...change, sessionId }),
     /**

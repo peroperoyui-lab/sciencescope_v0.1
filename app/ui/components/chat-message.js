@@ -16,6 +16,7 @@ import { ExpertBox, ExpertState, ReviewAdoption } from './discussion-message.js'
 import { InputReceipt, showInputContext } from './research-input.js';
 import { StatusLine } from './status-line.js';
 import { ActivityTimeline } from './timeline.js';
+import { KnowledgeChange, UsedSources } from './turn-knowledge.js';
 
 const EMPTY = [];
 const pad = (n) => String(n).padStart(2, '0');
@@ -167,6 +168,11 @@ export function Message({ message, author, roleNote, target, compact = false }) 
         : html`<${ActivityTimeline} calls=${calls} running=${streaming} turn=${turn} />
             ${body && html`<div class="ss-msg__body"><${CitedMarkdown} message=${message} text=${text} /></div>`}
             <${Deliverables} files=${message.deliverables} />
+            ${
+              !streaming &&
+              html`<${UsedSources} calls=${calls} text=${text ?? ''} />
+                <${KnowledgeChange} message=${message} />`
+            }
             <${StatusLine}
               message=${message}
               turn=${turn}

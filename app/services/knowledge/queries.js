@@ -216,7 +216,19 @@ export function createKnowledgeQueries(core, records) {
     };
   }
   function revisionDetails(row) {
-    return { ...row, ...describe(row.ref, row.after ?? row.before) };
+    const snapshot = row.after ?? row.before;
+    const detail = { ...row, ...describe(row.ref, snapshot) };
+    if (!row.ref.startsWith('edge:') || !snapshot) return detail;
+    // An edge reads as 「from —relation→ to」 with its evidence (「本轮修改了知识库」).
+    const from = describe(snapshot.from_ref ?? snapshot.fromRef);
+    const to = describe(snapshot.to_ref ?? snapshot.toRef);
+    const proof = snapshot.evidence_json ?? snapshot.evidence ?? '[]';
+    return {
+      ...detail,
+      from: { ref: from.ref, name: from.name, kind: from.kind },
+      to: { ref: to.ref, name: to.name, kind: to.kind },
+      evidence: typeof proof === 'string' ? JSON.parse(proof) : proof,
+    };
   }
   return {
     getEntity,

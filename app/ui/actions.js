@@ -616,13 +616,13 @@ export function createActions(api, store) {
     openMemoryInbox: (projectId) => set({ memoryInboxRequest: { projectId, at: Date.now() } }),
     consumeMemoryInbox: () => set({ memoryInboxRequest: null }),
     /**
-     * Open the knowledge page with a source selected: the global knowledge base
-     * (as a graph when `graph`) or, for a project's own files, its database.
-     * @param {{ id: string, title: string, projectId?: string | null, graph?: boolean }} source
+     * Open the knowledge page with a node selected: the global knowledge base
+     * (as a graph when `graph`) or, given a project, that project's database.
+     * @param {{ type: string, id: string, title: string, projectId?: string | null, graph?: boolean }} node
      */
-    openKnowledgeSource(source) {
-      set({ knowledgeRequest: { ...source, at: Date.now() } });
-      navigate(source.projectId ? { view: 'database', id: source.projectId } : { view: 'library' });
+    openKnowledgeNode(node) {
+      set({ knowledgeRequest: { ...node, at: Date.now() } });
+      navigate(node.projectId ? { view: 'database', id: node.projectId } : { view: 'library' });
     },
     consumeKnowledgeRequest: () => set({ knowledgeRequest: null }),
     readResource,
