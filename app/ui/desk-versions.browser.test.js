@@ -46,6 +46,8 @@ test(
 
       // v1: renamed in the details, given a tier.
       await node(1).click();
+      // Type once v1's details are in, or the switch resets the box.
+      await desk.locator('.ss-vtree__fields', { hasText: 'v1' }).waitFor();
       const name = desk.getByRole('textbox', { name: '版本名称' });
       await name.fill('初稿');
       await name.press('Enter');

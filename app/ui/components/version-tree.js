@@ -127,13 +127,18 @@ export function VersionTree({
       actions.toast(failure.message);
     }
   }
-  const saveTitle = () => {
-    const next = title.trim();
+  // Read the box itself: a blur right after typing can come before the re-render.
+  /** @param {FocusEvent} event */
+  const saveTitle = (event) => {
+    const next = /** @type {HTMLInputElement} */ (event.currentTarget).value.trim();
     if (node && next && next !== node.displayTitle) void update(node, { title: next });
     else setTitle(node?.displayTitle ?? '');
   };
-  const saveMark = () => {
-    if (node && mark.trim() !== (node.description ?? '')) void update(node, { description: mark });
+  /** @param {FocusEvent} event */
+  const saveMark = (event) => {
+    const value = /** @type {HTMLTextAreaElement} */ (event.currentTarget).value;
+    if (node && value.trim() !== (node.description ?? ''))
+      void update(node, { description: value });
   };
 
   async function remove(target) {
