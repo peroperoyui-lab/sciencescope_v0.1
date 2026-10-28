@@ -259,6 +259,24 @@ export function createProjectIndex({
     return catalogStatus(projectId);
   }
 
+  /** How the project's files are indexed now, for the 项目资料 summary line. */
+  function fileCounts(projectId) {
+    const row = core.db
+      .prepare(
+        `SELECT SUM(content_status IN ('parsed','partial')) AS parsed,
+      SUM(content_status='queued') AS parsing, SUM(content_status='name-only') AS nameOnly,
+      SUM(content_status='failed') AS failed
+      FROM rb_sources WHERE project_id=? AND folder_path IS NOT NULL`,
+      )
+      .get(projectId);
+    return {
+      parsed: Number(row.parsed ?? 0),
+      parsing: Number(row.parsing ?? 0),
+      nameOnly: Number(row.nameOnly ?? 0),
+      failed: Number(row.failed ?? 0),
+    };
+  }
+
   function catalogStatus(projectId) {
     const row = core.db
       .prepare(
@@ -347,6 +365,7 @@ export function createProjectIndex({
   return {
     scan,
     scanAndWait,
+    fileCounts,
     idle,
     status,
     request,

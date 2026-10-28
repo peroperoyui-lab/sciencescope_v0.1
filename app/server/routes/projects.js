@@ -37,7 +37,10 @@ export function registerProjectRoutes(
   router.get('/api/projects/:id', ({ params }) => core.projects.get(params.id));
   if (index) {
     router.post('/api/projects/:id/index', ({ params }) => index.scan(params.id));
-    router.get('/api/projects/:id/index', ({ params }) => index.status(params.id));
+    router.get('/api/projects/:id/index', ({ params }) => ({
+      ...index.status(params.id),
+      counts: index.fileCounts(params.id),
+    }));
     router.get('/api/projects/storage/copies', () => index.copyUsage());
     router.post('/api/projects/:id/copies/cleanup', ({ params }) => index.cleanupCopies(params.id));
   }

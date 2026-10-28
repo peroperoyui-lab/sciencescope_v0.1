@@ -108,6 +108,15 @@ export function ResearchBase({ view, projectId = null }) {
   const [selection, setSelection] = useState(
     /** @type {{type:string,id:string,title?:string}|null} */ (null),
   );
+  const knowledgeRequest = useAppState((state) => state.knowledgeRequest);
+  useEffect(() => {
+    if (!knowledgeRequest) return;
+    actions.consumeKnowledgeRequest();
+    setTab('sources');
+    setSelection({ type: 'source', id: knowledgeRequest.id, title: knowledgeRequest.title });
+    if (knowledgeRequest.graph && savedView !== 'graph')
+      actions.updateSettings({ appearance: { knowledgeView: 'graph' } }).catch(() => {});
+  }, [knowledgeRequest]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [refresh, setRefresh] = useState(0);

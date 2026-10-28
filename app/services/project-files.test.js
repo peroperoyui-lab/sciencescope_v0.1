@@ -37,3 +37,27 @@ test('recycling project entries uses the system adapter and changing location pr
     assert.equal(core.meetings.get(meeting.id).workFolder, external);
   });
 });
+
+test("the project's own folder hides ScienceScope's workspace folders; a bound folder shows all", async () => {
+  await withCore('project-own-folders', async (core, dir) => {
+    const project = await core.projects.create({ name: '自带文件夹' });
+    const files = createProjectFiles(core);
+    const own = files.rootOf(project.id);
+    await Promise.all(
+      ['workbench', 'versions', 'data'].map((name) =>
+        mkdir(path.join(own, name), { recursive: true }),
+      ),
+    );
+    assert.deepEqual(
+      (await files.list(project.id)).entries.map((entry) => entry.name),
+      ['data'],
+    );
+    const bound = path.join(dir, '外部');
+    await mkdir(path.join(bound, 'workbench'), { recursive: true });
+    await core.projects.update(project.id, { folder: bound });
+    assert.deepEqual(
+      (await files.list(project.id)).entries.map((entry) => entry.name),
+      ['workbench'],
+    );
+  });
+});

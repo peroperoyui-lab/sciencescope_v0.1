@@ -6,6 +6,7 @@ import { mkdir, readdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { AppError } from '../core/errors.js';
 import { recyclePath } from './system.js';
+import { ownFolders } from './knowledge/project-index-listing.js';
 
 /**
  * @param {import('../core/index.js').Core} core
@@ -46,9 +47,12 @@ export function createProjectFiles(core, { recycle = recyclePath, requestIndex, 
       } catch (error) {
         if (error.code !== 'ENOENT') throw error;
       }
+      // The built-in folder also holds ScienceScope's own workspace; it is not shown.
+      const own = !folder && core.projects.get(projectId).folder == null;
       return {
         root,
         entries: entries
+          .filter((entry) => !(own && entry.isDirectory() && ownFolders.has(entry.name)))
           .map((entry) => ({
             name: entry.name,
             path: toRelative(root, path.join(target, entry.name)),

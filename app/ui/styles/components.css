@@ -4668,6 +4668,96 @@ button.ss-act__row:hover {
   text-decoration: underline;
 }
 
+/* 项目资料 (PageProjectFolder): the folder tree beside the selected file. */
+.ss-folder-page .ss-folder__root {
+  align-self: center;
+  min-width: 0;
+  font-size: 12px;
+}
+.ss-folder {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.ss-folder__tree {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  width: 340px;
+  min-height: 0;
+  border-right: 1px solid var(--line);
+}
+.ss-folder__tree > .ss-folder-tree {
+  flex: 1;
+  align-content: start;
+  overflow: auto;
+  padding: var(--sp-8) var(--sp-8) var(--sp-12);
+}
+.ss-folder__summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: var(--sp-6) var(--sp-12);
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+.ss-folder__detail {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 16px 24px;
+}
+.ss-folder__hint {
+  margin: 0;
+  padding: var(--sp-8);
+  font-size: 13px;
+}
+.ss-folder-tree .ss-tree-row {
+  cursor: default;
+}
+.ss-folder-tree__state {
+  display: inline-flex;
+  flex: none;
+  padding: 0 var(--sp-8);
+}
+.ss-folder-detail {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+}
+.ss-folder-detail__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.ss-folder-detail__name {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+.ss-folder-detail__error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+.ss-folder-detail__text {
+  max-width: 680px;
+  color: var(--ink-2);
+}
+.ss-folder-detail__text > p {
+  margin: 0 0 var(--sp-8);
+  white-space: pre-wrap;
+}
+.ss-folder-card__body > .ss-folder-tree {
+  align-content: start;
+}
+.ss-folder-card__body {
+  padding: var(--sp-4) var(--sp-4) var(--sp-8);
+}
+
 /* 项目置顶摘要: a flyout under the chat header's button. */
 .ss-flyout {
   position: absolute;

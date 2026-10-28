@@ -446,6 +446,11 @@ export function createActions(api, store) {
   const projectFiles = (projectId, folder = '') =>
     api.get(`/api/projects/${projectId}/files?path=${encodeURIComponent(folder)}`);
 
+  /** How the project's files are indexed: phase, queue and counts. @param {string} projectId */
+  const projectIndex = (projectId) => api.get(`/api/projects/${projectId}/index`);
+  /** Scan the project folder again. @param {string} projectId */
+  const scanProject = (projectId) => api.post(`/api/projects/${projectId}/index`, {});
+
   /** @param {string} projectId @param {{ op: string, path?: string, to?: string, base64?: string }} body */
   async function fileOp(projectId, body) {
     const result = await api.post(`/api/projects/${projectId}/files`, body);
@@ -610,12 +615,25 @@ export function createActions(api, store) {
     focusProject,
     openMemoryInbox: (projectId) => set({ memoryInboxRequest: { projectId, at: Date.now() } }),
     consumeMemoryInbox: () => set({ memoryInboxRequest: null }),
+    /**
+     * Open the knowledge page with a source selected: the global knowledge base
+     * (as a graph when `graph`) or, for a project's own files, its database.
+     * @param {{ id: string, title: string, projectId?: string | null, graph?: boolean }} source
+     */
+    openKnowledgeSource(source) {
+      set({ knowledgeRequest: { ...source, at: Date.now() } });
+      navigate(source.projectId ? { view: 'database', id: source.projectId } : { view: 'library' });
+    },
+    consumeKnowledgeRequest: () => set({ knowledgeRequest: null }),
     readResource,
     editResource,
     history,
     undo,
     search,
     projectFiles,
+    projectIndex,
+    scanProject,
+    requestCards: (sourceIds) => api.post('/api/knowledge/cards', { sourceIds }),
     systemInfo,
     openFolder,
     openSystemFile,

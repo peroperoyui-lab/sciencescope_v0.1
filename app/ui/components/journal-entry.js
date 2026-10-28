@@ -11,7 +11,7 @@ import { renderMarkdown } from '../markdown.js';
 import { navigate } from '../route.js';
 import { useSnapshotCapture } from '../resource-snapshots.js';
 import { logEntryText, parseLog, removeLogEntry } from '../workbench-text.js';
-import { Dialog, useQuestion } from './dialog.js';
+import { FieldDialog, useQuestion } from './dialog.js';
 import { ChoiceMenu } from './popover.js';
 import { openResourceHistory } from './resource-history.js';
 
@@ -62,43 +62,6 @@ function DetailsEditor({ body, onSave }) {
 /** A link's icon and name. @param {any} reference */
 const linkName = (reference) => reference.label ?? reference.path ?? reference.id;
 const linkIcon = (reference) => (reference.kind === 'version' ? 'git-fork' : 'file-text');
-
-/**
- * 编辑标题 / 改日期: one field in a small dialog.
- * @param {{ title: string, label: string, type?: string, value: string,
- *   onSave: (value: string) => void, onClose: () => void }} props
- */
-function FieldDialog({ title, label, type = 'text', value, onSave, onClose }) {
-  const [text, setText] = useState(value);
-  return html`<${Dialog}
-    title=${title}
-    size="sm"
-    onClose=${onClose}
-    onSubmit=${() => {
-      onClose();
-      if (text.trim() !== value) onSave(text.trim());
-    }}
-    foot=${html`<button type="button" class="ss-btn" onClick=${onClose}>${t('取消')}</button>
-      <button
-        type="submit"
-        class="ss-btn ss-btn--primary"
-        disabled=${type === 'text' && !text.trim()}
-      >
-        ${t('保存')}
-      </button>`}
-  >
-    <label class="ss-field">
-      <span class="ss-field__label">${label}</span>
-      <span class="ss-input">
-        <input
-          type=${type}
-          value=${text}
-          onInput=${(event) => setText(event.currentTarget.value)}
-        />
-      </span>
-    </label>
-  <//>`;
-}
 
 /**
  * @param {{projectId:string,entry:any,text:string,initial?:string,revisionId?:string,onSaved:()=>void}} props

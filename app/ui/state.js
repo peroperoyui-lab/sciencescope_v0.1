@@ -51,6 +51,9 @@ export const initialState = {
   secretaryVersion: 0,
   memoryVersion: 0,
   /** @type {null|{projectId:string|null,at:number}} */ memoryInboxRequest: null,
+  /** A source to select on the knowledge page (项目资料 「在知识库中查看」). */
+  /** @type {null|{id:string,title:string,projectId?:string|null,graph?:boolean,at:number}} */
+  knowledgeRequest: null,
   researchVersion: 0,
   // Bumped when the host moves graph nodes (knowledge.layout.changed).
   layoutVersion: 0,

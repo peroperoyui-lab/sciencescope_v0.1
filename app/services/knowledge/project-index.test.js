@@ -69,6 +69,7 @@ test('project files are indexed, changed once and readable after their folder mo
         done: 2,
         queued: 0,
         failed: 0,
+        counts: { parsed: 1, parsing: 0, nameOnly: 1, failed: 0 },
       });
       const sources = research.store.listSources({ projectId: project.id });
       const paper = sources.find((source) => source.name === '研究.pdf');
@@ -150,6 +151,11 @@ test('project files are indexed, changed once and readable after their folder mo
         .listSources({ projectId: project.id })
         .find((source) => source.name === 'same.dta');
       assert.equal(same.originalPath, data.originalPath);
+      // 项目资料's summary line counts files by how they are indexed.
+      const { counts } = await call('GET', `/api/projects/${project.id}/index`);
+      assert.ok(counts.nameOnly >= 1);
+      assert.ok(counts.parsed >= 1);
+      assert.equal(counts.parsing, 0);
       const originalEntries = (await readdir(folder, { recursive: true })).sort();
       assert.deepEqual(
         originalEntries,

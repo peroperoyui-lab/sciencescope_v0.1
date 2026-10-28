@@ -75,11 +75,12 @@ test('a person organises a project on the workbench', { skip: browserSkip }, () 
     await child.waitFor();
     await page.getByRole('button', { name: '返回工作站' }).click();
 
-    await page.getByRole('button', { name: '展开文件视图' }).click();
+    await page.getByRole('button', { name: '打开项目资料页' }).click();
     await page.getByRole('button', { name: '新建文件夹' }).click();
-    await page.locator('#modal input').fill('data');
-    await page.locator('#modal').getByRole('button', { name: '创建' }).click();
-    await page.locator('.wb-file-row', { hasText: 'data' }).waitFor();
+    const named = page.getByRole('dialog', { name: '新建文件夹' });
+    await named.getByLabel('名称').fill('data');
+    await named.getByRole('button', { name: '创建' }).click();
+    await page.getByRole('treeitem', { name: /data/ }).waitFor();
     const folder = path.join(app.core.paths.projects, project.dirName, 'data');
     assert.ok((await stat(folder)).isDirectory());
 

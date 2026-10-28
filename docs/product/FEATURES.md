@@ -93,7 +93,7 @@ data/
 - 对话菜单：重命名（F2，侧栏行获得焦点或在对话页时按）、置顶、移到项目…（列出其他项目和「移出项目，变成独立对话」）、归档；运行中不能移动或归档。也可把对话拖到项目行上。移动后底部提示可「撤销」。随对话移动的：纪要文件（含附属秘书对话）；工作文件夹原来是默认位置（项目目录或数据目录下的 `workspaces/`）时改到新项目，移出项目时新建一个独立文件夹；用户自选的文件夹不变。没有删除，只有归档（用户 2026-10-20）。
 - 从任意一条消息"从这里分支"出新对话；导出当前对话为 Markdown，导出项目快照为 zip（项目文件夹加全部会议记录）。
 - 全量导出后端将全部对话、工作站、知识库、专家、技能、设置和 SQLite 副本写成普通文件夹；界面入口由后续界面接入。任务在后台线程执行，支持取消，关闭应用即取消，未完成目录保留标记。外部项目文件夹只记录路径；项目资料副本可通过 `includeProjectCopies` 选择复制。服务商自定义 header 及 MCP 明文 header/env 的值在设置和数据库副本（含历史及事件）中改为 `<已移除>`，保留名称、引用及表行数；原库不修改。
-- 项目文件夹页：浏览绑定的工作目录（未绑定时显示项目自带文件夹），新建文件夹、重命名、移到系统回收站、用资源管理器或默认程序打开；更换位置不会移动已有文件，已有会议继续用原工作目录。
+- 项目资料页（KB-11，设计稿 PageProjectFolder，工作站「项目文件夹」卡片右上角进入）：左边是文件夹树，每个文件后面一个索引状态点（已解析、解析中、仅索引文件名、失败、还没有索引；悬停看原因），树底下一行汇总（已索引几个、正在解析几个、几个只索引文件名、几个失败）；右边是选中文件的名称、「在知识库中查看」（文献进全局知识库，其他文件进项目资料库，都选中这条资料）、用默认程序打开、⋯，属性（位置、大小和修改日期、索引状态和文本块数、在哪个知识库、关系数、引用编号）和正文前几段。页头有重新扫描、新建文件夹、「导入到此文件夹」（复制到选中的文件夹或选中文件所在的文件夹）和 ⋯（在资源管理器中打开、项目文件夹位置）。右键文件：用默认程序打开、在资源管理器中显示、在知识库图中查看、重新解析、整理卡片（只对文献）、重命名（F2）、移到回收站（Delete，先确认）；右键文件夹：在资源管理器中打开、新建文件夹、导入到此文件夹、重命名、移到回收站。树可用方向键、Enter 操作；双击文件用默认程序打开。项目自带文件夹里 ScienceScope 自己的 workbench、notes、minutes、versions、desk 不再列出；绑定外部文件夹时全部列出。空文件夹显示插画空状态。更换位置不会移动已有文件，已有会议继续用原工作目录。工作站上的「项目文件夹」卡片是同一棵树（带状态点），单击文件用默认程序打开。
 
 **实现位置**：`app/core/projects.js`、`app/core/meetings.js`、`app/services/project-files.js`、`app/services/export.js`、`app/server/routes/projects.js`、`app/server/routes/meetings.js`；界面 `app/ui/components/sidebar.js`、`all-chats.js`、`project-new.js`、`python-choice.js`、`project-folder.js`。
 
@@ -518,6 +518,7 @@ data/
 - `POST /api/projects` 新建项目。
 - `GET /api/projects/:id` 读取项目。
 - `PATCH /api/projects/:id` 改名、描述、文件夹、置顶、归档。
+- `GET /api/projects/:id/index` 返回扫描状态和 `counts:{parsed,parsing,nameOnly,failed}`（项目资料页的汇总行）。
 - `GET /api/projects/:id/files` 列出项目文件夹内容；根目录请求触发后台扫描，文件条目带 `index:{status,sourceId,error}`，状态为 `parsed/parsing/name-only/failed/unindexed`。
 - `POST /api/projects/:id/index` 等待扫描，返回 `{added,updated,unchanged,nameOnly,failed,moved,deleted}`；`nameOnly` 是扫描到的仅文件名记录数，`failed` 是本次读取/复制等错误数。
 - `GET /api/projects/storage/copies` 返回 `{projects:[{projectId,totalBytes,unreferencedBytes,totalFiles,unreferencedFiles}]}`。

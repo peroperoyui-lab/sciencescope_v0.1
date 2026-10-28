@@ -1,5 +1,11 @@
 # 实施记录
 
+## 2026-10-28 KB-11 项目资料页（Claude）
+
+- 按设计稿 PageProjectFolder 重写 `project-folder.js`：文件夹树（ss-tree-row--nested，状态点取自列表接口已有的 `index`），右侧选中文件的属性和正文前 6 段（`/api/research/sources/:id`），页头重新扫描、新建文件夹、导入到此文件夹、⋯；右键菜单含重新解析、整理卡片（`POST /api/knowledge/cards`）、在知识库（图）中查看。工作站卡片用同一棵树。
+- 「在知识库中查看」经 `knowledgeRequest` 状态把资料交给知识库页选中（文献去全局，其他去项目资料库）。`FieldDialog` 移到 dialog.js 共用。
+- 后端小改：`GET /api/projects/:id/index` 多返回 `counts`；项目自带文件夹的列表不再显示 ScienceScope 自己的 workbench、notes、minutes、versions、desk（索引早已跳过）。和设计稿的差别：汇总放在树底下而不是状态栏（状态栏还是旧样式，随第 5 项换）。测试：project-folder.browser.test.js 重写，workbench 浏览器测试、project-files、project-index 单元测试补断言。
+
 ## 2026-10-28 导图页和日志页换新样式（Claude）
 
 - 导图页按设计稿 PageMap 重做：`map-layout.js` 改为从左往右的树（父节点居中、曲线连线，游离节点按保存的位置），`map-canvas.js` 是 ss-map 画布（指针处缩放、平移、折叠、拖动游离节点），`map-editor.js` 是页头三页（导图、Markdown 大纲、JSON）、右侧节点面板（文字、进展、分支、连线、位置）、连线弹窗和底栏撤销重做。新 `map-outline.js` 负责大纲和导图互转。删 `map-links.js`。导图页也显示左侧栏。

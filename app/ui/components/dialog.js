@@ -107,3 +107,48 @@ export function useQuestion() {
     <//>`;
   return [dialog, ask];
 }
+
+/**
+ * One field in a small dialog: 编辑标题, 改日期, 重命名, 新建文件夹.
+ * @param {{ title: string, label: string, type?: string, value: string,
+ *   submitText?: string, onSave: (value: string) => void, onClose: () => void }} props
+ */
+export function FieldDialog({
+  title,
+  label,
+  type = 'text',
+  value,
+  submitText = t('保存'),
+  onSave,
+  onClose,
+}) {
+  const [text, setText] = useState(value);
+  return html`<${Dialog}
+    title=${title}
+    size="sm"
+    onClose=${onClose}
+    onSubmit=${() => {
+      onClose();
+      if (text.trim() !== value) onSave(text.trim());
+    }}
+    foot=${html`<button type="button" class="ss-btn" onClick=${onClose}>${t('取消')}</button>
+      <button
+        type="submit"
+        class="ss-btn ss-btn--primary"
+        disabled=${type === 'text' && !text.trim()}
+      >
+        ${submitText}
+      </button>`}
+  >
+    <label class="ss-field">
+      <span class="ss-field__label">${label}</span>
+      <span class="ss-input">
+        <input
+          type=${type}
+          value=${text}
+          onInput=${(event) => setText(event.currentTarget.value)}
+        />
+      </span>
+    </label>
+  <//>`;
+}
