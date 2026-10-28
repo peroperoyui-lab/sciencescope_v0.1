@@ -45,7 +45,7 @@ test(
       await page.evaluate((id) => {
         location.hash = '#/workbench/' + id;
       }, project.id);
-      await page.locator('.wb-right').waitFor();
-      assert.equal(await page.locator('.wb-right .wb-path').count(), 0);
+      await page.locator('.ss-wb .filetree').waitFor();
+      assert.equal(await page.locator('.ss-wb .wb-path').count(), 0);
     }),
 );

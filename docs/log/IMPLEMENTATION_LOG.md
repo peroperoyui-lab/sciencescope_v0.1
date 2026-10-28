@@ -1,5 +1,11 @@
 # 实施记录
 
+## 2026-10-28 P3 工作站重做（Claude）
+
+- 按设计稿 PageWorkbench 换成新样式：页头（项目选择、版本树、在编辑台打开、⋯），计划和日志两条 ss-note-card 卡片带，导图预览和项目文件夹放进 ss-box-card；撤掉左下角文献版本管理。新建和编辑计划、日志用 ss-dialog。
+- 计划多了说明和期限（缩进行、`due:`），改归属会移动这一条。版本树（version-tree.js）加 `openLabel`/`picker`，没有 `onCompare` 就不显示比较；`openDesk` 能打开某个版本（经 localStorage 传给编辑台窗口，原生窗口不用改）。`useQuestion` 移到 dialog.js 共用。
+- 导图画布、项目文件夹里面的文件树、日志「查看全部」页还是旧样式，分别在导图页、KB-11 和日志页里换。测试：workbench.browser.test.js 改写并加一条版本树。
+
 ## 2026-10-28 U8 从对话进入编辑台（Claude）
 
 - 设计稿 PageDeskChat、DeskChatStates（画廊第 32 版），Yui 确认：右侧栏「对话」显示绑定的对话，「引用到对话」进这里的输入框。

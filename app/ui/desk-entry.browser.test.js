@@ -85,6 +85,8 @@ test(
       await desk.getByRole('tab', { name: '批注与索引' }).click();
       const line = desk.locator('.ss-page--md p', { hasText: '熵权法' });
       await line.click();
+      // The chat tab's input can still hold focus until the page takes it.
+      await desk.waitForFunction(() => document.activeElement?.closest('.ss-page--md'));
       await desk.keyboard.press('End');
       for (let index = 0; index < 4; index++) await desk.keyboard.press('Shift+ArrowLeft');
       await desk.keyboard.press('Control+Shift+L');

@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
-import { Icon } from '../icons.js';
+import { Icon, Lucide } from '../icons.js';
 import { navigate } from '../route.js';
 import { InfoTip } from './info-tip.js';
 import { FieldForm } from './overlays.js';
@@ -261,26 +261,28 @@ export function ProjectFolder({ project, full = false }) {
       <div class="card">${tree}</div>
     </div>`;
   }
-  return html`<div class="wb-right">
-    <div class="wb-title">
-      <span class="grow">${t('项目文件夹')}</span>
+  return html`<div class="ss-box-card">
+    <div class="ss-box-card__head">
+      <span>${t('项目文件夹')}</span>
       <button
-        class="iconbtn"
-        title=${t('在资源管理器打开')}
+        type="button"
+        class="ss-icon-btn"
         aria-label=${t('在资源管理器打开')}
+        data-tip=${t('在资源管理器打开')}
         onClick=${openRoot}
       >
-        <${Icon} name="folder" />
+        <${Lucide} name="folder-open" />
       </button>
       <button
-        class="iconbtn"
-        title=${t('展开文件视图')}
+        type="button"
+        class="ss-icon-btn"
         aria-label=${t('展开文件视图')}
+        data-tip=${t('展开文件视图')}
         onClick=${() => navigate({ view: 'files', id: project.id })}
       >
-        <${Icon} name="expand" />
+        <${Lucide} name="maximize-2" />
       </button>
     </div>
-    <div class="filetree">${tree}</div>
+    <div class="ss-box-card__body filetree">${tree}</div>
   </div>`;
 }

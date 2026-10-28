@@ -1,5 +1,5 @@
-// P13 keeps the old workbench left column, drop zone, grouped version rows
-// and full-page table. Only implemented actions are shown at each stage.
+// The old manuscript versions page (工作站 ⋯ with the editing desk off): drop
+// zone and grouped version rows. The desk's version tree replaces it.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
@@ -262,68 +262,7 @@ export function Versions({ project, full = false }) {
       /></label>`
     }${full && drop}
     <div class="versionlist">
-      ${
-        full
-          ? html`<table class="table">
-              <thead>
-                <tr>
-                  <th>${t('文件 / 文献组')}</th>
-                  <th>${t('版本')}</th>
-                  <th>${t('导入时间')}</th>
-                  <th>${t('秘书说明')}</th>
-                  <th>${t('操作')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${groups.flatMap((group) =>
-                  group.versions.map(
-                    (version) =>
-                      html`<tr key=${version.id} data-version-id=${version.id}>
-                        <td>
-                          <div class="row">
-                            <span class="fileicon"
-                              >${version.name.split('.').pop()?.toUpperCase()}</span
-                            >
-                            <div>
-                              <strong>${version.name}</strong><br /><small>${group.name}</small>
-                            </div>
-                          </div>
-                        </td>
-                        <td><span class="tag">v${version.number}</span></td>
-                        <td>${formatTime(version.createdAt)}</td>
-                        <td>
-                          <button
-                            onClick=${() => navigate({ view: 'version-notes', id: `${project.id}/${version.id}` })}
-                          >
-                            ${t(STATUS[version.notesStatus])}
-                          </button>
-                        </td>
-                        <td>
-                          <button
-                            class="btn tiny"
-                            onClick=${() => actions.attempt(() => actions.openVersion(version.id))}
-                          >
-                            ${t('打开原件')}</button
-                          ><button
-                            class="btn tiny"
-                            onClick=${() => actions.openPreview({ kind: 'version', id: version.id, projectId: project.id })}
-                          >
-                            ${t('预览')}</button
-                          ><button
-                            class="iconbtn"
-                            aria-label=${t('版本菜单')}
-                            onClick=${(event) => menu(event, version)}
-                          >
-                            <${Icon} name="more" />
-                          </button>
-                        </td>
-                      </tr>`,
-                  ),
-                )}
-              </tbody>
-            </table>`
-          : rows
-      }${!groups.some((group) => group.versions.length) && html`<div class="inline-empty">${t('暂无文献版本')}</div>`}
+      ${rows}${!groups.some((group) => group.versions.length) && html`<div class="inline-empty">${t('暂无文献版本')}</div>`}
     </div>
     ${!full && drop}`;
   return full

@@ -99,8 +99,8 @@ test(
       );
       assert.equal((await read()).edges.length, 1);
       await page.getByRole('button', { name: '返回工作站' }).click();
-      await page.locator('.wb-map [data-edge]').waitFor();
-      await page.getByRole('button', { name: '打开研究导图编辑窗口' }).click();
+      await page.locator('.ss-wb__map [data-edge]').waitFor();
+      await page.getByRole('button', { name: '打开研究导图' }).click();
       // The workstation has its own 历史版本 buttons; use the editor's once it is open.
       await page
         .locator('.editortop')
@@ -187,7 +187,7 @@ test(
       await page.getByRole('button', { name: '返回工作站' }).click();
       await page.getByRole('button', { name: '视图', exact: true }).click();
       await page.getByRole('menuitemcheckbox', { name: 'English', exact: true }).click();
-      await page.getByRole('button', { name: 'Open the research map editor', exact: true }).click();
+      await page.getByRole('button', { name: 'Open the research map', exact: true }).click();
       await page.getByRole('button', { name: 'Floating node', exact: true }).waitFor();
       await page.getByRole('button', { name: 'Connect', exact: true }).waitFor();
     }),

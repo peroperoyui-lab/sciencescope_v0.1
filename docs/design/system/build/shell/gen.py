@@ -434,6 +434,7 @@ def vtree_panel():
                           '<button class="ss-select ss-select--sm" type="button" aria-haspopup="menu" data-menu="#m-wb-file" style="flex:none"><span class="ss-ftype ss-ftype--docx" aria-hidden="true">W</span><span class="ss-select__value" data-slot="value">thesis.docx</span><i data-i="chevron-down"></i></button><span class="ss-input ss-input--sm" style="flex:1">', 1)
     panel = panel.replace('placeholder="按标题、标签、备注、修改指令筛选"', 'placeholder="筛选版本"')
     panel = panel.replace('<i data-i="pencil"></i>从这一版开始编辑', '<i data-i="file-pen"></i>在编辑台打开这一版')
+    panel = panel.replace('<button class="ss-btn ss-btn--sm ss-btn--ghost" type="button"><i data-i="git-compare"></i>和 v7 比较</button>', '')
     panel = panel.replace('data-default="360"', 'data-default="360" data-key="page-wb-vtree"')
     return '    ' + panel
 
@@ -470,7 +471,7 @@ def page_workbench():
             (0, False, 'file-code', 'match_indicators.py', '<span class="ss-dot" data-tip="只按名称索引"></span>'),
         ])
     main = f'''    <main class="ss-main">
-      {header("工作站", scope=scope_select(), actions='<button class="ss-btn ss-btn--ghost" type="button" aria-pressed="true" style="background:var(--selected)"><i data-i="git-fork"></i>版本树</button><button class="ss-btn" type="button"><i data-i="file-pen"></i>在编辑台打开</button>' + icon_btn("ellipsis", "更多", ' data-menu="#m-wb"'))}
+      {header("工作站", scope=scope_select(), actions='<button class="ss-btn ss-btn--ghost" type="button" aria-pressed="true"><i data-i="git-fork"></i>版本树</button><button class="ss-btn" type="button"><i data-i="file-pen"></i>在编辑台打开</button>' + icon_btn("ellipsis", "更多", ' data-menu="#m-wb"'))}
       <div class="ss-content" style="overflow:hidden">
         <div class="ss-wb">
           <section>
@@ -495,7 +496,7 @@ def page_workbench():
       </div>
     </main>'''
     menus = (SCOPE_MENU
-             + menu('m-wb', item('square-pen', '在项目中新对话') + item('folder-open', '打开项目文件夹') + item('package', '导出项目快照') + SEP + item('history', '工作站的历史版本'))
+             + menu('m-wb', item('square-pen', '在项目中新对话') + item('folder-open', '打开项目文件夹') + item('package', '导出项目快照') + SEP + item('history', '计划的历史版本') + item('history', '日志的历史版本'))
              + menu('m-wb-file', radio('file-text', 'thesis.docx', True) + radio('file-code', 'chapters/method.tex', False) + radio('file-text', 'notes/outline.md', False) + radio('file-text', '开题报告.docx', False))
              + menu('m-plan', item('pencil', '编辑计划') + item('circle-check', '标为完成') + item('folder', '改归属…') + SEP + item('trash-2', '删除').replace('class="ss-menu__item"', 'class="ss-menu__item ss-menu__item--danger"'))
              + menu('m-log', item('file-text', '日志详情') + item('paperclip', '文件列表') + item('pencil', '编辑') + SEP + item('trash-2', '删除').replace('class="ss-menu__item"', 'class="ss-menu__item ss-menu__item--danger"')))
@@ -505,12 +506,12 @@ def page_workbench():
 
 ## 区域
 
-- 页头：标题、项目选择；「版本树」（ghost，按下时在右侧打开版本树）、「在编辑台打开」（打开编辑台窗口并显示这个项目的文稿）、⋯（在项目中新对话、打开项目文件夹、导出项目快照、工作站的历史版本）。
-- 全局计划：所有项目的计划卡片，横向一条，可左右滚动。卡片有完成勾选、标题、两行内容、归属项目和期限；完成的划掉变灰。右键编辑、标为完成、改归属、删除。
+- 页头：标题、项目选择；「版本树」（ghost，按下时在右侧打开版本树）、「在编辑台打开」（打开编辑台窗口并显示这个项目的文稿）、⋯（在项目中新对话、打开项目文件夹、导出项目快照、计划的历史版本、日志的历史版本）。
+- 全局计划：所有项目的计划卡片，横向一条，可左右滚动。卡片有完成勾选、标题、两行说明、归属项目和期限；完成的划掉变灰、排在最后。点卡片编辑，右键编辑、标为完成、改归属、删除。计划文件里一条是 `- [ ] 标题`，下面缩进的行是说明，缩进的 `due: 2026-10-24` 是期限。
 - 本项目日志：这个项目的日志卡片。秘书写的带 sparkle 标记；卡片底部写日期和关联文件数。点卡片进入日志详情页。
 - 研究框架与进展：研究导图的只读预览（ss-map），右上角放大按钮进入研究导图页。
 - 项目文件夹：文件树，行尾的点表示索引状态（绿色已索引、转圈正在索引、空心只按名称索引）；可在系统中打开，或进入项目资料页。
-- 右侧版本树（Panel 360px）：和编辑台同一个组件，上面多一个文稿选择；选中一版后可以「在编辑台打开这一版」或和当前版比较。
+- 右侧版本树（Panel 360px）：和编辑台同一个组件，上面多一个文稿选择；选中一版后「在编辑台打开这一版」（只读打开，在编辑台里再从这一版开始编辑）。工作站里不比较：比较在编辑台做。
 
 ## 规则
 

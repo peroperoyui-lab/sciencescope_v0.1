@@ -13,7 +13,8 @@ test(
       },
       async ({ page, app, shot }) => {
         const project = await app.core.projects.create({ name: '中文论文项目' });
-        await page.goto(new URL(`/?token=ui-token#/workbench/${project.id}`, page.url()).href);
+        // With the desk off the old versions page keeps the import (工作站 ⋯).
+        await page.goto(new URL(`/?token=ui-token#/versions/${project.id}`, page.url()).href);
         await page.getByText('暂无文献版本', { exact: true }).waitFor();
         await page.locator('[data-drop="version"]').evaluate((element) => {
           const transfer = new DataTransfer();

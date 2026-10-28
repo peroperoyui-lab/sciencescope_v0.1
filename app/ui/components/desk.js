@@ -17,7 +17,7 @@ import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
 import { LogoMark } from '../illustrations.js';
 import { writeBack } from '../desk-session.js';
-import { Dialog } from './dialog.js';
+import { useQuestion } from './dialog.js';
 import { useDeskAssist } from './desk-assist.js';
 import { DeskChat } from './desk-chat.js';
 import { DeskDocument, deskChats, externalQuestion } from './desk-document.js';
@@ -122,45 +122,6 @@ function readOnlyReason(tab) {
   if (tab.kind === 'version') return t('历史版本只读；要修改，请打开项目文件夹里的文稿');
   if (tab.format === 'pdf') return t('PDF 正文只读，可以划选加批注和索引');
   return '';
-}
-
-/**
- * One question with a few answers, as a promise. Esc or 取消 answers null.
- * @returns {[any, (question: { title: string, text: string, options: { value: string, label: string, primary?: boolean }[] }) => Promise<string | null>]}
- */
-function useQuestion() {
-  const [question, setQuestion] = useState(/** @type {any} */ (null));
-  const ask = useRef(
-    (value) => new Promise((resolve) => setQuestion({ ...value, resolve })),
-  ).current;
-  const answer = (value) => {
-    question.resolve(value);
-    setQuestion(null);
-  };
-  const dialog =
-    question &&
-    html`<${Dialog}
-      title=${question.title}
-      size="sm"
-      onClose=${() => answer(null)}
-      foot=${html`<button type="button" class="ss-btn" onClick=${() => answer(null)}>
-          ${t('取消')}
-        </button>
-        ${question.options.map(
-          (option) =>
-            html`<button
-              key=${option.value}
-              type="button"
-              class=${option.primary ? 'ss-btn ss-btn--primary' : 'ss-btn'}
-              onClick=${() => answer(option.value)}
-            >
-              ${option.label}
-            </button>`,
-        )}`}
-    >
-      <p>${question.text}</p>
-    <//>`;
-  return [dialog, ask];
 }
 
 /** @param {number} number */
@@ -925,13 +886,13 @@ export function DeskWindow() {
     const initial = initialDeskTarget();
     const waiting = takeDeskFocus();
     if (waiting) goTo(waiting);
-    else if (initial.projectId && initial.path) open(initial);
+    else if (initial.projectId && (initial.path || initial.versionId)) open(initial);
     else if (initial.projectId) setProjectId(initial.projectId);
     const stopFocus = listenForDeskFocus(goTo);
     const stopTargets = listenForDeskTargets((target) => {
       const next = takeDeskFocus();
       if (next) goTo(next);
-      else if (target.path) open(target);
+      else if (target.path || target.versionId) open(target);
       else if (target.projectId) setProjectId(target.projectId);
     });
     return () => {

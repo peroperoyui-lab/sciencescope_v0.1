@@ -15,7 +15,28 @@ let openHere = null;
 /** @type {((focus: any) => void) | null} */
 let focusHere = null;
 
-/** @typedef {{ projectId?: string | null, path?: string | null }} DeskTarget */
+/**
+ * A project file (`path`), or a saved version (`versionId`, with the tab's
+ * `name` and the manuscript's `group` name) opened read-only.
+ * @typedef {{ projectId?: string | null, path?: string | null, versionId?: string,
+ *   name?: string, group?: string }} DeskTarget
+ */
+
+// A version to open travels like a cited sentence: through local storage,
+// which both windows share, so the native window needs no new argument.
+const VERSION_KEY = 'sciencescope.desk.version';
+const VERSION_FRESH = 60000;
+
+/** The version another window asked for, taken once. @returns {DeskTarget | null} */
+function takeVersion() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(VERSION_KEY) ?? 'null');
+    localStorage.removeItem(VERSION_KEY);
+    return saved && Date.now() - saved.at < VERSION_FRESH ? saved : null;
+  } catch {
+    return null;
+  }
+}
 
 /** The desk switch (`features.editingDesk`, off until the alpha checks pass). @param {any} settings */
 export function deskEnabled(settings) {
@@ -39,7 +60,13 @@ function deskUrl(target) {
 export async function openDesk(target = {}) {
   const projectId = target.projectId ?? null;
   const path = projectId ? (target.path ?? null) : null;
-  if (isDesk && openHere) return openHere({ projectId, path });
+  if (isDesk && openHere) return openHere(target.versionId ? target : { projectId, path });
+  if (projectId && target.versionId)
+    try {
+      localStorage.setItem(VERSION_KEY, JSON.stringify({ ...target, at: Date.now() }));
+    } catch {
+      // Without storage the desk opens on the project.
+    }
   if (isNative()) {
     await globalThis.__TAURI__.core.invoke('open_secondary_window', {
       request: { surface: 'desk', project_id: projectId, path, toggle: false, collapsed: false },
@@ -64,7 +91,12 @@ export async function openDesk(target = {}) {
 export function listenForDeskTargets(onOpen) {
   const receive = (data) => {
     if (data && typeof data.projectId === 'string')
-      onOpen({ projectId: data.projectId, path: typeof data.path === 'string' ? data.path : null });
+      onOpen(
+        takeVersion() ?? {
+          projectId: data.projectId,
+          path: typeof data.path === 'string' ? data.path : null,
+        },
+      );
   };
   openHere = onOpen;
   if (isNative()) {
@@ -92,10 +124,10 @@ export function listenForDeskTargets(onOpen) {
   };
 }
 
-/** The document the window was opened on (`?projectId=&path=`). @returns {DeskTarget} */
+/** The document the window was opened on (`?projectId=&path=`, or a version). @returns {DeskTarget} */
 export function initialDeskTarget() {
   const query = new URLSearchParams(location.search);
-  return { projectId: query.get('projectId'), path: query.get('path') };
+  return takeVersion() ?? { projectId: query.get('projectId'), path: query.get('path') };
 }
 
 // A chat mark's sentence travels to the desk window through local storage:

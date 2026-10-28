@@ -1,7 +1,7 @@
 // A centred dialog in the design system's markup (`ss-scrim` > `ss-dialog`):
 // title row with a close button, body, and a footer for the actions. Esc or a
 // click on the scrim closes it; focus starts on the first field.
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
@@ -67,4 +67,43 @@ export function Dialog({ title, onClose, children, foot, size = 'md', onSubmit }
       <div class="ss-dialog__foot">${foot}</div>
     </form>
   </div>`;
+}
+
+/**
+ * One question with a few answers, as a promise. Esc or 取消 answers null.
+ * @returns {[any, (question: { title: string, text: string, options: { value: string, label: string, primary?: boolean }[] }) => Promise<string | null>]}
+ */
+export function useQuestion() {
+  const [question, setQuestion] = useState(/** @type {any} */ (null));
+  const ask = useRef(
+    (value) => new Promise((resolve) => setQuestion({ ...value, resolve })),
+  ).current;
+  const answer = (value) => {
+    question.resolve(value);
+    setQuestion(null);
+  };
+  const dialog =
+    question &&
+    html`<${Dialog}
+      title=${question.title}
+      size="sm"
+      onClose=${() => answer(null)}
+      foot=${html`<button type="button" class="ss-btn" onClick=${() => answer(null)}>
+          ${t('取消')}
+        </button>
+        ${question.options.map(
+          (option) =>
+            html`<button
+              key=${option.value}
+              type="button"
+              class=${option.primary ? 'ss-btn ss-btn--primary' : 'ss-btn'}
+              onClick=${() => answer(option.value)}
+            >
+              ${option.label}
+            </button>`,
+        )}`}
+    >
+      <p>${question.text}</p>
+    <//>`;
+  return [dialog, ask];
 }

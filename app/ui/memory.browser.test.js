@@ -174,9 +174,9 @@ test(
         assert.doesNotMatch(interfaceText, /[一-鿿]/u);
         await shot('r4-4c-memory-brief-en');
         await page.goto(new URL('/?token=ui-token#/workbench/' + project.id, page.url()).href);
-        await page.locator('.wb-left [data-drop="version"]').waitFor();
-        // Memory revisions remain in the item's own history; the workbench now
-        // shows manuscript versions; editable-file history has its own buttons.
+        await page.locator('.ss-wb').waitFor();
+        // Memory revisions remain in the item's own history, not on the
+        // workbench; editable-file history has its own buttons.
         assert.equal(
           await page.locator('.versionlist .listrow', { hasText: 'Added memory' }).count(),
           0,

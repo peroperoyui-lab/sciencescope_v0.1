@@ -14,15 +14,28 @@ async function openProject(page, app) {
 }
 
 async function addPlan(page, text) {
-  await page.getByRole('button', { name: '+ 添加计划', exact: true }).click();
-  await page.locator('#modal input').fill(text);
-  await page.locator('#modal').getByRole('button', { name: '添加', exact: true }).click();
-  await page.locator('.plancard', { hasText: text }).waitFor();
+  await page
+    .getByRole('region', { name: '全局计划' })
+    .getByRole('button', { name: '添加计划', exact: true })
+    .click();
+  const dialog = page.getByRole('dialog', { name: '添加计划' });
+  await dialog.getByLabel('计划内容').fill(text);
+  await dialog.getByRole('button', { name: '添加', exact: true }).click();
+  await page.locator('.ss-note-card', { hasText: text }).waitFor();
+}
+
+/** The workbench's ⋯ menu item, such as 计划的历史版本. */
+async function workbenchMenu(page, item, more = '更多') {
+  await page.locator('.workbench-page > .ss-header').getByRole('button', { name: more }).click();
+  await page.getByRole('menuitem', { name: item, exact: true }).click();
 }
 
 async function leavePlans(page, projectId) {
-  await page.locator('.wb-top').first().getByRole('button', { name: '查看全部' }).click();
-  await page.getByRole('heading', { name: '全局计划', exact: true }).waitFor();
+  await page
+    .getByRole('region', { name: '全局计划' })
+    .getByRole('button', { name: '查看全部' })
+    .click();
+  await page.getByText('所有项目的计划', { exact: true }).waitFor();
   await page.evaluate((id) => {
     location.hash = `#/workbench/${id}`;
   }, projectId);
@@ -37,12 +50,7 @@ test(
       const project = await openProject(page, app);
       await addPlan(page, 'Original plan');
       await leavePlans(page, project.id);
-      const openHistory = () =>
-        page
-          .locator('.wb-top')
-          .first()
-          .getByRole('button', { name: '历史版本', exact: true })
-          .click();
+      const openHistory = () => workbenchMenu(page, '计划的历史版本');
       await openHistory();
       const history = page
         .getByRole('dialog', { name: '历史版本', exact: true })
@@ -70,7 +78,7 @@ test(
       await preview.getByRole('button', { name: '恢复到此版本', exact: true }).click();
       await page.waitForFunction(
         () =>
-          ![...document.querySelectorAll('.plancard')].some((card) =>
+          ![...document.querySelectorAll('.ss-note-card')].some((card) =>
             card.textContent.includes('Current plan'),
           ),
       );
@@ -86,7 +94,7 @@ test(
       await openHistory();
       const preservedRow = history.locator(`[data-snapshot-id="${preserved.id}"]`);
       await preservedRow.getByRole('button', { name: '恢复到此版本', exact: true }).click();
-      await page.locator('.plancard', { hasText: 'Current plan' }).waitFor();
+      await page.locator('.ss-note-card', { hasText: 'Current plan' }).waitFor();
       await history
         .locator(`[data-snapshot-id="${original}"]`)
         .getByRole('button', { name: '删除', exact: true })
@@ -121,11 +129,7 @@ test(
       await dialog.getByRole('button', { name: '关闭', exact: true }).click();
       await page.getByRole('button', { name: '视图', exact: true }).click();
       await page.getByRole('menuitemcheckbox', { name: 'English', exact: true }).click();
-      await page
-        .locator('.wb-top')
-        .first()
-        .getByRole('button', { name: 'History versions', exact: true })
-        .click();
+      await workbenchMenu(page, 'Plan history', 'More');
       await page
         .getByRole('dialog', { name: 'History versions', exact: true })
         .getByRole('button', { name: 'View', exact: true })
@@ -156,7 +160,7 @@ test(
           response.url().endsWith('/api/snapshots') &&
           response.request().postDataJSON()?.resource === 'map',
       );
-      await page.getByRole('button', { name: '打开研究导图编辑窗口' }).click();
+      await page.getByRole('button', { name: '打开研究导图' }).click();
       await initialCapture;
       await page.locator('.editorinspector textarea').waitFor();
       assert.equal(
@@ -191,7 +195,7 @@ test(
       await page.goBack();
       await finalCapture;
       await page.getByText('本项目日志').waitFor();
-      await page.locator('.wb-left [data-drop="version"]').waitFor();
+      await page.locator('.ss-wb').waitFor();
       assert.equal(
         (await app.core.workspace.read({ resource: 'map', key: project.id })).value.nodes[0].text,
         'Final draft',
@@ -202,7 +206,7 @@ test(
         app.core.workspace.getSnapshot(snapshots[0].id).value.nodes[0].text,
         'Final draft',
       );
-      await page.getByRole('button', { name: '打开研究导图编辑窗口' }).click();
+      await page.getByRole('button', { name: '打开研究导图' }).click();
       await page.locator('.editorinspector textarea').waitFor();
       assert.equal(
         await page.getByRole('button', { name: '撤销', exact: true }).isEnabled(),
@@ -219,7 +223,7 @@ test(
       assert.equal(await dialog.getByRole('button', { name: '新增分支', exact: true }).count(), 0);
       await dialog.getByRole('button', { name: '关闭', exact: true }).click();
       await page.getByRole('button', { name: '返回工作站' }).click();
-      await page.locator('.wb-left [data-drop="version"]').waitFor();
+      await page.locator('.ss-wb').waitFor();
       assert.equal(app.core.workspace.snapshots({ resource: 'map', key: project.id }).length, 2);
     }),
 );
@@ -231,14 +235,14 @@ test(
     withBrowserApp('ui-journal-minutes-history', silent, async ({ page, app }) => {
       const project = await openProject(page, app);
       await page
-        .locator('.wb-top')
-        .nth(1)
+        .getByRole('region', { name: '本项目日志' })
         .getByRole('button', { name: '查看全部', exact: true })
         .click();
       await page.getByRole('button', { name: '添加日志', exact: true }).click();
-      await page.locator('#modal input').fill('Research checkpoint');
-      await page.locator('#modal textarea').fill('Preserve the project evidence.');
-      await page.locator('#modal').getByRole('button', { name: '添加', exact: true }).click();
+      const adding = page.getByRole('dialog', { name: '添加日志' });
+      await adding.getByLabel('标题').fill('Research checkpoint');
+      await adding.getByLabel('日志详情').fill('Preserve the project evidence.');
+      await adding.getByRole('button', { name: '添加', exact: true }).click();
       await page.locator('.card', { hasText: 'Research checkpoint' }).waitFor();
       const journalCapture = page.waitForResponse(
         (response) =>
@@ -247,21 +251,13 @@ test(
       );
       await page.goBack();
       await journalCapture;
-      await page
-        .locator('.wb-top')
-        .nth(1)
-        .getByRole('button', { name: '历史版本', exact: true })
-        .click();
+      await workbenchMenu(page, '日志的历史版本');
       await page
         .getByRole('dialog', { name: '历史版本', exact: true })
         .locator('[data-snapshot-group="log"]')
         .waitFor();
       await page.getByRole('dialog').getByRole('button', { name: '关闭', exact: true }).click();
-      await page
-        .locator('.wb-top')
-        .nth(1)
-        .getByRole('button', { name: '历史版本', exact: true })
-        .click();
+      await workbenchMenu(page, '日志的历史版本');
       const journalHistory = page.getByRole('dialog', { name: '历史版本', exact: true });
       await journalHistory.getByRole('button', { name: '查看', exact: true }).click();
       await journalHistory.getByText('Preserve the project evidence.', { exact: true }).waitFor();

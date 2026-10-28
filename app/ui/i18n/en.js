@@ -2431,4 +2431,29 @@ export const en = {
   回到对话: 'Back to the chat',
   返回: 'Back',
   移除引用: 'Remove quote',
+  '说明（可选）': 'Note (optional)',
+  '期限（可选）': 'Due (optional)',
+  标为未完成: 'Mark as not done',
+  标为完成: 'Mark as done',
+  '改归属…': 'Change owner…',
+  '{date} 前': 'by {date}',
+  所有项目的计划: 'Plans of all projects',
+  '还没有计划。点 + 添加一条，所有项目的计划都列在这里。':
+    'No plans yet. Click + to add one; plans of every project are listed here.',
+  '{n} 个文件': '{n} files',
+  '还没有日志。完成一个关键节点时记一条，秘书也会在对话后补上。':
+    'No log entries yet. Add one when you reach a milestone; the secretary also adds them after chats.',
+  打开研究导图: 'Open the research map',
+  文稿: 'Manuscript',
+  '先在设置 → 常规里打开编辑台': 'Turn on the editing desk in Settings → General first',
+  在编辑台打开这一版: 'Open this version in the desk',
+  还没有文稿版本: 'No manuscript versions yet',
+  '在编辑台打开项目里的 docx、tex、md 或 pdf，保存时就会留下版本。':
+    'Open a docx, tex, md or pdf from the project in the desk; saving keeps a version.',
+  '文稿版本（旧页面）': 'Manuscript versions (old page)',
+  计划的历史版本: 'Plan history',
+  日志的历史版本: 'Log history',
+  在右侧打开这个项目文稿的版本树:
+    "Open the version tree of this project's manuscripts on the right",
+  '打开编辑台，显示这个项目的文稿': "Open the editing desk on this project's manuscripts",
 };

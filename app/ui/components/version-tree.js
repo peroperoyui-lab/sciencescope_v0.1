@@ -47,10 +47,13 @@ function matches(node, words) {
  * @param {{ group: any, name: string, currentId: string | null, editing: boolean,
  *   canCompare: boolean, canEdit: string, onClose: () => void, onWiden: () => void,
  *   onOpen: (version: any) => void, onEdit: (version: any) => void,
- *   onCompare: (left: string, right: string) => void,
+ *   onCompare?: (left: string, right: string) => void, openLabel?: string, picker?: any,
  *   ask: (question: any) => Promise<string | null> }} props
  * `currentId` is the version open in the active tab (`editing` when it is being
- * edited); `canEdit` is why 从这一版开始编辑 is off, or ''.
+ * edited); `canEdit` is why 从这一版开始编辑 is off, or ''. Outside the desk
+ * (the workbench) `openLabel` names the one action, opening a version in the
+ * desk, `picker` chooses the manuscript, and without `onCompare` there is no
+ * comparing.
  */
 export function VersionTree({
   group,
@@ -64,6 +67,8 @@ export function VersionTree({
   onOpen,
   onEdit,
   onCompare,
+  openLabel,
+  picker,
   ask,
 }) {
   const actions = useActions();
@@ -165,19 +170,34 @@ export function VersionTree({
     actions.openMenu(
       event,
       [
-        { text: t('打开（只读）'), icon: 'eye', run: () => onOpen(target) },
-        {
-          text: canEdit ? `${t('从这一版开始编辑')}（${canEdit}）` : t('从这一版开始编辑'),
-          icon: 'pencil',
-          disabled: !!canEdit,
-          run: () => onEdit(target),
-        },
-        {
-          text: compareLabel(target),
-          icon: 'git-compare',
-          disabled: compareOff(target),
-          run: () => onCompare(target.id, /** @type {any} */ (current).id),
-        },
+        ...(openLabel
+          ? [
+              {
+                text: canEdit ? `${openLabel}（${canEdit}）` : openLabel,
+                icon: 'file-pen',
+                disabled: !!canEdit,
+                run: () => onOpen(target),
+              },
+            ]
+          : [
+              { text: t('打开（只读）'), icon: 'eye', run: () => onOpen(target) },
+              {
+                text: canEdit ? `${t('从这一版开始编辑')}（${canEdit}）` : t('从这一版开始编辑'),
+                icon: 'pencil',
+                disabled: !!canEdit,
+                run: () => onEdit(target),
+              },
+            ]),
+        ...(onCompare
+          ? [
+              {
+                text: compareLabel(target),
+                icon: 'git-compare',
+                disabled: compareOff(target),
+                run: () => onCompare(target.id, /** @type {any} */ (current).id),
+              },
+            ]
+          : []),
         { sep: true },
         {
           text: t('改名'),
@@ -238,7 +258,9 @@ export function VersionTree({
   const kids = node ? children(node.id) : [];
   return html`<div class="ss-panel__head">
       <${Lucide} name="git-fork" />
-      <span class="ss-panel__title ss-truncate ss-vtree__title">${t('版本树')} · ${name}</span>
+      <span class="ss-panel__title ss-truncate ss-vtree__title"
+        >${picker ? t('版本树') : `${t('版本树')} · ${name}`}</span
+      >
       <button
         type="button"
         class="ss-icon-btn"
@@ -259,12 +281,13 @@ export function VersionTree({
       </button>
     </div>
     <div class="ss-toolbar ss-vtree__filter">
+      ${picker}
       <span class="ss-input ss-input--sm">
         <${Lucide} name="search" />
         <input
           type="search"
           aria-label=${t('筛选版本')}
-          placeholder=${t('按标题、标签、备注、修改指令筛选')}
+          placeholder=${picker ? t('筛选版本') : t('按标题、标签、备注、修改指令筛选')}
           value=${filter}
           onInput=${(event) => setFilter(event.currentTarget.value)}
         />
@@ -450,18 +473,25 @@ export function VersionTree({
             class="ss-btn ss-btn--sm"
             disabled=${!!canEdit}
             data-tip=${canEdit || undefined}
-            onClick=${() => onEdit(node)}
+            onClick=${() => (openLabel ? onOpen(node) : onEdit(node))}
           >
-            <${Lucide} name="pencil" />${t('从这一版开始编辑')}
+            ${
+              openLabel
+                ? html`<${Lucide} name="file-pen" />${openLabel}`
+                : html`<${Lucide} name="pencil" />${t('从这一版开始编辑')}`
+            }
           </button>
-          <button
-            type="button"
-            class="ss-btn ss-btn--sm ss-btn--ghost"
-            disabled=${compareOff(node)}
-            onClick=${() => onCompare(node.id, /** @type {any} */ (current).id)}
-          >
-            <${Lucide} name="git-compare" />${compareLabel(node)}
-          </button>
+          ${
+            onCompare &&
+            html`<button
+              type="button"
+              class="ss-btn ss-btn--sm ss-btn--ghost"
+              disabled=${compareOff(node)}
+              onClick=${() => onCompare(node.id, /** @type {any} */ (current).id)}
+            >
+              <${Lucide} name="git-compare" />${compareLabel(node)}
+            </button>`
+          }
         </div>
       </div>`
     }`;

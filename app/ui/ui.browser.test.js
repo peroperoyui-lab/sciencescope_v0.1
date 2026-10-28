@@ -59,7 +59,11 @@ test(
       await page.getByRole('button', { name: '创建项目' }).click();
       await page.getByText('本项目日志').waitFor();
 
-      await page.locator('.mainhead').getByRole('button', { name: '新建项目内聊天' }).click();
+      await page
+        .locator('.workbench-page > .ss-header')
+        .getByRole('button', { name: '更多' })
+        .click();
+      await page.getByRole('menuitem', { name: '在项目中新对话' }).click();
       await page.getByPlaceholder('输入问题或下一步工作…').fill('请把下一步记到计划里');
       await page.getByRole('button', { name: '发送' }).click();
 
@@ -110,13 +114,13 @@ test(
         .locator('.ss-sidebar')
         .getByRole('button', { name: '工作站', exact: true })
         .click();
-      await page.locator('.plancard', { hasText: '清洗面板数据' }).waitFor();
+      await page.locator('.ss-note-card', { hasText: '清洗面板数据' }).waitFor();
       await shot('workbench');
       await page
-        .locator('.wb-top')
-        .first()
-        .getByRole('button', { name: '历史版本', exact: true })
+        .locator('.workbench-page > .ss-header')
+        .getByRole('button', { name: '更多' })
         .click();
+      await page.getByRole('menuitem', { name: '计划的历史版本' }).click();
       await page
         .getByRole('dialog', { name: '历史版本', exact: true })
         .getByRole('button', { name: '查看', exact: true })
@@ -134,7 +138,7 @@ test(
 
       await page.getByRole('button', { name: '视图', exact: true }).click();
       await page.getByRole('menuitemcheckbox', { name: 'English' }).click();
-      await page.getByText('No project log entries yet').waitFor();
+      await page.getByText('No log entries yet.', { exact: false }).waitFor();
       await shot('workbench-en');
     }),
 );

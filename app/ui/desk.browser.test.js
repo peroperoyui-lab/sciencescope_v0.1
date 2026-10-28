@@ -82,11 +82,11 @@ test(
       );
       await writeFile(path.join(root, 'data.csv'), 'a,b\n1,2\n');
 
-      // Off by default: no entry in the sidebar, the workstation keeps its versions.
+      // Off by default: no entry in the sidebar or on the workstation.
       await page.evaluate((id) => {
         location.hash = '#/workbench/' + id;
       }, project.id);
-      await page.locator('.wb-left').waitFor();
+      await page.locator('.ss-wb').waitFor();
       assert.equal(
         await page.locator('.ss-sidebar').getByText('编辑台', { exact: true }).count(),
         0,
@@ -106,7 +106,6 @@ test(
         location.hash = '#/workbench/' + id;
       }, project.id);
       await page.getByRole('button', { name: '在编辑台打开' }).waitFor();
-      assert.equal(await page.locator('.wb-left').count(), 0);
       await shot('u1-workbench');
 
       // The sidebar entry opens the desk window on the current project.

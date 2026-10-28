@@ -201,6 +201,11 @@ button {
   background: var(--hover);
   color: var(--ink);
 }
+/* A ghost toggle that is on, such as 版本树 with its panel open. */
+.ss-btn--ghost[aria-pressed='true'] {
+  background: var(--selected);
+  color: var(--ink);
+}
 .ss-btn--danger {
   border-color: var(--danger);
   background: var(--danger);
@@ -4189,7 +4194,53 @@ button.ss-act__row:hover {
   grid-template-rows: auto auto minmax(0, 1fr);
   gap: var(--sp-16);
   height: 100%;
+  /* Below this the page scrolls instead of squeezing the map. */
+  min-height: 600px;
   padding: 16px 20px 20px;
+}
+.ss-wb > * {
+  min-width: 0;
+}
+/* 查看全部: every card in a grid. */
+.ss-wb--page {
+  grid-template-rows: none;
+  align-content: start;
+  height: auto;
+  min-height: 0;
+}
+.ss-wb__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--sp-8);
+}
+/* An empty strip keeps its row and says what goes there. */
+.ss-wb__empty {
+  display: flex;
+  align-items: center;
+  min-height: 84px;
+  margin: 0;
+  padding: 0 12px;
+  border: 1px dashed var(--line);
+  border-radius: var(--r-md);
+  color: var(--muted);
+  font-size: 12px;
+}
+.ss-wb__strip > .ss-wb__empty {
+  grid-column: 1 / -1;
+}
+.ss-wb__map {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.ss-wb__plan-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-12);
+}
+.ss-note-card .ss-check {
+  min-height: 0;
 }
 .ss-wb__strip {
   display: grid;
@@ -5296,6 +5347,11 @@ button.ss-act__row:hover {
 }
 .ss-vtree__filter > .ss-input {
   flex: 1;
+}
+/* The workbench's manuscript picker before the filter. */
+.ss-vtree__pick {
+  flex: none;
+  max-width: 55%;
 }
 .ss-vtree__wrap {
   position: relative;

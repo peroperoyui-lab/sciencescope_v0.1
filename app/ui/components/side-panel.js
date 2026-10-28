@@ -12,12 +12,13 @@ const MIN_WIDTH = 280;
 const MAX_WIDTH = 640;
 
 /**
- * @param {{ name: 'secretary' | 'assistant' | 'preview' | 'materials' | 'knowledge', title: string, closeLabel: string,
+ * @param {{ name: 'secretary' | 'assistant' | 'preview' | 'materials' | 'knowledge' | 'versions', title: string, closeLabel: string,
  *   defaultWidth?: number,
  *   onClose: () => void, buttons?: any, onHeadPointerDown?: (event: PointerEvent) => void,
  *   detached?: boolean, className?: string, onBack?: () => void, backLabel?: string,
- *   children: any }} props
+ *   bare?: boolean, children: any }} props
  * `onBack` puts an arrow before the title, for a panel opened from another one.
+ * `bare` leaves the head to the children (the version tree draws its own).
  */
 export function SidePanel({
   name,
@@ -31,6 +32,7 @@ export function SidePanel({
   defaultWidth = DEFAULT_WIDTH,
   onBack,
   backLabel = '返回',
+  bare = false,
   children,
 }) {
   const actions = useActions();
@@ -55,36 +57,39 @@ export function SidePanel({
           )}
       />`
     }
-    <div
-      class="ss-panel__head"
-      data-tauri-drag-region=${detached || undefined}
-      onPointerDown=${onHeadPointerDown}
-    >
-      ${
-        onBack &&
-        html`<button
+    ${
+      !bare &&
+      html`<div
+        class="ss-panel__head"
+        data-tauri-drag-region=${detached || undefined}
+        onPointerDown=${onHeadPointerDown}
+      >
+        ${
+          onBack &&
+          html`<button
+            type="button"
+            class="ss-icon-btn"
+            aria-label=${t(backLabel)}
+            data-tip=${t(backLabel)}
+            onClick=${onBack}
+          >
+            <${Lucide} name="arrow-left" />
+          </button>`
+        }
+        <span class="ss-panel__title">${t(title)}</span>
+        ${buttons}
+        <button
           type="button"
           class="ss-icon-btn"
-          aria-label=${t(backLabel)}
-          data-tip=${t(backLabel)}
-          onClick=${onBack}
+          aria-label=${t(closeLabel)}
+          data-tip=${t('关闭')}
+          data-kbd="Esc"
+          onClick=${onClose}
         >
-          <${Lucide} name="arrow-left" />
-        </button>`
-      }
-      <span class="ss-panel__title">${t(title)}</span>
-      ${buttons}
-      <button
-        type="button"
-        class="ss-icon-btn"
-        aria-label=${t(closeLabel)}
-        data-tip=${t('关闭')}
-        data-kbd="Esc"
-        onClick=${onClose}
-      >
-        <${Lucide} name="x" />
-      </button>
-    </div>
+          <${Lucide} name="x" />
+        </button>
+      </div>`
+    }
     ${children}
   </aside>`;
 }

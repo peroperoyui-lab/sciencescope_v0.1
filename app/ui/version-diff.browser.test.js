@@ -83,10 +83,8 @@ test(
           args: { text: '## 2026-10-12 完成稿件核查\n正文保留。' },
         });
         await page.goto(new URL(`/#/workbench/${project.id}`, page.url()).href);
-        await page
-          .locator('.journalcard')
-          .getByRole('button', { name: '文件列表', exact: false })
-          .click();
+        await page.locator('.ss-note-card', { hasText: '完成稿件核查' }).click({ button: 'right' });
+        await page.getByRole('menuitem', { name: '文件列表' }).click();
         await page.getByLabel('关联稿件版本').selectOption(current.id);
         await page.getByRole('button', { name: '关联版本', exact: true }).click();
         await page.getByLabel('项目文件路径').fill('分析/中文脚本.py');
