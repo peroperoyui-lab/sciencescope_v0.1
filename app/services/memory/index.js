@@ -9,6 +9,19 @@ import { createMemorySources } from './sources.js';
 import { EXTRACTION_INSTRUCTIONS, VERIFICATION_INSTRUCTIONS, requestMemory } from './request.js';
 import { extractCandidates, verification, saveCandidate } from './candidates.js';
 
+// Room kept for one memory reply. Reserving the model's whole maximum
+// output (384k on some models) put every request over the default budget.
+export const MEMORY_OUTPUT_TOKENS = 32768;
+
+/** The prepared model with its reply room capped to what a memory stage needs. @param {any} prepared */
+export function memoryModel(prepared) {
+  const outputTokens = Math.min(
+    prepared.outputTokens || MEMORY_OUTPUT_TOKENS,
+    MEMORY_OUTPUT_TOKENS,
+  );
+  return { ...prepared, outputTokens };
+}
+
 export const DEFAULT_MEMORY_SETTINGS = {
   enabled: true,
   idleMinutes: 10,
@@ -117,7 +130,7 @@ export function createMemoryService({
     let checkpoint = store.checkpoint(meetingId);
     store.saveStatus(meetingId, result);
     try {
-      const prepared = await runner.prepare(meetingId, { model: configured.model });
+      const prepared = memoryModel(await runner.prepare(meetingId, { model: configured.model }));
       if (checkpoint && hash(checkpoint.model) !== hash(prepared.model)) {
         core.db.prepare('DELETE FROM memory_checkpoints WHERE meeting_id = ?').run(meetingId);
         checkpoint = null;

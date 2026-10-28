@@ -4,7 +4,7 @@ import { withCore } from '../../testing.js';
 import { createResearch } from '../research/index.js';
 import { createMinutesService } from '../secretary/minutes.js';
 import { createScriptedRuntime } from '../../runtime/scripted.js';
-import { createMemoryService } from './index.js';
+import { MEMORY_OUTPUT_TOKENS, createMemoryService } from './index.js';
 
 /**
  * @param {(context:any)=>Promise<void>} work
@@ -503,4 +503,27 @@ test('saved extraction with secretary minutes evidence recovers without another 
       memory.inbox(project.id).items[0].payload.evidence[0].minutesAuthorId,
       'agent_secretary',
     );
+  }));
+
+test('a model with a huge maximum output still fits the default budget: memory reserves only its own reply', () =>
+  withMemory(async ({ meeting, memory, minutes, runner, settings, say }) => {
+    say('需要整理的决定');
+    await minutes.refresh(meeting.id);
+    runner.prepare = async () => ({
+      model: { provider: 'test', model: 'test' },
+      prompt: '',
+      contextWindow: 1_000_000,
+      outputTokens: 384_000,
+    });
+    const models = [];
+    const original = runner.run;
+    runner.run = async (...args) => {
+      models.push(args[3]?.model);
+      return original(...args);
+    };
+    await settings({ tokenLimit: 100000 });
+    const state = await memory.consolidate(meeting.id);
+    assert.notEqual(state.state, 'skipped');
+    assert.ok(models.length >= 1);
+    for (const model of models) assert.equal(model.maxTokens, MEMORY_OUTPUT_TOKENS);
   }));

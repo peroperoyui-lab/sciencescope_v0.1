@@ -59,7 +59,11 @@ export async function requestMemory(context, instructions, input, stage) {
     return { skipped: true, requiredTokens: estimated };
   let response;
   try {
-    response = await runner.run(meetingId, instructions, input, prepared);
+    // The reply is held to the room reserved for it; the model stays the same.
+    response = await runner.run(meetingId, instructions, input, {
+      ...prepared,
+      model: { ...prepared.model, maxTokens: outputReserve },
+    });
   } catch (error) {
     countUsage(usage, error.usage, estimated);
     checkpoint.outputs.push({
