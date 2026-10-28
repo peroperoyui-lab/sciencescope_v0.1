@@ -78,7 +78,7 @@
   font-size: var(--prose-size);
   line-height: var(--chat-line-height, 1.6);
 }
-.ss-thread .rendered-markdown :is(p, ul, ol, blockquote, pre, .markdown-table) {
+.ss-thread .rendered-markdown :is(p, ul, ol, blockquote, pre) {
   margin: 0 0 calc(var(--chat-line-height, 1.6) * 0.4em);
 }
 .ss-thread .rendered-markdown li,
@@ -195,6 +195,7 @@
   flex: 1;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
 .assistant-surface > .ss-content:focus-visible {
   outline-offset: -2px;
@@ -240,13 +241,6 @@
 .file-preview-panel .file-preview-content {
   padding: 0 4px;
 }
-.materials-panel .rb-materials > form {
-  display: flex;
-  gap: var(--sp-8);
-}
-.materials-panel .rb-materials > form > .ss-input {
-  flex: 1;
-}
 
 /* ---------- Project log entry: details edited in place ---------- */
 .journal-details {
@@ -270,19 +264,6 @@
   color: var(--ink);
   font: 14px/22px var(--font-sans);
   resize: vertical;
-}
-.journal-savebar {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-8);
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  font-size: 12px;
-}
-.journal-savebar > span {
-  margin-right: auto;
 }
 
 /* ---------- Knowledge base page (PageKnowledge, table view) ---------- */
@@ -521,4 +502,198 @@
 }
 .kb-label-input {
   width: 120px;
+}
+
+/* ---------- Rendered Markdown (messages, previews, notes) ---------- */
+.rendered-markdown {
+  overflow-wrap: anywhere;
+}
+.rendered-markdown > :first-child {
+  margin-top: 0;
+}
+.rendered-markdown > :last-child {
+  margin-bottom: 0;
+}
+.rendered-markdown p {
+  margin: 0 0 0.75em;
+}
+.rendered-markdown :is(h1, h2, h3, h4) {
+  margin: 1.1em 0 0.5em;
+  color: var(--ink);
+  font-weight: 600;
+  line-height: 1.35;
+}
+.rendered-markdown h1 {
+  font-size: 1.35em;
+}
+.rendered-markdown h2 {
+  font-size: 1.2em;
+}
+.rendered-markdown :is(h3, h4) {
+  font-size: 1.08em;
+}
+.rendered-markdown :is(ul, ol) {
+  margin: 0 0 0.75em;
+  padding-left: 1.4em;
+}
+.rendered-markdown li {
+  margin: 0.2em 0;
+}
+.rendered-markdown li::marker {
+  color: var(--faint);
+}
+.rendered-markdown strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+.rendered-markdown a {
+  color: var(--accent-ink);
+  text-decoration: underline;
+  text-decoration-color: var(--accent-line);
+  text-underline-offset: 2px;
+}
+.rendered-markdown blockquote {
+  margin: 0 0 0.75em;
+  padding: 2px 0 2px 14px;
+  border-left: 3px solid var(--accent-line);
+  color: var(--ink-2);
+}
+.rendered-markdown :not(pre) > code {
+  padding: 0.12em 0.38em;
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+  background: var(--sunken);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+}
+.rendered-markdown pre {
+  position: relative;
+  margin: 0 0 0.9em;
+  overflow: auto;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--sunken);
+}
+.rendered-markdown pre code {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--code-font-size, 13px);
+  line-height: 1.65;
+}
+.rendered-markdown .hljs-keyword,
+.rendered-markdown .hljs-selector-tag {
+  color: var(--accent);
+}
+.rendered-markdown .hljs-comment {
+  color: var(--muted);
+}
+.rendered-markdown table {
+  width: 100%;
+  margin: 0 0 0.9em;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.rendered-markdown :is(th, td) {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  text-align: left;
+}
+.rendered-markdown th {
+  background: var(--sunken);
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+}
+.rendered-markdown tr:last-child td {
+  border-bottom: 0;
+}
+.rendered-markdown hr {
+  margin: 1.2em 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+.katex-display {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+button:disabled {
+  cursor: default;
+}
+
+/* ---------- Document readers (preview panel and the desk's source view) ---------- */
+.file-preview-content {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+.reader-surface {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  background: var(--paper);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.reader-surface,
+.reader-surface * {
+  user-select: text;
+}
+.reader-surface table {
+  border-collapse: collapse;
+}
+.reader-surface :is(td, th) {
+  padding: 6px;
+  border: 1px solid var(--line);
+}
+.reader-surface img {
+  max-width: 100%;
+}
+.reader-surface .cm-editor {
+  height: 100%;
+  background: var(--paper);
+  color: var(--ink);
+}
+.reader-surface .cm-gutters {
+  border-color: var(--line);
+  background: var(--sunken);
+  color: var(--muted);
+}
+.reader-pdf {
+  position: relative;
+  min-height: 300px;
+  padding: 0;
+  background: var(--sunken);
+}
+.reader-pdf-scroll {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+}
+.reader-pdf .textLayer {
+  user-select: text;
+}
+/* pdf.js sizes pages as content boxes inside their border; with the global
+   border-box the canvas shrank by the border and the text layer drifted off
+   the print (selections and marks ~2% to the right by the line's end). */
+.reader-pdf .pdfViewer .page {
+  box-sizing: content-box;
+}
+
+/* 界面密度：紧凑 tightens the sidebar rows and the settings rows, not the chat. */
+:root[data-density='compact'] .ss-sidebar :is(.ss-nav-item, .ss-tree-row, .ss-side-all) {
+  height: 26px;
+}
+:root[data-density='compact'] .ss-setting-row {
+  min-height: 44px;
+  padding: 6px 0;
 }
