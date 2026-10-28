@@ -352,6 +352,8 @@ async fn open_secondary_window(
                 .initialization_script(api_initialization(&app))
                 .devtools(false)
                 .title("ScienceScope · 全局助手")
+                // The panel and the orb belong to the main window: no taskbar entries of their own.
+                .skip_taskbar(true)
                 .visible(false)
                 .inner_size(f64::from(dimensions.width), f64::from(dimensions.height))
                 .decorations(false).transparent(true).shadow(false).always_on_top(false).resizable(true)
@@ -368,6 +370,7 @@ async fn open_secondary_window(
                 .initialization_script(api_initialization(&app))
                 .devtools(false)
                 .title("ScienceScope · 助手")
+                .skip_taskbar(true)
                 .inner_size(f64::from(ASSISTANT_ORB), f64::from(ASSISTANT_ORB))
                 .min_inner_size(f64::from(ASSISTANT_ORB), f64::from(ASSISTANT_ORB))
                 .max_inner_size(f64::from(ASSISTANT_ORB), f64::from(ASSISTANT_ORB))

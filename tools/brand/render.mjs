@@ -119,7 +119,9 @@ try {
     icons.push({ size, png });
     if (preview) await writeFile(path.join(preview, `icon-${size}.png`), png);
   }
-  await writeFile(path.join(out, 'icon.ico'), ico(icons));
+  // Largest first: the Windows build takes the .ico's first entry as the
+  // window and taskbar icon, and a 16 px first entry looked blurred there.
+  await writeFile(path.join(out, 'icon.ico'), ico([...icons].reverse()));
 
   for (const [name, width, height] of [
     ['installer-sidebar', 164, 314],

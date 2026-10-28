@@ -140,27 +140,34 @@ test(
         await fsqcaTitle.waitFor({ timeout: 3000 }).catch(() => {});
       }
       await fsqcaTitle.waitFor();
-      const target = await at(page, ref.consistency);
       // The handle sits at the selected node's right edge once the view is still.
-      const start = await (
-        await page.waitForFunction(() => {
-          const host = document.querySelector('[data-kb-map]');
-          const map = /** @type {any} */ (host).knowledgeMap;
-          const handle = document.querySelector('.kb-map__handle');
-          const expected = map.handlePoint(map.selected()[0]);
-          if (!handle || !expected) return null;
-          const box = host.getBoundingClientRect();
-          const rect = handle.getBoundingClientRect();
-          const x = rect.left + rect.width / 2;
-          const y = rect.top + rect.height / 2;
-          return Math.hypot(x - box.left - expected.x, y - box.top - expected.y) < 1 && { x, y };
-        })
-      ).jsonValue();
-      await page.mouse.move(start.x, start.y);
-      await page.mouse.down();
-      await page.mouse.move(target.x, target.y, { steps: 8 });
-      await page.mouse.up();
+      const handleAt = async () =>
+        (
+          await page.waitForFunction(() => {
+            const host = document.querySelector('[data-kb-map]');
+            const map = /** @type {any} */ (host).knowledgeMap;
+            const handle = document.querySelector('.kb-map__handle');
+            const expected = map.handlePoint(map.selected()[0]);
+            if (!handle || !expected) return null;
+            const box = host.getBoundingClientRect();
+            const rect = handle.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            return Math.hypot(x - box.left - expected.x, y - box.top - expected.y) < 1 && { x, y };
+          })
+        ).jsonValue();
+      // Both ends are read once the view is still, just before the drag; a view
+      // that moved anyway (seen on a loaded Windows run) gets the drag again.
       const picker = page.locator('.kb-picker');
+      for (let tries = 0; tries < 3 && !(await picker.isVisible()); tries++) {
+        const start = await handleAt();
+        const target = await at(page, ref.consistency);
+        await page.mouse.move(start.x, start.y);
+        await page.mouse.down();
+        await page.mouse.move(target.x, target.y, { steps: 8 });
+        await page.mouse.up();
+        await picker.waitFor({ timeout: 3000 }).catch(() => {});
+      }
       await picker.waitFor();
       assert.match(await picker.innerText(), /fsQCA → 一致性阈值/);
       await shot('kb-10-connect');
