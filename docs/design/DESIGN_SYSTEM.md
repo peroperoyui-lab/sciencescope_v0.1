@@ -74,6 +74,7 @@
 常用命令（在仓库根目录运行）：
 
 - 生成：`python3 -I docs/design/system/build/build.py`。它写出画廊的 `bundle.js`、`bundle.css`，应用的 `styles/tokens.css`、`lucide-icons.js`（用仓库里的 prettier 排版），以及 `.sciencescope-local/temp/design-system/` 下的预览辅助文件。改组件样式只改 `app/ui/styles/components.css`；画廊专用的样式在 `build/gallery.css`。
+- 本地画廊：`node docs/design/system/build/local.cjs`（先跑上面的生成），写出 `.sciencescope-local/temp/design-system/gallery/index.html`，用浏览器直接打开，按分组列出全部卡片，可切浅色、深色，每张卡片链到它的 README。claude.ai 上的画廊链接是私有的，其他 agent 打不开，就看这一份。
 - 截图：`node docs/design/system/build/shot.cjs <组件|all> [light|dark|both] [倍数]`，输出到 `.sciencescope-local/temp/design-system/shots/`。
 - 量高度：`node docs/design/system/build/measure.cjs <组件|all>`，对照卡片标记里的高度。
 - 对比度：`python3 -I docs/design/system/build/contrast.py`。目前有 10 项低于目标，都是品牌手册「可读性」写明的例外：`faint`、`line-strong`、深色主题的 `auto`，以及 `press` 上的 `muted`。

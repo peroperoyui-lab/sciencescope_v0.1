@@ -104,7 +104,7 @@ ScienceScope 是一个本地运行的学术研究助手。
 
 ### 3.1 依据
 
-- **设计系统画廊**是全部界面的依据（所有者 2026-10-16 认可）：<https://claude.ai/artifact/6MCyAAbMK2kD5nTsAkZEgk>。源文件在 `design/system/`，仓库和画廊保持一致。
+- **设计系统画廊**是全部界面的依据（所有者 2026-10-16 认可）。claude.ai 上的画廊 <https://claude.ai/artifact/6MCyAAbMK2kD5nTsAkZEgk> 是私有链接，只有所有者能打开；源文件在 `design/system/`，仓库和画廊保持一致。其他 agent 在本机看：先 `python3 -I docs/design/system/build/build.py`，再 `node docs/design/system/build/local.cjs`，用浏览器打开 `.sciencescope-local/temp/design-system/gallery/index.html`；要截图用 `shot.cjs`（`design/DESIGN_SYSTEM.md` §5）。
 - 品牌规则全文在 `design/system/project/README.md`，每个组件的结构和规则在 `design/system/project/components/<名称>/README.md`。下面是要点，细节以这两处为准。
 - **先有设计稿，再写实现。** 新页面或大改的页面，先在画廊里出整页稿，所有者看过后再实现。画廊更新后，源文件同步进仓库。
 - 视觉基线是 `ScienceScope.html` 和 `reference/`：logo、配色、美术风格不变。布局、组件和交互按设计系统来；旧界面一比一复原那条路已经废弃（2026-10-16）。

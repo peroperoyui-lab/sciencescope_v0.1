@@ -8,6 +8,10 @@ Read `docs/MUST_READ.md` first (positioning, shared rules, frontend design and
 backend development guidelines, art assets; stable). Docs index: `docs/README.md` (reorganized 2026-10-18). The owner's decisions
 are in `docs/decisions/DECISIONS.md`; what exists now is in
 `docs/product/FEATURES.md`; how the work flows is in `docs/process/WORKFLOW.md`.
+The design-system gallery link on claude.ai is private to the owner; to see the
+gallery, run `python3 -I docs/design/system/build/build.py`, then
+`node docs/design/system/build/local.cjs`, and open
+`.sciencescope-local/temp/design-system/gallery/index.html` in a browser.
 
 ## What ScienceScope is
 
