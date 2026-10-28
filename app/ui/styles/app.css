@@ -66,10 +66,20 @@
    of widening it into a horizontal scroll. */
 .rb-dialog {
   overflow-x: hidden;
+  /* The dialog is 480px wide; the old 520px minimum pushed fields past its edge. */
+  min-width: 0;
 }
 .rb-dialog > *,
 .rb-dialog .between > * {
   min-width: 0;
+}
+/* The grid gap spaces the fields; the old field margin doubled it and pushed
+   保存 out of sight. An empty error line takes no room. */
+.rb-dialog > .field {
+  margin: 0;
+}
+.rb-dialog > p[role='alert']:empty {
+  display: none;
 }
 .rb-source-info {
   display: grid;

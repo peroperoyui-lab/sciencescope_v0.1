@@ -6398,3 +6398,12 @@ button.ss-vfold {
 .windowctl .windowctl__pin[aria-pressed='true'] {
   color: var(--accent);
 }
+/* Text boxes fit their text: they grow while typing up to a limit, then
+   scroll, and shrink back when text is removed. No drag handle, so a box
+   never stays stretched past its text (Yui 2026-10-28). */
+textarea {
+  field-sizing: content;
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  resize: none;
+}
