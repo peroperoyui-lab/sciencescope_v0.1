@@ -488,192 +488,6 @@ button {
   line-height: 18px;
 }
 
-/* 文件预览: a bar with pages and zoom (PDF) or the display mode, then the document. */
-.ss-reader {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  height: 100%;
-}
-.ss-reader__bar {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: var(--sp-4);
-  padding: 4px 8px;
-  border-bottom: 1px solid var(--line);
-  font-size: 12px;
-}
-.ss-reader__page {
-  width: 52px;
-}
-.ss-reader__note {
-  margin: 0;
-  padding: 4px 12px;
-  font-size: 12px;
-}
-
-/* 标记 N: the marks attached to the composer, each with its note and actions. */
-.ss-marks {
-  width: 360px;
-}
-.ss-mark-pop {
-  width: 360px;
-}
-.ss-mark-pop__more {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  margin-left: -8px;
-}
-.ss-pop__body > .ss-textarea {
-  width: 100%;
-}
-.ss-marks__toggle {
-  padding-right: 8px;
-}
-.ss-marks__list {
-  display: grid;
-  gap: var(--sp-12);
-  max-height: min(60vh, 480px);
-  margin: 0;
-  padding: 12px;
-  overflow: auto;
-  list-style: none;
-}
-.ss-marks__item {
-  display: grid;
-  gap: var(--sp-4);
-}
-.ss-marks__source,
-.ss-marks__comment {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 18px;
-}
-.ss-marks__text {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  cursor: pointer;
-}
-.ss-marks__text[data-expanded] {
-  display: block;
-}
-.ss-marks__edit {
-  display: grid;
-  justify-items: end;
-  gap: var(--sp-6);
-}
-.ss-marks__edit > .ss-textarea {
-  width: 100%;
-}
-.ss-marks__actions {
-  display: flex;
-  gap: var(--sp-2);
-  margin-left: -8px;
-}
-
-/* 对话纪要: status lines, the minutes (or the editor), the secretary's partial output. */
-.ss-minutes__meta {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-4);
-  margin: 0;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 18px;
-}
-.ss-minutes__status {
-  margin: 0;
-  color: var(--danger);
-  font-size: 12px;
-}
-.ss-minutes__body {
-  min-height: 160px;
-  max-height: min(56vh, 520px);
-  overflow: auto;
-}
-.ss-minutes__text {
-  width: 100%;
-  min-height: 320px;
-}
-.ss-minutes__partial > summary {
-  color: var(--muted);
-  font-size: 12px;
-  cursor: pointer;
-}
-
-/* 历史版本: versions grouped by file, a read-only preview, restore and delete. */
-.ss-history {
-  display: grid;
-  gap: var(--sp-12);
-  min-width: 0;
-}
-.ss-history__text {
-  margin: 0;
-  font-size: 12px;
-  line-height: 18px;
-}
-.ss-history__bar {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-8);
-}
-.ss-history__preview {
-  max-height: 380px;
-  overflow: auto;
-  padding: var(--sp-12);
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-  background: var(--paper);
-}
-.ss-history__map {
-  position: relative;
-  height: 280px;
-  overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: var(--r-md);
-}
-.ss-history__foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--sp-8);
-}
-/* The row's buttons stay visible: they are the point of the list. */
-.ss-history .ss-list-row__actions {
-  opacity: 1;
-}
-
-/* A text box with buttons beside it (a folder path and 选择已有文件夹). */
-.ss-field-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-8);
-  min-width: 0;
-}
-.ss-field-row > .ss-input {
-  flex: 1;
-  min-width: 0;
-}
-
-/* A page that is one form (新建项目): a centred column, buttons at its end. */
-.ss-form-page {
-  display: grid;
-  gap: var(--sp-16);
-  width: min(560px, 100%);
-  margin: 0 auto;
-  padding: 32px 24px;
-}
-.ss-form-page__foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--sp-8);
-  padding-top: var(--sp-8);
-}
-
 /* Name / value rows (request headers, environment variables); a saved secret shows as a line instead of its value. */
 .ss-kv {
   display: grid;
@@ -7096,4 +6910,310 @@ textarea {
   max-height: min(50vh, 420px);
   overflow-y: auto;
   resize: none;
+}
+
+/* ---------- Pages and parts moved off the old styles (item 5) ---------- */
+
+/* An ordered-discussion answer: the expert's state, and 加入后续上下文 under a review. */
+.ss-expert-state {
+  margin-left: var(--sp-6);
+}
+.ss-expert-state[data-state='done'] {
+  border-color: transparent;
+  background: transparent;
+  color: var(--faint);
+}
+.ss-review-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin-top: var(--sp-8);
+  padding: 6px 8px 6px 12px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  color: var(--muted);
+  font-size: 12px;
+}
+.ss-review-bar__label {
+  display: inline-flex;
+  align-items: center;
+  margin-right: auto;
+}
+
+/* @ in the composer: the experts to invite, just above the box. */
+.ss-menu.ss-mention {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 12px;
+  min-width: 240px;
+  /* It follows every keystroke; replaying the pop-in would make it flicker. */
+  animation: none;
+}
+.ss-mention > .ss-menu__item[aria-selected='true'] {
+  background: var(--hover);
+}
+.ss-mention .ss-menu__end {
+  max-width: 120px;
+}
+
+/* 有序讨论: who answers in which order, and who reviews, above the chat. */
+.ss-discussion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-6);
+  margin: 12px max(24px, calc((100% - 760px) / 2)) 4px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--raised);
+  box-shadow: var(--shadow-1);
+}
+.ss-discussion__label {
+  display: inline-flex;
+  align-items: center;
+  margin-right: var(--sp-4);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+.ss-order-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  height: 28px;
+  padding: 0 10px 0 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--raised);
+  color: var(--ink);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition:
+    background var(--t-fast) var(--ease),
+    border-color var(--t-fast),
+    opacity var(--t-fast);
+}
+.ss-order-chip > b {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--paper);
+  font-size: 11px;
+  font-weight: 600;
+}
+.ss-order-chip[aria-pressed='false'] {
+  border-style: dashed;
+  opacity: 0.55;
+}
+.ss-order-chip[aria-pressed='false'] > b {
+  background: var(--sunken);
+  color: var(--muted);
+}
+.ss-order-chip:hover:not(:disabled) {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.ss-order-chip:disabled {
+  cursor: default;
+}
+.ss-order-chip > i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+.ss-order-chip > i[data-state='running'],
+.ss-order-chip > i[data-state='tool'] {
+  background: var(--accent);
+  animation: ss-pulse 1.2s var(--ease) infinite;
+}
+
+/* 文件预览: a bar with pages and zoom (PDF) or the display mode, then the document. */
+.ss-reader {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+.ss-reader__bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.ss-reader__page {
+  width: 52px;
+}
+.ss-reader__note {
+  margin: 0;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
+/* 标记 N: the marks attached to the composer, each with its note and actions. */
+.ss-marks {
+  width: 360px;
+}
+.ss-mark-pop {
+  width: 360px;
+}
+.ss-mark-pop__more {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-left: -8px;
+}
+.ss-pop__body > .ss-textarea {
+  width: 100%;
+}
+.ss-marks__toggle {
+  padding-right: 8px;
+}
+.ss-marks__list {
+  display: grid;
+  gap: var(--sp-12);
+  max-height: min(60vh, 480px);
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  list-style: none;
+}
+.ss-marks__item {
+  display: grid;
+  gap: var(--sp-4);
+}
+.ss-marks__source,
+.ss-marks__comment {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+.ss-marks__text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  cursor: pointer;
+}
+.ss-marks__text[data-expanded] {
+  display: block;
+}
+.ss-marks__edit {
+  display: grid;
+  justify-items: end;
+  gap: var(--sp-6);
+}
+.ss-marks__edit > .ss-textarea {
+  width: 100%;
+}
+.ss-marks__actions {
+  display: flex;
+  gap: var(--sp-2);
+  margin-left: -8px;
+}
+
+/* 对话纪要: status lines, the minutes (or the editor), the secretary's partial output. */
+.ss-minutes__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+.ss-minutes__status {
+  margin: 0;
+  color: var(--danger);
+  font-size: 12px;
+}
+.ss-minutes__body {
+  min-height: 160px;
+  max-height: min(56vh, 520px);
+  overflow: auto;
+}
+.ss-minutes__text {
+  width: 100%;
+  min-height: 320px;
+}
+.ss-minutes__partial > summary {
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* 历史版本: versions grouped by file, a read-only preview, restore and delete. */
+.ss-history {
+  display: grid;
+  gap: var(--sp-12);
+  min-width: 0;
+}
+.ss-history__text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+.ss-history__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.ss-history__preview {
+  max-height: 380px;
+  overflow: auto;
+  padding: var(--sp-12);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--paper);
+}
+.ss-history__map {
+  position: relative;
+  height: 280px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.ss-history__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-8);
+}
+/* The row's buttons stay visible: they are the point of the list. */
+.ss-history .ss-list-row__actions {
+  opacity: 1;
+}
+
+/* A text box with buttons beside it (a folder path and 选择已有文件夹). */
+.ss-field-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+.ss-field-row > .ss-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* A page that is one form (新建项目): a centred column, buttons at its end. */
+.ss-form-page {
+  display: grid;
+  gap: var(--sp-16);
+  width: min(560px, 100%);
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+.ss-form-page__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-8);
+  padding-top: var(--sp-8);
 }

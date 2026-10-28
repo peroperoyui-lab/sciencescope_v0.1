@@ -1,8 +1,8 @@
 import { useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
+import { Lucide } from '../icons.js';
 import { InfoTip } from './info-tip.js';
-import { DiscussionMenu } from './discussion-menu.js';
 import { ChoiceMenu } from './popover.js';
 import { useDiscussion } from './discussion-state.js';
 import { isToolCall } from './timeline.js';
@@ -42,7 +42,7 @@ export function DiscussionStrip({ meetingId, running }) {
         expert.definition.panel === 'reviewer' &&
         (index === 0 || reviewers[index - 1].definition.panel !== 'reviewer');
       return [
-        ...(heading ? [{ heading: true, text: t('独立审核') }] : []),
+        ...(heading ? [{ group: t('独立审核') }] : []),
         {
           text: expert.name,
           selected: policy.reviewer === expert.id,
@@ -62,38 +62,54 @@ export function DiscussionStrip({ meetingId, running }) {
     }),
   ];
   let order = 0;
-  return html`<div class="panelhead discussion-strip" data-discussion-strip>
-    <div class="row">
-      <small
-        >${t('发言顺序')}<${InfoTip}
-          text=${t('所选专家读取同一份前文后并行独立作答，按顺序展示。审核结论须经采纳才进入后续上下文。')} /></small
-      >${experts
-        .filter((expert) => expert.id !== policy.reviewer)
-        .map((expert) => {
-          const selected = (policy.order ?? []).includes(expert.id);
-          const state = stateOf(expert.id);
-          return html`<button
-            type="button"
-            class="panel-chip"
-            data-panel-toggle=${expert.id}
-            aria-pressed=${selected}
-            disabled=${running}
-            title=${expert.definition.role ?? expert.name}
-            onClick=${() => save({ order: inOrder(selected ? (policy.order ?? []).filter((id) => id !== expert.id) : [...(policy.order ?? []), expert.id]) })}
-          >
-            <b>${selected ? ++order : '–'}</b
-            ><span>${expert.name}</span
-            >${state && html`<i data-state=${state} aria-label=${t({ running: '作答中', tool: '使用工具', waiting: '等待中' }[state])}></i>`}
-          </button>`;
-        })}${!experts.length && html`<small>${t('名册为空')}</small>`}<span class="spacer"></span
-      ><${DiscussionMenu}
-        label=${t('审核专家')}
-        className="panel-chip reviewer-chip"
-        disabled=${running}
-        items=${items}
-        ><span>${t('审核：')}</span><span>${reviewer?.name ?? t('无')}</span><//
-      >
-    </div>
+  return html`<div class="ss-discussion" data-discussion-strip>
+    <span class="ss-discussion__label"
+      >${t('发言顺序')}<${InfoTip}
+        text=${t('所选专家读取同一份前文后并行独立作答，按顺序展示。审核结论须经采纳才进入后续上下文。')}
+    /></span>
+    ${experts
+      .filter((expert) => expert.id !== policy.reviewer)
+      .map((expert) => {
+        const selected = (policy.order ?? []).includes(expert.id);
+        const state = stateOf(expert.id);
+        return html`<button
+          type="button"
+          class="ss-order-chip"
+          key=${expert.id}
+          data-panel-toggle=${expert.id}
+          aria-pressed=${String(selected)}
+          disabled=${running}
+          data-tip=${expert.definition.role ?? expert.name}
+          onClick=${() =>
+            save({
+              order: inOrder(
+                selected
+                  ? (policy.order ?? []).filter((id) => id !== expert.id)
+                  : [...(policy.order ?? []), expert.id],
+              ),
+            })}
+        >
+          <b>${selected ? ++order : '–'}</b><span>${expert.name}</span>${
+            state &&
+            html`<i
+              data-state=${state}
+              aria-label=${t({ running: '作答中', tool: '使用工具', waiting: '等待中' }[state])}
+            ></i>`
+          }
+        </button>`;
+      })}
+    ${!experts.length && html`<span class="ss-muted">${t('名册为空')}</span>`}
+    <span class="ss-toolbar__spacer"></span>
+    <${ChoiceMenu}
+      label=${t('审核专家')}
+      tip=${t('审核专家')}
+      items=${items}
+      disabled=${running}
+      placement="bottom-end"
+      attrs=${{ 'data-panel-reviewer-menu': '' }}
+    >
+      <${Lucide} name="shield-check" /><span>${t('审核：')}${reviewer?.name ?? t('无')}</span>
+    <//>
   </div>`;
 }
 

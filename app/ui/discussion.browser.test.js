@@ -41,7 +41,7 @@ async function chooseRound(page) {
   const redTeam = page.locator('[data-panel-toggle="agent_red_team"]');
   if ((await redTeam.getAttribute('aria-pressed')) === 'true') await redTeam.click();
   await page.getByRole('button', { name: '审核专家', exact: true }).click();
-  await page.getByRole('menuitemcheckbox', { name: '独立审核人', exact: true }).click();
+  await page.getByRole('menuitemradio', { name: '独立审核人', exact: true }).click();
 }
 
 async function workMode(page) {
@@ -122,14 +122,14 @@ test(
             await textarea.fill('完整讨论问题');
             await page.getByRole('button', { name: '发送', exact: true }).click();
             await waitingStarted.promise;
-            await page.locator('.expert-state[data-state="waiting"]').waitFor();
+            await page.locator('.ss-expert-state[data-state="waiting"]').waitFor();
             await page
               .locator('[data-expert-box="waiting"]', { hasText: '等前面的专家说完' })
               .first()
               .waitFor();
             releaseWaiting.resolve();
             await twoStarted.promise;
-            await page.locator('.expert-state[data-state="running"]').first().waitFor();
+            await page.locator('.ss-expert-state[data-state="running"]').first().waitFor();
             assert.equal(await page.locator('[data-expert]').count(), 2);
             assert.equal(await page.locator('[data-review]').count(), 0);
             const authors = await page.locator('[data-expert] .ss-msg__head').allTextContents();
@@ -137,7 +137,7 @@ test(
             assert.match(authors[1], /统计审稿人[\s\S]*统计与数据/u);
             releaseAnswers.resolve();
             await toolStarted.promise;
-            await page.locator('.expert-state[data-state="tool"]').waitFor();
+            await page.locator('.ss-expert-state[data-state="tool"]').waitFor();
             // While an expert speaks it shows one fixed-height box: what it is doing and its last lines.
             const box = page.locator('[data-expert] [data-expert-box="answering"]').first();
             await box.getByText('正在读取').waitFor();
@@ -147,7 +147,7 @@ test(
             await shot('ordered-discussion-box');
             releaseTool.resolve();
             const activity = page.locator('[data-expert] [data-turn-activity]').first();
-            await page.locator('[data-review] .expert-state[data-state="done"]').waitFor();
+            await page.locator('[data-review] .ss-expert-state[data-state="done"]').waitFor();
             // When it ends the card folds into one line.
             await page
               .locator('[data-expert] [data-turn-activity]:not([data-running])')
@@ -216,9 +216,9 @@ test(
             await page.locator('[data-review-adopt]:disabled').waitFor();
             await page.getByRole('button', { name: '视图', exact: true }).click();
             await page.getByRole('menuitemcheckbox', { name: 'English' }).click();
-            await page.locator('.expert-state', { hasText: 'Completed' }).first().waitFor();
+            await page.locator('.ss-expert-state', { hasText: 'Completed' }).first().waitFor();
             assert.doesNotMatch(
-              await page.locator('.review-adopt').innerText(),
+              await page.locator('.ss-review-bar').innerText(),
               /审核|后续上下文/u,
             );
             await shot('ordered-discussion-en');
@@ -291,7 +291,7 @@ test(
           .waitFor();
         await page.getByRole('button', { name: '停止', exact: true }).click();
         await app.conductor.idle();
-        await page.locator('.expert-state[data-state="failed"]').last().waitFor();
+        await page.locator('.ss-expert-state[data-state="failed"]').last().waitFor();
         assert.equal(app.core.turns.running().length, 0);
         assert.equal(
           app.core.messages

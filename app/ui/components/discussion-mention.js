@@ -77,25 +77,29 @@ export function useDiscussionMention({ candidates, enabled, box, text, onChange 
   }, [mention]);
   const content =
     mention &&
-    html`<div class="mention-menu" ref=${menu} role="listbox" aria-label=${t('邀请专家')}>
-      <div class="mention-title">${t('邀请专家回答')}</div>
+    html`<div class="ss-menu ss-mention" ref=${menu} role="listbox" aria-label=${t('邀请专家')}>
+      <div class="ss-menu__label">${t('邀请专家回答')}</div>
       ${mention.items.map(
         (candidate, index) =>
           html`<button
             type="button"
+            class="ss-menu__item"
             role="option"
             data-mention=${candidate.id}
-            aria-selected=${index === active}
+            aria-selected=${String(index === active)}
             onMouseDown=${(event) => {
               event.preventDefault();
               choose(candidate);
             }}
           >
-            <span class="mention-avatar">${candidate.name.slice(0, 1)}</span
-            ><span class="mention-name">${candidate.name}</span
-            ><small>${candidate.definition.role || candidate.definition.model?.model || ''}</small>
+            <span class="ss-avatar">${candidate.name.slice(0, 1)}</span>
+            <span class="ss-truncate">${candidate.name}</span>
+            <span class="ss-menu__end ss-truncate"
+              >${candidate.definition.role || candidate.definition.model?.model || ''}</span
+            >
           </button>`,
-      )}${!mention.items.length && html`<div class="mention-empty">${t('没有匹配的专家')}</div>`}
+      )}
+      ${!mention.items.length && html`<div class="ss-menu__label">${t('没有匹配的专家')}</div>`}
     </div>`;
   return { update, onKey, content, close: () => setMention(null) };
 }

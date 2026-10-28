@@ -27,7 +27,12 @@ export function expertState(message, calls) {
 /** @param {{message:any,calls:any[]}} props */
 export function ExpertState({ message, calls }) {
   const state = expertState(message, calls);
-  return html`<span class="expert-state" data-state=${state}>${t(labels[state])}</span>`;
+  const tone = { running: 'ok', tool: 'ok', failed: 'danger', stopped: 'danger' }[state];
+  return html`<span
+    class=${`ss-tag ss-expert-state ${tone ? `ss-tag--${tone}` : ''}`}
+    data-state=${state}
+    >${t(labels[state])}</span
+  >`;
 }
 
 /**
@@ -115,10 +120,13 @@ export function ReviewAdoption({ message }) {
     : adopted
       ? '已加入后续上下文'
       : '加入后续上下文';
-  return html`<div class="review-adopt" data-review-bar=${message.id}>
-    <span>${t('审核结论')} <${InfoTip} label=${t('审核结论说明')} text=${t(explanation)} /></span>
+  return html`<div class="ss-review-bar" data-review-bar=${message.id}>
+    <span class="ss-review-bar__label"
+      >${t('审核结论')}<${InfoTip} label=${t('审核结论说明')} text=${t(explanation)}
+    /></span>
     <button
-      class=${`btn tiny ${adopted ? 'soft' : 'primary'}`}
+      type="button"
+      class=${`ss-btn ss-btn--sm ${adopted ? '' : 'ss-btn--primary'}`}
       data-review-adopt=${message.id}
       aria-pressed=${adopted}
       disabled=${!ready || locked}
