@@ -24,9 +24,30 @@ export function createVersionOrganizer({
   const runner = createBackgroundRunner({ core, runtime, tools, defaultModel, modelCatalog });
   const projects = new Map();
   const active = new Map();
+  /** @type {Set<() => void>} */
+  const waiting = new Set();
   let unsubscribe;
   let closed = false;
   let pending = Promise.resolve();
+
+  function foregroundActive() {
+    const meetings = new Set(
+      core.db
+        .prepare('SELECT meeting_id FROM version_note_meetings')
+        .all()
+        .map((row) => row.meeting_id),
+    );
+    return core.turns.running().some((turn) => !meetings.has(turn.meetingId));
+  }
+  function wake() {
+    for (const resolve of waiting) resolve();
+    waiting.clear();
+  }
+  async function waitForForeground() {
+    while (!closed && foregroundActive())
+      await new Promise((resolve) => waiting.add(() => resolve(undefined)));
+    return !closed;
+  }
 
   function autoOrganize(projectId) {
     return Boolean(
@@ -101,9 +122,9 @@ export function createVersionOrganizer({
   }
   async function organize(id) {
     const version = versions.get(id);
-    status(id, 'running');
     let response;
     try {
+      if (!(await waitForForeground())) return versions.get(id);
       const key = `${version.projectId}/${id}`;
       const before = await core.workspace.read({ resource: 'versions', key });
       const compared = await comparison(id);
@@ -168,8 +189,16 @@ export function createVersionOrganizer({
               originalPath: entry.originalPath,
             }
           : null;
+      const meetingId = meetingFor(version.projectId);
+      const prepared = await runner.prepare(meetingId);
+      while (!closed && foregroundActive()) await waitForForeground();
+      // No asynchronous preparation remains between this check and turn.start.
+      // A new foreground turn leaves this job queued, without cancelling an
+      // already dispatched request or changing its per-project order.
+      if (closed) return versions.get(id);
+      status(id, 'running');
       response = await runner.run(
-        meetingFor(version.projectId),
+        meetingId,
         VERSION_INSTRUCTIONS,
         JSON.stringify({
           current: metadata(version),
@@ -181,6 +210,7 @@ export function createVersionOrganizer({
           template: settings.versionNotes?.template || DEFAULT_VERSION_TEMPLATE,
           existingNotes: before.text,
         }),
+        prepared,
       );
       const result = JSON.parse(
         response.text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, ''),
@@ -269,6 +299,7 @@ export function createVersionOrganizer({
       )
       .run('上次整理未完成，请重新整理。');
     unsubscribe = core.events.subscribe((event) => {
+      if (event.type === 'turn.ended') wake();
       if (event.type === 'versions.changed' && event.payload.action === 'imported')
         pending = pending.then(() => imported(event.projectId, event.payload.id)).catch(() => {});
     });
@@ -280,6 +311,7 @@ export function createVersionOrganizer({
   async function close() {
     closed = true;
     unsubscribe?.();
+    wake();
     await runner.close();
     await idle();
   }

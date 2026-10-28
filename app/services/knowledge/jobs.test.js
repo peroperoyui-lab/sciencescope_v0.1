@@ -13,6 +13,68 @@ const edges = (core, relation) =>
     .prepare("SELECT * FROM kb_edges WHERE layer='derived' AND relation=? ORDER BY from_ref,to_ref")
     .all(relation);
 
+test('startup restores a complete queue once and restart completes each source without duplicate work', () =>
+  withCore('kb-startup-batch', async (core) => {
+    const research = createResearch(core);
+    const sources = core.db.transaction(() =>
+      Array.from({ length: 24 }, (_, index) => {
+        const source = research.store.createSource({
+          title: `Startup study ${index}`,
+          kind: 'paper',
+        });
+        research.store.addChunks(source.id, [{ text: `Evidence paragraph ${index}.` }]);
+        return source;
+      }),
+    );
+    const meeting = core.meetings.create({ title: 'Foreground holds restored work' });
+    const turn = core.turns.start({ meetingId: meeting.id, participantId: 'agent_main' });
+    const calls = [],
+      resets = [],
+      progress = [];
+    let similarityCalls = 0;
+    const derived = {
+      reset: (id) => resets.push(id),
+      async run(id) {
+        calls.push(id);
+        return 'done';
+      },
+      async similar() {
+        similarityCalls++;
+        return 'done';
+      },
+    };
+    let jobs = createKnowledgeJobs({ core, research, semantic: disabled, derived });
+    const unsubscribe = core.events.subscribe((event) => {
+      if (event.type === 'knowledge.jobs.changed') progress.push(event.payload);
+    });
+    try {
+      await jobs.start();
+      assert.equal(jobs.summary().counts.queued, sources.length);
+      assert.equal(jobs.summary().similarity.state, 'queued');
+      assert.equal(progress.at(-1).counts.queued, sources.length);
+      assert.equal(progress.at(-1).paused, true);
+      assert.ok(progress.length <= 3, `Startup published ${progress.length} queue snapshots`);
+      assert.equal(calls.length, 0);
+      await jobs.close();
+
+      jobs = createKnowledgeJobs({ core, research, semantic: disabled, derived });
+      await jobs.start();
+      assert.equal(jobs.summary().counts.queued, sources.length);
+      core.turns.end(turn.id, { status: 'done' });
+      await jobs.idle();
+      assert.deepEqual([...calls].sort(), sources.map((source) => source.id).sort());
+      assert.deepEqual([...resets].sort(), [...calls].sort());
+      assert.equal(similarityCalls, 1);
+      assert.equal(jobs.summary().counts.done, sources.length);
+      assert.equal(jobs.summary().counts.failed, 0);
+      assert.equal(jobs.summary().similarity.state, 'done');
+      assert.equal(research.store.listSources().length, sources.length);
+    } finally {
+      unsubscribe();
+      await jobs.close();
+    }
+  }));
+
 test('five imported papers resolve DOI/title references, backfill, pause, and reparse without duplicate history', () =>
   withCore('kb-derived-citations', async (core) => {
     const research = createResearch(core);
