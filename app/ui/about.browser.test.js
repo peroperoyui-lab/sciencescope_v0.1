@@ -18,7 +18,7 @@ test(
       },
       async ({ page, shot }) => {
         page.setDefaultTimeout(10000);
-        await page.locator('.homehero .ss-art').waitFor();
+        await page.locator('.ss-home__hello .ss-art').waitFor();
         await shot('about-welcome');
         await page.getByRole('button', { name: '帮助', exact: true }).click();
         await page.getByRole('menuitem', { name: '关于 ScienceScope' }).click();

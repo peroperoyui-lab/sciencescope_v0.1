@@ -98,10 +98,10 @@ test(
 
         // 全部对话: the row menu pins a chat, and the row shows it.
         await page.goto(page.url().replace(/#.*$/, '') + '#/all');
-        const row = page.locator('.chat-table tr', { hasText: '问卷题项对照' });
+        const row = page.locator('.ss-all-chats .ss-list-row', { hasText: '问卷题项对照' });
         await row.click({ button: 'right' });
         await page.locator('[role="menuitem"]', { hasText: '置顶' }).click();
-        await row.locator('.chat-table__pin').waitFor();
+        await row.locator('.ss-chat-row__pin').waitFor();
         assert.equal(core.meetings.get(second.id).pinned, true);
         await row.hover();
         await row.locator('button[aria-label="对话菜单"]').click();

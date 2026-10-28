@@ -247,12 +247,13 @@ test(
       await page.locator('.research-base .ss-header__title', { hasText: '数据库' }).waitFor();
       await page.getByRole('button', { name: '范围', exact: true }).click();
       await page.getByRole('menuitemradio', { name: '外部资源', exact: true }).click();
-      await page.getByRole('button', { name: '新增站点' }).click();
-      await page.locator('#modal input').nth(0).fill('Open science');
-      await page.locator('#modal input').nth(1).fill('https://example.org');
-      await page.locator('#modal').getByRole('button', { name: '添加', exact: true }).click();
-      await page.locator('.site', { hasText: 'Open science' }).waitFor();
-      await page.locator('.site', { hasText: 'Open science' }).click({ button: 'right' });
+      await page.getByRole('button', { name: '添加站点' }).click();
+      let siteDialog = page.getByRole('dialog', { name: '添加站点' });
+      await siteDialog.getByLabel('名称').fill('Open science');
+      await siteDialog.getByLabel('网址').fill('https://example.org');
+      await siteDialog.getByRole('button', { name: '添加', exact: true }).click();
+      await page.locator('[data-site]', { hasText: 'Open science' }).waitFor();
+      await page.locator('[data-site]', { hasText: 'Open science' }).click({ button: 'right' });
       await page.getByRole('menuitem', { name: '编辑站点' }).click();
       // A settings reload while the form is open replaces the site objects.
       const reloaded = page.waitForResponse(
@@ -261,9 +262,10 @@ test(
       );
       app.core.events.record('resource.changed', { resource: 'settings', key: 'app' });
       await reloaded;
-      await page.locator('#modal input').nth(0).fill('Research tools');
-      await page.locator('#modal').getByRole('button', { name: '保存', exact: true }).click();
-      await page.locator('.site', { hasText: 'Research tools' }).waitFor();
+      siteDialog = page.getByRole('dialog', { name: '编辑站点' });
+      await siteDialog.getByLabel('名称').fill('Research tools');
+      await siteDialog.getByRole('button', { name: '保存', exact: true }).click();
+      await page.locator('[data-site]', { hasText: 'Research tools' }).waitFor();
       await page.evaluate(async () => {
         await fetch('/api/settings', {
           method: 'PATCH',

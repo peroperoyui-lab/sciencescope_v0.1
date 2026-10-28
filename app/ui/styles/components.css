@@ -4193,11 +4193,37 @@ button.ss-act__row:hover {
   height: 90px;
   margin-bottom: var(--sp-8);
 }
+.ss-home__title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 30px;
+}
+.ss-home__greeting {
+  margin: 0;
+  font-size: 13px;
+}
 .ss-home__sites {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-8);
+}
+
+/* 全部对话: grouped two-line chat rows. */
+.ss-all-chats {
+  padding: var(--sp-8) var(--sp-16) var(--sp-24);
+}
+.ss-all-chats__more {
+  margin: var(--sp-4) 0 0 var(--sp-8);
+}
+.ss-all-chats__total {
+  font-size: 12px;
+}
+.ss-chat-row__pin {
+  margin-left: var(--sp-4);
+  color: var(--muted);
+  vertical-align: -2px;
 }
 
 /* Section head inside a page: title, count, actions on the right. */
