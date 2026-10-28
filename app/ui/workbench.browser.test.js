@@ -49,15 +49,18 @@ test('a person organises a project on the workbench', { skip: browserSkip }, () 
     await dialog.getByRole('button', { name: '添加' }).click();
     await log.locator('.ss-note-card', { hasText: '先核查方法。' }).waitFor();
     await log.getByRole('button', { name: '查看全部' }).click();
-    await page.locator('.card', { hasText: '先核查方法。' }).waitFor();
+    await page.locator('.ss-journal-list__entry', { hasText: '先核查方法。' }).waitFor();
     await page.goBack();
 
     await page.getByRole('button', { name: '打开研究导图' }).click();
-    await page.getByRole('button', { name: '+ 添加第一个节点' }).first().click();
-    const editor = page.locator('.editorinspector textarea');
+    await page.getByRole('button', { name: '添加第一个节点' }).click();
+    const editor = page.locator('.ss-map-panel textarea');
     await editor.fill('城市就业韧性');
-    await page.getByRole('button', { name: '二级分支' }).click();
-    await page.locator('.mapnode.secondary').waitFor();
+    await editor.blur();
+    await page.locator('.ss-mnode', { hasText: '城市就业韧性' }).waitFor();
+    await page.getByRole('button', { name: '添加子节点', exact: true }).click();
+    const child = page.locator('.ss-mnode:not(.ss-mnode--root)');
+    await child.waitFor();
     await shot('map-editor');
     const map = async () =>
       (await app.core.workspace.read({ resource: 'map', key: project.id })).value.nodes;
@@ -66,10 +69,10 @@ test('a person organises a project on the workbench', { skip: browserSkip }, () 
       ['城市就业韧性', '新的内容'],
     );
     await page.getByRole('button', { name: '撤销', exact: true }).click();
-    await page.waitForFunction(() => !document.querySelector('.mapnode.secondary'));
+    await child.waitFor({ state: 'detached' });
     assert.equal((await map()).length, 1);
-    await page.getByRole('button', { name: '重做' }).click();
-    await page.locator('.mapnode.secondary').waitFor();
+    await page.getByRole('button', { name: '重做', exact: true }).click();
+    await child.waitFor();
     await page.getByRole('button', { name: '返回工作站' }).click();
 
     await page.getByRole('button', { name: '展开文件视图' }).click();

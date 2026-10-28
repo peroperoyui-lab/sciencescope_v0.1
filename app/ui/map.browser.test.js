@@ -19,16 +19,20 @@ test(
         args: { node: { id: 'question', text: 'Research question' } },
       });
       await page.goto(new URL(`/?token=ui-token#/map/${project.id}`, page.url()).href);
-      await page.locator('.mapnode[data-node="question"]').waitFor();
+      const question = page.locator('.ss-mnode[data-node="question"]');
+      await question.waitFor();
       await page.getByRole('button', { name: '游离节点', exact: true }).click();
-      const floating = page.locator('.mapnode[data-floating="true"]');
+      const floating = page.locator('.ss-mnode[data-floating="true"]');
       await floating.waitFor();
-      const input = page.locator('.editorinspector textarea');
+      // The new node's text is selected in the panel; leaving the box saves it.
+      const input = page.locator('.ss-map-panel textarea');
       await input.fill('Alternative method');
-      await page.getByRole('button', { name: '保存并更新预览', exact: true }).click();
+      await input.evaluate((element) => /** @type {HTMLElement} */ (element).blur());
+      await floating.filter({ hasText: 'Alternative method' }).waitFor();
       const read = async () =>
         (await app.core.workspace.read({ resource: 'map', key: project.id })).value;
       const initial = (await read()).nodes.find((node) => node.floating);
+      assert.equal(initial.text, 'Alternative method');
       const box = await floating.boundingBox();
       const response = page.waitForResponse(
         (result) =>
@@ -43,46 +47,45 @@ test(
       const moved = (await read()).nodes.find((node) => node.floating);
       assert.ok(moved.x > initial.x + 70);
       assert.ok(moved.y > initial.y + 35);
+      const leftIs = (left) =>
+        page.waitForFunction(
+          ({ id, x }) =>
+            Math.abs(
+              parseFloat(
+                /** @type {HTMLElement} */ (document.querySelector(`[data-node="${id}"]`)).style
+                  .left,
+              ) - x,
+            ) < 1,
+          { id: initial.id, x: left },
+        );
       await page.getByRole('button', { name: '撤销', exact: true }).click();
-      await page.waitForFunction(
-        ({ id, x }) =>
-          Math.abs(
-            parseFloat(
-              /** @type {HTMLElement} */ (document.querySelector(`[data-node="${id}"]`)).style.left,
-            ) - x,
-          ) < 1,
-        { id: initial.id, x: initial.x },
-      );
+      await leftIs(initial.x);
       await page.getByRole('button', { name: '重做', exact: true }).click();
-      await page.waitForFunction(
-        ({ id, x }) =>
-          Math.abs(
-            parseFloat(
-              /** @type {HTMLElement} */ (document.querySelector(`[data-node="${id}"]`)).style.left,
-            ) - x,
-          ) < 1,
-        { id: initial.id, x: moved.x },
-      );
-      await page.getByRole('button', { name: '连线', exact: true }).click();
-      let dialog = page.getByRole('dialog', { name: '节点连线', exact: true });
-      await dialog.getByLabel('起点', { exact: true }).selectOption('question');
-      await dialog.getByLabel('终点', { exact: true }).selectOption(initial.id);
-      await dialog.getByRole('button', { name: '添加连线', exact: true }).click();
-      await page.locator('.editorcanvas [data-edge]').waitFor();
+      await leftIs(moved.x);
+
+      // 连线 from the node panel: an arrow by default, or a plain line.
+      const panel = page.locator('.ss-map-panel');
+      const link = async (from, to, directed) => {
+        await from.click();
+        await panel.getByRole('button', { name: '添加连线', exact: true }).click();
+        const dialog = page.getByRole('dialog', { name: '连到另一个节点', exact: true });
+        await dialog.getByRole('button', { name: '终点' }).click();
+        await page.getByRole('menuitemradio', { name: to, exact: true }).click();
+        if (!directed) await dialog.getByLabel('有向连线（带箭头）').uncheck();
+        await dialog.getByRole('button', { name: '添加连线', exact: true }).click();
+      };
+      await link(question, 'Alternative method', true);
+      await page.locator('.ss-map [data-edge]').waitFor();
       let map = await read();
+      assert.equal(map.edges[0].from, 'question');
       assert.equal(map.edges[0].directed, true);
       assert.match(
         await page.locator(`[data-edge="${map.edges[0].id}"]`).getAttribute('marker-end'),
         /url/,
       );
-      await page.getByRole('button', { name: '连线', exact: true }).click();
-      dialog = page.getByRole('dialog', { name: '节点连线', exact: true });
-      await dialog.getByLabel('起点', { exact: true }).selectOption(initial.id);
-      await dialog.getByLabel('终点', { exact: true }).selectOption('question');
-      await dialog.getByLabel('有向连线', { exact: true }).uncheck();
-      await dialog.getByRole('button', { name: '添加连线', exact: true }).click();
+      await link(floating, 'Research question', false);
       await page.waitForFunction(
-        () => document.querySelectorAll('.editorcanvas [data-edge]').length === 2,
+        () => document.querySelectorAll('.ss-map [data-edge]').length === 2,
       );
       map = await read();
       assert.equal(map.edges[1].directed, false);
@@ -91,19 +94,17 @@ test(
         null,
       );
       await shot('r4-11b-map-links');
-      await page.getByRole('button', { name: '连线', exact: true }).click();
-      dialog = page.getByRole('dialog', { name: '节点连线', exact: true });
-      await dialog.getByRole('button', { name: '移除', exact: true }).first().click();
+      assert.equal(await panel.locator('[data-link-row]').count(), 2);
+      await panel.getByRole('button', { name: '移除连线' }).first().click();
       await page.waitForFunction(
-        () => document.querySelectorAll('.editorcanvas [data-edge]').length === 1,
+        () => document.querySelectorAll('.ss-map [data-edge]').length === 1,
       );
       assert.equal((await read()).edges.length, 1);
       await page.getByRole('button', { name: '返回工作站' }).click();
       await page.locator('.ss-wb__map [data-edge]').waitFor();
       await page.getByRole('button', { name: '打开研究导图' }).click();
-      // The workstation has its own 历史版本 buttons; use the editor's once it is open.
       await page
-        .locator('.editortop')
+        .locator('.map-page > .ss-header')
         .getByRole('button', { name: '历史版本', exact: true })
         .click();
       await page
@@ -129,7 +130,16 @@ test(
         args: { node: { id: 'content', text: 'Original note' } },
       });
       await page.goto(new URL(`/?token=ui-token#/map/${project.id}`, page.url()).href);
-      const node = page.locator('.mapnode[data-node="content"]');
+      const node = page.locator('.ss-mnode[data-node="content"]');
+      const input = page.locator('.ss-map-panel textarea');
+      const holds = (text) =>
+        page.waitForFunction(
+          (wanted) =>
+            /** @type {HTMLTextAreaElement} */ (
+              document.querySelector('.ss-map-panel textarea')
+            )?.value.includes(wanted),
+          text,
+        );
       await node.waitFor();
       await node.evaluate((element) => {
         const transfer = new DataTransfer();
@@ -138,7 +148,7 @@ test(
           new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: transfer }),
         );
       });
-      await node.getByRole('heading', { name: 'Pasted evidence', exact: true }).waitFor();
+      await holds('## Pasted evidence');
       await node.evaluate((element) => {
         const transfer = new DataTransfer();
         transfer.items.add(
@@ -150,8 +160,7 @@ test(
           new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer }),
         );
       });
-      await node.getByRole('heading', { name: 'Dropped Markdown', exact: true }).waitFor();
-      const input = page.locator('.editorinspector textarea');
+      await holds('### Dropped Markdown');
       await input.evaluate((element) => {
         const transfer = new DataTransfer();
         transfer.items.add(
@@ -161,7 +170,7 @@ test(
           new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: transfer }),
         );
       });
-      await node.getByText('Text file evidence.', { exact: true }).waitFor();
+      await holds('Text file evidence.');
       const map = (await app.core.workspace.read({ resource: 'map', key: project.id })).value;
       assert.equal(
         map.nodes[0].text,
@@ -179,16 +188,13 @@ test(
         (await app.core.workspace.read({ resource: 'map', key: project.id })).value.nodes[0].text,
         map.nodes[0].text,
       );
-      assert.match(
-        await page.locator('.editorinspector').innerText(),
-        /Enter 新建同级 · Shift\+Enter 块内换行/,
-      );
+      assert.match(await page.locator('.ss-map-panel').innerText(), /Enter 新建同级/);
       await shot('r4-11b-map-markdown');
       await page.getByRole('button', { name: '返回工作站' }).click();
       await page.getByRole('button', { name: '视图', exact: true }).click();
       await page.getByRole('menuitemcheckbox', { name: 'English', exact: true }).click();
       await page.getByRole('button', { name: 'Open the research map', exact: true }).click();
       await page.getByRole('button', { name: 'Floating node', exact: true }).waitFor();
-      await page.getByRole('button', { name: 'Connect', exact: true }).waitFor();
+      await page.getByRole('tab', { name: 'Markdown outline', exact: true }).waitFor();
     }),
 );

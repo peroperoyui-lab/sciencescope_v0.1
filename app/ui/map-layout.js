@@ -1,10 +1,29 @@
-// Research map layout, ported from the approved prototype (`mapPositions`,
-// `mapViewport`): root nodes stacked down a vertical trunk, each node's
-// children to its right, grouped by a curly brace.
+// Research map layout (design system PageMap): each tree grows left to right,
+// a node's children in the next column, the node centred beside them. Trees
+// are stacked down the page; floating nodes keep the place they were dragged
+// to. Links are curves from a node's right edge to its child's left edge.
 
-const ROOT = { x: 80, w: 172, h: 68 };
-const CHILD = { dx: 280, w: 228, h: 49 };
-const ROW = 68;
+export const NODE = {
+  width: 150,
+  root: 168,
+  height: 30,
+  /** A node with a second line (秘书添加, progress, attachments). */
+  tall: 48,
+  /** Space between a node and its children's column. */
+  column: 48,
+  /** Space between two leaves. */
+  gap: 14,
+  /** Space between two trees. */
+  trees: 36,
+  left: 24,
+  top: 24,
+};
+
+/** Whether the node shows a second line under its title. @param {any} node */
+export const hasMeta = (node) =>
+  Boolean(
+    node.addedBy === 'agent_secretary' || node.status || node.floating || node.attachments?.length,
+  );
 
 /**
  * @param {Array<{ id: string, parent: string | null, floating?:boolean, x?:number, y?:number }>} nodes
@@ -15,79 +34,55 @@ const ROW = 68;
 export function layoutMap(nodes, collapsed) {
   const known = new Set(nodes.map((node) => node.id));
   const childrenOf = (id) => (collapsed[id] ? [] : nodes.filter((node) => node.parent === id));
-  const height = (id) => {
-    const children = childrenOf(id);
-    return children.length
-      ? Math.max(
-          ROW,
-          children.reduce((sum, child) => sum + height(child.id), 0),
-        )
-      : ROW;
-  };
+  /** @type {any[]} */
   const result = [];
-  const placeChildren = (node, x, top) => {
+  /** Place a node and its subtree from `top`; returns the bottom and the node's centre. */
+  const place = (node, x, top, root, parent) => {
+    const w = root ? NODE.root : NODE.width;
+    const h = hasMeta(node) ? NODE.tall : NODE.height;
+    const entry = { node, x, y: top, w, h, root, ...(parent ? { parent } : {}) };
+    result.push(entry);
+    const children = childrenOf(node.id);
+    if (!children.length) return { bottom: top + h, centre: top + h / 2 };
     let y = top;
-    for (const child of childrenOf(node.id)) {
-      result.push({
-        node: child,
-        x: x + CHILD.dx,
-        y,
-        w: CHILD.w,
-        h: CHILD.h,
-        root: false,
-        parent: node.id,
-      });
-      placeChildren(child, x + CHILD.dx, y);
-      y += height(child.id);
+    const centres = [];
+    for (const child of children) {
+      const placed = place(child, x + w + NODE.column, y, false, node.id);
+      centres.push(placed.centre);
+      y = placed.bottom + NODE.gap;
     }
+    const centre = (centres[0] + centres.at(-1)) / 2;
+    entry.y = Math.max(top, centre - h / 2);
+    return { bottom: Math.max(y - NODE.gap, entry.y + h), centre: entry.y + h / 2 };
   };
-  let y = 45;
+  let y = NODE.top;
   for (const root of nodes.filter((node) => !node.parent || !known.has(node.parent))) {
-    const h = height(root.id);
-    const x = root.floating ? (root.x ?? 420) : ROOT.x;
-    const top = root.floating ? (root.y ?? 120) : y;
-    result.push({
-      node: root,
-      ...ROOT,
-      x,
-      y: root.floating ? top : top + Math.max(0, (h - ROW) / 2),
-      root: true,
-    });
-    placeChildren(root, x, top);
-    if (!root.floating) y += Math.max(136, h + 58);
+    if (root.floating) {
+      place(root, root.x ?? 420, root.y ?? 120, true);
+      continue;
+    }
+    y = place(root, NODE.left, y, true).bottom + NODE.trees;
   }
   return result;
 }
 
+/** @param {number} x1 @param {number} y1 @param {number} x2 @param {number} y2 */
+const curve = (x1, y1, x2, y2) => {
+  const bend = Math.max(24, Math.abs(x2 - x1) / 2);
+  return `M${x1} ${y1}C${x1 + bend} ${y1} ${x2 - bend} ${y2} ${x2} ${y2}`;
+};
+
 /**
- * SVG path data for the trunk arrows between roots and the brace to each
- * node's children.
+ * The tree's links, parent to child.
  * @param {ReturnType<typeof layoutMap>} positions
  */
 export function mapConnections(positions) {
-  const paths = [];
-  const roots = positions.filter((p) => p.root && !p.node.floating);
-  roots.forEach((root, index) => {
-    const next = roots[index + 1];
-    if (!next) return;
-    paths.push(`M${root.x + 86} ${root.y + root.h}V${next.y - 7}`);
-    paths.push(`m${root.x + 82} ${next.y - 13} 4 6 4-6`);
+  const byId = new Map(positions.map((position) => [position.node.id, position]));
+  return positions.flatMap((child) => {
+    const parent = child.parent && byId.get(child.parent);
+    if (!parent) return [];
+    return [curve(parent.x + parent.w, parent.y + parent.h / 2, child.x, child.y + child.h / 2)];
   });
-  for (const p of positions) {
-    const children = positions.filter((q) => q.parent === p.node.id);
-    if (!children.length) continue;
-    const mid = p.y + p.h / 2;
-    const x = p.x + p.w + 28;
-    const first = children[0];
-    const last = children[children.length - 1];
-    paths.push(
-      `M${p.x + p.w} ${mid}H${x} M${x + 14} ${first.y + 16}Q${x} ${first.y + 16} ${x} ${first.y + 30}` +
-        `V${Math.max(mid - 10, first.y + 30)}Q${x} ${mid} ${x - 10} ${mid}Q${x} ${mid} ${x} ${mid + 10}` +
-        `V${Math.max(mid + 10, last.y + last.h - 16)}Q${x} ${last.y + last.h} ${x + 14} ${last.y + last.h}`,
-    );
-    for (const child of children) paths.push(`M${x + 14} ${child.y + 24}H${child.x}`);
-  }
-  return paths;
 }
 
 /** Scale and offset that fit the whole map into a viewport. */
@@ -103,15 +98,23 @@ export function fitView(positions, width, height) {
   return { x: 18 - left * scale, y: 18 - top * scale, scale };
 }
 
-/** Extra links only join visible nodes. @param {ReturnType<typeof layoutMap>} positions @param {any[]} edges */
+/**
+ * Extra links (连线) between visible nodes: forward to the other node's left
+ * edge, otherwise out and back round to its right edge.
+ * @param {ReturnType<typeof layoutMap>} positions @param {any[]} edges
+ */
 export function mapEdges(positions, edges) {
   const byId = new Map(positions.map((position) => [position.node.id, position]));
   return edges.flatMap((edge) => {
     const from = byId.get(edge.from);
     const to = byId.get(edge.to);
     if (!from || !to) return [];
-    return [
-      { ...edge, path: `M${from.x + from.w} ${from.y + from.h / 2} L${to.x} ${to.y + to.h / 2}` },
-    ];
+    const x1 = from.x + from.w;
+    const y1 = from.y + from.h / 2;
+    const y2 = to.y + to.h / 2;
+    if (to.x > x1 + 24) return [{ ...edge, path: curve(x1, y1, to.x, y2) }];
+    const x2 = to.x + to.w;
+    const out = Math.max(x1, x2) + 56;
+    return [{ ...edge, path: `M${x1} ${y1}C${out} ${y1} ${out} ${y2} ${x2} ${y2}` }];
   });
 }

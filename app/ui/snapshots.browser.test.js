@@ -162,7 +162,7 @@ test(
       );
       await page.getByRole('button', { name: '打开研究导图' }).click();
       await initialCapture;
-      await page.locator('.editorinspector textarea').waitFor();
+      await page.locator('.ss-map-panel textarea').waitFor();
       assert.equal(
         await page.getByRole('button', { name: '撤销', exact: true }).isEnabled(),
         false,
@@ -171,21 +171,24 @@ test(
         await page.getByRole('button', { name: '重做', exact: true }).isEnabled(),
         false,
       );
-      await page.locator('.editorinspector textarea').fill('Current session');
-      await page.getByRole('button', { name: '保存并更新预览' }).click();
+      await page.locator('.ss-map-panel textarea').fill('Current session');
+      await page.locator('.ss-map-panel textarea').blur();
+      await page.locator('.ss-mnode', { hasText: 'Current session' }).waitFor();
       await page.getByRole('button', { name: '撤销', exact: true }).click();
       await page.waitForFunction(
         () =>
-          /** @type {HTMLTextAreaElement} */ (document.querySelector('.editorinspector textarea'))
+          /** @type {HTMLTextAreaElement} */ (document.querySelector('.ss-map-panel textarea'))
             ?.value === 'Earlier work',
       );
       await page.getByRole('button', { name: '重做', exact: true }).click();
       await page.waitForFunction(
         () =>
-          /** @type {HTMLTextAreaElement} */ (document.querySelector('.editorinspector textarea'))
+          /** @type {HTMLTextAreaElement} */ (document.querySelector('.ss-map-panel textarea'))
             ?.value === 'Current session',
       );
-      await page.locator('.editorinspector textarea').fill('Final draft');
+      await page.locator('.ss-map-panel textarea').fill('Final draft');
+      await page.locator('.ss-map-panel textarea').blur();
+      await page.locator('.ss-mnode', { hasText: 'Final draft' }).waitFor();
       // Browser navigation also leaves the editing scope, without the editor's back button.
       const finalCapture = page.waitForResponse(
         (response) =>
@@ -207,7 +210,7 @@ test(
         'Final draft',
       );
       await page.getByRole('button', { name: '打开研究导图' }).click();
-      await page.locator('.editorinspector textarea').waitFor();
+      await page.locator('.ss-map-panel textarea').waitFor();
       assert.equal(
         await page.getByRole('button', { name: '撤销', exact: true }).isEnabled(),
         false,
@@ -219,7 +222,7 @@ test(
       await page.getByRole('button', { name: '历史版本', exact: true }).click();
       const dialog = page.getByRole('dialog', { name: '历史版本', exact: true });
       await dialog.getByRole('button', { name: '查看', exact: true }).first().click();
-      await dialog.locator('.mapnode', { hasText: 'Final draft' }).waitFor();
+      await dialog.locator('.ss-mnode', { hasText: 'Final draft' }).waitFor();
       assert.equal(await dialog.getByRole('button', { name: '新增分支', exact: true }).count(), 0);
       await dialog.getByRole('button', { name: '关闭', exact: true }).click();
       await page.getByRole('button', { name: '返回工作站' }).click();
@@ -243,7 +246,7 @@ test(
       await adding.getByLabel('标题').fill('Research checkpoint');
       await adding.getByLabel('日志详情').fill('Preserve the project evidence.');
       await adding.getByRole('button', { name: '添加', exact: true }).click();
-      await page.locator('.card', { hasText: 'Research checkpoint' }).waitFor();
+      await page.locator('.ss-journal-list__entry', { hasText: 'Research checkpoint' }).waitFor();
       const journalCapture = page.waitForResponse(
         (response) =>
           response.url().endsWith('/api/snapshots') &&

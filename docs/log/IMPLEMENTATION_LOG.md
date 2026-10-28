@@ -1,5 +1,11 @@
 # 实施记录
 
+## 2026-10-28 导图页和日志页换新样式（Claude）
+
+- 导图页按设计稿 PageMap 重做：`map-layout.js` 改为从左往右的树（父节点居中、曲线连线，游离节点按保存的位置），`map-canvas.js` 是 ss-map 画布（指针处缩放、平移、折叠、拖动游离节点），`map-editor.js` 是页头三页（导图、Markdown 大纲、JSON）、右侧节点面板（文字、进展、分支、连线、位置）、连线弹窗和底栏撤销重做。新 `map-outline.js` 负责大纲和导图互转。删 `map-links.js`。导图页也显示左侧栏。
+- 日志页按 PageJournal 重做：正文点开编辑、离开即存，右侧「节点信息」卡片管理关联版本和文件（改动立刻保存），⋯ 改标题、日期、删除。「查看全部」和计划全页换成 ss-header + ss-doc。
+- 工作站的导图预览换成同一画布的预览模式，点节点打开导图页并选中。测试：map、workbench、snapshots、version-diff、assistant 浏览器测试改用新界面，map-layout、map-outline 单元测试。
+
 ## 2026-10-28 P3 工作站重做（Claude）
 
 - 按设计稿 PageWorkbench 换成新样式：页头（项目选择、版本树、在编辑台打开、⋯），计划和日志两条 ss-note-card 卡片带，导图预览和项目文件夹放进 ss-box-card；撤掉左下角文献版本管理。新建和编辑计划、日志用 ss-dialog。

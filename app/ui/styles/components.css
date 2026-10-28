@@ -4365,6 +4365,30 @@ button.ss-act__row:hover {
   stroke: var(--accent);
   stroke-dasharray: 4 3;
 }
+.ss-map__links marker path {
+  fill: var(--accent);
+  stroke: none;
+}
+/* The pannable, zoomable layer holding the links and the cards. */
+.ss-map__scene {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+}
+.ss-map__empty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+.ss-map__zoom {
+  min-width: 40px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
 .ss-mnode {
   position: absolute;
   display: grid;
@@ -4379,6 +4403,20 @@ button.ss-act__row:hover {
   font-size: 12px;
   line-height: 16px;
   text-align: left;
+}
+.ss-mnode:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.ss-mnode[data-dragover] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.ss-map[data-edit='true'] .ss-mnode--loose {
+  cursor: move;
+}
+.ss-map--preview .ss-mnode {
+  cursor: pointer;
 }
 .ss-mnode[aria-selected='true'] {
   border-color: var(--accent);
@@ -4429,6 +4467,96 @@ button.ss-act__row:hover {
   line-height: 1;
   transform: translateY(-50%);
 }
+/* The map page's bottom bar pieces. */
+.ss-map__sep {
+  width: 1px;
+  height: 16px;
+  margin: 0 4px;
+  background: var(--line);
+}
+.ss-map__saved {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+}
+/* The node panel beside the map (Panel 320px). */
+.ss-map-panel {
+  width: 320px;
+}
+.ss-map-panel__body {
+  display: grid;
+  align-content: start;
+  gap: var(--sp-16);
+  overflow: auto;
+}
+.ss-map-panel__body .ss-select {
+  width: 100%;
+}
+.ss-map-panel__group {
+  display: grid;
+  gap: 2px;
+}
+.ss-map-panel__group > .ss-block-head {
+  margin-bottom: var(--sp-4);
+}
+.ss-map-panel__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+}
+.ss-map-panel__row:hover {
+  background: var(--hover);
+}
+.ss-map-panel__row > .ss-i {
+  flex: none;
+  color: var(--muted);
+}
+.ss-map-panel__link {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  line-height: 18px;
+}
+.ss-map-panel__link > small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.ss-btn--danger-text,
+.ss-btn--danger-text > .ss-i {
+  color: var(--danger);
+}
+/* 「Markdown 大纲」「JSON」: the same map as text. */
+.ss-map-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.ss-map-text__area.ss-textarea {
+  flex: 1;
+  max-height: none;
+  margin: 12px 16px;
+  font-size: 13px;
+  line-height: 20px;
+  field-sizing: fixed;
+  resize: none;
+}
+.ss-map-text__error {
+  color: var(--danger);
+}
+/* An open branch's − shows on the card the pointer or selection is on. */
+.ss-mnode:not(:hover, [aria-selected='true']) > .ss-mnode__fold[data-open] {
+  opacity: 0;
+}
 .ss-map__bar {
   display: flex;
   flex: none;
@@ -4475,6 +4603,69 @@ button.ss-act__row:hover {
   gap: var(--sp-8);
   color: var(--muted);
   font-size: 12px;
+}
+.ss-header__tag {
+  align-self: center;
+}
+/* A back arrow before a page title. */
+.ss-header > .ss-icon-btn:first-child {
+  align-self: center;
+  margin-left: -6px;
+}
+.ss-journal__body {
+  display: grid;
+  gap: var(--sp-12);
+  min-width: 0;
+}
+.ss-journal__facts {
+  position: sticky;
+  top: 0;
+  align-self: start;
+}
+.ss-journal__facts-body {
+  display: grid;
+  gap: var(--sp-12);
+  padding: 12px;
+}
+.ss-journal__facts .ss-select {
+  width: 100%;
+}
+/* 项目日志 (查看全部): every entry as a section of one column. */
+.ss-journal-list {
+  display: grid;
+  gap: var(--sp-12);
+}
+.ss-journal-list__entry {
+  display: grid;
+  gap: var(--sp-6);
+  padding: 12px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+}
+.ss-journal-list__entry:hover {
+  border-color: var(--line-strong);
+}
+.ss-journal-list__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.ss-journal-list__title {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.ss-journal-list__title:hover {
+  text-decoration: underline;
 }
 
 /* 项目置顶摘要: a flyout under the chat header's button. */

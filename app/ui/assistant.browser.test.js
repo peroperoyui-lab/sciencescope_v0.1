@@ -119,7 +119,7 @@ test(
           await page.evaluate((id) => {
             location.hash = '#/map/' + id;
           }, projectId);
-          await page.locator('.editorcanvas').waitFor();
+          await page.locator('.map-page .ss-map').waitFor();
           assert.equal(await panel.count(), 1);
           assert.equal(await input.inputValue(), 'Draft survives hiding.');
           await panel.getByRole('link', { name: 'Open meeting', exact: true }).click();

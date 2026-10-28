@@ -85,39 +85,35 @@ test(
         await page.goto(new URL(`/#/workbench/${project.id}`, page.url()).href);
         await page.locator('.ss-note-card', { hasText: '完成稿件核查' }).click({ button: 'right' });
         await page.getByRole('menuitem', { name: '文件列表' }).click();
-        await page.getByLabel('关联稿件版本').selectOption(current.id);
-        await page.getByRole('button', { name: '关联版本', exact: true }).click();
-        await page.getByLabel('项目文件路径').fill('分析/中文脚本.py');
-        await page.getByRole('button', { name: '关联项目文件', exact: true }).click();
         const entryPage = page.locator('[data-journal-entry]');
-        await entryPage.getByRole('button', { name: '保存', exact: true }).click();
-        await entryPage.locator('.journal-savebar').waitFor({ state: 'detached' });
+        const entryHead = page.locator('.journal-page > .ss-header');
+        const facts = entryPage.getByRole('complementary', { name: '节点信息' });
+        // Each link is saved as soon as it is made.
+        await facts.getByRole('button', { name: '关联稿件版本' }).click();
+        await page.getByRole('menuitemradio', { name: new RegExp(`v${current.number}`) }).click();
+        await facts.locator('.ss-list-row', { hasText: '修订稿.md' }).waitFor();
+        await facts.getByLabel('项目文件路径').fill('分析/中文脚本.py');
+        await facts.getByLabel('项目文件路径').press('Enter');
+        await facts.locator('.ss-list-row', { hasText: '分析/中文脚本.py' }).waitFor();
         const log = await app.core.workspace.read({ resource: 'log', key: project.id });
         assert.equal(parseLog(log.text)[0].references.length, 2);
         assert.match(parseLog(log.text)[0].body, /正文保留/u);
-        // The details turn into plain text where they are shown, and back after saving.
-        await entryPage.getByRole('button', { name: '日志详情', exact: true }).click();
+        // The details turn into plain text where they are shown, and are saved on leaving.
+        await entryHead.getByRole('tab', { name: '日志详情', exact: true }).click();
         await entryPage.locator('.journal-details').click();
         const editor = entryPage.getByRole('textbox', { name: '编辑日志详情' });
         assert.equal(await editor.inputValue(), '正文保留。');
         await editor.fill('正文保留。\n\n**补充**：核查完成。');
-        await entryPage.getByRole('button', { name: '保存', exact: true }).click();
-        await entryPage.locator('.journal-savebar').waitFor({ state: 'detached' });
+        await editor.blur();
         await entryPage.locator('.journal-details strong', { hasText: '补充' }).waitFor();
         assert.match(
           parseLog((await app.core.workspace.read({ resource: 'log', key: project.id })).text)[0]
             .body,
           /\*\*补充\*\*：核查完成/u,
         );
-        await entryPage.getByRole('button', { name: '文件列表', exact: true }).click();
-        await page
-          .locator('[data-journal-entry]')
-          .getByRole('button', { name: '修订稿.md', exact: true })
-          .click();
-        await page
-          .locator('[data-journal-entry]')
-          .getByRole('button', { name: '分析/中文脚本.py', exact: true })
-          .click();
+        await entryHead.getByRole('tab', { name: /^文件列表/ }).click();
+        await facts.getByRole('button', { name: /^打开 修订稿\.md/ }).click();
+        await facts.getByRole('button', { name: '打开 分析/中文脚本.py', exact: true }).click();
         // Clicks return before the routed open request arrives.
         for (let tries = 0; opens.length < 2 && tries < 50; tries++) await page.waitForTimeout(100);
         assert.equal(opens.length, 2);
@@ -130,16 +126,17 @@ test(
           op: 'patch',
           args: { changes: { appearance: { language: 'en' } } },
         });
-        await page
-          .locator('[data-journal-entry]')
-          .getByRole('button', { name: 'File list', exact: true })
-          .waitFor();
-        await page.locator('[data-journal-entry]').getByLabel('Remove link').first().click();
-        await page
-          .locator('[data-journal-entry]')
-          .getByRole('button', { name: 'Save', exact: true })
+        await entryHead.getByRole('tab', { name: /^File list/ }).waitFor();
+        await entryPage
+          .getByRole('complementary', { name: 'Entry information' })
+          .getByLabel('Remove link')
+          .first()
           .click();
-        await page.locator('.journal-savebar').waitFor({ state: 'detached' });
+        for (let tries = 0; tries < 50; tries++) {
+          const text = (await app.core.workspace.read({ resource: 'log', key: project.id })).text;
+          if (parseLog(text)[0].references.length === 1) break;
+          await page.waitForTimeout(100);
+        }
         assert.equal(
           parseLog((await app.core.workspace.read({ resource: 'log', key: project.id })).text)[0]
             .references.length,

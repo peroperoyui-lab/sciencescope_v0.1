@@ -148,12 +148,9 @@ export function App() {
     page = html`<${WorkbenchPage} view=${route.view} projectId=${route.id} />`;
   } else page = html`<${Welcome} projectId=${route.view === 'new' ? route.id : null} />`;
 
-  // The map editor takes the whole window, as in the prototype, while the
-  // explicitly opened assistant can remain beside it without remounting it.
-
   return html`<${Topbar} projectName=${projectName} projectId=${projectId} />
     <div class="app">
-      ${route.view !== 'map' && html`<${Sidebar} route=${route} currentProjectId=${projectId} />`}
+      <${Sidebar} route=${route} currentProjectId=${projectId} />
       ${page} ${materialsTarget && html`<${MaterialsPanel} target=${materialsTarget} />`}
       <${FilePreview} />
       ${assistantOpen && html`<${AssistantPanel} onClose=${() => actions.showAssistant(false)} />`}

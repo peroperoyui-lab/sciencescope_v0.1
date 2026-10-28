@@ -7,7 +7,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
-import { Icon, Lucide } from '../icons.js';
+import { Lucide } from '../icons.js';
 import { deskEnabled, openDesk } from '../desk-window.js';
 import { renderMarkdown } from '../markdown.js';
 import { useSnapshotCapture } from '../resource-snapshots.js';
@@ -27,7 +27,6 @@ import { MapCanvas } from './map-canvas.js';
 import { ChoiceMenu } from './popover.js';
 import { ProjectFolder } from './project-folder.js';
 import { SidePanel } from './side-panel.js';
-import { FieldForm } from './overlays.js';
 import { VersionTree } from './version-tree.js';
 
 /**
@@ -397,47 +396,69 @@ export function JournalStrip({ project, full = false }) {
     adding && html`<${LogDialog} projectId=${project.id} onClose=${() => setAdding(false)} />`;
 
   if (full) {
-    return html`<div class="content">
-      <div class="pageintro between">
-        <h1 style="margin:0">${t('项目日志')}</h1>
-        <div class="row">
-          <button class="btn" onClick=${history}>${t('历史版本')}</button
-          ><button class="btn primary" onClick=${() => setAdding(true)}>${t('添加日志')}</button>
-        </div>
-      </div>
-      <div class="stack">
-        ${entries.map(
-          (entry) =>
-            html`<article
-              class="card"
-              key=${entry.start}
-              onContextMenu=${(event) => menu(event, entry)}
+    return html`<div class="ss-content">
+      <div class="ss-doc">
+        <div class="ss-block-head">
+          <span class="ss-block-head__title">${t('项目日志')}</span>
+          <span class="ss-count">${entries.length}</span>
+          <span class="ss-block-head__end">
+            <button type="button" class="ss-btn ss-btn--ghost ss-btn--sm" onClick=${history}>
+              <${Lucide} name="history" />${t('历史版本')}
+            </button>
+            <button
+              type="button"
+              class="ss-btn ss-btn--primary ss-btn--sm"
+              onClick=${() => setAdding(true)}
             >
-              <div class="between">
-                <h2 style="margin:0">${entry.title}</h2>
-                <div class="row">
-                  <small>${entry.date}</small>
-                  <button class="btn tiny" onClick=${() => details(entry, '文件列表')}>
-                    ${t('文件列表')}
+              <${Lucide} name="plus" />${t('添加日志')}
+            </button>
+          </span>
+        </div>
+        <div class="ss-journal-list">
+          ${entries.map(
+            (entry) =>
+              html`<article
+                class="ss-journal-list__entry"
+                key=${entry.start}
+                aria-label=${entry.title}
+                onContextMenu=${(event) => menu(event, entry)}
+              >
+                <div class="ss-journal-list__head">
+                  <button
+                    type="button"
+                    class="ss-journal-list__title ss-truncate"
+                    onClick=${() => details(entry)}
+                  >
+                    ${entry.title}
+                  </button>
+                  ${entry.date && html`<span class="ss-muted">${entry.date}</span>`}
+                  <button
+                    type="button"
+                    class="ss-btn ss-btn--ghost ss-btn--sm"
+                    onClick=${() => details(entry, '文件列表')}
+                  >
+                    <${Lucide} name="paperclip" />${t('文件列表')} ${entry.references.length}
                   </button>
                   <button
-                    class="iconbtn"
-                    title=${t('日志菜单')}
+                    type="button"
+                    class="ss-icon-btn ss-icon-btn--sm"
                     aria-label=${t('日志菜单')}
+                    data-tip=${t('日志菜单')}
                     onClick=${(event) => menu(event, entry)}
                   >
-                    <${Icon} name="more" />
+                    <${Lucide} name="ellipsis" />
                   </button>
                 </div>
-              </div>
-              <div
-                class="rendered-markdown"
-                dangerouslySetInnerHTML=${{ __html: renderMarkdown(entry.body || t('没有详细内容。')) }}
-              ></div>
-            </article>`,
-        )}
+                <div
+                  class="ss-prose"
+                  dangerouslySetInnerHTML=${{ __html: renderMarkdown(entry.body || t('没有详细内容。')) }}
+                ></div>
+              </article>`,
+          )}
+        </div>
+        ${!entries.length && html`<p class="ss-wb__empty">${t('暂无项目日志')}</p>`}
       </div>
-      ${!entries.length && html`<div class="empty">${t('暂无项目日志')}</div>`} ${form}
+      ${form}
     </div>`;
   }
   return html`<section aria-label=${t('本项目日志')}>
@@ -488,48 +509,10 @@ export function JournalStrip({ project, full = false }) {
   </section>`;
 }
 
-/** The workbench's map preview; the editor opens from its corner. @param {{ project: any }} props */
+/** The workbench's map preview: a click opens that node on the map page. @param {{ project: any }} props */
 function ResearchMap({ project }) {
-  const actions = useActions();
   const [file] = useResources([['map', project.id]]);
   useSnapshotCapture([['map', project.id]]);
-  const [selected, setSelected] = useState(/** @type {string | null} */ (null));
-  const nodes = file?.value?.nodes ?? [];
-  const edit = (op, args) =>
-    actions.attempt(() => actions.editResource('map', project.id, op, args));
-  const nodeForm = (title, value, save) =>
-    actions.openModal(
-      title,
-      html`<${FieldForm}
-        label=${t('节点内容')}
-        value=${value}
-        submitText=${t('保存')}
-        onSubmit=${save}
-      />`,
-    );
-  const addChild = (parent) =>
-    nodeForm(t('添加节点'), '', (text) => edit('addNode', { node: { parent, text } }));
-  const editNode = (node) =>
-    nodeForm(t('编辑节点'), node.text, (text) =>
-      edit('updateNode', { id: node.id, changes: { text } }),
-    );
-  const nodeMenu = (event, node) =>
-    actions.openMenu(
-      event,
-      [
-        { text: t('添加子节点'), icon: 'plus', run: () => addChild(node.id) },
-        { text: t('编辑'), icon: 'pencil', run: () => editNode(node) },
-        { sep: true },
-        {
-          text: t('删除节点'),
-          icon: 'trash-2',
-          danger: true,
-          run: () => edit('removeNode', { id: node.id }),
-        },
-      ],
-      node.text,
-    );
-
   return html`<div class="ss-box-card">
     <div class="ss-box-card__head">
       <span>${t('研究框架与进展')}</span>
@@ -546,13 +529,10 @@ function ResearchMap({ project }) {
     </div>
     <div class="ss-wb__map">
       <${MapCanvas}
-        nodes=${nodes}
+        nodes=${file?.value?.nodes ?? []}
         edges=${file?.value?.edges ?? []}
-        selected=${selected}
-        onSelect=${setSelected}
-        onAddChild=${addChild}
-        onEditNode=${editNode}
-        onNodeMenu=${nodeMenu}
+        preview
+        onOpen=${(node) => navigate({ view: 'map', id: `${project.id}/${node.id}` })}
       />
     </div>
   </div>`;

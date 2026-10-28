@@ -578,7 +578,7 @@ def page_map():
            f'{icon_btn("scan", "适应画布", sm=True)}<span class="ss-ribbon__sep"></span>{icon_btn("undo-2", "撤销 Ctrl Z", sm=True)}{icon_btn("redo-2", "重做 Ctrl Y", sm=True)}'
            f'<span class="ss-toolbar__spacer"></span><span class="ss-dot ss-dot--ok"></span>已保存</div>')
     main = f'''    <main class="ss-main">
-      {header("研究框架与进展", back="返回工作站", tabs=tabs("视图", [("导图", None), ("Markdown 大纲", None), ("JSON", None)]), actions=icon_btn("history", "历史版本") + icon_btn("download", "导出", ' data-menu="#m-export"') + '<button class="ss-btn" type="button"><i data-i="plus"></i>新增分支</button>')}
+      {header("研究框架与进展", back="返回工作站", tabs=tabs("视图", [("导图", None), ("Markdown 大纲", None), ("JSON", None)]), actions=icon_btn("history", "历史版本") + icon_btn("download", "导出", ' data-menu="#m-export"') + '<button class="ss-btn ss-btn--ghost" type="button">游离节点</button><button class="ss-btn" type="button"><i data-i="plus"></i>新增分支</button>')}
       {map_canvas(selected='l2')}
       {bar}
     </main>'''
@@ -602,7 +602,7 @@ def page_map():
       </div>
       <div class="ss-panel__foot"><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" style="color:var(--danger)"><i data-i="trash-2"></i>删除节点</button></div>
     </aside>'''
-    menus = (menu('m-export', item('image', '导出图片（PNG）') + item('file-code', '导出 SVG') + item('file-text', '导出 Markdown 大纲') + item('code', '导出 JSON'))
+    menus = (menu('m-export', item('file-text', '导出 Markdown 大纲') + item('code', '导出 JSON'))
              + menu('m-node', item('plus', '添加子节点', 'Tab') + item('plus', '添加同级节点', 'Enter') + item('spline', '连到另一个节点…') + item('pencil', '编辑', 'F2')
                     + item('message-square', '在对话里引用') + SEP + item('trash-2', '删除节点', 'Del').replace('class="ss-menu__item"', 'class="ss-menu__item ss-menu__item--danger"')))
     card('PageMap', 'group="整页示例" page height=900 width=1536 subtitle="研究导图：从工作站放大进入；节点卡片和编辑台的版本树同一种样子，右侧编辑选中节点的内容、分支和连线"',
@@ -611,7 +611,7 @@ def page_map():
 
 ## 区域
 
-- 页头：返回、标题；视图标签「导图」「Markdown 大纲」「JSON」（后两个是同一份数据的文本编辑）；历史版本、导出（PNG、SVG、Markdown 大纲、JSON）、「新增分支」。
+- 页头：返回、标题；视图标签「导图」「Markdown 大纲」「JSON」（后两个是同一份数据的文本编辑）；历史版本、导出（Markdown 大纲、JSON；图片导出在 alpha 之后）、「游离节点」（在画布空白处放一个不挂在树上的节点）、「新增分支」。
 - 画布（ss-map）：点阵底，节点是卡片（ss-mnode），样子和编辑台版本树的 ss-vnode 一致；根节点加粗；从左往右展开。
   - 秘书加的节点带 sparkle「秘书添加」；关联了文稿的节点写文件名，点一下在编辑台打开。
   - 游离节点（没有父节点）用虚线边框。
