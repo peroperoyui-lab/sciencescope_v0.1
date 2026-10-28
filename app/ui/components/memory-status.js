@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
+import { Lucide } from '../icons.js';
 import { navigate } from '../route.js';
 import { InfoTip } from './info-tip.js';
 
@@ -59,29 +60,31 @@ export function MemoryStatusDialog({ meetingId, projectId }) {
       setBusy(false);
     }
   }
-  return html`<div class="memory-consolidation-dialog">
-    <h2>
-      ${t('候选记忆')}<${InfoTip}
-        text=${t('空闲时只整理纪要的变化和对应原文；候选须在记忆收件箱接受后才进入主专家的项目简报。')}
-      />
-    </h2>
-    <p role="status" data-consolidate-status>
-      ${
-        error ||
-        status?.error?.message ||
-        status?.error ||
-        (status?.skipReason === 'budget' || status?.pending
-          ? t('这次没整理完，下次接着整理。')
-          : busy
-            ? t(STATES.running)
-            : status
-              ? t(STATES[status.state] ?? STATES.idle)
-              : t('正在读取…'))
-      }
-    </p>
-    <div class="saverow">
+  return html`<div class="ss-dialog__body">
+      <p class="ss-minutes__meta">
+        ${t('候选记忆')}<${InfoTip}
+          text=${t('空闲时只整理纪要的变化和对应原文；候选须在记忆收件箱接受后才进入主专家的项目简报。')}
+        />
+      </p>
+      <p role="status" data-consolidate-status>
+        ${
+          error ||
+          status?.error?.message ||
+          status?.error ||
+          (status?.skipReason === 'budget' || status?.pending
+            ? t('这次没整理完，下次接着整理。')
+            : busy
+              ? t(STATES.running)
+              : status
+                ? t(STATES[status.state] ?? STATES.idle)
+                : t('正在读取…'))
+        }
+      </p>
+    </div>
+    <div class="ss-dialog__foot">
       <button
-        class="btn"
+        type="button"
+        class="ss-btn"
         data-consolidate-inbox
         onClick=${() => {
           actions.closeModal();
@@ -89,16 +92,16 @@ export function MemoryStatusDialog({ meetingId, projectId }) {
           actions.openMemoryInbox(projectId);
         }}
       >
-        ${t('打开记忆收件箱')}
+        <${Lucide} name="inbox" />${t('打开记忆收件箱')}
       </button>
       <button
-        class="btn primary"
+        type="button"
+        class="ss-btn ss-btn--primary"
         data-consolidate-run
         disabled=${busy || status?.running || !status}
         onClick=${run}
       >
         ${t('开始整理')}
       </button>
-    </div>
-  </div>`;
+    </div>`;
 }

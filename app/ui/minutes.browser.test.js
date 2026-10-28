@@ -158,7 +158,7 @@ test(
         await page.getByRole('menuitem', { name: 'Conversation minutes', exact: true }).click();
         await page.locator('[data-minutes-meta]', { hasText: 'Covers messages' }).waitFor();
         await page.locator('[data-minutes-next]', { hasText: '10 more messages' }).waitFor();
-        assert.doesNotMatch(await page.locator('.minutes-dialog').innerText(), /[一-鿿]/u);
+        assert.doesNotMatch(await page.locator('.ss-minutes').innerText(), /[一-鿿]/u);
         await page
           .locator('#modal .ss-dialog')
           .evaluate((element) =>

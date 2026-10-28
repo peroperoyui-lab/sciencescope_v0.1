@@ -1,10 +1,11 @@
-// The legacy conversation-minutes dialog: the secretary builds on saved edits.
+// 对话纪要, a dialog: the secretary builds on saved edits.
 // Keep the editing revision separate from live status so a background update
 // cannot replace a draft or silently change its optimistic revision.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
+import { Lucide } from '../icons.js';
 import { renderMarkdown } from '../markdown.js';
 import { useSnapshotCapture } from '../resource-snapshots.js';
 import { ResourceHistory } from './resource-history.js';
@@ -123,53 +124,68 @@ export function MinutesDialog({ meetingId }) {
   if (busy || data?.updating) metadata.push(t('任务秘书正在整理…'));
 
   if (showHistory)
-    return html`<div>
-      <button class="btn tiny" onClick=${() => setShowHistory(false)}>${t('返回纪要')}</button
-      ><${ResourceHistory} query=${{ resource: 'minutes', key: meetingId }} />
+    return html`<div class="ss-dialog__body">
+      <button type="button" class="ss-linkbtn" onClick=${() => setShowHistory(false)}>
+        <${Lucide} name="chevron-left" small />${t('返回纪要')}
+      </button>
+      <${ResourceHistory} query=${{ resource: 'minutes', key: meetingId }} />
     </div>`;
 
-  return html`<div class="minutes-dialog" data-meeting-id=${meetingId}>
-    <p class="minutes-meta">
-      <span data-minutes-meta>${metadata.join(' · ')}</span>
-      <${InfoTip} text=${help} label=${t('对话纪要说明')} />
-    </p>
-    <p class="minutes-meta" data-minutes-next>
-      ${next.length ? t('下次自动总结：{remaining}', { remaining: next.join(t(' 或 ')) }) : ''}
-    </p>
-    <p role="status" data-minutes-status>
-      ${[error, data?.error, data?.workbenchError].filter(Boolean).join(' · ')}
-    </p>
-    <div class="minutes-body rendered-markdown" data-minutes-body>
+  const problems = [error, data?.error, data?.workbenchError].filter(Boolean).join(' · ');
+  return html`<div class="ss-dialog__body ss-minutes" data-meeting-id=${meetingId}>
+      <p class="ss-minutes__meta">
+        <span data-minutes-meta>${metadata.join(' · ')}</span>
+        <${InfoTip} text=${help} label=${t('对话纪要说明')} />
+      </p>
       ${
-        editing
-          ? html`<textarea
-              ref=${input}
-              data-minutes-text
-              aria-label=${t('纪要内容')}
-              value=${text}
-              onInput=${(event) => setText(event.currentTarget.value)}
-            ></textarea>`
-          : data?.revision
-            ? html`<div dangerouslySetInnerHTML=${{ __html: renderMarkdown(data.text) }}></div>`
-            : data && html`<p class="minutes-empty">${t('还没有纪要。')}</p>`
+        next.length > 0 &&
+        html`<p class="ss-minutes__meta" data-minutes-next>
+          ${t('下次自动总结：{remaining}', { remaining: next.join(t(' 或 ')) })}
+        </p>`
+      }
+      <p role="status" class="ss-minutes__status" data-minutes-status hidden=${!problems}>
+        ${problems}
+      </p>
+      <div class="ss-minutes__body" data-minutes-body>
+        ${
+          editing
+            ? html`<textarea
+                ref=${input}
+                class="ss-textarea ss-minutes__text"
+                data-minutes-text
+                aria-label=${t('纪要内容')}
+                value=${text}
+                onInput=${(event) => setText(event.currentTarget.value)}
+              ></textarea>`
+            : data?.revision
+              ? html`<div
+                  class="ss-prose"
+                  dangerouslySetInnerHTML=${{ __html: renderMarkdown(data.text) }}
+                ></div>`
+              : data &&
+                html`<div class="ss-empty">
+                  <div class="ss-empty__icon"><${Lucide} name="scroll-text" /></div>
+                  <div class="ss-empty__title">${t('还没有纪要。')}</div>
+                </div>`
+        }
+      </div>
+      ${
+        data?.incompleteOutput &&
+        html`<details class="ss-minutes__partial">
+          <summary>${t('未完成的秘书输出')}</summary>
+          <div
+            class="ss-prose"
+            dangerouslySetInnerHTML=${{ __html: renderMarkdown(data.incompleteOutput) }}
+          ></div>
+        </details>`
       }
     </div>
-    ${
-      data?.incompleteOutput &&
-      html`<details>
-        <summary>${t('未完成的秘书输出')}</summary>
-        <div
-          class="minutes-body rendered-markdown"
-          dangerouslySetInnerHTML=${{ __html: renderMarkdown(data.incompleteOutput) }}
-        ></div>
-      </details>`
-    }
-    <div class="saverow">
+    <div class="ss-dialog__foot">
       ${
         editing
           ? html`<button
                 type="button"
-                class="btn"
+                class="ss-btn"
                 data-minutes-cancel
                 disabled=${busy}
                 onClick=${() => setEditing(false)}
@@ -178,27 +194,34 @@ export function MinutesDialog({ meetingId }) {
               </button>
               <button
                 type="button"
-                class="btn primary"
+                class="ss-btn ss-btn--primary"
                 data-minutes-save
                 disabled=${busy}
                 onClick=${save}
               >
                 ${t('保存纪要')}
               </button>`
-          : html`<button type="button" class="btn" onClick=${() => setShowHistory(true)}>
-                ${t('历史版本')}</button
-              ><button
+          : html`<span class="ss-dialog__aside">
+                <button
+                  type="button"
+                  class="ss-btn ss-btn--ghost"
+                  onClick=${() => setShowHistory(true)}
+                >
+                  <${Lucide} name="history" />${t('历史版本')}
+                </button>
+              </span>
+              <button
                 type="button"
-                class="btn"
+                class="ss-btn"
                 data-minutes-refresh
                 disabled=${!data || busy || data.updating}
                 onClick=${refresh}
               >
-                ${t('让秘书更新')}
+                <${Lucide} name="refresh-cw" />${t('让秘书更新')}
               </button>
               <button
                 type="button"
-                class="btn"
+                class="ss-btn"
                 data-minutes-edit
                 disabled=${!data?.revision || busy || data?.updating}
                 onClick=${() => {
@@ -207,17 +230,16 @@ export function MinutesDialog({ meetingId }) {
                   setEditing(true);
                 }}
               >
-                ${t('编辑')}
+                <${Lucide} name="pencil" />${t('编辑')}
               </button>
               <button
                 type="button"
-                class="btn primary"
+                class="ss-btn ss-btn--primary"
                 data-minutes-close
                 onClick=${actions.closeModal}
               >
                 ${t('关闭')}
               </button>`
       }
-    </div>
-  </div>`;
+    </div>`;
 }

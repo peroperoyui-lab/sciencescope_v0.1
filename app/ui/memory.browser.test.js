@@ -178,11 +178,11 @@ test(
         // Memory revisions remain in the item's own history, not on the
         // workbench; editable-file history has its own buttons.
         assert.equal(
-          await page.locator('.versionlist .listrow', { hasText: 'Added memory' }).count(),
+          await page.locator('[data-snapshot-id]', { hasText: 'Added memory' }).count(),
           0,
         );
         assert.equal(
-          await page.locator('.versionlist .listrow', { hasText: 'Updated memory' }).count(),
+          await page.locator('[data-snapshot-id]', { hasText: 'Updated memory' }).count(),
           0,
         );
         await page.goto(new URL('/?token=ui-token#/settings/secretary-settings', page.url()).href);

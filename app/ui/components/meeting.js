@@ -263,11 +263,7 @@ export function MeetingView({ meetingId, focusMessageId }) {
       text: t('对话纪要'),
       icon: 'file',
       run: () =>
-        actions.openModal(
-          t('对话纪要'),
-          html`<${MinutesDialog} meetingId=${meeting.id} />`,
-          'minutes-modal',
-        ),
+        actions.openModal(t('对话纪要'), html`<${MinutesDialog} meetingId=${meeting.id} />`, 'lg'),
     },
     ...(meeting.projectId
       ? [

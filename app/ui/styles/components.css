@@ -488,6 +488,77 @@ button {
   line-height: 18px;
 }
 
+/* 对话纪要: status lines, the minutes (or the editor), the secretary's partial output. */
+.ss-minutes__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+.ss-minutes__status {
+  margin: 0;
+  color: var(--danger);
+  font-size: 12px;
+}
+.ss-minutes__body {
+  min-height: 160px;
+  max-height: min(56vh, 520px);
+  overflow: auto;
+}
+.ss-minutes__text {
+  width: 100%;
+  min-height: 320px;
+}
+.ss-minutes__partial > summary {
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+/* 历史版本: versions grouped by file, a read-only preview, restore and delete. */
+.ss-history {
+  display: grid;
+  gap: var(--sp-12);
+  min-width: 0;
+}
+.ss-history__text {
+  margin: 0;
+  font-size: 12px;
+  line-height: 18px;
+}
+.ss-history__bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.ss-history__preview {
+  max-height: 380px;
+  overflow: auto;
+  padding: var(--sp-12);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--paper);
+}
+.ss-history__map {
+  position: relative;
+  height: 280px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+}
+.ss-history__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-8);
+}
+/* The row's buttons stay visible: they are the point of the list. */
+.ss-history .ss-list-row__actions {
+  opacity: 1;
+}
+
 /* A text box with buttons beside it (a folder path and 选择已有文件夹). */
 .ss-field-row {
   display: flex;
