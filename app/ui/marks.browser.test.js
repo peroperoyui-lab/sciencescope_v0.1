@@ -63,10 +63,10 @@ test(
           await page.getByLabel('标记备注').fill('Note ' + index);
           await page.getByLabel('标记备注').press('Enter');
           await page.getByRole('button', { name: `标记 ${index + 1}`, exact: true }).waitFor();
-          await page.locator('.mark-selection-popover').waitFor({ state: 'detached' });
+          await page.locator('[data-mark-selection]').waitFor({ state: 'detached' });
         }
         await page.getByRole('button', { name: '标记 3', exact: true }).click();
-        const pop = page.locator('.marks-popover');
+        const pop = page.locator('[data-marks-popover]');
         await pop.getByRole('button', { name: '修改备注', exact: true }).first().click();
         await page.getByLabel('修改标记备注').fill('Edited exact note');
         await pop.getByRole('button', { name: '保存', exact: true }).click();
@@ -80,12 +80,12 @@ test(
         );
         await selectText(page, selector, 'Second original');
         await page.getByRole('button', { name: '引用至任务秘书', exact: true }).click();
-        await page.locator('.mark-selection-popover').waitFor({ state: 'detached' });
+        await page.locator('[data-mark-selection]').waitFor({ state: 'detached' });
         const secretary = app.secretary.ensure(meeting.id);
         assert.equal(app.researchInput.draft(secretary.id).marks.length, 1);
         await selectText(page, selector, 'Third original');
         await page.getByRole('button', { name: '引用至全局助手', exact: true }).click();
-        await page.locator('.mark-selection-popover').waitFor({ state: 'detached' });
+        await page.locator('[data-mark-selection]').waitFor({ state: 'detached' });
         assert.equal(app.researchInput.draft(app.assistant.ensure().id).marks.length, 1);
         await page.getByLabel('主输入框').fill('Explain these three selections');
         await page
@@ -93,7 +93,7 @@ test(
           .getByRole('button', { name: '发送', exact: true })
           .click();
         await page.getByText('Marks received.', { exact: true }).waitFor();
-        await page.locator('.marks-toggle').waitFor({ state: 'detached' });
+        await page.locator('[data-marks-toggle]').waitFor({ state: 'detached' });
         assert.equal((inputs[0].match(/<quote /gu) ?? []).length, 3);
         assert.ok(inputs[0].includes('Edited exact note'));
         assert.match(
@@ -111,7 +111,7 @@ test(
         await page.getByLabel('Mark note').waitFor();
         await shot('mark-selection-en');
         await page.getByLabel('Mark note').press('Escape');
-        await page.locator('.mark-selection-popover').waitFor({ state: 'detached' });
+        await page.locator('[data-mark-selection]').waitFor({ state: 'detached' });
       },
     );
   },

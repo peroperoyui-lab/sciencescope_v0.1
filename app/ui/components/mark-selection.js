@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
+import { Lucide } from '../icons.js';
 import { parseRoute } from '../route.js';
 import { markHighlight } from '../mark-ranges.js';
 
@@ -35,7 +36,7 @@ export function MarkSelection() {
           ? range.commonAncestorContainer
           : range.commonAncestorContainer.parentElement;
       const element = /** @type {Element} */ (node);
-      if (element.closest('.mark-selection-popover,.marks-popover')) return;
+      if (element.closest('[data-mark-selection],[data-marks-popover]')) return;
       const messageNode = element.closest('[data-message-id],[data-assistant-message]');
       const file = element.closest('[data-preview-doc]');
       let owner, mark;
@@ -75,9 +76,9 @@ export function MarkSelection() {
         mark = {
           sourceId: file.getAttribute('data-resource-id'),
           target: state.preview,
-          title: /** @type {HTMLSelectElement} */ (
-            document.querySelector('.file-preview-toolbar select')
-          )?.selectedOptions[0]?.textContent?.trim(),
+          title: document
+            .querySelector('.file-preview-toolbar .ss-select__value')
+            ?.textContent?.trim(),
           text: current.toString(),
           location: page
             ? {
@@ -151,42 +152,65 @@ export function MarkSelection() {
   }
   if (!selection) return null;
   return html`<div
-    class="mark-selection-popover"
+    class="ss-pop ss-mark-pop"
+    data-mark-selection
     ref=${pop}
     role="dialog"
     aria-label=${t('添加标记')}
     style=${{ left: position.left + 'px', top: position.top + 'px' }}
   >
-    <blockquote class="mark-text">${selection.mark.text}</blockquote>
-    <textarea
-      ref=${note}
-      aria-label=${t('标记备注')}
-      placeholder=${t('备注（可选）· Enter 添加，Shift+Enter 换行')}
-      value=${comment}
-      onInput=${(event) => setComment(event.currentTarget.value)}
-      onKeyDown=${(event) => {
-        if (
-          event.key === 'Enter' &&
-          !event.shiftKey &&
-          !event.isComposing &&
-          event.keyCode !== 229
-        ) {
-          event.preventDefault();
-          void add();
-        }
-      }}
-    ></textarea>
-    <div class="mark-selection-actions">
-      <button class="mark-secondary" onClick=${() => add('secretary')}>
-        ${t('引用至任务秘书')}</button
-      ><button class="mark-secondary" onClick=${() => add('assistant')}>
-        ${t('引用至全局助手')}</button
-      ><button
-        class="mark-secondary"
-        onClick=${() => navigator.clipboard.writeText(selection.mark.text).then(close)}
-      >
-        ${t('复制')}</button
-      ><button class="btn tiny primary" onClick=${() => add()}>${t('添加标记')}</button>
+    <div class="ss-pop__body">
+      <blockquote class="ss-quote ss-marks__text">${selection.mark.text}</blockquote>
+      <textarea
+        ref=${note}
+        class="ss-textarea"
+        rows="2"
+        aria-label=${t('标记备注')}
+        placeholder=${t('备注（可选）· Enter 添加，Shift+Enter 换行')}
+        value=${comment}
+        onInput=${(event) => setComment(event.currentTarget.value)}
+        onKeyDown=${(event) => {
+          if (
+            event.key === 'Enter' &&
+            !event.shiftKey &&
+            !event.isComposing &&
+            event.keyCode !== 229
+          ) {
+            event.preventDefault();
+            void add();
+          }
+        }}
+      ></textarea>
+    </div>
+    <div class="ss-pop__foot ss-mark-pop__foot">
+      <span class="ss-mark-pop__more">
+        <button
+          type="button"
+          class="ss-btn ss-btn--ghost ss-btn--sm"
+          onClick=${() => add('secretary')}
+        >
+          ${t('引用至任务秘书')}
+        </button>
+        <button
+          type="button"
+          class="ss-btn ss-btn--ghost ss-btn--sm"
+          onClick=${() => add('assistant')}
+        >
+          ${t('引用至全局助手')}
+        </button>
+        <button
+          type="button"
+          class="ss-icon-btn ss-icon-btn--sm"
+          aria-label=${t('复制')}
+          data-tip=${t('复制')}
+          onClick=${() => navigator.clipboard.writeText(selection.mark.text).then(close)}
+        >
+          <${Lucide} name="copy" />
+        </button>
+      </span>
+      <button type="button" class="ss-btn ss-btn--primary ss-btn--sm" onClick=${() => add()}>
+        ${t('添加标记')}
+      </button>
     </div>
   </div>`;
 }

@@ -75,7 +75,7 @@ test(
         });
         app.researchInput.change(meeting.id, { op: 'add', material: { id: csv.id } });
         await page
-          .locator('.attachmentbar')
+          .locator('[data-input-attachments]')
           .getByRole('button', { name: '表格.csv', exact: true })
           .click();
         await page.getByRole('menuitem', { name: '预览', exact: true }).click();
@@ -89,7 +89,7 @@ test(
         await page.getByLabel('关闭侧栏').click();
         app.researchInput.change(meeting.id, { op: 'add', material: { id: code.id } });
         await page
-          .locator('.attachmentbar')
+          .locator('[data-input-attachments]')
           .getByRole('button', { name: '代码.py', exact: true })
           .click();
         await page.getByRole('menuitem', { name: '预览', exact: true }).click();

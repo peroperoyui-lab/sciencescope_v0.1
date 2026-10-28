@@ -4,7 +4,6 @@ import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
-import { InfoTip } from './info-tip.js';
 import { MarksPopover } from './marks-popover.js';
 import { navigate } from '../route.js';
 import { deskReference } from '../desk-assist.js';
@@ -57,7 +56,10 @@ export function InputAdd({ owner, projectId = null }) {
     if (!invoke) {
       actions.openModal(
         t('截图'),
-        html`<${InfoTip} text=${t('使用系统截图后，在输入框中粘贴。')} />`,
+        html`<div class="ss-dialog__body">
+          <p>${t('使用系统截图后，在输入框中粘贴。')}</p>
+        </div>`,
+        'sm',
       );
       return;
     }
@@ -118,7 +120,7 @@ export function InputAttachments({ owner, value }) {
   // stay behind the 标记 toggle.
   const quotes = value.marks.filter((mark) => mark.manuscriptKey && deskReference(mark));
   const others = value.marks.filter((mark) => !quotes.includes(mark));
-  return html`<div class="ss-composer__files attachmentbar">
+  return html`<div class="ss-composer__files" data-input-attachments>
     ${quotes.map(
       (mark) =>
         html`<span class="ss-file-chip" key=${mark.id} data-desk-quote>
@@ -194,33 +196,48 @@ export function InputAttachments({ owner, value }) {
  * @param {any} input
  */
 export function showInputContext(actions, input) {
+  const open = (entry) => {
+    if (entry.type === 'source') {
+      actions.closeModal();
+      actions.openPreview({ kind: 'source', id: entry.id });
+    } else if (entry.type === 'version-notes') {
+      actions.closeModal();
+      navigate({ view: 'version-notes', id: entry.key });
+    }
+  };
   actions.openModal(
     t('本次上下文'),
-    html`<div class="context-receipt">
-      ${input.materials.map(
-        (entry) =>
-          html`<div class="receipt-materials">
-            <button
-              class="ref-chip"
-              onClick=${() => {
-                if (entry.type === 'source') {
-                  actions.closeModal();
-                  actions.openPreview({ kind: 'source', id: entry.id });
-                } else if (entry.type === 'version-notes') {
-                  actions.closeModal();
-                  navigate({ view: 'version-notes', id: entry.key });
-                }
-              }}
-            >
-              ${entry.title}</button
-            >${['item', 'version-notes'].includes(entry.type) && html`<p>${entry.text}</p>`}
-          </div>`,
-      )}
+    html`<div class="ss-dialog__body" data-input-context>
+      ${
+        input.materials.length > 0 &&
+        html`<div class="ss-list">
+          ${input.materials.map(
+            (entry) =>
+              html`<div
+                class=${`ss-list-row ${entry.text ? 'ss-list-row--2' : ''} ${['source', 'version-notes'].includes(entry.type) ? 'ss-list-row--link' : ''}`}
+                key=${entry.selectionId ?? entry.id}
+                onClick=${() => open(entry)}
+              >
+                <${Lucide}
+                  name=${entry.type === 'source' ? 'book-open' : 'file-text'}
+                  class="ss-list-row__icon"
+                />
+                <div class="ss-list-row__main">
+                  <span class="ss-list-row__title">${entry.title}</span>
+                  ${
+                    ['item', 'version-notes'].includes(entry.type) &&
+                    entry.text &&
+                    html`<span class="ss-list-row__sub">${entry.text}</span>`
+                  }
+                </div>
+              </div>`,
+          )}
+        </div>`
+      }
       ${input.marks.map(
         (mark) =>
-          html`<blockquote>
-            ${mark.text}
-            <p>${mark.comment}</p>
+          html`<blockquote class="ss-quote" key=${mark.id}>
+            ${mark.text} ${mark.comment && html`<div class="ss-quote__src">${mark.comment}</div>`}
           </blockquote>`,
       )}
     </div>`,
@@ -251,12 +268,14 @@ export function InputReceipt({ message }) {
           onClick=${() =>
             actions.openModal(
               image.name,
-              html`<img
-                class="input-image-full"
-                src=${actions.inputImageUrl(image.url)}
-                alt=${image.name}
-              />`,
-              'image-modal',
+              html`<div class="ss-dialog__body">
+                <img
+                  class="ss-dialog__image"
+                  src=${actions.inputImageUrl(image.url)}
+                  alt=${image.name}
+                />
+              </div>`,
+              'lg',
             )}
         >
           <img src=${actions.inputImageUrl(image.url)} alt="" loading="lazy" />

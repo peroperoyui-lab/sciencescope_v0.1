@@ -488,6 +488,94 @@ button {
   line-height: 18px;
 }
 
+/* 文件预览: a bar with pages and zoom (PDF) or the display mode, then the document. */
+.ss-reader {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+.ss-reader__bar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.ss-reader__page {
+  width: 52px;
+}
+.ss-reader__note {
+  margin: 0;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
+/* 标记 N: the marks attached to the composer, each with its note and actions. */
+.ss-marks {
+  width: 360px;
+}
+.ss-mark-pop {
+  width: 360px;
+}
+.ss-mark-pop__more {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-left: -8px;
+}
+.ss-pop__body > .ss-textarea {
+  width: 100%;
+}
+.ss-marks__toggle {
+  padding-right: 8px;
+}
+.ss-marks__list {
+  display: grid;
+  gap: var(--sp-12);
+  max-height: min(60vh, 480px);
+  margin: 0;
+  padding: 12px;
+  overflow: auto;
+  list-style: none;
+}
+.ss-marks__item {
+  display: grid;
+  gap: var(--sp-4);
+}
+.ss-marks__source,
+.ss-marks__comment {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+.ss-marks__text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  cursor: pointer;
+}
+.ss-marks__text[data-expanded] {
+  display: block;
+}
+.ss-marks__edit {
+  display: grid;
+  justify-items: end;
+  gap: var(--sp-6);
+}
+.ss-marks__edit > .ss-textarea {
+  width: 100%;
+}
+.ss-marks__actions {
+  display: flex;
+  gap: var(--sp-2);
+  margin-left: -8px;
+}
+
 /* 对话纪要: status lines, the minutes (or the editor), the secretary's partial output. */
 .ss-minutes__meta {
   display: flex;
@@ -1839,6 +1927,15 @@ html[data-resizing] * {
 }
 .ss-dialog__body > p {
   margin: 0;
+}
+/* An attached image opened from a message. */
+.ss-dialog__image {
+  display: block;
+  max-width: 100%;
+  max-height: 72vh;
+  margin: 0 auto;
+  border-radius: var(--r-md);
+  object-fit: contain;
 }
 .ss-dialog__foot {
   display: flex;

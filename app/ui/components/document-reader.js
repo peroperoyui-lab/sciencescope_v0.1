@@ -3,6 +3,7 @@ import { useActions, useAppState } from '../context.js';
 import { findMarkRange, markHighlight } from '../mark-ranges.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
+import { Lucide } from '../icons.js';
 
 /**
  * @param {{doc:any,target:any}} props
@@ -95,22 +96,111 @@ export function DocumentReader({ doc, target }) {
   function go(next) {
     reader.current?.focus({ page: next, highlight: target.highlight });
   }
+  const modes =
+    doc.format === 'latex'
+      ? [
+          ['formulas', t('公式')],
+          ['source', t('源码')],
+        ]
+      : doc.format === 'docx'
+        ? [
+            ['readable', t('正文')],
+            ['layout', t('原始版式')],
+          ]
+        : [
+            ['readable', t('正文')],
+            ['source', t('源码')],
+          ];
   return html`<div
-    class="document-reader"
+    class="ss-reader"
     data-reader-format=${doc.format}
     data-source-id=${doc.source?.id}
   >
-    <div class="reader-controls">
-      ${doc.format === 'pdf' && html`<button class="btn tiny" onClick=${() => go(page - 1)}>${t('上一页')}</button><input data-reader-page type="number" min="1" max=${total} value=${page} aria-label=${t('页码')} onChange=${(event) => go(Number(event.currentTarget.value))} /><span>/ ${total}</span><button class="btn tiny" onClick=${() => go(page + 1)}>${t('下一页')}</button><button class="btn tiny" onClick=${() => reader.current?.zoom(1 / 1.2)}>${t('缩小')}</button><button class="btn tiny" onClick=${() => reader.current?.zoom(1.2)}>${t('放大')}</button>`}
-      ${['markdown', 'latex', 'docx'].includes(doc.format) && html`<button class="btn tiny" onClick=${() => setMode(doc.format === 'latex' ? 'formulas' : 'readable')}>${t(doc.format === 'latex' ? '公式' : '正文')}</button><button class="btn tiny" onClick=${() => setMode(doc.format === 'docx' ? 'layout' : 'source')}>${t(doc.format === 'docx' ? '原始版式' : '源码')}</button>`}
-    </div>
-    ${rows && html`<p>${t('共 {total} 行，显示前 {shown} 行', { total: rows.rows, shown: rows.shown })}</p>`}
+    ${
+      (doc.format === 'pdf' || ['markdown', 'latex', 'docx'].includes(doc.format)) &&
+      html`<div class="ss-reader__bar">
+        ${
+          doc.format === 'pdf' &&
+          html`<button
+              type="button"
+              class="ss-icon-btn ss-icon-btn--sm"
+              aria-label=${t('上一页')}
+              data-tip=${t('上一页')}
+              onClick=${() => go(page - 1)}
+            >
+              <${Lucide} name="chevron-left" />
+            </button>
+            <span class="ss-input ss-input--sm ss-reader__page">
+              <input
+                data-reader-page
+                type="number"
+                min="1"
+                max=${total}
+                value=${page}
+                aria-label=${t('页码')}
+                onChange=${(event) => go(Number(event.currentTarget.value))}
+              />
+            </span>
+            <span class="ss-muted">/ ${total}</span>
+            <button
+              type="button"
+              class="ss-icon-btn ss-icon-btn--sm"
+              aria-label=${t('下一页')}
+              data-tip=${t('下一页')}
+              onClick=${() => go(page + 1)}
+            >
+              <${Lucide} name="chevron-right" />
+            </button>
+            <span class="ss-toolbar__spacer"></span>
+            <button
+              type="button"
+              class="ss-icon-btn ss-icon-btn--sm"
+              aria-label=${t('缩小')}
+              data-tip=${t('缩小')}
+              onClick=${() => reader.current?.zoom(1 / 1.2)}
+            >
+              <${Lucide} name="zoom-out" />
+            </button>
+            <button
+              type="button"
+              class="ss-icon-btn ss-icon-btn--sm"
+              aria-label=${t('放大')}
+              data-tip=${t('放大')}
+              onClick=${() => reader.current?.zoom(1.2)}
+            >
+              <${Lucide} name="zoom-in" />
+            </button>`
+        }
+        ${
+          doc.format !== 'pdf' &&
+          html`<div class="ss-seg ss-seg--sm" role="group" aria-label=${t('显示方式')}>
+            ${modes.map(
+              ([value, text]) =>
+                html`<button
+                  type="button"
+                  key=${value}
+                  aria-pressed=${String(mode === value || (value === modes[0][0] && !modes.some(([other]) => other === mode)))}
+                  onClick=${() => setMode(value)}
+                >
+                  ${text}
+                </button>`,
+            )}
+          </div>`
+        }
+      </div>`
+    }
+    ${
+      rows &&
+      html`<p class="ss-muted ss-reader__note">
+        ${t('共 {total} 行，显示前 {shown} 行', { total: rows.rows, shown: rows.shown })}
+      </p>`
+    }
     <div
       class="reader-host"
       ref=${surface}
       data-preview-doc
       data-resource-id=${doc.source?.id}
     ></div>
-    ${error && html`<p role="alert">${error}</p>`}
+    ${error && html`<p class="ss-status ss-status--fail" role="alert">${error}</p>`}
   </div>`;
 }
