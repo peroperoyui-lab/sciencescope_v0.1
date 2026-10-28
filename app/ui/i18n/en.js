@@ -176,6 +176,8 @@ export const en = {
   命令: 'Commands',
   独立快速对话: 'Quick standalone chat',
   显示方式: 'Display',
+  最近日志: 'Recent log',
+  打开工作站: 'Open workbench',
   '今天想研究什么？': 'What would you like to research today?',
   发送: 'Send',
   '回答达到模型的单次输出上限，后面的内容没有写出。':

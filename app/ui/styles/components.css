@@ -7217,3 +7217,16 @@ textarea {
   gap: var(--sp-8);
   padding-top: var(--sp-8);
 }
+
+/* 项目置顶摘要 placed beside its button (fixed, so it is not clipped by the page). */
+.ss-flyout.ss-flyout--fixed {
+  position: fixed;
+  max-height: calc(100vh - 80px);
+  overflow: auto;
+  animation: ss-pop-in var(--t-fast) var(--ease);
+}
+.ss-flyout__empty {
+  padding: 4px 8px 8px;
+  color: var(--muted);
+  font-size: 12px;
+}

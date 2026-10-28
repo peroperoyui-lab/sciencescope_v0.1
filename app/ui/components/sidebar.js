@@ -499,7 +499,11 @@ export function Sidebar({ route, currentProjectId }) {
       ${
         peek &&
         peekProject &&
-        html`<${ProjectSummary} project=${peekProject} onClose=${() => setPeek(false)} />`
+        html`<${ProjectSummary}
+          project=${peekProject}
+          from="sidebar"
+          onClose=${() => setPeek(false)}
+        />`
       }
       ${
         deskEnabled(settings) &&

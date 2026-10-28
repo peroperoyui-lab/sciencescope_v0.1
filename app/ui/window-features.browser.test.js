@@ -70,15 +70,15 @@ test(
         // Alt+S and the header button toggle the summary; a click outside closes it.
         await page.locator('.ss-header__title').click();
         await page.keyboard.press('Alt+S');
-        await page.locator('.project-flyout').waitFor();
+        await page.locator('[data-project-summary]').waitFor();
         await page.locator('.ss-header__title').click();
-        await page.locator('.project-flyout').waitFor({ state: 'detached' });
+        await page.locator('[data-project-summary]').waitFor({ state: 'detached' });
         const summaryButton = page.locator('.ss-header button[aria-label="项目置顶摘要"]');
         await summaryButton.click();
-        await page.locator('.project-flyout').waitFor();
+        await page.locator('[data-project-summary]').waitFor();
         await shot('summary-button');
         await summaryButton.click();
-        await page.locator('.project-flyout').waitFor({ state: 'detached' });
+        await page.locator('[data-project-summary]').waitFor({ state: 'detached' });
 
         // F2 renames the open chat.
         await page.locator('.ss-header__title').click();

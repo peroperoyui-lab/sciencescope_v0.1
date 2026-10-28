@@ -102,7 +102,10 @@ test(
       );
       await page.getByRole('button', { name: '工作区菜单', exact: true }).click();
       await page.getByRole('menuitem', { name: '项目置顶摘要' }).click();
-      await page.locator('.project-flyout .flyfile', { hasText: '计划' }).first().waitFor();
+      await page
+        .locator('[data-project-summary] [data-summary-version]', { hasText: '计划' })
+        .first()
+        .waitFor();
       await page.getByRole('button', { name: '关闭项目摘要' }).click();
 
       await page.keyboard.press('Control+K');
