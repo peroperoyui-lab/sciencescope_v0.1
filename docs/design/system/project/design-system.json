@@ -43,8 +43,8 @@
   },
   "lastChange": {
     "by": "Claude",
-    "at": "2026-10-25T11:40:00Z",
+    "at": "2026-10-28T13:50:00Z",
     "via": "Claude Code",
-    "note": "编辑台：新卡 DeskIndexPicker（添加索引对话框）；比较页中缝改成锁定按钮；新批注的提示文字改成「写下你的意见或要核对的地方」；新图标 reply"
+    "note": "编辑台：新卡 PageDeskChat（右侧栏「对话」显示绑定的对话）和 DeskChatStates（未绑定、更多菜单、秘书按钮打开任务秘书）；带上 U3–U7 的编辑台样式"
   }
 }

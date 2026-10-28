@@ -1,0 +1,94 @@
+<!-- @dsCard group="编辑台" page height=900 width=1536 subtitle="对话：右侧栏「对话」是编辑台绑定的那段对话，可以接着和专家讨论这份文稿；引用到对话放进这里的输入框" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>PageDeskChat</title></head>
+<body>
+<div class="ss-shell ss-desk">
+  <header class="ss-titlebar">
+    <span class="ss-titlebar__brand"><i data-logo></i>编辑台</span>
+    <nav class="ss-doctabs" role="tablist" aria-label="打开的文稿"><div class="ss-doctab" role="tab" aria-selected="true"><span class="ss-ftype ss-ftype--docx" aria-hidden="true">W</span><span class="ss-truncate">thesis.docx</span><span class="ss-doctab__dirty" aria-label="有修改未写回"></span></div><div class="ss-doctab" role="tab" aria-selected="false"><span class="ss-ftype ss-ftype--tex" aria-hidden="true">T</span><span class="ss-truncate">method.tex</span><button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭"><i data-i="x"></i></button></div><div class="ss-doctab" role="tab" aria-selected="false"><span class="ss-ftype ss-ftype--md" aria-hidden="true">M</span><span class="ss-truncate">outline.md</span><button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭"><i data-i="x"></i></button></div><div class="ss-doctab" role="tab" aria-selected="false"><span class="ss-ftype ss-ftype--pdf" aria-hidden="true">P</span><span class="ss-truncate">Ragin_2008.pdf</span><button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭"><i data-i="x"></i></button></div></nav>
+    <button class="ss-icon-btn" type="button" aria-label="打开文稿" data-tip="打开文稿" style="-webkit-app-region:no-drag"><i data-i="plus"></i></button>
+    <span class="ss-titlebar__spacer"></span>
+    <span class="ss-titlebar__title">城市韧性研究</span>
+    <button class="ss-winctl" type="button" aria-label="最小化"><i data-i="minus"></i></button>
+    <button class="ss-winctl" type="button" aria-label="最大化"><i data-i="square"></i></button>
+    <button class="ss-winctl ss-winctl--close" type="button" aria-label="关闭"><i data-i="x"></i></button>
+  </header>
+  <div class="ss-ribbon">
+    <div class="ss-ribbon__tabs"><nav class="ss-tabs" role="tablist" aria-label="功能区"><button class="ss-tab" role="tab" type="button" aria-selected="true">开始</button><button class="ss-tab" role="tab" type="button" aria-selected="false">审阅</button><button class="ss-tab" role="tab" type="button" aria-selected="false">视图</button></nav><span class="ss-ribbon__spacer"></span><button class="ss-icon-btn" type="button" aria-label="收起功能区 Ctrl F1" data-tip="收起功能区 Ctrl F1"><i data-i="chevron-up"></i></button></div>
+    <div class="ss-ribbon__bar"><button class="ss-icon-btn" type="button" aria-label="撤销 Ctrl Z" data-tip="撤销 Ctrl Z"><i data-i="undo-2"></i></button><button class="ss-icon-btn" type="button" aria-label="重做 Ctrl Y" data-tip="重做 Ctrl Y"><i data-i="redo-2"></i></button><span class="ss-ribbon__sep"></span><button class="ss-select ss-select--sm" type="button" aria-haspopup="listbox" data-tip="段落样式"><span class="ss-select__value">正文</span><i data-i="chevron-down"></i></button><span class="ss-ribbon__sep"></span><button class="ss-icon-btn" type="button" aria-label="加粗 Ctrl B" data-tip="加粗 Ctrl B"><i data-i="bold"></i></button><button class="ss-icon-btn" type="button" aria-label="斜体 Ctrl I" data-tip="斜体 Ctrl I"><i data-i="italic"></i></button><button class="ss-icon-btn" type="button" aria-label="下划线 Ctrl U" data-tip="下划线 Ctrl U"><i data-i="underline"></i></button><button class="ss-icon-btn" type="button" aria-label="上标" data-tip="上标"><i data-i="superscript"></i></button><button class="ss-icon-btn" type="button" aria-label="下标" data-tip="下标"><i data-i="subscript"></i></button><button class="ss-icon-btn" type="button" aria-label="清除格式" data-tip="清除格式"><i data-i="remove-formatting"></i></button><span class="ss-ribbon__sep"></span><button class="ss-icon-btn" type="button" aria-label="项目符号" data-tip="项目符号"><i data-i="list"></i></button><button class="ss-icon-btn" type="button" aria-label="编号" data-tip="编号"><i data-i="list-ordered"></i></button><span class="ss-ribbon__sep"></span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="message-square-plus"></i>批注</button><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="link-2"></i>索引</button><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="text-quote"></i>引用到对话</button><span class="ss-ribbon__spacer"></span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button"><i data-i="git-compare"></i>比较</button><button class="ss-btn ss-btn--primary ss-btn--sm" type="button" data-tip="写回项目文件夹里的 thesis.docx" data-kbd="Ctrl S"><i data-i="save"></i>保存</button></div>
+  </div>
+  <div class="ss-shell__body">
+    <aside class="ss-desk-nav">
+      <div class="ss-desk-nav__section">
+        <div class="ss-desk-nav__head"><span>文件</span><button class="ss-icon-btn" type="button" aria-label="查找文件" data-tip="查找文件"><i data-i="search"></i></button><button class="ss-icon-btn" type="button" aria-label="打开项目文件夹里的其他文稿" data-tip="打开项目文件夹里的其他文稿"><i data-i="folder-open"></i></button></div>
+        <button class="ss-desk-file" type="button" aria-current="true"><span class="ss-ftype ss-ftype--docx" aria-hidden="true">W</span><span class="ss-desk-file__name">thesis.docx</span><span class="ss-desk-file__end">v7</span></button><button class="ss-desk-file" type="button"><span class="ss-ftype ss-ftype--tex" aria-hidden="true">T</span><span class="ss-desk-file__name">chapters/method.tex</span><span class="ss-desk-file__end">v3</span></button><button class="ss-desk-file" type="button"><span class="ss-ftype ss-ftype--md" aria-hidden="true">M</span><span class="ss-desk-file__name">notes/outline.md</span><span class="ss-desk-file__end">v2</span></button><button class="ss-desk-file" type="button"><span class="ss-ftype ss-ftype--pdf" aria-hidden="true">P</span><span class="ss-desk-file__name">refs/Ragin_2008.pdf</span><span class="ss-desk-file__end"></span></button><button class="ss-desk-file" type="button"><span class="ss-ftype ss-ftype--docx" aria-hidden="true">W</span><span class="ss-desk-file__name">开题报告.docx</span><span class="ss-desk-file__end">v4</span></button><button class="ss-desk-file" type="button"><span class="ss-ftype ss-ftype--group" aria-hidden="true">V</span><span class="ss-desk-file__name">答辩稿（只在应用内）</span><span class="ss-desk-file__end">v3</span></button>
+      </div>
+      <div class="ss-desk-nav__section" style="flex:1">
+        <div class="ss-desk-nav__head"><span>大纲</span><button class="ss-icon-btn" type="button" aria-label="全部收起" data-tip="全部收起"><i data-i="chevrons-down-up"></i></button></div>
+        <ul class="ss-outline"><li><button type="button" style="--lv:0">第三章 研究设计</button></li><li><button type="button" style="--lv:1">3.1 研究方法</button></li><li><button type="button" style="--lv:1" aria-current="true">3.2 样本与数据</button></li><li><button type="button" style="--lv:2">3.2.1 指标合成</button></li><li><button type="button" style="--lv:2">3.2.2 校准</button></li><li><button type="button" style="--lv:1">3.3 稳健性检验</button></li><li><button type="button" style="--lv:0">第四章 实证结果</button></li><li><button type="button" style="--lv:1">4.1 必要条件分析</button></li><li><button type="button" style="--lv:1">4.2 组态分析</button></li><li><button type="button" style="--lv:0">第五章 结论与讨论</button></li></ul>
+      </div>
+      <div class="ss-splitter ss-splitter--end" data-min="180" data-max="320" data-default="232"></div>
+    </aside>
+    <main class="ss-desk-canvas"><button class="ss-desk-orb" type="button" aria-label="秘书" data-tip="这个对话的秘书"><i data-i="clipboard-list"></i></button>
+      <article class="ss-page">
+        <h1>第三章　研究设计</h1>
+        <h2>3.1　研究方法</h2>
+        <p>本章采用模糊集定性比较分析（fsQCA）识别城市经济韧性的条件组态，并以面板回归检验结论的稳健性。与传统回归关注单一变量的净效应不同，组态视角关注多个条件如何共同导致结果，适合解释“多条路径通向同一结果”的现象。</p>
+        <div style="position:relative">
+        <p>经济韧性指数采用熵权法合成，涵盖抵抗力、恢复力与再组织能力三个维度，各维度下设 4–6 个二级指标，权重由各指标的信息熵确定。</p>
+        </div>
+        <h2>3.2　样本与数据</h2>
+        <p>研究样本为 <span class="ss-bind" data-tip="索引：data/city_panel.csv、scripts/sample.py">98 个地级市</span>，时间跨度为 2010–2022 年，数据主要来自《中国城市统计年鉴》和各市统计公报，缺失值用线性插值补齐。</p>
+        <p>结果表明，在样本量为 98 的条件下，组态方法的解释力总体高于基线模型，<span class="ss-cmt">但对东部城市的区分度有限</span>。</p>
+        <p class="ss-page__eq"><span class="ss-atom" data-tip="Word 公式：只显示，保存时原样保留"><span class="ss-math"><i>CI</i><sub><i>i</i></sub><span class="ss-math__op">=</span><span class="ss-limits"><small><i>m</i></small><span>∑</span><small><i>j</i>=1</small></span><i>w</i><sub><i>j</i></sub><i>x</i><sub><i>ij</i></sub></span></span><span class="ss-page__eqno">（3-1）</span></p>
+        <p><span class="ss-flash">一致性阈值设为 <span class="ss-cmt" data-active>0.85</span>，案例频数阈值设为 2</span>；校准锚点分别取各条件的第 95、50、5 百分位，<span class="ss-qmark">对应“完全隶属”“交叉点”和“完全不隶属”</span>。</p>
+        <table><caption>表 3-1　条件变量与校准锚点</caption>
+          <thead><tr><th>条件</th><th>完全隶属</th><th>交叉点</th><th>完全不隶属</th></tr></thead>
+          <tbody><tr><td>数字经济水平</td><td>0.82</td><td>0.41</td><td>0.12</td></tr><tr><td>产业结构高级化</td><td>1.96</td><td>1.08</td><td>0.63</td></tr><tr><td>政府干预</td><td>0.31</td><td>0.18</td><td>0.09</td></tr></tbody>
+        </table>
+        <span class="ss-page__pageno">— 23 —</span>
+      </article>
+    </main>
+    <aside class="ss-panel" style="width:376px">
+      <div class="ss-splitter ss-splitter--start" data-min="280" data-max="560" data-default="376"></div>
+      <div class="ss-panel__head" style="padding-left:8px"><nav class="ss-tabs" role="tablist" aria-label="侧栏" style="align-self:stretch"><button class="ss-tab" role="tab" type="button" aria-selected="false">批注与索引<span class="ss-tab__count">5</span></button><button class="ss-tab" role="tab" type="button" aria-selected="true">对话</button></nav><span style="flex:1"></span><button class="ss-icon-btn" type="button" aria-label="关闭侧栏" data-tip="关闭侧栏"><i data-i="x"></i></button></div>
+      <div class="ss-toolbar ss-desk-chat__bar"><i data-i="message-square" class="ss-i--sm" style="color:var(--ink-2)"></i><span class="ss-desk-chat__title ss-truncate">第三章：组态分析</span><span class="ss-tag">分支</span><span style="flex:1"></span><button class="ss-icon-btn" type="button" aria-label="在主窗口打开这段对话" data-tip="在主窗口打开这段对话"><i data-i="app-window"></i></button><button class="ss-icon-btn" type="button" aria-label="更多" data-tip="更多" aria-haspopup="menu"><i data-i="ellipsis"></i></button></div>
+      <div class="ss-thread ss-desk-chat__thread">
+        <p class="ss-desk-chat__origin"><i data-i="git-branch" class="ss-i--sm"></i>10-21 从「研究设计讨论」分出，原对话停在初稿</p>
+        <div class="ss-msg ss-msg--user">
+          <div class="ss-msg__bubble">3.2 节这两句帮我核对一下数据来源。</div>
+          <div class="ss-msg__files"><span class="ss-file-chip" data-tip="在编辑台里定位到这句"><span class="ss-ftype ss-ftype--docx" aria-hidden="true">W</span><button type="button" class="ss-file-chip__open">thesis.docx · 3.2 节</button></span></div>
+        </div>
+        <div class="ss-msg">
+          <div class="ss-msg__head"><span class="ss-avatar">主</span><span class="ss-msg__name">主专家</span><span class="ss-msg__role">deepseek-v4-pro</span></div>
+          <div class="ss-act"><button class="ss-act__summary" type="button" aria-expanded="false">用时 21 秒 · 读了 2 个文件，改写 1 句<i data-i="chevron-down"></i></button></div>
+          <div class="ss-msg__body"><p>98 个城市来自 data/city_panel.csv 去重后的结果，和 scripts/sample.py 一致。第二句“缺失值用线性插值补齐”在脚本里实际是前后两年均值，我改成了“用相邻年份均值补齐”，并加了一条索引。</p></div>
+          <div class="ss-msg__files"><span class="ss-file-chip"><span class="ss-ftype ss-ftype--docx" aria-hidden="true">W</span><button type="button" class="ss-file-chip__open">thesis.docx · 3.2 节 · 改写 1 句</button></span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">看改了什么</button></div>
+        </div>
+        <div class="ss-msg">
+          <div class="ss-msg__head"><span class="ss-avatar">方</span><span class="ss-msg__name">方法专家</span><span class="ss-msg__role">deepseek-v4-flash</span></div>
+          <div class="ss-msg__body"><p>补充一点：0.85 的一致性阈值建议在脚注里引 Ragin 2008 第 3 章，我在原文上留了一条批注。</p></div>
+        </div>
+      </div>
+      <div class="ss-composer-wrap ss-desk-chat__composer">
+        <div class="ss-composer">
+          <div class="ss-composer__files"><span class="ss-file-chip"><i data-i="text-quote"></i><span class="ss-truncate">“一致性阈值设为 0.85，案例频数阈值设为 2”</span><button type="button" aria-label="移除"><i data-i="x"></i></button></span></div>
+          <textarea class="ss-composer__input" rows="1" aria-label="和专家讨论这份文稿" placeholder="和专家讨论这份文稿，@ 点名">这里的阈值依据够不够？</textarea>
+          <div class="ss-composer__bar"><button class="ss-icon-btn" type="button" aria-label="添加文件或资料" data-tip="添加文件或资料"><i data-i="plus"></i></button><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" aria-haspopup="menu" data-tip="执行方式"><i data-i="shield-check"></i>请求批准<i data-i="chevron-down"></i></button><span class="ss-composer__spacer"></span><button class="ss-send" type="button" aria-label="发送" data-tip="发送" data-kbd="Enter"><i data-i="arrow-up"></i></button></div>
+        </div>
+      </div>
+      
+    </aside>
+  </div>
+  <footer class="ss-statusbar">
+    <span class="ss-statusbar__item"><span class="ss-ftype ss-ftype--docx" aria-hidden="true">W</span>thesis.docx</span><span class="ss-statusbar__item">v7 · 主线 · 草稿</span><span class="ss-statusbar__item"><span class="ss-dot ss-dot--warn"></span>有 4 处修改未写回</span><span class="ss-statusbar__item">12,480 字</span>
+    <span class="ss-statusbar__spacer"></span>
+    <button class="ss-statusbar__btn" type="button" aria-pressed="false" data-tip="这份文稿的版本分叉树"><i data-i="git-fork"></i>版本树</button>
+    <button class="ss-statusbar__btn" type="button"><i data-i="message-square"></i>第三章：组态分析</button>
+    <span class="ss-statusbar__item">100%</span>
+  </footer>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

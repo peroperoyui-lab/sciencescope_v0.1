@@ -5873,6 +5873,43 @@ button.ss-vfold {
 .ss-desk-orb:hover {
   color: var(--ink);
 }
+.ss-desk-orb[aria-disabled='true'] {
+  color: var(--faint);
+  box-shadow: none;
+  cursor: default;
+}
+/* The bound conversation in the desk's side panel (U8): the chat thread and
+   composer, spaced for a narrow column. */
+.ss-desk-chat__bar {
+  gap: 6px;
+  padding: 6px 8px 6px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.ss-desk-chat__title {
+  min-width: 0;
+  font-weight: 600;
+  font-size: 13px;
+}
+.ss-desk-chat__thread {
+  flex: 1;
+  align-content: start;
+  gap: var(--sp-16);
+  width: 100%;
+  min-height: 0;
+  padding: 12px 14px;
+  overflow-y: auto;
+}
+.ss-desk-chat__origin {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.ss-desk-chat__composer {
+  padding: 0 10px 10px;
+}
 /* Markdown and other plain documents: no first-line indent, headings flush left. */
 .ss-page--md {
   font-family: var(--font-sans);

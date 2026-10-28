@@ -859,3 +859,111 @@ card('DeskIndexPicker', 'group="编辑台" height=1090 subtitle="添加索引：
 - 至少选一项来源才能添加，左下角写明原因。添加后侧栏打开「批注与索引」，新卡片亮起。
 - 只用已有组件：对话框、分段按钮、输入框、列表行、复选框、标签、文本框。
 ''')
+
+# ---------- U8: the bound conversation in the side panel ----------
+CHAT_HEAD = ('<div class="ss-toolbar ss-desk-chat__bar">'
+             '<i data-i="message-square" class="ss-i--sm" style="color:var(--ink-2)"></i>'
+             '<span class="ss-desk-chat__title ss-truncate">第三章：组态分析</span><span class="ss-tag">分支</span>'
+             '<span style="flex:1"></span>'
+             + icon_btn('app-window', '在主窗口打开这段对话') + icon_btn('ellipsis', '更多', ' aria-haspopup="menu"') + '</div>')
+CHAT_THREAD = f'''<div class="ss-thread ss-desk-chat__thread">
+        <p class="ss-desk-chat__origin"><i data-i="git-branch" class="ss-i--sm"></i>10-21 从「研究设计讨论」分出，原对话停在初稿</p>
+        <div class="ss-msg ss-msg--user">
+          <div class="ss-msg__bubble">3.2 节这两句帮我核对一下数据来源。</div>
+          <div class="ss-msg__files"><span class="ss-file-chip" data-tip="在编辑台里定位到这句">{ftype('docx')}<button type="button" class="ss-file-chip__open">thesis.docx · 3.2 节</button></span></div>
+        </div>
+        <div class="ss-msg">
+          <div class="ss-msg__head">{AV_MAIN}<span class="ss-msg__name">主专家</span><span class="ss-msg__role">deepseek-v4-pro</span></div>
+          <div class="ss-act"><button class="ss-act__summary" type="button" aria-expanded="false">用时 21 秒 · 读了 2 个文件，改写 1 句<i data-i="chevron-down"></i></button></div>
+          <div class="ss-msg__body"><p>98 个城市来自 data/city_panel.csv 去重后的结果，和 scripts/sample.py 一致。第二句“缺失值用线性插值补齐”在脚本里实际是前后两年均值，我改成了“用相邻年份均值补齐”，并加了一条索引。</p></div>
+          <div class="ss-msg__files"><span class="ss-file-chip">{ftype('docx')}<button type="button" class="ss-file-chip__open">thesis.docx · 3.2 节 · 改写 1 句</button></span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">看改了什么</button></div>
+        </div>
+        <div class="ss-msg">
+          <div class="ss-msg__head"><span class="ss-avatar">方</span><span class="ss-msg__name">方法专家</span><span class="ss-msg__role">deepseek-v4-flash</span></div>
+          <div class="ss-msg__body"><p>补充一点：0.85 的一致性阈值建议在脚注里引 Ragin 2008 第 3 章，我在原文上留了一条批注。</p></div>
+        </div>
+      </div>'''
+
+
+def chat_composer(running=False):
+    send = ('<button class="ss-send" type="button" aria-label="停止" data-tip="停止" data-kbd="Esc" data-state="running"><span class="ss-send__stop"></span></button>'
+            if running else '<button class="ss-send" type="button" aria-label="发送" data-tip="发送" data-kbd="Enter"><i data-i="arrow-up"></i></button>')
+    quote = '' if running else ('<div class="ss-composer__files"><span class="ss-file-chip"><i data-i="text-quote"></i>'
+                                '<span class="ss-truncate">“一致性阈值设为 0.85，案例频数阈值设为 2”</span>'
+                                '<button type="button" aria-label="移除"><i data-i="x"></i></button></span></div>')
+    text = '' if running else '这里的阈值依据够不够？'
+    return f'''<div class="ss-composer-wrap ss-desk-chat__composer">
+        <div class="ss-composer">
+          {quote}
+          <textarea class="ss-composer__input" rows="1" aria-label="和专家讨论这份文稿" placeholder="和专家讨论这份文稿，@ 点名">{text}</textarea>
+          <div class="ss-composer__bar">{icon_btn('plus', '添加文件或资料')}<button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" aria-haspopup="menu" data-tip="执行方式"><i data-i="shield-check"></i>请求批准<i data-i="chevron-down"></i></button><span class="ss-composer__spacer"></span>{send}</div>
+        </div>
+      </div>'''
+
+
+chat_inner = f'''{CHAT_HEAD}
+      {CHAT_THREAD}
+      {chat_composer()}'''
+chat_body = f'''{nav('thesis.docx', DOCX_OUTLINE)}
+    <main class="ss-desk-canvas">{ORB}
+      {docx_page(toolbar=False, flash=True)}
+    </main>
+    {panel(PANEL_TABS, '对话', chat_inner, width=376)}'''
+card('PageDeskChat', 'group="编辑台" page height=900 width=1536 subtitle="对话：右侧栏「对话」是编辑台绑定的那段对话，可以接着和专家讨论这份文稿；引用到对话放进这里的输入框"',
+     window('thesis.docx', 'docx', chat_body, DOCX_STATUS, dirty=('thesis.docx',)), '''
+整页示例：编辑台右侧栏的「对话」（U8）。编辑台绑定的那段对话（从对话进入时接续或分出的那段，或左栏直接进入时项目最近的对话）在这里显示，和主窗口里是同一段对话。
+
+## 区域
+
+- 头部一行：对话名；分出来的对话带「分支」标签；「在主窗口打开这段对话」；「更多」菜单（见 DeskChatStates）。
+- 消息：和主窗口一样的消息样式，侧栏窄，只是间距收紧。分支的第一行写明从哪段对话分出。
+- 输入框：和主窗口同一个输入框，去掉模型选择（跟随对话设置）；「引用到对话」把选中的原文作为引用标签放进这里，侧栏自动切到「对话」。
+
+## 演示的规则
+
+- 消息里的文稿标记（thesis.docx · 3.2 节）点一下，正文滚到那句并闪一下高亮；专家改了正文的消息带「看改了什么」。
+- 主窗口和编辑台同时开着这段对话时，两边的消息实时同步；在哪边发都行。
+- 底栏右边的对话名就是绑定的对话，点它切到这个标签。
+''')
+
+unbound = f'''<aside class="ss-panel" style="width:330px;height:420px;position:relative">
+      <div class="ss-panel__head" style="padding-left:8px"><nav class="ss-tabs" role="tablist" aria-label="侧栏" style="align-self:stretch"><button class="ss-tab" role="tab" type="button" aria-selected="false">批注与索引</button><button class="ss-tab" role="tab" type="button" aria-selected="true">对话</button></nav><span style="flex:1"></span>{icon_btn('x', '关闭侧栏')}</div>
+      <div class="ss-panel__body">
+        <div class="ss-empty">
+          <div class="ss-empty__icon"><i data-i="message-square-plus"></i></div>
+          <div class="ss-empty__title">还没有绑定对话</div>
+          <div class="ss-empty__text">绑定后可以在这里和专家讨论这份文稿，秘书也跟着这段对话。</div>
+          <div class="ss-empty__actions"><button class="ss-btn ss-btn--primary ss-btn--sm" type="button">接续最近的对话</button><button class="ss-btn ss-btn--sm" type="button">选一个对话…</button></div>
+        </div>
+      </div>
+    </aside>'''
+more_menu = '''<div class="ss-menu" data-static role="menu" aria-label="对话" style="min-width:220px">
+      <button class="ss-menu__item" type="button" role="menuitem"><i data-i="app-window"></i>在主窗口打开</button>
+      <button class="ss-menu__item" type="button" role="menuitem"><i data-i="git-branch"></i>从最新消息开新分支</button>
+      <button class="ss-menu__item" type="button" role="menuitem"><i data-i="arrow-left-right"></i>换成别的对话…</button>
+    </div>'''
+secretary = f'''<aside class="ss-panel" style="width:330px;height:420px">
+      <div class="ss-panel__head">{icon_btn('arrow-left', '回到对话')}<i data-i="clipboard-list" style="margin:0 6px;color:var(--ink-2)"></i><span class="ss-panel__title">任务秘书 · 第三章：组态分析</span>{icon_btn('x', '关闭侧栏')}</div>
+      <div class="ss-thread ss-desk-chat__thread">
+        <div class="ss-msg ss-msg--user"><div class="ss-msg__bubble">把今天在编辑台里定下的改动记进纪要。</div></div>
+        <div class="ss-msg"><div class="ss-msg__head">{AV_SEC}<span class="ss-msg__name">任务秘书</span></div><div class="ss-msg__body"><p>已记入纪要第 4 版：3.2 节缺失值处理改为相邻年份均值；阈值依据待补 Ragin 2008。</p></div></div>
+      </div>
+      <div class="ss-composer-wrap ss-desk-chat__composer"><div class="ss-composer"><textarea class="ss-composer__input" rows="1" placeholder="问秘书，或让它整理纪要…"></textarea><div class="ss-composer__bar"><span class="ss-composer__spacer"></span><button class="ss-send" type="button" aria-label="发送" disabled><i data-i="arrow-up"></i></button></div></div></div>
+    </aside>'''
+orbs = f'''<div style="display:flex;gap:16px;align-items:center">
+      <div class="ss-desk-canvas" style="position:relative;width:120px;height:72px;overflow:hidden;border-radius:var(--r-md)">{ORB}</div>
+      <div class="ss-desk-canvas" style="position:relative;width:120px;height:72px;overflow:hidden;border-radius:var(--r-md)"><button class="ss-desk-orb" type="button" aria-label="秘书" aria-disabled="true" data-tip="绑定对话后才有秘书"><i data-i="clipboard-list"></i></button></div>
+    </div>'''
+states = f'''<div class="ds" style="grid-template-columns:repeat(2,auto);justify-content:start;align-items:start;gap:16px 24px">
+  <div class="ds-col">{unbound}<span class="ds-label">① 没有绑定对话：接续项目最近的对话，或选一个</span></div>
+  <div class="ds-col">{secretary}<span class="ds-label">② 点秘书按钮：侧栏换成这段对话的任务秘书（和主窗口同一个），左上角回到对话</span></div>
+  <div class="ds-col">{more_menu}<span class="ds-label">③ 头部「更多」：在主窗口打开、从最新消息开新分支、换成别的对话</span></div>
+  <div class="ds-col">{orbs}<span class="ds-label">④ 正文右上角的秘书按钮；没绑定对话时停用</span></div>
+</div>'''
+card('DeskChatStates', 'group="编辑台" height=640 subtitle="对话标签的其他状态：没有绑定对话、更多菜单、秘书按钮打开任务秘书"', states, '''
+编辑台「对话」标签的其他状态（U8）。整页见 PageDeskChat。
+
+- 没有绑定对话：空状态，「接续最近的对话」（跳过归档、临时、附属和全局助手的对话；没有就新建「编辑台」对话），「选一个对话…」列出这个项目的对话。
+- 「更多」：在主窗口打开；从最新消息开新分支（原对话不变，编辑台改绑新分支）；换成别的对话。
+- 秘书按钮：在正文右上角，点开后侧栏换成绑定对话的任务秘书，和主窗口的秘书面板是同一段；头部左边箭头回到对话。没有绑定对话时按钮停用，悬停说明原因。
+''')
