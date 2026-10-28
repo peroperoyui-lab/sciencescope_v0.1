@@ -182,7 +182,7 @@ export function Welcome({ projectId = null }) {
     },
   ];
 
-  return html`<main class="main ss-main">
+  return html`<main class="ss-main">
     <div class="ss-header">
       <div class="ss-header__title"><span>${t('新对话')}</span></div>
       <${ChoiceMenu}

@@ -161,7 +161,7 @@ export function AllChats() {
           )
           .filter(([, entries]) => entries.length);
 
-  return html`<main class="main ss-main">
+  return html`<main class="ss-main">
     <div class="ss-header">
       <div class="ss-header__title"><span>${t('全部对话')}</span></div>
       <span class="ss-header__sep"></span>

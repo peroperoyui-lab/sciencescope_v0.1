@@ -55,7 +55,7 @@
 .assistant-panel #app {
   height: calc(100vh - 16px);
 }
-.assistant-panel .detached-shell {
+.assistant-panel .assistant-window {
   width: 100%;
   min-height: 0;
 }
@@ -144,15 +144,43 @@
   stroke-width: 1.75;
 }
 
-/* The floating assistant orb shows the vector mark in the accent colour. */
-.assistant-orb .assistant-orb__mark {
-  width: 28px;
-  height: 28px;
-  color: var(--accent);
+/* The floating assistant orb (its own small native window, ?surface=assistant-orb). */
+.ss-orb-view {
+  display: grid;
+  place-items: center;
+  height: 100vh;
 }
-.native-orb .assistant-orb .assistant-orb__mark {
+button.ss-orb {
+  padding: 0;
+  cursor: pointer;
+  transition: transform var(--t-med) var(--ease);
+}
+button.ss-orb:hover {
+  transform: scale(1.06);
+}
+.native-orb,
+.native-orb body {
+  overflow: hidden !important;
+  background: transparent !important;
+}
+.native-orb .ss-orb-view {
+  width: 64px;
+  height: 64px;
+}
+.native-orb .ss-orb {
+  width: 58px;
+  height: 58px;
+  box-shadow: none;
+  border-color: var(--line-strong);
+  cursor: grab;
+}
+.native-orb .ss-orb:active {
+  cursor: grabbing;
+}
+.native-orb .ss-orb > .ss-logo {
   width: 34px;
   height: 34px;
+  pointer-events: none;
 }
 
 /* With the editing desk on, manuscript versions live in the desk and the map takes their place. */

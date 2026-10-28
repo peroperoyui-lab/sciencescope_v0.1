@@ -39,9 +39,10 @@ export function AssistantOrb() {
       setError(t('助手窗口操作失败，请重试。'));
     }
   }
-  return html`<div class="orb-view">
+  return html`<div class="ss-orb-view">
     <button
-      class="assistant-orb"
+      type="button"
+      class="ss-orb"
       data-v="toggle-orb"
       aria-label=${t('展开或收起全局助手')}
       aria-expanded=${mode === 'expanded'}
@@ -81,7 +82,7 @@ export function AssistantOrb() {
         if (isNative()) void attempt(() => globalThis.__TAURI__.core.invoke('show_assistant_menu'));
       }}
     >
-      <${LogoMark} className="ss-logo assistant-orb__mark" />
+      <${LogoMark} className="ss-logo" />
     </button>
   </div>`;
 }

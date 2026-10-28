@@ -18,9 +18,10 @@
 }
 
 /* ---------- Conversation page ---------- */
-.ss-main > .chatlayout {
+.ss-chat-layout {
+  position: relative;
+  display: flex;
   flex: 1;
-  height: auto;
   min-height: 0;
 }
 .chat-col {
@@ -107,8 +108,8 @@
 /* 视图 → 简洁执行记录 hides the activity timeline; a card waiting for
    approval stays, or the answer would wait unseen. The status line still
    says what is running. */
-.hide-tools .ss-act:not([data-running]),
-.hide-tools .ss-act__list > :not(.ss-approve) {
+.ss-chat-layout--compact .ss-act:not([data-running]),
+.ss-chat-layout--compact .ss-act__list > :not(.ss-approve) {
   display: none;
 }
 

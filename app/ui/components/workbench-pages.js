@@ -18,7 +18,7 @@ export function WorkbenchPage({ view, projectId }) {
   const projects = useAppState((state) => state.projects);
   const project = projects.find((p) => p.id === projectId);
   if (!project)
-    return html`<main class="main ss-main">
+    return html`<main class="ss-main">
       <div class="ss-empty">${t('找不到这个项目。')}</div>
     </main>`;
   if (view === 'files') return html`<${ProjectFolderPage} project=${project} />`;
@@ -30,7 +30,7 @@ export function WorkbenchPage({ view, projectId }) {
       full
     />`;
   } else content = html`<${JournalStrip} project=${project} full />`;
-  return html`<main class="main ss-main">
+  return html`<main class="ss-main">
     <div class="ss-header">
       <button
         type="button"

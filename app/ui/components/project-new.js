@@ -29,7 +29,7 @@ export function ProjectNew() {
     if (project) navigate({ view: 'workbench', id: project.id });
   }
 
-  return html`<main class="main ss-main">
+  return html`<main class="ss-main">
     <div class="ss-header">
       <button
         type="button"

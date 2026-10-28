@@ -130,13 +130,13 @@ test(
           await child.goto(new URL('/?surface=assistant', page.url()).href);
           await child.getByLabel('全局助手输入').waitFor();
           assert.equal(await child.locator('.ss-titlebar,.ss-sidebar,.ss-statusbar').count(), 0);
-          assert.equal(await child.locator('.detached-shell').count(), 1);
+          assert.equal(await child.locator('.assistant-window').count(), 1);
           assert.equal(
             (await calls(child)).filter(([command]) => command === 'open_secondary_window').length,
             0,
           );
           await child
-            .locator('.assistant-home-links')
+            .locator('[data-assistant-home]')
             .getByRole('link', { name: 'Detached assistant project', exact: true })
             .click();
           await page.waitForFunction((id) => location.hash === '#/workbench/' + id, project.id);

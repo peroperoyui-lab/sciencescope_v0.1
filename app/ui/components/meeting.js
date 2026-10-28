@@ -203,8 +203,8 @@ export function MeetingView({ meetingId, focusMessageId }) {
   }, [meetingId]);
 
   if (!meeting) {
-    return html`<main class="main">
-      <div class="empty">${loadError || t('找不到这个对话。')}</div>
+    return html`<main class="ss-main">
+      <div class="ss-empty">${loadError || t('找不到这个对话。')}</div>
     </main>`;
   }
   const byId = new Map(participants.map((p) => [p.id, p]));
@@ -297,7 +297,7 @@ export function MeetingView({ meetingId, focusMessageId }) {
   const members = meeting.members
     .map((member) => byId.get(member.participantId))
     .filter((participant) => participant && participant.kind !== 'human');
-  return html`<main class="main ss-main">
+  return html`<main class="ss-main">
     <div class="ss-header">
       <div class="ss-header__title" title=${meeting.title}><span>${meeting.title}</span></div>
       ${
@@ -358,7 +358,7 @@ export function MeetingView({ meetingId, focusMessageId }) {
         </button>
       </div>
     </div>
-    <div class=${`chatlayout ${compact ? 'hide-tools' : ''}`}>
+    <div class=${`ss-chat-layout${compact ? ' ss-chat-layout--compact' : ''}`}>
       <div class="chat-col">
         ${meeting.policy.mode === 'round' && html`<${DiscussionStrip} meetingId=${meeting.id} running=${running} />`}
         ${

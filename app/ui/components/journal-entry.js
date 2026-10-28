@@ -355,7 +355,7 @@ export function JournalEntryPage({ projectId, line, initial }) {
     return () => window.removeEventListener('keydown', key);
   }, [projectId]);
   const entry = document && parseLog(document.text).find((item) => item.start === line);
-  return html`<main class="main ss-main journal-page">
+  return html`<main class="ss-main journal-page">
     ${
       entry
         ? html`<${JournalEntry}

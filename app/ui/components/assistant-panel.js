@@ -19,7 +19,7 @@ function HomeLinks() {
   const open = projects
     .filter((project) => !project.archived)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  return html`<nav class="side-panel__home assistant-home-links" aria-label=${t('最近项目')}>
+  return html`<nav class="side-panel__home" data-assistant-home aria-label=${t('最近项目')}>
     <div class="ss-section-title">${t('最近项目')}</div>
     <div class="ss-list">
       ${open.slice(0, 5).map(
@@ -83,7 +83,7 @@ export function AssistantPanel({ onClose, detached = false }) {
     onClose=${onClose}
     detached=${detached}
     onHeadPointerDown=${drag}
-    className=${detached ? 'detached-shell' : 'global-assistant-panel'}
+    className=${detached ? 'assistant-window' : 'global-assistant-panel'}
     buttons=${
       detached &&
       isNative() &&

@@ -574,7 +574,7 @@ export function MapEditor({ projectId, focusNodeId }) {
       </div>
     </aside>`;
 
-  return html`<main class="main ss-main map-page">
+  return html`<main class="ss-main map-page">
       <div class="ss-header">
         <button
           type="button"

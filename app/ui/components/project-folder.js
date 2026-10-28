@@ -613,7 +613,7 @@ export function ProjectFolderPage({ project }) {
       t('项目资料'),
     );
   const empty = tree.loaded && !tree.rows.length;
-  return html`<main class="main ss-main ss-folder-page">
+  return html`<main class="ss-main ss-folder-page">
     <div class="ss-header">
       <button
         type="button"

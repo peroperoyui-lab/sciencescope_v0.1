@@ -94,7 +94,7 @@ test(
             .find((meeting) => meeting.policy.respondent === 'agent_assistant');
           assert.ok(assistant);
           assert.equal(
-            await page.locator('.navscroll').getByText(assistant.title, { exact: true }).count(),
+            await page.locator('.ss-sidebar').getByText(assistant.title, { exact: true }).count(),
             0,
           );
           await input.fill('Draft survives hiding.');

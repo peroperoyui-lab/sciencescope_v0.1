@@ -665,7 +665,7 @@ export function Workbench({ projectId }) {
   const [versions, setVersions] = useState(false);
   const project = projects.find((p) => p.id === projectId);
   if (!project) {
-    return html`<main class="main ss-main">
+    return html`<main class="ss-main">
       <div class="ss-empty">${t('找不到这个项目。')}</div>
     </main>`;
   }
@@ -712,7 +712,7 @@ export function Workbench({ projectId }) {
       ],
       project.name,
     );
-  return html`<main class="main ss-main workbench-page">
+  return html`<main class="ss-main workbench-page">
       <div class="ss-header">
         <div class="ss-header__title"><span>${t('工作站')}</span></div>
         <${ChoiceMenu}
