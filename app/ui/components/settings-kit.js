@@ -100,7 +100,7 @@ export function Seg({ label, options, value, onChange, small = true }) {
  * A select: the design system trigger and a single-choice menu.
  * @template T
  * @param {{ label: string, value: T, options: Array<{ value: T, text: string, description?: string } | { group: string }>,
- *   onChange: (value: T) => void, width?: number, small?: boolean, disabled?: boolean, placeholder?: string }} props
+ *   onChange: (value: T) => void, width?: number | string, small?: boolean, disabled?: boolean, placeholder?: string }} props
  */
 export function Select({
   label,
@@ -119,7 +119,7 @@ export function Select({
     disabled=${disabled}
     placement="bottom-start"
     triggerClass=${`ss-select ${small ? 'ss-select--sm' : ''}`}
-    attrs=${{ style: `width:${width}px` }}
+    attrs=${{ style: `width:${typeof width === 'number' ? `${width}px` : width}` }}
     items=${options.map((option) =>
       'group' in option
         ? option

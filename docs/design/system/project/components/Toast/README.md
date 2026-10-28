@@ -2,7 +2,7 @@
 
 ## 用法
 
-`SS.toast('已归档「Zipf 定律推导」', { action: '撤销' })`；出错时加 `tone: 'danger'`，提醒加 `tone: 'warn'`。带动作的提示停留 6 秒。提示出现在 `ss-toasts` 区域，状态栏上方、右边距 16px。
+`SS.toast('已归档「Zipf 定律推导」', { action: '撤销' })`；出错时加 `tone: 'danger'`，提醒加 `tone: 'warn'`。带动作的提示停留 6 秒。提示出现在 `ss-toasts` 区域，状态栏上方、右边距 16px。页面下方有输入框时，提示条在输入框上方，不挡住发送按钮。
 
 ## 规则
 

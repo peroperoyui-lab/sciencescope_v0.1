@@ -86,12 +86,7 @@ test(
           location.hash = '#/project-new';
         });
         await page.locator('#new-project-name').fill('分析项目');
-        await page.waitForFunction(
-          (id) =>
-            /** @type {HTMLSelectElement} */ (document.querySelector('#new-project-python'))
-              ?.value === id,
-          entry.id,
-        );
+        await page.locator(`#new-project-python[data-value="${entry.id}"]`).waitFor();
         await page.getByRole('button', { name: '创建项目', exact: true }).click();
         await page.getByText('分析项目', { exact: true }).first().waitFor();
         const project = app.core.projects.list().find((item) => item.name === '分析项目');
@@ -110,7 +105,9 @@ test(
         assert.equal(await app.python.selected(meeting.id, null), 'system');
         await page.keyboard.press('Control+Alt+N');
         await page.getByRole('dialog').waitFor();
-        await page.locator('#python-choice').selectOption('system');
+        await page.locator('#python-choice').getByRole('button', { name: 'Python 环境' }).click();
+        await page.getByRole('menuitemradio', { name: '系统 Python', exact: true }).click();
+        await page.locator('#python-choice[data-value="system"]').waitFor();
         await shot('python-new-chat-zh');
         await page.getByRole('button', { name: '确定', exact: true }).click();
         const before = app.core.meetings.list().length;

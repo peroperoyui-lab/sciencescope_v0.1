@@ -465,6 +465,9 @@ button {
   gap: var(--sp-4);
   min-width: 0;
 }
+.ss-field > .ss-select {
+  max-width: none;
+}
 .ss-field__label {
   color: var(--ink-2);
   font-size: 12px;
@@ -483,6 +486,33 @@ button {
   color: var(--danger);
   font-size: 12px;
   line-height: 18px;
+}
+
+/* A text box with buttons beside it (a folder path and 选择已有文件夹). */
+.ss-field-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+.ss-field-row > .ss-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* A page that is one form (新建项目): a centred column, buttons at its end. */
+.ss-form-page {
+  display: grid;
+  gap: var(--sp-16);
+  width: min(560px, 100%);
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+.ss-form-page__foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-8);
+  padding-top: var(--sp-8);
 }
 
 /* Name / value rows (request headers, environment variables); a saved secret shows as a line instead of its value. */
@@ -1429,6 +1459,7 @@ html[data-resizing] * {
   color: var(--on-tooltip);
   font-size: 12px;
   line-height: 18px;
+  white-space: pre-line;
   pointer-events: none;
   animation: ss-fade var(--t-fast) var(--ease);
 }
@@ -1859,6 +1890,10 @@ html[data-resizing] * {
   z-index: var(--z-toast);
   display: grid;
   gap: var(--sp-8);
+}
+/* Above the composer, so a toast never covers 发送. */
+.ss-shell:has(.ss-composer-wrap) ~ .ss-toasts {
+  bottom: 136px;
 }
 .ss-toast {
   display: flex;

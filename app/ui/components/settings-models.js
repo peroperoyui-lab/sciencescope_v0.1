@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
+import { Info } from './info-tip.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
 import { thinkingChoices, useModelCatalog } from '../model-catalog.js';
@@ -43,17 +44,7 @@ const PROTOCOLS = [
   ['anthropic-messages', 'Anthropic Messages'],
 ];
 
-/** @param {{ text: string, label?: string }} props */
-export function Info({ text, label }) {
-  return html`<button
-    type="button"
-    class="ss-info"
-    aria-label=${label ?? t('说明')}
-    data-tip=${text}
-  >
-    <${Lucide} name="info" />
-  </button>`;
-}
+export { Info };
 
 /** "128K" for 131072 and "384K" for 384000: binary only for powers of two. @param {number} value */
 export function capacity(value) {
