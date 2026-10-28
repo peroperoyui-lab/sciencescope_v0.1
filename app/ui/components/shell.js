@@ -1,5 +1,5 @@
-// Window chrome in the old interface's markup: the top bar with its menus and
-// window controls, and the status bar.
+// Window chrome (TitleBar, StatusLine): the title bar with its menus and window
+// controls, and the status bar with the connection to the local service.
 import { useEffect } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
@@ -17,8 +17,8 @@ function nativeWindow() {
   return globalThis.__TAURI__?.window?.getCurrentWindow?.() ?? null;
 }
 
-/** @param {{ projectName?: string, projectId?: string | null }} props */
-export function Topbar({ projectName, projectId }) {
+/** @param {{ projectName?: string, projectId?: string | null, meetingId?: string | null }} props */
+export function Topbar({ projectName, projectId, meetingId = null }) {
   const actions = useActions();
   const settings = useAppState((state) => state.settings);
   const win = nativeWindow();
@@ -32,23 +32,44 @@ export function Topbar({ projectName, projectId }) {
   const groups = [
     [
       {
-        text: t('新聊天'),
-        icon: 'chat',
+        text: t('新对话'),
+        icon: 'square-pen',
         key: settings?.shortcuts?.newChat,
         run: () =>
           projectId ? navigate({ view: 'new', id: projectId }) : actions.newIndependent(),
       },
       {
-        text: t('独立快速聊天'),
-        icon: 'chat',
+        text: t('独立快速对话'),
+        icon: 'message-square',
         key: settings?.shortcuts?.independentChat,
         run: actions.newIndependent,
       },
       {
         text: t('新建项目'),
-        icon: 'folder',
+        icon: 'folder-plus',
         run: () => navigate({ view: 'project-new' }),
       },
+      ...(meetingId || projectId ? [{ sep: true }] : []),
+      ...(meetingId
+        ? [
+            {
+              text: t('导出当前对话（Markdown）'),
+              icon: 'download',
+              run: () =>
+                actions.attempt(() => actions.download(`/api/meetings/${meetingId}/export`)),
+            },
+          ]
+        : []),
+      ...(projectId
+        ? [
+            {
+              text: t('导出项目快照'),
+              icon: 'package',
+              run: () =>
+                actions.attempt(() => actions.download(`/api/projects/${projectId}/export`)),
+            },
+          ]
+        : []),
     ],
     [
       {
@@ -75,8 +96,8 @@ export function Topbar({ projectName, projectId }) {
     ],
     [
       {
-        text: t('浏览全部对话'),
-        icon: 'chat',
+        text: t('全部对话'),
+        icon: 'layout-list',
         key: settings?.shortcuts?.browse,
         run: () => navigate({ view: 'all' }),
       },
@@ -84,7 +105,7 @@ export function Topbar({ projectName, projectId }) {
         ? [
             {
               text: t('工作站'),
-              icon: 'cube',
+              icon: 'box',
               run: () => navigate({ view: 'workbench', id: projectId }),
             },
           ]
@@ -92,13 +113,14 @@ export function Topbar({ projectName, projectId }) {
       { sep: true },
       {
         text: t('全局助手'),
-        icon: 'users',
+        icon: 'sparkle',
         run: () => actions.showAssistant(true),
       },
       ...(win
         ? [
             {
               text: t('窗口置顶'),
+              icon: 'pin',
               check: onTop,
               run: () => actions.updateSettings({ appearance: { alwaysOnTop: !onTop } }),
             },
@@ -137,102 +159,94 @@ export function Topbar({ projectName, projectId }) {
     [
       {
         text: t('键盘快捷键'),
-        icon: 'gear',
+        icon: 'keyboard',
         run: () => navigate({ view: 'settings', id: 'shortcuts' }),
       },
       {
         text: t('关于 ScienceScope'),
-        icon: 'help',
+        icon: 'info',
         run: () => navigate({ view: 'settings', id: 'about' }),
       },
     ],
   ];
   const titles = [t('文件'), t('编辑'), t('视图'), t('帮助')];
 
-  return html`<div class="topbar" data-tauri-drag-region>
-    <button class="brand" onClick=${() => navigate({ view: 'home' })}>
-      <${LogoMark} className="ss-logo" /><span>ScienceScope</span>
+  return html`<header class="ss-titlebar" data-tauri-drag-region>
+    <button
+      type="button"
+      class="ss-titlebar__brand"
+      aria-label=${t('新对话')}
+      onClick=${() => navigate({ view: 'home' })}
+    >
+      <${LogoMark} className="ss-logo" />ScienceScope
     </button>
     ${titles.map(
       (title, index) =>
         html`<button
           key=${title}
-          data-v="top-menu"
+          type="button"
+          class="ss-titlebar__menu"
           aria-haspopup="menu"
           onClick=${(event) => actions.openMenu(event, groups[index], title)}
         >
           ${title}
         </button>`,
     )}
-    <span class="spacer" data-tauri-drag-region></span>
-    <span class="muted">${projectName || 'ScienceScope'}</span>
+    <span class="ss-titlebar__spacer" data-tauri-drag-region></span>
+    <span class="ss-titlebar__title" data-tauri-drag-region>${projectName || 'ScienceScope'}</span>
     ${
       win &&
-      html`<div class="windowctl">
-        <button
-          class="windowctl__pin"
-          title=${onTop ? t('取消窗口置顶') : t('窗口置顶')}
+      html`<button
+          type="button"
+          class="ss-winctl ss-winctl--pin"
           aria-label=${t('窗口置顶')}
           aria-pressed=${String(onTop)}
+          data-tip=${onTop ? t('取消窗口置顶') : t('窗口置顶')}
           onClick=${() => actions.updateSettings({ appearance: { alwaysOnTop: !onTop } })}
         >
-          <${Lucide} name="pin" small />
+          <${Lucide} name="pin" />
         </button>
-        <button title=${t('最小化')} onClick=${() => win.minimize()}>−</button>
-        <button title=${t('最大化')} onClick=${() => win.toggleMaximize()}>□</button>
-        <button title=${t('关闭主窗口')} onClick=${() => win.close()}>×</button>
-      </div>`
+        <button
+          type="button"
+          class="ss-winctl"
+          aria-label=${t('最小化')}
+          onClick=${() => win.minimize()}
+        >
+          <${Lucide} name="minus" />
+        </button>
+        <button
+          type="button"
+          class="ss-winctl"
+          aria-label=${t('最大化')}
+          onClick=${() => win.toggleMaximize()}
+        >
+          <${Lucide} name="square" />
+        </button>
+        <button
+          type="button"
+          class="ss-winctl ss-winctl--close"
+          aria-label=${t('关闭主窗口')}
+          onClick=${() => win.close()}
+        >
+          <${Lucide} name="x" />
+        </button>`
     }
-  </div>`;
+  </header>`;
 }
 
-/** 状态栏 → 导出: the open meeting as Markdown, the current project as a zip. */
-function useExportMenu(meetingId, projectId) {
-  const actions = useActions();
-  return (event) =>
-    actions.openMenu(
-      event,
-      [
-        ...(meetingId
-          ? [
-              {
-                text: t('导出当前对话（Markdown）'),
-                icon: 'download',
-                run: () =>
-                  actions.attempt(() => actions.download(`/api/meetings/${meetingId}/export`)),
-              },
-            ]
-          : []),
-        ...(projectId
-          ? [
-              {
-                text: t('导出项目快照'),
-                icon: 'download',
-                run: () =>
-                  actions.attempt(() => actions.download(`/api/projects/${projectId}/export`)),
-              },
-            ]
-          : []),
-      ],
-      t('导出'),
-    );
-}
-
-/** @param {{ meetingId?: string | null, projectId?: string | null }} props */
-export function Footbar({ meetingId = null, projectId = null }) {
+export function Footbar() {
   const connected = useAppState((state) => state.connected);
-  const exportMenu = useExportMenu(meetingId, projectId);
-  const text =
+  const [tone, text] =
     connected === null
-      ? t('正在连接本机服务…')
+      ? ['warn', t('正在连接本机服务…')]
       : connected
-        ? t('本机运行时已连接')
-        : t('与本机服务的连接已断开，正在重连…');
-  return html`<footer class="foot" data-runtime=${connected ? 'ready' : 'offline'}>
-    <span class="badge-dot"></span>
-    <span class="foot-text">${text}</span>
-    <span class="spacer"></span>
-    ${(meetingId || projectId) && html`<button onClick=${exportMenu}>${t('导出')}</button>`}
+        ? ['ok', t('本机运行时已连接')]
+        : ['danger', t('与本机服务的连接已断开，正在重连…')];
+  return html`<footer class="ss-statusbar" data-runtime=${connected ? 'ready' : 'offline'}>
+    <span class="ss-statusbar__item" role="status">
+      <span class=${`ss-dot ss-dot--${tone}`}></span>${text}
+    </span>
+    <span class="ss-statusbar__spacer"></span>
   </footer>`;
 }
 

@@ -86,7 +86,7 @@ test(
         assert.notEqual(refreshed.revision, edited.revision);
         assert.ok(refreshed.throughSeq > edited.throughSeq);
         await page
-          .locator('.modal')
+          .locator('#modal .ss-dialog')
           .evaluate((element) =>
             Promise.all(
               element.getAnimations().map((animation) => animation.finished.catch(() => {})),
@@ -160,7 +160,7 @@ test(
         await page.locator('[data-minutes-next]', { hasText: '10 more messages' }).waitFor();
         assert.doesNotMatch(await page.locator('.minutes-dialog').innerText(), /[一-鿿]/u);
         await page
-          .locator('.modal')
+          .locator('#modal .ss-dialog')
           .evaluate((element) =>
             Promise.all(
               element.getAnimations().map((animation) => animation.finished.catch(() => {})),

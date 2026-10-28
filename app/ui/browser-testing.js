@@ -56,7 +56,7 @@ export async function withBrowserApp(name, script, work, options = {}) {
       await page.screenshot({ path: path.join(folder, `${shotName}.png`) });
     };
     await page.goto(`${url}/?token=ui-token`);
-    await page.locator('.topbar').waitFor();
+    await page.locator('.ss-titlebar').waitFor();
     await work({ page, app, shot });
     if (errors.length) throw new Error(`Page errors: ${errors.join('; ')}`);
   } finally {

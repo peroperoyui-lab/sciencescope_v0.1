@@ -172,6 +172,9 @@ export const en = {
   '分支自「{name}」': 'Branched from “{name}”',
   '{n} 个对话，含 {m} 个分支对话': '{n} chats, {m} of them branches',
   这里还没有对话: 'No chats here yet',
+  打开设置: 'Open settings',
+  命令: 'Commands',
+  独立快速对话: 'Quick standalone chat',
   '今天想研究什么？': 'What would you like to research today?',
   发送: 'Send',
   '回答达到模型的单次输出上限，后面的内容没有写出。':

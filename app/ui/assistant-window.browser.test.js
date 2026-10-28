@@ -129,7 +129,7 @@ test(
         try {
           await child.goto(new URL('/?surface=assistant', page.url()).href);
           await child.getByLabel('全局助手输入').waitFor();
-          assert.equal(await child.locator('.topbar,.ss-sidebar,.foot').count(), 0);
+          assert.equal(await child.locator('.ss-titlebar,.ss-sidebar,.ss-statusbar').count(), 0);
           assert.equal(await child.locator('.detached-shell').count(), 1);
           assert.equal(
             (await calls(child)).filter(([command]) => command === 'open_secondary_window').length,
@@ -167,7 +167,7 @@ test(
           const button = orb.getByRole('button', { name: '展开或收起全局助手', exact: true });
           await button.waitFor();
           assert.equal(
-            await orb.locator('.native-resize-frame,.assistant-surface,.topbar').count(),
+            await orb.locator('.native-resize-frame,.assistant-surface,.ss-titlebar').count(),
             0,
           );
           assert.equal(requests, 0);

@@ -872,6 +872,13 @@ button {
   font-size: 13px;
   font-weight: 600;
 }
+button.ss-titlebar__brand {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: default;
+  -webkit-app-region: no-drag;
+}
 .ss-titlebar__menu {
   height: 26px;
   padding: 0 8px;
@@ -1700,6 +1707,11 @@ html[data-resizing] * {
   top: 10px;
   right: 10px;
 }
+.ss-dialog__form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
 .ss-dialog__head {
   display: flex;
   flex: none;
@@ -1798,6 +1810,12 @@ html[data-resizing] * {
 }
 .ss-cmd__item > .ss-i {
   color: var(--ink-2);
+}
+.ss-cmd__empty {
+  padding: var(--sp-16);
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
 }
 .ss-cmd__item:hover {
   background: var(--hover);

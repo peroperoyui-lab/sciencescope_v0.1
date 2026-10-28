@@ -54,7 +54,7 @@ test(
         // No fade-in, so screenshots show finished menus.
         await page.emulateMedia({ reducedMotion: 'reduce' });
         await page.reload();
-        await page.locator('.topbar').waitFor();
+        await page.locator('.ss-titlebar').waitFor();
 
         // The unsent draft stays with its chat.
         await page.goto(page.url().replace(/#.*$/, '') + `#/meeting/${first.id}`);
@@ -83,13 +83,13 @@ test(
         // F2 renames the open chat.
         await page.locator('.ss-header__title').click();
         await page.keyboard.press('F2');
-        const name = page.locator('.ss-dialog input, .modal input').first();
+        const name = page.locator('.ss-dialog input').first();
         await name.fill('访谈提纲（第二版）');
         await name.press('Enter');
         await page.locator('.ss-header__title', { hasText: '访谈提纲（第二版）' }).waitFor();
 
         // Find is only offered where there is a find bar.
-        await page.locator('.topbar button', { hasText: '编辑' }).click();
+        await page.locator('.ss-titlebar__menu', { hasText: '编辑' }).click();
         assert.equal(
           await page.locator('[role="menuitem"]', { hasText: '查找当前对话' }).isDisabled(),
           false,
@@ -108,7 +108,7 @@ test(
         await page.locator('[role="menuitem"]', { hasText: '取消置顶' }).waitFor();
         await shot('all-chats-menu');
         await page.keyboard.press('Escape');
-        await page.locator('.topbar button', { hasText: '编辑' }).click();
+        await page.locator('.ss-titlebar__menu', { hasText: '编辑' }).click();
         assert.equal(
           await page.locator('[role="menuitem"]', { hasText: '查找当前对话' }).isDisabled(),
           true,
@@ -116,10 +116,10 @@ test(
         await page.keyboard.press('Escape');
 
         // 窗口置顶 is a setting applied to the native window.
-        const pin = page.locator('.windowctl__pin');
+        const pin = page.locator('.ss-winctl--pin');
         assert.equal(await pin.getAttribute('aria-pressed'), 'false');
         await pin.click();
-        await page.locator('.windowctl__pin[aria-pressed="true"]').waitFor();
+        await page.locator('.ss-winctl--pin[aria-pressed="true"]').waitFor();
         await page.waitForFunction(() =>
           /** @type {any} */ (window).windowCalls.some(
             ([call, value]) => call === 'setAlwaysOnTop' && value === true,

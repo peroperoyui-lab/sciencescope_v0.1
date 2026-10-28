@@ -85,7 +85,7 @@ test('a person organises a project on the workbench', { skip: browserSkip }, () 
     assert.ok((await stat(folder)).isDirectory());
 
     const download = page.waitForEvent('download');
-    await page.locator('.foot').getByRole('button', { name: '导出' }).click();
+    await page.locator('.ss-titlebar__menu', { hasText: '文件' }).click();
     await page.getByRole('menuitem', { name: '导出项目快照' }).click();
     // The zip holds the project's own folder (the name comes from the response header).
     const saved = await readFile(await (await download).path());

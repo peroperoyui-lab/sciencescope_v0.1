@@ -107,7 +107,10 @@ test(
 
       await page.keyboard.press('Control+K');
       await page.getByPlaceholder('搜索项目、对话或消息…').fill('面板');
-      await page.locator('.command-results button', { hasText: '清洗面板数据' }).first().waitFor();
+      await page
+        .locator('#command-palette .ss-cmd__item', { hasText: '清洗面板数据' })
+        .first()
+        .waitFor();
       await page.keyboard.press('Escape');
 
       await page

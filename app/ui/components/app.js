@@ -148,17 +148,17 @@ export function App() {
     page = html`<${WorkbenchPage} view=${route.view} projectId=${route.id} />`;
   } else page = html`<${Welcome} projectId=${route.view === 'new' ? route.id : null} />`;
 
-  return html`<${Topbar} projectName=${projectName} projectId=${projectId} />
-    <div class="app">
-      <${Sidebar} route=${route} currentProjectId=${projectId} />
-      ${page} ${materialsTarget && html`<${MaterialsPanel} target=${materialsTarget} />`}
-      <${FilePreview} />
-      ${assistantOpen && html`<${AssistantPanel} onClose=${() => actions.showAssistant(false)} />`}
+  const meetingId = route.view === 'meeting' ? route.id.split('/')[0] : null;
+  return html`<div class="ss-shell">
+      <${Topbar} projectName=${projectName} projectId=${projectId} meetingId=${meetingId} />
+      <div class="ss-shell__body">
+        <${Sidebar} route=${route} currentProjectId=${projectId} />
+        ${page} ${materialsTarget && html`<${MaterialsPanel} target=${materialsTarget} />`}
+        <${FilePreview} />
+        ${assistantOpen && html`<${AssistantPanel} onClose=${() => actions.showAssistant(false)} />`}
+      </div>
+      <${Footbar} />
     </div>
-    <${Footbar}
-      meetingId=${route.view === 'meeting' ? route.id.split('/')[0] : null}
-      projectId=${projectId}
-    />
     ${
       settingsPage !== null &&
       html`<${SettingsDialog} page=${settingsPage} onClose=${() => navigate(behind.current)} />`
