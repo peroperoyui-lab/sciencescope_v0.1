@@ -1,3 +1,6 @@
+// A research item (claim, model, memory…) as a card: title and state, body,
+// its structured parts, evidence for memories, and its actions. Also the
+// structured parts alone, and an item's revision history.
 import { html } from '../html.js';
 import { renderMarkdown, renderFormula } from '../markdown.js';
 import { t } from '../i18n/index.js';
@@ -7,36 +10,58 @@ import { researchLabel } from './research-fields.js';
 /** @param {{item:any,onAction:(action:string,item:any)=>void}} props */
 export function ResearchCard({ item, onAction }) {
   const button = (text, action) =>
-    html`<button type="button" class="btn tiny" onClick=${() => onAction(action, item)}>
+    html`<button
+      type="button"
+      class="ss-btn ss-btn--ghost ss-btn--sm"
+      onClick=${() => onAction(action, item)}
+    >
       ${t(text)}
     </button>`;
-  return html`<article class="card rb-card" data-rb-item=${item.id}>
-    <div class="between">
-      <h3>${item.title}</h3>
-      <span class="badge">${researchLabel(item.status)}</span>
+  return html`<article class="ss-item-card" data-rb-item=${item.id}>
+    <div class="ss-item-card__head">
+      <h3 class="ss-item-card__title">${item.title}</h3>
+      <span class="ss-tag">${researchLabel(item.status)}</span>
     </div>
-    <small>${researchLabel(item.subtype)} · r${item.revision}</small>
-    <div
-      class="rendered-markdown"
-      dangerouslySetInnerHTML=${{ __html: renderMarkdown(item.body) }}
-    ></div>
+    <span class="ss-item-card__meta">${researchLabel(item.subtype)} · r${item.revision}</span>
+    <div class="ss-prose" dangerouslySetInnerHTML=${{ __html: renderMarkdown(item.body) }}></div>
     <${ResearchPayload} item=${item} />
-    ${item.supersededBy && html`<div><button class="btn tiny" onClick=${() => onAction('detail', { id: item.supersededBy })}>${t('查看取代记录')}</button></div>`}
+    ${
+      item.supersededBy &&
+      html`<button
+        type="button"
+        class="ss-linkbtn"
+        onClick=${() => onAction('detail', { id: item.supersededBy })}
+      >
+        ${t('查看取代记录')}
+      </button>`
+    }
     ${item.type === 'memory' && html`<${MemoryEvidence} item=${item} />`}
-    <div class="rb-row-actions">
-      ${button('编辑', 'edit')}${button(item.pinned ? '取消置顶' : '置顶', 'pin')}${item.status === 'active' && html`${button('归档', 'archive')}${button('取代', 'supersede')}`}${button('修订历史', 'history')}
+    <div class="ss-item-card__actions">
+      ${button('编辑', 'edit')}${button(item.pinned ? '取消置顶' : '置顶', 'pin')}${
+        item.status === 'active' && html`${button('归档', 'archive')}${button('取代', 'supersede')}`
+      }${button('修订历史', 'history')}
     </div>
   </article>`;
 }
 /** Structured parts of a model or claim: formula, variables, assumptions, steps, state. @param {{item:any}} props */
 export function ResearchPayload({ item }) {
   const payload = item.payload ?? {};
-  return html`${item.type === 'claim' && html`<span class="badge">${researchLabel(payload.claimStatus ?? 'hypothesis')}</span>`}
+  return html`${
+    item.type === 'claim' &&
+    html`<span class="ss-tag">${researchLabel(payload.claimStatus ?? 'hypothesis')}</span>`
+  }
   ${
     item.type === 'model' &&
-    html`${payload.latex && html`<div class="rb-latex" aria-label=${t('公式')} dangerouslySetInnerHTML=${{ __html: renderFormula(payload.latex) }}></div>`}${
+    html`${
+      payload.latex &&
+      html`<div
+        class="ss-formula"
+        aria-label=${t('公式')}
+        dangerouslySetInnerHTML=${{ __html: renderFormula(payload.latex) }}
+      ></div>`
+    }${
       payload.variables?.length > 0 &&
-      html`<table class="table">
+      html`<table class="ss-table">
         <thead>
           <tr>
             <th>${t('符号')}</th>
@@ -57,34 +82,44 @@ export function ResearchPayload({ item }) {
       </table>`
     }${
       payload.assumptions?.length > 0 &&
-      html`<h4>${t('假设')}</h4>
+      html`<div class="ss-prose">
+        <h4>${t('假设')}</h4>
         <ul>
           ${payload.assumptions.map((assumption) => html`<li>${assumption}</li>`)}
-        </ul>`
+        </ul>
+      </div>`
     }${
       payload.steps?.length > 0 &&
-      html`<h4>${t('步骤')}</h4>
+      html`<div class="ss-prose">
+        <h4>${t('步骤')}</h4>
         <ol>
           ${payload.steps.map((step) => html`<li>${step}</li>`)}
-        </ol>`
+        </ol>
+      </div>`
     }`
   }`;
 }
 /** @param {{detail:any}} props */
 export function ResearchHistory({ detail }) {
-  return html`<div class="rb-dialog" data-rb-history>
+  return html`<div class="ss-revisions" data-rb-history>
     ${[
       ...detail.revisions,
       { revision: detail.item.revision, snapshot: detail.item, changedAt: detail.item.updatedAt },
     ].map(
       (revision) =>
-        html`<article class="card">
-          <strong>r${revision.revision}</strong> <small>${revision.changedAt}</small>
+        html`<article class="ss-item-card" key=${revision.revision}>
+          <span class="ss-item-card__meta"
+            ><strong>r${revision.revision}</strong> · ${revision.changedAt}
+            ${revision.snapshot.status && html` · ${researchLabel(revision.snapshot.status)}`}</span
+          >
           <div
-            class="rendered-markdown"
+            class="ss-prose"
             dangerouslySetInnerHTML=${{ __html: renderMarkdown(revision.snapshot.body) }}
           ></div>
-          <pre>${JSON.stringify(revision.snapshot, null, 2)}</pre>
+          <details class="ss-revisions__raw">
+            <summary>${t('全部字段')}</summary>
+            <pre>${JSON.stringify(revision.snapshot, null, 2)}</pre>
+          </details>
         </article>`,
     )}
   </div>`;

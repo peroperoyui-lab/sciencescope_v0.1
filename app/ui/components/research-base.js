@@ -244,14 +244,19 @@ export function ResearchBase({ view, projectId = null }) {
       else if (action === 'history')
         actions.openModal(
           t('修订历史'),
-          current.type === 'memory'
-            ? html`<${MemoryHistory} itemId=${item.id} />`
-            : html`<${ResearchHistory} detail=${detail} />`,
+          html`<div class="ss-dialog__body">
+            ${
+              current.type === 'memory'
+                ? html`<${MemoryHistory} itemId=${item.id} />`
+                : html`<${ResearchHistory} detail=${detail} />`
+            }
+          </div>`,
+          'lg',
         );
       else if (action === 'detail')
         actions.openModal(
           t('条目详情'),
-          html`<div class="rb-dialog">
+          html`<div class="ss-dialog__body">
             <${ResearchCard} item=${current} onAction=${itemAction} />
           </div>`,
         );
@@ -329,7 +334,11 @@ export function ResearchBase({ view, projectId = null }) {
   async function sourceAction(action, source) {
     await actions.attempt(async () => {
       if (action === 'detail')
-        actions.openModal(t('材料详情'), html`<${ResearchSourceDetail} sourceId=${source.id} />`);
+        actions.openModal(
+          t('材料详情'),
+          html`<${ResearchSourceDetail} sourceId=${source.id} />`,
+          'lg',
+        );
       else if (action === 'edit-source') {
         const detail = await actions.researchSource(source.id);
         actions.openModal(
@@ -371,6 +380,7 @@ export function ResearchBase({ view, projectId = null }) {
         focusChunkId=${hit.type === 'chunk' ? hit.id : undefined}
         ordinal=${hit.ordinal ?? 0}
       />`,
+      'lg',
     );
   }
   async function importFiles(event) {
@@ -406,7 +416,7 @@ export function ResearchBase({ view, projectId = null }) {
   }
 
   if (view === 'sources')
-    return html`<main class="main ss-main research-base">
+    return html`<main class="ss-main research-base">
       <div class="ss-header">
         <button
           type="button"
@@ -476,7 +486,7 @@ export function ResearchBase({ view, projectId = null }) {
         rows.length > 0 &&
         html`<section>
           <h3 class="ss-section-title">${researchLabel(subtype)}</h3>
-          <div class="rb-cards">
+          <div class="ss-item-cards">
             ${rows.map((item) => html`<${ResearchCard} key=${item.id} item=${item} onAction=${itemAction} />`)}
           </div>
         </section>`
@@ -490,7 +500,7 @@ export function ResearchBase({ view, projectId = null }) {
       menu=${itemMenu}
     />`;
 
-  return html`<main class="main ss-main research-base">
+  return html`<main class="ss-main research-base">
       <div class="ss-header">
         <div class="ss-header__title"><span>${scopeId ? t('数据库') : t('知识库')}</span></div>
         <${ChoiceMenu}

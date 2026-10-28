@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
+import { Lucide } from '../icons.js';
 import { t } from '../i18n/index.js';
 import { InfoTip } from './info-tip.js';
 import { SidePanel } from './side-panel.js';
@@ -66,8 +67,9 @@ export function MaterialsPanel({ target }) {
     buttons=${html`<${InfoTip} text=${t('选择来源或共享条目加入当前输入；不会自动发送。')} />`}
   >
     <div class="ss-panel__body">
-      <div class="rb-materials">
+      <div class="ss-materials">
         <form
+          class="ss-toolbar"
           onSubmit=${(event) => {
             event.preventDefault();
             setOffset(0);
@@ -82,23 +84,51 @@ export function MaterialsPanel({ target }) {
               onInput=${(event) => setText(event.currentTarget.value)} /></span
           ><button class="ss-btn ss-btn--sm">${t('搜索')}</button>
         </form>
-        ${error && html`<p role="alert">${error}</p>`}
-        <div class="rb-materials-list">
-          ${result.rows.map((entry) => html`<label key=${entry.id}><input type="checkbox" checked=${draft?.materials.some((old) => old.id === entry.id)} onChange=${(event) => actions.attempt(() => actions.changeInput(target.owner, event.currentTarget.checked ? { op: 'add', material: entry } : { op: 'remove', selectionId: draft.materials.find((old) => old.id === entry.id)?.selectionId }))} />${entry.label ? entry.label + ' · ' : ''}${entry.title}</label>`)}
+        ${error && html`<p class="ss-field__error" role="alert">${error}</p>`}
+        <div class="ss-materials__list">
+          ${result.rows.map(
+            (entry) =>
+              html`<label class="ss-check" key=${entry.id}
+                ><input
+                  type="checkbox"
+                  checked=${draft?.materials.some((old) => old.id === entry.id)}
+                  onChange=${(event) =>
+                    actions.attempt(() =>
+                      actions.changeInput(
+                        target.owner,
+                        event.currentTarget.checked
+                          ? { op: 'add', material: entry }
+                          : {
+                              op: 'remove',
+                              selectionId: draft.materials.find((old) => old.id === entry.id)
+                                ?.selectionId,
+                            },
+                      ),
+                    )}
+                /><span>${entry.label ? entry.label + ' · ' : ''}${entry.title}</span></label
+              >`,
+          )}
         </div>
-        <div class="rb-pagination">
+        <div class="ss-pager">
           <button
-            class="ss-btn ss-btn--sm"
+            type="button"
+            class="ss-icon-btn ss-icon-btn--sm"
+            aria-label=${t('上一页')}
+            data-tip=${t('上一页')}
             disabled=${offset === 0}
             onClick=${() => setOffset(offset - 50)}
           >
-            ${t('上一页')}</button
-          ><button
-            class="ss-btn ss-btn--sm"
+            <${Lucide} name="chevron-left" />
+          </button>
+          <button
+            type="button"
+            class="ss-icon-btn ss-icon-btn--sm"
+            aria-label=${t('下一页')}
+            data-tip=${t('下一页')}
             disabled=${!result.more}
             onClick=${() => setOffset(offset + 50)}
           >
-            ${t('下一页')}
+            <${Lucide} name="chevron-right" />
           </button>
         </div>
       </div>

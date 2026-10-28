@@ -11,6 +11,15 @@ import {
 } from './research-fields.js';
 import { entityKinds, kindLabel } from './knowledge-fields.js';
 
+/** 取消 and the submit button under a form in a dialog. @param {{ pending: boolean, text: string }} props */
+function FormFoot({ pending, text }) {
+  const actions = useActions();
+  return html`<div class="ss-dialog__foot">
+    <button type="button" class="ss-btn" onClick=${actions.closeModal}>${t('取消')}</button>
+    <button type="submit" class="ss-btn ss-btn--primary" disabled=${pending}>${text}</button>
+  </div>`;
+}
+
 /** @param {{item:any,replace?:boolean,onSaved:()=>void}} props */
 export function ResearchItemForm({ item, replace = false, onSaved }) {
   const actions = useActions();
@@ -51,29 +60,29 @@ export function ResearchItemForm({ item, replace = false, onSaved }) {
       setPending(false);
     }
   }
-  return html`<form class="rb-dialog" id="rb-item-form" onSubmit=${save}>
-    <${ResearchField} label="标题" name="title" value=${item.title} required />
-    <${ResearchSelect}
-      label="子类型"
-      name="subtype"
-      value=${item.subtype}
-      options=${researchSubtypes[item.type]}
-    />
-    <${ResearchField} label="内容" name="body" value=${item.body} textarea />
-    ${['model', 'claim'].includes(item.type) && html`<${ResearchField} label="结构化内容（JSON）" name="payload" value=${JSON.stringify(item.payload ?? {}, null, 2)} textarea />`}
-    <${ResearchSelect}
-      label="可见性"
-      name="visibility"
-      value=${item.visibility}
-      options=${[
-        ['shared', t('共享')],
-        ['private', t('仅自己')],
-      ]}
-    />
-    <p role="alert">${error}</p>
-    <button class="btn primary" type="submit" disabled=${pending}>
-      ${replace ? t('保存新版本') : t('保存')}
-    </button>
+  return html`<form class="ss-dialog__form" id="rb-item-form" onSubmit=${save}>
+    <div class="ss-dialog__body">
+      <${ResearchField} label="标题" name="title" value=${item.title} required />
+      <${ResearchSelect}
+        label="子类型"
+        name="subtype"
+        value=${item.subtype}
+        options=${researchSubtypes[item.type]}
+      />
+      <${ResearchField} label="内容" name="body" value=${item.body} textarea />
+      ${['model', 'claim'].includes(item.type) && html`<${ResearchField} label="结构化内容（JSON）" name="payload" value=${JSON.stringify(item.payload ?? {}, null, 2)} textarea />`}
+      <${ResearchSelect}
+        label="可见性"
+        name="visibility"
+        value=${item.visibility}
+        options=${[
+          ['shared', t('共享')],
+          ['private', t('仅自己')],
+        ]}
+      />
+      ${error && html`<p class="ss-field__error" role="alert">${error}</p>`}
+    </div>
+    <${FormFoot} pending=${pending} text=${replace ? t('保存新版本') : t('保存')} />
   </form>`;
 }
 /** @param {{source:any,onSaved:()=>void}} props */
@@ -115,21 +124,23 @@ export function ResearchSourceForm({ source, onSaved }) {
       setPending(false);
     }
   }
-  return html`<form class="rb-dialog" id="rb-source-form" onSubmit=${save}>
-    <${ResearchField} label="标题" name="title" value=${source.title} required />
-    <${ResearchSelect} label="类型" name="kind" value=${source.kind} options=${sourceKinds} />
-    <${ResearchField} label="作者" name="authors" value=${authorText(metadata.authors)} />
-    <${ResearchField} label="年份" name="year" value=${metadata.year} />
-    <${ResearchField} label="期刊或来源" name="venue" value=${metadata.venue} />
-    <${ResearchField} label="标签" name="tags" value=${(metadata.tags ?? []).join(', ')} />
-    <${ResearchSelect}
-      label="阅读状态"
-      name="readStatus"
-      value=${metadata.readStatus ?? 'unread'}
-      options=${['unread', 'reading', 'read']}
-    />
-    <p role="alert">${error}</p>
-    <button class="btn primary" type="submit" disabled=${pending}>${t('保存')}</button>
+  return html`<form class="ss-dialog__form" id="rb-source-form" onSubmit=${save}>
+    <div class="ss-dialog__body">
+      <${ResearchField} label="标题" name="title" value=${source.title} required />
+      <${ResearchSelect} label="类型" name="kind" value=${source.kind} options=${sourceKinds} />
+      <${ResearchField} label="作者" name="authors" value=${authorText(metadata.authors)} />
+      <${ResearchField} label="年份" name="year" value=${metadata.year} />
+      <${ResearchField} label="期刊或来源" name="venue" value=${metadata.venue} />
+      <${ResearchField} label="标签" name="tags" value=${(metadata.tags ?? []).join(', ')} />
+      <${ResearchSelect}
+        label="阅读状态"
+        name="readStatus"
+        value=${metadata.readStatus ?? 'unread'}
+        options=${['unread', 'reading', 'read']}
+      />
+      ${error && html`<p class="ss-field__error" role="alert">${error}</p>`}
+    </div>
+    <${FormFoot} pending=${pending} text=${t('保存')} />
   </form>`;
 }
 /**
@@ -180,22 +191,29 @@ export function KnowledgeEntityForm({ entity = null, projectId, onSaved }) {
   }
   const kinds =
     entity && !entityKinds.includes(entity.kind) ? [...entityKinds, entity.kind] : entityKinds;
-  return html`<form class="rb-dialog" id="kb-entity-form" onSubmit=${save}>
-    <${ResearchField} label="名称" name="name" value=${entity?.name ?? ''} required />
-    <${ResearchSelect}
-      label="种类"
-      name="kind"
-      value=${entity?.kind ?? 'concept'}
-      options=${kinds.map((kind) => [kind, kindLabel(kind)])}
-    />
-    <${ResearchField} label="英文名" name="nameEn" value=${entity?.nameEn ?? ''} />
-    <${ResearchField}
-      label="别名（用逗号分隔）"
-      name="aliases"
-      value=${(entity?.aliases ?? []).join(', ')}
-    />
-    <${ResearchField} label="说明" name="description" value=${entity?.description ?? ''} textarea />
-    <p role="alert">${error}</p>
-    <button class="btn primary" type="submit" disabled=${pending}>${t('保存')}</button>
+  return html`<form class="ss-dialog__form" id="kb-entity-form" onSubmit=${save}>
+    <div class="ss-dialog__body">
+      <${ResearchField} label="名称" name="name" value=${entity?.name ?? ''} required />
+      <${ResearchSelect}
+        label="种类"
+        name="kind"
+        value=${entity?.kind ?? 'concept'}
+        options=${kinds.map((kind) => [kind, kindLabel(kind)])}
+      />
+      <${ResearchField} label="英文名" name="nameEn" value=${entity?.nameEn ?? ''} />
+      <${ResearchField}
+        label="别名（用逗号分隔）"
+        name="aliases"
+        value=${(entity?.aliases ?? []).join(', ')}
+      />
+      <${ResearchField}
+        label="说明"
+        name="description"
+        value=${entity?.description ?? ''}
+        textarea
+      />
+      ${error && html`<p class="ss-field__error" role="alert">${error}</p>`}
+    </div>
+    <${FormFoot} pending=${pending} text=${t('保存')} />
   </form>`;
 }

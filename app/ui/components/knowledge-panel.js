@@ -523,9 +523,9 @@ export function KnowledgePanel({
         <dt>${t('修订')}</dt>
         <dd>r${node.revision} · ${shortDate(node.updatedAt)}</dd>
       </dl>
-      <div class="rb-card kb-item-body" data-rb-item-detail=${node.id}>
+      <div class="kb-item-body" data-rb-item-detail=${node.id}>
         <div
-          class="rendered-markdown"
+          class="ss-prose"
           dangerouslySetInnerHTML=${{ __html: renderMarkdown(node.body) }}
         ></div>
         <${ResearchPayload} item=${node} />

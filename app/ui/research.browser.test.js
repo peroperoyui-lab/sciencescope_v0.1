@@ -84,10 +84,10 @@ test(
       await page.getByLabel('统一检索资料与条目').press('Enter');
       await page.locator('[data-rb-search-results] mark').first().waitFor();
       await page.locator('[data-hit-type="chunk"]').first().click();
-      await page.locator('#modal .rb-passage[data-focused="true"]').waitFor();
+      await page.locator('#modal .ss-passage[data-focused="true"]').waitFor();
       assert.match(await page.locator('#modal').innerText(), /第 1 页/);
       assert.match(
-        await page.locator('#modal .rb-passage code').first().innerText(),
+        await page.locator('#modal .ss-passage code').first().innerText(),
         /\[S1 p\.1\]/,
       );
       await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
@@ -139,7 +139,7 @@ test(
       await card.waitFor();
       await rowMenu(page, card, '修订历史');
       assert.match(await page.locator('[data-rb-history]').innerText(), /交通连接/);
-      assert.match(await page.locator('[data-rb-history]').innerText(), /superseded/);
+      assert.match(await page.locator('[data-rb-history]').innerText(), /已取代/);
     }),
 );
 
@@ -337,7 +337,7 @@ test('pin and archive filters preserve item history', { skip: browserSkip }, () 
     await page.keyboard.press('Escape');
     await card.waitFor();
     await rowMenu(page, card, '修订历史');
-    assert.match(await page.locator('[data-rb-history]').innerText(), /archived/);
+    assert.match(await page.locator('[data-rb-history]').innerText(), /已归档/);
   }),
 );
 
@@ -359,8 +359,8 @@ test('models render LaTeX and variables while claims show their state', { skip: 
       );
     await page.locator('#modal').getByRole('button', { name: '保存', exact: true }).click();
     await page.locator('[data-rb-item]', { hasText: '就业恢复模型' }).click();
-    await page.locator('.kb-panel .rb-latex .katex').waitFor();
-    assert.match(await page.locator('.kb-panel .table').innerText(), /创新投入/);
+    await page.locator('.kb-panel .ss-formula .katex').waitFor();
+    assert.match(await page.locator('.kb-panel .ss-table').innerText(), /创新投入/);
     await page.locator('[data-rb-tab="claim"]').click();
     await page.getByRole('button', { name: '新建条目' }).click();
     await page.locator('#modal').getByLabel('标题').fill('创新假说');
@@ -409,7 +409,7 @@ test(
       await page.getByLabel('统一检索资料与条目').press('Enter');
       await page.locator('[data-hit-type="chunk"]').click();
       await page
-        .locator('.rb-passage[data-focused="true"]', { hasText: 'unique regional discovery' })
+        .locator('.ss-passage[data-focused="true"]', { hasText: 'unique regional discovery' })
         .waitFor();
       assert.match(await page.locator('#modal').innerText(), /第 25 页/);
       await page.locator('#modal').getByRole('button', { name: '上一页' }).click();

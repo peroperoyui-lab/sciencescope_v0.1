@@ -111,20 +111,42 @@ export const authorText = (authors = []) =>
     .join('; ');
 /** @param {{label:string,name:string,value?:any,textarea?:boolean,required?:boolean}} props */
 export function ResearchField({ label, name, value = '', textarea = false, required = false }) {
-  return html`<label class="field"
-    >${t(label)}${textarea ? html`<textarea name=${name} aria-label=${t(label)} rows="5" defaultValue=${value} required=${required}></textarea>` : html`<input name=${name} aria-label=${t(label)} defaultValue=${value ?? ''} required=${required} />`}</label
-  >`;
+  return html`<label class="ss-field">
+    <span class="ss-field__label">${t(label)}</span>
+    ${
+      textarea
+        ? html`<textarea
+            class="ss-textarea"
+            name=${name}
+            aria-label=${t(label)}
+            rows="5"
+            defaultValue=${value}
+            required=${required}
+          ></textarea>`
+        : html`<span class="ss-input">
+            <input
+              name=${name}
+              aria-label=${t(label)}
+              defaultValue=${value ?? ''}
+              required=${required}
+            />
+          </span>`
+    }
+  </label>`;
 }
 /** @param {{label:string,name:string,value:any,options:any[]}} props */
 export function ResearchSelect({ label, name, value, options }) {
-  return html`<label class="field"
-    >${t(label)}<select name=${name} aria-label=${t(label)} defaultValue=${value}>
-      ${options.map((entry) => {
-        const [key, title] = Array.isArray(entry) ? entry : [entry, researchLabel(entry)];
-        return html`<option value=${key}>${title}</option>`;
-      })}
-    </select></label
-  >`;
+  return html`<label class="ss-field">
+    <span class="ss-field__label">${t(label)}</span>
+    <span class="ss-input">
+      <select name=${name} aria-label=${t(label)} defaultValue=${value}>
+        ${options.map((entry) => {
+          const [key, title] = Array.isArray(entry) ? entry : [entry, researchLabel(entry)];
+          return html`<option value=${key}>${title}</option>`;
+        })}
+      </select>
+    </span>
+  </label>`;
 }
 /** @param {{text:string,query:string}} props */
 export function ResearchHighlight({ text, query }) {

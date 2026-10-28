@@ -7,7 +7,7 @@ import { t } from '../i18n/index.js';
 import { renderMarkdown } from '../markdown.js';
 import { researchLabel } from './research-fields.js';
 import { MemoryEvidence } from './memory-evidence.js';
-import { InfoTip } from './info-tip.js';
+import { Info } from './info-tip.js';
 
 /**
  * @param {{ item:any, selected:boolean, onSelect:(id:string,selected:boolean)=>void }} props
@@ -35,72 +35,72 @@ function MemoryCandidate({ item, selected, onSelect }) {
       setBusy(false);
     }
   }
-  return html`<article class="card rb-card" data-rb-proposal=${item.id}>
-    <div class="between">
-      <label
+  const button = (text, run, primary = false) =>
+    html`<button
+      type="button"
+      class=${`ss-btn ss-btn--sm${primary ? ' ss-btn--primary' : ''}`}
+      disabled=${busy}
+      onClick=${run}
+    >
+      ${t(text)}
+    </button>`;
+  return html`<article class="ss-item-card" data-rb-proposal=${item.id}>
+    <div class="ss-item-card__head">
+      <label class="ss-check"
         ><input
           type="checkbox"
           checked=${selected}
           aria-label=${t('选择候选记忆：{title}', { title: item.title })}
           onChange=${(event) => onSelect(item.id, event.currentTarget.checked)}
-        />
-        ${researchLabel(item.subtype)}</label
+        /><span>${researchLabel(item.subtype)}</span></label
       >
-      <span class="badge">${t('待确认')}</span>
+      <span class="ss-tag ss-tag--warn">${t('待确认')}</span>
     </div>
-    <h3>${item.title}</h3>
-    <div
-      class="rendered-markdown"
-      dangerouslySetInnerHTML=${{ __html: renderMarkdown(item.body) }}
-    ></div>
+    <h3 class="ss-item-card__title">${item.title}</h3>
+    <div class="ss-prose" dangerouslySetInnerHTML=${{ __html: renderMarkdown(item.body) }}></div>
     <${MemoryEvidence} item=${item} />
     ${
       editing
         ? html`<form
+            class="ss-item-card__form"
             onSubmit=${(event) => {
               event.preventDefault();
               decide('active');
             }}
           >
-            <label class="field"
-              >${t('标题')}<input
-                aria-label=${t('标题')}
-                required
-                value=${title}
-                onInput=${(event) => setTitle(event.currentTarget.value)}
-            /></label>
-            <label class="field"
-              >${t('内容')}<textarea
+            <label class="ss-field">
+              <span class="ss-field__label">${t('标题')}</span>
+              <span class="ss-input"
+                ><input
+                  aria-label=${t('标题')}
+                  required
+                  value=${title}
+                  onInput=${(event) => setTitle(event.currentTarget.value)}
+              /></span>
+            </label>
+            <label class="ss-field">
+              <span class="ss-field__label">${t('内容')}</span>
+              <textarea
+                class="ss-textarea"
                 aria-label=${t('内容')}
                 value=${body}
                 onInput=${(event) => setBody(event.currentTarget.value)}
               ></textarea>
             </label>
-            <button class="btn tiny primary" type="submit" disabled=${busy}>
-              ${t('修改后接受')}
-            </button>
-            <button
-              class="btn tiny"
-              type="button"
-              disabled=${busy}
-              onClick=${() => setEditing(false)}
-            >
-              ${t('取消')}
-            </button>
+            <div class="ss-item-card__actions ss-item-card__actions--solid">
+              <button class="ss-btn ss-btn--sm ss-btn--primary" type="submit" disabled=${busy}>
+                ${t('修改后接受')}
+              </button>
+              ${button('取消', () => setEditing(false))}
+            </div>
           </form>`
-        : html`<div class="rb-row-actions">
-            <button class="btn tiny" disabled=${busy} onClick=${() => decide('active')}>
-              ${t('接受')}
-            </button>
-            <button class="btn tiny" disabled=${busy} onClick=${() => setEditing(true)}>
-              ${t('修改后接受')}
-            </button>
-            <button class="btn tiny" disabled=${busy} onClick=${() => decide('rejected')}>
-              ${t('拒绝')}
-            </button>
+        : html`<div class="ss-item-card__actions ss-item-card__actions--solid">
+            ${button('接受', () => decide('active'), true)}
+            ${button('修改后接受', () => setEditing(true))}
+            ${button('拒绝', () => decide('rejected'))}
           </div>`
     }
-    <p role="alert">${error}</p>
+    ${error && html`<p class="ss-field__error" role="alert">${error}</p>`}
   </article>`;
 }
 
@@ -158,28 +158,30 @@ export function MemoryViews({ projectId, tab, onEdit }) {
       else next.delete(id);
       return next;
     });
-  return html`<div data-memory-view=${tab}>
-    ${error && html`<p role="alert">${error}</p>`}
-    ${loading && html`<p role="status">${t('正在读取…')}</p>`}
+  return html`<div class="ss-memory-view" data-memory-view=${tab}>
+    ${error && html`<p class="ss-field__error" role="alert">${error}</p>`}
+    ${loading && html`<p class="ss-muted" role="status">${t('正在读取…')}</p>`}
     ${
       tab === 'inbox'
-        ? html`<div class="rb-row-actions">
+        ? html`<div class="ss-toolbar">
               <button
-                class="btn tiny"
+                type="button"
+                class="ss-btn ss-btn--sm"
                 disabled=${busy || !selected.size}
                 onClick=${() => bulk('active')}
               >
                 ${t('接受所选')}
               </button>
               <button
-                class="btn tiny"
+                type="button"
+                class="ss-btn ss-btn--sm"
                 disabled=${busy || !selected.size}
                 onClick=${() => bulk('rejected')}
               >
                 ${t('拒绝所选')}
               </button>
             </div>
-            <div class="rb-cards">
+            <div class="ss-item-cards">
               ${items.map(
                 (item) =>
                   html`<${MemoryCandidate}
@@ -190,19 +192,20 @@ export function MemoryViews({ projectId, tab, onEdit }) {
                   />`,
               )}
             </div>
-            ${!items.length && !loading && html`<div class="empty">${t('暂无记录')}</div>`}`
-        : html`<div class="between">
-              <span>${t('项目简报')}</span>
-              <${InfoTip}
+            ${!items.length && !loading && html`<p class="ss-muted">${t('暂无记录')}</p>`}`
+        : html`<div class="ss-block-head">
+              <span class="ss-block-head__title">${t('项目简报')}</span>
+              <${Info}
                 text=${t('这是主专家在当前项目中实际收到的确认记忆简报。置顶且有效的记忆排在前面；不截断内容。')}
               />
             </div>
-            <pre class="rb-brief" data-rb-brief-text>${brief.text}</pre>
-            <div class="rb-row-actions">
+            <pre class="ss-memory-view__brief" data-rb-brief-text>${brief.text}</pre>
+            <div class="ss-item-card__actions">
               ${brief.refs.map(
                 (ref) =>
                   html`<button
-                    class="btn tiny"
+                    type="button"
+                    class="ss-btn ss-btn--ghost ss-btn--sm"
                     onClick=${() => onEdit({ id: ref.id ?? ref.itemId })}
                   >
                     ${t('编辑条目')} [@${ref.id ?? ref.itemId}]

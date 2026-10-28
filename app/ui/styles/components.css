@@ -7230,3 +7230,212 @@ textarea {
   color: var(--muted);
   font-size: 12px;
 }
+
+/* A native select inside a text box (forms read by FormData). */
+.ss-input > select {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  outline: none;
+}
+.ss-dialog__body > .ss-field > .ss-textarea {
+  width: 100%;
+}
+
+/* 材料详情: the source's facts, then its passages with their citations. */
+.ss-source-detail {
+  gap: var(--sp-16);
+  overflow-x: hidden;
+}
+.ss-source-detail__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-8);
+}
+.ss-source-detail__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  overflow-wrap: anywhere;
+}
+.ss-source-detail__wrap {
+  overflow-wrap: anywhere;
+}
+.ss-source-detail__passages {
+  display: grid;
+  gap: var(--sp-8);
+}
+.ss-passage {
+  display: grid;
+  gap: var(--sp-4);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--paper);
+}
+.ss-passage[data-focused='true'] {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+}
+.ss-passage__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-8);
+  font-size: 12px;
+}
+.ss-passage__section {
+  color: var(--muted);
+  font-size: 12px;
+}
+.ss-passage__text {
+  margin: 0;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.ss-passage__cite {
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.ss-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-8);
+  font-size: 12px;
+}
+
+/* A research item as a card (条目详情, revision history). */
+.ss-item-card {
+  display: grid;
+  gap: var(--sp-6);
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+}
+.ss-item-card__head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-8);
+}
+.ss-item-card__title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 20px;
+}
+.ss-item-card__meta {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+.ss-item-card__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-left: -8px;
+}
+.ss-revisions {
+  display: grid;
+  gap: var(--sp-8);
+}
+.ss-revisions__raw > summary {
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.ss-revisions__raw > pre {
+  max-height: 240px;
+  overflow: auto;
+  font-size: 11px;
+}
+.ss-formula {
+  overflow-x: auto;
+  padding: 8px 0;
+}
+.ss-provenance {
+  display: grid;
+  gap: var(--sp-8);
+}
+.ss-provenance__external {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.ss-provenance__item {
+  display: grid;
+  gap: var(--sp-4);
+}
+.ss-provenance__ref {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* Memory inbox and brief (知识库 → 记忆), and the materials side panel. */
+.ss-item-cards {
+  display: grid;
+  gap: var(--sp-8);
+}
+.ss-item-card__head > .ss-check {
+  flex: 1;
+  min-width: 0;
+}
+.ss-item-card__form {
+  display: grid;
+  gap: var(--sp-8);
+}
+.ss-item-card__actions--solid {
+  gap: var(--sp-6);
+  margin-left: 0;
+}
+.ss-memory-view {
+  display: grid;
+  gap: var(--sp-12);
+}
+.ss-memory-view > .ss-toolbar {
+  gap: var(--sp-6);
+}
+.ss-memory-view__brief {
+  max-height: 50vh;
+  margin: 0;
+  overflow: auto;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--sunken);
+  color: var(--ink);
+  font: 12px/18px var(--font-mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.ss-materials {
+  display: grid;
+  gap: var(--sp-8);
+}
+.ss-materials > .ss-toolbar > .ss-input {
+  flex: 1;
+}
+.ss-materials__list {
+  display: grid;
+  gap: var(--sp-4);
+}
+.ss-materials__list > .ss-check {
+  align-items: flex-start;
+}

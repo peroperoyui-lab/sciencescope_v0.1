@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
+import { Lucide } from '../icons.js';
 import { authorText, researchLabel } from './research-fields.js';
 
 /** @param {{sourceId:string,focusChunkId?:string,ordinal?:number}} props */
@@ -34,24 +35,29 @@ export function ResearchSourceDetail({ sourceId, focusChunkId, ordinal = 0 }) {
   }, [detail]);
   const source = detail?.source;
   const metadata = source?.metadata ?? {};
-  return html`<div class="rb-dialog" ref=${body} data-rb-source-detail>
-    ${error && html`<p role="alert">${error}</p>`}
-    ${!source && !error && html`<p role="status">${t('正在读取…')}</p>`}
+  return html`<div class="ss-dialog__body ss-source-detail" ref=${body} data-rb-source-detail>
+    ${error && html`<p class="ss-field__error" role="alert">${error}</p>`}
+    ${!source && !error && html`<p class="ss-muted" role="status">${t('正在读取…')}</p>`}
     ${
       source &&
-      html`<h3>${source.title}</h3>
-        <button
-          class="btn tiny"
-          onClick=${() => {
-            actions.closeModal();
-            actions.openPreview({ kind: 'source', id: source.id });
-          }}
-        >
-          ${t('预览')}
-        </button>
-        <section class="card">
-          <h4>${t('来源信息')}</h4>
-          <dl class="rb-source-info">
+      html`<div class="ss-source-detail__head">
+          <h3 class="ss-source-detail__title">${source.title}</h3>
+          <button
+            type="button"
+            class="ss-btn ss-btn--sm"
+            onClick=${() => {
+              actions.closeModal();
+              actions.openPreview({ kind: 'source', id: source.id });
+            }}
+          >
+            <${Lucide} name="eye" />${t('预览')}
+          </button>
+        </div>
+        <section>
+          <div class="ss-block-head">
+            <span class="ss-block-head__title">${t('来源信息')}</span>
+          </div>
+          <dl class="ss-props">
             <dt>${t('标签')}</dt>
             <dd>${source.label}</dd>
             <dt>${t('作者')}</dt>
@@ -63,55 +69,72 @@ export function ResearchSourceDetail({ sourceId, focusChunkId, ordinal = 0 }) {
             <dt>${t('类型')}</dt>
             <dd>${researchLabel(source.kind)}</dd>
             <dt>${t('原件')}</dt>
-            <dd>${source.name ?? '—'}</dd>
+            <dd class="ss-source-detail__wrap">${source.name ?? '—'}</dd>
             <dt>${t('解析状态')}</dt>
             <dd>${researchLabel(source.contentStatus)} ${source.parser ?? ''}</dd>
           </dl>
-          ${source.parseError && html`<p role="alert">${source.parseError}</p>`}
+          ${source.parseError && html`<p class="ss-field__error" role="alert">${source.parseError}</p>`}
         </section>
-        <h4>${t('段落')}</h4>
-        ${detail.chunks.map(
-          (chunk) =>
-            html`<article
-              class="card rb-passage"
-              data-chunk-id=${chunk.id}
-              data-focused=${chunk.id === focusChunkId ? 'true' : 'false'}
-            >
-              <div class="between">
-                <strong
-                  >${chunk.page != null ? t('第 {page} 页', { page: chunk.page }) : chunk.section || t('段落 {number}', { number: chunk.ordinal + 1 })}</strong
-                ><button
-                  class="btn tiny"
-                  onClick=${() =>
-                    actions.attempt(async () => {
-                      await navigator.clipboard.writeText(chunk.citation);
-                      actions.toast(t('引用已复制。'));
-                    })}
-                >
-                  ${t('复制引用')}
-                </button>
-              </div>
-              ${chunk.section && html`<small>${chunk.section}</small>`}
-              <p class="rb-passage-text">${chunk.text}</p>
-              <code>${chunk.citation}</code>
-            </article>`,
-        )}${!detail.total && html`<div class="empty">${t('暂无可读取的段落')}</div>`}
-        <div class="rb-pagination">
+        <section class="ss-source-detail__passages">
+          <div class="ss-block-head">
+            <span class="ss-block-head__title">${t('段落')}</span>
+            <span class="ss-count">${detail.total}</span>
+          </div>
+          ${detail.chunks.map(
+            (chunk) =>
+              html`<article
+                class="ss-passage"
+                key=${chunk.id}
+                data-chunk-id=${chunk.id}
+                data-focused=${chunk.id === focusChunkId ? 'true' : 'false'}
+              >
+                <div class="ss-passage__head">
+                  <strong
+                    >${chunk.page != null ? t('第 {page} 页', { page: chunk.page }) : chunk.section || t('段落 {number}', { number: chunk.ordinal + 1 })}</strong
+                  >
+                  <button
+                    type="button"
+                    class="ss-btn ss-btn--ghost ss-btn--sm"
+                    onClick=${() =>
+                      actions.attempt(async () => {
+                        await navigator.clipboard.writeText(chunk.citation);
+                        actions.toast(t('引用已复制。'));
+                      })}
+                  >
+                    <${Lucide} name="copy" />${t('复制引用')}
+                  </button>
+                </div>
+                ${chunk.section && html`<span class="ss-passage__section">${chunk.section}</span>`}
+                <p class="ss-passage__text">${chunk.text}</p>
+                <code class="ss-passage__cite">${chunk.citation}</code>
+              </article>`,
+          )}
+          ${!detail.total && html`<p class="ss-muted">${t('暂无可读取的段落')}</p>`}
+        </section>
+        <div class="ss-pager">
           <button
-            class="btn tiny"
+            type="button"
+            class="ss-icon-btn ss-icon-btn--sm"
+            aria-label=${t('上一页')}
+            data-tip=${t('上一页')}
             disabled=${offset === 0}
             onClick=${() => setOffset(Math.max(0, offset - 20))}
           >
-            ${t('上一页')}</button
-          ><span
+            <${Lucide} name="chevron-left" />
+          </button>
+          <span class="ss-muted"
             >${detail.chunks.length ? offset + 1 : 0}–${offset + detail.chunks.length} /
             ${detail.total}</span
-          ><button
-            class="btn tiny"
+          >
+          <button
+            type="button"
+            class="ss-icon-btn ss-icon-btn--sm"
+            aria-label=${t('下一页')}
+            data-tip=${t('下一页')}
             disabled=${!detail.remaining}
             onClick=${() => setOffset(offset + 20)}
           >
-            ${t('下一页')}
+            <${Lucide} name="chevron-right" />
           </button>
         </div>`
     }

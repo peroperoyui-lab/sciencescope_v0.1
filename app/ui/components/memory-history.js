@@ -19,26 +19,29 @@ export function MemoryHistory({ itemId }) {
       .then(setHistory)
       .catch((failure) => setError(failure.message));
   }, [itemId, version]);
-  return html`<div class="rb-dialog" data-memory-history>
-    <p role="alert">${error}</p>
+  return html`<div class="ss-revisions" data-memory-history>
+    ${error && html`<p class="ss-field__error" role="alert">${error}</p>`}
     ${history.map(
       (entry) =>
-        html`<article class="card" key=${entry.id}>
-          <small
+        html`<article class="ss-item-card" key=${entry.id}>
+          <span class="ss-item-card__meta"
             >${formatTime(entry.createdAt)} ·
-            ${entry.actorId === 'agent_secretary' ? t('任务秘书') : t('用户')}</small
+            ${entry.actorId === 'agent_secretary' ? t('任务秘书') : t('用户')}</span
           >
           <div
-            class="rendered-markdown"
+            class="ss-prose"
             dangerouslySetInnerHTML=${{ __html: renderMarkdown(entry.after?.body ?? '') }}
           ></div>
-          <button
-            class="btn tiny"
-            disabled=${entry.undoneBy}
-            onClick=${() => actions.attempt(() => actions.undo(entry.id))}
-          >
-            ${entry.undoneBy ? t('已撤销') : t('撤销')}
-          </button>
+          <div class="ss-item-card__actions">
+            <button
+              type="button"
+              class="ss-btn ss-btn--ghost ss-btn--sm"
+              disabled=${entry.undoneBy}
+              onClick=${() => actions.attempt(() => actions.undo(entry.id))}
+            >
+              ${entry.undoneBy ? t('已撤销') : t('撤销')}
+            </button>
+          </div>
         </article>`,
     )}
   </div>`;
