@@ -6,6 +6,7 @@ import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
+import { Illustration } from '../illustrations.js';
 import { navigate } from '../route.js';
 import { ChatRow, stamp } from './chat-row.js';
 import { ChoiceMenu } from './popover.js';
@@ -252,7 +253,11 @@ export function AllChats() {
                   : html`<div class="ss-list" key="all">${entries.map(render)}</div>`,
               )
             : html`<div class="ss-empty">
-                <div class="ss-empty__icon"><${Lucide} name="message-square" /></div>
+                ${
+                  lower || projectId !== undefined
+                    ? html`<div class="ss-empty__icon"><${Lucide} name="message-square" /></div>`
+                    : html`<${Illustration} name="chat" />`
+                }
                 <div class="ss-empty__title">
                   ${lower || projectId !== undefined ? t('没有匹配的对话') : t('这里还没有对话')}
                 </div>

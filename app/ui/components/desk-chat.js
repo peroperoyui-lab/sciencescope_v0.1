@@ -8,6 +8,7 @@ import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
+import { Illustration } from '../illustrations.js';
 import { routeHref } from '../route.js';
 import { Composer } from './composer.js';
 import { Message } from './chat-message.js';
@@ -101,7 +102,7 @@ export function DeskChat({ meetingId, projectId, onBound }) {
   if (!meetingId)
     return html`<div class="ss-panel__body">
       <div class="ss-empty">
-        <div class="ss-empty__icon"><${Lucide} name="message-square-plus" /></div>
+        <${Illustration} name="chat" />
         <div class="ss-empty__title">${t('还没有绑定对话')}</div>
         <div class="ss-empty__text">
           ${t('绑定后可以在这里和专家讨论这份文稿，秘书也跟着这段对话。')}

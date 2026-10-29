@@ -99,12 +99,14 @@ await write(
   'Illustrations',
   card(
     'Illustrations',
-    'group="品牌" height=760 subtitle="插画：欢迎页和较大的空状态用线描插画代替图标；颜色全部来自令牌，跟随深浅主题"',
+    'group="品牌" height=1100 subtitle="插画：欢迎页和较大的空状态用线描插画代替图标；颜色全部来自令牌，跟随深浅主题"',
     `<div class="ds" style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px">
   ${empty('welcome', '今天想推进哪一步？', '和专家一起读文献、做分析、写论文。', '')}
   ${empty('knowledge', '知识库还是空的', '导入论文、数据说明或网页，专家回答时会引用原文。', '<i data-i="import"></i>导入材料')}
   ${empty('desk', '选择一份文稿开始编辑', '从项目文件夹打开 Word 或 LaTeX 文件；每次修改都能单独撤回。', '<i data-i="folder-open"></i>打开文稿')}
   ${empty('folder', '项目文件夹是空的', '放进论文、数据和代码，应用会建立索引。', '<i data-i="import"></i>导入到此文件夹')}
+  ${empty('chat', '这里还没有对话', '新建一个对话，向主专家提出第一个问题。', '<i data-i="message-square-plus"></i>新对话')}
+  ${empty('versions', '还没有文稿版本', '导入文件为版本，或在编辑台里存为版本；秘书会写下每版的变化。', '<i data-i="import"></i>导入文件为版本')}
 </div>
 <p class="ds-note" style="padding:0 16px">160×120 的线描：线宽 1.5，圆头，和 Lucide 图标一致。线用 ink-2，虚线用 faint，纸面用 raised，浅底用 accent-soft，点睛的四角星用 accent。一屏最多一张插画；小的空状态（列表里、侧栏里）仍用图标或一句话。源在 app/ui/illustrations.js。</p>`,
   ),

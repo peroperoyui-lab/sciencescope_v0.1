@@ -383,7 +383,7 @@ D3b 增加 `GET documents`、`PUT sessions/:id/text` 和 `GET sessions/:id/media
 
 **U8 完成情况（2026-10-28）：** 进入横条在 `app/ui/components/desk-entry.js`（对话页输入框上方），读 `GET /api/desk/suggestion?meetingId=`：返回这段对话最近一次 `desk.suggested`，之后从这段对话或它的分支进入过就返回 null；文稿 key 解析成项目文件路径。关掉只记在本机 localStorage（按提议的 seq）。右侧栏「对话」是 `components/desk-chat.js`（复用 Message 和 Composer，Composer 加 `slim`），秘书按钮在正文右上角，打开现有 SecretaryPanel（SidePanel 加返回箭头）。绑定的对话：本窗口收到的最近一次 `desk.entered`（`state.deskBindings`）优先，否则取当前会话的 meetingId；之后在本窗口打开的文稿带上这段对话。后端补了一条：新会话没指定对话时，取这个项目最近一次 `desk.entered` 的对话（未归档），所以先在主窗口进入、编辑台后打开也能接上。「引用到对话」不再提示回主窗口，改为切到「对话」。编辑台窗口里的 `openDesk`/`focusDesk` 直接交给本窗口。画廊卡片 PageDeskChat、DeskChatStates（画廊第 32 版）。还没有：「来源」栏，秘书面板头部不带对话名。
 
-A 任务完成后，在 Windows 候选安装包上用真实论文走完场景 1–9，再打开 `features.editingDesk`；`product/FEATURES.md` 随每个任务更新。
+A 任务完成后，在 Windows 候选安装包上用真实论文走完场景 1–9。2026-10-29 Yui 提前让编辑台转正（去掉 `features.editingDesk` 开关），场景 1–9 的 Windows 实测仍要做；`product/FEATURES.md` 随每个任务更新。
 
 **alpha 之后：** docx 公式编辑（LaTeX 输入，用 docx 包（dolanmiu，MIT）的 `latexToMath` 生成 OMML）；AI 修改导出成 Word 修订；分支合并（第二个父版本）；SyncTeX 双向跳转（synctex-js，MIT）；选中图表重跑脚本；移动段落检测；表格结构编辑；docx 批注回复和解决；写作时浮现相关资料片段。
 

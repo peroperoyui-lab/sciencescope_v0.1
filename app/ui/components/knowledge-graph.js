@@ -9,6 +9,7 @@ import { place } from '../floating.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
+import { Illustration } from '../illustrations.js';
 import { KIND_GROUPS, createKnowledgeMap, displayKind } from '../knowledge-map.js';
 import { Dialog } from './dialog.js';
 import { moveFocus, usePopover } from './popover.js';
@@ -702,9 +703,13 @@ export function KnowledgeGraph({ selection, onSelect, onStatus, query, searchNon
       ${
         (failure || empty || (!meta && !failure)) &&
         html`<div class="ss-empty kb-graph__empty">
-          <div class="ss-empty__icon">
-            ${!meta && !failure ? html`<span class="ss-spin"></span>` : html`<${Lucide} name="waypoints" />`}
-          </div>
+          ${
+            meta && !meta.pending && !failure
+              ? html`<${Illustration} name="knowledge" />`
+              : html`<div class="ss-empty__icon">
+                  ${!meta && !failure ? html`<span class="ss-spin"></span>` : html`<${Lucide} name="waypoints" />`}
+                </div>`
+          }
           <div class="ss-empty__title">
             ${failure ? t('图没有加载出来') : !meta ? t('正在读取…') : meta.pending ? t('正在排布节点…') : t('知识库里还没有节点')}
           </div>

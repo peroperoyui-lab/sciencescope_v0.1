@@ -15,7 +15,7 @@ import {
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
-import { LogoMark } from '../illustrations.js';
+import { Illustration, LogoMark } from '../illustrations.js';
 import { writeBack } from '../desk-session.js';
 import { useQuestion } from './dialog.js';
 import { useDeskAssist } from './desk-assist.js';
@@ -1120,7 +1120,7 @@ export function DeskWindow() {
           </div>
           <div class="ss-panel__body">
             <div class="ss-empty">
-              <div class="ss-empty__icon"><${Lucide} name="git-fork" /></div>
+              <${Illustration} name="versions" />
               <div class="ss-empty__title">${t('这份文稿还没有版本')}</div>
               <div class="ss-empty__text">
                 ${t('保存为版本、关闭编辑或在外面改过文件后，这里会长出版本树。')}
@@ -1262,7 +1262,7 @@ export function DeskWindow() {
                         onInfo=${(next) => setInfo((known) => ({ ...known, ...next }))}
                       />`
                     : html`<div class="ss-empty ss-desk-canvas__state">
-                        <div class="ss-empty__icon"><${Lucide} name="file-pen" /></div>
+                        <${Illustration} name="desk" />
                         <div class="ss-empty__title">${t('还没有打开文稿')}</div>
                         <div class="ss-empty__text">
                           ${t('在左栏选一份 docx、tex、md 或 pdf 打开，可以同时开几份，在顶部切换。')}

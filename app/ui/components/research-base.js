@@ -6,6 +6,7 @@ import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
+import { Illustration } from '../illustrations.js';
 import { knowledgeRoute, navigate } from '../route.js';
 import { Sites } from './home.js';
 import { ChoiceMenu } from './popover.js';
@@ -760,7 +761,13 @@ export function ResearchBase({ view, projectId = null }) {
                         empty &&
                         !loading &&
                         html`<div class="ss-empty kb-empty">
-                          <p>
+                          ${
+                            !query &&
+                            filters === defaultFilters &&
+                            (tab === 'sources' || tab === 'entities') &&
+                            html`<${Illustration} name="knowledge" />`
+                          }
+                          <p class="ss-empty__text">
                             ${
                               query || filters !== defaultFilters
                                 ? t('暂无记录')

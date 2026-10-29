@@ -4,7 +4,7 @@
 // other pages live in settings-*.js. Every change applies at once.
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { comboOf } from '../appearance.js';
-import { useActions, useAppState } from '../context.js';
+import { useActions } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
@@ -81,7 +81,6 @@ function GeneralPage() {
   const [profile, writeProfile] = useSetting((settings) => settings.profile);
   const [composer, writeComposer] = useSetting((settings) => settings.composer);
   const [language, writeLanguage] = useSetting((settings) => settings.appearance.language);
-  const [desk, writeDesk] = useSetting((settings) => settings.features?.editingDesk === true);
   return html`<div class="ss-settings__inner" data-settings="general">
     <${Head} title=${t('通用')} desc=${t('改了立即生效。')} />
     <${Section} title=${t('个人资料')}>
@@ -135,21 +134,6 @@ function GeneralPage() {
           label=${t('截图时隐藏窗口')}
           checked=${composer?.hideWindowOnScreenshot !== false}
           onChange=${(on) => writeComposer({ composer: { hideWindowOnScreenshot: on } })}
-        />
-      <//>
-    <//>
-    <${Section}
-      title=${t('试用功能')}
-      tip=${t('试用功能还没做完，可能会变。关掉后，已有的内容不会丢。')}
-    >
-      <${Row}
-        label=${t('编辑台')}
-        desc=${t('还在开发中。打开后，左栏「工作站」下面出现编辑台入口')}
-      >
-        <${Switch}
-          label=${t('编辑台')}
-          checked=${desk}
-          onChange=${(on) => writeDesk({ features: { editingDesk: on } })}
         />
       <//>
     <//>
@@ -487,7 +471,6 @@ export function SettingsDialog({ page, onClose }) {
   const actions = useActions();
   const id = ALIASES[page] ?? page;
   const active = activeOf(id);
-  const desk = useAppState((state) => state.settings?.features?.editingDesk === true);
   const [version, setVersion] = useState('');
   const content = useRef(/** @type {HTMLElement | null} */ (null));
   useEffect(() => {
@@ -549,9 +532,7 @@ export function SettingsDialog({ page, onClose }) {
           ${GROUPS.map(
             ([group, items]) =>
               html`<div class="ss-settings__navgroup" key=${group}>${t(group)}</div>
-                ${items
-                  .filter(([pageId]) => pageId !== 'desk' || desk)
-                  .map(([pageId, icon, label]) => item(pageId, icon, label))}`,
+                ${items.map(([pageId, icon, label]) => item(pageId, icon, label))}`,
           )}
           <div class="ss-settings__navsep"></div>
           ${item(

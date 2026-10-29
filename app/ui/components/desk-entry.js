@@ -5,7 +5,7 @@
 // suggested document. Closing the bar hides this suggestion on this computer.
 import { useEffect, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
-import { deskEnabled, openDesk } from '../desk-window.js';
+import { openDesk } from '../desk-window.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
@@ -33,7 +33,6 @@ function dismiss(meetingId, seq) {
 /** @param {{ meeting: any }} props */
 export function DeskEntryBar({ meeting }) {
   const actions = useActions();
-  const enabled = useAppState((state) => deskEnabled(state.settings));
   const version = useAppState((state) => state.deskEntryVersion);
   const [suggestion, setSuggestion] = useState(/** @type {any} */ (null));
   const [busy, setBusy] = useState(false);
@@ -41,7 +40,7 @@ export function DeskEntryBar({ meeting }) {
   const projectId = meeting.projectId;
 
   useEffect(() => {
-    if (!enabled || !projectId) return setSuggestion(null);
+    if (!projectId) return setSuggestion(null);
     let alive = true;
     actions
       .deskSuggestion(meetingId)
@@ -53,7 +52,7 @@ export function DeskEntryBar({ meeting }) {
     return () => {
       alive = false;
     };
-  }, [meetingId, projectId, enabled, version]);
+  }, [meetingId, projectId, version]);
 
   if (!suggestion) return null;
   /** @param {'continue' | 'branch'} mode */

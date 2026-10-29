@@ -326,14 +326,15 @@ export function VersionNotesBox({ versionId, projectId, onReference }) {
         <input
           type="checkbox"
           checked=${auto}
-          onChange=${(event) =>
+          onChange=${(event) => {
+            // Show the choice at once; a re-render before the save returns must not undo the tick.
+            const checked = event.currentTarget.checked;
+            setAuto(checked);
             actions.attempt(async () => {
-              const result = await actions.setVersionPreferences(
-                projectId,
-                event.currentTarget.checked,
-              );
+              const result = await actions.setVersionPreferences(projectId, checked);
               setAuto(Boolean(result.autoOrganize));
-            })}
+            });
+          }}
         /><span>${t('这个项目的新版本自动整理说明')}</span>
       </label>`
     }

@@ -38,11 +38,6 @@ function takeVersion() {
   }
 }
 
-/** The desk switch (`features.editingDesk`, off until the alpha checks pass). @param {any} settings */
-export function deskEnabled(settings) {
-  return settings?.features?.editingDesk === true;
-}
-
 /** @param {DeskTarget} target */
 function deskUrl(target) {
   const url = new URL('/', location.href);

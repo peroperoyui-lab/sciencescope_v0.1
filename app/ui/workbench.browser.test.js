@@ -109,12 +109,6 @@ test(
       const project = await core.projects.create({ name: '城市韧性研究' });
       const root = path.join(core.paths.projects, project.dirName);
       await writeFile(path.join(root, 'notes.md'), '# 札记\n\n第一稿。\n');
-      await core.workspace.edit({
-        resource: 'settings',
-        key: 'app',
-        op: 'patch',
-        args: { changes: { features: { editingDesk: true } } },
-      });
       await app.desk.registerDocument({ projectId: project.id, path: 'notes.md' });
       await writeFile(path.join(root, 'notes.md'), '# 札记\n\n第二稿。\n');
       await app.desk.registerDocument({ projectId: project.id, path: 'notes.md' });

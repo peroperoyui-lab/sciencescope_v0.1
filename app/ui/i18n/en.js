@@ -2085,9 +2085,6 @@ export const en = {
   论文卡片: 'Paper cards',
   论文卡片用的模型: 'Model for paper cards',
   设置分类: 'Settings sections',
-  试用功能: 'Previews',
-  '试用功能还没做完，可能会变。关掉后，已有的内容不会丢。':
-    'Previews are unfinished and may change. Turning one off keeps what you made.',
   语义检索: 'Semantic search',
   语义检索已关闭: 'Semantic search is off',
   '请检查网络后再试。': 'Check the network and try again.',
@@ -2103,8 +2100,6 @@ export const en = {
   软件包镜像: 'Package mirror',
   '输入和输出合计，用完就停，下次接着整理':
     'Input and output together; stops when used up and continues next time',
-  '还在开发中。打开后，左栏「工作站」下面出现编辑台入口':
-    'Still in development. When on, Editing desk appears under Workstation in the sidebar',
   还没有下载模型: 'Model not downloaded yet',
   '还没有专家。添加几位不同方向的专家，有序讨论时各自作答。':
     'No experts yet. Add a few with different focuses; they answer separately in ordered discussions.',
@@ -2479,7 +2474,6 @@ export const en = {
     'No log entries yet. Add one when you reach a milestone; the secretary also adds them after chats.',
   打开研究导图: 'Open the research map',
   文稿: 'Manuscript',
-  '先在设置 → 常规里打开编辑台': 'Turn on the editing desk in Settings → General first',
   在编辑台打开这一版: 'Open this version in the desk',
   还没有文稿版本: 'No manuscript versions yet',
   '在编辑台打开项目里的 docx、tex、md 或 pdf，保存时就会留下版本。':

@@ -8,7 +8,8 @@ import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
-import { deskEnabled, openDesk } from '../desk-window.js';
+import { Illustration } from '../illustrations.js';
+import { openDesk } from '../desk-window.js';
 import { renderMarkdown } from '../markdown.js';
 import { useSnapshotCapture } from '../resource-snapshots.js';
 import { openResourceHistory } from './resource-history.js';
@@ -549,10 +550,10 @@ const touched = (group) => group.versions?.[0]?.createdAt ?? group.createdAt ?? 
  * The project's manuscripts in the desk's version tree, with a picker for which
  * one. 在编辑台打开这一版 opens that version in the desk; 导入 adds files from
  * outside as versions.
- * @param {{ project: any, desk: boolean, focusId?: string | null, onClose: () => void }} props
+ * @param {{ project: any, focusId?: string | null, onClose: () => void }} props
  * `focusId` is a version to show first (a quoted 版本说明 opened from a chat).
  */
-function WorkbenchVersions({ project, desk, focusId = null, onClose }) {
+function WorkbenchVersions({ project, focusId = null, onClose }) {
   const actions = useActions();
   const refresh = useAppState((state) => state.versionsVersion);
   const [groups, setGroups] = useState(/** @type {any[] | null} */ (null));
@@ -639,16 +640,14 @@ function WorkbenchVersions({ project, desk, focusId = null, onClose }) {
     </button>`;
   const picker = choice && html`${choice}${renameButton}${importButton}`;
   const open = (node) =>
-    desk
-      ? actions.attempt(() =>
-          openDesk({
-            projectId: project.id,
-            versionId: node.id,
-            name: group?.versions?.find((entry) => entry.id === node.id)?.name ?? group?.name,
-            group: group?.name,
-          }),
-        )
-      : actions.toast(t('先在设置 → 常规里打开编辑台'));
+    actions.attempt(() =>
+      openDesk({
+        projectId: project.id,
+        versionId: node.id,
+        name: group?.versions?.find((entry) => entry.id === node.id)?.name ?? group?.name,
+        group: group?.name,
+      }),
+    );
   return html`<${SidePanel}
     name="versions"
     title=${t('版本树')}
@@ -684,7 +683,7 @@ function WorkbenchVersions({ project, desk, focusId = null, onClose }) {
               currentId=${null}
               editing=${false}
               canCompare=${true}
-              canEdit=${desk ? '' : t('先在设置 → 常规里打开编辑台')}
+              canEdit=""
               openLabel=${t('在编辑台打开这一版')}
               picker=${picker}
               onClose=${onClose}
@@ -720,7 +719,7 @@ function WorkbenchVersions({ project, desk, focusId = null, onClose }) {
                 ${
                   groups
                     ? html`<div class="ss-empty">
-                        <div class="ss-empty__icon"><${Lucide} name="git-fork" /></div>
+                        <${Illustration} name="versions" />
                         <div class="ss-empty__title">${t('还没有文稿版本')}</div>
                         <div class="ss-empty__text">
                           ${t('在编辑台打开项目里的 docx、tex、md 或 pdf，保存时就会留下版本。')}
@@ -748,7 +747,6 @@ function WorkbenchVersions({ project, desk, focusId = null, onClose }) {
 export function Workbench({ projectId }) {
   const actions = useActions();
   const projects = useAppState((state) => state.projects);
-  const desk = deskEnabled(useAppState((state) => state.settings));
   const [versions, setVersions] = useState(false);
   const [focusVersion, setFocusVersion] = useState(/** @type {string | null} */ (null));
   const versionRequest = useAppState((state) => state.versionRequest);
@@ -824,17 +822,14 @@ export function Workbench({ projectId }) {
           >
             <${Lucide} name="git-fork" />${t('版本树')}
           </button>
-          ${
-            desk &&
-            html`<button
-              type="button"
-              class="ss-btn"
-              data-tip=${t('打开编辑台，显示这个项目的文稿')}
-              onClick=${() => actions.attempt(() => openDesk({ projectId: project.id }))}
-            >
-              <${Lucide} name="file-pen" />${t('在编辑台打开')}
-            </button>`
-          }
+          ${html`<button
+            type="button"
+            class="ss-btn"
+            data-tip=${t('打开编辑台，显示这个项目的文稿')}
+            onClick=${() => actions.attempt(() => openDesk({ projectId: project.id }))}
+          >
+            <${Lucide} name="file-pen" />${t('在编辑台打开')}
+          </button>`}
           <button
             type="button"
             class="ss-icon-btn"
@@ -862,7 +857,6 @@ export function Workbench({ projectId }) {
       versions &&
       html`<${WorkbenchVersions}
         project=${project}
-        desk=${desk}
         focusId=${focusVersion}
         onClose=${() => setVersions(false)}
       />`

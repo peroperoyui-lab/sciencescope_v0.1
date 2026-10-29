@@ -27,7 +27,6 @@ test(
         op: 'patch',
         args: {
           changes: {
-            features: { editingDesk: true },
             models: { default: { provider: 'test', model: 'test' } },
           },
         },

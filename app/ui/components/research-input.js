@@ -6,7 +6,7 @@ import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
 import { MarksPopover } from './marks-popover.js';
 import { deskReference } from '../desk-assist.js';
-import { deskEnabled, focusDesk } from '../desk-window.js';
+import { focusDesk } from '../desk-window.js';
 
 const EMPTY = { materials: [], marks: [] };
 
@@ -249,10 +249,9 @@ export function showInputContext(actions, input) {
  */
 export function InputReceipt({ message }) {
   const actions = useActions();
-  const desk = useAppState((state) => deskEnabled(state.settings));
   const input = message.researchInput ?? EMPTY;
   // Sentences of desk documents open on the desk; other marks stay in the receipt.
-  const cited = desk ? input.marks.filter((mark) => deskReference(mark)) : [];
+  const cited = input.marks.filter((mark) => deskReference(mark));
   if (!input.materials.length && !input.marks.length) return null;
   const images = input.materials.filter((entry) => entry.type === 'image');
   const files = input.materials.filter((entry) => entry.type !== 'image');

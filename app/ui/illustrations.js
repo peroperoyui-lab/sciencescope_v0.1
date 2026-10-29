@@ -55,6 +55,30 @@ export const ART = {
     <circle class="ss-art__paper ss-art__line" cx="122" cy="54" r="4"/>
     <circle class="ss-art__soft ss-art__accent-line" cx="138" cy="74" r="5"/>`),
 
+  // A conversation: the user's question and an expert's answer, the next one still to come.
+  chat: svg(`
+    <ellipse class="ss-art__ground" cx="80" cy="106" rx="56" ry="5"/>
+    <path class="ss-art__paper ss-art__line" d="M30 22h60a5 5 0 0 1 5 5v24a5 5 0 0 1-5 5H50l-10 9v-9h-10a5 5 0 0 1-5-5V27a5 5 0 0 1 5-5Z"/>
+    <path class="ss-art__line" d="M36 33h46M36 40h46M36 47h28"/>
+    <path class="ss-art__soft ss-art__accent-line" d="M130 52H76a5 5 0 0 0-5 5v20a5 5 0 0 0 5 5h34l10 9v-9h10a5 5 0 0 0 5-5V57a5 5 0 0 0-5-5Z"/>
+    <path class="ss-art__accent" d="${STAR(88, 67, 6)}"/>
+    <path class="ss-art__accent-line" d="M100 63h26M100 71h18"/>
+    <path class="ss-art__dash" d="M34 84h28a4 4 0 0 1 4 4v6a4 4 0 0 1-4 4H34a4 4 0 0 1-4-4v-6a4 4 0 0 1 4-4Z"/>`),
+
+  // Manuscript versions: three drafts stacked, the newest on top, and the line that joins them.
+  versions: svg(`
+    <ellipse class="ss-art__ground" cx="84" cy="106" rx="54" ry="5"/>
+    <rect class="ss-art__paper ss-art__line" x="66" y="14" width="46" height="60" rx="3"/>
+    <rect class="ss-art__paper ss-art__line" x="76" y="26" width="46" height="60" rx="3"/>
+    <rect class="ss-art__paper ss-art__line" x="86" y="38" width="46" height="62" rx="3"/>
+    <path class="ss-art__line" d="M94 50h30M94 57h30M94 64h22M94 78h30M94 85h18"/>
+    <rect class="ss-art__soft" x="93" y="69" width="32" height="6" rx="2"/>
+    <path class="ss-art__line" d="M38 30v22M38 52v22"/>
+    <circle class="ss-art__paper ss-art__line" cx="38" cy="26" r="4"/>
+    <circle class="ss-art__paper ss-art__line" cx="38" cy="52" r="4"/>
+    <circle class="ss-art__soft ss-art__accent-line" cx="38" cy="78" r="5"/>
+    <path class="ss-art__dash" d="M44 78h36"/>`),
+
   // An empty project folder waiting for files.
   folder: svg(`
     <ellipse class="ss-art__ground" cx="80" cy="104" rx="56" ry="6"/>

@@ -63,7 +63,7 @@ function thesisBody(extra) {
 }
 
 test(
-  'the editing desk stays hidden until switched on, then opens documents in its own window',
+  'the editing desk is in the sidebar and on the workstation, and opens documents in its own window',
   { skip: browserSkip },
   () =>
     withBrowserApp('u1-desk', silent, async ({ page, app, shot }) => {
@@ -82,26 +82,8 @@ test(
       );
       await writeFile(path.join(root, 'data.csv'), 'a,b\n1,2\n');
 
-      // Off by default: no entry in the sidebar or on the workstation.
-      await page.evaluate((id) => {
-        location.hash = '#/workbench/' + id;
-      }, project.id);
-      await page.locator('.ss-wb').waitFor();
-      assert.equal(
-        await page.locator('.ss-sidebar').getByText('编辑台', { exact: true }).count(),
-        0,
-      );
-      assert.equal(await page.getByRole('button', { name: '在编辑台打开' }).count(), 0);
-
-      await page.evaluate(() => {
-        location.hash = '#/settings/general';
-      });
-      const saved = page.waitForResponse(
-        (response) =>
-          response.url().includes('/api/settings') && response.request().method() === 'PATCH',
-      );
-      await page.getByRole('switch', { name: '编辑台', exact: true }).check();
-      await saved;
+      // A regular feature: the entry is always in the sidebar and on the workstation.
+      await page.locator('.ss-sidebar').getByText('编辑台', { exact: true }).waitFor();
       await page.evaluate((id) => {
         location.hash = '#/workbench/' + id;
       }, project.id);
@@ -563,7 +545,6 @@ test(
           op: 'patch',
           args: {
             changes: {
-              features: { editingDesk: true },
               models: { default: { provider: 'test', model: 'test' } },
             },
           },
@@ -655,12 +636,6 @@ test(
       const thesisFile = path.join(root, 'thesis.docx');
       await writeFile(thesisFile, await thesis());
       await writeFile(path.join(root, 'data', 'cities.csv'), 'city,year\n');
-      await app.core.workspace.edit({
-        resource: 'settings',
-        key: 'app',
-        op: 'patch',
-        args: { changes: { features: { editingDesk: true } } },
-      });
       const desk = await page.context().newPage();
       const errors = [];
       desk.on('pageerror', (error) => errors.push(error.message));
@@ -764,12 +739,6 @@ test(
         path.join(root, 'notes.md'),
         '# 札记\n\n城市韧性的测度仍有争议。\n\n第二段文字。\n',
       );
-      await app.core.workspace.edit({
-        resource: 'settings',
-        key: 'app',
-        op: 'patch',
-        args: { changes: { features: { editingDesk: true } } },
-      });
       const desk = await page.context().newPage();
       const errors = [];
       desk.on('pageerror', (error) => errors.push(error.message));
