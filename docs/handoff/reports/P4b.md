@@ -1,13 +1,13 @@
 # P4b：Windows 长程体检
 
-日期：2026-10-29；基线 `main@4cf4bfe`。按性能、结构、真实场景与统一检查的顺序完成，所有结论只用于选择下一轮任务；没有优化、重构或修改应用与既有测试。
+日期：2026-10-29；基线 `main@4cf4bfe`。三部分按顺序完成，每部分先写入报告再进入下一部分。全检 567/570、失败 3、跳过 0；六组固定连跑中五组 5/5，公式编辑 1/5。所有结论只用于选择下一轮任务；没有优化、重构或修改应用与既有测试。
 
 ## 一、性能复测与后台用量
 
 ### 方法与数据
 
 - Windows 11、Core Ultra 9 275HX、约 32 GB 内存；同一 USB 机械盘上的独立 Install Test 产品，Node 22.22.2。用户预览及备份未触及；原生、安装器与更新通道源码未变。
-- 同一 P4a 种子生成 100 PDF、100 DOCX、100 Markdown，实际 5,060 块；12 个对话共 1,000 消息，最长 180 条；稿件 50,213 个中文字符，含表格、图片、公式。新增 30 个真实版本及合成说明、200 节点导图、12 计划、20 日志和一条带实际本地读写记录的回答。生成无模型调用，重复使用校验已通过。
+- 同一 P4a 种子生成 100 PDF、100 DOCX、100 Markdown，实际 5,060 块；12 个对话共 1,000 消息，最长 180 条；稿件 50,213 个中文字符，含表格、图片、公式。扩展到 30 个实际存储版本及合成说明、200 节点导图、12 计划、20 日志和一条带实际本地读写记录的回答。生成无模型调用，重复使用校验已通过。
 - 全局图从 P4a 的 100 论文、0 边变为 100 论文加 1 实体及 1 边；本轮索引 101 节点，视野实际画出 96 个。版本树从 2 版扩到 30 版，比较页也已替换；这些行作为体验对照，不作同负载优化结论。
 - 三次热启动前有一次不计时启动；三次冷启动均先用微软签名 RAMMap 清文件缓存和 standby list，有成功回执。正式计时没有并行构建、模型测试或全检。先做的一次原生 smoke 和单独 Node CPU 诊断不进入中位数。
 - 所有 19 项页面操作各 3/3 成功。每轮 DOCX 打开区间恰有 1 次新会话 POST、前置空闲段为 0 次；树节点严格为 30。结束核对 300 个文件哈希、5,060 块、1,000 消息、30 版本不变；文稿字节、导图和日志正文均还原，所有原生退出正常。
@@ -277,16 +277,16 @@ app/core/participants.js:22–103  createParticipants  82 行；去嵌套 29 行
 
 | 排序 | 问题、位置与具体证据 | 建议的边界与值得做的原因 | 估时 | 风险 / 影响文件 | 保护它的测试 | 改接口形状 |
 |---|---|---|---|---|---|---|
-| 1 | 同一份配置默认值存两处。`core/workspace/resources/settings.js:83-93 DEFAULT_SETTINGS.memory/summary` 与 `services/memory/index.js:25-30 DEFAULT_MEMORY_SETTINGS`、`services/secretary/policy.js:7-15 DEFAULT_SUMMARY` 完整重复；服务再次 merge 它们（memory `:70-73`、policy `:34-41`）。 | 把内存、纪要默认对象置于 core 内独立且无服务依赖的配置模块，settings 和消费者引用同一对象；保留原导出兼容测试/调用。这样调整默认预算或触发规则时只改一处，并保持 core→services 为零。 | 0.25–0.5 天 | 低。嵌套对象需要保持 merge 规则；现有配置读出的值不变。上述 3 文件及 core 配置文件；不把服务或模型目录反向导入 core。 | `core/workspace/resources/settings-updates.test.js`、`services/memory/index.test.js` 默认预算/禁用 idle、`services/secretary/minutes.test.js` 触发规则、`ui/settings.browser.test.js`。 | 否。配置键、默认值与原 service 导出保持。 |
-| 2 | 原子替换写入流程重复。`core/workspace/files.js:24-34 writeTextAtomic`、`services/desk/storage.js:17-27 writeAtomic` 都 mkdir→随机临时文件→writeFile→renameWithRetry→finally rm；`services/providers.js:96-120 saveKeys` 的内层重复同一流程，另有凭据串行 merge 与 mode 0600。 | 提取/下沉一个很小的“bytes 写临时文件再替换”原语到 core 文件模块，text 只是 UTF-8 包装。保留凭据 merge 队列、0600 与编辑台的注入点，继续复用已经存在的 renameWithRetry。未来 Windows 文件占用处理只需修一份。 | 0.5 天 | 低至中。只共用写替换，不合并正文修订、凭据 merge 或版本导入。触及上述 3 文件和一个 core 文件；迁移备份的 copy+校验写入有不同语义，继续单独留着。 | `core/workspace/workspace.test.js`、`workspace/snapshots.test.js`、`services/provider-settings.test.js`（含 CLI/外部文件编辑）、`services/desk/sessions.test.js` 保存/重启路径。加一次临时替换失败后旧文件可读且临时文件清理的功能检查。 | 否。保留现有 writer 签名或薄包装。 |
-| 3 | HTTP 路由包含应用事务和跨服务协调。`server/routes/meetings.js:43-69` 决定工作目录、检查 stat、mkdir、建 meeting、绑定 Python；`:76-82` 查附属会话家族并禁止运行中移动；`:95-111` 在一个事务里 capture 附件、提交消息、consume 草稿。`routes/memory.js:17-21` 在路由事务中批量 update。 | 把现有完整操作下移成小的 application-service 方法，例如 createMeeting、moveMeeting、submitMessage、decideMemories；路由只 parse 与转发。保留现有 core primitive 和 conductor 入口，其他工具/CLI 将来调用同一个已验证操作，避免复制 HTTP 内的事务规则。 | 1–1.5 天 | 中。附件 consume 与 message 正本必须同事务；mkdir/环境失败、移动带附属会话、事件时序均保留。触及 meeting/memory routes、对应 services、`app/app.js` 装配；不用建立通用 command bus。 | `server/server.test.js`、`services/outbox.test.js`、`research-input/input.test.js`、`research-input/images.test.js`、`services/project-files.test.js`、`core/meetings.test.js`、`services/memory-integration.test.js`。 | 否。HTTP 请求/响应与 SSE 事件保持。 |
-| 4 | KB 历史响应把内部行快照变成 UI 契约。`knowledge/versions.js:51-70 page/changes` 选 `rowid,*` 后调用 publicRow；`records.js:123-134 publicRow` 通用转换顶层蛇形字段并 JSON.parse，`before`/`after` 内仍是原数据库行。`queries.js:218-235 revisionDetails` 展开整个 row，且为边兼容 from_ref/fromRef、evidence_json/evidence。`server/routes/knowledge.js:116-126` 直接返回。UI `components/knowledge-panel.js:212-232 FIELD_NAMES/revisionText` 明确依赖 `name_en`、`aliases_json`、`attrs_json` 并对快照字段 JSON.stringify 比较。 | 增加明确的历史视图投影，如 changedFields、removed、名称/两端/evidence、原 revision 标识。完整行快照继续仅作恢复依据；UI 由 Claude 迁移使用投影字段，再决定旧字段何时退出。单次数据库列名变化将不再要求同步改历史文案。 | 1–1.5 天 | 中。旧历史原始行形状必须仍可恢复，不能迁移成仅摘要。触及 knowledge queries/records/versions 的读视图、knowledge route、对应 UI。稳定事件也需保留现有字段语义。 | `services/knowledge/store.test.js`、`server/routes/knowledge.test.js`、`ui/knowledge.browser.test.js`、`ui/turn-knowledge.browser.test.js`；覆盖旧快照恢复和新 changedFields 的同一路径。 | 是，先加字段；旧 before/after 在兼容阶段保留。 |
-| 5 | 文件列表查询隐含扫描，索引实现反过来定义文件列表规则。`services/project-files.js:9` 为 ownFolders 导入 `knowledge/project-index-listing.js`（遍历/更新索引算法模块）；`:41-44 list` 在根目录 GET 时调用可选 requestIndex。`app/app.js:70-75` 创建带回调的 files 服务，但 research/index.js:21、journal-files.js:10 等自行创建无回调 files。相同 list 方法的副作用取决于谁装配它。 | 把少量受管目录规则放到文件域自己的数据模块；把“根目录读取是否请求刷新”的选择放在明确的应用操作上，普通文件 list 保持清楚的查询职责。向需要一致行为的服务注入同一 files 入口。先保留当前网页打开资料时会刷新的行为，再整理内部调用。 | 0.5–1 天 | 中。不能丢失文件更名后的索引刷新、内置工作目录隐藏、共享并发预算或 immutable-copy 身份。触及 project-files、project-index-listing、app 装配、需要传入 files 的服务。不会增加新的 parser/index 系统。 | `services/project-files.test.js`、`knowledge/project-index.test.js`、`project-index-fast-moves.test.js`、`project-index-queue.test.js`、`ui/project-folder.browser.test.js`、`ui/workbench.browser.test.js`。 | HTTP 形状否；内部 service 参数/调用更明确。 |
-| 6 | 后台失败的返回契约通过给任意异常追加属性形成。`secretary/background.js:146-161 catch` 改写 error.incompleteOutput/usage/turnId；`memory/request.js:67-78` 依赖这些属性保存 checkpoint；`knowledge/cards.js:120-127` 再追加 cardResult；`card-queue.js:123-135` 又读取它。JSDoc 多处 any，跨服务费用/保留输出的关系只有运行时体现。 | 先定义一个小的后台失败结果类型或 BackgroundRunError，把 usage、turnId、保留输出与 cause 一次表达；论文卡片自己的结果放在有类型的 card failure 上。保留运行时 Runtime port 和现有成功返回，不抽象所有 Error。费用记录与失败恢复会更容易审查。 | 0.5–1 天 | 中。取消、max_tokens、stream-cut、empty response、JSON 验证失败须保留请求用量与原文。触及 background、memory/request、cards、card-queue；不统一前台会话与 disposable 后台会话生命周期。 | `services/secretary/minutes.test.js` 失败/取消、`services/memory/index.test.js:207/293` 部分输出与缺失用量、`services/knowledge/cards.test.js`、`cards-api.test.js`、`app/main.runtime.test.js`。 | 对外 HTTP 否；内部 failure 形状明确并保留兼容读取。 |
-| 7 | 最大文件内有真正交织的批注投影函数。`services/desk/annotations.js` 531 行，但 factory 自身只有 32 行（去掉 nested spans）；核心是 `prepare:273-398` 同时处理 undo 冲突、Word marker、普通索引重定位、被删文本恢复、live 集合和最终 marker 清理，并调用 `removedWithText:407` 查 journal。 | 仅拆 prepare 的三个明确阶段：显式逆操作校验、正文范围投影、删除/恢复及 marker 收尾。journal 查询留在现有 facade；可计算部分接收已加载记录与范围，仍输出同一 proposal，再由现有 store.commit 一次提交。后续 Word 评论或索引缺陷可局部验证。 | 1–2 天 | 中至高。文本/批注必须共用 journal、撤销与重启恢复；不要新增第二套 undo 状态。触及 annotations 及一个局部 projection helper；保留当前 store、sessions、annotation-store。 | `desk/annotations.test.js`、`annotation-editor.test.js`（删除撤销带回 Word 评论/索引）、`annotation-recovery.test.js`、`annotation-interfaces.test.js`、`docx/blocks-comments.test.js`、`ui/desk.browser.test.js`。 | 否。proposal 与 API 形状保持。 |
-| 8 | 记忆单轮 run 的完整状态推进仍集中一处。`services/memory/index.js:106-297 run` 192 行 / own 146，依次处理 eligibility/settings/busy、模型变更 checkpoint 丢弃、分页提取、候选去重、核验批次装配、预算跳过、原文校验、保存候选、提交 cursor、错误和状态；这些步骤已有 sources/request/candidates/store 模块，却仍在一层协调循环内嵌套。 | 随下一次实际记忆功能修改，把 extraction-page 和 verification-batch 各变成显式函数：输入 checkpoint/prepared/context，返回下一阶段或 waiting/skipped；外层 run 保留循环和事务提交。复用当前状态机，不引入通用工作流引擎。 | 1–1.5 天 | 中至高。尤其不能让失败页推进 cursor，或重启后重复花费提取请求。先做行为不变的提取；未安排新记忆功能时排后。触及 memory/index.js 及现有 request/candidates 边界，必要时局部 stage 文件。 | `memory/index.test.js:179` 预算后重启、`:207` 失败不推进、`:313` 长原文分片、`:343` 来源变更、`:426` 复用保存提取、`:508` 大输出模型默认预算、`memory-integration.test.js`。 | 否。checkpoint 持久 schema 与 API 均保留。 |
-| 9 | 相似边设置能保存为消费者会拒绝的值。`core/workspace/resources/settings.js` 的 merge 接受 `threshold:2,maxPerPaper:-1`；`knowledge/derived.js:similar` 随后按既有语义拒绝。纯函数探针复现，设置文件未在用户数据中修改。 | 保存边界与消费者共用同一份小型参数规则，错误在保存时可读返回，保留旧值；不增加额外产品上限。 | 0.25–0.5 天 | 低至中；合法值行为不变，0 仍表示不建相似边。涉及 settings 更新及 knowledge 规则。 | `knowledge/jobs.test.js` 的重配／禁用，以及非法保存后旧值仍可用的功能测试。 | 非法输入从保存成功变为 400，需任务书确认；有效响应形状不变。 |
-| 10 | embedding adapter 生命周期缺少真实协议结果断言。`research/semantic/index.test.js` 注入 fakeEmbedding；`embedding.js`／`embedding-worker.js` 的启动、并发 ID 对应、退出拒绝未被这些断言覆盖。 | 先补小型本地 worker 协议测试，另将需要实际本地 ONNX 资产的 integration 标明；无需用付费模型或在普通单测中下载模型。 | 0.5–1 天 | 低；只补测试，资产路径与退出需隔离。下载参数检查继续保留但不当作执行测试。 | embedding adapter 专项；semantic 正常降级及重启测试。 | 否。 |
+| 1 | 相似边设置能保存为消费者会拒绝的值。`core/workspace/resources/settings.js` 的 merge 接受 `threshold:2,maxPerPaper:-1`；`knowledge/derived.js:similar` 随后按既有语义拒绝。纯函数探针复现，设置文件未在用户数据中修改。 | 保存边界与消费者共用同一份小型参数规则，错误在保存时可读返回，保留旧值；不增加额外产品上限。 | 0.25–0.5 天 | 低至中；合法值行为不变，0 仍表示不建相似边。涉及 settings 更新及 knowledge 规则。 | `knowledge/jobs.test.js` 的重配／禁用，以及非法保存后旧值仍可用的功能测试。 | 非法输入从保存成功变为 400，需任务书确认；有效响应形状不变。 |
+| 2 | 同一份配置默认值存两处。`core/workspace/resources/settings.js:83-93 DEFAULT_SETTINGS.memory/summary` 与 `services/memory/index.js:25-30 DEFAULT_MEMORY_SETTINGS`、`services/secretary/policy.js:7-15 DEFAULT_SUMMARY` 完整重复；服务再次 merge 它们（memory `:70-73`、policy `:34-41`）。 | 把内存、纪要默认对象置于 core 内独立且无服务依赖的配置模块，settings 和消费者引用同一对象；保留原导出兼容测试/调用。这样调整默认预算或触发规则时只改一处，并保持 core→services 为零。 | 0.25–0.5 天 | 低。嵌套对象需要保持 merge 规则；现有配置读出的值不变。上述 3 文件及 core 配置文件；不把服务或模型目录反向导入 core。 | `core/workspace/resources/settings-updates.test.js`、`services/memory/index.test.js` 默认预算/禁用 idle、`services/secretary/minutes.test.js` 触发规则、`ui/settings.browser.test.js`。 | 否。配置键、默认值与原 service 导出保持。 |
+| 3 | 原子替换写入流程重复。`core/workspace/files.js:24-34 writeTextAtomic`、`services/desk/storage.js:17-27 writeAtomic` 都 mkdir→随机临时文件→writeFile→renameWithRetry→finally rm；`services/providers.js:96-120 saveKeys` 的内层重复同一流程，另有凭据串行 merge 与 mode 0600。 | 提取/下沉一个很小的“bytes 写临时文件再替换”原语到 core 文件模块，text 只是 UTF-8 包装。保留凭据 merge 队列、0600 与编辑台的注入点，继续复用已经存在的 renameWithRetry。未来 Windows 文件占用处理只需修一份。 | 0.5 天 | 低至中。只共用写替换，不合并正文修订、凭据 merge 或版本导入。触及上述 3 文件和一个 core 文件；迁移备份的 copy+校验写入有不同语义，继续单独留着。 | `core/workspace/workspace.test.js`、`workspace/snapshots.test.js`、`services/provider-settings.test.js`（含 CLI/外部文件编辑）、`services/desk/sessions.test.js` 保存/重启路径。加一次临时替换失败后旧文件可读且临时文件清理的功能检查。 | 否。保留现有 writer 签名或薄包装。 |
+| 4 | embedding adapter 生命周期缺少真实协议结果断言。`research/semantic/index.test.js` 注入 fakeEmbedding；`embedding.js`／`embedding-worker.js` 的启动、并发 ID 对应、退出拒绝未被这些断言覆盖。 | 先补小型本地 worker 协议测试，另将需要实际本地 ONNX 资产的 integration 标明；无需用付费模型或在普通单测中下载模型。 | 0.5–1 天 | 低；只补测试，资产路径与退出需隔离。下载参数检查继续保留但不当作执行测试。 | embedding adapter 专项；semantic 正常降级及重启测试。 | 否。 |
+| 5 | HTTP 路由包含应用事务和跨服务协调。`server/routes/meetings.js:43-69` 决定工作目录、检查 stat、mkdir、建 meeting、绑定 Python；`:76-82` 查附属会话家族并禁止运行中移动；`:95-111` 在一个事务里 capture 附件、提交消息、consume 草稿。`routes/memory.js:17-21` 在路由事务中批量 update。 | 把现有完整操作下移成小的 application-service 方法，例如 createMeeting、moveMeeting、submitMessage、decideMemories；路由只 parse 与转发。保留现有 core primitive 和 conductor 入口，其他工具/CLI 将来调用同一个已验证操作，避免复制 HTTP 内的事务规则。 | 1–1.5 天 | 中。附件 consume 与 message 正本必须同事务；mkdir/环境失败、移动带附属会话、事件时序均保留。触及 meeting/memory routes、对应 services、`app/app.js` 装配；不用建立通用 command bus。 | `server/server.test.js`、`services/outbox.test.js`、`research-input/input.test.js`、`research-input/images.test.js`、`services/project-files.test.js`、`core/meetings.test.js`、`services/memory-integration.test.js`。 | 否。HTTP 请求/响应与 SSE 事件保持。 |
+| 6 | KB 历史响应把内部行快照变成 UI 契约。`knowledge/versions.js:51-70 page/changes` 选 `rowid,*` 后调用 publicRow；`records.js:123-134 publicRow` 通用转换顶层蛇形字段并 JSON.parse，`before`/`after` 内仍是原数据库行。`queries.js:218-235 revisionDetails` 展开整个 row，且为边兼容 from_ref/fromRef、evidence_json/evidence。`server/routes/knowledge.js:116-126` 直接返回。UI `components/knowledge-panel.js:212-232 FIELD_NAMES/revisionText` 明确依赖 `name_en`、`aliases_json`、`attrs_json` 并对快照字段 JSON.stringify 比较。 | 增加明确的历史视图投影，如 changedFields、removed、名称/两端/evidence、原 revision 标识。完整行快照继续仅作恢复依据；UI 由 Claude 迁移使用投影字段，再决定旧字段何时退出。单次数据库列名变化将不再要求同步改历史文案。 | 1–1.5 天 | 中。旧历史原始行形状必须仍可恢复，不能迁移成仅摘要。触及 knowledge queries/records/versions 的读视图、knowledge route、对应 UI。稳定事件也需保留现有字段语义。 | `services/knowledge/store.test.js`、`server/routes/knowledge.test.js`、`ui/knowledge.browser.test.js`、`ui/turn-knowledge.browser.test.js`；覆盖旧快照恢复和新 changedFields 的同一路径。 | 是，先加字段；旧 before/after 在兼容阶段保留。 |
+| 7 | 文件列表查询隐含扫描，索引实现反过来定义文件列表规则。`services/project-files.js:9` 为 ownFolders 导入 `knowledge/project-index-listing.js`（遍历/更新索引算法模块）；`:41-44 list` 在根目录 GET 时调用可选 requestIndex。`app/app.js:70-75` 创建带回调的 files 服务，但 research/index.js:21、journal-files.js:10 等自行创建无回调 files。相同 list 方法的副作用取决于谁装配它。 | 把少量受管目录规则放到文件域自己的数据模块；把“根目录读取是否请求刷新”的选择放在明确的应用操作上，普通文件 list 保持清楚的查询职责。向需要一致行为的服务注入同一 files 入口。先保留当前网页打开资料时会刷新的行为，再整理内部调用。 | 0.5–1 天 | 中。不能丢失文件更名后的索引刷新、内置工作目录隐藏、共享并发预算或 immutable-copy 身份。触及 project-files、project-index-listing、app 装配、需要传入 files 的服务。不会增加新的 parser/index 系统。 | `services/project-files.test.js`、`knowledge/project-index.test.js`、`project-index-fast-moves.test.js`、`project-index-queue.test.js`、`ui/project-folder.browser.test.js`、`ui/workbench.browser.test.js`。 | HTTP 形状否；内部 service 参数/调用更明确。 |
+| 8 | 后台失败的返回契约通过给任意异常追加属性形成。`secretary/background.js:146-161 catch` 改写 error.incompleteOutput/usage/turnId；`memory/request.js:67-78` 依赖这些属性保存 checkpoint；`knowledge/cards.js:120-127` 再追加 cardResult；`card-queue.js:123-135` 又读取它。JSDoc 多处 any，跨服务费用/保留输出的关系只有运行时体现。 | 先定义一个小的后台失败结果类型或 BackgroundRunError，把 usage、turnId、保留输出与 cause 一次表达；论文卡片自己的结果放在有类型的 card failure 上。保留运行时 Runtime port 和现有成功返回，不抽象所有 Error。费用记录与失败恢复会更容易审查。 | 0.5–1 天 | 中。取消、max_tokens、stream-cut、empty response、JSON 验证失败须保留请求用量与原文。触及 background、memory/request、cards、card-queue；不统一前台会话与 disposable 后台会话生命周期。 | `services/secretary/minutes.test.js` 失败/取消、`services/memory/index.test.js:207/293` 部分输出与缺失用量、`services/knowledge/cards.test.js`、`cards-api.test.js`、`app/main.runtime.test.js`。 | 对外 HTTP 否；内部 failure 形状明确并保留兼容读取。 |
+| 9 | 最大文件内有真正交织的批注投影函数。`services/desk/annotations.js` 531 行，但 factory 自身只有 32 行（去掉 nested spans）；核心是 `prepare:273-400` 同时处理 undo 冲突、Word marker、普通索引重定位、被删文本恢复、live 集合和最终 marker 清理，并调用 `removedWithText:407` 查 journal。 | 仅拆 prepare 的三个明确阶段：显式逆操作校验、正文范围投影、删除/恢复及 marker 收尾。journal 查询留在现有 facade；可计算部分接收已加载记录与范围，仍输出同一 proposal，再由现有 store.commit 一次提交。后续 Word 评论或索引缺陷可局部验证。 | 1–2 天 | 中至高。文本/批注必须共用 journal、撤销与重启恢复；不要新增第二套 undo 状态。触及 annotations 及一个局部 projection helper；保留当前 store、sessions、annotation-store。 | `desk/annotations.test.js`、`annotation-editor.test.js`（删除撤销带回 Word 评论/索引）、`annotation-recovery.test.js`、`annotation-interfaces.test.js`、`docx/blocks-comments.test.js`、`ui/desk.browser.test.js`。 | 否。proposal 与 API 形状保持。 |
+| 10 | 记忆单轮 run 的完整状态推进仍集中一处。`services/memory/index.js:106-297 run` 192 行 / own 146，依次处理 eligibility/settings/busy、模型变更 checkpoint 丢弃、分页提取、候选去重、核验批次装配、预算跳过、原文校验、保存候选、提交 cursor、错误和状态；这些步骤已有 sources/request/candidates/store 模块，却仍在一层协调循环内嵌套。 | 随下一次实际记忆功能修改，把 extraction-page 和 verification-batch 各变成显式函数：输入 checkpoint/prepared/context，返回下一阶段或 waiting/skipped；外层 run 保留循环和事务提交。复用当前状态机，不引入通用工作流引擎。 | 1–1.5 天 | 中至高。尤其不能让失败页推进 cursor，或重启后重复花费提取请求。先做行为不变的提取；未安排新记忆功能时排后。触及 memory/index.js 及现有 request/candidates 边界，必要时局部 stage 文件。 | `memory/index.test.js:179` 预算后重启、`:207` 失败不推进、`:313` 长原文分片、`:343` 来源变更、`:426` 复用保存提取、`:508` 大输出模型默认预算、`memory-integration.test.js`。 | 否。checkpoint 持久 schema 与 API 均保留。 |
 
 ### 设置与测试保护的逐项核对
 
@@ -304,4 +304,56 @@ app/core/participants.js:22–103  createParticipants  82 行；去嵌套 29 行
 
 ## 三、KB-12 与统一检查
 
-第二部分完整写入后开始。失败如实保留，本轮不修。
+### KB-12：真实模型与原生界面
+
+使用全新安装测试产品的另一个空数据目录，通过设置页添加 OpenCode Go 并选择 `deepseek-v4.1-flash`。材料为三份自造 PDF，每份都明确标注合成性质；以普通 file 导入，卡片开关保持默认，避免自动卡片生成与本次精确写入场景竞争。本轮验证工具与界面机制，不把合成事实当研究结论。两个模型问题各发一次；提示明确要求相应工具流程，续验只操作已保存结果。
+
+- **场景 2：通过。** 真实 `research_search` 搜索 csQCA，指定 depth=2、limit=12；图扩展 `used=true`、seeds=3、nodes=5、truncated=false。未下载向量模型，检索记录为 keyword／model-missing，加图扩展；随后真实 `research_read` 读取段落。回答有 S1/S2 页码引用，资料区显示 `csQCA —variant-of→ QCA ←variant-of— fsQCA`；原文预览回执为已打开，“在图中查看”进入局部图并选中 S2，图中 9 节点、11 关系。前台 3 请求、21840 token。
+- **场景 4：新增、清单和撤回／恢复通过。** 实际 @方法学家，`created_by=agent_methodologist`，一次 `kb_write` 批量新增 CasePack、CodePack、ScoreRule 3 个实体及 9 条关系，形成 ai-turn-end 版本。9 条边逐条人工对照真实 `research_read` 返回的 S3 第 2 页：3 条 evaluates-on、2 条 implements、4 条 uses 均有逐字原句，page=2，origin=ai，会议、发言、作者身份齐全。前台 4 请求、33127 token。
+- **撤回与恢复：各 12 条、skipped=0。** 3 实体、9 边从 active→removed→active；预置的 3 个实体和 2 条变体关系始终 active。界面显示“已恢复 12 条”，JSON 状态快照与 UI 回执一致。
+- **附加未完成项：场景 4 恢复后的再次跳图。** 恢复后变更卡片折叠，脚本没有重新展开便寻找内部“在图中查看”按钮，等待定位器 60 秒超时；实际点击尚未执行。`turn-knowledge.js` 仅在 open 时渲染列表和页脚。保留原 `overall ok=false`，分类为验收夹具未完成，不当作应用点击无效。场景 2 的跳图已实际通过。
+- 其他夹具异常也保留：首轮额外 `maximize` 调用被现有 ACL 拒绝；第一次 UI 续验的附加 CDP 截图在缩放切换后超时。之后使用原生窗口抓图，模型问题没有重发，应用及 ACL 未改。
+
+KB-12 最终用量只取最新累计 profile，不把 9、12、14 请求的中间快照重复相加：**14 请求，输入含缓存 67332、输出 20028，总 87360 token，失败 0、未知用量 0，请求累计 180.440 秒**。组成：连接测试 1／59 token；两个前台场景 7／54967；默认纪要 2／5537；默认记忆 4／26797。界面续验期间自然后台增加了 5 次请求、29722 token，已全部计入。
+
+本次 P4b 两段真实验收合计 **42 请求，已报告 350804 token，另 1 次失败请求用量未知**；其中第 1 部分的连接失败由产品自动重试，所有尝试保留。没有以预算估计补成“服务商实际用量”。
+
+原生截图在本机 `.sciencescope-local/temp/p4b/kb12/ui-native-only/`：
+
+- `scenario2-used-sources-100.png`、`scenario2-used-sources-125.png`：来源与经由路径。
+- `scenario2-local-graph-125.png`：实际图页。
+- `scenario4-both-blocks-100.png`、`scenario4-both-blocks-125.png`：资料与知识修改两块。
+- `scenario4-withdrawn-125.png`、`scenario4-restored-125.png`：撤回／恢复状态。撤回图下沿部分被输入框挡住，状态计数采用同时保存的 JSON 回执。
+
+截图已逐张查看，实际 DPI 96／120；两显示源已恢复原来的 125%。原始 PNG 有少量窗口外边缘，仅保存在本机、不提交。测试凭据已移除，最终原生退出码 0、残余进程 0。证据为 `kb12/final-findings.json`、`scenario4-evidence-audit.json`、`before-withdraw.json`、`ui-native-only/after-withdraw.json`、`after-restore.json` 和各次 `native-setup.json`。
+
+### 干净检出统一检查
+
+- 检查提交：`c0d807be9e5611145c4227b86cd9d597ea377bce`。其 `app/`、`src-tauri/`、`tools/package/`、package 与 lockfile 均和 `main@4cf4bfe` 一致；最后只补报告及日志。
+- 独立物理 node_modules，`npm ci` 使用 npmmirror 和本机缓存，退出 0；没有通过共享 node_modules 链接执行安装。Node 22.22.2、Windows x64、Edge。
+- 第一次全检在会话中断时停在第 92 项附近，没有终态或退出码；原始日志和中断回执完整保留，未计作产品失败。用户要求继续后重新执行一轮完整检查，不覆盖原日志。
+- **`npm run check`：570 项，567 通过、3 失败、0 跳过、0 取消，exit 1。** 格式、lint、类型检查通过；完成轮耗时约 30 分 05.5 秒。Windows 实际内存要求检查、NSIS 覆盖安装保留共享文件和数据两项均通过。
+- **测量工具测试单独 8/8 通过**，0 跳过、0 取消；包括数据生成／复用、性能归组、用量、启动采样及 AST 结构清点。未混入应用全检分母。
+
+全检失败原样报告，未修复、未重跑筛选：
+
+1. `app/ui/desk-md.browser.test.js:129`，`Markdown is edited on its page; only the changed blocks are written back`：`locator.waitFor: Timeout 30000ms exceeded`，等待“编辑公式”对话框的 `.ss-mathedit__src` 出现 `+1`；整项 44219.83 ms。
+2. `app/ui/desk-tex.browser.test.js:196`，`a click on a formula edits it visually and writes it back as one change`：同样超时等待“编辑公式（2）”的源码出现 `+1`；整项 43029.28 ms。对话框已打开、输入动作已执行，源码镜像未达就绪条件。共同观察边界是 `desk-formula.js` 的 MathLive `input → setLatex → 源码显示`；具体根因留给后续定位。
+3. `app/ui/research.browser.test.js:228`，`personal library and external sites share navigation and English text`：切到项目数据库后 `personal.pdf` 应有 0 行、实际 1 行，`ERR_ASSERTION`，整项 21945.38 ms。测试只等待切换前就存在的 `project.pdf`，存在尚未等待范围刷新完成的时序疑点；本轮未修、未另跑此项。
+
+### 已知不稳定项：各独立连续运行五次
+
+固定运行顺序、每次独立 Node 进程、`--test-concurrency=1`；完整检查使用项目原定 concurrency=2。全部 30 次保留，没有省略失败或追加第六次。
+
+- `app/services/ordered-discussion.test.js`：**5/5**；每次文件内 11 项均通过，合计 55 项。
+- `discussion.browser.test.js` 的 `the discussion roster supports more than eight experts and context rows fall back to the catalog window`：**5/5**。
+- `memory.browser.test.js` 的 `a person consolidates memories, edits and accepts evidence, rejects selected items, and reads the exact brief`：**5/5**。
+- `knowledge-graph.browser.test.js` 的 `the knowledge graph centres, connects, merges, pins, filters and undoes`：**5/5**。
+- `desk.browser.test.js` 的 `tables keep their cells and bookmarks survive text deleted around them`：**5/5**。
+- `desk-tex.browser.test.js` 的公式点击编辑：**1/5**；第一次通过，第二至第五次均在相同 `:196` 源码 `+1` 等待处超时 30 秒。它在单独运行时也复现，具体事件／焦点原因待查。
+
+执行方法：整文件 `node --test --test-concurrency=1 app/services/ordered-discussion.test.js`；其余各用 `node --test --test-concurrency=1 --test-name-pattern="^<上述完整测试名>$" <对应文件>`。原始完整日志、精确参数及全部 30 次回执位于 `.sciencescope-local/temp/p4b/checks/`：`phase3-check-results.json`、`full-check-retry-1793277866543.log`、`desk-formula-1` 至 `-5` 等。旧中断记录为 `full-check.log`、`full-check-interrupted-start.json`、`full-check-interrupted.json`。
+
+## 交付边界与复测
+
+代码改动仅 `tools/perf/`；正文是本报告，日志为 `docs/log/IMPLEMENTATION_LOG.md`。没有修改 `app/`、原生、安装器、产品依赖、既有测试、用户预览或备份；没有优化或重构。复测命令见 `tools/perf/README.md`。工具使用现有 TypeScript 5.9.3（Apache-2.0）、Node 诊断／Inspector 与浏览器 Profiler 接口，合成资料沿用现有 PDF-lib／JSZip（MIT）；没有新增依赖、复制第三方应用实现或把原始数据、凭据、截图、日志、构建产物提交进仓库。
