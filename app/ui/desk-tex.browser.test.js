@@ -5,7 +5,7 @@ import path from 'node:path';
 import { createTexEngines } from '../services/desk/tex-engines.js';
 import { fakeTex } from '../services/desk/tex-fixture.js';
 import { tempDir } from '../testing.js';
-import { browserSkip, withBrowserApp } from './browser-testing.js';
+import { browserSkip, typeAtEndOfMathField, withBrowserApp } from './browser-testing.js';
 
 async function* silent() {}
 
@@ -190,9 +190,7 @@ test(
         );
         await shoot(desk, 'u6-tex-formula');
         // Typing in the field; the LaTeX underneath follows.
-        await field.click();
-        await desk.keyboard.press('End');
-        await desk.keyboard.type('+1');
+        await typeAtEndOfMathField(field, '+1');
         await editor.locator('.ss-mathedit__src', { hasText: '+1' }).waitFor();
         await editor.getByRole('button', { name: '应用' }).click();
         assert.equal(await editor.count(), 0);

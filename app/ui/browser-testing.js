@@ -65,3 +65,23 @@ export async function withBrowserApp(name, script, work, options = {}) {
     await cleanup();
   }
 }
+
+/**
+ * Types at the end of a MathLive field. MathLive takes keys only once the field
+ * has focus, which a busy machine can give it a little after the click.
+ * @param {any} field a Playwright locator
+ * @param {string} text
+ */
+export async function typeAtEndOfMathField(field, text) {
+  await field.click();
+  await field.evaluate(
+    (element) =>
+      new Promise((resolve) => {
+        const check = () =>
+          document.activeElement === element ? resolve(undefined) : requestAnimationFrame(check);
+        check();
+      }),
+  );
+  await field.press('End');
+  await field.pressSequentially(text);
+}

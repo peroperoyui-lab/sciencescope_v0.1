@@ -224,10 +224,13 @@ test(
       assert.equal(sources[0].projectId, null);
       await page.getByRole('button', { name: '范围', exact: true }).click();
       await page.getByRole('menuitemradio', { name: /项目数据库/ }).click();
-      await page.locator('[data-rb-source]', { hasText: 'project.pdf' }).waitFor();
-      assert.equal(await page.locator('[data-rb-source]', { hasText: 'personal.pdf' }).count(), 0);
       // A project has a database, not a knowledge base: sources and memory only.
       await page.locator('.research-base .ss-header__title', { hasText: '数据库' }).waitFor();
+      // project.pdf was listed before the switch too: wait for the list to refresh.
+      await page
+        .locator('[data-rb-source]', { hasText: 'personal.pdf' })
+        .waitFor({ state: 'detached' });
+      await page.locator('[data-rb-source]', { hasText: 'project.pdf' }).waitFor();
       await shot('scope-database');
       await page.getByRole('button', { name: '范围', exact: true }).click();
       await page.waitForTimeout(300);

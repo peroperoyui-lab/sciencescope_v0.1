@@ -51,6 +51,7 @@
 6. **小整理**（结构建议第 2–4 条）：
    - 纪要和记忆的默认值只留一份：放在 core 里一个不依赖 services 的配置模块，`settings.js`、`memory/index.js`、`secretary/policy.js` 都引用它。保留原有导出，测试和调用方不用改。
    - 原子写入合并成一个小原语，放在 core 的文件模块：写临时文件再替换，复用现有的 `renameWithRetry`。`core/workspace/files.js`、`desk/storage.js`、`providers.js` saveKeys 都用它。凭据的串行合并和 0600 权限保留。
+   - `knowledge/jobs.test.js` 的「enabling semantic indexing backfills cosine edges…」在完整检查并发下偶发失败（2026-10-29 Linux，第 280 行 `neighbours` 为 null）：`semantic.sourceNeighbors` 在 `progress.state !== 'ready'` 时返回 null，疑似 `semantic.idle()` 先于状态变为 ready 就返回。查清后修产品或测试，不要放宽断言。
    - 本地向量模型 worker 的协议测试：启动、并发请求的 id 对应、退出时拒绝未完成请求。用本地小型假 worker 测，不下载模型；需要真实 ONNX 资源的集成测试单独标明。
 
 7. **编辑台场景 1–9 Windows 实测**：

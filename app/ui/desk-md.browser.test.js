@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { browserSkip, withBrowserApp } from './browser-testing.js';
+import { browserSkip, typeAtEndOfMathField, withBrowserApp } from './browser-testing.js';
 
 async function* silent() {}
 
@@ -123,9 +123,7 @@ test(
       const field = editor.locator('math-field');
       await field.waitFor();
       await shoot(desk, 'u6-md-formula');
-      await field.click();
-      await desk.keyboard.press('End');
-      await desk.keyboard.type('+1');
+      await typeAtEndOfMathField(field, '+1');
       await editor.locator('.ss-mathedit__src', { hasText: '+1' }).waitFor();
       await editor.getByRole('button', { name: '应用' }).click();
       assert.equal(await editor.count(), 0);
