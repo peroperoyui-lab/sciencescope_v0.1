@@ -2,7 +2,7 @@
 
 - 起草：Claude，2026-10-05。总纲见 `ARCHITECTURE.md`。本文随实现修订；实现与本文不一致时，以代码和测试为准，并同步本文。
 - **R1 已实现（2026-10-05）**：§1–§5、§9 的数据层、事件、工作区、参与者、会议、消息、本地接口与命令行，代码在 `app/core`、`app/server`、`app/main.js`、`app/cli.js`。§6–§8（发言规则的执行、上下文组装、内置工具）在 R2 实现。
-- **R2 已实现（2026-10-05）**：运行时接口 `app/runtime/port.js`；DSH 适配 `app/runtime/dsh/`（一个插件 + 桥接服务）；测试用 `app/runtime/scripted.js`；上下文组装 `app/core/context.js`；发言记录 `app/core/turns.js`；内置工具 `app/services/tools.js`；`direct` 发言规则 `app/services/conductor.js` + `turn-runner.js`；服务商 `app/services/providers.js`；整体装配 `app/app.js`。`round`、`autonomous` 与后台参与者在 R4。
+- **R2 已实现（2026-10-05）**：运行时接口 `app/runtime/port.js`；DSH 适配 `app/runtime/dsh/`（一个插件 + 桥接服务；P1 起换成 pi-ai，代码在 `app/runtime/pi/`，DSH 已在 R5 删除）；测试用 `app/runtime/scripted.js`；上下文组装 `app/core/context.js`；发言记录 `app/core/turns.js`；内置工具 `app/services/tools.js`；`direct` 发言规则 `app/services/conductor.js` + `turn-runner.js`；服务商 `app/services/providers.js`；整体装配 `app/app.js`。`round`、`autonomous` 与后台参与者在 R4。
 - **R3 已实现（2026-10-05）**：界面骨架 `app/ui/`（Preact + htm，无构建步骤；由本地服务直接提供，见 §10）。
 
 ## 1. 数据根
@@ -264,7 +264,7 @@ R4-8b（待审阅）：运行环境页管理Python清单/锁、默认环境、�
 - 入口：`node app/main.js` 输出的 `ui` 地址（`<url>/?token=<口令>`）；口令随后存入会话存储并从地址栏去掉。原生外壳打开同一地址。
 - 依赖：`preact`、`htm`、`marked`、`dompurify` 与思源黑体字体，由 `app/server/static.js` 从 `node_modules` 提供，页面用 import map 引用；不打包、不复制到仓库。
 - 结构：`api.js`（请求与事件流）→ `state.js`（一个状态对象；`applyEvent` 按 id 合并事件，重放无害；`overlay` 放菜单、对话框、提示与搜索面板）→ `actions.js`（用户操作）→ `components/`。组件只读状态、调用 actions，不互相包裹或覆盖。
-- 路由在地址的 hash：`#/`（新对话欢迎页，发出第一条消息才建会议）、`#/new/<projectId>`（项目内新对话）、`#/meeting/<id>`、`#/workbench/<projectId>`、`#/all`（浏览全部）。
+- 路由在地址的 hash：`#/`（新对话欢迎页，发出第一条消息才建会议）、`#/new/<projectId>`（项目内新对话）、`#/meeting/<id>`、`#/workbench/<projectId>`、`#/all`（浏览全部），以及 `#/project-new`、`#/plans/<projectId>`、`#/journal/<projectId>`、`#/files/<projectId>`、`#/map/<projectId>`、`#/database/<projectId>`、`#/library`、`#/sources`、`#/settings/<page>`；完整列表见 `app/ui/route.js`。旧的文稿版本、版本说明、版本比较三页已于 2026-10-29 删除，功能在版本树里。
 - 文字：组件里写中文，`i18n/en.js` 给出英文；测试检查每个中文字符串都有英文条目。语言存于 `settings.appearance.language`，在"视图"菜单切换。
 - 已复原的入口与待复原的 R4 队列：`archive/legacy/UI_RESTORE.md`。
 - 后端补充：`GET /api/search?q=`（消息全文）；`GET/POST /api/projects/:id/files`（列表；mkdir、rename、add、open）与 `GET /api/projects/:id/export`（zip）；`GET /api/meetings/:id/export`（Markdown）；`POST /api/messages/:id/retry`；`GET /api/system`、`POST /api/system/open`；`GET /api/providers/keys`（只有名称）、`POST /api/providers/discover`；`GET /api/events/head`。设置新增 `sites`、`shortcuts`、`appearance`（theme、density、font、codeFontSize、chatFontSize、reduceMotion、scrollbars、transcript）；服务商模型可写 `contextWindow`、`maxTokens`、`efforts`。AI 定义文件新增 `role`、`panel`（expert / reviewer）、`enabled`、`position`，默认专家名册随首次启动创建。DSH 回合结束时报告上下文占用（`usage.context`），供输入框的上下文环。
@@ -284,7 +284,7 @@ R4-8b（待审阅）：运行环境页管理Python清单/锁、默认环境、�
 
 ### R4-1b 界面与混合检索（2026-10-06）
 
-- 新界面路由 `#/database/<projectId>`、`#/library`、`#/sources` 对应项目材料、个人资料、外部站点；旧资料库样式表与列/卡片沿用。文献分页每页50条，段落详情每页20段且可定位搜索命中；知识、模型、主张支持编辑/取代/历史/置顶/归档，memory/inbox/brief与文件预览/附件留在后续任务。
+- 新界面路由 `#/database/<projectId>`、`#/library`、`#/sources` 对应项目材料、个人资料、外部站点；样式在设计系统的 components.css 和 pages.css（旧样式表 2026-10-29 已删）。文献分页每页50条，段落详情每页20段且可定位搜索命中；知识、模型、主张支持编辑/取代/历史/置顶/归档，memory/inbox/brief与文件预览/附件留在后续任务。
 - 来源接口新增 PATCH（title/kind/metadata 合并且索引同步）、POST reparse/open。GET sources支持kind/readStatus/tag/sort/direction；默认返回数组，带page/pageSize返回 `{sources,total,page,pageSize,remaining}`。GET chunks/:id返回段落与来源；条目筛选支持type/subtype/status/pinned，置顶存payload.pinned。
 - 导入上传不设单文件长度限制；仅资料导入路径豁免现有通用JSON请求边界。重新解析复用原件及来源id，用户元数据保留。
 - 迁移004创建 `rb_vec_docs` 与sqlite-vec `rb_vec`（384维）；同一个core数据库连接，数据库构造允许扩展加载，迁移和向量服务仅在加载sqlite-vec时启用。来源/条目/原件为正本，向量删除后可重建。

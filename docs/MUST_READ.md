@@ -164,8 +164,7 @@ ScienceScope 是一个本地运行的学术研究助手。
 - **样式**：
   - 组件样式只改 `app/ui/styles/components.css`（`ss-` 类名，也是画廊 `bundle.css` 的来源）；
   - 页面布局写在 `styles/pages.css`；
-  - `styles/tokens.css` 和 `lucide-icons.js` 由 `design/system/build/build.py` 生成，不要手改；
-  - `styles/legacy/` 是要逐页删除的旧样式，不要往里加东西。
+  - `styles/tokens.css` 和 `lucide-icons.js` 由 `design/system/build/build.py` 生成，不要手改；旧样式表 `styles/legacy/` 已于 2026-10-29 删除，不要再建。
 - **画廊交互**：应用里不加载画廊的 `bundle.js`，照 `build/bundle.src.js` 的示例用 Preact 实现。
 - **不包装、不覆盖**别的模块的函数。需要扩展点，就在被扩展的模块里明确提供。
 - **竞态**：事件可能比页面数据先到，以较新的为准，不要让旧数据覆盖新状态。监听器里读最新状态时用 ref，不要依赖过期的闭包。

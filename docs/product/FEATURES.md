@@ -314,7 +314,7 @@ data/
 - `PATCH /api/knowledge/positions {positions:[{ref,x,y,pinned?}]}` 保存坐标，省略 pinned 保留原状态；返回 `{refs}`。`POST /api/knowledge/layout/rerun {projectId?}` 立即返回 `{queued:true}`，后台重排。四个接口沿用启动口令；没有新增界面或模型请求。
 - Windows 合成 5 万节点/50 万边验收：全图 10.665 秒；layout 响应 5,023,047 bytes、2.955 秒，超过 1 秒目标 1.955 秒。viewport 1500 节点 141.5 ms，局部新增 100 节点 462.0 ms；布局期间没有超过 100 ms 的主线程延迟。SQL 独立测量 2.877 秒，原因是逐节点统计两向度数；审阅时改成按索引分组统计，云端同规模从 1.5 秒降到 0.3–0.6 秒，Windows 复测 667 毫秒（KB-6b 时）。
 
-### 2.9 工作站（计划、导图、日志、文稿版本、历史版本）
+### 2.9 工作站（计划、导图、日志、版本树、历史版本）
 
 **用户能做什么**
 

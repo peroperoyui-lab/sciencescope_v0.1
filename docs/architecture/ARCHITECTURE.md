@@ -47,7 +47,7 @@ app/
   resources/   随程序发布的内置技能 skills/
   server/      本地 HTTP + SSE，routes/ 只做参数解析和转发
   ui/          Preact + htm：components/（ss- 组件）、styles/（tokens.css 由设计画廊生成，components.css、
-               pages.css；legacy/ 待 P3 删完）、readers/（pdf.js、docx-preview）、i18n/en.js
+               pages.css、app.css）、readers/（pdf.js、docx-preview）、i18n/en.js
 src-tauri/     Windows 原生外壳（主窗口、助手窗口与悬浮球、截图）
 tools/package/ Windows 打包（Node、app/、生产依赖、uv 随包，NSIS）
 data/          运行时数据（不进 Git）；开发时在 .sciencescope-local/data

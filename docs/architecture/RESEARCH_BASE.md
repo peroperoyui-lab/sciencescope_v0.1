@@ -176,7 +176,7 @@
   `research-api`（路由、简报注入、按会话绑定的工具调用、使用回执）、`research-tools-runtime`（**真实 DSH**：主专家与专家子代理调用工具、简报进入系统提示）；
   真实模型：`scripts/evals/research-base-live.mjs`（结果见 DESKTOP_IMPLEMENTATION 2026-09-25）。
 
-## 7. 分工（交给 GPT 的任务书在 `docs/tasks/`）
+## 7. 分工（交给 GPT 的任务书在 `docs/plans/tasks/`）
 
 | 任务 | 内容 | 依赖 |
 |---|---|---|
