@@ -33,7 +33,16 @@ test('native CDP measurement correlates request completion and sampled function 
   page.context = () => ({ newCDPSession: async () => session });
   const rows = [];
   try {
-    await observePage(page, rows, [], () => 'docx-open');
+    const progress = [];
+    await observePage(page, rows, [], () => 'docx-open', progress);
+    session.emit('Network.eventSourceMessageReceived', {
+      data: JSON.stringify({
+        type: 'research.index.progress',
+        payload: { phase: 'idle', completed: 300, total: 300, private: 'omitted' },
+      }),
+    });
+    assert.equal(progress[0].phase, 'idle');
+    assert.equal(progress[0].private, undefined);
     session.emit('Network.requestWillBeSent', {
       requestId: 'r1',
       timestamp: 4,
