@@ -625,6 +625,12 @@ export function createActions(api, store) {
       navigate(node.projectId ? { view: 'database', id: node.projectId } : { view: 'library' });
     },
     consumeKnowledgeRequest: () => set({ knowledgeRequest: null }),
+    /** Open the workbench with its version tree at one version. @param {string} projectId @param {string} versionId */
+    showVersion(projectId, versionId) {
+      set({ versionRequest: { projectId, versionId, at: Date.now() } });
+      navigate({ view: 'workbench', id: projectId });
+    },
+    consumeVersionRequest: () => set({ versionRequest: null }),
     readResource,
     editResource,
     history,

@@ -199,6 +199,10 @@ export function showInputContext(actions, input) {
     if (entry.type === 'source') {
       actions.closeModal();
       actions.openPreview({ kind: 'source', id: entry.id });
+    } else if (entry.type === 'version-notes' && entry.key?.includes('/')) {
+      actions.closeModal();
+      const [projectId, versionId] = entry.key.split('/');
+      actions.showVersion(projectId, versionId);
     }
   };
   actions.openModal(
@@ -210,7 +214,7 @@ export function showInputContext(actions, input) {
           ${input.materials.map(
             (entry) =>
               html`<div
-                class=${`ss-list-row ${entry.text ? 'ss-list-row--2' : ''} ${entry.type === 'source' ? 'ss-list-row--link' : ''}`}
+                class=${`ss-list-row ${entry.text ? 'ss-list-row--2' : ''} ${['source', 'version-notes'].includes(entry.type) ? 'ss-list-row--link' : ''}`}
                 key=${entry.selectionId ?? entry.id}
                 onClick=${() => open(entry)}
               >

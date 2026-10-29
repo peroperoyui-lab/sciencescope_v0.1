@@ -49,13 +49,15 @@ function matches(node, words) {
  *   canCompare: boolean, canEdit: string, onClose: () => void, onWiden: () => void,
  *   onOpen: (version: any) => void, onEdit: (version: any) => void,
  *   onCompare?: (left: string, right: string) => void, openLabel?: string, picker?: any,
- *   onReference?: (reference: any) => void,
+ *   onReference?: (reference: any) => void, onPreview?: (version: any) => void,
+ *   focusId?: string | null,
  *   ask: (question: any) => Promise<string | null> }} props
  * `currentId` is the version open in the active tab (`editing` when it is being
  * edited); `canEdit` is why 从这一版开始编辑 is off, or ''. Outside the desk
  * (the workbench) `openLabel` names the one action, opening a version in the
  * desk, `picker` chooses the manuscript, and without `onCompare` there is no
- * comparing; `onReference` opens what a version note points to (main window only).
+ * comparing; `onReference` opens what a version note points to (main window only);
+ * `focusId` is a version to select when nothing is open.
  */
 export function VersionTree({
   group,
@@ -72,6 +74,8 @@ export function VersionTree({
   openLabel,
   picker,
   onReference,
+  onPreview,
+  focusId,
   ask,
 }) {
   const actions = useActions();
@@ -98,7 +102,7 @@ export function VersionTree({
     };
   }, [group.id, refresh]);
   // The open version is selected first, and kept in view.
-  useEffect(() => setSelected(currentId), [group.id, currentId]);
+  useEffect(() => setSelected(currentId ?? focusId ?? null), [group.id, currentId, focusId]);
 
   const node = nodes?.find((entry) => entry.id === selected) ?? null;
   const current = nodes?.find((entry) => entry.id === currentId) ?? null;
@@ -164,11 +168,46 @@ export function VersionTree({
     }
   }
 
-  const compareLabel = (target) =>
-    current && target.id !== current.id
-      ? t('和 v{n} 比较', { n: current.number })
-      : t('和当前版本比较');
-  const compareOff = (target) => !canCompare || !current || target.id === current.id;
+  // In the desk a version compares with the open one; on the workbench, with its parent.
+  /** @param {any} target @returns {[string, string] | null} */
+  const comparePair = (target) => {
+    if (current) return target.id === current.id ? null : [target.id, current.id];
+    return target.parentId ? [target.parentId, target.id] : null;
+  };
+  const compareLabel = (target) => {
+    if (current)
+      return target.id !== current.id
+        ? t('和 v{n} 比较', { n: current.number })
+        : t('和当前版本比较');
+    const parent = target.parentId && byId.get(target.parentId);
+    return parent ? t('和上一版 v{n} 比较', { n: parent.number }) : t('和上一版比较');
+  };
+  const compareOff = (target) => !canCompare || !comparePair(target);
+  /** @param {any} target */
+  const compare = (target) => {
+    const pair = comparePair(target);
+    if (pair && onCompare) onCompare(...pair);
+  };
+
+  async function saveAsNew(target) {
+    const choice = await ask({
+      title: t('另存为新版本'),
+      text: t('复制 v{n} 的原件成为新的版本；已有版本和说明保持可查看。', { n: target.number }),
+      options: [
+        { value: 'cancel', label: t('取消') },
+        { value: 'save', label: t('确认另存'), primary: true },
+      ],
+    });
+    if (choice !== 'save') return;
+    try {
+      const saved = await actions.saveVersionAsNew(target.id);
+      const graph = await actions.versionGraph(group.id);
+      setNodes(graph.nodes);
+      setSelected(saved?.versions?.[0]?.id ?? target.id);
+    } catch (failure) {
+      actions.toast(failure.message);
+    }
+  }
 
   /** @param {MouseEvent} event @param {any} target */
   function menu(event, target) {
@@ -202,7 +241,7 @@ export function VersionTree({
                 text: compareLabel(target),
                 icon: 'git-compare',
                 disabled: compareOff(target),
-                run: () => onCompare(target.id, /** @type {any} */ (current).id),
+                run: () => compare(target),
               },
             ]
           : []),
@@ -237,6 +276,12 @@ export function VersionTree({
             ]
           : []),
         { sep: true },
+        ...(onPreview ? [{ text: t('预览'), icon: 'eye', run: () => onPreview(target) }] : []),
+        {
+          text: t('另存为新版本'),
+          icon: 'copy',
+          run: () => saveAsNew(target),
+        },
         {
           text: t('打开原件'),
           icon: 'external-link',
@@ -512,7 +557,7 @@ export function VersionTree({
               type="button"
               class="ss-btn ss-btn--sm ss-btn--ghost"
               disabled=${compareOff(node)}
-              onClick=${() => onCompare(node.id, /** @type {any} */ (current).id)}
+              onClick=${() => compare(node)}
             >
               <${Lucide} name="git-compare" />${compareLabel(node)}
             </button>`

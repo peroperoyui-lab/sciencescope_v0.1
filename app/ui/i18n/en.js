@@ -184,12 +184,19 @@ export const en = {
   新建一份文稿: 'New manuscript',
   文稿名称: 'Manuscript name',
   导入文稿版本: 'Import manuscript versions',
-  '任务秘书比较这一版和上一版，写下变化和建议':
-    'The task secretary compares this version with the one before and writes down the changes and suggestions',
   让秘书整理: 'Ask the secretary',
   '还没有版本说明。': 'No version notes yet.',
   这个项目的新版本自动整理说明: 'Write notes for new versions in this project automatically',
   导入文件为版本: 'Import files as versions',
+  '已把旧版另存为新版本。': 'Saved the old version as a new one.',
+  '任务秘书比较这一版和基线，写下变化和建议':
+    'The task secretary compares this version with the baseline and writes down the changes and suggestions',
+  '写下你的补充，会接在说明末尾': 'Write your additions; they go at the end of the notes',
+  选一个对话: 'Pick a chat',
+  '和上一版 v{n} 比较': 'Compare with the previous v{n}',
+  和上一版比较: 'Compare with the previous version',
+  '复制 v{n} 的原件成为新的版本；已有版本和说明保持可查看。':
+    'Copies the original of v{n} as a new version; existing versions and notes stay available.',
   '今天想研究什么？': 'What would you like to research today?',
   发送: 'Send',
   '回答达到模型的单次输出上限，后面的内容没有写出。':

@@ -30,6 +30,8 @@ import { SidePanel } from './side-panel.js';
 import { VersionTree } from './version-tree.js';
 import { openVersionImport } from './version-import.js';
 import { openVersionReference } from './version-notes-box.js';
+import { openVersionCompare } from './version-compare-dialog.js';
+import { FieldForm } from './overlays.js';
 
 /**
  * Read resources and re-read them whenever the workspace changes.
@@ -547,9 +549,10 @@ const touched = (group) => group.versions?.[0]?.createdAt ?? group.createdAt ?? 
  * The project's manuscripts in the desk's version tree, with a picker for which
  * one. 在编辑台打开这一版 opens that version in the desk; 导入 adds files from
  * outside as versions.
- * @param {{ project: any, desk: boolean, onClose: () => void }} props
+ * @param {{ project: any, desk: boolean, focusId?: string | null, onClose: () => void }} props
+ * `focusId` is a version to show first (a quoted 版本说明 opened from a chat).
  */
-function WorkbenchVersions({ project, desk, onClose }) {
+function WorkbenchVersions({ project, desk, focusId = null, onClose }) {
   const actions = useActions();
   const refresh = useAppState((state) => state.versionsVersion);
   const [groups, setGroups] = useState(/** @type {any[] | null} */ (null));
@@ -581,15 +584,22 @@ function WorkbenchVersions({ project, desk, onClose }) {
         if (!active) return;
         const sorted = [...list].sort((a, b) => touched(b).localeCompare(touched(a)));
         setGroups(sorted);
+        const focused = focusId
+          ? sorted.find((group) => group.versions?.some((version) => version.id === focusId))
+          : null;
         setGroupId((current) =>
-          sorted.some((group) => group.id === current) ? current : (sorted[0]?.id ?? null),
+          focused
+            ? focused.id
+            : sorted.some((group) => group.id === current)
+              ? current
+              : (sorted[0]?.id ?? null),
         );
       })
       .catch((failure) => active && actions.toast(failure.message));
     return () => {
       active = false;
     };
-  }, [project.id, refresh]);
+  }, [project.id, refresh, focusId]);
   const group = groups?.find((entry) => entry.id === groupId) ?? null;
   const name = (entry) => entry.sourcePath ?? entry.name;
   const choice =
@@ -607,7 +617,27 @@ function WorkbenchVersions({ project, desk, onClose }) {
     >
       <span class="ss-select__value ss-truncate">${group ? name(group) : ''}</span>
     <//>`;
-  const picker = choice && html`${choice}${importButton}`;
+  const renameButton =
+    group &&
+    html`<button
+      type="button"
+      class="ss-icon-btn ss-icon-btn--sm"
+      aria-label=${t('重命名版本组')}
+      data-tip=${t('重命名版本组')}
+      onClick=${() =>
+        actions.openModal(
+          t('重命名版本组'),
+          html`<${FieldForm}
+            label=${t('版本组名称')}
+            value=${group.name}
+            submitText=${t('保存')}
+            onSubmit=${(next) => actions.renameVersionGroup(group.id, next)}
+          />`,
+        )}
+    >
+      <${Lucide} name="pencil" />
+    </button>`;
+  const picker = choice && html`${choice}${renameButton}${importButton}`;
   const open = (node) =>
     desk
       ? actions.attempt(() =>
@@ -653,7 +683,7 @@ function WorkbenchVersions({ project, desk, onClose }) {
               name=${group.name}
               currentId=${null}
               editing=${false}
-              canCompare=${false}
+              canCompare=${true}
               canEdit=${desk ? '' : t('先在设置 → 常规里打开编辑台')}
               openLabel=${t('在编辑台打开这一版')}
               picker=${picker}
@@ -665,6 +695,11 @@ function WorkbenchVersions({ project, desk, onClose }) {
               onOpen=${open}
               onEdit=${open}
               onReference=${(reference) => openVersionReference(actions, reference, project.id)}
+              onPreview=${(node) =>
+                actions.openPreview({ kind: 'version', id: node.id, projectId: project.id })}
+              onCompare=${(left, right) =>
+                openVersionCompare(actions, { versions: group.versions ?? [], left, right })}
+              focusId=${focusId}
               ask=${ask}
             />`
           : html`<div class="ss-panel__head">
@@ -715,6 +750,14 @@ export function Workbench({ projectId }) {
   const projects = useAppState((state) => state.projects);
   const desk = deskEnabled(useAppState((state) => state.settings));
   const [versions, setVersions] = useState(false);
+  const [focusVersion, setFocusVersion] = useState(/** @type {string | null} */ (null));
+  const versionRequest = useAppState((state) => state.versionRequest);
+  useEffect(() => {
+    if (!versionRequest || versionRequest.projectId !== projectId) return;
+    setFocusVersion(versionRequest.versionId);
+    setVersions(true);
+    actions.consumeVersionRequest();
+  }, [versionRequest, projectId]);
   const project = projects.find((p) => p.id === projectId);
   if (!project) {
     return html`<main class="ss-main">
@@ -820,6 +863,7 @@ export function Workbench({ projectId }) {
       html`<${WorkbenchVersions}
         project=${project}
         desk=${desk}
+        focusId=${focusVersion}
         onClose=${() => setVersions(false)}
       />`
     }`;

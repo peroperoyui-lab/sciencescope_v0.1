@@ -54,6 +54,9 @@ export const initialState = {
   /** A node to select on the knowledge page (项目资料, 本轮用到的资料, 本轮修改了知识库). */
   /** @type {null|{type:string,id:string,title:string,projectId?:string|null,graph?:boolean,at:number}} */
   knowledgeRequest: null,
+  /** A version to show in the workbench's version tree (a quoted 版本说明). */
+  /** @type {null|{projectId:string,versionId:string,at:number}} */
+  versionRequest: null,
   researchVersion: 0,
   // Bumped when the host moves graph nodes (knowledge.layout.changed).
   layoutVersion: 0,

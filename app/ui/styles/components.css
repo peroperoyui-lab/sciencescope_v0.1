@@ -7501,3 +7501,24 @@ textarea {
   font-size: 13px;
   line-height: 20px;
 }
+.ss-vtree__organize,
+.ss-vtree__notes-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-6);
+}
+.ss-vtree__organize .ss-select {
+  max-width: 100%;
+}
+.ss-vtree__notes-edit {
+  display: grid;
+  gap: var(--sp-6);
+}
+.ss-version-cmp {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+}
