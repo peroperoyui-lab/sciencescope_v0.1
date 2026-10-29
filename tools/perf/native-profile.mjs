@@ -4,7 +4,7 @@ import { writeFile } from 'node:fs/promises';
 export function safeRoute(value) {
   try {
     return new URL(value).pathname.replace(
-      /\b(?:prj|meeting|msg|version|vgroup|desk)_[\w-]+/g,
+      /\b(?:prj|mtg|meeting|msg|version|ver|vgroup|desk|src|ent|edg|kbv|session)_[\w-]+/g,
       ':id',
     );
   } catch {
@@ -34,7 +34,7 @@ export function summarizeHttp(rows) {
     .sort((a, b) => b.p95 - a.p95);
 }
 
-export async function observePage(page, http, errors, phase) {
+export async function observePage(page, http, errors, phase, indexProgress = []) {
   const session = await page.context().newCDPSession(page);
   const pending = new Map();
   session.on('Network.requestWillBeSent', (event) => {
@@ -69,6 +69,22 @@ export async function observePage(page, http, errors, phase) {
     const row = pending.get(event.requestId);
     if (row) http.push({ ...row, failed: event.errorText });
     pending.delete(event.requestId);
+  });
+  session.on('Network.eventSourceMessageReceived', (event) => {
+    try {
+      const message = JSON.parse(event.data);
+      if (message.type !== 'research.index.progress') return;
+      const payload = message.payload ?? {};
+      indexProgress.push({
+        observedAt: Date.now(),
+        operation: phase(),
+        phase: payload.phase,
+        done: payload.done,
+        total: payload.total,
+      });
+    } catch {
+      /* Non-JSON keepalive frames carry no index event. */
+    }
   });
   page.on('pageerror', (error) => errors.push({ operation: phase(), message: error.message }));
   await session.send('Network.enable');

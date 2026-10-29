@@ -98,7 +98,7 @@ export async function collectUsage(
     }
   }
   const db = new DatabaseSync(path.join(dataRoot, 'sciencescope.sqlite'), { readOnly: true });
-  let turns, jobs, versions, memories, revisions, runtimeSessions, messageOwners;
+  let turns, jobs, versions, memories, revisions, runtimeSessions, messageOwners, toolCalls;
   try {
     turns = db
       .prepare(
@@ -130,6 +130,11 @@ export async function collectUsage(
         .all()
         .map((row) => [row.id, row.meeting_id]),
     );
+    toolCalls = db
+      .prepare(
+        "SELECT id,turn_id,name,args_json,status,started_at,ended_at,kind FROM tool_calls WHERE kind='tool'",
+      )
+      .all();
   } finally {
     db.close();
   }
@@ -338,12 +343,60 @@ export async function collectUsage(
     setup?.setupTest &&
     row.endMs >= setup.setupTest.startMs &&
     row.startMs <= setup.setupTest.endMs;
+  const selectedTurns = new Set(rows.map((row) => row.turnId).filter(Boolean));
+  const seenReads = new Set();
+  const tools = toolCalls
+    .filter((call) => selectedTurns.has(call.turn_id))
+    .sort((a, b) => Date.parse(a.started_at) - Date.parse(b.started_at))
+    .map((call) => {
+      const argumentsHash = digest(call.args_json);
+      const read = ['workspace_read', 'research_read', 'read'].includes(call.name);
+      const key = `${call.name}:${argumentsHash}`;
+      const repeatedRead = read && seenReads.has(key);
+      if (read) seenReads.add(key);
+      return {
+        id: call.id,
+        turnId: call.turn_id,
+        name: call.name,
+        status: call.status,
+        argumentsHash,
+        read,
+        repeatedRead,
+      };
+    });
+  const roundWindows = scenario?.windows?.filter((entry) => /^round-\d+$/u.test(entry.name)) ?? [];
+  const roundStarts = roundWindows.map((entry, index) => {
+    const nextStart = roundWindows[index + 1]?.startMs ?? scenario.idleStartMs ?? entry.endMs;
+    const started = rows.filter((row) => row.startMs >= entry.startMs && row.startMs < nextStart);
+    return {
+      round: Number(entry.name.slice(6)),
+      startMs: entry.startMs,
+      endMs: nextStart,
+      requestsByKind: Object.fromEntries(
+        [...new Set(started.map((row) => row.kind))].map((kind) => [
+          kind,
+          started.filter((row) => row.kind === kind).length,
+        ]),
+      ),
+    };
+  });
   return {
     schema: 1,
     requests: rows.length,
     malformedLogLines,
     groups,
     rows,
+    contextCoverage: {
+      reconstructed: rows.filter((row) => row.context.available).length,
+      unavailable: rows.filter((row) => !row.context.available).length,
+    },
+    tools: {
+      calls: tools.length,
+      reads: tools.filter((call) => call.read).length,
+      repeatedReads: tools.filter((call) => call.repeatedRead).length,
+      rows: tools,
+    },
+    roundStarts,
     scopes: scenario
       ? {
           scenario: {
@@ -382,6 +435,7 @@ export async function collectUsage(
       'Request duration is summed work time; concurrent requests can overlap.',
       'Context hashes are reconstructed only when one persisted assistant timestamp matches; failed/discarded/compaction context can be unavailable.',
       'Overlap distinguishes a running request from a new request started during foreground work.',
+      'roundStarts groups request start times into composer round windows; temporal proximity is not a causal trigger attribution. Tools count durable kind=tool receipts only, excluding thinking activities.',
     ],
   };
 }

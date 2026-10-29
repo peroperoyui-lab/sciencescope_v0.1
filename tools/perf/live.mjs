@@ -86,6 +86,7 @@ export async function runLive(
       description: '完全合成的研究口径验收，不对应真实资料。',
     });
     const preferences = await api('GET', `/api/version-preferences/${project.id}`);
+    report.defaults.versionPreferences = preferences;
     assert.equal(preferences.autoOrganize, true);
     const meeting = await api('POST', '/api/meetings', {
       projectId: project.id,
