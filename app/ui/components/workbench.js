@@ -3,7 +3,7 @@
 // and the project folder. 版本树 opens the desk's version tree on the right for
 // any of the project's manuscripts. Every edit is a workspace edit, retained in
 // resource snapshots when an editing page is left.
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { t } from '../i18n/index.js';
@@ -28,6 +28,8 @@ import { ChoiceMenu } from './popover.js';
 import { ProjectFolder } from './project-folder.js';
 import { SidePanel } from './side-panel.js';
 import { VersionTree } from './version-tree.js';
+import { openVersionImport } from './version-import.js';
+import { openVersionReference } from './version-notes-box.js';
 
 /**
  * Read resources and re-read them whenever the workspace changes.
@@ -543,7 +545,8 @@ const touched = (group) => group.versions?.[0]?.createdAt ?? group.createdAt ?? 
 
 /**
  * The project's manuscripts in the desk's version tree, with a picker for which
- * one. 在编辑台打开这一版 opens that version in the desk.
+ * one. 在编辑台打开这一版 opens that version in the desk; 导入 adds files from
+ * outside as versions.
  * @param {{ project: any, desk: boolean, onClose: () => void }} props
  */
 function WorkbenchVersions({ project, desk, onClose }) {
@@ -552,6 +555,24 @@ function WorkbenchVersions({ project, desk, onClose }) {
   const [groups, setGroups] = useState(/** @type {any[] | null} */ (null));
   const [groupId, setGroupId] = useState(/** @type {string | null} */ (null));
   const [question, ask] = useQuestion();
+  const fileInput = useRef(/** @type {HTMLInputElement | null} */ (null));
+  /** @param {FileList | null | undefined} files */
+  const importFiles = (files) =>
+    openVersionImport(actions, {
+      projectId: project.id,
+      groups: groups ?? [],
+      files: Array.from(files ?? []),
+      groupId,
+    });
+  const importButton = html`<button
+    type="button"
+    class="ss-icon-btn ss-icon-btn--sm"
+    aria-label=${t('导入文件为版本')}
+    data-tip=${t('导入文件为版本')}
+    onClick=${() => fileInput.current?.click()}
+  >
+    <${Lucide} name="plus" />
+  </button>`;
   useEffect(() => {
     let active = true;
     actions
@@ -571,7 +592,7 @@ function WorkbenchVersions({ project, desk, onClose }) {
   }, [project.id, refresh]);
   const group = groups?.find((entry) => entry.id === groupId) ?? null;
   const name = (entry) => entry.sourcePath ?? entry.name;
-  const picker =
+  const choice =
     groups &&
     groups.length > 0 &&
     html`<${ChoiceMenu}
@@ -586,6 +607,7 @@ function WorkbenchVersions({ project, desk, onClose }) {
     >
       <span class="ss-select__value ss-truncate">${group ? name(group) : ''}</span>
     <//>`;
+  const picker = choice && html`${choice}${importButton}`;
   const open = (node) =>
     desk
       ? actions.attempt(() =>
@@ -604,55 +626,85 @@ function WorkbenchVersions({ project, desk, onClose }) {
     onClose=${onClose}
     bare
   >
-    ${
-      group
-        ? html`<${VersionTree}
-            key=${group.id}
-            group=${group}
-            name=${group.name}
-            currentId=${null}
-            editing=${false}
-            canCompare=${false}
-            canEdit=${desk ? '' : t('先在设置 → 常规里打开编辑台')}
-            openLabel=${t('在编辑台打开这一版')}
-            picker=${picker}
-            onClose=${onClose}
-            onWiden=${() =>
-              actions.attempt(() =>
-                actions.updateSettings({ appearance: { panels: { versions: 560 } } }),
-              )}
-            onOpen=${open}
-            onEdit=${open}
-            ask=${ask}
-          />`
-        : html`<div class="ss-panel__head">
-              <${Lucide} name="git-fork" />
-              <span class="ss-panel__title">${t('版本树')}</span>
-              <span class="ss-titlebar__spacer"></span>
-              <button
-                type="button"
-                class="ss-icon-btn"
-                aria-label=${t('关闭版本树')}
-                data-tip=${t('关闭版本树')}
-                onClick=${onClose}
-              >
-                <${Lucide} name="x" />
-              </button>
-            </div>
-            <div class="ss-panel__body">
-              ${
-                groups
-                  ? html`<div class="ss-empty">
-                      <div class="ss-empty__icon"><${Lucide} name="git-fork" /></div>
-                      <div class="ss-empty__title">${t('还没有文稿版本')}</div>
-                      <div class="ss-empty__text">
-                        ${t('在编辑台打开项目里的 docx、tex、md 或 pdf，保存时就会留下版本。')}
-                      </div>
-                    </div>`
-                  : html`<div class="ss-desk-canvas__state"><span class="ss-spin"></span></div>`
-              }
-            </div>`
-    }
+    <input
+      ref=${fileInput}
+      type="file"
+      multiple
+      hidden
+      data-version-import
+      onChange=${(event) => {
+        importFiles(event.currentTarget.files);
+        event.currentTarget.value = '';
+      }}
+    />
+    <div
+      class="ss-contents"
+      onDragOver=${(event) => event.preventDefault()}
+      onDrop=${(event) => {
+        event.preventDefault();
+        importFiles(event.dataTransfer?.files);
+      }}
+    >
+      ${
+        group
+          ? html`<${VersionTree}
+              key=${group.id}
+              group=${group}
+              name=${group.name}
+              currentId=${null}
+              editing=${false}
+              canCompare=${false}
+              canEdit=${desk ? '' : t('先在设置 → 常规里打开编辑台')}
+              openLabel=${t('在编辑台打开这一版')}
+              picker=${picker}
+              onClose=${onClose}
+              onWiden=${() =>
+                actions.attempt(() =>
+                  actions.updateSettings({ appearance: { panels: { versions: 560 } } }),
+                )}
+              onOpen=${open}
+              onEdit=${open}
+              onReference=${(reference) => openVersionReference(actions, reference, project.id)}
+              ask=${ask}
+            />`
+          : html`<div class="ss-panel__head">
+                <${Lucide} name="git-fork" />
+                <span class="ss-panel__title">${t('版本树')}</span>
+                <span class="ss-titlebar__spacer"></span>
+                <button
+                  type="button"
+                  class="ss-icon-btn"
+                  aria-label=${t('关闭版本树')}
+                  data-tip=${t('关闭版本树')}
+                  onClick=${onClose}
+                >
+                  <${Lucide} name="x" />
+                </button>
+              </div>
+              <div class="ss-panel__body">
+                ${
+                  groups
+                    ? html`<div class="ss-empty">
+                        <div class="ss-empty__icon"><${Lucide} name="git-fork" /></div>
+                        <div class="ss-empty__title">${t('还没有文稿版本')}</div>
+                        <div class="ss-empty__text">
+                          ${t('在编辑台打开项目里的 docx、tex、md 或 pdf，保存时就会留下版本。')}
+                        </div>
+                        <div class="ss-empty__actions">
+                          <button
+                            type="button"
+                            class="ss-btn ss-btn--sm"
+                            onClick=${() => fileInput.current?.click()}
+                          >
+                            <${Lucide} name="plus" />${t('导入文件为版本')}
+                          </button>
+                        </div>
+                      </div>`
+                    : html`<div class="ss-desk-canvas__state"><span class="ss-spin"></span></div>`
+                }
+              </div>`
+      }
+    </div>
     ${question}
   <//>`;
 }
@@ -689,15 +741,6 @@ export function Workbench({ projectId }) {
           icon: 'package',
           run: () => actions.attempt(() => actions.download(`/api/projects/${project.id}/export`)),
         },
-        ...(desk
-          ? []
-          : [
-              {
-                text: t('文稿版本（旧页面）'),
-                icon: 'files',
-                run: () => navigate({ view: 'versions', id: project.id }),
-              },
-            ]),
         { sep: true },
         {
           text: t('计划的历史版本'),

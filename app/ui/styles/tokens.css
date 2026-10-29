@@ -95,11 +95,12 @@
   --z-toast: 300;
   --z-tip: 400;
   --o-disabled: 0.45;
-  /* Settings → 界面字体 puts a chosen family in front of these (appearance.js). */
+  --font-sans:
+    'Noto Sans SC Variable', 'Noto Sans SC', 'Microsoft YaHei', 'SimHei', 'PingFang SC',
+    'Noto Sans CJK SC', system-ui, sans-serif;
   --font-sans-default:
     'Noto Sans SC Variable', 'Noto Sans SC', 'Microsoft YaHei', 'SimHei', 'PingFang SC',
     'Noto Sans CJK SC', system-ui, sans-serif;
-  --font-sans: var(--font-sans-default);
   --font-mono:
     'JetBrains Mono', 'Cascadia Code', 'SFMono-Regular', Consolas, 'Noto Sans Mono CJK SC',
     monospace;

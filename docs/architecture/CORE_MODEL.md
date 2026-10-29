@@ -260,7 +260,7 @@ R4-2b（待审阅）：GET /api/preview/document与/content按来源、交付物
 R4-8b（待审阅）：运行环境页管理Python清单/锁、默认环境、镜像与共享缓存；环境状态由python.changed触发读取，不轮询。项目创建environment绑定项目；独立对话详情先存欢迎草稿，首条消息创建时由creation保存工作目录与会议绑定；项目内对话继承。会议工作区菜单可单独改绑定，下一轮生效。列表先冻结数据库快照再统计磁盘，关闭时不回读SQLite。
 
 - **2026-10-16 起本条废止**：界面按 `design/DESIGN_SYSTEM.md` 重做，由 Claude 设计并实现（`reviews/REVIEW_2026-10-16.md` D1、D5）。以下为原文，留作历史：
-- **原则：界面沿用旧主界面的设计，一比一复刻**（2026-10-05 用户确认）。组件输出与旧界面相同的 DOM 结构和类名，样式直接使用旧界面的样式表：`styles/legacy/` 依次为已批准原型（`prototype.css`，取自 `ScienceScope.html`）和旧桌面的 `chat`、`workspace`、`workbench`、`desktop-behavior`、`refresh`，加载顺序与旧界面相同；`styles/app.css` 只放新界面需要的少量补充。图标路径取自原型的 `iconPaths`。重构的重点在后端，界面不另行设计。
+- （已作废：2026-10-16 起界面按设计系统重做，2026-10-29 旧样式表全部删除。）**原则：界面沿用旧主界面的设计，一比一复刻**（2026-10-05 用户确认）。组件输出与旧界面相同的 DOM 结构和类名，样式直接使用旧界面的样式表：`styles/legacy/` 依次为已批准原型（`prototype.css`，取自 `ScienceScope.html`）和旧桌面的 `chat`、`workspace`、`workbench`、`desktop-behavior`、`refresh`，加载顺序与旧界面相同；`styles/app.css` 只放新界面需要的少量补充。图标路径取自原型的 `iconPaths`。重构的重点在后端，界面不另行设计。
 - 入口：`node app/main.js` 输出的 `ui` 地址（`<url>/?token=<口令>`）；口令随后存入会话存储并从地址栏去掉。原生外壳打开同一地址。
 - 依赖：`preact`、`htm`、`marked`、`dompurify` 与思源黑体字体，由 `app/server/static.js` 从 `node_modules` 提供，页面用 import map 引用；不打包、不复制到仓库。
 - 结构：`api.js`（请求与事件流）→ `state.js`（一个状态对象；`applyEvent` 按 id 合并事件，重放无害；`overlay` 放菜单、对话框、提示与搜索面板）→ `actions.js`（用户操作）→ `components/`。组件只读状态、调用 actions，不互相包裹或覆盖。

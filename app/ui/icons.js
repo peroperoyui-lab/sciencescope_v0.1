@@ -49,8 +49,3 @@ export function Lucide({ name, small = false, class: extra = '' }) {
     dangerouslySetInnerHTML=${{ __html: iconSvg(name) }}
   ></svg>`;
 }
-
-/** The older interface's icon slot (`.ico`), now drawing a Lucide icon. @param {{ name: string }} props */
-export function Icon({ name }) {
-  return html`<span class="ico"><${Lucide} name=${name} /></span>`;
-}

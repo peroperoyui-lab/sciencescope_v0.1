@@ -5,7 +5,6 @@ import { html } from '../html.js';
 import { t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
 import { MarksPopover } from './marks-popover.js';
-import { navigate } from '../route.js';
 import { deskReference } from '../desk-assist.js';
 import { deskEnabled, focusDesk } from '../desk-window.js';
 
@@ -200,9 +199,6 @@ export function showInputContext(actions, input) {
     if (entry.type === 'source') {
       actions.closeModal();
       actions.openPreview({ kind: 'source', id: entry.id });
-    } else if (entry.type === 'version-notes') {
-      actions.closeModal();
-      navigate({ view: 'version-notes', id: entry.key });
     }
   };
   actions.openModal(
@@ -214,7 +210,7 @@ export function showInputContext(actions, input) {
           ${input.materials.map(
             (entry) =>
               html`<div
-                class=${`ss-list-row ${entry.text ? 'ss-list-row--2' : ''} ${['source', 'version-notes'].includes(entry.type) ? 'ss-list-row--link' : ''}`}
+                class=${`ss-list-row ${entry.text ? 'ss-list-row--2' : ''} ${entry.type === 'source' ? 'ss-list-row--link' : ''}`}
                 key=${entry.selectionId ?? entry.id}
                 onClick=${() => open(entry)}
               >

@@ -10,6 +10,7 @@ import { formatTime, t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
 import { NODE, layoutVersions, pathToRoot } from '../version-layout.js';
 import { ChoiceMenu } from './popover.js';
+import { VersionNotesBox } from './version-notes-box.js';
 
 const ORIGINS = {
   import: ['import', '导入'],
@@ -48,12 +49,13 @@ function matches(node, words) {
  *   canCompare: boolean, canEdit: string, onClose: () => void, onWiden: () => void,
  *   onOpen: (version: any) => void, onEdit: (version: any) => void,
  *   onCompare?: (left: string, right: string) => void, openLabel?: string, picker?: any,
+ *   onReference?: (reference: any) => void,
  *   ask: (question: any) => Promise<string | null> }} props
  * `currentId` is the version open in the active tab (`editing` when it is being
  * edited); `canEdit` is why 从这一版开始编辑 is off, or ''. Outside the desk
  * (the workbench) `openLabel` names the one action, opening a version in the
  * desk, `picker` chooses the manuscript, and without `onCompare` there is no
- * comparing.
+ * comparing; `onReference` opens what a version note points to (main window only).
  */
 export function VersionTree({
   group,
@@ -69,6 +71,7 @@ export function VersionTree({
   onCompare,
   openLabel,
   picker,
+  onReference,
   ask,
 }) {
   const actions = useActions();
@@ -233,6 +236,17 @@ export function VersionTree({
               },
             ]
           : []),
+        { sep: true },
+        {
+          text: t('打开原件'),
+          icon: 'external-link',
+          run: () => actions.attempt(() => actions.openVersion(target.id)),
+        },
+        {
+          text: t('在资源管理器定位'),
+          icon: 'folder-open',
+          run: () => actions.attempt(() => actions.openVersion(target.id, true)),
+        },
         { sep: true },
         {
           text: deleteOff
@@ -471,6 +485,12 @@ export function VersionTree({
               ></textarea>
             </label>`
           }
+          <${VersionNotesBox}
+            key=${node.id}
+            versionId=${node.id}
+            projectId=${group.projectId}
+            onReference=${onReference}
+          />
         </div>
         <div class="ss-vtree__actions">
           <button

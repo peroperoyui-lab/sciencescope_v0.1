@@ -1,5 +1,5 @@
-/* Additions to the legacy styles for the new interface. Keep this small:
-   the look comes from styles/legacy/. */
+/* App-wide pieces outside the design system's components: text highlights,
+   window sizing for the native surfaces, the floating orb. */
 ::highlight(research-marks) {
   background: #9ab48255;
 }
@@ -60,36 +60,10 @@ body {
 .research-base [data-rb-import-progress] [role='alert'] {
   color: var(--danger);
 }
-.versionrow .grow > strong,
-.versionrow .grow > small {
-  display: block;
-  overflow-wrap: anywhere;
-}
-.version-notes-links .btn {
-  display: block;
-  width: 100%;
-  text-align: left;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  height: auto;
-  min-height: 28px;
-  margin-bottom: 4px;
-}
 
-/* Word differences preserve paragraph breaks from the parser projection. */
-.version-diff-text {
-  overflow-wrap: anywhere;
-}
 [data-journal-entry] textarea {
   width: 100%;
   min-height: 160px;
-}
-
-/* Lucide icons in the older .ico slot keep the design system's size and stroke. */
-.ico > .ss-i {
-  width: var(--icon);
-  height: var(--icon);
-  stroke-width: 1.75;
 }
 
 /* The floating assistant orb (its own small native window, ?surface=assistant-orb). */
@@ -131,10 +105,6 @@ button.ss-orb:hover {
   pointer-events: none;
 }
 
-/* With the editing desk on, manuscript versions live in the desk and the map takes their place. */
-.wb-bottom.wb-bottom--desk {
-  grid-template-columns: minmax(240px, 1fr) minmax(175px, 220px);
-}
 .desk-window #app {
   height: 100vh;
 }

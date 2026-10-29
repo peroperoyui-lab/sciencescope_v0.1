@@ -7464,3 +7464,40 @@ textarea {
 .ss-materials__list > .ss-check {
   align-items: flex-start;
 }
+
+/* 版本说明 in the version tree's details, and the import dialog's file order. */
+.ss-vtree__detail {
+  max-height: 60%;
+  overflow: auto;
+}
+.ss-vtree__notes {
+  display: grid;
+  gap: var(--sp-6);
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+.ss-vtree__notes .ss-block-head {
+  gap: var(--sp-6);
+}
+.ss-vtree__notes-text {
+  max-height: 200px;
+  overflow: auto;
+  font-size: 13px;
+  line-height: 20px;
+}
+.ss-vtree__refs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+}
+.ss-version-import__files .ss-list-row__actions {
+  opacity: 1;
+}
+.ss-contents {
+  display: contents;
+}
+.ss-vtree__notes-text :is(h1, h2, h3, h4) {
+  margin: 8px 0 2px;
+  font-size: 13px;
+  line-height: 20px;
+}

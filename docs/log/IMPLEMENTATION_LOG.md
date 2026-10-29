@@ -1,5 +1,11 @@
 # 实施记录
 
+## 2026-10-29 其余旧页面换新样式，删除旧样式表（Claude）
+
+- 首页、全部对话、窗口外框、对话框（ModalForm）、搜索面板、新建项目、历史版本、纪要、讨论区、项目摘要、知识库卡片与来源详情、记忆收件箱、助手窗口和悬浮球都换成设计系统的类；`index.html` 不再加载 `styles/legacy/`，目录已删。
+- 删除前逐页比对计算样式（停用前后），把仍依赖旧样式的部分移到 pages.css / app.css / components.css：消息 Markdown 排版、文档阅读器（含 pdf.js 页面 content-box 修正）、标题与段落的上边距、减弱动效、链接重置、独立助手窗口的卡片外框、紧凑密度、界面字体默认值（`--font-sans-default`）。
+- Yui 选择删掉旧的文稿版本、版本说明、版本比较三个页面：稿件版本说明改在版本树每一版的详情里显示（`version-notes-box.js`，可重新整理、设自动整理），工作站版本树可导入文件为版本（`version-import.js`），右键可打开原件、定位。新 version-notes.browser.test.js 取代三个旧测试。
+
 ## 2026-10-28 KB-12 对话里的资料和知识库改动（Claude）
 
 - 新组件 `turn-knowledge.js`：回答下面「本轮用到的资料」（新设计稿 UsedSources，画廊加卡片）和「本轮修改了知识库」（设计稿 KnowledgeChange）。资料清单的整理在 `app/ui/turn-sources.js`（单元测试）；撤回 / 恢复按版本的 `restoredBy` 链找最新一环再恢复，所以可以来回切换。

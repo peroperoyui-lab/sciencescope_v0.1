@@ -179,6 +179,17 @@ export const en = {
   最近日志: 'Recent log',
   打开工作站: 'Open workbench',
   全部字段: 'All fields',
+  '已导入 {n} 个版本。': 'Imported {n} versions.',
+  放进哪份文稿: 'Add to manuscript',
+  新建一份文稿: 'New manuscript',
+  文稿名称: 'Manuscript name',
+  导入文稿版本: 'Import manuscript versions',
+  '任务秘书比较这一版和上一版，写下变化和建议':
+    'The task secretary compares this version with the one before and writes down the changes and suggestions',
+  让秘书整理: 'Ask the secretary',
+  '还没有版本说明。': 'No version notes yet.',
+  这个项目的新版本自动整理说明: 'Write notes for new versions in this project automatically',
+  导入文件为版本: 'Import files as versions',
   '今天想研究什么？': 'What would you like to research today?',
   发送: 'Send',
   '回答达到模型的单次输出上限，后面的内容没有写出。':
