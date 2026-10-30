@@ -179,3 +179,16 @@ Run `p4c-startup-backend.mjs` with Node 22, after stopping other builds and meas
 The receipt's `fixtureDirectory` is relative to `.sciencescope-local/temp/p4c/part5-backend/`. Reuse that directory for the after probe. Recovery uses 300 sources and 5,060 chunks with a held foreground turn, so it measures queue restoration rather than task execution. It retains the initial legacy-checkpoint preparation separately from one warm-up and three service restarts. The mixed case includes running/queued jobs, retryable/exhausted failures, one reparsed source and a missing job; setup is outside timing. Each receipt includes paragraph read counts, preserved states/attempts and the maximum observed gap of a 1 ms heartbeat. These gaps measure scheduling responsiveness, not sampled CPU time.
 
 Migration 031 is measured on a private copy of the preserved v30 database before ordinary service startup upgrades the fixture. Index creation plus commit, and three before/after latest-import lookups with query plans, are reported separately; that DDL measurement excludes the migration backup and database opening. The installed migration launch records the full first-upgrade cost. `--mode import` or `--mode jobs` selects one probe; all receipts refuse overwriting.
+
+### Part 6: shared defaults, file writes and queue/worker protocols
+
+```powershell
+node tools/perf/p4c-core-tidy.mjs --phase before --source '<before-checkout>' --out '.sciencescope-local/temp/p4c/part6/before.json'
+node tools/perf/p4c-core-tidy.mjs --phase after --baseline '.sciencescope-local/temp/p4c/part6/before.json' --out '.sciencescope-local/temp/p4c/part6/after.json'
+node --test app/core/files.test.js app/core/workspace/workspace.test.js app/services/providers.test.js app/services/secretary/minutes.test.js app/services/memory/index.test.js
+node --test app/services/knowledge/jobs.test.js app/services/research/semantic/index.test.js app/services/research/semantic/embedding.test.js app/services/research/semantic/integration.test.js
+```
+
+Use Node 22 as above. The core probe retains actual default/partial-override values, counts independent definitions and checks the three public write paths. Each path has a warm-up and three measured batches: eight UTF-8 writes, eight binary writes, or ten serialized credential merges started concurrently. All values are generated public test strings, and fixtures are removed from the ignored Part 6 directory after receipt creation. `--baseline` requires exact default/output equality; times are observational, while the consolidation result is fewer duplicate implementations.
+
+The semantic regression uses three controlled indexing passes and a held final embedding promise. Two simultaneous `idle()` calls must remain pending until that last pass finishes, then neighbours must be available. It uses no longer sleep or weaker assertion. The embedding protocol tests create a small local worker, reverse two replies, exit with two requests pending, and close with one pending request. No model files or downloads are required. The existing semantic `integration.test.js` is an API/tool integration with a fake embedding function; it does not validate real ONNX loading or inference.

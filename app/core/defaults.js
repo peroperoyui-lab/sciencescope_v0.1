@@ -96,3 +96,21 @@ export const DEFAULT_SEMANTIC_SETTINGS = {
   downloadSource: 'modelscope',
   customDownloadUrl: '',
 };
+
+// A cumulative input/output cost budget; null turns the budget off.
+export const DEFAULT_MEMORY_SETTINGS = {
+  enabled: true,
+  idleMinutes: 10,
+  model: null,
+  tokenLimit: 100000,
+};
+
+// Summary thresholds trigger work; they never truncate the meeting record.
+export const DEFAULT_SUMMARY = {
+  afterDiscussion: true,
+  everyMessages: { enabled: true, n: 20 },
+  everyTokens: { enabled: true, n: 30000 },
+  onEnterProject: true,
+  onLeaveProject: true,
+  workbench: { map: 'off', plans: 'off', log: 'off', versions: 'off' },
+};

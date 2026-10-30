@@ -12,7 +12,7 @@
 | 3 | 设置保存分段测量与无关重配消除 | 已完成 |
 | 4 | 版本树说明批量读取 | 已完成 |
 | 5 | 启动拆分、解析依赖与任务恢复 | 已完成 |
-| 6 | 默认值、原子写、索引竞态和 worker 协议 | 未开始 |
+| 6 | 默认值、原子写、索引竞态和 worker 协议 | 已完成 |
 | 7 | 新安装编辑台场景 1–9 | 未开始 |
 
 ## 1. 相似边设置
@@ -259,14 +259,40 @@ PDF 描述符及 `parserFor` 的同步接口保持，只有实际解析 PDF 时�
 
 独立 trace 的 document→首屏区间内，单次 `UpdateLayoutTree` 为 2,216.224 ms，随后 `Layout` 为 73.155 ms；157 个脚本下载跨度约 1,240 ms，首屏 API 位于 document 后约 1,269–2,203 ms，大样式计算紧随其后。8 份 CSS 共 466,511 B；字体请求在样式事件末段出现。具体昂贵选择器尚未定位。
 修后独立 trace 覆盖 4,532.416 ms：`UpdateLayoutTree` 2,096.155 ms、`Layout` 78.690 ms、模块求值并集 27.994 ms、编译并集 25.284 ms；再次观察到同类样式开销。
+
 1. 交 Claude 用渲染性能面板定位这次样式计算，优先检查首屏实际使用样式的范围与失效来源；收益范围由这段约 2.22 秒的事件决定，改变样式加载或作用域须回归各页面与首次绘制。
 2. `app/ui/main.js` 等 `actions.start()` 完成才渲染；`actions.js::start` 顺序等事件头、四路状态、后台活动和专家定义。可研究哪些非首屏数据能延后或并行，测量目标为上述 API 等待区间；需保留事件头／快照重放时序和已选服务商、专家状态。
 3. 157 个模块、约 2.22 MB 下载在冷启动更显著，可评估按页面拆加载或减少请求；本轮不改前端加载方式。WebView 创建另计，保留现有窗口行为。
+
 追踪依据为 [Chromium startup trace 文档](https://www.chromium.org/developers/how-tos/trace-event-profiling-tool/recording-tracing-runs/) 和 [WebView2 浏览器标志文档](https://github.com/MicrosoftDocs/edge-developer/blob/main/microsoft-edge/webview2/concepts/webview-features-flags.md)。追踪的主线程区间与正常冷／热样本分开保留于 `before-diagnostic-analysis.json`。
 
 ## 6. 小整理
 
-未开始。
+### 默认值与原子写入
+
+修前记忆默认值在 settings 与 memory 各定义一次，纪要默认值在 settings 与 secretary/policy 各定义一次。现在两类对象均放入既有 `core/defaults.js`，旧服务继续导出同名对象；设置合并、纪要的嵌套部分覆写及所有实际值保持。独立对象定义从四处降为两处，即每类只有一份。
+临时写入、替换及失败清理原来在 workspace/files、desk/storage、providers.saveKeys 各实现一次，现在共用 `core/files.js::writeBytesAtomic`，原子写实现 3→1。沿用 `renameWithRetry`，旧文本与编辑台接口保留；凭据的串行读取／合并／写入队列仍在 providers 中，继续传入 0600。
+复测工具 `tools/perf/p4c-core-tidy.mjs` 用自造文本和字节，预热一次后测三次，同卷且不清理操作系统缓存。下表是实际批次记录，本次整理的目标是消除重复实现。
+
+| 一批真实写入 | 修前中位数 | 修后中位数 | 内容／行为核对 |
+| --- | ---: | ---: | --- |
+| 工作区文本 8 次，每次 77,824 B | 31.952 ms | 30.677 ms | UTF-8 字节相同 |
+| 编辑台字节 8 次，每次 65,536 B | 30.615 ms | 30.073 ms | 完整字节及 SHA-256 相同 |
+| 凭据 10 次串行合并（由并发调用发起） | 332.495 ms | 276.820 ms | 增删后 8 项引用正确，无临时文件残留 |
+
+默认值快照、部分覆写、文件内容和目录结果与修前严格相等，回执 `part6/{before,after}.json`。本节没有改变默认触发规则、预算、写入接口或重试时长。
+
+### 语义队列的竞态
+
+发现：旧 `semantic.idle()` 只等当前索引，再最多补跑一次。补跑期间新事件又设置 dirty，第三轮会由计时器随后启动；调用方已经继续，`sourceNeighbors` 看到 indexing 就返回 null。受控复现逐轮修改真实来源版本，用第三轮嵌入 gate 暂停：3 次索引／3 次嵌入时旧 idle 已结束，状态仍为 indexing，邻居为 null。
+修复：循环等待当前及随后排入的索引；每次醒来重新检查是否有另一个等待者启动了新索引。closed、禁用或前台 busy 时仍按旧规则返回，不改暂停策略，也不加等待时长。
+验证：同样三轮 gate，两个并发 idle 在第三轮完成前都保持等待；释放 gate 后严格 3 次索引／3 次嵌入，状态为 ready，邻居有结果。既有 jobs 测试的断言未改。初期复现和修后日志均保留于 `part6/semantic-*.log`，`semantic-worker-summary.json` 汇总状态及日志哈希。
+
+### Worker 协议
+
+`createEmbedding` 增加可选的内部 worker URL 注入，默认仍为原 worker，消息和 workerData 保持。三个本地假 worker 测试验证：两条并发请求逆序返回仍按 id 对应；worker 退出码 7 时两条未完成请求都拒绝；显式关闭拒绝一条在途请求且可重复关闭。夹具按项目测试命名放置，不进入生产打包。
+没有下载模型、调用付费模型或添加依赖；本组未运行真实 ONNX 推理。既有 `semantic/integration.test.js` 也是注入嵌入函数的 API／工具集成，报告按假模型记录。
+两路共 54 项唯一测试通过：文件／工作区／凭据／纪要／记忆 38 项，jobs 5、semantic index 7、worker 3、API／工具集成 1；类型、lint、格式和独立只读审阅通过。
 
 ## 7. 编辑台场景 1–9
 

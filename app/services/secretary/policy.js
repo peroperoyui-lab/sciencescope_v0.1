@@ -1,17 +1,11 @@
 import { AppError } from '../../core/errors.js';
+import { DEFAULT_SUMMARY } from '../../core/defaults.js';
+
+export { DEFAULT_SUMMARY };
 
 // Trigger estimates are stable across providers, and never truncate the input.
 const CJK =
   /[\u2e80-\u2fff\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\ua960-\ua97f\uac00-\ud7ff\uf900-\ufaff\ufe30-\ufe4f\u{20000}-\u{2ffff}]/u;
-
-export const DEFAULT_SUMMARY = {
-  afterDiscussion: true,
-  everyMessages: { enabled: true, n: 20 },
-  everyTokens: { enabled: true, n: 30000 },
-  onEnterProject: true,
-  onLeaveProject: true,
-  workbench: { map: 'off', plans: 'off', log: 'off', versions: 'off' },
-};
 
 /**
  * @param {string} text

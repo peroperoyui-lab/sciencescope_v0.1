@@ -1,7 +1,11 @@
 // All settings in one readable JSON file. Reading merges stored values over the
 // defaults, so new settings appear without a migration.
 import { AppError } from '../../errors.js';
-import { DEFAULT_SEMANTIC_SETTINGS } from '../../defaults.js';
+import {
+  DEFAULT_SEMANTIC_SETTINGS,
+  DEFAULT_MEMORY_SETTINGS,
+  DEFAULT_SUMMARY,
+} from '../../defaults.js';
 import { validateSimilaritySettings } from '../../knowledge-similarity.js';
 
 export const SETTINGS_VERSION = 1;
@@ -82,16 +86,9 @@ export const DEFAULT_SETTINGS = {
   // Features still being built; each turns on once its checks pass.
   features: {},
   // A cumulative input/output cost budget; null turns the budget off.
-  memory: { enabled: true, idleMinutes: 10, model: null, tokenLimit: 100000 },
+  memory: DEFAULT_MEMORY_SETTINGS,
   // Summary thresholds trigger work; they never truncate the meeting record.
-  summary: {
-    afterDiscussion: true,
-    everyMessages: { enabled: true, n: 20 },
-    everyTokens: { enabled: true, n: 30000 },
-    onEnterProject: true,
-    onLeaveProject: true,
-    workbench: { map: 'off', plans: 'off', log: 'off', versions: 'off' },
-  },
+  summary: DEFAULT_SUMMARY,
   versionNotes: {
     template:
       '# 版本说明\n## 比较对象\n## 实际文件变化\n## 秘书的解释：与当前研究的关系\n## 待用户决定的建议\n## 相关导图节点与文件',

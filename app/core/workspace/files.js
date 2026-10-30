@@ -1,7 +1,6 @@
-import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import path from 'node:path';
-import { renameWithRetry } from '../rename.js';
+import { createHash } from 'node:crypto';
+import { readFile, rm } from 'node:fs/promises';
+import { writeBytesAtomic } from '../files.js';
 
 /**
  * @param {string} file
@@ -22,14 +21,7 @@ export async function readText(file) {
  * @param {string} text
  */
 export async function writeTextAtomic(file, text) {
-  await mkdir(path.dirname(file), { recursive: true });
-  const temporary = `${file}.${randomUUID()}.tmp`;
-  try {
-    await writeFile(temporary, text, 'utf8');
-    await renameWithRetry(temporary, file);
-  } finally {
-    await rm(temporary, { force: true });
-  }
+  await writeBytesAtomic(file, Buffer.from(text, 'utf8'));
 }
 
 /** @param {string} file */

@@ -11,6 +11,9 @@ import { extractCandidates, verification, saveCandidate } from './candidates.js'
 import { startSettingsStage } from '../../core/workspace/settings-observation.js';
 import { settings as settingsResource } from '../../core/workspace/resources/settings.js';
 import { isDeepStrictEqual } from 'node:util';
+import { DEFAULT_MEMORY_SETTINGS } from '../../core/defaults.js';
+
+export { DEFAULT_MEMORY_SETTINGS };
 
 // Room kept for one memory reply. Reserving the model's whole maximum
 // output (384k on some models) put every request over the default budget.
@@ -24,13 +27,6 @@ export function memoryModel(prepared) {
   );
   return { ...prepared, outputTokens };
 }
-
-export const DEFAULT_MEMORY_SETTINGS = {
-  enabled: true,
-  idleMinutes: 10,
-  model: null,
-  tokenLimit: 100000,
-};
 
 /**
  * @param {{core:import('../../core/index.js').Core,minutes:any,research:any,runner:any,now?:()=>string,idleDelayMs?:number}} dependencies

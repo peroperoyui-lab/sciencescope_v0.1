@@ -105,6 +105,24 @@ test('settings merge stored values over defaults; global minutes live at the roo
     assert.equal(patched.value.appearance.theme, 'dark');
     assert.equal(patched.value.appearance.language, 'zh');
 
+    const configured = await core.workspace.edit({
+      resource: 'settings',
+      key: 'app',
+      op: 'patch',
+      args: {
+        changes: { memory: { idleMinutes: 7 }, summary: { everyMessages: { n: 3 } } },
+      },
+    });
+    assert.equal(configured.value.memory.enabled, true);
+    assert.equal(configured.value.memory.idleMinutes, 7);
+    assert.equal(configured.value.memory.tokenLimit, 100000);
+    assert.deepEqual(configured.value.summary.everyMessages, { enabled: true, n: 3 });
+    assert.deepEqual(configured.value.summary.everyTokens, { enabled: true, n: 30000 });
+    assert.equal(configured.value.summary.workbench.plans, 'off');
+    const stored = JSON.parse(await readFile(core.paths.settings, 'utf8'));
+    assert.deepEqual(stored.memory, configured.value.memory);
+    assert.deepEqual(stored.summary, configured.value.summary);
+
     const meeting = core.meetings.create({ title: '全局', members: [] });
     await core.workspace.edit({
       resource: 'minutes',

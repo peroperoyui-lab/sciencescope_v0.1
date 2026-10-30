@@ -323,10 +323,17 @@ export function createSemantic(core, options = {}) {
   async function idle() {
     await downloading;
     await initialization;
-    clearTimeout(timer);
-    timer = null;
-    await indexing;
-    if (dirty && enabled && vector && !busy()) await drain();
+    // A pass can receive another rebuild while yielding between batches.
+    // Keep joining those passes instead of leaving a scheduled pass behind.
+    while (!closed) {
+      clearTimeout(timer);
+      timer = null;
+      await indexing;
+      // Another idle caller may already have started the next pass.
+      if (indexing) continue;
+      if (!dirty || !enabled || !vector || busy()) return;
+      await drain();
+    }
   }
 
   async function close() {

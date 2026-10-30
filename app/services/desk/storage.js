@@ -1,7 +1,6 @@
-import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile, rm } from 'node:fs/promises';
-import path from 'node:path';
-import { renameWithRetry } from '../../core/rename.js';
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { writeBytesAtomic } from '../../core/files.js';
 import { AppError } from '../../core/errors.js';
 import { newId, nowIso } from '../../core/ids.js';
 
@@ -15,14 +14,7 @@ export const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
  * @param {Uint8Array} bytes
  */
 export async function writeAtomic(file, bytes) {
-  await mkdir(path.dirname(file), { recursive: true });
-  const temporary = `${file}.${randomUUID()}.tmp`;
-  try {
-    await writeFile(temporary, bytes);
-    await renameWithRetry(temporary, file);
-  } finally {
-    await rm(temporary, { force: true });
-  }
+  await writeBytesAtomic(file, bytes);
 }
 
 /**

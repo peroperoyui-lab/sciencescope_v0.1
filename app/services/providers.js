@@ -1,12 +1,11 @@
 // Provider choices live in settings.json; capacities come from the runtime's
 // shared model catalog. API keys live only in secret/credentials.yaml and are
 // referenced by name, never put in environment variables or the database.
-import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile, rm } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import YAML from 'yaml';
 import { AppError } from '../core/errors.js';
-import { renameWithRetry } from '../core/rename.js';
+import { writeBytesAtomic } from '../core/files.js';
 import { headerReference, REMOVED_VALUE } from './export/sanitize.js';
 
 /**
@@ -100,14 +99,7 @@ export async function saveKeys(paths, refs, remove = []) {
     const document = await readCredentials(paths);
     document.refs = { ...document.refs, ...refs };
     for (const reference of remove) delete document.refs[reference];
-    await mkdir(path.dirname(file), { recursive: true });
-    const temporary = `${file}.${randomUUID()}.tmp`;
-    try {
-      await writeFile(temporary, YAML.stringify(document), { encoding: 'utf8', mode: 0o600 });
-      await renameWithRetry(temporary, file);
-    } finally {
-      await rm(temporary, { force: true });
-    }
+    await writeBytesAtomic(file, Buffer.from(YAML.stringify(document), 'utf8'), { mode: 0o600 });
   });
   const settled = operation.catch(() => {});
   credentialWrites.set(file, settled);
