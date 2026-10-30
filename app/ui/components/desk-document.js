@@ -242,8 +242,8 @@ export const externalQuestion = (name) => ({
  *   editing: any, onEdit: (state: any) => void, ask: (question: any) => Promise<string|null>,
  *   onSession: (sessionId: string | null) => void, onSelection?: () => void,
  *   onReady?: () => void, onRemoved?: (items: {id:string,type:string}[]) => void,
- *   onView?: (view: string) => void }} props
- * `jump` is the outline entry to scroll to; `pdf` receives the PDF reader's controls;
+ *   onView?: (view: string) => void, running?: { left: string, right: string } | null }} props
+ * `running` is the 书眉 over the page; `jump` is the outline entry to scroll to; `pdf` receives the PDF reader's controls;
  * `editing` receives the editor's commands, and `onEdit` its state for the ribbon.
  * A TeX page switches between source, split and rendered without reopening.
  */
@@ -261,6 +261,7 @@ export function DeskDocument({
   onReady,
   onRemoved,
   onView,
+  running = null,
 }) {
   const actions = useActions();
   // The tex page: its split view, render pane and compiled PDF (see mountEditor).
@@ -761,6 +762,19 @@ export function DeskDocument({
   }, [tab.key, tab.format === 'md' && !editable ? view : '', reload]);
 
   useEffect(() => tex.current?.setView(view), [view]);
+  // As attributes: the editor owns the page's children (see .ss-page[data-running-left]).
+  useEffect(() => {
+    for (const page of host.current?.querySelectorAll('.ss-page') ?? []) {
+      const shown = /** @type {HTMLElement} */ (page);
+      if (running) {
+        shown.dataset.runningLeft = running.left;
+        shown.dataset.runningRight = running.right;
+      } else {
+        delete shown.dataset.runningLeft;
+        delete shown.dataset.runningRight;
+      }
+    }
+  }, [running?.left, running?.right, loading, view]);
 
   useEffect(() => {
     if (remoteSeq != null) session.current?.remoteSeq(remoteSeq);

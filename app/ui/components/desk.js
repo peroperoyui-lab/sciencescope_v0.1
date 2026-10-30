@@ -766,6 +766,7 @@ export function DeskWindow() {
   const [panelTab, setPanelTab] = useState('notes');
   const toolCalls = useAppState((state) => state.toolCalls);
   const chatMessages = useAppState((state) => state.messages);
+  const participants = useAppState((state) => state.participants);
   // The answer 「来源」 asked the chat tab to show, {id, at}.
   const [chatFocus, setChatFocus] = useState(/** @type {any} */ (null));
   const [info, setInfo] = useState(/** @type {any} */ ({ outline: [], words: null }));
@@ -1046,6 +1047,25 @@ export function DeskWindow() {
   const savePanel = (key) => (width) =>
     actions.updateSettings({ appearance: { panels: { [key]: width } } });
   const comparing = !!tab && comparison?.key === tab.key;
+  // An answer in the 对话 tab can go back into the text being edited.
+  const writable = tab?.kind === 'project' && !!edit && tab.format !== 'pdf' && !comparing;
+  const answerMenu = writable
+    ? (message) => {
+        const name = participants.find((entry) => entry.id === message.authorId)?.name ?? '';
+        return [
+          {
+            text: t('插入到正文光标处'),
+            icon: 'file-pen',
+            run: () => editing.current?.paste(message.text),
+          },
+          {
+            text: t('贴到选中的句子上当批注'),
+            icon: 'message-square-plus',
+            run: () => notes.commentWith(name ? `${name}：${message.text}` : message.text),
+          },
+        ];
+      }
+    : undefined;
   const compareBlocked = !tab
     ? t('先打开一份文稿')
     : !['docx', 'md', 'tex'].includes(tab.format)
@@ -1098,6 +1118,16 @@ export function DeskWindow() {
   }, [chatProject, boundId]);
   const currentId =
     tab?.kind === 'version' ? tab.id : (base ?? latestVersion(group?.versions)?.id ?? null);
+  // 书眉: the project, and the document with the version it shows.
+  const shownNumber = group?.versions.find((version) => version.id === currentId)?.number;
+  const running = tab
+    ? {
+        left: tabProject?.name ?? '',
+        right: shownNumber
+          ? t('{name} · 第 {n} 版', { name: tab.label, n: shownNumber })
+          : tab.label,
+      }
+    : null;
   const showVersions = () => {
     setPanel(true);
     setPanelTab((current) => (current === 'versions' ? 'notes' : 'versions'));
@@ -1275,6 +1305,7 @@ export function DeskWindow() {
                         key=${`${tab.key}#${tab.restart ?? 0}`}
                         tab=${tab}
                         view=${view}
+                        running=${running}
                         jump=${jump}
                         pdf=${pdf}
                         editing=${editing}
@@ -1358,6 +1389,7 @@ export function DeskWindow() {
           chat=${html`<${DeskChat}
             meetingId=${boundId}
             focus=${chatFocus}
+            answerMore=${answerMenu}
             projectId=${chatProject}
             onBound=${(id) => chatProject && deskChats.set(chatProject, id)}
           />`}

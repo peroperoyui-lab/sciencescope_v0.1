@@ -4238,20 +4238,29 @@ button.ss-act__row:hover {
 /* Home: greeting, recent work and sites above the composer. */
 .ss-home {
   display: grid;
-  gap: var(--sp-24);
+  gap: 20px;
   width: min(720px, 100%);
   margin: 0 auto;
-  padding: 48px 24px 24px;
+  padding: 32px 24px 16px;
 }
+/* One row: the small picture, then the question and the greeting. */
 .ss-home__hello {
   display: grid;
-  justify-items: start;
-  gap: var(--sp-4);
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--sp-16);
+  row-gap: var(--sp-2);
 }
 .ss-home__hello .ss-art {
-  width: 120px;
-  height: 90px;
-  margin-bottom: var(--sp-8);
+  grid-row: span 2;
+  width: 72px;
+  height: 54px;
+}
+.ss-home__hello .ss-home__title {
+  align-self: end;
+}
+.ss-home__hello .ss-home__greeting {
+  align-self: start;
 }
 .ss-home__title {
   margin: 0;
@@ -4268,6 +4277,94 @@ button.ss-act__row:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--sp-8);
+}
+.ss-home__hint {
+  font-size: 12px;
+}
+/* One sentence on where the chosen project stands, with the way back in. */
+.ss-home__progress {
+  display: grid;
+  gap: var(--sp-8);
+  padding: var(--sp-12) var(--sp-16);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+}
+.ss-home__progress-text {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 20px;
+}
+.ss-home__progress-text b {
+  color: var(--ink);
+  font-weight: 600;
+}
+.ss-home__progress-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+}
+/* Things often asked of the secretary, sent with one click above its input. */
+.ss-quick-asks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-6);
+  padding: 0 12px 8px;
+}
+/* 从这里开始: starting questions that fill the composer. */
+.ss-starters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-8);
+}
+.ss-starter {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-12);
+  min-width: 0;
+  padding: var(--sp-12);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.ss-starter:hover {
+  border-color: var(--line-strong);
+  background: var(--hover);
+}
+.ss-starter:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.ss-starter__icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--accent);
+}
+.ss-starter__main {
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+.ss-starter__title {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ss-starter__sub {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 全部对话: grouped two-line chat rows. */
@@ -5264,6 +5361,63 @@ button.ss-act__row:hover {
 .ss-page__eqno {
   position: absolute;
   right: 0;
+}
+/* 书眉: the project and the document above the text. */
+.ss-page__running {
+  position: absolute;
+  top: 28px;
+  right: 84px;
+  left: 84px;
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-16);
+  padding-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--line);
+  color: var(--faint);
+  font: 400 11px/16px var(--font-sans);
+  user-select: none;
+}
+.ss-page__running > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The app's pages carry it as attributes, since an editor owns the page's children. */
+.ss-page[data-running-left]::before,
+.ss-page[data-running-right]::after {
+  position: absolute;
+  top: 28px;
+  right: 84px;
+  left: 84px;
+  overflow: hidden;
+  color: var(--faint);
+  font: 400 11px/16px var(--font-sans);
+  text-indent: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.ss-page[data-running-left]::before {
+  padding: 0 calc(50% - 68px) var(--sp-4) 0;
+  border-bottom: 1px solid var(--line);
+  content: attr(data-running-left) / '';
+}
+.ss-page[data-running-right]::after {
+  left: 50%;
+  text-align: right;
+  content: attr(data-running-right) / '';
+}
+.ss-split__render > .ss-page[data-running-left]::before,
+.ss-split__render > .ss-page[data-running-right]::after {
+  top: 12px;
+  right: 56px;
+  left: 56px;
+}
+.ss-split__render > .ss-page[data-running-left]::before {
+  padding-right: calc(50% - 40px);
+}
+.ss-split__render > .ss-page[data-running-right]::after {
+  left: 50%;
 }
 .ss-page__pageno {
   position: absolute;

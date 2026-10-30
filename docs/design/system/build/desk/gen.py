@@ -192,6 +192,7 @@ def docx_page(toolbar=True, flash=False):
     sel_open, sel_close = ('<span class="ss-sel">', '</span>') if toolbar else ('', '')
     fl_open, fl_close = ('<span class="ss-flash">', '</span>') if flash else ('', '')
     return f'''<article class="ss-page">
+        <div class="ss-page__running" aria-hidden="true"><span>城市韧性研究</span><span>thesis.docx · 第 3 版</span></div>
         <h1>第三章　研究设计</h1>
         <h2>3.1　研究方法</h2>
         <p>本章采用模糊集定性比较分析（fsQCA）识别城市经济韧性的条件组态，并以面板回归检验结论的稳健性。与传统回归关注单一变量的净效应不同，组态视角关注多个条件如何共同导致结果，适合解释“多条路径通向同一结果”的现象。</p>
@@ -281,7 +282,7 @@ card('PageDesk', 'group="编辑台" page height=900 width=1536 subtitle="编辑�
 - 标题栏：「编辑台」、打开的文稿标签（有未写回修改的标签显示圆点，悬停变成 ×）、「+」打开文稿、项目名、窗口按钮。
 - 功能区：一行标签（开始、审阅、视图）加一行命令，可以收起（Ctrl F1）。开始：撤销重做、段落样式、加粗斜体下划线上下标、清除格式、列表、批注、索引、引用到对话；右边「比较」和「保存」（写回项目文件夹里的原文件，Ctrl S）。
 - 左栏：上半是文件（项目文件夹里的 docx、tex、md、pdf，加只在应用内的版本组），右侧是最新版本号；下半是大纲，当前位置有竖线。
-- 中间：页面按 Word 的版式画（正文衬线字体、首行缩进），右上角悬浮秘书按钮。
+- 中间：页面按 Word 的版式画（正文衬线字体、首行缩进），右上角悬浮秘书按钮。页面顶上一行浅色书眉（`ss-page__running`）：左边项目名，右边文件名和当前版本号，只是提示，不进文稿；md、tex 的渲染页同样有，PDF 用自己的页面不加。
 - 右侧栏：「批注与索引」和「对话」。
 - 底栏：文件名、当前版本（版本号、分支、层级）、保存状态、字数；右边「版本树」按钮、绑定的对话、缩放。
 
@@ -948,24 +949,34 @@ secretary = f'''<aside class="ss-panel" style="width:330px;height:420px">
         <div class="ss-msg ss-msg--user"><div class="ss-msg__bubble">把今天在编辑台里定下的改动记进纪要。</div></div>
         <div class="ss-msg"><div class="ss-msg__head">{AV_SEC}<span class="ss-msg__name">任务秘书</span></div><div class="ss-msg__body"><p>已记入纪要第 4 版：3.2 节缺失值处理改为相邻年份均值；阈值依据待补 Ragin 2008。</p></div></div>
       </div></div>
+      <div class="ss-quick-asks" role="group" aria-label="常用的话"><button class="ss-btn ss-btn--sm" type="button"><i data-i="circle-help"></i>还有什么值得继续追问？</button><button class="ss-btn ss-btn--sm" type="button"><i data-i="list-checks"></i>把待办加进研究计划</button></div>
       <div class="ss-composer-wrap ss-desk-chat__composer"><div class="ss-composer"><textarea class="ss-composer__input" rows="1" placeholder="问秘书，或让它整理纪要…"></textarea><div class="ss-composer__bar"><span class="ss-composer__spacer"></span><button class="ss-send" type="button" aria-label="发送" disabled><i data-i="arrow-up"></i></button></div></div></div>
     </aside>'''
 orbs = f'''<div style="display:flex;gap:16px;align-items:center">
       <div class="ss-desk-canvas" style="position:relative;width:120px;height:72px;overflow:hidden;border-radius:var(--r-md)">{ORB}</div>
       <div class="ss-desk-canvas" style="position:relative;width:120px;height:72px;overflow:hidden;border-radius:var(--r-md)"><button class="ss-desk-orb" type="button" aria-label="秘书" aria-disabled="true" data-tip="绑定对话后才有秘书"><i data-i="clipboard-list"></i></button></div>
     </div>'''
+msg_menu = '''<div class="ss-menu" data-static role="menu" aria-label="这条回答" style="min-width:240px">
+      <button class="ss-menu__item" type="button" role="menuitem"><i data-i="copy"></i>复制</button>
+      <button class="ss-menu__item" type="button" role="menuitem"><i data-i="quote"></i>引用到输入框</button>
+      <div class="ss-menu__sep"></div>
+      <button class="ss-menu__item" type="button" role="menuitem"><i data-i="file-pen"></i>插入到正文光标处</button>
+      <button class="ss-menu__item" type="button" role="menuitem"><i data-i="message-square-plus"></i>贴到选中的句子上当批注</button>
+    </div>'''
 states = f'''<div class="ds" style="grid-template-columns:repeat(2,auto);justify-content:start;align-items:start;gap:16px 24px">
   <div class="ds-col">{unbound}<span class="ds-label">① 没有绑定对话：接续项目最近的对话，或选一个</span></div>
   <div class="ds-col">{secretary}<span class="ds-label">② 点秘书按钮：侧栏换成这段对话的任务秘书（和主窗口同一个），左上角回到对话</span></div>
   <div class="ds-col">{more_menu}<span class="ds-label">③ 头部「更多」：在主窗口打开、从最新消息开新分支、换成别的对话</span></div>
   <div class="ds-col">{orbs}<span class="ds-label">④ 正文右上角的秘书按钮；没绑定对话时停用</span></div>
+  <div class="ds-col">{msg_menu}<span class="ds-label">⑤ 专家回答的「⋯」：插入到光标处，或贴到选中的句子上当批注（没选句子时停用）</span></div>
 </div>'''
-card('DeskChatStates', 'group="编辑台" height=640 subtitle="对话标签的其他状态：没有绑定对话、更多菜单、秘书按钮打开任务秘书"', states, '''
+card('DeskChatStates', 'group="编辑台" height=820 subtitle="对话标签的其他状态：没有绑定对话、更多菜单、秘书按钮打开任务秘书"', states, '''
 编辑台「对话」标签的其他状态（U8）。整页见 PageDeskChat。
 
 - 没有绑定对话：空状态，「接续最近的对话」（跳过归档、临时、附属和全局助手的对话；没有就新建「编辑台」对话），「选一个对话…」列出这个项目的对话。
 - 「更多」：在主窗口打开；从最新消息开新分支（原对话不变，编辑台改绑新分支）；换成别的对话。
 - 秘书按钮：在正文右上角，点开后侧栏换成绑定对话的任务秘书，和主窗口的秘书面板是同一段；头部左边箭头回到对话。没有绑定对话时按钮停用，悬停说明原因。
+- 回答的「⋯」：复制、引用到输入框，加上两项把回答送回文稿：「插入到正文光标处」把回答的文字插在正文光标所在的位置（只读的 PDF 没有这一项），和手打的一样可以撤销；「贴到选中的句子上当批注」把回答作为一条批注贴在正文选中的那句上，作者是你，批注开头写上这位专家的名字；没选文字时贴到光标所在的那句上。比较时和只读的文稿没有这两项。
 ''')
 
 # ---------- 来源: every source the document uses ----------

@@ -13,6 +13,15 @@ import { SecretaryProposal } from './secretary-proposal.js';
 import { SidePanel } from './side-panel.js';
 
 const HELP = '发送前自动跟进主对话的新消息与工作站状态；回复失败或被停止时不推进位置。';
+// Asked of the secretary often enough to be one click (design system PageChat).
+const QUICK_ASKS = [
+  { icon: 'circle-help', text: '还有什么值得继续追问？', tip: '直接发给秘书' },
+  {
+    icon: 'list-checks',
+    text: '把待办加进研究计划',
+    tip: '直接发给秘书；写进计划后可在历史版本里撤销',
+  },
+];
 
 /**
  * @param {{ mainMeetingId: string, onClose: () => void, onBack?: () => void, backLabel?: string, withChatName?: boolean }} props
@@ -101,6 +110,7 @@ export function SecretaryPanel({
       role=${(own ?? inherited)?.model ?? ''}
       error=${error}
       onClose=${onClose}
+      quickAsks=${QUICK_ASKS}
       model=${(running) =>
         meeting &&
         html`<${ModelPicker}

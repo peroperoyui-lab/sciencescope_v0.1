@@ -2611,4 +2611,58 @@ export const en = {
   恢复这组修改: 'Restore these changes',
   撤回这组修改: 'Withdraw these changes',
   项目导入的资料: 'Imported into the project',
+  魔鬼代言人: "Devil's advocate",
+  方法学家: 'Methodologist',
+  把一个概念变成可操作的定义: 'Turn a concept into a working definition',
+  '@{name} · 边界、维度和判断标准': '@{name} · boundaries, dimensions and criteria',
+  '@{name} 帮我把这个概念变成可操作的定义，说清边界、维度和判断标准：':
+    '@{name} Help me turn this concept into a working definition, with its boundaries, dimensions and criteria: ',
+  把想法磨成一个研究问题: 'Shape an idea into a research question',
+  '@{name} · 问题、对象和可回答的范围':
+    '@{name} · the question, its object and what can be answered',
+  '@{name} 帮我把下面这个想法磨成一个可以回答的研究问题：':
+    '@{name} Help me shape this idea into a research question that can be answered: ',
+  '让{name}挑一挑《{draft}》': 'Let {name} pick holes in {draft}',
+  '@{name} · 找出论证里最容易被追问的三处': '@{name} · the three weakest points of the argument',
+  '@{name} 请读《{draft}》，找出论证里最容易被追问的三处，并说明为什么。':
+    '@{name} Please read {draft} and find the three points of the argument most open to challenge, and say why.',
+  '让{name}先唱唱反调': 'Let {name} argue the other side',
+  '@{name} · 给出最有力的另一种解释': '@{name} · the strongest alternative explanation',
+  '@{name} 针对我下面的判断，给出最有力的另一种解释，以及能区分两者的证据：':
+    '@{name} For the claim below, give the strongest alternative explanation and the evidence that would tell them apart: ',
+  '接着做：{plan}': 'Next: {plan}',
+  计划里还没做完的一件: 'Still open in the plans',
+  '接着做计划里的这一件：{plan}。先说说从哪里入手。':
+    "Let's continue with this item from the plans: {plan}. Start by saying where to begin.",
+  '我的资料够回答这个问题吗？': 'Is my material enough for this question?',
+  '按项目资料核对，列出还缺的材料': "Checked against the project's material, with what is missing",
+  '按这个项目的资料核对，下面这个问题现有材料够不够回答，还缺哪些：':
+    "Check against this project's material whether it is enough to answer the question below, and what is missing: ",
+  '按审稿标准读第 {n} 版': 'Review version {n} as a referee would',
+  '@{name} · 标出必须修改的地方': '@{name} · mark what must change',
+  '@{name} 按期刊审稿标准读《{draft}》第 {n} 版，标出必须修改的地方。':
+    "@{name} Read version {n} of {draft} to a journal's review standard and mark what must change.",
+  '《{name}》改到第 {n} 版': '{name} is at version {n}',
+  '计划里还有 {n} 件事没做完': '{n} plans still open',
+  '：{facts}。': ': {facts}.',
+  '：还没有稿件和计划。': ': no drafts or plans yet.',
+  打开这个对话: 'Open this chat',
+  '继续：{title}': 'Continue: {title}',
+  打开工作站的计划: "Open the workstation's plans",
+  看计划: 'Plans',
+  从这里开始: 'Start here',
+  '点一下填进输入框，改几个字再发': 'Click to put it in the input box, then edit and send',
+  继续上次的工作: 'Pick up where you left off',
+  '{project} · 第 {n} 版': '{project} · version {n}',
+  继续写作: 'Keep writing',
+  常用的话: 'Quick asks',
+  '还有什么值得继续追问？': 'What else is worth following up?',
+  把待办加进研究计划: 'Add the to-dos to the research plans',
+  直接发给秘书: 'Sent to the secretary as it is',
+  '直接发给秘书；写进计划后可在历史版本里撤销':
+    'Sent to the secretary as it is; plan changes can be undone from the history',
+  插入到正文光标处: 'Insert at the cursor in the text',
+  贴到选中的句子上当批注: 'Attach to the selected sentence as a comment',
+  '已贴到「{quote}」上': 'Attached to “{quote}”',
+  '{name} · 第 {n} 版': '{name} · version {n}',
 };

@@ -241,6 +241,35 @@ export function useDeskNotes({ tab, editing, onOpen, onCaret }) {
       },
     );
 
+  /** Comment the selection (or the sentence at the cursor) with `text`, as from the chat. @param {string} text */
+  async function commentWith(text) {
+    try {
+      const where = await selectionPlace();
+      if (!where) return;
+      await run(
+        () =>
+          actions.addDeskAnnotation(sessionId, {
+            type: 'comment',
+            blockId: where.blockId,
+            from: where.from,
+            to: where.to,
+            text,
+          }),
+        (result) => {
+          if (!result?.item) return;
+          activate(result.item.id, true);
+          actions.toast(
+            t('已贴到「{quote}」上', {
+              quote: where.quote.length > 16 ? `${where.quote.slice(0, 16)}…` : where.quote,
+            }),
+          );
+        },
+      );
+    } catch (failure) {
+      actions.toast(failure.message);
+    }
+  }
+
   /** Bring an item's words into view. @param {any} item */
   async function locate(item) {
     const current = editing.current;
@@ -675,6 +704,7 @@ export function useDeskNotes({ tab, editing, onOpen, onCaret }) {
     indexes: roots.filter((item) => item.type === 'index'),
     authorName,
     locate,
+    commentWith,
     openReference: open,
     panel,
     layer,

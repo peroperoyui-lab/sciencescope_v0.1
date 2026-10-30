@@ -52,11 +52,12 @@ function chatItems(actions, meetings, projectId, current, onPick) {
 
 /**
  * @param {{ meetingId: string | null, projectId: string | null,
- *   onBound: (meetingId: string) => void, focus?: { id: string, at: number } | null }} props
+ *   onBound: (meetingId: string) => void, focus?: { id: string, at: number } | null,
+ *   answerMore?: (message: any) => Array<{ text: string, icon: string, run: () => any }> }} props
  * `onBound` reports the chat after the person binds, branches or switches;
- * `focus` is an answer to scroll to and mark.
+ * `focus` is an answer to scroll to and mark; `answerMore` adds to an answer's menu.
  */
-export function DeskChat({ meetingId, projectId, onBound, focus = null }) {
+export function DeskChat({ meetingId, projectId, onBound, focus = null, answerMore }) {
   const actions = useActions();
   const meetings = useAppState((state) => state.meetings);
   const meeting = meetings.find((entry) => entry.id === meetingId) ?? null;
@@ -226,6 +227,7 @@ export function DeskChat({ meetingId, projectId, onBound, focus = null }) {
               roleNote=${roleOf(message.authorId)}
               target=${focus?.id === message.id}
               compact
+              more=${answerMore}
             />`,
         )}
       </div>

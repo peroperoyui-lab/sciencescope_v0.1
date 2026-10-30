@@ -1,4 +1,4 @@
-<!-- @dsCard group="编辑台" height=640 subtitle="对话标签的其他状态：没有绑定对话、更多菜单、秘书按钮打开任务秘书" -->
+<!-- @dsCard group="编辑台" height=820 subtitle="对话标签的其他状态：没有绑定对话、更多菜单、秘书按钮打开任务秘书" -->
 <!doctype html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><title>DeskChatStates</title></head>
@@ -21,6 +21,7 @@
         <div class="ss-msg ss-msg--user"><div class="ss-msg__bubble">把今天在编辑台里定下的改动记进纪要。</div></div>
         <div class="ss-msg"><div class="ss-msg__head"><span class="ss-avatar">秘</span><span class="ss-msg__name">任务秘书</span></div><div class="ss-msg__body"><p>已记入纪要第 4 版：3.2 节缺失值处理改为相邻年份均值；阈值依据待补 Ragin 2008。</p></div></div>
       </div></div>
+      <div class="ss-quick-asks" role="group" aria-label="常用的话"><button class="ss-btn ss-btn--sm" type="button"><i data-i="circle-help"></i>还有什么值得继续追问？</button><button class="ss-btn ss-btn--sm" type="button"><i data-i="list-checks"></i>把待办加进研究计划</button></div>
       <div class="ss-composer-wrap ss-desk-chat__composer"><div class="ss-composer"><textarea class="ss-composer__input" rows="1" placeholder="问秘书，或让它整理纪要…"></textarea><div class="ss-composer__bar"><span class="ss-composer__spacer"></span><button class="ss-send" type="button" aria-label="发送" disabled><i data-i="arrow-up"></i></button></div></div></div>
     </aside><span class="ds-label">② 点秘书按钮：侧栏换成这段对话的任务秘书（和主窗口同一个），左上角回到对话</span></div>
   <div class="ds-col"><div class="ss-menu" data-static role="menu" aria-label="对话" style="min-width:220px">
@@ -32,6 +33,13 @@
       <div class="ss-desk-canvas" style="position:relative;width:120px;height:72px;overflow:hidden;border-radius:var(--r-md)"><button class="ss-desk-orb" type="button" aria-label="秘书" data-tip="这个对话的秘书"><i data-i="clipboard-list"></i></button></div>
       <div class="ss-desk-canvas" style="position:relative;width:120px;height:72px;overflow:hidden;border-radius:var(--r-md)"><button class="ss-desk-orb" type="button" aria-label="秘书" aria-disabled="true" data-tip="绑定对话后才有秘书"><i data-i="clipboard-list"></i></button></div>
     </div><span class="ds-label">④ 正文右上角的秘书按钮；没绑定对话时停用</span></div>
+  <div class="ds-col"><div class="ss-menu" data-static role="menu" aria-label="这条回答" style="min-width:240px">
+      <button class="ss-menu__item" type="button" role="menuitem"><i data-i="copy"></i>复制</button>
+      <button class="ss-menu__item" type="button" role="menuitem"><i data-i="quote"></i>引用到输入框</button>
+      <div class="ss-menu__sep"></div>
+      <button class="ss-menu__item" type="button" role="menuitem"><i data-i="file-pen"></i>插入到正文光标处</button>
+      <button class="ss-menu__item" type="button" role="menuitem"><i data-i="message-square-plus"></i>贴到选中的句子上当批注</button>
+    </div><span class="ds-label">⑤ 专家回答的「⋯」：插入到光标处，或贴到选中的句子上当批注（没选句子时停用）</span></div>
 </div>
 <script>window.SS && SS.mount(document.body)</script>
 </body>

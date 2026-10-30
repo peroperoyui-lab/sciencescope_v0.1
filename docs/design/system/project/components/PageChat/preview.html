@@ -152,13 +152,13 @@ s1 = pd.read_csv("data/s1_indicators.csv")
       <div class="ss-splitter ss-splitter--start" data-min="280" data-max="640" data-default="340" data-key="page-secretary"></div>
       <div class="ss-panel__head">
         <span class="ss-panel__title">任务秘书</span>
-        <button class="ss-icon-btn" type="button" aria-label="更多" data-tip="更多"><i data-i="ellipsis"></i></button>
         <button class="ss-icon-btn" type="button" aria-label="关闭" data-tip="关闭" data-kbd="Ctrl J"><i data-i="x"></i></button>
       </div>
+      <div style="display:flex;align-items:center;gap:4px;padding:6px 16px;border-bottom:1px solid var(--line);color:var(--muted);font-size:12px"><span>已跟进到主对话第 6 条 · 纪要第 3 版</span><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="说明" data-tip="发送前自动跟进主对话的新消息与工作站状态；回复失败或被停止时不推进位置。"><i data-i="info"></i></button></div>
       <div class="ss-content">
         <div class="ss-thread" style="padding:16px 16px 8px;gap:16px">
           <div class="ss-msg">
-            <div class="ss-msg__head"><span class="ss-avatar"><i data-i="clipboard-list" class="ss-i--sm"></i></span><span class="ss-msg__name">任务秘书</span><span class="ss-msg__role">跟进到第 6 条</span></div>
+            <div class="ss-msg__head"><span class="ss-avatar"><i data-i="clipboard-list" class="ss-i--sm"></i></span><span class="ss-msg__name">任务秘书</span></div>
             <div class="ss-act">
               <div class="ss-act__row"><i data-i="scroll-text"></i><span class="ss-act__verb">更新了纪要</span><span class="ss-act__target ss-act__target--text">第 3 版</span><span class="ss-act__end">+6 行</span></div>
               <div class="ss-act__row"><i data-i="brain"></i><span class="ss-act__verb">记下 2 条待确认的记忆</span></div>
@@ -170,11 +170,16 @@ s1 = pd.read_csv("data/s1_indicators.csv")
           </div>
         </div>
       </div>
+      <div class="ss-quick-asks" role="group" aria-label="常用的话">
+        <button class="ss-btn ss-btn--sm" type="button" data-tip="直接发给秘书"><i data-i="circle-help"></i>还有什么值得继续追问？</button>
+        <button class="ss-btn ss-btn--sm" type="button" data-tip="直接发给秘书；写进计划后可在历史版本里撤销"><i data-i="list-checks"></i>把待办加进研究计划</button>
+      </div>
       <div class="ss-composer-wrap" style="padding:0 12px 12px">
         <div class="ss-composer">
           <textarea class="ss-composer__input" rows="1" placeholder="问秘书，或让它整理纪要" style="min-height:40px;padding:8px 12px 0"></textarea>
           <div class="ss-composer__bar">
             <button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="添加" data-tip="添加文件或资料"><i data-i="plus"></i></button>
+            <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" data-tip="执行方式"><i data-i="shield-check"></i>请求批准<i data-i="chevron-down"></i></button>
             <span class="ss-composer__spacer"></span>
             <button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">deepseek-v4-flash<i data-i="chevron-down"></i></button>
             <button class="ss-send" type="button" aria-label="发送" disabled><i data-i="arrow-up"></i></button>

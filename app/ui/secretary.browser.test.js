@@ -190,3 +190,48 @@ test(
     }
   },
 );
+
+test(
+  'a quick ask goes to the secretary as it is and keeps what the person was typing',
+  { skip: browserSkip, timeout: 60000 },
+  () =>
+    withBrowserApp(
+      'secretary-quick-ask',
+      async function* () {
+        yield '可以再追问样本的时间口径。';
+      },
+      async ({ page, app }) => {
+        await app.core.workspace.edit({
+          resource: 'settings',
+          key: 'app',
+          op: 'patch',
+          args: { changes: { models: { default: { provider: 'test', model: 'test' } } } },
+        });
+        const main = app.core.meetings.create({
+          title: '样本口径',
+          members: [{ participantId: 'person_user' }, { participantId: 'agent_main' }],
+        });
+        app.core.messages.post({
+          meetingId: main.id,
+          authorId: 'agent_main',
+          text: '先看 2015 年。',
+        });
+        await page.goto(new URL('/?token=ui-token#/meeting/' + main.id, page.url()).href);
+        await page.getByRole('button', { name: '会议秘书', exact: true }).click();
+        const panel = page.locator('.side-panel', {
+          has: page.locator('[data-scope="secretary"]'),
+        });
+        const input = panel.getByLabel('任务秘书输入');
+        await input.fill('还没写完的话');
+        await panel.locator('[data-quick-ask]', { hasText: '还有什么值得继续追问？' }).click();
+        await panel.getByText('可以再追问样本的时间口径。').waitFor();
+        const attached = app.core.meetings.list({ attachedTo: main.id })[0];
+        assert.ok(
+          app.core.messages
+            .since(attached.id, 0)
+            .some((message) => message.text === '还有什么值得继续追问？'),
+        );
+        assert.equal(await input.inputValue(), '还没写完的话');
+      },
+    ),
+);

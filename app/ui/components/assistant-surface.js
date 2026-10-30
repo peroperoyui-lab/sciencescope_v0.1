@@ -20,7 +20,9 @@ const USER = { kind: 'human' };
  * @param {{ meeting: any, scope: 'secretary' | 'global', ownerId: string,
  *   label: string, icon: string, role?: string, transcriptLabel: string, inputLabel: string,
  *   placeholder: string, sendLabel: string, stopLabel: string,
- *   model: (running: boolean) => any, children?: any, error?: string, onClose: () => void }} props
+ *   model: (running: boolean) => any, children?: any, error?: string, onClose: () => void,
+ *   quickAsks?: Array<{ icon: string, text: string, tip: string }> }} props
+ * `quickAsks` are sent as they are with one click, above the input; typed text stays.
  * @returns {import('preact').VNode}
  */
 export function AssistantSurface({
@@ -39,6 +41,7 @@ export function AssistantSurface({
   children,
   error = '',
   onClose,
+  quickAsks = [],
 }) {
   const actions = useActions();
   const meetingId = meeting?.id;
@@ -88,14 +91,18 @@ export function AssistantSurface({
     return () => document.removeEventListener('keydown', close);
   }, [scope, onClose]);
 
-  async function send() {
-    if (!meetingId || !text.trim() || sending) return;
+  /** Send the typed text, or `ask` (a quick ask) leaving the typed text alone. @param {string} [ask] */
+  async function send(ask) {
+    const value = (ask ?? text).trim();
+    if (!meetingId || !value || sending) return;
     setSending(true);
     setSendError('');
     try {
-      const snapshot = researchInput.value;
-      await actions.postMessage(meetingId, text.trim(), snapshot);
-      actions.secretaryDraft(meetingId, '', text);
+      if (ask) await actions.postMessage(meetingId, value);
+      else {
+        await actions.postMessage(meetingId, value, researchInput.value);
+        actions.secretaryDraft(meetingId, '', text);
+      }
       follow.current = true;
     } catch (failure) {
       setSendError(failure.message);
@@ -159,6 +166,25 @@ export function AssistantSurface({
         <${Lucide} name="circle-alert" /><span>${problem}</span>
       </div>`
     }
+    ${
+      quickAsks.length > 0 &&
+      html`<div class="ss-quick-asks" role="group" aria-label=${t('常用的话')}>
+        ${quickAsks.map(
+          (ask) =>
+            html`<button
+              key=${ask.text}
+              type="button"
+              class="ss-btn ss-btn--sm"
+              data-quick-ask
+              data-tip=${t(ask.tip)}
+              disabled=${!meetingId || running || sending}
+              onClick=${() => send(t(ask.text))}
+            >
+              <${Lucide} name=${ask.icon} />${t(ask.text)}
+            </button>`,
+        )}
+      </div>`
+    }
     <div class="ss-composer-wrap">
       <div
         class="ss-composer"
@@ -189,7 +215,7 @@ export function AssistantSurface({
               return;
             if ((sendKey === 'ctrl-enter') !== (event.ctrlKey || event.metaKey)) return;
             event.preventDefault();
-            send();
+            void send();
           }}
         ></textarea>
         <div class="ss-composer__bar">
@@ -233,7 +259,7 @@ export function AssistantSurface({
                   data-tip=${running ? t('发送（排队，当前回答结束后发出）') : t('发送')}
                   data-kbd=${sendKey === 'ctrl-enter' ? 'Ctrl Enter' : 'Enter'}
                   disabled=${!meetingId || !text.trim() || sending}
-                  onClick=${send}
+                  onClick=${() => send()}
                 >
                   <${Lucide} name="arrow-up" />
                 </button>`

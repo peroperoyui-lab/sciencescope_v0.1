@@ -23,8 +23,11 @@ const pad = (n) => String(n).padStart(2, '0');
 /** "10:28" @param {Date} date */
 const clock = (date) => `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 
-/** @param {{ message: any, answer: boolean, compact?: boolean }} props */
-function MessageFoot({ message, answer, compact = false }) {
+/**
+ * @param {{ message: any, answer: boolean, compact?: boolean,
+ *   more?: Array<{ text: string, icon: string, run: () => any }> }} props
+ */
+function MessageFoot({ message, answer, compact = false, more = [] }) {
   const actions = useActions();
   const [copied, setCopied] = useState(false);
   const copy = async () => {
@@ -32,6 +35,17 @@ function MessageFoot({ message, answer, compact = false }) {
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
   };
+  // A side panel's conversation offers only quoting and what its host adds.
+  const compactMenu = (event) =>
+    actions.openMenu(
+      event,
+      [
+        { text: t('引用到输入框'), icon: 'quote', run: () => actions.quote(message) },
+        { sep: true },
+        ...more,
+      ],
+      t('消息'),
+    );
   const menu = (event) =>
     actions.openMenu(
       event,
@@ -83,13 +97,13 @@ function MessageFoot({ message, answer, compact = false }) {
       </button>`
     }
     ${
-      !compact &&
+      (!compact || more.length > 0) &&
       html`<button
         type="button"
         class="ss-icon-btn ss-icon-btn--sm"
         aria-label=${t('消息菜单')}
         data-tip=${t('更多')}
-        onClick=${menu}
+        onClick=${compact ? compactMenu : menu}
       >
         <${Lucide} name="ellipsis" />
       </button>`
@@ -100,9 +114,11 @@ function MessageFoot({ message, answer, compact = false }) {
 
 /**
  * `compact` is a side panel's conversation: no branch, quote or location menu.
- * @param {{ message: any, author: any, roleNote: string, target: boolean, compact?: boolean }} props
+ * `more` adds items to an answer's menu there (the desk: insert, comment).
+ * @param {{ message: any, author: any, roleNote: string, target: boolean, compact?: boolean,
+ *   more?: (message: any) => Array<{ text: string, icon: string, run: () => any }> }} props
  */
-export function Message({ message, author, roleNote, target, compact = false }) {
+export function Message({ message, author, roleNote, target, compact = false, more }) {
   const draft = useAppState((state) => state.drafts[message.id]);
   const calls = useAppState((state) =>
     message.turnId ? (state.toolCalls[message.turnId] ?? EMPTY) : EMPTY,
@@ -182,6 +198,6 @@ export function Message({ message, author, roleNote, target, compact = false }) 
             />`
     }
     ${review && html`<${ReviewAdoption} message=${message} />`}
-    ${!streaming && html`<${MessageFoot} message=${message} answer=${true} compact=${compact} />`}
+    ${!streaming && html`<${MessageFoot} message=${message} answer=${true} compact=${compact} more=${more?.(message) ?? []} />`}
   </article>`;
 }
