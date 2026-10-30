@@ -3,7 +3,7 @@ import { isDeepStrictEqual } from 'node:util';
 import { nowIso } from '../../core/ids.js';
 import { createDerived } from './derived.js';
 import { createCardQueue } from './card-queue.js';
-import { paragraphHash } from './card-input.js';
+import { createJobVersions } from './job-versions.js';
 import { CARD_ACTOR_ID } from './card-writer.js';
 import { startSettingsStage } from '../../core/workspace/settings-observation.js';
 import { settings as settingsResource } from '../../core/workspace/resources/settings.js';
@@ -25,6 +25,7 @@ export function createKnowledgeJobs({ core, research, semantic, derived, cards }
     running = null,
     unsubscribe = null,
     settingsRead = null;
+  let recovering = null;
   let similarity = null,
     settingsRevision = 0,
     checkpoint = null;
@@ -33,7 +34,16 @@ export function createKnowledgeJobs({ core, research, semantic, derived, cards }
   const reset = new Set(),
     refresh = new Set();
   const busy = () => core.turns.running().some((turn) => turn.participantId !== CARD_ACTOR_ID);
-  const cardLane = createCardQueue({ core, research, worker: cards, busy, notify, schedule });
+  const versions = createJobVersions({ core, research });
+  const cardLane = createCardQueue({
+    core,
+    research,
+    worker: cards,
+    busy,
+    notify,
+    schedule,
+    versionFor: versions.versionFor,
+  });
   const rowFor = (id, topic = '') =>
     db
       .prepare("SELECT * FROM kb_jobs WHERE source_id=? AND layer='derived' AND topic=?")
@@ -168,17 +178,26 @@ export function createKnowledgeJobs({ core, research, semantic, derived, cards }
       .finally(finishLoad);
     return settingsRead;
   }
-  function enqueue(id, force = false, publish = true) {
-    const chunks = research.store.chunks(id);
-    const version = paragraphHash(chunks);
+  function enqueue(id, force = false, publish = true, entry = versions.read(id)) {
+    if (!versions.current(entry)) return;
+    const version = entry.version;
     const previous = rowFor(id);
-    if (previous?.content_version === version || (!force && !chunks.length && !previous)) return;
-    reset.add(id);
-    queue(id, '', version, publish);
-    if (publish) ensureSimilarityJob();
+    const changed = previous?.content_version !== version && (force || entry.count || previous);
+    db.transaction(() => {
+      if (changed) {
+        reset.add(id);
+        queue(id, '', version, false);
+      }
+      versions.save(entry);
+      if (publish && changed) ensureSimilarityJob(false);
+    });
+    if (publish && changed) {
+      notify();
+      schedule();
+    }
   }
   function schedule() {
-    if (closed || timer || running || busy() || !similarity) return;
+    if (closed || recovering || timer || running || busy() || !similarity) return;
     timer = setTimeout(() => {
       timer = null;
       void drain();
@@ -186,7 +205,7 @@ export function createKnowledgeJobs({ core, research, semantic, derived, cards }
     timer.unref?.();
   }
   async function drain() {
-    if (closed || running || busy() || !similarity) return;
+    if (closed || recovering || running || busy() || !similarity) return;
     running = (async () => {
       while (!closed && !busy()) {
         const job = pending();
@@ -248,8 +267,9 @@ export function createKnowledgeJobs({ core, research, semantic, derived, cards }
     notify();
     schedule();
   }
-  async function start() {
+  async function recover() {
     await cardLane.start();
+    if (closed) return;
     db.prepare("UPDATE kb_jobs SET state='queued' WHERE layer='derived' AND state='running'").run();
     for (const row of db
       .prepare(
@@ -257,18 +277,33 @@ export function createKnowledgeJobs({ core, research, semantic, derived, cards }
       )
       .all())
       reset.add(String(row.source_id));
+    const restored = await versions.restore(() => closed);
+    if (closed) return;
+    await loadSettings();
+    if (closed) return;
+    // Hash outside the transaction; publish one complete recovery snapshot.
+    db.transaction(() => {
+      for (const entry of restored) enqueue(entry.id, false, false, entry);
+      ensureSimilarityJob(false);
+    });
+    if (semantic.status().state === 'ready') vectorsReady();
+    else notify();
+  }
+  function start() {
     unsubscribe = core.events.subscribe((event) => {
       if (event.type === 'research.changed' && event.payload.action === 'source.imported')
         enqueue(event.payload.sourceId);
-      if (event.type === 'research.changed' && event.payload.action === 'source.deleted')
+      if (event.type === 'research.changed' && event.payload.action === 'source.deleted') {
+        versions.forget(event.payload.sourceId);
         ensureSimilarityJob();
+      }
       if (event.type === 'research.semantic.changed' && event.payload.state === 'ready')
         vectorsReady();
       if (
         event.type === 'resource.changed' &&
         ['settings', 'agent'].includes(event.payload.resource)
       )
-        void loadSettings(event).catch((error) =>
+        void Promise.resolve(loadSettings(event)).catch((error) =>
           core.events.transient('knowledge.jobs.changed', {
             ...summary(),
             error: String(error.message),
@@ -277,18 +312,14 @@ export function createKnowledgeJobs({ core, research, semantic, derived, cards }
       if (event.type === 'turn.started' || event.type === 'turn.ended') notify();
       if (event.type === 'turn.ended') schedule();
     });
-    await loadSettings();
-    // Startup restores one catalog snapshot. Committing and rebuilding its
-    // status once avoids a disk sync and full queue summary for every source.
-    db.transaction(() => {
-      for (const source of research.store.listSources()) enqueue(source.id, false, false);
-      ensureSimilarityJob(false);
+    recovering = recover().finally(() => {
+      recovering = null;
+      schedule();
     });
-    if (semantic.status().state === 'ready') vectorsReady();
-    else notify();
-    schedule();
+    return recovering;
   }
   async function idle() {
+    await recovering;
     await settingsRead;
     clearTimeout(timer);
     timer = null;
@@ -299,7 +330,11 @@ export function createKnowledgeJobs({ core, research, semantic, derived, cards }
     closed = true;
     unsubscribe?.();
     clearTimeout(timer);
-    await cardLane.close();
+    try {
+      await recovering;
+    } finally {
+      await cardLane.close();
+    }
     await settingsRead;
     await running;
   }

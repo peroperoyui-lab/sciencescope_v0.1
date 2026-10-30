@@ -12,7 +12,11 @@ test('import genuine research PDF and DOCX with readable structure and honest ci
   const directory = await mkdtemp(path.join(temporary, 'research-documents-'));
   try {
     const fixtures = await createResearchFixtures(directory);
-    const pdf = await parseDocument(fixtures.pdf.bytes, { name: fixtures.pdf.name });
+    const [pdf, concurrentPdf] = await Promise.all([
+      parseDocument(fixtures.pdf.bytes, { name: fixtures.pdf.name }),
+      parseDocument(fixtures.pdf.bytes, { name: fixtures.pdf.name }),
+    ]);
+    assert.deepEqual(concurrentPdf, pdf);
     assert.equal(pdf.parser, 'pdf');
     assert.equal(pdf.pages, 2);
     assert.equal(pdf.metadata.title, 'Research Library Fixture');

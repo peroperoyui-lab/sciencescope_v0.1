@@ -6,11 +6,12 @@ import { startSettingsStage } from '../../core/workspace/settings-observation.js
 /**
  * Card lane of the knowledge queue. The parent schedules derived work first;
  * this lane owns two model slots and the same durable kb_jobs checkpoints.
- * @param {{core:import('../../core/index.js').Core,research:any,worker:any,busy:()=>boolean,notify:()=>void,schedule:()=>void}} deps
+ * @param {{core:import('../../core/index.js').Core,research:any,worker:any,busy:()=>boolean,notify:()=>void,schedule:()=>void,versionFor?:(id:string)=>string}} deps
  * @returns {any}
  */
-export function createCardQueue({ core, research, worker, busy, notify, schedule }) {
+export function createCardQueue({ core, research, worker, busy, notify, schedule, versionFor }) {
   const { db } = core;
+  const contentVersion = versionFor ?? ((id) => paragraphHash(research.store.chunks(id)));
   const active = new Map();
   let settings = null,
     closed = false;
@@ -24,7 +25,7 @@ export function createCardQueue({ core, research, worker, busy, notify, schedule
     const source = research.store.getSource(id);
     const previous = get(id);
     if (!manual && (!settings.knowledge.cards.enabled || !CARD_KINDS.includes(source.kind))) return;
-    const version = paragraphHash(research.store.chunks(id));
+    const version = contentVersion(id);
     if (
       previous?.content_version === version &&
       (!manual || previous.state === 'running' || previous.state === 'queued')
@@ -45,9 +46,7 @@ export function createCardQueue({ core, research, worker, busy, notify, schedule
       )
       .get(id);
     return (
-      row &&
-      ['done', 'skipped'].includes(row.state) &&
-      row.content_version === paragraphHash(research.store.chunks(id))
+      row && ['done', 'skipped'].includes(row.state) && row.content_version === contentVersion(id)
     );
   };
   function pending() {
