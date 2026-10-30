@@ -135,3 +135,13 @@ node tools/perf/p4c-settings.mjs --phase after --baseline .sciencescope-local/te
 ```
 
 Each graph-view preference or profile-bio save is one PATCH, matching the actual UI calls. One warm-up precedes three measured runs per path. Receipts separately report HTTP completion, completion of the consumers, response bytes/hashes, and private `sciencescope.settings.performance` stage timings/counts. A settings-queue barrier drains scheduled reads; its seven diagnostic observations are excluded. Stage durations can overlap or contain other stages, so never add their sums into total request time. The before checkout must contain the same observation-only marks; a revision without these marks cannot provide this breakdown. The original P4c before measurement used checkpoint `f564170` plus those marks, before optimization. Current-source runs are independently repeatable; `--baseline` additionally verifies all six response-byte hashes against an immutable earlier receipt.
+
+Part 4 keeps the exact same synthetic 30-version fixture across measurements. It creates small Markdown originals, real notes and workspace revisions, metadata, and 420 stored instruction rows (300 returned after the existing distinct/order/limit rules). A fake diff worker is used only during setup and settles before timing. The first process-local graph GET is separate from one warm-up and three measured GETs; operating-system caches are not cleared.
+
+```powershell
+node tools/perf/p4c-version-graph.mjs --phase before --source "<before-checkout>" --out .sciencescope-local/temp/p4c/part4/before.json
+$graphBefore = Get-Content -Raw .sciencescope-local/temp/p4c/part4/before.json | ConvertFrom-Json
+node tools/perf/p4c-version-graph.mjs --phase after --data $graphBefore.fixtureDirectory --baseline .sciencescope-local/temp/p4c/part4/before.json --out .sciencescope-local/temp/p4c/part4/after.json
+```
+
+The receipt records SQL categories, actual notes-file read counts/bytes/concurrency, HTTP time and body hash. Temporary filesystem instrumentation delegates to the original `readFile` and is restored after each request. The after run checks complete JSON and byte-hash equality against the before response, plus all 60 original/notes hashes and version/catalog/revision/instruction snapshots. `--data` requires `--baseline` so a preserved fixture cannot be reseeded accidentally. The main version metadata query is distinct from the per-note canonical path and revision checks, which remain in place.
