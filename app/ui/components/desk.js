@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { textBlockStart } from '../desk-assist.js';
+import { collectSources } from '../desk-sources.js';
 import {
   initialDeskTarget,
   listenForDeskFocus,
@@ -23,6 +24,7 @@ import { DeskChat } from './desk-chat.js';
 import { DeskDocument, deskChats, externalQuestion } from './desk-document.js';
 import { DeskNav, FileType, deskKind, latestVersion } from './desk-nav.js';
 import { useDeskNotes } from './desk-notes.js';
+import { DeskSources } from './desk-sources.js';
 import { FilePreview } from './file-preview.js';
 import { SecretaryPanel } from './secretary-panel.js';
 import { Splitter } from './splitter.js';
@@ -680,13 +682,27 @@ function Statusbar({
 
 /**
  * @param {{ tab: string, onTab: (tab: string) => void, onClose: () => void, width: number,
- *   onWidth: (width: number) => void, notes: any, count: number, versions: any, chat: any }} props
- * `notes` is the 「批注与索引」 tab's content, `count` its number of items, `chat`
- * the 「对话」 tab's; the version tree (`versions`) takes the whole panel with its own head.
+ *   onWidth: (width: number) => void, notes: any, count: number, sources: any,
+ *   sourceCount: number, versions: any, chat: any }} props
+ * `notes` is the 「批注与索引」 tab's content, `count` its number of items,
+ * `sources` and `sourceCount` the same for 「来源」, `chat` the 「对话」 tab's; the version tree (`versions`) takes the whole panel with its own head.
  */
-function DeskPanel({ tab, onTab, onClose, width, onWidth, notes, count, versions, chat }) {
+function DeskPanel({
+  tab,
+  onTab,
+  onClose,
+  width,
+  onWidth,
+  notes,
+  count,
+  sources,
+  sourceCount,
+  versions,
+  chat,
+}) {
   const tabs = [
     ['notes', t('批注与索引')],
+    ['sources', t('来源')],
     ['chat', t('对话')],
   ];
   return html`<aside class="ss-panel ss-desk-panel" style=${{ width: `${width}px` }}>
@@ -713,14 +729,19 @@ function DeskPanel({ tab, onTab, onClose, width, onWidth, notes, count, versions
                       aria-selected=${String(name === tab)}
                       onClick=${() => onTab(name)}
                     >
-                      ${text}${name === 'notes' && count > 0 && html`<span class="ss-tab__count">${count}</span>`}
+                      ${text}${
+                        (name === 'notes' ? count : name === 'sources' ? sourceCount : 0) > 0 &&
+                        html`<span class="ss-tab__count"
+                          >${name === 'notes' ? count : sourceCount}</span
+                        >`
+                      }
                     </button>`,
                 )}
               </nav>
               <span class="ss-titlebar__spacer"></span>
               <${IconButton} icon="x" label=${t('关闭侧栏')} onClick=${onClose} />
             </div>
-            ${tab === 'notes' ? notes : chat}`
+            ${tab === 'notes' ? notes : tab === 'sources' ? sources : chat}`
     }
   </aside>`;
 }
@@ -743,6 +764,10 @@ export function DeskWindow() {
   const [nav, setNav] = useState(true);
   const [panel, setPanel] = useState(true);
   const [panelTab, setPanelTab] = useState('notes');
+  const toolCalls = useAppState((state) => state.toolCalls);
+  const chatMessages = useAppState((state) => state.messages);
+  // The answer 「来源」 asked the chat tab to show, {id, at}.
+  const [chatFocus, setChatFocus] = useState(/** @type {any} */ (null));
   const [info, setInfo] = useState(/** @type {any} */ ({ outline: [], words: null }));
   const [jump, setJump] = useState(null);
   const [heading, setHeading] = useState(-1);
@@ -1057,6 +1082,7 @@ export function DeskWindow() {
     (chatProject && bindings[chatProject]) ??
     (sessionChat?.projectId === chatProject ? sessionChat.meetingId : null);
   const bound = meetings.find((entry) => entry.id === boundId) ?? null;
+  const boundMessages = boundId ? chatMessages[boundId] : null;
   // Documents opened later join the same chat.
   useEffect(() => {
     if (chatProject && boundId) deskChats.set(chatProject, boundId);
@@ -1307,9 +1333,22 @@ export function DeskWindow() {
           onWidth=${savePanel('deskPanel')}
           notes=${notes.panel}
           count=${notes.count}
+          sourceCount=${collectSources(notes.indexes, boundMessages ?? [], toolCalls).length}
+          sources=${html`<${DeskSources}
+            indexes=${notes.indexes}
+            meetingId=${boundId}
+            authorName=${notes.authorName}
+            onLocate=${notes.locate}
+            onOpen=${notes.openReference}
+            onChat=${(id) => {
+              setChatFocus({ id, at: Date.now() });
+              setPanelTab('chat');
+            }}
+          />`}
           versions=${versionTree}
           chat=${html`<${DeskChat}
             meetingId=${boundId}
+            focus=${chatFocus}
             projectId=${chatProject}
             onBound=${(id) => chatProject && deskChats.set(chatProject, id)}
           />`}

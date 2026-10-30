@@ -116,6 +116,21 @@ test(
       await cards.filter({ hasText: '案例来自城市数据' }).waitFor();
       await marks.and(desk.locator('[data-type="index"]')).first().waitFor();
 
+      // 「来源」 lists the indexed file under 项目文件; 定位 goes back to the words.
+      const panelTabs = desk.locator('.ss-desk-panel .ss-tabs');
+      await panelTabs.getByRole('tab', { name: /来源/u }).click();
+      const source = desk.locator('.ss-desk-src', { hasText: 'data/cities.csv' });
+      await source.waitFor();
+      assert.deepEqual(await desk.locator('.ss-desk-src-group__title').allTextContents(), [
+        '项目文件 · 1',
+      ]);
+      assert.match(await source.locator('.ss-list-row__sub').textContent(), /用在 1 处/u);
+      await source.locator('summary .ss-list-row__title').click();
+      await source.locator('.ss-desk-card__quote', { hasText: 'set relation' }).waitFor();
+      await source.getByRole('button', { name: '定位' }).click();
+      await shoot(desk, 'desk-sources');
+      await panelTabs.getByRole('tab', { name: /批注与索引/u }).click();
+
       // A double-click selects a word: the floating toolbar has marks and quoting only.
       const word = await desk.evaluate(() => {
         const span = [...document.querySelectorAll('.ss-desk-pdf .textLayer span')].find((node) =>

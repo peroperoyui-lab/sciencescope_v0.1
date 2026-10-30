@@ -664,6 +664,11 @@ export function useDeskNotes({ tab, editing, onOpen }) {
 
   return {
     count: roots.length,
+    /** The document's indexes, for the 「来源」 tab. */
+    indexes: roots.filter((item) => item.type === 'index'),
+    authorName,
+    locate,
+    openReference: open,
     panel,
     layer,
     add,

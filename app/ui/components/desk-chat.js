@@ -52,10 +52,11 @@ function chatItems(actions, meetings, projectId, current, onPick) {
 
 /**
  * @param {{ meetingId: string | null, projectId: string | null,
- *   onBound: (meetingId: string) => void }} props
- * `onBound` reports the chat after the person binds, branches or switches.
+ *   onBound: (meetingId: string) => void, focus?: { id: string, at: number } | null }} props
+ * `onBound` reports the chat after the person binds, branches or switches;
+ * `focus` is an answer to scroll to and mark.
  */
-export function DeskChat({ meetingId, projectId, onBound }) {
+export function DeskChat({ meetingId, projectId, onBound, focus = null }) {
   const actions = useActions();
   const meetings = useAppState((state) => state.meetings);
   const meeting = meetings.find((entry) => entry.id === meetingId) ?? null;
@@ -82,6 +83,14 @@ export function DeskChat({ meetingId, projectId, onBound }) {
     if (follow.current && scroller.current)
       scroller.current.scrollTop = scroller.current.scrollHeight;
   }, [messages, drafts]);
+  // 「来源」 asked for one answer: scroll to it once it is loaded, and stop following the end.
+  useLayoutEffect(() => {
+    if (!focus || !scroller.current) return;
+    const node = scroller.current.querySelector(`[data-message-id="${CSS.escape(focus.id)}"]`);
+    if (!node) return;
+    follow.current = false;
+    node.scrollIntoView({ block: 'center' });
+  }, [focus?.at, !!messages?.length]);
 
   /** @param {{ mode: 'continue' | 'branch', meetingId?: string }} how */
   const enter = (how) =>
@@ -215,7 +224,7 @@ export function DeskChat({ meetingId, projectId, onBound }) {
                 (message.authorId === LOCAL_USER_ID ? { kind: 'human' } : null)
               }
               roleNote=${roleOf(message.authorId)}
-              target=${false}
+              target=${focus?.id === message.id}
               compact
             />`,
         )}

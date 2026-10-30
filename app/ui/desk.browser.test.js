@@ -694,7 +694,13 @@ test(
       await index.getByRole('button', { name: 'data/cities.csv' }).waitFor();
       await body.locator('.ss-bind', { hasText: '一致性阈值' }).waitFor();
       assert.equal(await cards.count(), 2);
-      assert.equal(await desk.locator('.ss-desk-panel .ss-tab__count').textContent(), '2');
+      assert.equal(
+        await desk
+          .getByRole('tab', { name: /批注与索引/u })
+          .locator('.ss-tab__count')
+          .textContent(),
+        '2',
+      );
       if (folder) await desk.screenshot({ path: path.join(folder, 'u5-desk-notes.png') });
 
       // The type filter shows one kind.

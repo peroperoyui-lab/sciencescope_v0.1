@@ -5648,6 +5648,23 @@ button.ss-act__row:hover {
 .ss-desk-src__from .ss-btn {
   margin-left: auto;
 }
+.ss-desk-src-bar {
+  gap: var(--sp-6);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.ss-desk-src-bar__count {
+  font-size: 12px;
+}
+.ss-desk-sources {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 12px;
+}
+.ss-desk-src > summary .ss-icon-btn {
+  flex: none;
+}
 /* 批注与索引 (U5): the panel, its cards and replies. */
 .ss-desk-notes__bar {
   gap: var(--sp-6);
