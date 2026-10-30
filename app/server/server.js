@@ -9,6 +9,7 @@ import { registerAssistantRoutes } from './routes/assistant.js';
 import { registerDeliverableRoutes } from './routes/deliverables.js';
 import { registerEventRoutes } from './routes/events.js';
 import { registerMeetingRoutes } from './routes/meetings.js';
+import { registerMessageExtrasRoutes } from './routes/message-extras.js';
 import { registerMinutesRoutes } from './routes/minutes.js';
 import { registerMemoryRoutes } from './routes/memory.js';
 import { registerSecretaryRoutes } from './routes/secretary.js';
@@ -128,6 +129,7 @@ export function createAppServer({
   registerProjectRoutes(router, core, python, projectFiles, projectIndex);
   registerParticipantRoutes(router, core);
   registerMeetingRoutes(router, core, conductor, researchInput, python);
+  registerMessageExtrasRoutes(router, core);
   registerResearchInputRoutes(router, researchInput);
   registerPreviewRoutes(router, core, research);
   registerMinutesRoutes(router, minutes);

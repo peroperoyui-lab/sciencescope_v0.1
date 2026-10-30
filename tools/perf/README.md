@@ -105,3 +105,13 @@ Part 1 checks existing similarity settings with the production save resource and
 node tools/perf/p4c-similarity.mjs --source "<before-checkout>" --out .sciencescope-local/temp/p4c/part1-before.json
 node tools/perf/p4c-similarity.mjs --out .sciencescope-local/temp/p4c/part1-after.json
 ```
+
+Part 2 seeds catalog metadata for 300 sources and 5,060 chunks, plus 12 chats with 1,000 synthetic answer messages. Every answer has a completed `research_read` receipt; no original documents, parser, runtime or model is involved. The longest chat has 180 answers and the probe reads its last 30. One warm-up precedes three measured runs. The old path makes 90 sequential loopback HTTP requests; the batch path makes one. These server-side timings exclude UI/WebView and do not simulate browser request concurrency. The after probe checks exact JSON equality against the old endpoints on the same fixture.
+
+```powershell
+node tools/perf/p4c-extras.mjs --phase before --source "<before-checkout>" --out .sciencescope-local/temp/p4c/part2-before.json
+node tools/perf/p4c-extras.mjs --phase after --out .sciencescope-local/temp/p4c/part2-after.json
+node tools/perf/p4c-extras.mjs --phase after --knowledge-changes --out .sciencescope-local/temp/p4c/part2-history.json
+```
+
+The optional history case creates six changed turns and restore chains of lengths one and two: 99 old requests versus one batch. Receipts retain all three samples, median wall time, request counts and uncompressed response-body bytes. Failures are retained in their reserved receipt; use a new output name for the next attempt.
