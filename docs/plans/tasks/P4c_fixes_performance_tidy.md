@@ -2,7 +2,8 @@
 
 - 起草：Claude，2026-10-29。依据：P4b 报告 `handoff/reports/P4b.md`（热点意见 1–4、结构建议表 1–4）；Yui 2026-10-29 在决定卡片上选「问题加性能加小整理」；Yui 2026-10-28「先测后改」；Yui 2026-10-29 让编辑台转正（`DECISIONS.md` 界面与设计 2026-10-29），场景 1–9 的 Windows 实测仍欠着。
 - 执行：Sol（Windows）；审阅：Claude。长程任务，约 4–5 天的工作量，分七部分按顺序做。每做完一部分，先把那一节写进报告，在分支上提交一次，再做下一部分。哪部分需要改接口形状（第 2 部分的新接口除外），就停在那一部分，写清原因再汇报。
-- 同时进行：Claude 修 `desk-md`、`desk-tex` 两项公式编辑测试和 `research.browser` 切换范围测试（P4b 第三部分 1–3），并在第 2 部分完成后把界面接到新接口上。这几项不在本任务里。
+- 同时进行：Claude 修 `desk-md`、`desk-tex` 两项公式编辑测试和 `research.browser` 切换范围测试（P4b 第三部分 1–3，已在 main 34903c7 修好），并在第 2、2b 部分完成后把界面接到新接口上。这几项不在本任务里。
+- 2026-10-30 补充：编辑台收尾（来源栏、tex 图片和渲染比较、PDF 书签）已在 main 7525e1a 完成，需要后端的两处写成第 2b 部分。从 main 最新提交开始。
 
 ## 目标
 
@@ -36,6 +37,10 @@
    - 原有的单条接口保留不动，详情和刷新还用它们。用 SQL 批量查，不要在服务里循环调用单条查询。
    - 测试：服务和路由测试，覆盖没有 turn、没有引用、有知识库改动、撤回、撤回后又恢复、混入其他会议的 id、超过 50 个 id。报告里写一页 30 条消息时，批量一次和单条 90 次的耗时对比。
 
+2b. **编辑台要的两个读接口**（只做后端，界面由 Claude 接）：
+   - **版本里的 docx 图片**：比较两版时图片现在只显示占位（`app/ui/readers/desk-compare-page.js` 里 `atomElement(piece.inline, null)`），因为没有按版本读图片的接口。新增 `GET /api/versions/:id/media/:ref`，行为和 `GET /api/desk/sessions/:id/media/:ref`（`server/routes/desk.js`）一致：返回这一版 docx 包里那张图的字节和类型，带同样的 CSP 和 nosniff 头；`ref` 用 `GET /api/versions/:id/diff` 返回的块里图片原子的 `ref`（先核对 diff 的块里图片原子带不带 `ref`，不带就补上，和会话块的写法一致）。ref 不属于这一版、版本不是 docx、文件已清理时返回清楚的错误码。不要每次请求都整包解压：同一版的包可以按现有缓存或小的 LRU 复用。测试：两版图片不同、ref 不存在、非 docx 版本、SVG 带 CSP 头。
+   - **整段对话用到的资料**：编辑台「来源」栏现在只能统计界面已读进来的消息（`app/ui/desk-sources.js` 调 `app/ui/turn-sources.js` 的 `usedSources`）。新增 `GET /api/meetings/:id/sources`，返回整段对话里回答读过或引用的资料：`{ items: [{ sourceId, title, label, folderPath, projectId, pages: number[], uses: [{ messageId, turnId, authorId, createdAt, label }] }] }`，按最近一次使用倒序。规则和 `usedSources` 完全一致（`research_read` 的结果；`research_search` 的命中只算回答里引了它的 `S` 编号或经由知识库找到的）。为了两边只有一份规则，把 `usedSources` 挪到 `app/shared/`（`app/shared/*` 会发给界面），`app/ui/turn-sources.js` 改成从那里转出，导出名和行为不变，`turn-sources.test.js` 照常通过。失败的工具调用不算。用 SQL 一次取这段对话的工具调用，不要逐条消息查。测试：只读未引、引了、经由知识库、同一资料多次使用合并、失败调用、空对话、不存在的对话。报告里写 1,000 条消息的对话一次调用的耗时。
+
 3. **设置保存长尾**（热点意见第 2 条）：
    - 先补分段观测：一次 `PATCH /api/settings` 里，排队、文件读写、各消费者（`knowledge/jobs.loadSettings`、`card-queue.configure` 等）各花多少。用图视图偏好保存和设置页直接保存两种路径各量一次。
    - 再修：按变化的字段跳过无关的后台重配，同一 revision 不重复读。保留外部修改设置文件和凭据处理的现有行为。
@@ -61,14 +66,14 @@
 
 ## 可以改的
 
-- `app/services/`、`app/core/`、`app/server/` 及相应测试。
+- `app/services/`、`app/core/`、`app/server/`、`app/shared/` 及相应测试；`app/ui/turn-sources.js` 只按第 2b 条改成转出。
 - `src-tauri/` 和 `app/server/startup-client.js`：只加启动观测标记。
 - `tools/perf/`。
 - 报告 `docs/handoff/reports/P4c.md`，`docs/log/IMPLEMENTATION_LOG.md` 加一条，`docs/product/FEATURES.md` 里和行为变化有关的句子。
 
 ## 不做的
 
-- 不改 `app/ui/`，界面归 Claude，包括接入新的批量接口。
+- 不改 `app/ui/`，界面归 Claude，包括接入新的批量接口。例外：第 2b 部分把 `usedSources` 挪到 `app/shared/` 时，`app/ui/turn-sources.js` 改成转出。
 - 不做 P4b 结构建议第 5–10 条的大重整（路由下沉、知识库历史接口、文件列表副作用、后台错误类型、批注和记忆的拆分），这些留到 alpha 之后。
 - 不改后台功能的产品行为；行为上的取舍写进报告让 Yui 定。
 - 不改安装包和更新通道。
@@ -77,7 +82,7 @@
 ## 完成标准
 
 - 报告 `docs/handoff/reports/P4c.md`：第 1–6 部分各有修前、修后的数字；启动 5.3 秒的拆分表和意见；场景 1–9 的结果表（通过与否、问题、请求数和 token、截图位置）。
-- 每项修复都有测试。批量接口的测试覆盖「要做的」第 2 条列出的情况。
+- 每项修复都有测试。批量接口的测试覆盖「要做的」第 2 条列出的情况，两个读接口覆盖第 2b 条列出的情况。
 - 干净检出 `npm run check` 全部通过（含 Windows 测试），报通过数。已知的公式编辑不稳定测试如果 Claude 那边还没修好，如实报告，不要跳过或改成通过。
 - `tools/perf/` 测试通过，`tools/perf/README.md` 写清新脚本怎么复测。
 
