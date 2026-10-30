@@ -21,7 +21,7 @@ test('v29 versions gain empty descriptions and no key flag while retaining label
       ('v2','g',2,'修订.md','second.md','v1','次标签','修订稿','主线','old');`);
     const previous = db.prepare('SELECT * FROM manuscript_versions ORDER BY number').all();
     db.close();
-    db = await openDatabase(file, { migrations, backupDir });
+    db = await openDatabase(file, { migrations: migrations.slice(0, 30), backupDir });
     assert.equal(db.prepare('PRAGMA user_version').get().user_version, 30);
     const upgraded = db.prepare('SELECT * FROM manuscript_versions ORDER BY number').all();
     for (const [index, row] of upgraded.entries()) {

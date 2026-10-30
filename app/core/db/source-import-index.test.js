@@ -21,7 +21,7 @@ test('v30 import index upgrade backs up all rows and uses the partial expression
     );
     const before = db.prepare('SELECT * FROM events').all();
     db.close();
-    db = await openDatabase(file, { migrations, backupDir });
+    db = await openDatabase(file, { migrations: migrations.slice(0, 31), backupDir });
     assert.equal(db.prepare('PRAGMA user_version').get().user_version, 31);
     assert.deepEqual(db.prepare('SELECT * FROM events').all(), before);
     const plan = db
