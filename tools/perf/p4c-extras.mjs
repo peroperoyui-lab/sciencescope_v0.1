@@ -8,10 +8,17 @@ import { parseArgs } from 'node:util';
 const messageCounts = [180, ...Array(10).fill(75), 70];
 const median = (values) => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
 
-async function seed(core, research) {
+export async function seedExtrasFixture(core, research, countsByMeeting = messageCounts) {
   const project = await core.projects.create({ name: 'Synthetic extras benchmark' });
   const answers = [];
-  const counts = { sources: 300, chunks: 5060, meetings: 12, messages: 1000, toolCalls: 1000 };
+  const messages = countsByMeeting.reduce((total, count) => total + count, 0);
+  const counts = {
+    sources: 300,
+    chunks: 5060,
+    meetings: countsByMeeting.length,
+    messages,
+    toolCalls: messages,
+  };
   core.db.transaction(() => {
     const sources = [];
     for (let index = 0; index < counts.sources; index++) {
@@ -35,7 +42,7 @@ async function seed(core, research) {
       );
       sources.push(source);
     }
-    for (const [chat, count] of messageCounts.entries()) {
+    for (const [chat, count] of countsByMeeting.entries()) {
       const meeting = core.meetings.create({
         projectId: project.id,
         title: `Synthetic chat ${chat + 1}`,
@@ -75,7 +82,7 @@ async function seed(core, research) {
     ['tool_calls', counts.toolCalls],
   ])
     assert.equal(Number(core.db.prepare(`SELECT count(*) n FROM ${table}`).get().n), count);
-  return { counts, messages: answers.slice(-30), meetingId: answers[0].meetingId };
+  return { counts, messages: answers, meetingId: answers[0].meetingId };
 }
 
 /** Assemble the documented batch shape exclusively through the existing HTTP endpoints. */
@@ -159,7 +166,8 @@ export async function measureExtras({
   const knowledge = createKnowledgeStore(core);
   let server;
   try {
-    const fixture = await seed(core, research);
+    const fixture = await seedExtrasFixture(core, research);
+    fixture.messages = fixture.messages.slice(-30);
     if (knowledgeChanges) seedKnowledge(knowledge, fixture.messages);
     server = createAppServer({ core, research, knowledge, token: 'synthetic-benchmark' });
     const baseUrl = await server.listen();

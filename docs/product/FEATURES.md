@@ -346,6 +346,7 @@ data/
 - DOCX 编辑会话（D3a，尚未接界面）：`app/services/desk/` 登记项目文件、维护唯一 open 会话、接收逐块修改和撤回/保留；修改通过结构校验后记录 actor、会议、发言和指令，空闲 2 秒集中写工作副本。保存可写回项目文件或生成父子版本，关闭按需留版本再清理工作目录；正常退出先落盘，重启恢复同一会话。沿用迁移 024 的 `desk_sessions`、`desk_changes`；迁移 027 给版本组加 `source_hash`、`source_version_id`，记项目文件上次登记、导入或写回时的哈希和对应版本，外部修改按它判断，连续保存不再误报。
 
 - D4 版本比较后端已接入：`GET /api/versions/:id/diff` 返回两版块、段落配对、段内删增和格式范围；省略 baseline 默认父版本，可跨分支。迁移 028 的 `version_diffs` 缓存版本对；版本生成后由 worker 串行预计算，关闭应用取消未完成工作。DOCX 原子按 XML 哈希识别，tex/md/pdf 复用已有读取；编辑台和版本比较页都已改用这个结果（U3）；`/compare` 只剩接口。
+- 编辑台补充读接口：`GET /api/versions/:id/media/:ref` 按比较块中的图片 ref 读取指定 DOCX 版本，带与会话图片相同的响应头并复用小型包缓存；`GET /api/meetings/:id/sources` 汇总整段对话成功读取、正文引用或经知识库找到的资料及每次使用，按最近使用排序。来源规则移至 `app/shared/turn-sources.js`，界面原模块仅转出；新端点的界面接入后续由 Claude 完成。
 - D10 版本描述与重点后端：版本列表、详情、图节点均含 `description` 和布尔值 `key`；PATCH 只改传入字段，描述去首尾空白、最多 2,000 字，与原有元数据同事务提交并广播变化。专家用 `workspace_read manuscript` 的 `versions:true` 读取每版的描述、重点及分支等信息，工具不提供修改描述或重点的操作；现有 `label` 不变。
 - D5 专家改文稿后端已接入：所有角色共用 `workspace_read/edit manuscript`，按块读当前或历史内容、替换/插删段、存版本或写回项目，`workspace_undo chg_` 逐处撤回；复用编辑会话与修改记录。原子记号按原顺序保留，替换继承起始字符格式；写回项目在请求批准模式下询问，沿用 C1 始终允许规则。划选改写经绑定会议发送，忙时进入现有队列；`desk_suggest` 持久事件十分钟去重，界面提示由 Claude 接入。
 - D6 批注与索引后端：迁移 029 建索引/非 Word 批注表及修改记录的标注快照。统一 annotations 接口增删改查，标注随文字移动、删光时删除，按修改撤回时一起恢复；外部修改后按原文和前后文重新定位，缺失或歧义记 `annotation-lost`；撤回只恢复记录和引用并标 `lost`，正文不变，重开仍保留。PATCH 新范围或再次打开唯一找到原文后恢复 `anchored`，未定位的 Word 批注不写入文件。DOCX 批注写回 Word，索引及 tex/md/pdf 批注只存应用；PDF 正文只读。专家共用 comment/bind/uncomment/unbind，读取带摘要，删除限自己添加的条目；侧栏由 U5 接入。

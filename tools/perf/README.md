@@ -115,3 +115,14 @@ node tools/perf/p4c-extras.mjs --phase after --knowledge-changes --out .sciences
 ```
 
 The optional history case creates six changed turns and restore chains of lengths one and two: 99 old requests versus one batch. Receipts retain all three samples, median wall time, request counts and uncompressed response-body bytes. Failures are retained in their reserved receipt; use a new output name for the next attempt.
+
+Part 2b measures the two desk read APIs. Use the test product's `runtime/node.exe` (22.22.2) to match the installed runtime; each receipt records `process.version`. The sources probe uses a single 1,000-answer conversation, the same 300-source/5,060-chunk synthetic catalog, and one warm-up plus three samples. Its old control calls the shared source rules over in-memory messages and one tool-call query per turn; the new path is a complete loopback HTTP request. The old control is a diagnostic, not an existing whole-conversation UI endpoint. Exact successful-receipt parity, source/use counts and SQL counts are checked.
+
+```powershell
+node tools/perf/p4c-sources.mjs --phase before --source "<before-checkout>" --out .sciencescope-local/temp/p4c/part2b-sources/before.json
+node tools/perf/p4c-sources.mjs --phase after --out .sciencescope-local/temp/p4c/part2b-sources/after.json
+node tools/perf/p4c-version-media.mjs --phase before --source "<before-checkout>" --out .sciencescope-local/temp/p4c/part2b-media/before.json
+node tools/perf/p4c-version-media.mjs --phase after --out .sciencescope-local/temp/p4c/part2b-media/after.json
+```
+
+The media probe generates two 1,200-paragraph DOCX versions with two embedded pictures. It verifies image refs in the real diff and the media endpoint, then compares 20 repeated service reads through `readFile + readDocx + indexMedia + readMedia` against the warm version-package cache. HTTP transport, diff computation and initial cache loading are outside this timing. One warm-up and three measured iterations retain byte identity and timing samples. Never compare measurements across Node versions as one before/after pair. All receipts and generated originals remain in the ignored P4c temporary directory.
