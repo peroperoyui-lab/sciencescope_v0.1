@@ -59,9 +59,13 @@ export function createActions(api, store) {
           void loadMeetingContexts(event.payload.meetingId).catch(() => {});
         // Settings can be changed by an AI or another window; reload them.
         if (event.type === 'resource.changed' && event.payload.resource === 'settings') {
+          const seen = settingsStarted;
           api
             .get('/api/settings')
             .then((next) => {
+              // A write of ours on its way, or begun since, would be rolled
+              // back; its answer brings the whole file, other changes included.
+              if (settingsPending || settingsStarted !== seen) return;
               applyAppearance(next);
               set({ settings: next });
             })
@@ -370,6 +374,8 @@ export function createActions(api, store) {
   // by a just-saved setting (the knowledge scope) must not read the old value,
   // and an earlier response must not overwrite a later one.
   let settingsWrites = Promise.resolve();
+  let settingsPending = 0;
+  let settingsStarted = 0;
   const isPlain = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
   const mergeSettings = (base, patch) => {
     const result = { ...base };
@@ -387,6 +393,8 @@ export function createActions(api, store) {
     }
     const write = settingsWrites.catch(() => {}).then(() => api.patch('/api/settings', changes));
     settingsWrites = write;
+    settingsPending += 1;
+    settingsStarted += 1;
     try {
       const settings = await write;
       if (settingsWrites === write) {
@@ -401,6 +409,8 @@ export function createActions(api, store) {
         set({ settings });
       }
       throw error;
+    } finally {
+      settingsPending -= 1;
     }
   }
 

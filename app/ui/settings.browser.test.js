@@ -216,3 +216,48 @@ test(
       assert.equal((await readCredentials(app.core.paths)).refs['opencode-go'], 'sk-old');
     }),
 );
+
+test(
+  'a switch flipped while an earlier change is being saved stays as the person left it',
+  { skip: browserSkip },
+  () =>
+    withBrowserApp('ui-settings-overlap', silent, async ({ page, app }) => {
+      const settings = async () =>
+        (await app.core.workspace.read({ resource: 'settings', key: 'app' })).value;
+      await page.goto(new URL('/?token=ui-token#/settings/secretary-settings', page.url()).href);
+      const form = page.locator('[data-summary-settings]');
+      const enter = form.getByRole('switch', { name: '进入项目时', exact: true });
+      await enter.waitFor();
+      // The reload after the first save comes back while the second save is on its way.
+      await page.route('**/api/settings', async (route) => {
+        const request = route.request();
+        const slow =
+          request.method() === 'GET'
+            ? 500
+            : request.postData()?.includes('onLeaveProject')
+              ? 1500
+              : 0;
+        await new Promise((resolve) => setTimeout(resolve, slow));
+        await route.continue();
+      });
+      const leave = form.getByRole('switch', { name: '离开项目时', exact: true });
+      await enter.uncheck();
+      await leave.uncheck();
+      await page.waitForTimeout(1000);
+      assert.equal(await leave.isChecked(), false);
+      await page.waitForFunction(
+        async () => {
+          const response = await fetch('/api/settings', {
+            headers: { authorization: 'Bearer ui-token' },
+          });
+          return (await response.json()).summary.onLeaveProject === false;
+        },
+        undefined,
+        { polling: 200 },
+      );
+      assert.equal(await leave.isChecked(), false);
+      const stored = (await settings()).summary;
+      assert.equal(stored.onEnterProject, false);
+      assert.equal(stored.onLeaveProject, false);
+    }),
+);
