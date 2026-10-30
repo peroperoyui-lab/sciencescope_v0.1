@@ -160,7 +160,9 @@ test(
 
       // A click on marked words lights up their card.
       await desk.getByRole('tab', { name: '批注与索引' }).click();
-      await desk.mouse.click(middle.x, middle.y);
+      // 定位 earlier may have scrolled the page: find the words again.
+      const spot = await selectWords(desk, 'set relation');
+      await desk.mouse.click(spot.x, spot.y);
       await cards
         .filter({ hasText: '案例来自城市数据' })
         .and(desk.locator('[data-active]'))

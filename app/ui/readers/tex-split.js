@@ -1,10 +1,16 @@
 // The tex page beside its source (EDITING_DESK.md §10, U6): the render pane
 // follows the text as it is typed, scrolls with the source, and reports
 // clicks on formulas so they can be edited. Blocks whose HTML did not change
-// keep their elements, so typing does not redraw the whole page.
+// keep their elements, so typing does not redraw the whole page. Text on the
+// page knows where it came from in the source (<span data-o>), so comments and
+// indexes are drawn on it and a selection there is the same selection in the
+// source: adding a comment, an index or quoting works from either pane.
 import { renderTex } from '../tex-render.js';
+import { textNoteRanges, textNotesValue } from './desk-notes.js';
 
 const RENDER_DELAY = 150;
+// CSS custom highlights for comments, indexes and the active one (::highlight in components.css).
+const MARKS = { comment: 'ss-tex-cmt', index: 'ss-tex-bind', active: 'ss-tex-active' };
 
 /** @param {string} html one element */
 function element(html) {
@@ -36,7 +42,7 @@ export function mountTexRender(pane, page, editor, { onRender, onFormula, visibl
 
   function render() {
     clearTimeout(timer);
-    const result = renderTex(editor.plain(), { cache });
+    const result = renderTex(editor.plain(), { cache, positions: true });
     const unused = new Map();
     elements.forEach((node, index) => {
       const list = unused.get(blocks[index].html) ?? [];
@@ -52,6 +58,8 @@ export function mountTexRender(pane, page, editor, { onRender, onFormula, visibl
     page.replaceChildren(...next);
     blocks = result.blocks;
     elements = next;
+    collectRuns();
+    drawNotes();
     if (media) pictures(result.graphicsPath);
     onRender?.(result.outline);
     if (driver === 'source') followSource();
@@ -71,6 +79,95 @@ export function mountTexRender(pane, page, editor, { onRender, onFormula, visibl
       });
     }
   }
+  /** @type {{ node: Text, start: number, end: number }[]} text copied from the source, in page order */
+  let runs = [];
+  function collectRuns() {
+    runs = [];
+    elements.forEach((block, index) => {
+      const from = blocks[index].from;
+      for (const span of block.querySelectorAll('[data-o]')) {
+        const node = /** @type {Text} */ (span.firstChild);
+        if (node?.nodeType !== 3) continue;
+        const start = from + Number(/** @type {HTMLElement} */ (span).dataset.o);
+        runs.push({ node, start, end: start + node.length });
+      }
+    });
+  }
+
+  /**
+   * The source position of a point on the page: inside copied text exactly,
+   * elsewhere (a heading number, a formula) the end of the text before it.
+   * @param {Node} node @param {number} offset @returns {number | null}
+   */
+  function positionAt(node, offset) {
+    if (!runs.length) return null;
+    const run = node.nodeType === 3 ? runs.find((entry) => entry.node === node) : null;
+    if (run) return run.start + Math.min(offset, run.node.length);
+    const point = document.createRange();
+    point.setStart(node, offset);
+    // The last run that starts at or before the point.
+    let low = 0;
+    let high = runs.length - 1;
+    let found = -1;
+    while (low <= high) {
+      const middle = (low + high) >> 1;
+      if (point.comparePoint(runs[middle].node, 0) <= 0) {
+        found = middle;
+        low = middle + 1;
+      } else high = middle - 1;
+    }
+    return found < 0 ? runs[0].start : runs[found].end;
+  }
+
+  /** Page ranges covering source positions `from`–`to`. @param {number} from @param {number} to */
+  function rangesOf(from, to) {
+    const ranges = [];
+    for (const run of runs) {
+      if (run.end <= from || run.start >= to) continue;
+      const range = document.createRange();
+      range.setStart(run.node, Math.max(from, run.start) - run.start);
+      range.setEnd(run.node, Math.min(to, run.end) - run.start);
+      ranges.push(range);
+    }
+    return ranges;
+  }
+
+  /** Comments and indexes from the source, drawn as highlights on the page. */
+  function drawNotes() {
+    const highlights = globalThis.CSS?.highlights;
+    if (!highlights) return;
+    const value = textNotesValue(view.state);
+    const sets = { comment: [], index: [], active: [] };
+    for (const note of textNoteRanges(view.state)) {
+      if (note.quiet) continue;
+      const ranges = rangesOf(note.from, note.to);
+      sets[note.type === 'comment' ? 'comment' : 'index'].push(...ranges);
+      if (note.id === value.active) sets.active.push(...ranges);
+    }
+    for (const [kind, name] of Object.entries(MARKS))
+      highlights.set(name, new Highlight(...sets[kind]));
+  }
+
+  // The selection made on the page: the source gets the same selection
+  // (without focus, so the page keeps it), and its box is kept for the toolbar.
+  let picked = /** @type {DOMRect | null} */ (null);
+  const onSelectionChange = () => {
+    const selection = getSelection();
+    if (!selection?.rangeCount || !page.contains(selection.anchorNode)) {
+      if (selection?.rangeCount && !pane.contains(selection.anchorNode)) picked = null;
+      return;
+    }
+    const anchor = positionAt(selection.anchorNode, selection.anchorOffset);
+    const head = positionAt(selection.focusNode, selection.focusOffset);
+    if (anchor == null || head == null) return;
+    const range = selection.getRangeAt(0);
+    picked = selection.isCollapsed ? null : range.getBoundingClientRect();
+    const main = view.state.selection.main;
+    if (main.anchor !== anchor || main.head !== head)
+      view.dispatch({ selection: { anchor, head } });
+  };
+  document.addEventListener('selectionchange', onSelectionChange);
+
   const later = () => {
     clearTimeout(timer);
     timer = setTimeout(render, RENDER_DELAY);
@@ -158,7 +255,10 @@ export function mountTexRender(pane, page, editor, { onRender, onFormula, visibl
     }
     if (visible().source) {
       driver = 'source';
-      editor.revealAt(start);
+      const caret = getSelection();
+      editor.revealAt(
+        (caret?.anchorNode && positionAt(caret.anchorNode, caret.anchorOffset)) ?? start,
+      );
     }
   };
   page.addEventListener('click', onClick);
@@ -167,6 +267,32 @@ export function mountTexRender(pane, page, editor, { onRender, onFormula, visibl
   return {
     /** The text changed: draw it again shortly. */
     changed: later,
+    /** The source editor's update: redraw the marks when they changed. @param {any} update */
+    sourceUpdated(update) {
+      if (textNotesValue(update.startState) !== textNotesValue(update.state)) drawNotes();
+    },
+    /**
+     * The words selected on the page, as the source editor's selection() gives
+     * them but with the page's box; null when the selection is not on the page.
+     */
+    selection() {
+      if (!picked) return null;
+      const { from, to } = view.state.selection.main;
+      const quote = view.state.sliceDoc(from, to);
+      if (!quote.trim()) return null;
+      return { quote, from: editor.fileOffset(from), to: editor.fileOffset(to), rect: picked };
+    },
+    /** 定位 selected words in the source: with the source hidden, bring them into view here. */
+    revealed() {
+      const shown = visible();
+      if (shown.source || !shown.render) return;
+      const { from, to } = view.state.selection.main;
+      const range = rangesOf(from, Math.max(to, from + 1))[0];
+      if (!range) return;
+      const box = range.getBoundingClientRect();
+      const frame = pane.getBoundingClientRect();
+      pane.scrollTop += box.top - frame.top - frame.height / 3;
+    },
     /** Draw now, then line the panes up from the source. */
     refresh() {
       render();
@@ -195,6 +321,8 @@ export function mountTexRender(pane, page, editor, { onRender, onFormula, visibl
       scroller.removeEventListener('scroll', onSourceScroll);
       pane.removeEventListener('scroll', onRenderScroll);
       page.removeEventListener('click', onClick);
+      document.removeEventListener('selectionchange', onSelectionChange);
+      for (const name of Object.values(MARKS)) globalThis.CSS?.highlights?.delete(name);
     },
   };
 }

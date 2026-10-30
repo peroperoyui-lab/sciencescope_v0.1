@@ -5299,6 +5299,17 @@ button.ss-act__row:hover {
   text-decoration-thickness: 1.5px;
   text-underline-offset: 3px;
 }
+/* The same marks on the tex page, drawn as highlights over its text (tex-split.js). */
+::highlight(ss-tex-cmt) {
+  background-color: var(--warn-soft);
+  text-decoration: underline 2px var(--warn-line);
+}
+::highlight(ss-tex-bind) {
+  text-decoration: underline dotted 1.5px var(--accent);
+}
+::highlight(ss-tex-active) {
+  background-color: var(--accent-soft);
+}
 /* An object the desk keeps but does not edit (docx formula, image, field). */
 .ss-atom {
   display: inline-block;

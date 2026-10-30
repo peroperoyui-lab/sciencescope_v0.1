@@ -160,9 +160,9 @@ test(
         await desk.waitForFunction(
           () => document.querySelector('.ss-split__render').scrollTop < 40,
         );
-        // A click on a paragraph puts the source cursor there.
+        // A click on a paragraph puts the source cursor at the clicked words.
         await pageView.locator('h3', { hasText: '一致性与覆盖度' }).click();
-        await status.getByText('第 13 行，第 1 列').waitFor();
+        await status.getByText(/第 13 行，第 \d+ 列/u).waitFor();
         if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
       },
       { deskOptions: { texOptions: { engines: none } } },
@@ -327,6 +327,79 @@ test(
         'ss-page__fig',
       );
       await shoot(desk, 'u6-tex-figures');
+      if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
+    }),
+);
+
+test(
+  'the tex page takes comments on its own words and shows the marks the source has',
+  { skip: browserSkip },
+  () =>
+    withBrowserApp('u6-tex-page-notes', silent, async ({ page, app }) => {
+      const { desk, errors } = await openChapter(page, app);
+      const rendered = desk.locator('.ss-page--tex');
+      const cards = desk.locator('.ss-desk-notes .ss-desk-card:not(.ss-desk-card--new)');
+      /** Select `words` in the page text, as a drag would. */
+      const selectOnPage = (words) =>
+        desk.evaluate((wanted) => {
+          const root = document.querySelector('.ss-page--tex');
+          const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+          for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            const at = node.textContent.indexOf(wanted);
+            if (at < 0) continue;
+            const range = document.createRange();
+            range.setStart(node, at);
+            range.setEnd(node, at + wanted.length);
+            getSelection().removeAllRanges();
+            getSelection().addRange(range);
+            return true;
+          }
+          return false;
+        }, words);
+      /** The page text each highlight covers. */
+      const marked = (name) =>
+        desk.evaluate((key) => [...(CSS.highlights.get(key) ?? [])].map(String), name);
+
+      // Words selected on the page get a comment from the ribbon, with the source's words as quote.
+      await rendered.locator('p', { hasText: '熵权法合成' }).waitFor();
+      assert.equal(await selectOnPage('熵权法合成'), true);
+      await desk.locator('.ss-ribbon').getByRole('button', { name: '批注', exact: true }).click();
+      await desk.getByRole('textbox', { name: '批注内容' }).fill('说明熵权法的出处');
+      await desk.getByRole('button', { name: '添加', exact: true }).click();
+      const card = cards.filter({ hasText: '说明熵权法的出处' });
+      await card.waitFor();
+      assert.equal(await card.locator('.ss-desk-card__quote').textContent(), '熵权法合成');
+      // The comment is marked in the source and on the page.
+      await desk.locator('.ss-desk-source .ss-cmt', { hasText: '熵权法合成' }).waitFor();
+      await desk.waitForFunction(() => (CSS.highlights.get('ss-tex-cmt')?.size ?? 0) > 0);
+      assert.deepEqual(await marked('ss-tex-cmt'), ['熵权法合成']);
+
+      // A caret in the marked words on the page lights its card, and the page marks it too.
+      /** Put the caret in the page text just after the first character of `words`. */
+      const caretOnPage = (words) =>
+        desk.evaluate((wanted) => {
+          const root = document.querySelector('.ss-page--tex');
+          const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+          for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+            const at = node.textContent.indexOf(wanted);
+            if (at < 0) continue;
+            getSelection().collapse(node, at + 1);
+            return;
+          }
+        }, words);
+      await caretOnPage('本章采用');
+      await desk.waitForFunction(
+        () => !document.querySelector('.ss-desk-notes .ss-desk-card[data-active]'),
+      );
+      await caretOnPage('权法合成');
+      await desk.waitForFunction(
+        () =>
+          document
+            .querySelector('.ss-desk-notes .ss-desk-card[data-active]')
+            ?.textContent.includes('说明熵权法的出处') ?? false,
+      );
+      await desk.waitForFunction(() => (CSS.highlights.get('ss-tex-active')?.size ?? 0) > 0);
+      await shoot(desk, 'u6-tex-page-notes');
       if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
     }),
 );

@@ -375,7 +375,10 @@ export function DeskDocument({
           texRender?.changed();
           mdPage?.sourceChanged();
         },
-        onUpdate: (update) => mdPage?.sourceUpdated(update),
+        onUpdate: (update) => {
+          mdPage?.sourceUpdated(update);
+          texRender?.sourceUpdated(update);
+        },
       };
       const pictures = new Map();
       const listings = new Map();
@@ -553,6 +556,17 @@ export function DeskDocument({
       editing.current = {
         ...editor,
         ...routed,
+        // tex: words selected on the page count as the source's selection.
+        ...(latex
+          ? {
+              selection: () => texRender?.selection() ?? editor.selection(),
+              reveal: (from, to) => {
+                const done = /** @type {any} */ (editor).reveal(from, to);
+                texRender?.revealed();
+                return done;
+              },
+            }
+          : {}),
         session: session.current,
         // After choosing the outside version: mount the page again.
         reopen: () => setReload((value) => value + 1),

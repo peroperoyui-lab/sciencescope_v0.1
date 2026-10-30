@@ -574,10 +574,12 @@ function graphicsPath(masked) {
 /**
  * Render TeX source as page blocks.
  * @param {string} source the text, with \n line breaks
- * @param {{ cache?: Map<string, string> }} [options] keeps rendered formulas between calls
+ * @param {{ cache?: Map<string, string>, positions?: boolean }} [options] `cache` keeps
+ * rendered formulas between calls; `positions` wraps text copied from the
+ * source in <span data-o> runs, which count from their block's start like data-eq
  * @returns {{ blocks: TexBlock[], outline: TexHeading[], graphicsPath: string[] }}
  */
-export function renderTex(source, { cache = new Map() } = {}) {
+export function renderTex(source, { cache = new Map(), positions = false } = {}) {
   const masked = maskComments(source);
   const begin = /\\begin\s*\{document\}/.exec(masked);
   const finish = begin ? masked.indexOf('\\end{document}', begin.index) : -1;
@@ -588,7 +590,7 @@ export function renderTex(source, { cache = new Map() } = {}) {
   let result;
   // The first pass numbers everything and learns labels and bibliography; the second resolves them.
   for (let pass = 0; pass < 2; pass++) {
-    const context = createContext(source, masked, cache, prior);
+    const context = createContext(source, masked, cache, prior, positions);
     if (begin) walkDefinitions(context, 0, begin.index);
     const blocks = flow(context, body.from, body.to, { top: true });
     if (context.footnotes.length)
@@ -611,11 +613,12 @@ export function renderTex(source, { cache = new Map() } = {}) {
   return result;
 }
 
-function createContext(source, masked, cache, prior) {
+function createContext(source, masked, cache, prior, positions) {
   const cjk = CJK.test(masked);
   return {
     source,
     s: masked,
+    positions,
     cjk,
     book: /\\chapter\b/.test(masked),
     cache,
@@ -753,10 +756,9 @@ function block(kind, from, to, html) {
 /** Formula positions inside a top-level block count from the block's start. */
 const relative = (item) => ({
   ...item,
-  html: item.html.replace(
-    /data-eq="(\d+),(\d+)"/g,
-    (_, a, b) => `data-eq="${a - item.from},${b - item.from}"`,
-  ),
+  html: item.html
+    .replace(/data-eq="(\d+),(\d+)"/g, (_, a, b) => `data-eq="${a - item.from},${b - item.from}"`)
+    .replace(/data-o="(\d+)"/g, (_, a) => `data-o="${a - item.from}"`),
 });
 
 /**
@@ -1392,9 +1394,25 @@ const cjkAt = (s, i) => i >= 0 && i < s.length && CJK.test(s[i]);
 function inline(c, from, to, options = {}, s = c.s, depth = 0) {
   let out = '';
   let text = '';
+  // With c.positions, text copied from the document as is goes out in
+  // <span data-o> runs that start at that source position; `runAt` is where
+  // the buffered run starts, -1 while the buffer holds made-up text (dashes, quotes).
+  const mapped = c.positions && s === c.s && !options.detached;
+  let runAt = -1;
   const flushText = () => {
-    out += esc(text);
+    if (text) out += runAt >= 0 ? `<span data-o="${runAt}">${esc(text)}</span>` : esc(text);
     text = '';
+    runAt = -1;
+  };
+  /** Text for source position i, or made up when i < 0. @param {string} value @param {number} i */
+  const put = (value, i) => {
+    if (mapped && i >= 0) {
+      if (runAt < 0 || runAt + text.length !== i) {
+        flushText();
+        runAt = i;
+      }
+    } else if (runAt >= 0) flushText();
+    text += value;
   };
   for (let i = from; i < to;) {
     const char = s[i];
@@ -1402,24 +1420,25 @@ function inline(c, from, to, options = {}, s = c.s, depth = 0) {
       let j = i;
       while (j < to && /\s/.test(s[j])) j++;
       // Line breaks between Chinese characters vanish, as with xeCJK and ctex.
-      if (!(cjkAt(s, i - 1) && cjkAt(s, j)) && i > from && j < to) text += ' ';
+      if (!(cjkAt(s, i - 1) && cjkAt(s, j)) && i > from && j < to)
+        put(' ', j === i + 1 && char === ' ' ? i : -1);
       i = j;
       continue;
     }
     if (char === '~') {
-      text += '\u00a0';
+      put('\u00a0', -1);
       i++;
       continue;
     }
     if (char === '-' && s[i + 1] === '-') {
       const em = s[i + 2] === '-';
-      text += em ? '—' : '–';
+      put(em ? '—' : '–', -1);
       i += em ? 3 : 2;
       continue;
     }
     if (char === '`' || char === "'") {
       const double = s[i + 1] === char;
-      text += char === '`' ? (double ? '“' : '‘') : double ? '”' : '’';
+      put(char === '`' ? (double ? '“' : '‘') : double ? '”' : '’', -1);
       i += double ? 2 : 1;
       continue;
     }
@@ -1448,12 +1467,12 @@ function inline(c, from, to, options = {}, s = c.s, depth = 0) {
         i = end;
         continue;
       }
-      text += char;
+      put(char, i);
       i++;
       continue;
     }
     if (char !== '\\') {
-      text += char;
+      put(char, i);
       i++;
       continue;
     }

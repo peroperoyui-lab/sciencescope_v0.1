@@ -55,6 +55,8 @@ export function useDeskNotes({ tab, editing, onOpen }) {
   const [reply, setReply] = useState(/** @type {any} */ (null));
   const [picker, setPicker] = useState(/** @type {any} */ (null));
   const latest = useRef(/** @type {any[]} */ ([]));
+  // The active id for callers holding an older render's functions (the editors' onSelection).
+  const shownActive = useRef(/** @type {string | null} */ (null));
   const retry = useRef(/** @type {any} */ (null));
   const list = useRef(/** @type {HTMLElement | null} */ (null));
   const frame = useRef(0);
@@ -120,6 +122,7 @@ export function useDeskNotes({ tab, editing, onOpen }) {
     setDraft(null);
     setEdit(null);
     setReply(null);
+    shownActive.current = null;
     setActive(null);
     void reload();
   }, [sessionId]);
@@ -130,6 +133,7 @@ export function useDeskNotes({ tab, editing, onOpen }) {
 
   /** Highlight one item in the text and its card. @param {string | null} id */
   function activate(id, scroll = false) {
+    shownActive.current = id;
     setActive(id);
     cancelAnimationFrame(frame.current);
     // The editors must not be told during their own update.
@@ -148,7 +152,7 @@ export function useDeskNotes({ tab, editing, onOpen }) {
     if (!current?.notesAt) return;
     const ids = current.notesAt();
     const next = ids.find((id) => latest.current.some((item) => item.id === id)) ?? null;
-    if (next !== active) activate(next, !!next);
+    if (next !== shownActive.current) activate(next, !!next);
   }
 
   /**

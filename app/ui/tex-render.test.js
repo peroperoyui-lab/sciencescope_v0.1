@@ -216,3 +216,16 @@ test('a figure keeps its file name, its width and the graphics folders to look i
   assert.match(blocks[1].html, /data-src="plot.png" style="--fig-w: 8cm"/u);
   assert.match(blocks[2].html, /<span class="ss-page__fig" data-src="raw">raw<\/span>/u);
 });
+
+test('with positions, text copied from the source says where it starts', () => {
+  const source = "\\section{设计}\nAs ``quoted'' -- text with \\textbf{bold words} and $x$.";
+  const { blocks } = renderTex(source, { positions: true });
+  for (const block of blocks)
+    for (const [, at, words] of block.html.matchAll(/data-o="(-?\d+)">([^<]*)</gu)) {
+      const start = block.from + Number(at);
+      assert.equal(source.slice(start, start + words.length), words);
+    }
+  assert.match(blocks[1].html, /<strong><span data-o="\d+">bold words<\/span><\/strong>/u);
+  // Without positions the HTML has no runs.
+  assert.doesNotMatch(renderTex(source).blocks[1].html, /data-o/u);
+});
