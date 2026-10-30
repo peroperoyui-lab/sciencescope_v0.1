@@ -997,6 +997,11 @@ export function DeskWindow() {
         index = Number(node.getAttribute('data-outline'));
     setHeading(index);
   };
+  // A PDF's bookmarks follow the page being read instead.
+  useEffect(() => {
+    if (!info.page || info.outline[0]?.page === undefined) return;
+    setHeading(info.outline.findLastIndex((entry) => entry.page && entry.page <= info.page));
+  }, [info.page, info.outline]);
 
   const tabProject = projects.find((entry) => entry.id === (tab?.projectId ?? projectId));
   const tabGroups = groups[tab?.projectId] ?? [];

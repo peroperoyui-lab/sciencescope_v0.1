@@ -557,11 +557,25 @@ function splitTop(s, from, to, test) {
  * @typedef {{ level: number, text: string, from: number }} TexHeading
  */
 
+/** The CSS width of `width=…` in \includegraphics options, or ''. @param {string} options */
+function figureWidth(options) {
+  const value = /(?:^|,)\s*width\s*=\s*([^,]*)/u.exec(options)?.[1].trim() ?? '';
+  const share = /^([\d.]*)\s*\\(?:textwidth|linewidth|columnwidth|hsize)$/u.exec(value);
+  if (share) return `${Math.min(100, Number(share[1] || 1) * 100)}%`;
+  return /^\d*\.?\d+(?:cm|mm|in|pt)$/u.test(value) ? value : '';
+}
+
+/** The folders \graphicspath{{a/}{b/}} names, in order. @param {string} masked */
+function graphicsPath(masked) {
+  const found = /\\graphicspath\s*\{((?:\s*\{[^{}]*\})+)\s*\}/u.exec(masked);
+  return found ? [...found[1].matchAll(/\{([^{}]*)\}/gu)].map((match) => match[1].trim()) : [];
+}
+
 /**
  * Render TeX source as page blocks.
  * @param {string} source the text, with \n line breaks
  * @param {{ cache?: Map<string, string> }} [options] keeps rendered formulas between calls
- * @returns {{ blocks: TexBlock[], outline: TexHeading[] }}
+ * @returns {{ blocks: TexBlock[], outline: TexHeading[], graphicsPath: string[] }}
  */
 export function renderTex(source, { cache = new Map() } = {}) {
   const masked = maskComments(source);
@@ -586,7 +600,11 @@ export function renderTex(source, { cache = new Map() } = {}) {
           .map((note) => `<li>${note}</li>`)
           .join('')}</ol></section>`,
       });
-    result = { blocks: blocks.map(relative), outline: context.outline };
+    result = {
+      blocks: blocks.map(relative),
+      outline: context.outline,
+      graphicsPath: graphicsPath(masked),
+    };
     if (!context.refs && !(context.cites && context.bib.size)) break;
     prior = { labels: context.labels, bib: context.bib };
   }
@@ -1552,9 +1570,14 @@ function inlineCommand(c, s, i, to, options, depth) {
   }
   if (name === 'includegraphics') {
     const end = skipArgs(s, after, 1, to);
+    const keys = opt(s, after, to);
     const file = arg(s, skipArgs(s, after, 0, to), to);
+    const src = file ? file.text.trim() : '';
+    const width = figureWidth(keys?.text ?? '');
     return {
-      html: `<span class="ss-page__fig">${esc(file ? file.text.trim() : '')}</span>`,
+      html: `<span class="ss-page__fig" data-src="${esc(src)}"${
+        width ? ` style="--fig-w: ${width}"` : ''
+      }>${esc(src)}</span>`,
       end,
     };
   }

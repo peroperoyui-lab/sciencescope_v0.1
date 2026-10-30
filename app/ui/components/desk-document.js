@@ -85,29 +85,96 @@ const PICTURE_TYPES = {
 };
 
 /**
- * A picture a Markdown file links to, from the project folder, as an object
- * URL; null for web addresses and paths outside the project.
- * @param {any} actions @param {any} tab @param {string} src
- * @returns {Promise<string | null>}
+ * A path relative to `folder` inside the project, or null for web addresses
+ * and paths that leave it. @param {string[]} folder @param {string} src
  */
-async function projectPicture(actions, tab, src) {
+function projectPath(folder, src) {
   if (/^[a-z][a-z\d+.-]*:/iu.test(src) || src.startsWith('/')) return null;
-  const parts = tab.path.split('/').slice(0, -1);
+  const parts = [...folder];
   for (const part of decodeURI(src.split(/[?#]/u)[0]).split('/')) {
     if (part === '..') {
       if (!parts.length) return null;
       parts.pop();
     } else if (part && part !== '.') parts.push(part);
   }
-  const path = parts.join('/');
-  const type = PICTURE_TYPES[path.split('.').pop().toLowerCase()];
-  if (!type) return null;
+  return parts.join('/');
+}
+
+/** A project picture as an object URL, or null. @param {any} actions @param {any} tab @param {string} path */
+async function pictureAt(actions, tab, path) {
+  const extension = path.split('.').pop().toLowerCase();
+  const type = PICTURE_TYPES[extension];
+  if (!type && extension !== 'pdf') return null;
   try {
     const bytes = await actions.previewBytes({ kind: 'project', projectId: tab.projectId, path });
-    return URL.createObjectURL(new Blob([bytes], { type }));
+    if (type) return URL.createObjectURL(new Blob([bytes], { type }));
+    const { pdfPicture } = await import('../readers/pdf.js');
+    const png = await pdfPicture(bytes);
+    return png && URL.createObjectURL(png);
   } catch {
     return null;
   }
+}
+
+/**
+ * A picture a Markdown file links to, from the project folder, as an object
+ * URL; null for web addresses and paths outside the project.
+ * @param {any} actions @param {any} tab @param {string} src
+ * @returns {Promise<string | null>}
+ */
+async function projectPicture(actions, tab, src) {
+  const path = projectPath(tab.path.split('/').slice(0, -1), src);
+  return path && !path.endsWith('.pdf') ? pictureAt(actions, tab, path) : null;
+}
+
+// The files \includegraphics tries when its name has no extension, as LaTeX does.
+const FIGURE_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.svg'];
+
+/**
+ * A figure a TeX file includes: looked up beside the file, then from the
+ * project top (where a main file that \input it usually sits), under each
+ * \graphicspath folder, adding the usual extensions when it has none. Only
+ * files the folder listing has are read, so guesses cost no failed reads.
+ * @param {any} actions @param {any} tab @param {string} src @param {string[]} folders
+ * @param {Map<string, Promise<Set<string>>>} listings folder → its file paths, shared per document
+ * @returns {Promise<string | null>}
+ */
+async function texPicture(actions, tab, src, folders, listings) {
+  // A folder is listed only once its parent shows it, so missing ones are never asked for.
+  const listed = (folder) => {
+    if (!listings.has(folder)) {
+      const parent = folder.split('/').slice(0, -1).join('/');
+      const shown = folder
+        ? listed(parent).then((paths) => paths.has(folder))
+        : Promise.resolve(true);
+      listings.set(
+        folder,
+        shown.then((present) =>
+          present
+            ? actions.projectFiles(tab.projectId, folder).then(
+                (listing) => new Set(listing.entries.map((entry) => entry.path)),
+                () => new Set(),
+              )
+            : new Set(),
+        ),
+      );
+    }
+    return listings.get(folder);
+  };
+  const beside = tab.path.split('/').slice(0, -1);
+  const tried = new Set();
+  const named = /\.[a-z]+$/iu.test(src);
+  for (const base of beside.length ? [beside, []] : [[]])
+    for (const folder of ['', ...folders])
+      for (const extension of named ? [''] : FIGURE_EXTENSIONS) {
+        const path = projectPath(base, `${folder}${src}${extension}`);
+        if (!path || tried.has(path)) continue;
+        tried.add(path);
+        if (!(await listed(path.split('/').slice(0, -1).join('/'))).has(path)) continue;
+        const url = await pictureAt(actions, tab, path);
+        if (url) return url;
+      }
+  return null;
 }
 
 /** A new formula in Markdown source: on its own when the line is empty. @param {any} editor @param {string} latex */
@@ -311,6 +378,7 @@ export function DeskDocument({
         onUpdate: (update) => mdPage?.sourceUpdated(update),
       };
       const pictures = new Map();
+      const listings = new Map();
       if (docx) {
         surface.className = 'ss-page ss-page--edit';
         const { mountDeskDocx } = await import('../readers/desk-editor.js');
@@ -368,6 +436,12 @@ export function DeskDocument({
             source: split.dataset.view !== 'rendered',
             render: split.dataset.view !== 'source' && !compiling.showing,
           }),
+          media: (src, folders) => {
+            const key = `${folders.join('|')}:${src}`;
+            if (!pictures.has(key))
+              pictures.set(key, texPicture(actions, tab, src, folders, listings));
+            return pictures.get(key);
+          },
           onRender: (outline) => {
             texOutline = levelled(
               outline.map((entry) => ({ ...entry, line: editor.lineAt(entry.from) })),
@@ -604,6 +678,7 @@ export function DeskDocument({
         });
         pdf.current = reading;
         mounted = reading;
+        void reading.outline().then((outline) => active && onInfo({ outline }));
         // Closed before it showed: nobody else knows this session.
         if (opened && !active) void actions.closeDesk(opened.session.id).catch(() => {});
         if (opened && active) {
@@ -682,6 +757,7 @@ export function DeskDocument({
   useEffect(() => {
     if (!jump) return;
     if (jump.line) reader.current?.scrollToLine?.(jump.line);
+    else if (jump.page) reader.current?.focus?.({ page: jump.page });
     else
       host.current
         ?.querySelector(`[data-outline="${jump.index}"]`)

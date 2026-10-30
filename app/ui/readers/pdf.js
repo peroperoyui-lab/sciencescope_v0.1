@@ -9,6 +9,54 @@ import {
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('./pdf-worker.js', import.meta.url).href;
 
+/** The page number a bookmark's destination points at, or null. @param {any} doc @param {any} dest */
+async function pageOf(doc, dest) {
+  try {
+    const explicit = typeof dest === 'string' ? await doc.getDestination(dest) : dest;
+    const ref = explicit?.[0];
+    if (ref == null) return null;
+    return (typeof ref === 'number' ? ref : await doc.getPageIndex(ref)) + 1;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The PDF's bookmarks as outline entries; empty when it has none.
+ * @param {any} doc @returns {Promise<{level:number,text:string,page:number|null}[]>}
+ */
+async function bookmarks(doc) {
+  const entries = [];
+  const walk = async (items, level) => {
+    for (const item of items ?? []) {
+      const text = item.title?.trim();
+      if (text) entries.push({ level, text, page: await pageOf(doc, item.dest) });
+      await walk(item.items, level + 1);
+    }
+  };
+  await walk(await doc.getOutline().catch(() => null), 0);
+  return entries;
+}
+
+/**
+ * The first page of a PDF as a PNG, for a figure a TeX file includes.
+ * @param {ArrayBuffer} bytes @returns {Promise<Blob | null>}
+ */
+export async function pdfPicture(bytes) {
+  const loading = pdfjs.getDocument({ data: new Uint8Array(bytes), wasmUrl: '/vendor/pdf/wasm/' });
+  try {
+    const page = await (await loading.promise).getPage(1);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    await page.render({ canvas, canvasContext: canvas.getContext('2d'), viewport }).promise;
+    return await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  } finally {
+    void loading.destroy().catch(() => {});
+  }
+}
+
 /**
  * @param {HTMLElement} surface
  * @param {ArrayBuffer} bytes
@@ -68,6 +116,7 @@ export async function mountPdf(surface, bytes, options) {
     viewer,
     eventBus,
     focus,
+    outline: () => bookmarks(doc),
     zoom: (factor) => {
       viewer.currentScale *= factor;
     },

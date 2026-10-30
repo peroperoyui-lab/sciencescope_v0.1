@@ -6768,6 +6768,21 @@ button.ss-vfold {
   text-align: center;
   text-indent: 0;
 }
+.ss-page__fig--image {
+  width: var(--fig-w, auto);
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+}
+.ss-page__fig--image img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+}
+.ss-page__fig--image:not([style]) img {
+  width: auto;
+}
 .ss-page__thm {
   margin: 8px 0;
 }

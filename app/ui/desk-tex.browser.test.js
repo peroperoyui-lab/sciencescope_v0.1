@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { PDFDocument, rgb } from 'pdf-lib';
 import path from 'node:path';
 import { createTexEngines } from '../services/desk/tex-engines.js';
 import { fakeTex } from '../services/desk/tex-fixture.js';
@@ -50,8 +51,8 @@ const CHAPTER = [
   ]).flat(),
 ].join('\n');
 
-/** Open chapters/method.tex (or a whole paper.tex) in the desk. */
-async function openChapter(page, app, file = 'chapters/method.tex') {
+/** Open chapters/method.tex (or a whole paper.tex) in the desk; `prepare` adds files first. */
+async function openChapter(page, app, file = 'chapters/method.tex', prepare = undefined) {
   const project = await app.core.projects.create({ name: '城市韧性研究' });
   const root = path.join(app.core.paths.projects, project.dirName);
   await mkdir(path.join(root, 'chapters'), { recursive: true });
@@ -64,6 +65,7 @@ async function openChapter(page, app, file = 'chapters/method.tex') {
     path.join(root, 'main.tex'),
     '\\documentclass{ctexart}\n\\begin{document}\n\\input{chapters/method}\n\\end{document}\n',
   );
+  await prepare?.(root);
   const desk = await page.context().newPage();
   const errors = [];
   desk.on('pageerror', (error) => errors.push(error.message));
@@ -267,4 +269,64 @@ test(
       await cleanup();
     }
   },
+);
+
+// A 1 × 1 PNG.
+const PIXEL = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+test(
+  'figures show their pictures: from the project top, beside the chapter, and PDFs as pictures',
+  { skip: browserSkip },
+  () =>
+    withBrowserApp('u6-tex-figures', silent, async ({ page, app }) => {
+      const prepare = async (root) => {
+        await mkdir(path.join(root, 'figures'), { recursive: true });
+        await writeFile(path.join(root, 'figures', 'map.png'), PIXEL);
+        const pdf = await PDFDocument.create();
+        pdf
+          .addPage([200, 100])
+          .drawRectangle({ x: 20, y: 20, width: 160, height: 60, color: rgb(0.2, 0.5, 0.4) });
+        await writeFile(path.join(root, 'chapters', 'chart.pdf'), await pdf.save());
+        await writeFile(
+          path.join(root, 'chapters', 'figures.tex'),
+          [
+            '\\section{研究设计}',
+            '\\begin{figure}',
+            '\\includegraphics[width=0.5\\textwidth]{figures/map}',
+            '\\caption{研究区域}',
+            '\\end{figure}',
+            '',
+            '\\includegraphics{chart}',
+            '',
+            '\\includegraphics{figures/missing}',
+          ].join('\n'),
+        );
+      };
+      const { desk, errors } = await openChapter(page, app, 'chapters/figures.tex', prepare);
+      const figures = desk.locator('.ss-page--tex .ss-page__fig');
+      const map = figures.filter({ has: desk.locator('img[alt="figures/map"]') });
+      await map.waitFor();
+      assert.equal(await map.getAttribute('style'), '--fig-w: 50%');
+      const chart = desk.locator('.ss-page--tex img[alt="chart"]');
+      await chart.waitFor();
+      await desk.waitForFunction(
+        () =>
+          document.querySelector('.ss-page--tex img[alt="chart"]') instanceof HTMLImageElement &&
+          /** @type {HTMLImageElement} */ (document.querySelector('.ss-page--tex img[alt="chart"]'))
+            .naturalWidth === 400,
+      );
+      // A figure that is not there keeps its file name.
+      await desk.waitForFunction(
+        () => document.querySelectorAll('.ss-page--tex .ss-page__fig--image').length === 2,
+      );
+      assert.equal(
+        await figures.filter({ hasText: 'figures/missing' }).getAttribute('class'),
+        'ss-page__fig',
+      );
+      await shoot(desk, 'u6-tex-figures');
+      if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
+    }),
 );

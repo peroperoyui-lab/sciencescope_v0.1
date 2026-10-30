@@ -18,9 +18,11 @@ function element(html) {
  * @param {HTMLElement} page the page inside it
  * @param {any} editor mountDeskText's controls
  * @param {{ onRender?: (outline: {level:number,text:string,from:number}[]) => void,
- *   onFormula?: (formula: any) => void, visible: () => { source: boolean, render: boolean } }} options
+ *   onFormula?: (formula: any) => void, visible: () => { source: boolean, render: boolean },
+ *   media?: (src: string, folders: string[]) => Promise<string | null> }} options
+ * `media` gives a figure's picture as a URL, or null to keep its file name.
  */
-export function mountTexRender(pane, page, editor, { onRender, onFormula, visible }) {
+export function mountTexRender(pane, page, editor, { onRender, onFormula, visible, media }) {
   const cache = new Map();
   /** @type {{kind:string,from:number,to:number,html:string}[]} */
   let blocks = [];
@@ -50,8 +52,24 @@ export function mountTexRender(pane, page, editor, { onRender, onFormula, visibl
     page.replaceChildren(...next);
     blocks = result.blocks;
     elements = next;
+    if (media) pictures(result.graphicsPath);
     onRender?.(result.outline);
     if (driver === 'source') followSource();
+  }
+  /** Figures not tried yet get their picture; kept blocks keep theirs. @param {string[]} folders */
+  function pictures(folders) {
+    for (const figure of page.querySelectorAll('.ss-page__fig[data-src]:not([data-tried])')) {
+      const box = /** @type {HTMLElement} */ (figure);
+      box.dataset.tried = '';
+      void media(box.dataset.src, folders).then((url) => {
+        if (!url) return;
+        const image = document.createElement('img');
+        image.src = url;
+        image.alt = box.dataset.src;
+        box.replaceChildren(image);
+        box.classList.add('ss-page__fig--image');
+      });
+    }
   }
   const later = () => {
     clearTimeout(timer);

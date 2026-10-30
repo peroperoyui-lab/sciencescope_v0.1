@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { PDFDocument, PDFHexString, PDFName, PDFNull, StandardFonts } from 'pdf-lib';
 import { browserSkip, withBrowserApp } from './browser-testing.js';
 
 async function* silent() {}
@@ -182,6 +182,68 @@ test(
       await desk.locator('.ss-desk-file', { hasText: 'ragin.pdf' }).click();
       await desk.locator('.ss-pdf-mark[data-type="comment"]').first().waitFor();
       assert.equal(await cards.count(), 3);
+      if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
+    }),
+);
+
+/** Bookmarks pointing at pages, nested one level under the first. @param {PDFDocument} pdf */
+function bookmark(pdf, entries) {
+  const context = pdf.context;
+  const top = context.nextRef();
+  const add = (parent, items) => {
+    const refs = items.map(() => context.nextRef());
+    items.forEach((item, index) => {
+      const fields = {
+        Title: PDFHexString.fromText(item.title),
+        Parent: parent,
+        Dest: [pdf.getPage(item.page - 1).ref, 'XYZ', PDFNull, PDFNull, PDFNull],
+      };
+      if (index) fields.Prev = refs[index - 1];
+      if (index < items.length - 1) fields.Next = refs[index + 1];
+      if (item.items) Object.assign(fields, add(refs[index], item.items));
+      context.assign(refs[index], context.obj(fields));
+    });
+    return { First: refs[0], Last: refs.at(-1), Count: items.length };
+  };
+  context.assign(top, context.obj({ Type: 'Outlines', ...add(top, entries) }));
+  pdf.catalog.set(PDFName.of('Outlines'), top);
+}
+
+test(
+  'a PDF with bookmarks lists them as its outline, follows the page and jumps to them',
+  { skip: browserSkip },
+  () =>
+    withBrowserApp('u6-pdf-outline', silent, async ({ page, app }) => {
+      const project = await app.core.projects.create({ name: '城市韧性研究' });
+      const root = path.join(app.core.paths.projects, project.dirName);
+      const pdf = await PDFDocument.load(await paper());
+      bookmark(pdf, [
+        { title: '1 Consistency', page: 1, items: [{ title: '1.1 Low consistency', page: 1 }] },
+        { title: '2 Coverage', page: 2 },
+      ]);
+      await writeFile(path.join(root, 'ragin.pdf'), await pdf.save());
+      const desk = await page.context().newPage();
+      const errors = [];
+      desk.on('pageerror', (error) => errors.push(error.message));
+      const base = page.url().split('?')[0];
+      await desk.goto(`${base}?token=ui-token&surface=desk&projectId=${project.id}&path=ragin.pdf`);
+      const outline = desk.locator('.ss-desk-nav__outline .ss-outline button');
+      await outline.filter({ hasText: '2 Coverage' }).waitFor();
+      assert.deepEqual(await outline.allTextContents(), [
+        '1 Consistency',
+        '1.1 Low consistency',
+        '2 Coverage',
+      ]);
+      assert.equal(
+        await outline.filter({ hasText: '1.1 Low consistency' }).getAttribute('style'),
+        '--lv: 1;',
+      );
+      await outline.filter({ hasText: '2 Coverage' }).click();
+      await desk.locator('.ss-ribbon__page', { hasText: '2 / 2' }).waitFor();
+      await desk
+        .locator('.ss-desk-nav__outline button[aria-current="true"]', { hasText: '2 Coverage' })
+        .waitFor();
+      await shoot(desk, 'u6-pdf-outline');
       if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
     }),
 );

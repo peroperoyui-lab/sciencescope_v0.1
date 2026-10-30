@@ -198,3 +198,21 @@ test('an edited formula goes back with its labels and spacing where they were', 
   assert.equal(formulaSource('x \\label{m} y', 'z'), 'z \\label{m}');
   assert.equal(formulaSource('d^2', 'd^3'), 'd^3');
 });
+
+test('a figure keeps its file name, its width and the graphics folders to look in', () => {
+  const source = [
+    '\\graphicspath{{figures/}{img/}}',
+    '\\begin{document}',
+    '\\includegraphics[width=0.6\\textwidth]{map}',
+    '',
+    '\\includegraphics[scale=2, width=8cm]{plot.png}',
+    '',
+    '\\includegraphics{raw}',
+    '\\end{document}',
+  ].join('\n');
+  const { blocks, graphicsPath } = renderTex(source);
+  assert.deepEqual(graphicsPath, ['figures/', 'img/']);
+  assert.match(blocks[0].html, /data-src="map" style="--fig-w: 60%"/u);
+  assert.match(blocks[1].html, /data-src="plot.png" style="--fig-w: 8cm"/u);
+  assert.match(blocks[2].html, /<span class="ss-page__fig" data-src="raw">raw<\/span>/u);
+});
