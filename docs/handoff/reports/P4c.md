@@ -13,7 +13,7 @@
 | 4 | 版本树说明批量读取 | 已完成 |
 | 5 | 启动拆分、解析依赖与任务恢复 | 已完成 |
 | 6 | 默认值、原子写、索引竞态和 worker 协议 | 已完成 |
-| 7 | 新安装编辑台场景 1–9 | 未开始 |
+| 7 | 新安装编辑台场景 1–9 | 离线路径已实测，AI 与 100% 截图待前置决定；其余缺项见本节 |
 
 ## 1. 相似边设置
 
@@ -296,8 +296,82 @@ PDF 描述符及 `parserFor` 的同步接口保持，只有实际解析 PDF 时�
 
 ## 7. 编辑台场景 1–9
 
-未开始；使用合成材料与独立测试安装，不使用用户论文或预览数据。
+### 已完成的准备
+
+以第 6 部分代码重新生成独立 `ScienceScope Install Test` 安装器，程序／更新源码和正式产品配置未改。旧测试产品卸载后保留启动测量数据，再装入新的测试目录；全新安装耗时 54,506 ms。用户预览安装及其数据、备份保持不动。
+本地包为 `.sciencescope-local/temp/p4c/part5/ScienceScope-Install-Test-final.exe`，92,599,039 B，SHA-256 `fc6bf595fdf89f5d32ca9547565916ef51e43319226f01257695941e0b17db4d`；仅用于本轮未签名测试，不进入 Git。
+首次原生启动验证欢迎页可见、0 个项目、0 个服务商、默认模型为 null；正常退出且本轮进程树清空。证据位于 `part7/fresh-smoke/`。
+
+`tools/perf/p4c-desk-fixture.mjs` 生成自造材料，全部保存在忽略的 `part7/project/`，没有使用用户论文：
+
+| 材料 | 已核对内容 |
+| --- | --- |
+| 中文 DOCX | 50,876 汉字，201 段（含标题／单元格），40 个标题，1 表／6 格，1 张 480×240 PNG，1 个 OMML 公式 |
+| 改写目标 | 固定段落中的“结果表明该方法显著优于基线”；附近提供 1,284 个样本、8.4／7.9 的描述均值，并写明未做显著性检验 |
+| TeX 与 Markdown | 章节、表格、图片引用、公式；源码往返一致。TeX 的 tabular 在解析投影中仍为 paragraph，单列源码表格数 |
+| CSV 与脚本 | 1,284 个唯一合成企业，均值核对为 8.4／7.9，stdlib `count.py` 可复核样本数 |
+| 图与隐私核对 | 图是带数字和坐标的可见合成柱图；包内／外部 PNG 哈希相同。DOCX 无个人作者、属性或本机路径元数据 |
+
+生成后实际调用 DOCX 读取、研究解析和图片读取，并用 `--verify` 逐文件复核 SHA-256。继承的 `ScienceScopeEquation` 样式未定义提示原样保留于 manifest，公式原子正常抽取；没有为夹具修改解析器。
+
+### 验收前置决定与待执行项
+
+1. Go 快速添加的 `settings-models.js::addPreset` 自动调用不带 model 的连接测试；`providers.js::test` 因而选择模型列表首项。锁定 SDK 的首项为 minimax-m3，flash 为第六项。自定义服务商未使用预设的动态会话请求头包装。已请用户决定：仅验收脚本给该一次请求补上现有 `model` 参数，或允许单列一次其他模型的测试，或等待 Claude 处理；尚未读取密钥或发送付费请求。
+2. 当前 Windows 缩放为 125%。锁定的 Tauri/Wry 默认关闭 zoom hotkeys，主窗口和编辑台均未开启，现有菜单也无整应用缩放入口。已请用户决定是否临时切换系统缩放后恢复。device-metrics 和 pinch 两种诊断截图已保留；pinch 会裁掉原布局，仅作诊断。真实 100% 系统布局截图待补。
+
+### 离线路径的当前结果
+
+在同一全新测试安装中，通过界面创建合成项目、选择系统 Python 并打开原生编辑台；没有用 API 写入替代界面动作。六次离线验收运行均正常退出、所属进程清空、页面异常为零。连接测试与真实模型仍未执行，请求数 0、token 0。
+
+| 场景 | 当前结果 | 实际证据与待补项 |
+| --- | --- | --- |
+| 1 从对话进入 | 待执行 | 等待 Go 连接测试的模型选择决定 |
+| 2 划选 AI 改写 | 待执行 | 同上；目标句与附近的 1,284 保持完整 |
+| 3 并排比较 | 交互通过，有比较问题 | v1↔v3 并排、增 1 处和前后差异导航通过；v3↔v5 红色删除与右侧缺口各 2 处，双向滚动同步通过；另在无批注段加粗生成 v6，格式标记 1 处可见。新增批注造成段落整体删增的问题见下文 |
+| 4 分支与版本树 | 部分完成，有界面问题 | 从 v1 生成父为 v1 的 v4／分支 1；版本名称与描述保存、名称筛选通过。缺少分支改名入口；保存名称后选中项回到 v3，随后层级编辑落在 v3，v4 的层级仍为空 |
+| 5 索引 | 通过 | 选中数字，关联 CSV 与脚本，真实预览栏打开 count.py；删除数字后索引消失，界面撤销恢复文字和索引，再保存 |
+| 6 批注 | 通过 | 界面创建、编辑并保存批注；精确删掉全部标记文字后批注消失，真实 Ctrl+Z 恢复文字与同一 id 的批注；项目 DOCX 的 comments.xml 含更新后的内容 |
+| 7 TeX | 通过 | 源码／渲染／分栏切换、MathLive 改公式并回写源码、保存通过；测试产品未检测到 TeX 引擎，编译按钮按设计停用 |
+| 8 Markdown | 通过 | 渲染页编辑、切源码编辑、保存通过 |
+| 9 对话标记跳转 | 待执行 | 与 AI 对话及引用路径一起验收 |
+
+场景 4 的两项问题交 Claude：版本树详情里的“分支”只有静态文字；元数据保存后当前选择跳回正在编辑的版本。版本名“期刊投稿”和分支名“分支 1”分别记录，未混为同一字段。截图保留保存前、保存后、重新选择三个时刻，实际 PATCH 的目标也另有回执。
+只读核对了选择跳转的代码链：`app/ui/components/desk.js:1070` 的 effect 随 `versionsVersion` 变化先清空 base，再异步读取会话；`:1099` 的 currentId 因此暂时回退到最新版本，随后恢复会话基础版本。`app/ui/components/version-tree.js:105` 又在 currentId 变化时重设 selected，与截图中的 v4→v3 相符。建议 Claude 将用户正在查看的节点与当前编辑版本的刷新状态分开，保留真实切换文稿／版本时的同步规则；本轮未改界面。
+初轮驱动曾把隐藏的版本树当作可见、选错索引面包屑、把“审阅”标签写成 button，以及用在编辑时会消失的卡片正文定位；这些驱动错误和修正后的运行均原样留存，未归为产品失败。最后一轮先取得稳定的 data-note，再分开验证编辑、删除、撤销；不以一个后续断言覆盖已完成步骤。
+原始汇总 `part7/offline-summary.json`；四组回执在 `part7/offline-3-8{,-continuation,-final,-details}/acceptance.json`。正式截图均为 nativeScaleFactor=1.25、visualViewport.scale=1，根目录同回执；例如比较 `offline-3-8/scenario-3-compare-native-125.png`、索引恢复 `offline-3-8-final/scenario-5-index-restored-native-125.png`、版本详情 `offline-3-8-details/scenario-4-v4-reselected-native-125.png`、TeX 与 Markdown `offline-3-8-continuation/scenario-{7-tex-split,8-markdown-saved}-native-125.png`。材料、原始日志和截图均未提交。
+两组补验另存 `part7/offline-supplement-3-6/`、`part7/offline-final-small/`，最终摘要为 `offline-final-small-summary.json`。最后一组 8 张真实 125% 截图包括 `scenario-3-{deletion-gap,left-scroll,right-scroll,pure-format}-native-125.png` 与 `scenario-6-{edited-saved,exact-selection,deleted,restored-saved}-native-125.png`。左栏滚动后两栏 scrollTop 为 650.4／592.8，随后在右栏滚动得到 1300.8／1243.2；两边按内容对应同步，并非要求像素位置相同。
+只读核对保存后的 DOCX，表格、OMML 各仍一处，PNG 哈希与初始 manifest 相同，AI 待验目标句与 1,284 均完整。批注更新文字已从项目文件的 comments.xml 实际读回。
+
+### 第 1–6 部分之外的后端意见
+
+v3→v5 比较中，同段既有删字、加粗，又新增了批注。`readDocx` 确认 v3 的目标词 marks 为空、v5 为 `['b']`，格式保存正确；但 `app/services/desk/diff-blocks.js::readDiffBlocks` 将 comment-start／comment-end／comment-reference 的 XML 哈希也加入配对文本，相似度变为 0.1699346，低于既有 0.4 阈值，段落被拆成旧删／新增，`diff.js::comparePair` 与 characterFormats 未运行。缓存和重新计算一致，为删 2／增 1／格式 0；证据 `part7/supplement-readonly-analysis.json`。建议后续区分批注定位元数据与正文内容的配对身份，再针对批注新增／编辑与格式改动组合回归；本轮未调整比较算法。
+随后在无批注段只加粗“程序自造”形成 v6，格式路径显示一处，页面实际总计为删 1／增 1／格式 1。额外删增也已定位：两版全文逐块相同，批注 XML 与原子 key 均相同，但 `app/services/desk/diff.js:89` 仅按 from/to 用 find 取首个原子；同在 `[19,19)` 的 comment-end 与 comment-reference 被混淆，随后生成零长度删增并计入总数。真正格式项在另一段 `[16,20)`，为 `[]→['b']`。建议后续按位置和原子身份一一对应，补同位置多原子的回归；本轮只记录，未改范围外算法。证据 `part7/v5-v6-readonly-analysis.json`、`part7/v5-v6-atoms-readonly.json`，缓存与重新计算一致。
 
 ## 最终验证与用量
 
-完整干净检出检查、安装版验收和真实模型用量待后续阶段完成后汇总。
+干净检出 `719ee8f` 使用 Node 22.22.2、npmmirror 完成 `npm ci`（450 个依赖）。第一次完整 `npm run check` 的测试段耗时 1,910.267 秒，共 613 项：607 通过、4 失败、2 跳过。完整输出保留于 `.sciencescope-local/temp/p4c/clean-check.log`。
+
+| 首轮失败／跳过项 | 原始结果 | 后续处理与验证 |
+| --- | --- | --- |
+| `core/db/migrations/030-version-marks.test.js:25`，v29 versions gain empty descriptions… | `31 !== 30` | 测试加载所有迁移却固定断言 30；明确只升至 030，031 测试也明确自己的目标版本，原字段／数据／备份断言保留。两项单跑 2/2，通过后以 `d9c27b7` 单独提交 |
+| `ui/desk-entry.browser.test.js:92`，an expert suggests the desk… | `locator.waitFor: Timeout 30000ms exceeded`；等待引用标签含“指数。” | 同一干净检出原样单跑通过，7.178 秒；未改断言或超时 |
+| `ui/desk-md.browser.test.js:88`，Markdown is edited on its page… | 同为 30 秒超时；等待“第 3 行，第 3 列” | 原样单跑通过，7.082 秒 |
+| `ui/settings.browser.test.js:261`，a switch flipped while an earlier change… | `true !== false`，最后直接读取的工作区设置应为关闭 | 原样单跑通过，6.014 秒；前面的 HTTP 轮询和界面断言均已通过 |
+| 两项 `tools/package/installer-hooks.test.js` Windows 测试 | `SKIP`：没有找到 cached compiler | 显式设置 `SCIENCESCOPE_MAKENSIS` 指向已有缓存编译器，在同一干净检出补跑 2/2，零跳过；无需下载 |
+
+三项界面复现按原名称筛选、`--test-concurrency=1` 串行执行，共 24.233 秒；只做一次，完整输出为 `ui-failures-repro-20261031.log`。两项迁移及 Windows 测试输出分别为 `migration-followup.log`、`windows-installer-tests.log`。这些分项结果与完整结果分别记录。
+
+将同一干净检出切换到仅补迁移测试范围的 `d9c27b7`，保留先前 `npm ci`（锁文件未变），显式配置已有 NSIS 编译器后重跑完整 `npm run check`。命令总耗时 1,909.044 秒，测试段 1,883.557 秒：**613 项，612 通过、1 失败、0 跳过**。两项 Windows 安装测试以及全部 PS5／PS7 shell 用例通过；首轮的迁移、编辑台进入、Markdown 选区三项失败均在这次完整运行中通过。完整输出 `clean-check-final.log`，命令回执 `clean-check-final-result.json`。
+唯一重复失败为 `app/ui/settings.browser.test.js:220` 的 `a switch flipped while an earlier change is being saved stays as the person left it`，断言位置 `:261`，21,992.715 ms：`Expected values to be strictly equal: true !== false`。前面的 HTTP 轮询读到 `summary.onLeaveProject === false`，界面 checkbox 也为 false；随后直接 `workspace.read` 的持久设置却为 true。初步解读曾误把 `:261` 当成 checkbox 断言，本处已按原文件行号更正。设置页源码和测试均未修改，整套检查尚未达到全通过标准。
+独立测量工具测试 `node --test --test-concurrency=1 "tools/perf/*.test.mjs"` 为 **11/11，0 跳过**，12.674 秒，输出 `perf-check-final.log`。新夹具生成器的实际解析与哈希核对、验收辅助模块的语法与格式检查也通过。
+界面待 Claude 排查：前两项都发生在 Markdown 键盘选区后、尚未写回文稿；引用优先使用 rAF 缓存选区，ProseMirror 还有焦点后的选区回写。它们是可进一步采集事件顺序的候选原因，安静串行复现尚未重现失败。设置用例另行定位，需同时记录 PATCH 请求、HTTP 回应和工作区读值，不能只从最终断言推定是界面回填。本轮没有修改这些界面文件。
+设置用例另做两次有明确目的的诊断，均用自造数据、真实界面和本地 API，模型请求为 0：
+
+| 诊断 | 实际结果 |
+| --- | --- |
+| 保留原 GET 500 ms、第二 PATCH 1,500 ms、首个界面等待 1,000 ms、轮询 200 ms，仅旁路记录 | 原四个断言通过；只有两次 PATCH 和两条修订，最终文件、workspace 和界面均为 false/false，没有额外写入 |
+| 受控地把第一 PATCH 后的旧 GET 回应留到第二 PATCH 和新 GET 完成后才交给界面 | PATCH1 回 false/true，PATCH2 与新 GET 回 false/false；随后旧 GET 的 false/true 使界面回到 true。释放前、释放后、最后三次文件与 workspace 核对始终 false/false |
+
+后一组证实 `app/ui/actions.js:62–70` 的事件 GET 保护存在缺口：GET 发出时已捕获第二次写入的序号，等全部写入结束才到达时，pending=0 且序号相同，于是旧快照被接受。此复现仅出现界面回填，完整检查 `:261` 的持久值变化原因仍未定位。工作区 `currentText`／prepare／写入／afterEdit 均在同一文件队列，凭据 prepare 只替换 providers，afterEdit 只清理凭据；检查中未发现队列外写旧 summary 的路径。
+两组原始回执分别在 `part7/settings-race-original-YdtmQR/receipt.json`、`part7/settings-race-controlled-viJTel/receipt.json`，受控组保留四个响应交错时间和修订摘要。为区分同文件前序用例的影响，最后在同一 d9 干净检出原样运行整份 `app/ui/settings.browser.test.js` 一次，不筛名称：3/3 通过、0 跳过，18.330 秒（重叠保存用例 5.573 秒），日志 `settings-whole-file.log`。全检仍按 612/613 保留，原断言和超时保持。
+当前停在待确认项：正式 AI 场景 1／2／9 与 100% 系统截图尚未执行，真实模型请求 0、token 0。第 1–6 部分已逐部提交；本次另提交离线验收、可复现问题和检查结果供审阅，P4c 全部完成标准尚未达成。

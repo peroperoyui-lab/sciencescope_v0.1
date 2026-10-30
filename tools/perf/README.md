@@ -192,3 +192,28 @@ node --test app/services/knowledge/jobs.test.js app/services/research/semantic/i
 Use Node 22 as above. The core probe retains actual default/partial-override values, counts independent definitions and checks the three public write paths. Each path has a warm-up and three measured batches: eight UTF-8 writes, eight binary writes, or ten serialized credential merges started concurrently. All values are generated public test strings, and fixtures are removed from the ignored Part 6 directory after receipt creation. `--baseline` requires exact default/output equality; times are observational, while the consolidation result is fewer duplicate implementations.
 
 The semantic regression uses three controlled indexing passes and a held final embedding promise. Two simultaneous `idle()` calls must remain pending until that last pass finishes, then neighbours must be available. It uses no longer sleep or weaker assertion. The embedding protocol tests create a small local worker, reverse two replies, exit with two requests pending, and close with one pending request. No model files or downloads are required. The existing semantic `integration.test.js` is an API/tool integration with a fake embedding function; it does not validate real ONNX loading or inference.
+
+### Part 7: installed editing-desk acceptance
+
+Generate the public synthetic manuscript before launching the fresh test product:
+
+```powershell
+node tools/perf/p4c-desk-fixture.mjs
+node tools/perf/p4c-desk-fixture.mjs --verify
+```
+
+Use Node 22.22.2. The generator writes exclusively to `.sciencescope-local/temp/p4c/part7/project/` and refuses to replace existing files. It creates a 50,876-Han-character DOCX with headings, a table, a visible PNG chart and an OMML equation, plus TeX, Markdown, a CSV and a standard-library Python counter. All text and numbers are self-created. The target sentence deliberately overstates a descriptive comparison; nearby text supplies the sample size and states that no significance test was performed. The manifest records parser checks, offsets, image refs and file hashes. `--verify` checks the pristine material before acceptance; normal editing will subsequently change those hashes. Use a separate clean task checkout for another fresh run, preserving previous evidence.
+
+Install only the separate test product, verify an empty welcome page, and create the project through its folder picker or path field. Set up the requested provider in Settings before AI scenarios. Follow `docs/architecture/EDITING_DESK.md` section 2 for all nine scenarios, keeping each actual UI operation separate from supporting read-only API, SQLite and DOCX ZIP checks. A failed driver selector is recorded as a driver failure, followed by a new receipt if corrected; an untested substep remains incomplete. Do not fix product UI during acceptance.
+
+`p4c-desk-acceptance.mjs` exports `withDeskAcceptance(options, run)` for an ignored local scenario driver. Pass the isolated `install`, its `data` child and a new `out` directory below `.sciencescope-local/temp/p4c/part7/`. It attaches to the real native windows, collects API timings and page errors, records each scenario, closes the owned process tree and aggregates model-request logs, including background work. Credential reads require `credentialsAuthorized: true` and stay local; neither credentials nor generated receipts belong in Git. No application state is seeded through this helper's API reader.
+
+Current screenshots are taken at the actual Windows 125% scale, with visual viewport scale 1; the helper records both metrics and marks the missing 100% set. Browser pinch/device-metrics experiments are separate diagnostic evidence. A genuine 100% set requires the approved system-scale change and restoration. Record any setup workaround and the exact model of each connection-test request rather than silently counting it as flash.
+
+Run the measurement-tool tests separately from the application check:
+
+```powershell
+node --test "tools/perf/*.test.mjs"
+```
+
+For a clean Windows application check, set `SCIENCESCOPE_MAKENSIS` to the existing cached `makensis.exe` before `npm run check`; inspect the totals to ensure the two installer-hook tests ran rather than skipped. Keep the original full-check log and every justified follow-up under distinct names.
