@@ -109,6 +109,11 @@ test(
       await desk.getByRole('button', { name: '任务秘书' }).click();
       const secretary = desk.locator('.side-panel', { hasText: '任务秘书' });
       await secretary.getByRole('textbox', { name: '任务秘书输入' }).waitFor();
+      // The head names the chat the secretary follows.
+      assert.equal(
+        await secretary.locator('.ss-panel__title').textContent(),
+        `任务秘书 · ${branch.title}`,
+      );
       await shoot(desk, 'u8-desk-secretary');
       await secretary.getByRole('button', { name: '回到对话' }).click();
       await chat.waitFor();

@@ -5601,6 +5601,53 @@ button.ss-act__row:hover {
   display: grid;
   gap: var(--sp-8);
 }
+/* 来源 (desk side panel): every source the document uses, from its indexes
+   and the bound chat; each opens to the sentences or answers that use it. */
+.ss-desk-src-group {
+  display: grid;
+  gap: var(--sp-4);
+}
+.ss-desk-src-group__title {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+.ss-desk-src {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--raised);
+}
+.ss-desk-src[open] {
+  border-color: var(--line-strong);
+}
+.ss-desk-src > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.ss-desk-src > summary::-webkit-details-marker {
+  display: none;
+}
+.ss-desk-src__uses {
+  display: grid;
+  gap: var(--sp-6);
+  padding: 0 12px 10px 36px;
+}
+.ss-desk-src__use {
+  display: grid;
+  gap: 2px;
+}
+.ss-desk-src__from {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 18px;
+}
+.ss-desk-src__from .ss-btn {
+  margin-left: auto;
+}
 /* 批注与索引 (U5): the panel, its cards and replies. */
 .ss-desk-notes__bar {
   gap: var(--sp-6);

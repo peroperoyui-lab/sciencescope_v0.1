@@ -1283,6 +1283,7 @@ export function DeskWindow() {
           mainMeetingId=${boundId}
           onBack=${() => setPanelTab('chat')}
           backLabel="回到对话"
+          withChatName
           onClose=${() => {
             setPanel(false);
             setPanelTab('chat');

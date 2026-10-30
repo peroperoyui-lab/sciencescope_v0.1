@@ -967,3 +967,101 @@ card('DeskChatStates', 'group="编辑台" height=640 subtitle="对话标签的�
 - 「更多」：在主窗口打开；从最新消息开新分支（原对话不变，编辑台改绑新分支）；换成别的对话。
 - 秘书按钮：在正文右上角，点开后侧栏换成绑定对话的任务秘书，和主窗口的秘书面板是同一段；头部左边箭头回到对话。没有绑定对话时按钮停用，悬停说明原因。
 ''')
+
+# ---------- 来源: every source the document uses ----------
+SRC_TABS = [('批注与索引', 5), ('来源', 6), ('对话', 0)]
+
+
+def src_use(kind, who, where, quote, button):
+    icon = 'link-2' if kind == '索引' else 'message-square'
+    return f'''<div class="ss-desk-src__use">
+            <div class="ss-desk-src__from"><i data-i="{icon}" class="ss-i--sm"></i><span>{kind} · {who} · {where}</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">{button}</button></div>
+            <p class="ss-desk-card__quote">{quote}</p>
+          </div>'''
+
+
+def src_row(icon, title, sub, tags, uses, open_=False):
+    tag_html = ''.join(f'<span class="ss-tag">{x}</span>' for x in tags)
+    body = f'<div class="ss-desk-src__uses">{"".join(uses)}</div>' if uses else ''
+    return f'''<details class="ss-desk-src"{" open" if open_ else ""}>
+          <summary class="ss-list-row"><i data-i="{icon}" class="ss-list-row__icon"></i><span class="ss-list-row__main"><span class="ss-list-row__title">{title}</span><span class="ss-list-row__sub">{sub}</span></span><span class="ss-list-row__meta">{tag_html}</span>{icon_btn('external-link', '在预览里打开')}</summary>
+          {body}
+        </details>'''
+
+
+def src_group(title, rows):
+    return f'<div class="ss-desk-src-group"><div class="ss-desk-src-group__title">{title}</div>{"".join(rows)}</div>'
+
+
+def sources_panel(filt='全部'):
+    seg = ''.join(f'<button type="button" aria-pressed="{"true" if name == filt else "false"}">{name}</button>' for name in ('全部', '文中索引', '对话引用'))
+    files = src_group('项目文件 · 2', [
+        src_row('table-2', 'data/city_panel.csv', '用在 2 处', ['索引'], [
+            src_use('索引', '主专家', '3.2 节', '98 个地级市', '定位'),
+            src_use('索引', '你', '4.1 节', '东部城市 41 个、中西部 57 个', '定位')], open_=True),
+        src_row('file-code', 'scripts/sample.py', '用在 1 处', ['索引'], []),
+    ])
+    library = src_group('资料库 · 3', [
+        src_row('book-open', 'Ragin 2008 · Redesigning Social Inquiry', '第 3 章 · 用在 2 处', ['索引', '对话'], [
+            src_use('索引', '你', '3.2 节', '一致性阈值设为 0.85', '定位'),
+            src_use('对话', '方法专家', '第三章：组态分析 · 14:06', '0.85 的一致性阈值建议在脚注里引 Ragin 2008 第 3 章', '打开对话')], open_=True),
+        src_row('book-open', 'Wang 2021 · 城市经济韧性的测度', '第 6 页 · 用在 1 处', ['索引'], []),
+        src_row('book-open', 'Schneider & Wagemann 2012', '用在 1 处', ['对话'], []),
+    ])
+    other = src_group('知识库条目 · 1', [
+        src_row('waypoints', '方法：熵权法', '用在 1 处', ['索引'], []),
+    ])
+    inner = f'''<div class="ss-toolbar" style="padding:8px 12px;border-bottom:1px solid var(--line);gap:6px"><div class="ss-seg ss-seg--sm" role="group" aria-label="来源从哪来">{seg}</div><span style="flex:1"></span><span class="ss-muted" style="font-size:12px">6 份资料</span></div>
+      <div class="ss-panel__body" style="display:grid;gap:14px;align-content:start;padding:12px">
+        {files}
+        {library}
+        {other}
+        <p class="ss-prov">列出这份文稿用到的资料：文中的索引，加上绑定对话里专家回答时用到的资料。点资料在预览里打开，点「定位」回到正文那句。</p>
+      </div>'''
+    return panel(SRC_TABS, '来源', inner)
+
+
+sources_body = f'''{nav('thesis.docx', DOCX_OUTLINE)}
+    <main class="ss-desk-canvas">{ORB}
+      {docx_page(toolbar=False)}
+    </main>
+    {sources_panel()}'''
+card('PageDeskSources', 'group="编辑台" page height=900 width=1536 subtitle="来源：右侧栏列出这份文稿用到的全部资料，来自文中索引和绑定的对话；展开看用在哪几句"',
+     window('thesis.docx', 'docx', sources_body, DOCX_STATUS, dirty=('thesis.docx',)), '''
+整页示例：编辑台右侧栏的「来源」（编辑台收尾，2026-10-30）。在「批注与索引」和「对话」之间。
+
+## 区域
+
+- 顶部：分段按钮「全部 / 文中索引 / 对话引用」，右边是资料总数。
+- 分组：项目文件、资料库、知识库条目、对话消息，组名后是数量；组内按用到的次数排序。
+- 每份资料一行：图标、名称（资料库的写作者和年份）、页码或章节和「用在 N 处」、来源标签（索引、对话）、「在预览里打开」。
+- 展开后列出用到它的地方：索引写「索引 · 记录者 · 章节」和被标的原文，按钮「定位」；对话写「对话 · 专家 · 对话名和时间」和回答里的那句，按钮「打开对话」（切到「对话」标签并滚到那条）。
+
+## 演示的规则
+
+- 只读汇总，不在这里新建或删除：索引在「批注与索引」里管，对话引用随回答来。
+- 一份资料同时被索引和对话用到时只列一行，两个标签都显示。
+- 文稿里的索引改了、删了，或对话里有新回答，这里跟着刷新。
+- 没有任何来源时显示空状态（小图标，侧栏不用插画）：「还没有来源」「给句子添加索引，或在绑定的对话里让专家查资料后，会列在这里。」
+''')
+
+empty_src = f'''<aside class="ss-panel" style="width:330px;height:360px">
+      <div class="ss-panel__head" style="padding-left:8px"><nav class="ss-tabs" role="tablist" aria-label="侧栏" style="align-self:stretch"><button class="ss-tab" role="tab" type="button" aria-selected="false">批注与索引</button><button class="ss-tab" role="tab" type="button" aria-selected="true">来源</button><button class="ss-tab" role="tab" type="button" aria-selected="false">对话</button></nav><span style="flex:1"></span>{icon_btn('x', '关闭侧栏')}</div>
+      <div class="ss-panel__body">
+        <div class="ss-empty">
+          <div class="ss-empty__icon"><i data-i="book-marked"></i></div>
+          <div class="ss-empty__title">还没有来源</div>
+          <div class="ss-empty__text">给句子添加索引，或在绑定的对话里让专家查资料后，会列在这里。</div>
+        </div>
+      </div>
+    </aside>'''
+pdf_src = f'''<div class="ss-panel" style="width:330px;padding:12px">{src_group('资料库 · 1', [src_row('file-text', 'Ragin_2008.pdf', '第 44 页 · 用在 1 处', ['对话'], [src_use('对话', '主专家', '研究设计讨论 · 10-20', '一致性低于 0.75 的组态通常不予解释', '打开对话')], open_=True)])}</div>'''
+card('DeskSourcesStates', 'group="编辑台" height=460 subtitle="来源标签的其他状态：没有来源；只来自对话的资料"', f'''<div class="ds" style="grid-template-columns:repeat(2,auto);justify-content:start;align-items:start;gap:16px 24px">
+  <div class="ds-col">{empty_src}<span class="ds-label">① 没有任何来源：小图标空状态</span></div>
+  <div class="ds-col">{pdf_src}<span class="ds-label">② 只有对话用到的资料：标签只有「对话」，按钮是「打开对话」</span></div>
+</div>''', '''
+编辑台「来源」标签的其他状态。整页见 PageDeskSources。
+
+- 没有来源：侧栏里的空状态用小图标，不用插画。
+- 只来自对话的资料：标签只有「对话」，展开后是专家回答里的那句和「打开对话」。
+''')

@@ -1,0 +1,27 @@
+<!-- @dsCard group="编辑台" height=460 subtitle="来源标签的其他状态：没有来源；只来自对话的资料" -->
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><title>DeskSourcesStates</title></head>
+<body>
+<div class="ds" style="grid-template-columns:repeat(2,auto);justify-content:start;align-items:start;gap:16px 24px">
+  <div class="ds-col"><aside class="ss-panel" style="width:330px;height:360px">
+      <div class="ss-panel__head" style="padding-left:8px"><nav class="ss-tabs" role="tablist" aria-label="侧栏" style="align-self:stretch"><button class="ss-tab" role="tab" type="button" aria-selected="false">批注与索引</button><button class="ss-tab" role="tab" type="button" aria-selected="true">来源</button><button class="ss-tab" role="tab" type="button" aria-selected="false">对话</button></nav><span style="flex:1"></span><button class="ss-icon-btn" type="button" aria-label="关闭侧栏" data-tip="关闭侧栏"><i data-i="x"></i></button></div>
+      <div class="ss-panel__body">
+        <div class="ss-empty">
+          <div class="ss-empty__icon"><i data-i="book-marked"></i></div>
+          <div class="ss-empty__title">还没有来源</div>
+          <div class="ss-empty__text">给句子添加索引，或在绑定的对话里让专家查资料后，会列在这里。</div>
+        </div>
+      </div>
+    </aside><span class="ds-label">① 没有任何来源：小图标空状态</span></div>
+  <div class="ds-col"><div class="ss-panel" style="width:330px;padding:12px"><div class="ss-desk-src-group"><div class="ss-desk-src-group__title">资料库 · 1</div><details class="ss-desk-src" open>
+          <summary class="ss-list-row"><i data-i="file-text" class="ss-list-row__icon"></i><span class="ss-list-row__main"><span class="ss-list-row__title">Ragin_2008.pdf</span><span class="ss-list-row__sub">第 44 页 · 用在 1 处</span></span><span class="ss-list-row__meta"><span class="ss-tag">对话</span></span><button class="ss-icon-btn" type="button" aria-label="在预览里打开" data-tip="在预览里打开"><i data-i="external-link"></i></button></summary>
+          <div class="ss-desk-src__uses"><div class="ss-desk-src__use">
+            <div class="ss-desk-src__from"><i data-i="message-square" class="ss-i--sm"></i><span>对话 · 主专家 · 研究设计讨论 · 10-20</span><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button">打开对话</button></div>
+            <p class="ss-desk-card__quote">一致性低于 0.75 的组态通常不予解释</p>
+          </div></div>
+        </details></div></div><span class="ds-label">② 只有对话用到的资料：标签只有「对话」，按钮是「打开对话」</span></div>
+</div>
+<script>window.SS && SS.mount(document.body)</script>
+</body>
+</html>

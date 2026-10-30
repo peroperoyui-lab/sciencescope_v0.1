@@ -15,11 +15,18 @@ import { SidePanel } from './side-panel.js';
 const HELP = '发送前自动跟进主对话的新消息与工作站状态；回复失败或被停止时不推进位置。';
 
 /**
- * @param {{ mainMeetingId: string, onClose: () => void, onBack?: () => void, backLabel?: string }} props
- * The desk opens it from its side panel, with an arrow back to the chat.
+ * @param {{ mainMeetingId: string, onClose: () => void, onBack?: () => void, backLabel?: string, withChatName?: boolean }} props
+ * The desk opens it from its side panel, with an arrow back to the chat and the
+ * chat's name after the title (`withChatName`).
  * @returns {import('preact').VNode}
  */
-export function SecretaryPanel({ mainMeetingId, onClose, onBack, backLabel }) {
+export function SecretaryPanel({
+  mainMeetingId,
+  onClose,
+  onBack,
+  backLabel,
+  withChatName = false,
+}) {
   const actions = useActions();
   const snapshot = useAppState((state) => state.secretary[mainMeetingId]);
   const version = useAppState((state) => state.secretaryVersion);
@@ -66,6 +73,7 @@ export function SecretaryPanel({ mainMeetingId, onClose, onBack, backLabel }) {
   return html`<${SidePanel}
     name="secretary"
     title="任务秘书"
+    detail=${withChatName ? (main?.title ?? '') : ''}
     closeLabel="关闭秘书"
     onClose=${onClose}
     onBack=${onBack}
