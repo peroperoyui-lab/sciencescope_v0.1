@@ -780,12 +780,21 @@ export function DeskWindow() {
   const sessions = useRef(/** @type {Record<string, string>} */ ({}));
   const canvas = useRef(/** @type {HTMLElement | null} */ (null));
   const tab = tabs.find((entry) => entry.key === active) ?? null;
+  // The side panel as last drawn, for the editors' callbacks from older renders.
+  const shownPanel = useRef({ panel, panelTab });
+  shownPanel.current = { panel, panelTab };
   const notes = useDeskNotes({
     tab,
     editing,
     onOpen: () => {
       setPanel(true);
       setPanelTab('notes');
+    },
+    // The cursor in marked words: an open panel turns to their card; a closed one stays closed.
+    onCaret: () => {
+      const shown = shownPanel.current;
+      if (shown.panel && (shown.panelTab === 'sources' || shown.panelTab === 'chat'))
+        setPanelTab('notes');
     },
   });
   const assist = useDeskAssist({

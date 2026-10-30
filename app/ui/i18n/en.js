@@ -146,6 +146,8 @@ export const en = {
   正文: 'Readable text',
   原始版式: 'Original layout',
   源码: 'Source',
+  页面: 'Page',
+  比较的样子: 'How to compare',
   '共 {total} 行，显示前 {shown} 行': '{total} rows total; showing the first {shown}',
   文件预览与标记: 'File preview and marks',
   选择要预览的资料: 'Choose a source to preview',

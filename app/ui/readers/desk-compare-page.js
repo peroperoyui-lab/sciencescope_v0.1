@@ -9,10 +9,10 @@ const CLASSES = { del: 'ss-diff-del', ins: 'ss-rev-ins', fmt: 'ss-diff-fmt' };
 const TAGS = { b: 'strong', i: 'em', u: 'u', sup: 'sup', sub: 'sub' };
 
 /** @param {HTMLElement} element @param {number[]} stops */
-const tagStops = (element, stops) => element.setAttribute('data-stops', stops.join(' '));
+export const tagStops = (element, stops) => element.setAttribute('data-stops', stops.join(' '));
 
 /** @param {{ stops: number[], tip: string }} gap */
-function gapElement(gap) {
+export function gapElement(gap) {
   const element = document.createElement('span');
   element.className = 'ss-diff-gap';
   element.setAttribute('data-tip', gap.tip);

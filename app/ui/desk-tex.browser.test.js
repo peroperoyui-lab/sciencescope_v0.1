@@ -400,6 +400,84 @@ test(
       );
       await desk.waitForFunction(() => (CSS.highlights.get('ss-tex-active')?.size ?? 0) > 0);
       await shoot(desk, 'u6-tex-page-notes');
+
+      // On another tab of the open panel, the caret in marked words turns it to their card.
+      const tabs = desk.locator('.ss-desk-panel .ss-tabs');
+      // The source cursor follows each caret (selection changes would merge otherwise).
+      const status = desk.locator('.ss-statusbar');
+      await tabs.getByRole('tab', { name: /来源/u }).click();
+      await caretOnPage('本章采用');
+      await status.getByText(/第 3 行/u).waitFor();
+      await caretOnPage('权法合成');
+      await tabs.getByRole('tab', { name: /批注与索引/u, selected: true }).waitFor();
+      await card.and(desk.locator('[data-active]')).waitFor();
+      // A closed panel stays closed.
+      await desk.getByRole('button', { name: '关闭侧栏' }).click();
+      await caretOnPage('本章采用');
+      await status.getByText(/第 3 行/u).waitFor();
+      await caretOnPage('权法合成');
+      await status.getByText(/第 7 行/u).waitFor();
+      await desk.waitForTimeout(300);
+      assert.equal(await desk.locator('.ss-desk-panel').count(), 0);
+      if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
+    }),
+);
+
+test(
+  'two TeX versions compare as rendered pages, with the source a click away',
+  { skip: browserSkip },
+  () =>
+    withBrowserApp('u6-tex-compare', silent, async ({ page, app }) => {
+      const prepare = async (root) => {
+        const project = app.core.projects.list().find((entry) => root.endsWith(entry.dirName));
+        const group = await app.desk.registerDocument({
+          projectId: project.id,
+          path: 'chapters/method.tex',
+        });
+        // v2: a number changed, a formula changed, a sentence added.
+        const second = CHAPTER.replace('一致性阈值取 0.85', '一致性阈值取 0.80')
+          .replace('w_j \\, x_{ij}', 'w_j \\, z_{ij}')
+          .replace(
+            '并以面板回归检验结论的稳健性。',
+            '并以面板回归检验结论的稳健性。另做分组回归。',
+          );
+        await app.versions.importFiles(
+          {
+            projectId: project.id,
+            groupId: group.id,
+            files: [{ name: 'method.tex', base64: Buffer.from(second).toString('base64') }],
+          },
+          { actorId: 'person_user' },
+        );
+      };
+      const { desk, errors } = await openChapter(page, app, 'chapters/method.tex', prepare);
+      await desk.getByRole('tab', { name: '审阅' }).click();
+      await desk.waitForFunction(
+        () =>
+          !(
+            /** @type {HTMLButtonElement | null} */ (
+              document.querySelector('.ss-ribbon__bar button[data-tip*="两个版本"]')
+            )?.disabled
+          ),
+      );
+      await desk.getByRole('button', { name: '比较', exact: true }).click();
+      const compare = desk.locator('[data-compare="ready"]');
+      const [left, right] = [
+        compare.locator('.ss-cmp__col').first(),
+        compare.locator('.ss-cmp__col').last(),
+      ];
+      // Rendered: headings are numbered, the changed number is marked on both pages.
+      await right.locator('.ss-page--tex h2', { hasText: '研究设计' }).waitFor();
+      assert.equal((await left.locator('.ss-diff-del', { hasText: '5' }).count()) > 0, true);
+      assert.equal(await right.locator('.ss-rev-ins', { hasText: '另做分组回归。' }).count(), 1);
+      // The changed formula is marked as a whole.
+      await right.locator('.ss-eqbox.ss-rev-ins').first().waitFor();
+      await shoot(desk, 'u6-tex-compare');
+      // The source view shows the same changes on the TeX text.
+      await compare.getByRole('button', { name: '源码', exact: true }).click();
+      await right.locator('.ss-cmp__src', { hasText: '\\section{研究设计}' }).waitFor();
+      assert.equal(await right.locator('.ss-page--tex').count(), 0);
+      await right.locator('.ss-rev-ins', { hasText: 'z' }).first().waitFor();
       if (errors.length) throw new Error(`Desk page errors: ${errors.join('; ')}`);
     }),
 );

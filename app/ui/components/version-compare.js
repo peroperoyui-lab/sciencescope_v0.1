@@ -32,6 +32,8 @@ export function VersionCompare({ versions, left, right, onPick, onExit, tag = 'd
   const [locked, setLocked] = useState(true);
   const [current, setCurrent] = useState(-1);
   const [total, setTotal] = useState(0);
+  // TeX shows its rendered pages, or the source on request.
+  const [texSource, setTexSource] = useState(false);
   const columns = [useRef(/** @type {HTMLElement | null} */ (null)), useRef(null)];
   const pages = [useRef(/** @type {HTMLElement | null} */ (null)), useRef(null)];
   const view = useRef(/** @type {any} */ (null));
@@ -64,14 +66,24 @@ export function VersionCompare({ versions, left, right, onPick, onExit, tag = 'd
     let active = true;
     let observer = null;
     (async () => {
-      const { renderComparePage } = await import('../readers/desk-compare-page.js');
+      const texPage = result.format === 'tex' && !texSource;
+      const [{ renderComparePage }, { renderTexComparePage }] = await Promise.all([
+        import('../readers/desk-compare-page.js'),
+        texPage ? import('../readers/tex-compare-page.js') : /** @type {any} */ ({}),
+      ]);
       if (!active || !pages[0].current || !pages[1].current) return;
       const model = compareModel(result);
       const source = result.format === 'md' || result.format === 'tex';
-      const elements = [
-        renderComparePage(pages[0].current, result.old.blocks, model.old, { source }),
-        renderComparePage(pages[1].current, result.new.blocks, model.new, { source }),
-      ];
+      for (const page of pages) page.current.classList.toggle('ss-page--tex', texPage);
+      const elements = texPage
+        ? [
+            renderTexComparePage(pages[0].current, result.old.blocks, model.old),
+            renderTexComparePage(pages[1].current, result.new.blocks, model.new),
+          ]
+        : [
+            renderComparePage(pages[0].current, result.old.blocks, model.old, { source }),
+            renderComparePage(pages[1].current, result.new.blocks, model.new, { source }),
+          ];
       const measure = () => {
         const [a, b] = columns.map((ref) => ref.current);
         if (!a || !b) return;
@@ -100,7 +112,7 @@ export function VersionCompare({ versions, left, right, onPick, onExit, tag = 'd
       view.current = null;
       setTotal(0);
     };
-  }, [result]);
+  }, [result, texSource]);
 
   /** Scroll `to` so it matches `from`, a third of the way down the view. @param {0 | 1} from */
   const follow = (from) => {
@@ -230,6 +242,25 @@ export function VersionCompare({ versions, left, right, onPick, onExit, tag = 'd
         placeholder=${t('选择版本')}
         onChange=${(value) => onPick(left, value)}
       />
+      ${
+        result?.format === 'tex' &&
+        html`<div class="ss-seg ss-seg--sm" role="group" aria-label=${t('比较的样子')}>
+          <button
+            type="button"
+            aria-pressed=${String(!texSource)}
+            onClick=${() => setTexSource(false)}
+          >
+            ${t('页面')}
+          </button>
+          <button
+            type="button"
+            aria-pressed=${String(texSource)}
+            onClick=${() => setTexSource(true)}
+          >
+            ${t('源码')}
+          </button>
+        </div>`
+      }
       <span class="ss-cmp__spacer"></span>
       ${
         ready &&

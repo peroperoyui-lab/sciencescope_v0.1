@@ -38,11 +38,12 @@ export function removedText(all) {
 }
 
 /**
- * @param {{ tab: any, editing: any, onOpen: () => void }} props
+ * @param {{ tab: any, editing: any, onOpen: () => void, onCaret?: () => void }} props
  * `editing.current` is the open editor with its `session`; `onOpen` shows the
- * panel's 「批注与索引」 tab.
+ * panel's 「批注与索引」 tab; `onCaret` is told when the cursor moved into
+ * another item's words (it may come from an older render, so it reads refs).
  */
-export function useDeskNotes({ tab, editing, onOpen }) {
+export function useDeskNotes({ tab, editing, onOpen, onCaret }) {
   const actions = useActions();
   const sessionId = editing.current?.session?.id ?? null;
   const bump = useAppState((state) => (sessionId ? state.deskNotes[sessionId] : undefined));
@@ -152,7 +153,9 @@ export function useDeskNotes({ tab, editing, onOpen }) {
     if (!current?.notesAt) return;
     const ids = current.notesAt();
     const next = ids.find((id) => latest.current.some((item) => item.id === id)) ?? null;
-    if (next !== shownActive.current) activate(next, !!next);
+    if (next === shownActive.current) return;
+    if (next) onCaret?.();
+    activate(next, !!next);
   }
 
   /**
