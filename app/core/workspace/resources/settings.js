@@ -2,6 +2,7 @@
 // defaults, so new settings appear without a migration.
 import { AppError } from '../../errors.js';
 import { DEFAULT_SEMANTIC_SETTINGS } from '../../defaults.js';
+import { validateSimilaritySettings } from '../../knowledge-similarity.js';
 
 export const SETTINGS_VERSION = 1;
 
@@ -117,6 +118,7 @@ function parse(text) {
 }
 
 function format(value) {
+  validateSimilaritySettings(value.knowledge?.similarity);
   if (typeof value.knowledge?.retrievalExpansion !== 'boolean')
     throw new AppError('INVALID_RETRIEVAL_EXPANSION', '知识图检索扩展设置必须为开启或关闭。');
   if (!['ask', 'auto'].includes(value.approvals?.defaultApproval))

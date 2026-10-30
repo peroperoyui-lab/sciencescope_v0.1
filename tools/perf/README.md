@@ -94,3 +94,14 @@ node --test tools/perf/structure-audit.test.mjs
 The audit reuses the installed TypeScript compiler API (5.9.3, Apache-2.0), records its actual installed metadata, and adds no dependency. It parses code under `app/` and `tools/`; production statistics cover `app/services/`, `app/core/`, `app/server/` and `app/shared/`, excluding test files and explicitly listed testing/fixture helpers. Outputs are `structure-inventory.json` and `structure-summary.md`. They retain the largest 15 files, every function above 80 physical lines with its lexical container and nested-function count, literal imports and layer transitions, direct server→core imports, SCC cycles within scope and full-app cycles touching scope, unresolved/nonliteral imports and parse diagnostics. Outer factory spans include nested functions; the separate own-line count helps distinguish closure organization from long individual operations.
 
 The module→test inventory separates exact companions, direct imports and transitive import paths, grouped as browser, runtime or other tests. Literal `new Worker(new URL(..., import.meta.url))` entries are recorded separately and traversed for test associations; worker launches remain separate from module-import SCCs. These static associations support assertion review; they are separate from executed line/branch coverage. Runtime-port imports are flagged for boundary review, preserving the distinction between a public port and a concrete provider SDK.
+
+## P4c phase-by-phase comparisons
+
+Run each comparison before editing its product path and again after the focused tests pass. Keep both JSON files under `.sciencescope-local/temp/p4c/`; the probes refuse to overwrite a previous receipt. The cumulative report is `docs/handoff/reports/P4c.md`.
+
+Part 1 checks existing similarity settings with the production save resource and an empty derived graph; it opens no application data or model. `--source` optionally selects another source checkout for the same probe. The counts describe validation agreement, not indexing performance.
+
+```powershell
+node tools/perf/p4c-similarity.mjs --source "<before-checkout>" --out .sciencescope-local/temp/p4c/part1-before.json
+node tools/perf/p4c-similarity.mjs --out .sciencescope-local/temp/p4c/part1-after.json
+```

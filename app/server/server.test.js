@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { withCore } from '../testing.js';
 import { createAppServer } from './server.js';
 
@@ -72,6 +73,40 @@ test('errors carry a code and a status; the token is required', () =>
     assert.equal(missing.body.code, 'MEETING_NOT_FOUND');
     const anonymous = await fetch(`${url}/api/projects`);
     assert.equal(anonymous.status, 401);
+  }));
+
+test('invalid similarity saves return readable errors and preserve the settings file and revision', () =>
+  withServer(async ({ call, core }) => {
+    const target = { resource: 'settings', key: 'app' };
+    const saved = await call('PATCH', '/api/settings', {
+      knowledge: { similarity: { threshold: 0.9, maxPerPaper: 2 } },
+    });
+    assert.equal(saved.status, 200);
+    const before = await readFile(core.paths.settings, 'utf8');
+    const history = core.workspace.history(target);
+    const revisionId = (await core.workspace.read(target)).revisionId;
+    for (const changes of [{ threshold: 2 }, { maxPerPaper: -1 }, { maxPerPaper: 1.5 }]) {
+      const result = await call('PATCH', '/api/settings', {
+        appearance: { theme: 'dark' },
+        knowledge: { similarity: changes },
+      });
+      assert.equal(result.status, 400);
+      assert.equal(result.body.code, 'INVALID_KNOWLEDGE_SIMILARITY');
+      assert.match(result.body.message, /相似边/);
+      assert.equal(await readFile(core.paths.settings, 'utf8'), before);
+      assert.equal((await core.workspace.read(target)).revisionId, revisionId);
+      assert.deepEqual(core.workspace.history(target), history);
+    }
+    const replaced = await call('POST', '/api/resources/settings', {
+      key: 'app',
+      op: 'write',
+      args: { settings: { knowledge: { similarity: { threshold: 2 } } } },
+    });
+    assert.equal(replaced.status, 400);
+    assert.equal(replaced.body.code, 'INVALID_KNOWLEDGE_SIMILARITY');
+    assert.equal(await readFile(core.paths.settings, 'utf8'), before);
+    assert.deepEqual(core.workspace.history(target), history);
+    assert.deepEqual((await call('GET', '/api/settings')).body, saved.body);
   }));
 
 test('the event stream replays stored events and then sends live ones', () =>
