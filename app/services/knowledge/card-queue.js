@@ -1,6 +1,7 @@
 import { nowIso } from '../../core/ids.js';
 import { cardInput, paragraphHash } from './card-input.js';
 import { CARD_COST, CARD_KINDS } from './cards.js';
+import { startSettingsStage } from '../../core/workspace/settings-observation.js';
 
 /**
  * Card lane of the knowledge queue. The parent schedules derived work first;
@@ -13,6 +14,9 @@ export function createCardQueue({ core, research, worker, busy, notify, schedule
   const active = new Map();
   let settings = null,
     closed = false;
+  let configuration = null;
+  let configuring = null;
+  let configurationVersion = 0;
   const get = (id) =>
     db.prepare("SELECT * FROM kb_jobs WHERE source_id=? AND layer='card' AND topic=''").get(id);
   function enqueue(id, manual = false) {
@@ -142,21 +146,52 @@ export function createCardQueue({ core, research, worker, busy, notify, schedule
       active.set(job.source_id, work);
     }
   }
-  async function configure(value) {
+  function configure(value, { force = false } = {}) {
     settings = value;
-    if (!worker) return;
-    if (await worker.model(settings))
-      db.prepare(
-        "UPDATE kb_jobs SET state='queued',error=NULL,updated_at=? WHERE layer='card' AND state='skipped' AND error='no-model'",
-      ).run(nowIso());
-    for (const row of db
-      .prepare(
-        "SELECT source_id FROM kb_jobs WHERE layer='derived' AND topic='' AND state IN ('done','skipped')",
-      )
-      .all())
-      enqueue(row.source_id);
-    notify();
-    schedule();
+    const signature = JSON.stringify([
+      value.knowledge.cards,
+      value.memory.model,
+      value.models.default,
+      value.providers,
+    ]);
+    if (!force && configuration === signature) return configuring ?? Promise.resolve();
+    configuration = signature;
+    const version = ++configurationVersion;
+    const finishConfigure = startSettingsStage('knowledge.cards.configure');
+    const work = (async () => {
+      if (!worker) return;
+      const finishModel = startSettingsStage('knowledge.cards.model');
+      const model = await worker.model(settings);
+      finishModel();
+      if (closed || version !== configurationVersion) return;
+      if (model)
+        db.prepare(
+          "UPDATE kb_jobs SET state='queued',error=NULL,updated_at=? WHERE layer='card' AND state='skipped' AND error='no-model'",
+        ).run(nowIso());
+      const finishBackfill = startSettingsStage('knowledge.cards.backfill');
+      let scanned = 0;
+      for (const row of db
+        .prepare(
+          "SELECT source_id FROM kb_jobs WHERE layer='derived' AND topic='' AND state IN ('done','skipped')",
+        )
+        .all()) {
+        scanned++;
+        enqueue(row.source_id);
+      }
+      finishBackfill(scanned);
+      notify();
+      schedule();
+    })()
+      .catch((error) => {
+        if (version === configurationVersion) configuration = null;
+        throw error;
+      })
+      .finally(() => {
+        finishConfigure();
+        if (version === configurationVersion) configuring = null;
+      });
+    configuring = work;
+    return work;
   }
   function summary() {
     const counts = { queued: 0, running: 0, done: 0, failed: 0, skipped: 0 };

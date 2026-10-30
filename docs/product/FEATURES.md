@@ -35,6 +35,7 @@
 - `app/main.js` 生成一次性的 64 位十六进制口令，监听 `127.0.0.1` 的随机端口，然后向标准输出打印一行 JSON：`{ url, token, ui, dataRoot, shutdownPath, shutdownToken }`。原生外壳读这一行，把 `ui` 地址加载进主窗口。
 - `app/app.js` 装配核心、各项服务、运行时和 HTTP 服务。测试用同一个 `createApp`，只把运行时换成 `app/runtime/scripted.js`。
 - 所有 `/api/` 请求都要带口令（`Authorization: Bearer` 或 `?token=`），否则返回 401。请求体上限 64 MB，导入资料、文献版本、附件和编辑台块修改不设此上限。
+- 设置保存后，知识库、语义及记忆消费者按涉及的字段重配，复用已提交修订，忽略重复或过期事件；外部设置文件读取、凭据处理及相关模型更新照常生效。无关外观或个人介绍修改不再重扫论文卡片或重排全部对话的记忆任务。
 - 界面通过 `GET /api/events`（Server-Sent Events，可用 `since` 或 `Last-Event-ID` 续传）接收核心事件，不轮询。
 - 原生外壳（`src-tauri/src/main.rs`、`new_app.rs`）只启动新核心；R5 已删除旧宿主分支。外壳负责窗口、文件夹选择、用系统程序打开文件和网址、全局助手窗口与浮球；在 Windows 上用 Job 对象管理子进程树。
 

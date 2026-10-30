@@ -1,9 +1,12 @@
 import { createHash } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import { nowIso } from '../../core/ids.js';
 import { createDerived } from './derived.js';
 import { createCardQueue } from './card-queue.js';
 import { paragraphHash } from './card-input.js';
 import { CARD_ACTOR_ID } from './card-writer.js';
+import { startSettingsStage } from '../../core/workspace/settings-observation.js';
+import { settings as settingsResource } from '../../core/workspace/resources/settings.js';
 
 const digest = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
 
@@ -25,6 +28,8 @@ export function createKnowledgeJobs({ core, research, semantic, derived, cards }
   let similarity = null,
     settingsRevision = 0,
     checkpoint = null;
+  let lastSettingsRevision = null;
+  let secretaryRefresh = false;
   const reset = new Set(),
     refresh = new Set();
   const busy = () => core.turns.running().some((turn) => turn.participantId !== CARD_ACTOR_ID);
@@ -125,15 +130,42 @@ export function createKnowledgeJobs({ core, research, semantic, derived, cards }
     }
     if (sourceId) queue(sourceId, 'similar', version, publish);
   }
-  function loadSettings() {
+  function loadSettings(event = null) {
+    const committed = event?.payload.resource === 'settings' ? event.payload.revisionId : null;
+    const secretaryChanged = event?.payload.resource === 'agent';
+    if (secretaryChanged && event.payload.key !== 'agent_secretary') return settingsRead;
+    if (secretaryChanged) secretaryRefresh = true;
+    if (committed) {
+      if (committed === lastSettingsRevision) return settingsRead;
+      const latest = core.workspace.history({ resource: 'settings', key: 'app', limit: 1 })[0];
+      if (latest?.id !== committed) return settingsRead;
+    }
+    const finishLoad = startSettingsStage('knowledge.jobs.loadSettings');
     const revision = ++settingsRevision;
     settingsRead = (async () => {
-      const value = (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
+      const finishRead = startSettingsStage('knowledge.jobs.readSettings');
+      const loaded = committed
+        ? {
+            value: settingsResource.parse(core.workspace.getRevision(committed).after),
+            revisionId: committed,
+          }
+        : await core.workspace.read({ resource: 'settings', key: 'app' });
+      finishRead();
       if (closed || revision !== settingsRevision) return;
-      similarity = value.knowledge.similarity;
-      ensureSimilarityJob();
-      await cardLane.configure(value);
-    })();
+      lastSettingsRevision = loaded.revisionId;
+      const { value } = loaded;
+      if (!isDeepStrictEqual(similarity, value.knowledge.similarity)) {
+        similarity = value.knowledge.similarity;
+        ensureSimilarityJob();
+      }
+      await cardLane.configure(value, { force: secretaryRefresh });
+      if (revision === settingsRevision) secretaryRefresh = false;
+    })()
+      .catch((error) => {
+        if (revision === settingsRevision) lastSettingsRevision = null;
+        throw error;
+      })
+      .finally(finishLoad);
     return settingsRead;
   }
   function enqueue(id, force = false, publish = true) {
@@ -236,7 +268,7 @@ export function createKnowledgeJobs({ core, research, semantic, derived, cards }
         event.type === 'resource.changed' &&
         ['settings', 'agent'].includes(event.payload.resource)
       )
-        void loadSettings().catch((error) =>
+        void loadSettings(event).catch((error) =>
           core.events.transient('knowledge.jobs.changed', {
             ...summary(),
             error: String(error.message),

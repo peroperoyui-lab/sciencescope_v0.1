@@ -12,6 +12,8 @@ import {
 } from './model-assets.js';
 import { createVectorStore } from './vector-store.js';
 import { createHybridSearch } from './search.js';
+import { startSettingsStage } from '../../../core/workspace/settings-observation.js';
+import { settings as settingsResource } from '../../../core/workspace/resources/settings.js';
 
 /**
  * @param {import('../../../core/index.js').Core} core
@@ -34,6 +36,7 @@ export function createSemantic(core, options = {}) {
   let dirty = false;
   let unsubscribe = null;
   let settingsVersion = 0;
+  let lastSettingsRevision = null;
   let lastDownloadEvent = 0;
   let progress = {
     state: 'disabled',
@@ -175,17 +178,38 @@ export function createSemantic(core, options = {}) {
     return initialization;
   }
 
-  async function refreshSettings() {
-    const version = ++settingsVersion;
-    const settings = await core.workspace.read({ resource: 'settings', key: 'app' });
-    if (closed || version !== settingsVersion) return;
-    enabled = Boolean(settings.value.semantic?.enabled);
-    if (!enabled) {
-      controller?.abort();
-      update({ state: 'disabled' });
-      return;
+  async function refreshSettings(event = null) {
+    const committed = event?.payload.revisionId;
+    let value;
+    if (committed) {
+      if (committed === lastSettingsRevision) return;
+      const latest = core.workspace.history({ resource: 'settings', key: 'app', limit: 1 })[0];
+      if (latest?.id !== committed) return;
+      value = settingsResource.parse(core.workspace.getRevision(committed).after);
+      lastSettingsRevision = committed;
     }
-    void initialize();
+    const version = ++settingsVersion;
+    if (value && Boolean(value.semantic?.enabled) === enabled) return;
+    const finishRefresh = startSettingsStage('research.semantic.refreshSettings');
+    try {
+      if (!value) {
+        const finishRead = startSettingsStage('research.semantic.readSettings');
+        const loaded = await core.workspace.read({ resource: 'settings', key: 'app' });
+        value = loaded.value;
+        if (!closed && version === settingsVersion) lastSettingsRevision = loaded.revisionId;
+        finishRead();
+      }
+      if (closed || version !== settingsVersion) return;
+      enabled = Boolean(value.semantic?.enabled);
+      if (!enabled) {
+        controller?.abort();
+        update({ state: 'disabled' });
+        return;
+      }
+      void initialize();
+    } finally {
+      finishRefresh();
+    }
   }
 
   async function start() {
@@ -194,7 +218,7 @@ export function createSemantic(core, options = {}) {
       unsubscribe = core.events.subscribe((event) => {
         if (event.type === 'research.changed') rebuild();
         if (event.type === 'resource.changed' && event.payload.resource === 'settings')
-          void refreshSettings().catch(fail);
+          void refreshSettings(event).catch(fail);
         if (event.type === 'turn.started' && enabled && dirty) update({ state: 'paused' });
         if (event.type === 'turn.ended') schedule();
       });

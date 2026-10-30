@@ -126,3 +126,12 @@ node tools/perf/p4c-version-media.mjs --phase after --out .sciencescope-local/te
 ```
 
 The media probe generates two 1,200-paragraph DOCX versions with two embedded pictures. It verifies image refs in the real diff and the media endpoint, then compares 20 repeated service reads through `readFile + readDocx + indexMedia + readMedia` against the warm version-package cache. HTTP transport, diff computation and initial cache loading are outside this timing. One warm-up and three measured iterations retain byte identity and timing samples. Never compare measurements across Node versions as one before/after pair. All receipts and generated originals remain in the ignored P4c temporary directory.
+
+Part 3 measures settings saving with all three real settings-event consumers: knowledge jobs/cards, semantic configuration, and memory scheduling. It uses 300 synthetic paper records, 5,060 chunks, 12 chats and 1,000 messages with completed derived/card checkpoints. Memory stays enabled at its default ten-minute idle period; semantic indexing is disabled. Only embedding resources and the agent runtime use local stand-ins. One generated fixture header exercises the real credential hooks; model requests and downloads must remain zero.
+
+```powershell
+node tools/perf/p4c-settings.mjs --phase before --source "<instrumented-before-checkout>" --out .sciencescope-local/temp/p4c/part3/before.json
+node tools/perf/p4c-settings.mjs --phase after --baseline .sciencescope-local/temp/p4c/part3/before.json --out .sciencescope-local/temp/p4c/part3/after.json
+```
+
+Each graph-view preference or profile-bio save is one PATCH, matching the actual UI calls. One warm-up precedes three measured runs per path. Receipts separately report HTTP completion, completion of the consumers, response bytes/hashes, and private `sciencescope.settings.performance` stage timings/counts. A settings-queue barrier drains scheduled reads; its seven diagnostic observations are excluded. Stage durations can overlap or contain other stages, so never add their sums into total request time. The before checkout must contain the same observation-only marks; a revision without these marks cannot provide this breakdown. The original P4c before measurement used checkpoint `f564170` plus those marks, before optimization. Current-source runs are independently repeatable; `--baseline` additionally verifies all six response-byte hashes against an immutable earlier receipt.
