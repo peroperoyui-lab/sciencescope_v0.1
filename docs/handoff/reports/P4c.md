@@ -13,7 +13,7 @@
 | 4 | 版本树说明批量读取 | 已完成 |
 | 5 | 启动拆分、解析依赖与任务恢复 | 已完成 |
 | 6 | 默认值、原子写、索引竞态和 worker 协议 | 已完成 |
-| 7 | 新安装编辑台场景 1–9 | 离线路径已实测，AI 与 100% 截图待前置决定；其余缺项见本节 |
+| 7 | 新安装编辑台场景 1–9 | 离线验收已合并；2a1608f 新安装补完 AI 1／2／9、版本树复验和真实 100% 截图，最终全检见文末 |
 
 ## 1. 相似边设置
 
@@ -296,13 +296,14 @@ PDF 描述符及 `parserFor` 的同步接口保持，只有实际解析 PDF 时�
 
 ## 7. 编辑台场景 1–9
 
-### 已完成的准备
+### 基线、全新安装与材料
 
-以第 6 部分代码重新生成独立 `ScienceScope Install Test` 安装器，程序／更新源码和正式产品配置未改。旧测试产品卸载后保留启动测量数据，再装入新的测试目录；全新安装耗时 54,506 ms。用户预览安装及其数据、备份保持不动。
-本地包为 `.sciencescope-local/temp/p4c/part5/ScienceScope-Install-Test-final.exe`，92,599,039 B，SHA-256 `fc6bf595fdf89f5d32ca9547565916ef51e43319226f01257695941e0b17db4d`；仅用于本轮未签名测试，不进入 Git。
-首次原生启动验证欢迎页可见、0 个项目、0 个服务商、默认模型为 null；正常退出且本轮进程树清空。证据位于 `part7/fresh-smoke/`。
+第 1–6 部分和离线验收已随 `dc1378a` 合并。本次按用户要求重设同名分支到 `main@2a1608f88fb315195e359d25b7cd22a2d1c0907a`，只补验收与报告。安装内的 `actions.js`、`settings-models.js`、`desk.js` 与该提交逐字节一致；没有修改产品源码、界面、正式打包配置或更新通道。
+先前离线验收使用 `part5/ScienceScope-Install-Test-final.exe`（92,599,039 B，SHA-256 `fc6bf595fdf89f5d32ca9547565916ef51e43319226f01257695941e0b17db4d`），全新安装 54,506 ms。其回执与材料保留，下面离线场景不冒充本次重新执行。
+补验重新生成独立 `ScienceScope Install Test` 未签名安装器：`part7-followup/ScienceScope-Install-Test-followup.exe`，**92,610,523 B**，SHA-256 **`d9720cfaa8e359438fa95f7b45d3b8118ab2b4a0f5a83dc085b35ed22d853fa3`**。旧测试产品卸载保留旧证据数据，新目录全新安装 **56,322 ms**；欢迎页、0 项目、0 服务商、默认模型 null 均从原生界面及只读 API 核对。用户预览安装、数据和备份未触碰。
+本节所有相对证据路径均以忽略目录 `.sciencescope-local/temp/p4c/` 为根。新包、材料、截图、安装数据和原始回执只留本地，不进入 Git。
 
-`tools/perf/p4c-desk-fixture.mjs` 生成自造材料，全部保存在忽略的 `part7/project/`，没有使用用户论文：
+`tools/perf/p4c-desk-fixture.mjs` 生成自造材料；旧离线副本在 `part7/project/`，本次重新生成在 `part7-followup/project/`，没有使用用户论文：
 
 | 材料 | 已核对内容 |
 | --- | --- |
@@ -314,33 +315,63 @@ PDF 描述符及 `parserFor` 的同步接口保持，只有实际解析 PDF 时�
 
 生成后实际调用 DOCX 读取、研究解析和图片读取，并用 `--verify` 逐文件复核 SHA-256。继承的 `ScienceScopeEquation` 样式未定义提示原样保留于 manifest，公式原子正常抽取；没有为夹具修改解析器。
 
-### 验收前置决定与待执行项
+### 场景结果
 
-1. Go 快速添加的 `settings-models.js::addPreset` 自动调用不带 model 的连接测试；`providers.js::test` 因而选择模型列表首项。锁定 SDK 的首项为 minimax-m3，flash 为第六项。自定义服务商未使用预设的动态会话请求头包装。已请用户决定：仅验收脚本给该一次请求补上现有 `model` 参数，或允许单列一次其他模型的测试，或等待 Claude 处理；尚未读取密钥或发送付费请求。
-2. 当前 Windows 缩放为 125%。锁定的 Tauri/Wry 默认关闭 zoom hotkeys，主窗口和编辑台均未开启，现有菜单也无整应用缩放入口。已请用户决定是否临时切换系统缩放后恢复。device-metrics 和 pinch 两种诊断截图已保留；pinch 会裁掉原布局，仅作诊断。真实 100% 系统布局截图待补。
-
-### 离线路径的当前结果
-
-在同一全新测试安装中，通过界面创建合成项目、选择系统 Python 并打开原生编辑台；没有用 API 写入替代界面动作。六次离线验收运行均正常退出、所属进程清空、页面异常为零。连接测试与真实模型仍未执行，请求数 0、token 0。
+两项前置决定均已落实：在新安装的设置页实际点击「添加 OpenCode Go 订阅」，产品自动发出的 `POST /api/providers/opencode-go/test` 请求体为 **`{model:'deepseek-v4.1-flash'}`**，11,743.768 ms 后成功。没有拦截或改写请求，也没有用脚本直接写服务商设置替代界面。系统缩放按用户授权临时切换，实际时间和截图见下表。
+通过界面创建合成项目、选择系统 Python、打开原生编辑台；真实模型只调用 flash。下表明确区分本次补验和已合并的离线验收。
 
 | 场景 | 当前结果 | 实际证据与待补项 |
 | --- | --- | --- |
-| 1 从对话进入 | 待执行 | 等待 Go 连接测试的模型选择决定 |
-| 2 划选 AI 改写 | 待执行 | 同上；目标句与附近的 1,284 保持完整 |
+| 1 从对话进入 | 本次通过 | 真实回答经 `workspace_read`、`desk_suggest` 建议进入；「继续」保留原对话，「分支」新建对话并核对父对话和分支消息，编辑台显示绑定来源。两次回答分别 3／2 次请求、21,774／14,227 tokens |
+| 2 划选 AI 改写 | 本次通过；内容问题另列 | 真实鼠标划选→flash 读取并修改→正文直接更新→查看改动→Ctrl+S→撤回并再保存；实际读取项目 DOCX，目标段在修改后、撤回后均逐字等于界面，最终恢复原文。3 次请求、24,404 tokens |
 | 3 并排比较 | 交互通过，有比较问题 | v1↔v3 并排、增 1 处和前后差异导航通过；v3↔v5 红色删除与右侧缺口各 2 处，双向滚动同步通过；另在无批注段加粗生成 v6，格式标记 1 处可见。新增批注造成段落整体删增的问题见下文 |
-| 4 分支与版本树 | 部分完成，有界面问题 | 从 v1 生成父为 v1 的 v4／分支 1；版本名称与描述保存、名称筛选通过。缺少分支改名入口；保存名称后选中项回到 v3，随后层级编辑落在 v3，v4 的层级仍为空 |
+| 4 分支与版本树 | 本次原生复验通过 | 从 v1 创建 v4 分支、当前编辑 v3；给 v4 保存名称后不重新点击节点，仍选中 v4；继续保存层级和描述也保持 v4。旧版保存后回到 v3 的问题已由 2a1608f 修复；完整检查中另一条 v2 改名路径失败，见最终验证。分支改名按用户决定本轮不做 |
 | 5 索引 | 通过 | 选中数字，关联 CSV 与脚本，真实预览栏打开 count.py；删除数字后索引消失，界面撤销恢复文字和索引，再保存 |
 | 6 批注 | 通过 | 界面创建、编辑并保存批注；精确删掉全部标记文字后批注消失，真实 Ctrl+Z 恢复文字与同一 id 的批注；项目 DOCX 的 comments.xml 含更新后的内容 |
 | 7 TeX | 通过 | 源码／渲染／分栏切换、MathLive 改公式并回写源码、保存通过；测试产品未检测到 TeX 引擎，编译按钮按设计停用 |
 | 8 Markdown | 通过 | 渲染页编辑、切源码编辑、保存通过 |
-| 9 对话标记跳转 | 待执行 | 与 AI 对话及引用路径一起验收 |
+| 9 对话标记跳转 | 本次 125%／100% 通过 | 点击实际改写消息中的稿件标记；focus 返回 `moved`，定位到原目标段落 `[53,66)`，引用原句高亮并位于视口内。WinAPI 确认编辑台成为前台窗口；界面显示“引用的这句改过，已定位到最接近的位置” |
 
-场景 4 的两项问题交 Claude：版本树详情里的“分支”只有静态文字；元数据保存后当前选择跳回正在编辑的版本。版本名“期刊投稿”和分支名“分支 1”分别记录，未混为同一字段。截图保留保存前、保存后、重新选择三个时刻，实际 PATCH 的目标也另有回执。
-只读核对了选择跳转的代码链：`app/ui/components/desk.js:1070` 的 effect 随 `versionsVersion` 变化先清空 base，再异步读取会话；`:1099` 的 currentId 因此暂时回退到最新版本，随后恢复会话基础版本。`app/ui/components/version-tree.js:105` 又在 currentId 变化时重设 selected，与截图中的 v4→v3 相符。建议 Claude 将用户正在查看的节点与当前编辑版本的刷新状态分开，保留真实切换文稿／版本时的同步规则；本轮未改界面。
+场景 3、5、6、7、8 沿用已合并的离线结果；当时六次运行正常退出、所属进程清空、页面异常为零、模型请求为 0。本次四次原生运行也均正常关闭、所属残留进程为 `[]`，最后只读核对没有运行中的发言。
+场景 4 原先的原因记录保留：`desk.js` 的 effect 随 `versionsVersion` 变化先清空 base，currentId 暂时回到最新版本，`version-tree.js` 随之重设 selected。2a1608f 已将清空限定为真实切换页签；本次在新安装上核对修复效果，没有自行改界面。版本名称与分支名称分别记录。
 初轮驱动曾把隐藏的版本树当作可见、选错索引面包屑、把“审阅”标签写成 button，以及用在编辑时会消失的卡片正文定位；这些驱动错误和修正后的运行均原样留存，未归为产品失败。最后一轮先取得稳定的 data-note，再分开验证编辑、删除、撤销；不以一个后续断言覆盖已完成步骤。
 原始汇总 `part7/offline-summary.json`；四组回执在 `part7/offline-3-8{,-continuation,-final,-details}/acceptance.json`。正式截图均为 nativeScaleFactor=1.25、visualViewport.scale=1，根目录同回执；例如比较 `offline-3-8/scenario-3-compare-native-125.png`、索引恢复 `offline-3-8-final/scenario-5-index-restored-native-125.png`、版本详情 `offline-3-8-details/scenario-4-v4-reselected-native-125.png`、TeX 与 Markdown `offline-3-8-continuation/scenario-{7-tex-split,8-markdown-saved}-native-125.png`。材料、原始日志和截图均未提交。
 两组补验另存 `part7/offline-supplement-3-6/`、`part7/offline-final-small/`，最终摘要为 `offline-final-small-summary.json`。最后一组 8 张真实 125% 截图包括 `scenario-3-{deletion-gap,left-scroll,right-scroll,pure-format}-native-125.png` 与 `scenario-6-{edited-saved,exact-selection,deleted,restored-saved}-native-125.png`。左栏滚动后两栏 scrollTop 为 650.4／592.8，随后在右栏滚动得到 1300.8／1243.2；两边按内容对应同步，并非要求像素位置相同。
-只读核对保存后的 DOCX，表格、OMML 各仍一处，PNG 哈希与初始 manifest 相同，AI 待验目标句与 1,284 均完整。批注更新文字已从项目文件的 comments.xml 实际读回。
+旧离线保存后的 DOCX 中，表格、OMML 各仍一处，PNG 哈希与初始 manifest 相同，批注更新文字已从项目文件 comments.xml 实际读回。本次 AI 修改和撤回后另读项目 DOCX，对目标段整段逐字核对，确认 1,284 保留，没有只根据“已保存”提示判断。
+
+### 本次真实模型用量与内容抽查
+
+| 用途 | 请求数 | 输入 | 缓存读取 | 输出 | 已报告总 token | 用量未知的请求 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 设置页自动连接测试 | 1 | 37 | 0 | 11 | 48 | 0 |
+| 场景 1：继续原对话 | 3 | 7,724 | 13,312 | 738 | 21,774 | 0 |
+| 场景 1：从此处分支 | 2 | 7,641 | 5,888 | 698 | 14,227 | 0 |
+| 场景 2：划选改写 | 3 | 8,880 | 14,592 | 932 | 24,404 | 0 |
+| UI 补截图时后台纪要 | 3 | 1,688 | 0 | 6,834 | 8,522 | 1 |
+| **合计** | **12** | **25,970** | **33,792** | **9,213** | **68,975** | **1** |
+
+12 次请求全部为 `deepseek-v4.1-flash`；总数含缓存读取，缓存写入为 0。后台纪要两次成功、一次随正常退出取消，取消请求没有报告 usage，故最终用量写作 **68,975 已报告 tokens＋1 次未知**。场景 4、9 没有新增前台模型回答。
+UI 补截图没有新建消息，但进入项目触发默认 `summary.onEnterProject=true`：`minutes.focus`→`projectMeetings(reason='enter')`→1,500 ms debounce，为已有三段对话运行秘书纪要。三条发言在 16:25:12.459／.583／.720（台北）开始，早于启动待处理项目的 30 秒计时器；其中一条在退出时取消。这是进入项目的既有触发行为，本轮未更改。
+改写保留了 1,284、8.4／7.9 和“未做显著性检验”，将结论降为描述性趋势；同时自行加入了 **“方向上与预期一致”**。用户指令、目标原文和该轮实际读取的 12 个块都未提供“预期”，故记为无依据补充，交后续提示词／质量改进；没有要求模型重答以换取更好的结果。逐轮请求、usage 和工具读取证据见 `part7-followup/{request-ledger,model-content-audit,background-readonly-audit}.json`。
+
+### 系统缩放、截图与驱动记录
+
+| 批次（2026-10-31，台北时间） | 实际切到 100% | 请求恢复 | 系统确认恢复 125% | 原生确认 125% |
+| --- | --- | --- | --- | --- |
+| 场景 1／2／4 | 16:15:33.930 | 16:16:07.587 | 16:16:10.290 | 16:16:12.522 |
+| 场景 9 补验 | 16:25:58.193 | 16:26:01.811 | 16:26:04.548 | 16:26:07.305 |
+
+100% 实际保持约 36.36 秒和 6.35 秒，截完立即请求恢复；最终系统为 125%。Windows 设置、SHCore 与原生 scale/DPR 三处核对，`visualViewport.scale=1`；没有用 CDP 缩放模拟替代系统缩放。两批回执分别保留于 `part7-followup/` 和 `part7-followup/native-ui-supplement-20261031/dpi/`，原先的 pinch／device-metrics 诊断图不计入验收图。
+
+| 本次截图目录（均在 `part7-followup/` 下） | 关键文件与含义 |
+| --- | --- |
+| `native-20261031/` | `scenario-4-version-selected-native-125.png`：改名后仍选中 v4；同目录有服务商设置证据 |
+| `native-ai-20261031/` | `scenario-1-suggestion-native-125.png`、`scenario-1-branch-bound-native-{125,100}.png`；100% 图亦显示真实改写后的正文和对话；`scenario-4-version-selected-native-100.png` |
+| `native-ui-supplement-20261031/` | `scenario-9-focus-native-{125,100}.png`：前台定位与高亮；`scenario-2-existing-change-history-native-125.png`：动画结束后的修改记录弹窗 |
+
+首次“看改了什么”的 125%／100% 图捕获了动画帧，底层文字透出，原图保留。后来稳定的 125% 图等待动画完成及 opacity=1，显示的是用户撤回后的真实历史记录，原 AI 改动已标为 undone；没有把它记成原 AI 修改记录。额外补拍同一历史弹窗的 100% 图时，驱动鼠标选区为空，失败回执保留；所需的场景 9 双缩放图与改写正文／分支／版本树 100% 图已取得。
+四次原生运行中的驱动失败原样保留：首轮没先 hover 项目而等不到隐藏动作；续轮把首次发送前的草稿路由当成已创建的会议；AI 轮误以为稿件标记文字是引用句（实际是文件名，引用在 data-tip）；最后补截图脚本误设“没有发消息就没有请求”，被正常的后台纪要触发打破。前两项都发生在发送场景模型请求之前，后两项沿用已有消息完成验收，未重试模型刷结果。补截图脚本的最终断言失败与可选 100% 历史截图失败单列，原生关闭均为 exit 0。
+四组原始运行分别为 `native-20261031/`、`native-continuation-20261031/`、`native-ai-20261031/`、`native-ui-supplement-20261031/`；每组有 `acceptance.json`。最终总账和交接为 `part7-followup/request-ledger.json`、`NATIVE-HANDOFF.md`。
 
 ### 第 1–6 部分之外的后端意见
 
@@ -349,20 +380,46 @@ v3→v5 比较中，同段既有删字、加粗，又新增了批注。`readDocx
 
 ## 最终验证与用量
 
-干净检出 `719ee8f` 使用 Node 22.22.2、npmmirror 完成 `npm ci`（450 个依赖）。第一次完整 `npm run check` 的测试段耗时 1,910.267 秒，共 613 项：607 通过、4 失败、2 跳过。完整输出保留于 `.sciencescope-local/temp/p4c/clean-check.log`。
+### 2a1608f 补验后的完整检查
+
+重新创建此前不存在的 detached worktree，HEAD 为 `2a1608f88fb315195e359d25b7cd22a2d1c0907a`，开始时工作树干净。使用 Node 22.22.2 与 npmmirror 完成独立 `npm ci`：450 个依赖，383.072 秒，没有复制旧 node_modules 或测试数据。原生验收与缩放恢复均结束后再运行全检，显式设置 `SCIENCESCOPE_MAKENSIS` 使用已有 NSIS 编译器，Windows 安装器测试不跳过。
+本轮 `npm run check` 的格式、lint、类型检查通过；测试 **619 项，617 通过、2 失败、0 跳过、0 取消**，命令 exit 1，**尚未达到全检全部通过标准**。整条命令 1,976.482 秒，测试段 1,950.305 秒。两项 Windows 安装器测试均通过：第 612 项最低系统要求、第 613 项覆盖安装清理。独立 `node --test --test-concurrency=1 "tools/perf/*.test.mjs"` 为 **11/11、0 跳过**，8.356 秒，exit 0。回执根目录为 `part7-followup/`，完整日志 `clean-followup-check.log`。本轮没有修改 `app/ui/`、测试断言或等待时长。
+本轮已记录版本树浏览器用例失败：`app/ui/desk-versions.browser.test.js` 的 `the version tree opens, renames, tiers, compares, branches from an older version and deletes`，52,297.688 ms，在 `:112:48` 等待改名后的节点时报 `locator.waitFor: Timeout 30000ms exceeded`。原始 locator 为 `getByRole('tree', { name: '版本' }).getByRole('treeitem', { name: /^v2\b/u }).filter({ hasText: '对照稿' })`。失败发生在新增的 v2 改名步骤，尚未执行之后的选中项断言；与第 7 节原生 v4 复验分别记录，交 Claude 排查。
+全检后在同一干净检出原样运行一次 `node --test --test-concurrency=1 app/ui/desk-versions.browser.test.js`，命令 41.967 秒，1 项失败、0 通过、exit 1。这次在更早的 `:54:47` 等待 `treeitem /^v1\b/u` 包含“初稿”时同样超时 30 秒，尚未走到 v2；没有修改断言、加等待或继续重跑。只读线索：用例等版本字段区可见后立即输入，`version-tree.js` 另在 `useEffect` 中回填 title；输入与回填的实际顺序还需 Claude 采集，根因未定。
+设置并发保存也复发：`app/ui/settings.browser.test.js:225` 的 `a switch flipped while an earlier change is being saved stays as the person left it`，21,686.032 ms，在 `:266:14` 断言失败，原文 `Expected values to be strictly equal: true !== false`。此前 HTTP 轮询等待已返回，界面 checkbox 断言通过；失败的是最后直接 `workspace.read` 得到的 `stored.onLeaveProject`。同文件服务商设置与预设迁移两项通过，前者含 Go 连接测试发 flash 的断言。按用户决定，只记录 PATCH、HTTP 回应、workspace 与文件内容，不改界面或持久化逻辑。
+在同一干净检出的代码上执行一次保留原延迟和断言的旁路观测，12.915 秒，复现同一持久值断言，模型请求为 0。记录的相对时间如下（单位 ms）：
+
+| 时间 | 事件 | `onEnterProject`／`onLeaveProject` |
+| ---: | --- | --- |
+| 5,330.483 | PATCH 1 请求 | 提交 `onEnterProject:false` |
+| 5,648.837／5,651.796 | 第一条修订／PATCH 1 HTTP 回应 | false／true |
+| 5,651.539 | PATCH 2 请求，沿用原测试 1,500 ms 延迟 | 提交 `onLeaveProject:false` |
+| 6,917.303 | 轮询 GET 的实际 HTTP 回应 | false／true |
+| 6,919.186／6,920.834 | 轮询等待返回后的 UI／workspace 断言读值 | UI false／false；workspace false／true，断言失败 |
+| 7,393.746 | PATCH 2 的修订提交 | false／false |
+| 7,395.144 | 收尾读文件前值→workspace→文件后值 | false／true → false／false → false／false |
+
+实际捕获的是第二次保存尚未完成就开始断言；该次观测最终持久值为 false，没有出现第三条写回 true 的修订。PATCH 2 的 HTTP 响应在关闭浏览器时未能读出，按 `response-unavailable` 保留；第二条数据库修订和之后文件内容已取得。首次启动这个辅助脚本时，新的干净检出缺少脚本自用的忽略临时父目录，尚未发请求即 ENOENT；保留该初始化失败，补建目录后才进行上述一次观测。未改产品文件。
+等待提前结束的原因已用独立空白页探针确认：同一干净检出的 `playwright-core@1.63.0`、本机 Edge，`polling:200, timeout:500` 下，`waitForFunction(async () => false)` 在 **40.612 ms** 返回，handle 的值仍为 false；同步 `() => false` 则在 **505.063 ms** 按预期超时。锁定包的 `lib/coreBundle.js::waitForFunctionExpression` 在 `const success = predicate()` 后直接按真值分支处理 Promise，随后只解包一次结果，没有重新等待 false 条件。该行为与上表轮询回应仍为 true、等待却返回的时序相符；本次设置失败应交 Claude 修正测试的异步等待方式。没有改依赖、测试或应用逻辑，也没有调整原用例的超时。探针仅一次两项对照，无应用服务和模型请求，回执 `part7-followup/playwright-wait-probe*`。
+观测回执 `part7-followup/settings-race-original-dRw78J/receipt.json`；完整检查、perf、原样版本树复现和旁路观测分别为 `clean-followup-check.log`、`clean-followup-perf.log`、`desk-versions-original-single.log`、`settings-race-original-observed.log`，均在 `part7-followup/`。初始化失败日志 `settings-race-original.log` 另留，不覆盖。
+第 7 节已补完实际 flash 与系统 100% 路径；真实模型共 **12 次请求、68,975 已报告 tokens，另 1 次取消请求用量未知**。连接测试的实际 model 已确认是 flash。两条比较算法问题和分支改名按用户决定留给后续简报，不在本次补验更改。
+
+### 已合并阶段的历史失败与诊断
+
+以下是第 1–6 部分交付时的历史记录，保留原失败；本次最新检查结果以上一小节为准。干净检出 `719ee8f` 使用 Node 22.22.2、npmmirror 完成 `npm ci`（450 个依赖）。第一次完整 `npm run check` 的测试段耗时 1,910.267 秒，共 613 项：607 通过、4 失败、2 跳过。完整输出保留于 `.sciencescope-local/temp/p4c/clean-check.log`。
 
 | 首轮失败／跳过项 | 原始结果 | 后续处理与验证 |
 | --- | --- | --- |
 | `core/db/migrations/030-version-marks.test.js:25`，v29 versions gain empty descriptions… | `31 !== 30` | 测试加载所有迁移却固定断言 30；明确只升至 030，031 测试也明确自己的目标版本，原字段／数据／备份断言保留。两项单跑 2/2，通过后以 `d9c27b7` 单独提交 |
 | `ui/desk-entry.browser.test.js:92`，an expert suggests the desk… | `locator.waitFor: Timeout 30000ms exceeded`；等待引用标签含“指数。” | 同一干净检出原样单跑通过，7.178 秒；未改断言或超时 |
 | `ui/desk-md.browser.test.js:88`，Markdown is edited on its page… | 同为 30 秒超时；等待“第 3 行，第 3 列” | 原样单跑通过，7.082 秒 |
-| `ui/settings.browser.test.js:261`，a switch flipped while an earlier change… | `true !== false`，最后直接读取的工作区设置应为关闭 | 原样单跑通过，6.014 秒；前面的 HTTP 轮询和界面断言均已通过 |
+| `ui/settings.browser.test.js:261`，a switch flipped while an earlier change… | `true !== false`，最后直接读取的工作区设置应为关闭 | 原样单跑通过，6.014 秒；前面的 HTTP 轮询等待已返回，界面断言通过 |
 | 两项 `tools/package/installer-hooks.test.js` Windows 测试 | `SKIP`：没有找到 cached compiler | 显式设置 `SCIENCESCOPE_MAKENSIS` 指向已有缓存编译器，在同一干净检出补跑 2/2，零跳过；无需下载 |
 
 三项界面复现按原名称筛选、`--test-concurrency=1` 串行执行，共 24.233 秒；只做一次，完整输出为 `ui-failures-repro-20261031.log`。两项迁移及 Windows 测试输出分别为 `migration-followup.log`、`windows-installer-tests.log`。这些分项结果与完整结果分别记录。
 
 将同一干净检出切换到仅补迁移测试范围的 `d9c27b7`，保留先前 `npm ci`（锁文件未变），显式配置已有 NSIS 编译器后重跑完整 `npm run check`。命令总耗时 1,909.044 秒，测试段 1,883.557 秒：**613 项，612 通过、1 失败、0 跳过**。两项 Windows 安装测试以及全部 PS5／PS7 shell 用例通过；首轮的迁移、编辑台进入、Markdown 选区三项失败均在这次完整运行中通过。完整输出 `clean-check-final.log`，命令回执 `clean-check-final-result.json`。
-唯一重复失败为 `app/ui/settings.browser.test.js:220` 的 `a switch flipped while an earlier change is being saved stays as the person left it`，断言位置 `:261`，21,992.715 ms：`Expected values to be strictly equal: true !== false`。前面的 HTTP 轮询读到 `summary.onLeaveProject === false`，界面 checkbox 也为 false；随后直接 `workspace.read` 的持久设置却为 true。初步解读曾误把 `:261` 当成 checkbox 断言，本处已按原文件行号更正。设置页源码和测试均未修改，整套检查尚未达到全通过标准。
+当时唯一重复失败为 `app/ui/settings.browser.test.js:220` 的 `a switch flipped while an earlier change is being saved stays as the person left it`，断言位置 `:261`，21,992.715 ms：`Expected values to be strictly equal: true !== false`。前面的 HTTP 轮询等待已返回，界面 checkbox 为 false；随后直接 `workspace.read` 的持久设置却为 true。初步解读曾误把 `:261` 当成 checkbox 断言，本处已按原文件行号更正；此前把等待返回解读成“HTTP 已读到 false”的说法也按本次实际响应记录纠正。该阶段设置页源码和测试均未修改，全检以 612/613 交付。
 独立测量工具测试 `node --test --test-concurrency=1 "tools/perf/*.test.mjs"` 为 **11/11，0 跳过**，12.674 秒，输出 `perf-check-final.log`。新夹具生成器的实际解析与哈希核对、验收辅助模块的语法与格式检查也通过。
 界面待 Claude 排查：前两项都发生在 Markdown 键盘选区后、尚未写回文稿；引用优先使用 rAF 缓存选区，ProseMirror 还有焦点后的选区回写。它们是可进一步采集事件顺序的候选原因，安静串行复现尚未重现失败。设置用例另行定位，需同时记录 PATCH 请求、HTTP 回应和工作区读值，不能只从最终断言推定是界面回填。本轮没有修改这些界面文件。
 设置用例另做两次有明确目的的诊断，均用自造数据、真实界面和本地 API，模型请求为 0：
@@ -374,4 +431,4 @@ v3→v5 比较中，同段既有删字、加粗，又新增了批注。`readDocx
 
 后一组证实 `app/ui/actions.js:62–70` 的事件 GET 保护存在缺口：GET 发出时已捕获第二次写入的序号，等全部写入结束才到达时，pending=0 且序号相同，于是旧快照被接受。此复现仅出现界面回填，完整检查 `:261` 的持久值变化原因仍未定位。工作区 `currentText`／prepare／写入／afterEdit 均在同一文件队列，凭据 prepare 只替换 providers，afterEdit 只清理凭据；检查中未发现队列外写旧 summary 的路径。
 两组原始回执分别在 `part7/settings-race-original-YdtmQR/receipt.json`、`part7/settings-race-controlled-viJTel/receipt.json`，受控组保留四个响应交错时间和修订摘要。为区分同文件前序用例的影响，最后在同一 d9 干净检出原样运行整份 `app/ui/settings.browser.test.js` 一次，不筛名称：3/3 通过、0 跳过，18.330 秒（重叠保存用例 5.573 秒），日志 `settings-whole-file.log`。全检仍按 612/613 保留，原断言和超时保持。
-当前停在待确认项：正式 AI 场景 1／2／9 与 100% 系统截图尚未执行，真实模型请求 0、token 0。第 1–6 部分已逐部提交；本次另提交离线验收、可复现问题和检查结果供审阅，P4c 全部完成标准尚未达成。
+该阶段真实请求／token 为 0；后续用户决定采用产品修复的连接测试和临时系统缩放，现已按本报告第 7 节执行。2a1608f 加上“GET 发出时正在保存则不接收”的界面保护；本次只在新安装与干净检出复验，原始历史结果未覆盖。
