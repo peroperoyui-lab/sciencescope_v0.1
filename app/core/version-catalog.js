@@ -80,8 +80,26 @@ export function createVersionCatalog(core) {
     const version = get(id);
     return path.join(core.workspace.locate.projectDir(version.projectId), version.originalPath);
   }
-  function changed(projectId, action, id, actorId) {
-    events.record('versions.changed', { projectId, action, id }, { projectId, actorId });
+  /**
+   * @param {string} projectId
+   * @param {string} action
+   * @param {string} id
+   * @param {string} [actorId]
+   * @param {{oldBranch:string,newBranch:string}} [branchChange]
+   */
+  function changed(projectId, action, id, actorId, branchChange) {
+    events.record(
+      'versions.changed',
+      {
+        projectId,
+        action,
+        id,
+        ...(branchChange
+          ? { oldBranch: branchChange.oldBranch, newBranch: branchChange.newBranch }
+          : {}),
+      },
+      { projectId, actorId },
+    );
   }
   return { group, get, list, file, changed };
 }
