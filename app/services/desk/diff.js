@@ -2,7 +2,7 @@ import { compareText } from '../versions/comparison.js';
 import { describeBlock, MARKS } from './diff-blocks.js';
 import { pairBlocks } from './diff-pairs.js';
 
-export const DIFF_ALGORITHM = 1;
+export const DIFF_ALGORITHM = 2;
 const marks = (mask) => MARKS.filter((_, index) => mask & (1 << index));
 
 function addFormat(result, block, from, to, before, after) {

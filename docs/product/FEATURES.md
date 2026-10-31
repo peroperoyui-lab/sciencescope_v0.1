@@ -350,7 +350,7 @@ data/
 - 历史版本：AI 每轮发言结束、用户离开编辑页面、恢复之前，都会为改过的资源留一个历史版本；可只读预览、恢复或删除。工作区每次修改另有逐条修订，可撤销。
 - DOCX 编辑会话（D3a，尚未接界面）：`app/services/desk/` 登记项目文件、维护唯一 open 会话、接收逐块修改和撤回/保留；修改通过结构校验后记录 actor、会议、发言和指令，空闲 2 秒集中写工作副本。保存可写回项目文件或生成父子版本，关闭按需留版本再清理工作目录；正常退出先落盘，重启恢复同一会话。沿用迁移 024 的 `desk_sessions`、`desk_changes`；迁移 027 给版本组加 `source_hash`、`source_version_id`，记项目文件上次登记、导入或写回时的哈希和对应版本，外部修改按它判断，连续保存不再误报。
 
-- D4 版本比较后端已接入：`GET /api/versions/:id/diff` 返回两版块、段落配对、段内删增和格式范围；省略 baseline 默认父版本，可跨分支。迁移 028 的 `version_diffs` 缓存版本对；版本生成后由 worker 串行预计算，关闭应用取消未完成工作。DOCX 原子按 XML 哈希识别，tex/md/pdf 复用已有读取；编辑台和版本比较页都已改用这个结果（U3）；`/compare` 只剩接口。
+- D4 版本比较后端已接入：`GET /api/versions/:id/diff` 返回两版块、段落配对、段内删增和格式范围；省略 baseline 默认父版本，可跨分支。迁移 028 的 `version_diffs` 缓存版本对；版本生成后由 worker 串行预计算，关闭应用取消未完成工作。DOCX 原子按 XML 和引用图片字节识别；批注定位不计正文删增，段落相似度只用短原子占位，批注本身的增改不在比较页显示（P5，算法 2）。tex/md/pdf 复用已有读取；编辑台和版本比较页都已改用这个结果（U3）；`/compare` 只剩接口。
 - 编辑台补充读接口：`GET /api/versions/:id/media/:ref` 按比较块中的图片 ref 读取指定 DOCX 版本，带与会话图片相同的响应头并复用小型包缓存；`GET /api/meetings/:id/sources` 汇总整段对话成功读取、正文引用或经知识库找到的资料及每次使用，按最近使用排序。来源规则移至 `app/shared/turn-sources.js`，界面原模块仅转出；新端点的界面接入后续由 Claude 完成。
 - D10 版本描述与重点后端：版本列表、详情、图节点均含 `description` 和布尔值 `key`；PATCH 只改传入字段，描述去首尾空白、最多 2,000 字，与原有元数据同事务提交并广播变化。专家用 `workspace_read manuscript` 的 `versions:true` 读取每版的描述、重点及分支等信息，工具不提供修改描述或重点的操作；现有 `label` 不变。
 - D5 专家改文稿后端已接入：所有角色共用 `workspace_read/edit manuscript`，按块读当前或历史内容、替换/插删段、存版本或写回项目，`workspace_undo chg_` 逐处撤回；复用编辑会话与修改记录。原子记号按原顺序保留，替换继承起始字符格式；写回项目在请求批准模式下询问，沿用 C1 始终允许规则。划选改写经绑定会议发送，忙时进入现有队列；`desk_suggest` 持久事件十分钟去重，界面提示由 Claude 接入。
@@ -767,6 +767,8 @@ data/
 | 028  | `version_diffs`                                                                                                                              | 父子版本及任意版本对的差异缓存，可重新计算                                               |
 | 029  | `manuscript_bindings`、`manuscript_comments`；`desk_changes.annotations_json`                                                                | 索引、非 Word 批注及同次修改的标注快照；DOCX 批注仍由文件和修改记录保存                  |
 | 030  | `manuscript_versions.description`、`is_key`                                                                                                  | 版本描述和重点；旧版本默认空描述、非重点，原有 label 保留                                |
+| 031 | `events_source_import` 索引 | 按资料 id 与事件顺序恢复导入任务，不新增数据表 |
+| 032 | `home_starters`、`home_starters_state` | 每项目首页卡片缓存、全局当前快照与重启补写状态 |
 
 ### 4.2 文件资源
 
