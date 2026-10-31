@@ -2,7 +2,7 @@
 // cards, the execution mode and a width that is remembered.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { browserSkip, withBrowserApp } from './browser-testing.js';
+import { browserSkip, withBrowserApp, eventually } from './browser-testing.js';
 
 test(
   'a command in the assistant panel waits for approval, 常规 stops asking and the width is kept',
@@ -51,12 +51,14 @@ test(
         const assistant = app.core.meetings
           .list()
           .find((meeting) => meeting.policy.respondent === 'agent_assistant');
-        await page.waitForFunction(async (id) => {
-          const response = await fetch(`/api/meetings/${id}`, {
-            headers: { authorization: 'Bearer ui-token' },
-          });
-          return (await response.json()).policy.approval === 'auto';
-        }, assistant.id);
+        await eventually(() =>
+          page.evaluate(async (id) => {
+            const response = await fetch(`/api/meetings/${id}`, {
+              headers: { authorization: 'Bearer ui-token' },
+            });
+            return (await response.json()).policy.approval === 'auto';
+          }, assistant.id),
+        );
 
         // Dragging the edge resizes the panel; the width is a setting.
         const splitter = panel.getByRole('separator', { name: '调整宽度' });
@@ -65,12 +67,14 @@ test(
         await page.mouse.down();
         await page.mouse.move(box.x - 96, box.y + 200, { steps: 4 });
         await page.mouse.up();
-        await page.waitForFunction(async () => {
-          const response = await fetch('/api/settings', {
-            headers: { authorization: 'Bearer ui-token' },
-          });
-          return (await response.json()).appearance.panels.assistant === 460;
-        });
+        await eventually(() =>
+          page.evaluate(async () => {
+            const response = await fetch('/api/settings', {
+              headers: { authorization: 'Bearer ui-token' },
+            });
+            return (await response.json()).appearance.panels.assistant === 460;
+          }),
+        );
         await page.reload();
         await page
           .locator('.ss-sidebar__foot')

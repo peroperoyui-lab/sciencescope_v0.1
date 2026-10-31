@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PDFDocument, StandardFonts } from 'pdf-lib';
 import { createResearchStore } from '../services/research/store.js';
-import { browserSkip, withBrowserApp } from './browser-testing.js';
+import { browserSkip, withBrowserApp, eventually } from './browser-testing.js';
 
 async function* silent() {}
 const headers = { authorization: 'Bearer ui-token', 'content-type': 'application/json' };
@@ -239,12 +239,14 @@ test(
       for (const key of ['entities', 'knowledge', 'claim'])
         assert.equal(await page.locator(`[data-rb-tab="${key}"]`).count(), 0);
       // The sidebar entry reopens the last scope.
-      await page.waitForFunction(async () => {
-        const response = await fetch('/api/settings', {
-          headers: { authorization: 'Bearer ui-token' },
-        });
-        return (await response.json()).appearance.knowledgeScope === 'project';
-      });
+      await eventually(() =>
+        page.evaluate(async () => {
+          const response = await fetch('/api/settings', {
+            headers: { authorization: 'Bearer ui-token' },
+          });
+          return (await response.json()).appearance.knowledgeScope === 'project';
+        }),
+      );
       await page.evaluate(() => (location.hash = '#/'));
       await page.locator('[data-route="database"]').click();
       await page.locator('.research-base .ss-header__title', { hasText: '数据库' }).waitFor();
@@ -307,12 +309,14 @@ test(
       await page.locator('.ss-sidebar [data-route="database"]').click();
       await page.locator('.research-base .ss-header__title', { hasText: '数据库' }).waitFor();
       release();
-      await page.waitForFunction(async () => {
-        const response = await fetch('/api/settings', {
-          headers: { authorization: 'Bearer ui-token' },
-        });
-        return (await response.json()).appearance.knowledgeScope === 'project';
-      });
+      await eventually(() =>
+        page.evaluate(async () => {
+          const response = await fetch('/api/settings', {
+            headers: { authorization: 'Bearer ui-token' },
+          });
+          return (await response.json()).appearance.knowledgeScope === 'project';
+        }),
+      );
     }),
 );
 

@@ -85,3 +85,22 @@ export async function typeAtEndOfMathField(field, text) {
   await field.press('End');
   await field.pressSequentially(text);
 }
+
+/**
+ * Wait until `read` (run here, in Node) gives a true value. Playwright's
+ * waitForFunction takes a promise for true at once, so checks that must await
+ * something in the page wait here instead.
+ * @template T
+ * @param {() => Promise<T>} read
+ * @param {{ timeout?: number, interval?: number }} [options]
+ * @returns {Promise<T>}
+ */
+export async function eventually(read, { timeout = 10000, interval = 100 } = {}) {
+  const until = Date.now() + timeout;
+  for (;;) {
+    const value = await read();
+    if (value) return value;
+    if (Date.now() > until) throw new Error('The condition did not come true in time.');
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+}

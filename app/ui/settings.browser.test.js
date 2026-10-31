@@ -4,7 +4,7 @@
 // it is stored.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { browserSkip, withBrowserApp } from './browser-testing.js';
+import { browserSkip, withBrowserApp, eventually } from './browser-testing.js';
 
 async function* silent() {}
 
@@ -57,13 +57,15 @@ test(
       });
       await page.getByText('70%', { exact: true }).waitFor();
       await shot('settings-models');
-      await page.waitForFunction(
-        async () =>
-          (
-            await (
-              await fetch('/api/settings', { headers: { authorization: 'Bearer ui-token' } })
-            ).json()
-          ).context.compactPercent === 70,
+      await eventually(() =>
+        page.evaluate(
+          async () =>
+            (
+              await (
+                await fetch('/api/settings', { headers: { authorization: 'Bearer ui-token' } })
+              ).json()
+            ).context.compactPercent === 70,
+        ),
       );
 
       // Any other compatible service: address, protocol, key and model IDs.
@@ -250,15 +252,13 @@ test(
       await leave.uncheck();
       await page.waitForTimeout(1000);
       assert.equal(await leave.isChecked(), false);
-      await page.waitForFunction(
-        async () => {
+      await eventually(() =>
+        page.evaluate(async () => {
           const response = await fetch('/api/settings', {
             headers: { authorization: 'Bearer ui-token' },
           });
           return (await response.json()).summary.onLeaveProject === false;
-        },
-        undefined,
-        { polling: 200 },
+        }),
       );
       assert.equal(await leave.isChecked(), false);
       const stored = (await settings()).summary;

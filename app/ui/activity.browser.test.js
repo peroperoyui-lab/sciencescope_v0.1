@@ -6,7 +6,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { browserSkip, withBrowserApp } from './browser-testing.js';
+import { browserSkip, withBrowserApp, eventually } from './browser-testing.js';
 
 let imageFolder = '';
 
@@ -170,12 +170,14 @@ test(
 
         await mode.click();
         await page.getByRole('menuitemradio', { name: '常规', exact: true }).click();
-        await page.waitForFunction(async (id) => {
-          const response = await fetch(`/api/meetings/${id}`, {
-            headers: { authorization: 'Bearer ui-token' },
-          });
-          return (await response.json()).policy.approval === 'auto';
-        }, meeting.id);
+        await eventually(() =>
+          page.evaluate(async (id) => {
+            const response = await fetch(`/api/meetings/${id}`, {
+              headers: { authorization: 'Bearer ui-token' },
+            });
+            return (await response.json()).policy.approval === 'auto';
+          }, meeting.id),
+        );
       },
     );
   },
