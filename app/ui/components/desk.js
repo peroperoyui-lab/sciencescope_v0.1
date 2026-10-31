@@ -1087,10 +1087,15 @@ export function DeskWindow() {
   const [opened, setOpened] = useState(0);
   // The chat the edited session is bound to, as {projectId, meetingId}.
   const [sessionChat, setSessionChat] = useState(/** @type {any} */ (null));
+  // Another document clears it; a version saved or renamed keeps it until the
+  // session answers, so the tree's selection does not jump to the newest.
+  useEffect(() => setBase(null), [tab?.key]);
   useEffect(() => {
-    setBase(null);
     const sessionId = tab ? sessions.current[tab.key] : null;
-    if (!sessionId || tab?.kind !== 'project') return;
+    if (!sessionId || tab?.kind !== 'project') {
+      setBase(null);
+      return;
+    }
     let alive = true;
     actions
       .deskSession(sessionId)

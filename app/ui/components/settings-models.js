@@ -368,11 +368,23 @@ export function ModelsPage() {
   }, []);
 
   const save = (changes) => actions.attempt(() => actions.updateSettings(changes));
-  async function test(id) {
+  /**
+   * Test with the model this service will be used with: the default when it is
+   * this service, else the preset's suggested one, else the server's first.
+   * @param {string} id @param {any} [entry] the provider, when settings may not have it yet
+   */
+  async function test(id, entry = entries.find((candidate) => candidate.id === id)) {
     setTests((all) => ({ ...all, [id]: { busy: true } }));
+    const suggested = PRESETS[entry?.preset]?.model;
+    const model =
+      current?.provider === id
+        ? current.model
+        : entry?.models?.some((candidate) => candidate.id === suggested)
+          ? suggested
+          : undefined;
     let result;
     try {
-      result = await actions.testProvider(id);
+      result = await actions.testProvider(id, model);
     } catch (error) {
       result = { ok: false, error: { status: error.status ?? null, message: error.message } };
     }
@@ -393,8 +405,9 @@ export function ModelsPage() {
       title: t('添加 {name}', { name: t(PRESETS[preset.id]?.name ?? preset.name) }),
       label: t(PRESETS[preset.id]?.key ?? 'API 密钥'),
       save: async (key) => {
-        await adopt(await actions.savePreset(preset.id, key));
-        return test(preset.id);
+        const entry = await actions.savePreset(preset.id, key);
+        await adopt(entry);
+        return test(preset.id, entry);
       },
     });
   const updateKey = (provider) => {

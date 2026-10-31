@@ -60,12 +60,14 @@ export function createActions(api, store) {
         // Settings can be changed by an AI or another window; reload them.
         if (event.type === 'resource.changed' && event.payload.resource === 'settings') {
           const seen = settingsStarted;
+          const busy = settingsPending > 0;
           api
             .get('/api/settings')
             .then((next) => {
-              // A write of ours on its way, or begun since, would be rolled
-              // back; its answer brings the whole file, other changes included.
-              if (settingsPending || settingsStarted !== seen) return;
+              // A write of ours on its way when this was asked, still on its way,
+              // or begun since, would be rolled back: the server may have read
+              // the file before it. Its answer brings the whole file instead.
+              if (busy || settingsPending || settingsStarted !== seen) return;
               applyAppearance(next);
               set({ settings: next });
             })

@@ -32,8 +32,13 @@ test(
       await page.getByRole('button', { name: '添加 OpenCode Go 订阅' }).click();
       const dialog = page.getByRole('dialog', { name: '添加 OpenCode Go 订阅' });
       await dialog.getByLabel('订阅密钥').fill('sk-test');
+      const tested = page.waitForRequest((request) =>
+        request.url().endsWith('/api/providers/opencode-go/test'),
+      );
       await dialog.getByRole('button', { name: '测试并保存' }).click();
       await dialog.waitFor({ state: 'detached' });
+      // The test asks the model the service will be used with, not the list's first.
+      assert.equal((await tested).postDataJSON().model, 'deepseek-v4.1-flash');
       const card = page.locator('[data-provider="opencode-go"]');
       await card.getByText(/连接正常 · \d+ ms/).waitFor();
       await page.locator('[data-preset="opencode-go"]').getByText('已添加').waitFor();

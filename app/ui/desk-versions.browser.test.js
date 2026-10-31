@@ -104,6 +104,14 @@ test(
       await menu.getByRole('menuitem', { name: '从这一版开始编辑' }).click();
       await desk.locator('.ss-page--md p', { hasText: '仍有争议。' }).waitFor();
       await status.getByText('v1 · 主线 · 投稿').waitFor();
+      // Renaming another version keeps it selected, not the one being edited.
+      await node(2).click();
+      await desk.locator('.ss-vtree__fields', { hasText: 'v2' }).waitFor();
+      await name.fill('对照稿');
+      await name.press('Enter');
+      await node(2).filter({ hasText: '对照稿' }).waitFor();
+      await desk.waitForTimeout(500);
+      assert.match(await desk.locator('.ss-vtree__fields').textContent(), /v2/u);
       // Typed changes kept as a version grow a branch from v1.
       await desk.locator('.ss-page--md p', { hasText: '仍有争议。' }).click();
       await desk.keyboard.press('End');
