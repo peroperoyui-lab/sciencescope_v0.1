@@ -22,7 +22,7 @@ export { DEFAULT_SUMMARY, estimateTokens };
  * @param {{core:import('../../core/index.js').Core,runtime:import('../../runtime/port.js').Runtime,
  * defaultModel:(meeting?:any)=>Promise<import('../../runtime/port.js').ModelChoice|null>,
  * debounceMs?:number,pendingDelayMs?:number,modelCatalog?:any}} dependencies
- * @returns {{start:()=>void,close:()=>Promise<void>,idle:()=>Promise<void>,refresh:(meetingId:string,options?:{reason?:string})=>Promise<any>,status:(meetingId:string)=>Promise<any>,focus:(projectId:string|null)=>any,edit:(meetingId:string,text:string,expectedRevision:string|null)=>Promise<any>,coverage:(meetingId:string,revision?:any)=>number,coveredMessageIds:(meetingId:string,revision?:any)=>string[]}}
+ * @returns {{start:()=>void,close:()=>Promise<void>,idle:()=>Promise<void>,settled:(projectId:string,options?:{signal?:AbortSignal,recover?:boolean})=>Promise<{errors:string[],closed:boolean}>,refresh:(meetingId:string,options?:{reason?:string})=>Promise<any>,status:(meetingId:string)=>Promise<any>,focus:(projectId:string|null)=>any,edit:(meetingId:string,text:string,expectedRevision:string|null)=>Promise<any>,coverage:(meetingId:string,revision?:any)=>number,coveredMessageIds:(meetingId:string,revision?:any)=>string[]}}
  */
 export function createMinutesService({
   core,
@@ -37,11 +37,32 @@ export function createMinutesService({
   const timers = new Map();
   const running = new Map();
   const deferred = new Map();
+  const startupProjects = new Set();
+  /** @type {Set<() => void>} */
+  const settledWaiters = new Set();
   let unsubscribe;
   let closed = false;
   let focusedProject = null;
   let pendingTimer;
   let pendingWork = Promise.resolve();
+  let startupComplete = false;
+
+  function wakeSettled() {
+    for (const done of [...settledWaiters]) done();
+  }
+
+  function waitForChange(signal) {
+    return new Promise((resolve) => {
+      const done = () => {
+        settledWaiters.delete(done);
+        signal?.removeEventListener('abort', done);
+        resolve(undefined);
+      };
+      settledWaiters.add(done);
+      signal?.addEventListener('abort', done, { once: true });
+      if (closed || signal?.aborted) done();
+    });
+  }
 
   function eligibleMeeting(meetingId) {
     const meeting = core.meetings.get(meetingId);
@@ -263,6 +284,7 @@ export function createMinutesService({
     clearTimeout(scheduled.timer);
     timers.delete(meetingId);
     scheduled.resolve();
+    wakeSettled();
   }
 
   /**
@@ -278,7 +300,10 @@ export function createMinutesService({
         .get(meetingId)
         .catch(() => {})
         .then(() => refresh(meetingId, { reason }));
-    const work = update(meetingId, reason).finally(() => running.delete(meetingId));
+    const work = update(meetingId, reason).finally(() => {
+      running.delete(meetingId);
+      wakeSettled();
+    });
     running.set(meetingId, work);
     return work;
   }
@@ -302,6 +327,7 @@ export function createMinutesService({
     }, debounceMs);
 
     timers.set(meetingId, { timer, promise, resolve, reason });
+    wakeSettled();
   }
 
   function projectMeetings(projectId, reason) {
@@ -387,9 +413,17 @@ export function createMinutesService({
         schedule(event.meetingId, reason);
       }
     });
+    for (const row of core.db.prepare('SELECT project_id FROM secretary_pending_projects').all())
+      startupProjects.add(String(row.project_id));
     pendingTimer = setTimeout(() => {
       pendingTimer = null;
-      pendingWork = processPending().catch(() => {});
+      pendingWork = processPending()
+        .catch(() => {})
+        .finally(() => {
+          startupProjects.clear();
+          startupComplete = true;
+          wakeSettled();
+        });
     }, pendingDelayMs);
     pendingTimer.unref?.();
   }
@@ -401,6 +435,44 @@ export function createMinutesService({
       );
     }
     await pendingWork;
+  }
+
+  /**
+   * Home cards need the leave refresh, including a foreground-deferred refresh
+   * and startup recovery. Existing idle callers retain their original scope.
+   * @param {string} projectId
+   * @param {{signal?:AbortSignal,recover?:boolean}} [options]
+   * @returns {Promise<{errors:string[],closed:boolean}>}
+   */
+  async function settled(projectId, { signal, recover = false } = {}) {
+    const meetings = () =>
+      core.meetings.list({ projectId }).filter((meeting) => eligibleMeeting(meeting.id));
+    const busy = () =>
+      startupProjects.has(projectId) ||
+      meetings().some(
+        (meeting) => timers.has(meeting.id) || running.has(meeting.id) || deferred.has(meeting.id),
+      );
+    if (recover) {
+      // An abrupt exit can persist a home focus before the normal minutes-close
+      // hook ran. Recheck that project after the existing startup delay, using
+      // the same pending rule rather than forcing a manual summary.
+      while (!startupComplete && !closed && !signal?.aborted) await waitForChange(signal);
+      for (const meeting of meetings()) {
+        if (closed || signal?.aborted) return { errors: [], closed: true };
+        await refresh(meeting.id, { reason: 'pending' });
+      }
+    }
+    while (!closed && !signal?.aborted) {
+      if (busy()) {
+        await waitForChange(signal);
+        continue;
+      }
+      const states = await Promise.all(meetings().map((meeting) => status(meeting.id)));
+      if (closed || signal?.aborted) break;
+      if (busy()) continue;
+      return { errors: states.map((state) => state.error).filter(Boolean), closed: false };
+    }
+    return { errors: [], closed: true };
   }
 
   async function close() {
@@ -427,6 +499,7 @@ export function createMinutesService({
       }
     }
     closed = true;
+    wakeSettled();
     unsubscribe?.();
     clearTimeout(pendingTimer);
     for (const meetingId of timers.keys()) clearScheduled(meetingId);
@@ -436,5 +509,5 @@ export function createMinutesService({
     await pendingWork;
   }
 
-  return { start, close, idle, refresh, status, focus, edit, coverage, coveredMessageIds };
+  return { start, close, idle, settled, refresh, status, focus, edit, coverage, coveredMessageIds };
 }
