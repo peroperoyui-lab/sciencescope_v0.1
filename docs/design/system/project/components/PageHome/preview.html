@@ -59,7 +59,7 @@
         <button class="ss-select ss-select--ghost" type="button" aria-haspopup="menu" data-menu="#m-where"><i data-i="folder-open"></i><span class="ss-select__value" data-slot="value">城市韧性研究</span><i data-i="chevron-down"></i></button>
         <div class="ss-header__actions"></div>
       </div>
-      <div class="ss-content">
+      <div class="ss-content ss-content--center">
         <div class="ss-home">
           <div class="ss-home__hello">
             <svg class="ss-art" viewBox="0 0 160 120" aria-hidden="true" focusable="false"><ellipse class="ss-art__ground" cx="80" cy="104" rx="58" ry="6"/><path class="ss-art__dash" d="M47 55Q56 60 62 66M113 55Q104 60 98 66M80 40V48"/><path class="ss-art__paper ss-art__line" d="M42 98V66Q61 60 80 66Q99 60 118 66V98Q99 92 80 98Q61 92 42 98Z"/><path class="ss-art__line" d="M80 66V98M50 74Q60 71 72 73M50 81Q60 78 72 80M50 88Q58 86 66 87M88 73Q100 71 110 74M88 80Q100 78 110 81"/><circle class="ss-art__paper ss-art__line" cx="40" cy="36" r="5"/><path class="ss-art__paper ss-art__line" d="M31 51q9-11 18 0"/><circle class="ss-art__soft ss-art__accent-line" cx="80" cy="20" r="5.5"/><path class="ss-art__soft ss-art__accent-line" d="M70 36q10-12 20 0"/><circle class="ss-art__paper ss-art__line" cx="120" cy="36" r="5"/><path class="ss-art__paper ss-art__line" d="M111 51q9-11 18 0"/><path class="ss-art__accent" d="M80 50C80.72 55.28 80.72 55.28 86 56C80.72 56.72 80.72 56.72 80 62C79.28 56.72 79.28 56.72 74 56C79.28 55.28 79.28 55.28 80 50Z"/></svg>
@@ -79,7 +79,7 @@
           </section>
           <section>
             <div class="ss-block-head"><span class="ss-block-head__title">继续上次的工作</span><span class="ss-block-head__end"><button class="ss-btn ss-btn--ghost ss-btn--sm" type="button" data-tip="在独立窗口打开编辑台">编辑台<i data-i="app-window"></i></button></span></div>
-            <div class="ss-list"><div class="ss-list-row ss-list-row--2"><span class="ss-ftype ss-ftype--docx" aria-hidden="true">W</span><div class="ss-list-row__main"><span class="ss-list-row__title">开题报告.docx</span><span class="ss-list-row__sub">城市韧性研究 · 第 3 版 · 绑定「文献综述框架讨论」</span></div><span class="ss-list-row__meta ss-list-row__meta--time">今天 15:40</span><button class="ss-btn ss-btn--sm" type="button" data-tip="在编辑台打开">继续写作</button></div><div class="ss-list-row ss-list-row--2"><span class="ss-ftype ss-ftype--tex" aria-hidden="true">T</span><div class="ss-list-row__main"><span class="ss-list-row__title">韧性指标体系.tex</span><span class="ss-list-row__sub">城市韧性研究 · 第 5 版</span></div><span class="ss-list-row__meta ss-list-row__meta--time">昨天</span><button class="ss-btn ss-btn--sm" type="button" data-tip="在编辑台打开">继续写作</button></div></div>
+            <div class="ss-list"><div class="ss-list-row ss-list-row--2"><span class="ss-ftype ss-ftype--docx" aria-hidden="true">W</span><div class="ss-list-row__main"><span class="ss-list-row__title">开题报告.docx</span><span class="ss-list-row__sub">城市韧性研究 · 第 3 版 · 绑定「文献综述框架讨论」</span></div><span class="ss-list-row__meta ss-list-row__meta--time">今天 15:40</span><button class="ss-btn ss-btn--sm" type="button" aria-haspopup="menu" data-menu="#m-draft" data-tip="选择打开方式">继续写作<i data-i="chevron-down"></i></button></div><div class="ss-list-row ss-list-row--2"><span class="ss-ftype ss-ftype--tex" aria-hidden="true">T</span><div class="ss-list-row__main"><span class="ss-list-row__title">韧性指标体系.tex</span><span class="ss-list-row__sub">城市韧性研究 · 第 5 版</span></div><span class="ss-list-row__meta ss-list-row__meta--time">昨天</span><button class="ss-btn ss-btn--sm" type="button" aria-haspopup="menu" data-menu="#m-draft" data-tip="选择打开方式">继续写作<i data-i="chevron-down"></i></button></div></div>
           </section>
           <section>
             <div class="ss-block-head"><span class="ss-block-head__title">常用学术站点</span><span class="ss-block-head__end"><button class="ss-icon-btn ss-icon-btn--sm" type="button" aria-label="管理站点" data-tip="管理站点"><i data-i="settings"></i></button></span></div>
@@ -122,6 +122,11 @@
   <button class="ss-menu__item" type="button"><i data-i="chevron-down"></i>下移</button>
   <div class="ss-menu__sep"></div>
   <button class="ss-menu__item ss-menu__item--danger" type="button"><i data-i="trash-2"></i>移除站点</button>
+</div>
+<div class="ss-menu" id="m-draft" hidden>
+  <button class="ss-menu__item" type="button"><i data-i="app-window"></i>在编辑台打开</button>
+  <button class="ss-menu__item" type="button"><i data-i="folder-open"></i>在资源管理器中显示</button>
+  <button class="ss-menu__item" type="button"><i data-i="external-link"></i>用默认程序打开</button>
 </div>
 <div class="ss-menu" id="m-mode" hidden style="width:300px">
   <button class="ss-menu__item ss-menu__item--rich" role="menuitemradio" aria-checked="true" type="button" data-label="请求批准" data-icon="shield-check"><i data-i="shield-check"></i><span class="ss-menu__text"><span>请求批准</span><span class="ss-menu__desc">运行命令、写入项目文件夹、安装包之前先问你</span></span><i data-i="check" class="ss-menu__check"></i></button>

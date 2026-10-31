@@ -1340,6 +1340,14 @@ button.ss-titlebar__brand {
   min-height: 0;
   overflow: auto;
 }
+/* A one-screen page sits in the middle of the space; taller ones scroll from the top. */
+.ss-content--center {
+  display: flex;
+  flex-direction: column;
+}
+.ss-content--center > * {
+  margin-block: auto;
+}
 .ss-panel {
   position: relative;
   display: flex;
@@ -4238,29 +4246,25 @@ button.ss-act__row:hover {
 /* Home: greeting, recent work and sites above the composer. */
 .ss-home {
   display: grid;
-  gap: 20px;
+  gap: var(--sp-16);
   width: min(720px, 100%);
-  margin: 0 auto;
-  padding: 32px 24px 16px;
+  margin-inline: auto;
+  padding: var(--sp-12) 24px;
 }
-/* One row: the small picture, then the question and the greeting. */
+/* Centred: the picture, then the question, then the greeting. */
 .ss-home__hello {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: center;
-  column-gap: var(--sp-16);
-  row-gap: var(--sp-2);
+  justify-items: center;
+  gap: var(--sp-4);
+  text-align: center;
+}
+.ss-home__hello .ss-empty__art {
+  margin-bottom: var(--sp-4);
 }
 .ss-home__hello .ss-art {
-  grid-row: span 2;
-  width: 72px;
-  height: 54px;
-}
-.ss-home__hello .ss-home__title {
-  align-self: end;
-}
-.ss-home__hello .ss-home__greeting {
-  align-self: start;
+  display: block;
+  width: 120px;
+  height: 90px;
 }
 .ss-home__title {
   margin: 0;

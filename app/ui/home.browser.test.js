@@ -60,7 +60,11 @@ test(
       // The latest draft and the sites; no chats listed by time.
       const drafts = page.locator('[data-home-drafts]');
       await drafts.getByText('notes.md').waitFor();
-      await drafts.getByRole('button', { name: '继续写作' }).waitFor();
+      // 继续写作 offers three ways to open the draft.
+      await drafts.getByRole('button', { name: '继续写作' }).click();
+      for (const item of ['在编辑台打开', '在资源管理器中显示', '用默认程序打开'])
+        await page.getByRole('menuitem', { name: item }).waitFor();
+      await page.keyboard.press('Escape');
       await page.locator('[data-site]', { hasText: 'arXiv' }).waitFor();
       assert.equal(await page.getByText('最近工作').count(), 0);
 

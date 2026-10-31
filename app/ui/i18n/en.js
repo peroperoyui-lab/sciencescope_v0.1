@@ -2655,6 +2655,7 @@ export const en = {
   继续上次的工作: 'Pick up where you left off',
   '{project} · 第 {n} 版': '{project} · version {n}',
   继续写作: 'Keep writing',
+  选择打开方式: 'Choose how to open',
   常用的话: 'Quick asks',
   '还有什么值得继续追问？': 'What else is worth following up?',
   把待办加进研究计划: 'Add the to-dos to the research plans',

@@ -212,6 +212,9 @@ const openDraft = ({ project, group, version }) =>
       : { projectId: project.id, versionId: version.id, name: version.name, group: group.name },
   );
 
+/** A project-relative path's folder. @param {string} relative */
+const folderOf = (relative) => relative.split('/').slice(0, -1).join('/');
+
 /** @param {{ projectId?: string | null }} props */
 export function Welcome({ projectId = null }) {
   const actions = useActions();
@@ -237,6 +240,43 @@ export function Welcome({ projectId = null }) {
     plan: plans[0]?.text ?? null,
     participants,
   });
+  /**
+   * 继续写作: the desk, the folder, or the program the system opens it with. A
+   * draft with a project file opens that file; one without opens its latest version.
+   * @param {Event} event @param {any} draft
+   */
+  const draftMenu = (event, draft) => {
+    const { project: place, group, version } = draft;
+    const path = group.sourcePath;
+    const file = (body) => actions.attempt(() => actions.fileOp(place.id, body));
+    actions.openMenu(
+      event,
+      [
+        {
+          text: t('在编辑台打开'),
+          icon: 'app-window',
+          run: () => actions.attempt(() => openDraft(draft)),
+        },
+        {
+          text: t('在资源管理器中显示'),
+          icon: 'folder-open',
+          run: () =>
+            path
+              ? file({ op: 'open', path: folderOf(path) })
+              : actions.attempt(() => actions.openVersion(version.id, true)),
+        },
+        {
+          text: t('用默认程序打开'),
+          icon: 'external-link',
+          run: () =>
+            path
+              ? file({ op: 'open', path })
+              : actions.attempt(() => actions.openVersion(version.id)),
+        },
+      ],
+      version.name,
+    );
+  };
   /** Put a starting question into the composer, caret at the end. @param {string} text */
   const fill = (text) => {
     actions.composerDraft(owner, text);
@@ -281,7 +321,7 @@ export function Welcome({ projectId = null }) {
       <//>
       <div class="ss-header__actions"></div>
     </div>
-    <div class="ss-content">
+    <div class="ss-content ss-content--center">
       <div class="ss-home">
         <div class="ss-home__hello">
           <${Illustration} name="welcome" />
@@ -391,10 +431,11 @@ export function Welcome({ projectId = null }) {
                     <button
                       type="button"
                       class="ss-btn ss-btn--sm"
-                      data-tip=${t('在编辑台打开')}
-                      onClick=${() => actions.attempt(() => openDraft(draft))}
+                      aria-haspopup="menu"
+                      data-tip=${t('选择打开方式')}
+                      onClick=${(event) => draftMenu(event, draft)}
                     >
-                      ${t('继续写作')}
+                      ${t('继续写作')}<${Lucide} name="chevron-down" />
                     </button>
                   </div>`,
               )}

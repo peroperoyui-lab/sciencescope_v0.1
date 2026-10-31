@@ -324,14 +324,14 @@ def page_home():
                         ('database', '我的资料够回答这个问题吗？', '按项目资料核对，列出还缺的材料'),
                         ('list-checks', '按审稿标准读第 3 版', '@审稿人 · 标出必须修改的地方'),
                         ('lightbulb', '把“城市韧性”变成可操作的定义', '@研究设计专家 · 边界、维度和判断标准')))
-    resume = '<button class="ss-btn ss-btn--sm" type="button" data-tip="在编辑台打开">继续写作</button>'
+    resume = '<button class="ss-btn ss-btn--sm" type="button" aria-haspopup="menu" data-menu="#m-draft" data-tip="选择打开方式">继续写作<i data-i="chevron-down"></i></button>'
     drafts = ''.join(
         f'<div class="ss-list-row ss-list-row--2"><span class="ss-ftype ss-ftype--{k}" aria-hidden="true">{l}</span><div class="ss-list-row__main"><span class="ss-list-row__title">{n}</span><span class="ss-list-row__sub">{sub}</span></div>{time_meta(w)}{resume}</div>'
         for k, l, n, sub, w in (('docx', 'W', '开题报告.docx', f'{PROJECT} · 第 3 版 · 绑定「文献综述框架讨论」', '今天 15:40'),
                                 ('tex', 'T', '韧性指标体系.tex', f'{PROJECT} · 第 5 版', '昨天')))
     main = f'''    <main class="ss-main">
       {header("新对话", scope=scope_select("#m-where", PROJECT), actions="")}
-      <div class="ss-content">
+      <div class="ss-content ss-content--center">
         <div class="ss-home">
           <div class="ss-home__hello">
             {welcome_art()}
@@ -363,6 +363,7 @@ def page_home():
     </main>'''
     menus = (menu('m-where', radio('folder-open', PROJECT, True) + radio('folder', '劳动保障政策演化', False) + '  <div class="ss-menu__sep"></div>\n' + radio('message-square', '独立对话（不放进项目）', False))
              + menu('m-site', item('external-link', '打开站点') + item('pencil', '编辑站点') + item('chevron-up', '上移') + item('chevron-down', '下移') + SEP + item('trash-2', '移除站点', extra=' class="ss-menu__item ss-menu__item--danger"').replace('class="ss-menu__item" type="button" class="ss-menu__item ss-menu__item--danger"', 'class="ss-menu__item ss-menu__item--danger" type="button"'))
+             + menu('m-draft', item('app-window', '在编辑台打开') + item('folder-open', '在资源管理器中显示') + item('external-link', '用默认程序打开'))
              + MODE_MENU)
     card('PageHome', 'group="整页示例" page height=900 width=1536 subtitle="首页（新对话）：一屏放下，问候、所选项目的进度一句话、从这里开始（下一步）、继续上次的工作（最近稿件）、常用学术站点，输入框在底部；页头选新对话放进哪个项目"',
          page(main, current='new', menus=menus), '''
@@ -371,18 +372,18 @@ def page_home():
 ## 区域
 
 - 页头：标题「新对话」，旁边的范围选择决定新对话放进哪个项目，最后一项是「独立对话（不放进项目）」。从项目里点「新对话」时默认选中这个项目。
-- 问候：欢迎插画（Illustrations 的 welcome）、「今天想研究什么？」和一句带名字的问候。
+- 问候：欢迎插画（Illustrations 的 welcome，120×90）居中，下面依次是居中的「今天想研究什么？」和一句带名字的问候。
 - 进度一句话（选了项目时才有）：一张小卡片写这个项目现在到哪了，只用已有的数据拼：最近改过的稿件改到第几版、计划里还有几件没做完；下面两个按钮：「继续：对话名」打开这个项目最近的对话，「看计划」打开工作站的计划。三样都没有就整张卡片不出现。
 - 从这里开始：两列四张起步卡片（图标、一句话、一行说明）。点一下把这句话填进输入框，要请的专家写成 @名字 放在开头，光标停在末尾，用户改几个字再发；不会直接发送。卡片按手头的东西换说法：有最近稿件时用稿件名（「让反方挑一挑《开题报告》」「按审稿标准读第 3 版」），没有稿件时换成不提稿件的问法；独立对话时只留不依赖项目的两张。卡片由任务秘书写（全局一份：最后离开的项目和它的进度，加四张卡片，哪个项目的秘书重写就覆盖成哪个；秘书还没写过时用上面的模板）。
-- 继续上次的工作：所选项目（独立对话时为全部项目）最近改过的稿件，最多 3 份，列表两行版：文件类型标、文件名，第二行写项目、第几版和绑定的对话；行尾时间和「继续写作」，点了在编辑台打开这份稿件。右上「编辑台」直接打开编辑台。没有稿件时整组隐藏。
+- 继续上次的工作：所选项目（独立对话时为全部项目）最近改过的稿件，最多 3 份，列表两行版：文件类型标、文件名，第二行写项目、第几版和绑定的对话；行尾时间和「继续写作 ⌄」，点开选打开方式：在编辑台打开、在资源管理器中显示、用默认程序打开（有项目文件时对项目文件，没有时对最新版本）。右上「编辑台」直接打开编辑台。没有稿件时整组隐藏。
 - 常用学术站点：一排按钮，点一下在系统浏览器打开；右键是打开、编辑、上移、下移、移除；「添加站点」填名称和网址；齿轮进入管理。
 - 输入框（Composer）：和对话页同一个组件，执行方式只有「请求批准」「常规」两档。
 
 ## 规则
 
 - 不再列按时间排的最近对话：找对话用左栏和「全部对话」；首页只回答「上一步到哪了、下一步做什么」。
-- 整页一屏放下，不滚动、不被输入框挡住（1536×900 按 125% 缩放时）：问候压成一行（小插画在左），各组间距收紧；窗口太矮时才出现滚动。
-- 页面宽度随窗口变化，内容列最宽 720px，居中。
+- 整页一屏放下，不滚动、不被输入框挡住（1800×1200 按 125% 缩放时，进度、四张卡片、三份稿件都在）：各组间距 16px；窗口太矮时才出现滚动，从顶上开始。
+- 页面宽度随窗口变化，内容列最宽 720px；整块左右居中，内容比可用高度矮时也上下居中（`ss-content--center`）。
 ''')
 
 
