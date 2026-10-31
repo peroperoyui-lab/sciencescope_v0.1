@@ -21,11 +21,11 @@ export function gapElement(gap) {
   return element;
 }
 
-/** @param {any} piece */
-function pieceNode(piece) {
+/** @param {any} piece @param {((ref: any) => Promise<string>) | null} media */
+function pieceNode(piece, media) {
   /** @type {Node} */
   let node;
-  if (piece.inline.atom) node = atomElement(piece.inline, null);
+  if (piece.inline.atom) node = atomElement(piece.inline, media);
   else {
     node = document.createTextNode(piece.text);
     for (const mark of MARKS) {
@@ -70,10 +70,11 @@ function blockElement(block, source) {
  * Fill `article` with the blocks and their marks; returns each block's element,
  * in block order, for the scroll map and 上一处 / 下一处.
  * @param {HTMLElement} article @param {any[]} blocks @param {any[]} entries from compareModel
- * @param {{ source: boolean }} options Markdown and TeX show their source text
+ * @param {{ source: boolean, media?: ((ref: any) => Promise<string>) | null }} options
+ *   Markdown and TeX show their source text; `media` gives a Word picture's URL
  * @returns {HTMLElement[]}
  */
-export function renderComparePage(article, blocks, entries, { source }) {
+export function renderComparePage(article, blocks, entries, { source, media = null }) {
   const fragment = document.createDocumentFragment();
   const elements = [];
   let table = null;
@@ -83,7 +84,8 @@ export function renderComparePage(article, blocks, entries, { source }) {
     const entry = entries[index] ?? { marks: [] };
     const element = blockElement(block, source);
     if (entry.gapStart) element.append(gapElement(entry.gapStart));
-    for (const piece of pieces(inlinesOf(block), entry.marks)) element.append(pieceNode(piece));
+    for (const piece of pieces(inlinesOf(block), entry.marks))
+      element.append(pieceNode(piece, media));
     if (block.kind === 'opaque' && !element.textContent) element.textContent = '…';
     if (entry.gapEnd) element.append(gapElement(entry.gapEnd));
     if (entry.block) {

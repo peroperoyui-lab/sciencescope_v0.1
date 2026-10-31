@@ -1,8 +1,9 @@
 /**
  * @param {import('./api.js').Api} api
  * @param {import('./state.js').Store} store
+ * @param {ReturnType<typeof import('./message-extras.js').createMessageExtras>} [extras]
  */
-export function createPreviewActions(api, store) {
+export function createPreviewActions(api, store, extras) {
   const query = (target) =>
     new URLSearchParams(
       Object.entries(target)
@@ -25,7 +26,11 @@ export function createPreviewActions(api, store) {
     previewUrl: (url) =>
       `${url}${url.includes('?') ? '&' : '?'}token=${encodeURIComponent(api.token)}`,
     previewBytes: (target) => api.bytes(`/api/preview/content?${query(target)}`),
-    messageCitations: (id) => api.get(`/api/messages/${id}/citations`),
+    /** A message's citation targets: from its page's batch the first time. @param {string} id */
+    async messageCitations(id) {
+      const batched = await extras?.take(id, 'citations');
+      return batched ? batched.value : api.get(`/api/messages/${id}/citations`);
+    },
     openPreviewOriginal: (target) =>
       target.kind === 'version'
         ? api.post(`/api/versions/${target.id}/open`)

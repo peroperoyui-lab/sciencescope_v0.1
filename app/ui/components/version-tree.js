@@ -3,7 +3,7 @@
 // and the selected version's details. Right-click opens, edits from, compares,
 // renames, re-tiers, marks or deletes a version. Description (标记) and key
 // versions (重点) show once the server sends them (D10).
-import { useEffect, useRef, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { html } from '../html.js';
 import { formatTime, t } from '../i18n/index.js';
@@ -101,12 +101,26 @@ export function VersionTree({
       active = false;
     };
   }, [group.id, refresh]);
-  // The open version is selected first, and kept in view.
-  useEffect(() => setSelected(currentId ?? focusId ?? null), [group.id, currentId, focusId]);
+  // The open version is selected first, and kept in view. Once the person picks
+  // a version, it stays picked while the open one settles or versions are saved.
+  const picked = useRef(/** @type {string | null} */ (null));
+  /** @param {string | null} id */
+  const pick = (id) => {
+    picked.current = id;
+    setSelected(id);
+  };
+  useEffect(() => {
+    picked.current = null;
+  }, [group.id]);
+  useEffect(() => {
+    const kept = picked.current && (nodes ?? []).some((entry) => entry.id === picked.current);
+    if (!kept) setSelected(currentId ?? focusId ?? null);
+  }, [group.id, currentId, focusId]);
 
   const node = nodes?.find((entry) => entry.id === selected) ?? null;
   const current = nodes?.find((entry) => entry.id === currentId) ?? null;
-  useEffect(() => {
+  // Before the browser paints, so words typed right after picking a version stay.
+  useLayoutEffect(() => {
     setTitle(node?.displayTitle ?? '');
     setMark(node?.description ?? '');
   }, [node?.id, node?.displayTitle, node?.description]);
@@ -160,7 +174,7 @@ export function VersionTree({
     if (choice !== 'delete') return;
     try {
       await actions.deleteVersion(target.id);
-      setSelected(target.parentId ?? null);
+      pick(target.parentId ?? null);
       const graph = await actions.versionGraph(group.id);
       setNodes(graph.nodes);
     } catch (failure) {
@@ -203,7 +217,7 @@ export function VersionTree({
       const saved = await actions.saveVersionAsNew(target.id);
       const graph = await actions.versionGraph(group.id);
       setNodes(graph.nodes);
-      setSelected(saved?.versions?.[0]?.id ?? target.id);
+      pick(saved?.versions?.[0]?.id ?? target.id);
     } catch (failure) {
       actions.toast(failure.message);
     }
@@ -211,7 +225,7 @@ export function VersionTree({
 
   /** @param {MouseEvent} event @param {any} target */
   function menu(event, target) {
-    setSelected(target.id);
+    pick(target.id);
     const kids = children(target.id).length;
     const deleteOff = kids > 0 || target.id === currentId;
     actions.openMenu(
@@ -400,7 +414,7 @@ export function VersionTree({
                 data-key=${entry.key ? '' : undefined}
                 data-dim=${matches(entry, words) ? undefined : ''}
                 data-tip=${entry.description || undefined}
-                onClick=${() => setSelected(entry.id)}
+                onClick=${() => pick(entry.id)}
                 onDblClick=${() => onOpen(entry)}
                 onContextMenu=${(event) => menu(event, entry)}
               >

@@ -41,6 +41,11 @@ export function createVersionActions(api) {
     deleteVersion: (id) => api.request('DELETE', `/api/versions/${id}`),
     openVersion: (id, reveal = false) => api.post(`/api/versions/${id}/open`, { reveal }),
     readVersion: (id) => api.get(`/api/versions/${id}`),
+    /** A Word picture in a version's original file, as an object URL. @param {string} id @param {any} ref */
+    async versionMedia(id, ref) {
+      const bytes = await api.bytes(`/api/versions/${id}/media/${encodeURIComponent(String(ref))}`);
+      return URL.createObjectURL(new Blob([bytes]));
+    },
     compareVersions: (id, baselineId) =>
       api.get(`/api/versions/${id}/compare?baseline=${encodeURIComponent(baselineId ?? '')}`),
     /** Block diff of two versions of one group; `baselineId` is the left page. */

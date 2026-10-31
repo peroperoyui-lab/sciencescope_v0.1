@@ -47,7 +47,12 @@ test(
       // v1: renamed in the details, given a tier.
       await node(1).click();
       // Type once v1's details are in, or the switch resets the box.
-      await desk.locator('.ss-vtree__fields', { hasText: 'v1' }).waitFor();
+      // (The details also name the parent and children, so wait for the box's own number.)
+      const shownNumber = (n) =>
+        desk.locator('.ss-vtree__fields .ss-input .ss-mono', {
+          hasText: new RegExp(`^v${n}$`, 'u'),
+        });
+      await shownNumber(1).waitFor();
       const name = desk.getByRole('textbox', { name: '版本名称' });
       await name.fill('初稿');
       await name.press('Enter');
@@ -106,12 +111,12 @@ test(
       await status.getByText('v1 · 主线 · 投稿').waitFor();
       // Renaming another version keeps it selected, not the one being edited.
       await node(2).click();
-      await desk.locator('.ss-vtree__fields', { hasText: 'v2' }).waitFor();
+      await shownNumber(2).waitFor();
       await name.fill('对照稿');
       await name.press('Enter');
       await node(2).filter({ hasText: '对照稿' }).waitFor();
       await desk.waitForTimeout(500);
-      assert.match(await desk.locator('.ss-vtree__fields').textContent(), /v2/u);
+      await shownNumber(2).waitFor();
       // Typed changes kept as a version grow a branch from v1.
       await desk.locator('.ss-page--md p', { hasText: '仍有争议。' }).click();
       await desk.keyboard.press('End');

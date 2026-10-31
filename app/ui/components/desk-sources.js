@@ -21,16 +21,45 @@ const GROUPS = [
 ];
 
 /**
- * @param {{ indexes: any[], meetingId: string | null, authorName: (item: any) => string,
+ * The sources a whole chat's answers used, read again when its last message changes.
+ * @param {string | null} meetingId
+ * @returns {any[]}
+ */
+export function useChatSources(meetingId) {
+  const actions = useActions();
+  const stamp = useAppState((state) => {
+    const list = meetingId ? state.messages[meetingId] : null;
+    const last = list?.at(-1);
+    return last ? `${list.length}:${last.id}:${last.status}` : '';
+  });
+  const [items, setItems] = useState(EMPTY);
+  useEffect(() => {
+    if (!meetingId) {
+      setItems(EMPTY);
+      return undefined;
+    }
+    let alive = true;
+    actions
+      .meetingSources(meetingId)
+      .then((answer) => alive && setItems(answer.items ?? EMPTY))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [meetingId, stamp]);
+  return items;
+}
+
+/**
+ * @param {{ indexes: any[], meetingId: string | null, chat: any[], authorName: (item: any) => string,
  *   onLocate: (item: any) => void, onOpen: (reference: any) => void,
  *   onChat: (messageId: string) => void }} props
  * `onLocate` brings an index's words into view; `onOpen` previews a source;
  * `onChat` shows the bound chat at that answer.
  */
-export function DeskSources({ indexes, meetingId, authorName, onLocate, onOpen, onChat }) {
+export function DeskSources({ indexes, meetingId, chat, authorName, onLocate, onOpen, onChat }) {
   const actions = useActions();
   const messages = useAppState((state) => (meetingId ? state.messages[meetingId] : null));
-  const toolCalls = useAppState((state) => state.toolCalls);
   const participants = useAppState((state) => state.participants);
   const meetings = useAppState((state) => state.meetings);
   const [from, setFrom] = useState('all');
@@ -41,7 +70,7 @@ export function DeskSources({ indexes, meetingId, authorName, onLocate, onOpen, 
     if (meetingId && !messages) actions.attempt(() => actions.openMeeting(meetingId));
   }, [meetingId]);
 
-  const all = collectSources(indexes, messages ?? EMPTY, toolCalls);
+  const all = collectSources(indexes, chat, messages ?? EMPTY);
   const shown = all.filter((entry) =>
     from === 'index' ? entry.index : from === 'chat' ? entry.chat : true,
   );

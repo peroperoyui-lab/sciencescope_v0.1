@@ -32,26 +32,28 @@ test('a source used by an index and by a chat answer is one row with both uses',
       text: '先看样本。0.85 的阈值建议引 Ragin [S2 p.3]。',
       status: 'done',
     },
-    { id: 'm2', text: '用户的问题', status: 'done' },
   ];
-  const toolCalls = {
-    t1: [
-      {
-        name: 'research_read',
-        status: 'done',
-        result: {
-          source: { id: 'src1', title: 'Redesigning Social Inquiry', label: 'S2' },
-          chunks: [{ page: 3 }],
-        },
-      },
-      {
-        name: 'research_read',
-        status: 'done',
-        result: { source: { id: 'src2', title: 'Set-Theoretic Methods', label: 'S5' }, chunks: [] },
-      },
-    ],
-  };
-  const rows = collectSources(indexes, messages, toolCalls);
+  // As GET /api/meetings/:id/sources lists them; m9 is not loaded in the chat tab.
+  const chat = [
+    {
+      sourceId: 'src1',
+      title: 'Redesigning Social Inquiry',
+      pages: [3],
+      uses: [
+        { messageId: 'm1', authorId: 'agent_main', createdAt: '2026-10-30T10:00:00Z', label: 'S2' },
+        { messageId: 'm1', authorId: 'agent_main', createdAt: '2026-10-30T10:00:00Z', label: 'S2' },
+      ],
+    },
+    {
+      sourceId: 'src2',
+      title: 'Set-Theoretic Methods',
+      pages: [],
+      uses: [
+        { messageId: 'm9', authorId: 'agent_main', createdAt: '2026-10-01T10:00:00Z', label: 'S5' },
+      ],
+    },
+  ];
+  const rows = collectSources(indexes, chat, messages);
   const byKey = Object.fromEntries(rows.map((row) => [row.key, row]));
   assert.deepEqual(Object.keys(byKey).sort(), [
     'file:data/city_panel.csv',
@@ -72,7 +74,13 @@ test('a source used by an index and by a chat answer is one row with both uses',
     table.uses.map((use) => use.item.id),
     ['a1', 'a2'],
   );
-  assert.equal(byKey['source:src2'].index, false);
+  const earlier = byKey['source:src2'];
+  assert.equal(earlier.index, false);
+  assert.equal(earlier.title, 'Set-Theoretic Methods');
+  assert.deepEqual(
+    earlier.uses.map((use) => [use.message.id, use.message.authorId, use.quote]),
+    [['m9', 'agent_main', '']],
+  );
 });
 
 test('sources group by kind and a cited sentence is found by its label', () => {

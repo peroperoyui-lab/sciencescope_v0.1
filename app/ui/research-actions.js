@@ -1,5 +1,9 @@
-/** Research requests share the host API and remain independent of page rendering. @param {import('./api.js').Api} api */
-export function createResearchActions(api) {
+/**
+ * Research requests share the host API and remain independent of page rendering.
+ * @param {import('./api.js').Api} api
+ * @param {ReturnType<typeof import('./message-extras.js').createMessageExtras>} [extras]
+ */
+export function createResearchActions(api, extras) {
   const query = (values) =>
     new URLSearchParams(
       Object.entries(values)
@@ -37,6 +41,13 @@ export function createResearchActions(api) {
     restoreKnowledgeVersion: (id) => api.post(`/api/knowledge/versions/${id}/restore`),
     knowledgeVersions: (options) => api.get(`/api/knowledge/versions?${query(options)}`),
     knowledgeVersion: (id) => api.get(`/api/knowledge/versions/${id}`),
+    /**
+     * The knowledge change an answer made, from its page's batch the first time:
+     * `{ value }` with the closed version's detail plus `lastId` and `withdrawn`
+     * (value null: none), or null when the caller reads it itself.
+     * @param {string} messageId
+     */
+    batchedKnowledge: async (messageId) => (await extras?.take(messageId, 'knowledge')) ?? null,
     knowledgeLabels: (ref, change, sessionId) =>
       api.post('/api/knowledge/labels', { ref, ...change, sessionId }),
     /**

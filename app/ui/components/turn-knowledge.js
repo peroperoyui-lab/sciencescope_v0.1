@@ -141,6 +141,8 @@ export function KnowledgeChange({ message }) {
   const [busy, setBusy] = useState(false);
   const turnId = message.turnId;
   const load = async () => {
+    const batched = await actions.batchedKnowledge(message.id);
+    if (batched) return batched.value && { ...batched.value, last: batched.value.lastId };
     const page = await actions.knowledgeVersions({ turnId, limit: 1 });
     const version = page.rows?.[0];
     if (!version?.closedAt) return null;

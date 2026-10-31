@@ -14,6 +14,7 @@ import { createExtensionActions } from './extension-actions.js';
 import { createPythonActions } from './python-actions.js';
 import { createMemoryActions } from './memory-actions.js';
 import { createSecretaryActions } from './secretary-actions.js';
+import { createMessageExtras } from './message-extras.js';
 import { applyAppearance } from './appearance.js';
 import { hideAssistantWindow, isNative, openAssistantWindow } from './assistant-window.js';
 import { navigate } from './route.js';
@@ -30,6 +31,7 @@ export const MAIN_EXPERT_ID = 'agent_main';
 export function createActions(api, store) {
   const set = (patch) => store.update((state) => ({ ...state, ...patch }));
   const apply = (type, payload) => store.update((state) => applyEvent(state, { type, payload }));
+  const extras = createMessageExtras(api);
   let stopFollowing = () => {};
 
   async function start() {
@@ -109,7 +111,7 @@ export function createActions(api, store) {
         hasBefore: { ...state.hasBefore, [meetingId]: page.hasBefore },
       };
     });
-    await Promise.all(page.messages.filter((m) => m.turnId).map((m) => loadTurn(m.turnId)));
+    await loadAnswers(meetingId, page.messages);
     await loadMeetingContexts(meetingId);
     await outbox.loadOutbox(meetingId);
   }
@@ -138,6 +140,9 @@ export function createActions(api, store) {
     set({ assistantOpen: open });
   }
 
+  /** The sources a whole chat's answers used (GET /api/meetings/:id/sources). @param {string} meetingId */
+  const meetingSources = (meetingId) => api.get(`/api/meetings/${meetingId}/sources`);
+
   async function loadEarlier(meetingId) {
     const loaded = store.get().messages[meetingId] ?? [];
     if (!loaded.length) return;
@@ -147,12 +152,37 @@ export function createActions(api, store) {
       messages: { ...state.messages, [meetingId]: [...page.messages, ...loaded] },
       hasBefore: { ...state.hasBefore, [meetingId]: page.hasBefore },
     }));
-    await Promise.all(page.messages.filter((m) => m.turnId).map((m) => loadTurn(m.turnId)));
+    await loadAnswers(meetingId, page.messages);
     await loadMeetingContexts(meetingId);
   }
 
+  /**
+   * The turns of a page's answers, with their citations and knowledge changes
+   * kept for the messages to pick up (see message-extras.js); a message the
+   * batch could not answer loads its turn alone.
+   * @param {string} meetingId @param {any[]} messages
+   */
+  async function loadAnswers(meetingId, messages) {
+    const answers = messages.filter((message) => message.turnId);
+    const items = await extras.prefetch(
+      meetingId,
+      answers.map((message) => message.id),
+    );
+    await Promise.all(
+      answers.map(async (message) => {
+        const item = items[message.id];
+        if (!item || item.error) await loadTurn(message.turnId);
+        else if (item.turn) applyTurn(message.turnId, item.turn);
+      }),
+    );
+  }
+
   async function loadTurn(turnId) {
-    const { turn, toolCalls } = await api.get(`/api/turns/${turnId}`);
+    applyTurn(turnId, await api.get(`/api/turns/${turnId}`));
+  }
+
+  /** @param {string} turnId @param {{ turn: any, toolCalls: any[] }} snapshot */
+  function applyTurn(turnId, { turn, toolCalls }) {
     store.update((state) => {
       // The event stream may already have reported a newer state of this turn
       // and its activity (a request sent just after the page opened): keep what
@@ -590,14 +620,15 @@ export function createActions(api, store) {
     ...createDeskActions(api),
     ...createDeliverableActions(api),
     ...createSnapshotActions(api, store, () => resourceEdits.catch(() => {})),
-    ...createResearchActions(api),
+    ...createResearchActions(api, extras),
     ...createResearchInputActions(api, store),
-    ...createPreviewActions(api, store),
+    ...createPreviewActions(api, store, extras),
     ...createPythonActions(api, store),
     ...createMemoryActions(api),
     ...createSecretaryActions(api, store),
     ...createExtensionActions(api),
     start,
+    meetingSources,
     stop: () => stopFollowing(),
     openMeeting,
     assistantSnapshot,

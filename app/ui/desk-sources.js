@@ -1,7 +1,7 @@
 // 「来源」 in the desk (components/desk-sources.js): the sources a document
-// uses, from its indexes and from the answers in its bound chat, one row per
-// source with every place that uses it.
-import { usedSources } from './turn-sources.js';
+// uses, from its indexes and from the answers in its bound chat (the whole
+// chat, as GET /api/meetings/:id/sources lists it), one row per source with
+// every place that uses it.
 
 const EMPTY = [];
 const SCRIPT = /\.(py|r|do|jl|sh|ps1|ipynb|m|sas|sps)$/iu;
@@ -63,10 +63,11 @@ export function citingSentence(text, label) {
 /**
  * Sources from the document's indexes and the chat's answers, merged by source.
  * @param {any[]} indexes root index items of the open document
- * @param {any[]} messages the bound chat's loaded messages
- * @param {Record<string, any[]>} toolCalls tool calls by turn id
+ * @param {any[]} chat the bound chat's sources: `{sourceId, title, pages, uses:
+ *   [{messageId, authorId, createdAt, label}]}`, newest use first
+ * @param {any[]} messages the chat's loaded messages, for the citing sentences
  */
-export function collectSources(indexes, messages, toolCalls) {
+export function collectSources(indexes, chat, messages = EMPTY) {
   /** @type {Map<string, any>} */
   const rows = new Map();
   const row = (source, reference) => {
@@ -84,18 +85,24 @@ export function collectSources(indexes, messages, toolCalls) {
       if (!entry.uses.some((use) => use.item?.id === item.id))
         entry.uses.push({ kind: 'index', item });
     }
-  for (const message of messages) {
-    if (!message.turnId || message.status === 'streaming') continue;
-    for (const used of usedSources(toolCalls[message.turnId] ?? EMPTY, message.text ?? '')) {
-      const reference = { schema: 1, kind: 'source', id: used.id, label: used.title };
-      const entry = row(sourceOf(reference), reference);
-      entry.chat = true;
-      if (entry.title === used.id && used.title) entry.title = used.title;
-      for (const page of used.pages) entry.pages.add(page);
+  const loaded = new Map(messages.map((message) => [message.id, message]));
+  for (const used of chat) {
+    const reference = { schema: 1, kind: 'source', id: used.sourceId, label: used.title };
+    const entry = row(sourceOf(reference), reference);
+    entry.chat = true;
+    if (entry.title === used.sourceId && used.title) entry.title = used.title;
+    for (const page of used.pages ?? EMPTY) entry.pages.add(page);
+    for (const use of used.uses ?? EMPTY) {
+      if (entry.uses.some((known) => known.message?.id === use.messageId)) continue;
+      const message = loaded.get(use.messageId) ?? {
+        id: use.messageId,
+        authorId: use.authorId,
+        createdAt: use.createdAt,
+      };
       entry.uses.push({
         kind: 'chat',
         message,
-        quote: citingSentence(message.text ?? '', used.label),
+        quote: message.text ? citingSentence(message.text, use.label) : '',
       });
     }
   }

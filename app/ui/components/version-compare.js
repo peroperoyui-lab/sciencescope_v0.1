@@ -65,6 +65,17 @@ export function VersionCompare({ versions, left, right, onPick, onExit, tag = 'd
     if (!ready) return undefined;
     let active = true;
     let observer = null;
+    // Word pictures come from each version's original file.
+    const urls = [];
+    /** @param {string} id */
+    const media = (id) =>
+      result.format === 'docx'
+        ? (/** @type {any} */ ref) =>
+            actions.versionMedia(id, ref).then((url) => {
+              urls.push(url);
+              return url;
+            })
+        : null;
     (async () => {
       const texPage = result.format === 'tex' && !texSource;
       const [{ renderComparePage }, { renderTexComparePage }] = await Promise.all([
@@ -81,8 +92,14 @@ export function VersionCompare({ versions, left, right, onPick, onExit, tag = 'd
             renderTexComparePage(pages[1].current, result.new.blocks, model.new),
           ]
         : [
-            renderComparePage(pages[0].current, result.old.blocks, model.old, { source }),
-            renderComparePage(pages[1].current, result.new.blocks, model.new, { source }),
+            renderComparePage(pages[0].current, result.old.blocks, model.old, {
+              source,
+              media: media(left),
+            }),
+            renderComparePage(pages[1].current, result.new.blocks, model.new, {
+              source,
+              media: media(right),
+            }),
           ];
       const measure = () => {
         const [a, b] = columns.map((ref) => ref.current);
@@ -109,6 +126,7 @@ export function VersionCompare({ versions, left, right, onPick, onExit, tag = 'd
     return () => {
       active = false;
       observer?.disconnect();
+      for (const url of urls) URL.revokeObjectURL(url);
       view.current = null;
       setTotal(0);
     };

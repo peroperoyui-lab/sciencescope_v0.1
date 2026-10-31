@@ -24,7 +24,7 @@ import { DeskChat } from './desk-chat.js';
 import { DeskDocument, deskChats, externalQuestion } from './desk-document.js';
 import { DeskNav, FileType, deskKind, latestVersion } from './desk-nav.js';
 import { useDeskNotes } from './desk-notes.js';
-import { DeskSources } from './desk-sources.js';
+import { DeskSources, useChatSources } from './desk-sources.js';
 import { FilePreview } from './file-preview.js';
 import { SecretaryPanel } from './secretary-panel.js';
 import { Splitter } from './splitter.js';
@@ -764,8 +764,6 @@ export function DeskWindow() {
   const [nav, setNav] = useState(true);
   const [panel, setPanel] = useState(true);
   const [panelTab, setPanelTab] = useState('notes');
-  const toolCalls = useAppState((state) => state.toolCalls);
-  const chatMessages = useAppState((state) => state.messages);
   const participants = useAppState((state) => state.participants);
   // The answer 「来源」 asked the chat tab to show, {id, at}.
   const [chatFocus, setChatFocus] = useState(/** @type {any} */ (null));
@@ -1116,7 +1114,7 @@ export function DeskWindow() {
     (chatProject && bindings[chatProject]) ??
     (sessionChat?.projectId === chatProject ? sessionChat.meetingId : null);
   const bound = meetings.find((entry) => entry.id === boundId) ?? null;
-  const boundMessages = boundId ? chatMessages[boundId] : null;
+  const chatSources = useChatSources(boundId);
   // Documents opened later join the same chat.
   useEffect(() => {
     if (chatProject && boundId) deskChats.set(chatProject, boundId);
@@ -1378,10 +1376,11 @@ export function DeskWindow() {
           onWidth=${savePanel('deskPanel')}
           notes=${notes.panel}
           count=${notes.count}
-          sourceCount=${collectSources(notes.indexes, boundMessages ?? [], toolCalls).length}
+          sourceCount=${collectSources(notes.indexes, chatSources).length}
           sources=${html`<${DeskSources}
             indexes=${notes.indexes}
             meetingId=${boundId}
+            chat=${chatSources}
             authorName=${notes.authorName}
             onLocate=${notes.locate}
             onOpen=${notes.openReference}

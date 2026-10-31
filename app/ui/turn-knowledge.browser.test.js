@@ -91,6 +91,18 @@ test(
         assert.equal(active(), 2);
         await change.getByRole('button', { name: '撤回这组修改' }).waitFor();
 
+        // Opened again, the answers' extras come in one request, not one per answer.
+        const asked = [];
+        page.on('request', (request) => asked.push(new URL(request.url()).pathname));
+        await page.reload();
+        await change.locator('.ss-files__head', { hasText: '新增 2 个实体、2 条关系' }).click();
+        // Restored after a withdrawal: the batch reads the whole chain.
+        await change.getByRole('button', { name: '撤回这组修改' }).waitFor();
+        assert.equal(asked.filter((route) => route.endsWith('/message-extras')).length, 1);
+        assert.equal(asked.filter((route) => route.startsWith('/api/turns/')).length, 0);
+        assert.equal(asked.filter((route) => route.endsWith('/citations')).length, 0);
+        assert.equal(asked.filter((route) => route === '/api/knowledge/versions').length, 0);
+
         await change.getByRole('button', { name: '在图中查看' }).click();
         await page.waitForFunction(() => location.hash === '#/library');
       },
