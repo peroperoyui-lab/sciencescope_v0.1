@@ -459,7 +459,18 @@ export function createMinutesService({
       while (!startupComplete && !closed && !signal?.aborted) await waitForChange(signal);
       for (const meeting of meetings()) {
         if (closed || signal?.aborted) return { errors: [], closed: true };
-        await refresh(meeting.id, { reason: 'pending' });
+        const work = refresh(meeting.id, { reason: 'pending' });
+        let finished = false;
+        const done = () => {
+          finished = true;
+          wakeSettled();
+        };
+        // Home closes before minutes. Stop waiting on its abort so the normal
+        // minutes.close hook can interrupt this refresh and retain pending work.
+        void work.then(done, done);
+        while (!finished && !closed && !signal?.aborted) await waitForChange(signal);
+        if (closed || signal?.aborted) return { errors: [], closed: true };
+        await work;
       }
     }
     while (!closed && !signal?.aborted) {

@@ -6,7 +6,7 @@ import path from 'node:path';
 import { readDocx } from './docx/read.js';
 import { cellPlace, publicBlock } from './model.js';
 import { readText } from './text.js';
-import { indexMedia } from './media.js';
+import { indexXml } from './docx/xml.js';
 
 const normalize = (text) => text.normalize('NFKC').replace(/\s+/gu, ' ').trim();
 export const MARKS = ['b', 'i', 'u', 'sup', 'sub'];
@@ -64,18 +64,57 @@ export function describeBlock(block, document) {
   return { block, key: normalize(key), matchingText: normalize(matchingText), atoms, runs };
 }
 
+/**
+ * Comparison uses every embedded part of a drawing, including grouped pictures
+ * and SVG originals behind PNG previews. The reader's first-picture API stays unchanged.
+ * @param {any} document
+ * @returns {Promise<Map<number,string[]>>}
+ */
+async function embeddedImageFiles(document) {
+  const xml = await document.zip.file('word/_rels/document.xml.rels')?.async('string');
+  const relationships = new Map(
+    (xml ? indexXml(xml) : [])
+      .filter((span) => span.tag.split(':').at(-1) === 'Relationship')
+      .map((span) => [span.attrs.Id, span.attrs]),
+  );
+  const result = new Map();
+  for (const [ref, atom] of document.atoms.entries()) {
+    if (atom.atom !== 'image') continue;
+    const files = new Set();
+    for (const span of document.inside(atom)) {
+      if (!['blip', 'imagedata', 'svgBlip'].includes(span.tag.split(':').at(-1))) continue;
+      const id = Object.entries(span.attrs).find(([name]) => /:(?:embed|id)$/u.test(name))?.[1];
+      const relation = relationships.get(id);
+      if (!relation || relation.TargetMode === 'External' || !relation.Type?.endsWith('/image'))
+        continue;
+      const file = path.posix.normalize(
+        relation.Target.startsWith('/')
+          ? relation.Target.slice(1)
+          : path.posix.join('word', relation.Target),
+      );
+      if (document.zip.file(file)) files.add(file);
+    }
+    if (files.size) result.set(ref, [...files]);
+  }
+  return result;
+}
+
 async function imageHashes(document) {
   const files = new Map();
   const hashes = new Map();
   if (!document.atoms.some((atom) => atom.atom === 'image')) return hashes;
   // Replacing an embedded image can keep the same drawing XML and relationship
   // id. Its referenced bytes are part of identity; shared media is read once.
-  for (const [ref, item] of await indexMedia(document)) {
-    if (!files.has(item.file)) {
-      const bytes = await document.zip.file(item.file).async('nodebuffer');
-      files.set(item.file, createHash('sha256').update(bytes).digest('hex'));
+  for (const [ref, entries] of await embeddedImageFiles(document)) {
+    const identities = [];
+    for (const file of entries) {
+      if (!files.has(file)) {
+        const bytes = await document.zip.file(file).async('nodebuffer');
+        files.set(file, createHash('sha256').update(bytes).digest('hex'));
+      }
+      identities.push(files.get(file));
     }
-    hashes.set(ref, files.get(item.file));
+    hashes.set(ref, createHash('sha256').update(JSON.stringify(identities)).digest('hex'));
   }
   return hashes;
 }

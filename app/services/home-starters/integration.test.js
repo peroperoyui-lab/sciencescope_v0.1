@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { withCore } from '../../testing.js';
+import { tempDir, withCore } from '../../testing.js';
+import { createCore } from '../../core/index.js';
+import { createApp } from '../../app.js';
 import { createScriptedRuntime } from '../../runtime/scripted.js';
 import { createMinutesService } from '../secretary/minutes.js';
 import { createAppServer } from '../../server/server.js';
@@ -24,6 +26,84 @@ const cards = {
     expertId: null,
   })),
 };
+
+test('closing the app interrupts startup minutes before waiting for pending home cards', async (t) => {
+  const fixture = await tempDir('home-close-recovery');
+  const core = await createCore({ dataRoot: fixture.dir });
+  const project = await core.projects.create({ name: '恢复中关闭的合成项目' });
+  const meeting = core.meetings.create({ projectId: project.id });
+  core.messages.post({ meetingId: meeting.id, authorId: 'person_user', text: '待补写的合成事实' });
+  await core.workspace.edit({
+    resource: 'settings',
+    key: 'app',
+    op: 'patch',
+    args: {
+      changes: {
+        models: { default: { provider: 'test', model: 'scripted' } },
+        memory: { enabled: false },
+      },
+    },
+  });
+  core.db.prepare('UPDATE home_starters_state SET focused_project_id=? WHERE id=1').run(project.id);
+  core.close();
+  const entered = gate();
+  let interrupted = false;
+  let calls = 0;
+  const runtime = createScriptedRuntime({
+    script: async function* ({ signal, instructions }) {
+      calls++;
+      assert.match(instructions, /You maintain the complete research meeting minutes/u);
+      await new Promise((resolve) => {
+        signal.addEventListener(
+          'abort',
+          () => {
+            interrupted = true;
+            resolve(undefined);
+          },
+          { once: true },
+        );
+        entered.release();
+      });
+      yield '关闭时应保留待补写状态';
+    },
+  });
+  const app = await createApp({
+    dataRoot: fixture.dir,
+    token: 'close-test',
+    runtime,
+    runtimeName: 'scripted',
+  });
+  let closing;
+  let timer;
+  try {
+    await app.listen();
+    await entered.promise;
+    const started = performance.now();
+    closing = app.close();
+    const completed = await Promise.race([
+      closing.then(() => true),
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(false), 3000);
+      }),
+    ]);
+    t.diagnostic(
+      JSON.stringify({ completed, interrupted, calls, closeMs: performance.now() - started }),
+    );
+    assert.equal(
+      completed,
+      true,
+      'app.close must reach minutes cancellation without a model response',
+    );
+    assert.equal(interrupted, true);
+    assert.equal(calls, 1);
+  } finally {
+    clearTimeout(timer);
+    // A failing pre-fix run must also release its held fake model and database.
+    for (const session of runtime.sessions.keys()) await runtime.interrupt(session);
+    await (closing ?? app.close());
+    await fixture.cleanup();
+  }
+});
 
 test('focus HTTP waits for deferred leave minutes before publishing cards and returns the existing focus shape', () =>
   withCore('home-starters-http', async (core) => {

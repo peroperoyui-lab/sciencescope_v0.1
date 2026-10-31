@@ -146,6 +146,9 @@ test('starter JSON accepts Unicode limits and roster IDs without shortening the 
   };
   assert.deepEqual(parseStarterResult(JSON.stringify(value), ['current-expert']), value);
   assert.match(STARTER_INSTRUCTIONS, /不编造/u);
+  assert.match(STARTER_INSTRUCTIONS, /版号只说明已有版本，不说明当前工作副本是否已写回/u);
+  assert.match(STARTER_INSTRUCTIONS, /没有明确的当前保存证据.*不声称已写回、未写回/u);
+  assert.match(STARTER_INSTRUCTIONS, /progress、title、sub、text 不展示 chg_、turn_/u);
 });
 
 test('invalid JSON, card counts, fields, Unicode lengths, mentions and roster IDs are rejected', () => {

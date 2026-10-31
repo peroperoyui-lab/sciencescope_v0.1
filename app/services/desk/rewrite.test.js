@@ -16,6 +16,7 @@ test('selection rewrite posts a version mark, returns its turn and queues busy e
   let entered = () => {};
   let release = () => {};
   let count = 0;
+  const instructionsSeen = [];
   const started = new Promise((resolve) => {
     entered = () => resolve(undefined);
   });
@@ -25,6 +26,7 @@ test('selection rewrite posts a version mark, returns its turn and queues busy e
   const runtime = createScriptedRuntime({
     script: async function* ({ call, input, instructions }) {
       const index = count++;
+      instructionsSeen.push(instructions);
       assert.match(instructions, /workspace_edit resource=manuscript/u);
       assert.match(input, /<annotation/u);
       assert.ok(input.includes(`manuscript="${key}"`));
@@ -138,6 +140,12 @@ test('selection rewrite posts a version mark, returns its turn and queues busy e
     release();
     await app.conductor.idle();
     assert.equal(count, 2);
+    for (const packet of instructionsSeen) {
+      const fidelity = packet.match(/^- 改写[^\n]*$/mu)?.[0] ?? '';
+      assert.match(fidelity, /只使用原文、用户指令和本轮读到的材料/u);
+      assert.match(fidelity, /不新增事实、判断、预期或结论/u);
+      assert.match(fidelity, /需要补充.*在回答里提出.*不写进正文/u);
+    }
     const current = await app.desk.getSession(bound.session.id);
     assert.deepEqual(
       current.blocks.map((block) => block.text),

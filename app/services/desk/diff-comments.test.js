@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import JSZip from 'jszip';
 import { createCanvas } from '@napi-rs/canvas';
@@ -68,6 +68,7 @@ async function docx(t, body, options = {}) {
   const saved = await JSZip.loadAsync(bytes);
   return {
     ...read,
+    file,
     documentXml: await saved.file('word/document.xml').async('string'),
     relationshipsXml: await saved.file('word/_rels/document.xml.rels').async('string'),
     imageBytes: options.image ? await saved.file('word/media/image.png').async('nodebuffer') : null,
@@ -185,4 +186,43 @@ test('identical drawing XML and relationship IDs still detect changed embedded i
   const range = [{ block: 0, from: prefix.length, to: prefix.length + 1 }];
   assert.deepEqual(changed.deleted, range);
   assert.deepEqual(changed.inserted, range);
+});
+
+test('a grouped drawing detects replacement of its second embedded picture', async (t) => {
+  const fixture = await docx(t, paragraph(run('图示') + picture('image')), {
+    rid: 'image',
+    image: png('#cc2222'),
+  });
+  const zip = await JSZip.loadAsync(await readFile(fixture.file));
+  zip.file(
+    'word/document.xml',
+    fixture.documentXml.replace(
+      '<a:blip r:embed="image"/>',
+      '<a:blip r:embed="image"/><a:blip r:embed="second"/>',
+    ),
+  );
+  zip.file(
+    'word/_rels/document.xml.rels',
+    fixture.relationshipsXml.replace(
+      '</Relationships>',
+      `<Relationship Id="second" Type="${RELATIONSHIPS}/image" Target="media/second.png"/></Relationships>`,
+    ),
+  );
+  zip.file('word/media/second.png', png('#22cc22'));
+  await writeFile(fixture.file, await zip.generateAsync({ type: 'nodebuffer' }));
+  const before = await readDiffBlocks({ file: fixture.file, name: '公开合成稿.docx' });
+  const same = await readDiffBlocks({ file: fixture.file, name: '公开合成稿.docx' });
+  zip.file('word/media/second.png', png('#2222cc'));
+  await writeFile(fixture.file, await zip.generateAsync({ type: 'nodebuffer' }));
+  const after = await readDiffBlocks({ file: fixture.file, name: '公开合成稿.docx' });
+  assert.deepEqual(compare(t, 'grouped-image-unchanged', before, same).counts, {
+    deleted: 0,
+    inserted: 0,
+    format: 0,
+  });
+  assert.deepEqual(compare(t, 'grouped-image-second-changed', before, after).counts, {
+    deleted: 1,
+    inserted: 1,
+    format: 0,
+  });
 });
