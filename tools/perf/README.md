@@ -210,6 +210,68 @@ Install only the separate test product, verify an empty welcome page, and create
 
 Current screenshots are taken at the actual Windows 125% scale, with visual viewport scale 1; the helper records both metrics and marks the missing 100% set. Browser pinch/device-metrics experiments are separate diagnostic evidence. A genuine 100% set requires the approved system-scale change and restoration. Record any setup workaround and the exact model of each connection-test request rather than silently counting it as flash.
 
+## P5: Windows font A/B/C/D
+
+Use the **same isolated installed test product and closed data directory** for
+every pair. The install and evidence must be under this checkout's ignored
+.sciencescope-local directory. Finish installation, indexing and other disk-heavy
+work first. Disable automatic minutes, workbench updates, memory and version
+notes in that test profile; return to the home page, wait for pending/running
+work to reach zero and close normally. Do not use the owner's preview.
+
+Record actual GDI/registry font families in a private JSON file with a families
+array. The script also accepts the P5 preflight's Fonts.InstalledSans and
+Fonts.InstalledSerif arrays. A keeps the current stacks and bundled Noto sheet;
+B removes that sheet and uses Microsoft YaHei for sans text; C removes absent
+sans fallbacks while keeping the bundled variable font; D applies C and removes
+absent serif fallbacks. No product sources are changed.
+
+~~~powershell
+node tools/perf/p5-fonts.mjs --install $testInstall --data "$testInstall/data" --out .sciencescope-local/temp/p5/font-probe --variant A --inventory $fontInventory --mode probe
+node tools/perf/p5-fonts.mjs --install $testInstall --data "$testInstall/data" --out .sciencescope-local/temp/p5/font-matrix/A-1 --variant A --repetition 1 --inventory $fontInventory --cold-hook $approvedCacheHook --cold-number 1
+~~~
+
+Probe is an excluded instrumentation check and never clears caches. A normal
+invocation runs **one cold/warm pair**, without changing files between those two
+starts. Repeat five pairs per variant; P5 counterbalances pair order as ABCD,
+BCDA, CDAB, DABC, ABCD. Keep real Windows scaling at 125% for all timing samples.
+Obtain authorization for the exact 20 cache purges first. The ignored hook must
+enforce that quota and return the successful current receipt expected by
+native-host.prepareCold; reuse clear-cache.ps1 and Microsoft-signed RAMMap.
+Cold means Windows file working pages and standby cache were purged. Browser
+persistent caches and the Windows font cache are not separately cleared.
+
+Each sample uses the same startup trace categories and a 30-second trace, even
+for warm starts. An identical early observation script raises the ResourceTiming
+buffer to 10,000 for all variants and checks overflow. First-screen time uses
+the existing application mark; collecting fonts waits until that mark, then
+document.fonts.ready and two frames. Layout events are clipped to the main
+renderer thread's document-start/render interval; report union, maximum and
+count. Font requests started before render, completed by render and completed by
+collection are separate. Transfer-zero with positive encoded bytes is reported
+as a ResourceTiming cache hit.
+
+Evidence directories are exclusive and never overwrite a failed sample. The
+installed index/tokens files are backed up and restored in finally; each normal
+native close checks for owned residual processes. Raw traces are sanitized
+before retention. Preserve failures, missing marks and invalid samples, and
+investigate before resuming; do not silently replace them in the median.
+withFontVariant is also exported for the separate screenshot driver. Capture
+all variants at actual 100% and 125% after timing, restore 125% immediately after
+the 100% batch and record switch/restoration times. Screenshot launches are not
+timing samples.
+
+Use p5-font-report.mjs with --dir <matrix root> and --out <new JSON receipt>
+to aggregate the five planned samples in each variant/mode, keeping every
+sample and checking unique purge receipts. A shutdown-only verification failure
+is listed separately when its startup trace, fonts and scaling are complete;
+the original sample remains failed. Do not replace a valid startup observation.
+If that failure prevented the paired warm start, --mode warm records an excluded
+warmup followed by one measured warm sample without invoking the cache hook.
+Keep the recovery in a new evidence directory; if copying the missing warm
+directory into the matrix for aggregation, record its source and matching hash,
+and retain both originals. P5 used this recovery once after C5's cold exit check.
+
 Run the measurement-tool tests separately from the application check:
 
 ```powershell
