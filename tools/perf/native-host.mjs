@@ -54,7 +54,16 @@ export async function prepareCold(hook, run) {
   return receipt;
 }
 
-export async function launchNative({ install, data, port, onPage, observer, observerOutput }) {
+export async function launchNative({
+  install,
+  data,
+  port,
+  onPage,
+  observer,
+  observerOutput,
+  nativeStartupOutput,
+  extraBrowserArguments = '',
+}) {
   const occupied = await fetch(`http://127.0.0.1:${port}/json/version`, {
     signal: AbortSignal.timeout(500),
   }).then(
@@ -76,10 +85,13 @@ export async function launchNative({ install, data, port, onPage, observer, obse
     process.env.SystemRoot,
     process.env.SystemRoot + '/System32/WindowsPowerShell/v1.0',
   ].join(';');
-  env.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS = `--remote-debugging-port=${port}`;
+  env.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS =
+    `--remote-debugging-port=${port} ${extraBrowserArguments}`.trim();
   env.SCIENCESCOPE_DATA = data;
   env.SCIENCESCOPE_UPDATE_ENDPOINT = 'http://127.0.0.1:1/latest.json';
   delete env.SCIENCESCOPE_PERF_HTTP;
+  delete env.SCIENCESCOPE_PERF_STARTUP_NATIVE;
+  if (nativeStartupOutput) env.SCIENCESCOPE_PERF_STARTUP_NATIVE = path.resolve(nativeStartupOutput);
   if (observer) {
     env.NODE_OPTIONS = `--import "${pathToFileURL(path.resolve(observer)).href}"`;
     env.SCIENCESCOPE_PERF_HTTP = observerOutput;

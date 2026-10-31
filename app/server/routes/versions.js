@@ -38,6 +38,17 @@ export function registerVersionRoutes(router, versions, organizer) {
   router.get('/api/versions/:id/diff', ({ params, query }) =>
     versions.diff(params.id, query.has('baseline') ? query.get('baseline') : undefined),
   );
+  router.get('/api/versions/:id/media/:ref', async ({ params, response }) => {
+    const media = await versions.media(params.id, params.ref);
+    response.writeHead(200, {
+      'content-type': media.mimeType,
+      'content-length': media.bytes.length,
+      // Match session pictures: SVG content must never execute as a page.
+      'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+      'x-content-type-options': 'nosniff',
+    });
+    response.end(media.bytes);
+  });
   router.post('/api/versions/:id/save-as-new', ({ params }) =>
     versions.saveAsNew(params.id, { actorId: 'person_user' }),
   );

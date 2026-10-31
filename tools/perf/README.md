@@ -94,3 +94,126 @@ node --test tools/perf/structure-audit.test.mjs
 The audit reuses the installed TypeScript compiler API (5.9.3, Apache-2.0), records its actual installed metadata, and adds no dependency. It parses code under `app/` and `tools/`; production statistics cover `app/services/`, `app/core/`, `app/server/` and `app/shared/`, excluding test files and explicitly listed testing/fixture helpers. Outputs are `structure-inventory.json` and `structure-summary.md`. They retain the largest 15 files, every function above 80 physical lines with its lexical container and nested-function count, literal imports and layer transitions, direct server→core imports, SCC cycles within scope and full-app cycles touching scope, unresolved/nonliteral imports and parse diagnostics. Outer factory spans include nested functions; the separate own-line count helps distinguish closure organization from long individual operations.
 
 The module→test inventory separates exact companions, direct imports and transitive import paths, grouped as browser, runtime or other tests. Literal `new Worker(new URL(..., import.meta.url))` entries are recorded separately and traversed for test associations; worker launches remain separate from module-import SCCs. These static associations support assertion review; they are separate from executed line/branch coverage. Runtime-port imports are flagged for boundary review, preserving the distinction between a public port and a concrete provider SDK.
+
+## P4c phase-by-phase comparisons
+
+Run each comparison before editing its product path and again after the focused tests pass. Keep both JSON files under `.sciencescope-local/temp/p4c/`; the probes refuse to overwrite a previous receipt. The cumulative report is `docs/handoff/reports/P4c.md`.
+
+Part 1 checks existing similarity settings with the production save resource and an empty derived graph; it opens no application data or model. `--source` optionally selects another source checkout for the same probe. The counts describe validation agreement, not indexing performance.
+
+```powershell
+node tools/perf/p4c-similarity.mjs --source "<before-checkout>" --out .sciencescope-local/temp/p4c/part1-before.json
+node tools/perf/p4c-similarity.mjs --out .sciencescope-local/temp/p4c/part1-after.json
+```
+
+Part 2 seeds catalog metadata for 300 sources and 5,060 chunks, plus 12 chats with 1,000 synthetic answer messages. Every answer has a completed `research_read` receipt; no original documents, parser, runtime or model is involved. The longest chat has 180 answers and the probe reads its last 30. One warm-up precedes three measured runs. The old path makes 90 sequential loopback HTTP requests; the batch path makes one. These server-side timings exclude UI/WebView and do not simulate browser request concurrency. The after probe checks exact JSON equality against the old endpoints on the same fixture.
+
+```powershell
+node tools/perf/p4c-extras.mjs --phase before --source "<before-checkout>" --out .sciencescope-local/temp/p4c/part2-before.json
+node tools/perf/p4c-extras.mjs --phase after --out .sciencescope-local/temp/p4c/part2-after.json
+node tools/perf/p4c-extras.mjs --phase after --knowledge-changes --out .sciencescope-local/temp/p4c/part2-history.json
+```
+
+The optional history case creates six changed turns and restore chains of lengths one and two: 99 old requests versus one batch. Receipts retain all three samples, median wall time, request counts and uncompressed response-body bytes. Failures are retained in their reserved receipt; use a new output name for the next attempt.
+
+Part 2b measures the two desk read APIs. Use the test product's `runtime/node.exe` (22.22.2) to match the installed runtime; each receipt records `process.version`. The sources probe uses a single 1,000-answer conversation, the same 300-source/5,060-chunk synthetic catalog, and one warm-up plus three samples. Its old control calls the shared source rules over in-memory messages and one tool-call query per turn; the new path is a complete loopback HTTP request. The old control is a diagnostic, not an existing whole-conversation UI endpoint. Exact successful-receipt parity, source/use counts and SQL counts are checked.
+
+```powershell
+node tools/perf/p4c-sources.mjs --phase before --source "<before-checkout>" --out .sciencescope-local/temp/p4c/part2b-sources/before.json
+node tools/perf/p4c-sources.mjs --phase after --out .sciencescope-local/temp/p4c/part2b-sources/after.json
+node tools/perf/p4c-version-media.mjs --phase before --source "<before-checkout>" --out .sciencescope-local/temp/p4c/part2b-media/before.json
+node tools/perf/p4c-version-media.mjs --phase after --out .sciencescope-local/temp/p4c/part2b-media/after.json
+```
+
+The media probe generates two 1,200-paragraph DOCX versions with two embedded pictures. It verifies image refs in the real diff and the media endpoint, then compares 20 repeated service reads through `readFile + readDocx + indexMedia + readMedia` against the warm version-package cache. HTTP transport, diff computation and initial cache loading are outside this timing. One warm-up and three measured iterations retain byte identity and timing samples. Never compare measurements across Node versions as one before/after pair. All receipts and generated originals remain in the ignored P4c temporary directory.
+
+Part 3 measures settings saving with all three real settings-event consumers: knowledge jobs/cards, semantic configuration, and memory scheduling. It uses 300 synthetic paper records, 5,060 chunks, 12 chats and 1,000 messages with completed derived/card checkpoints. Memory stays enabled at its default ten-minute idle period; semantic indexing is disabled. Only embedding resources and the agent runtime use local stand-ins. One generated fixture header exercises the real credential hooks; model requests and downloads must remain zero.
+
+```powershell
+node tools/perf/p4c-settings.mjs --phase before --source "<instrumented-before-checkout>" --out .sciencescope-local/temp/p4c/part3/before.json
+node tools/perf/p4c-settings.mjs --phase after --baseline .sciencescope-local/temp/p4c/part3/before.json --out .sciencescope-local/temp/p4c/part3/after.json
+```
+
+Each graph-view preference or profile-bio save is one PATCH, matching the actual UI calls. One warm-up precedes three measured runs per path. Receipts separately report HTTP completion, completion of the consumers, response bytes/hashes, and private `sciencescope.settings.performance` stage timings/counts. A settings-queue barrier drains scheduled reads; its seven diagnostic observations are excluded. Stage durations can overlap or contain other stages, so never add their sums into total request time. The before checkout must contain the same observation-only marks; a revision without these marks cannot provide this breakdown. The original P4c before measurement used checkpoint `f564170` plus those marks, before optimization. Current-source runs are independently repeatable; `--baseline` additionally verifies all six response-byte hashes against an immutable earlier receipt.
+
+Part 4 keeps the exact same synthetic 30-version fixture across measurements. It creates small Markdown originals, real notes and workspace revisions, metadata, and 420 stored instruction rows (300 returned after the existing distinct/order/limit rules). A fake diff worker is used only during setup and settles before timing. The first process-local graph GET is separate from one warm-up and three measured GETs; operating-system caches are not cleared.
+
+```powershell
+node tools/perf/p4c-version-graph.mjs --phase before --source "<before-checkout>" --out .sciencescope-local/temp/p4c/part4/before.json
+$graphBefore = Get-Content -Raw .sciencescope-local/temp/p4c/part4/before.json | ConvertFrom-Json
+node tools/perf/p4c-version-graph.mjs --phase after --data $graphBefore.fixtureDirectory --baseline .sciencescope-local/temp/p4c/part4/before.json --out .sciencescope-local/temp/p4c/part4/after.json
+```
+
+The receipt records SQL categories, actual notes-file read counts/bytes/concurrency, HTTP time and body hash. Temporary filesystem instrumentation delegates to the original `readFile` and is restored after each request. The after run checks complete JSON and byte-hash equality against the before response, plus all 60 original/notes hashes and version/catalog/revision/instruction snapshots. `--data` requires `--baseline` so a preserved fixture cannot be reseeded accidentally. The main version metadata query is distinct from the per-note canonical path and revision checks, which remain in place.
+
+### Part 5: native startup observation
+
+Use the installed Node 22 test product and the P4b corpus above (300 sources, 5,060 chunks, 12 chats, 1,000 messages and 30 manuscript versions). Keep every provider and model unconfigured. Before measuring, launch once to finish the real knowledge/card queues, verify their queued/running counts are zero, close normally, and preserve a closed data snapshot with original/notes/settings/SQLite hashes and file timestamps. Record any later schema migration and queue preparation in a separate untimed launch. Check original/notes/settings hashes again before the after comparison.
+
+```powershell
+$perfNode = Join-Path $perfInstall 'runtime/node.exe'
+& $perfNode tools/perf/p4c-startup.mjs --install $perfInstall --data $perfData --manifest "$perfData/perf-p4b-manifest.json" --out '.sciencescope-local/temp/p4c/part5/before-warm' --mode warm --runs 3 --label before
+& $perfNode tools/perf/p4c-startup.mjs --install $perfInstall --data $perfData --manifest "$perfData/perf-p4b-manifest.json" --out '.sciencescope-local/temp/p4c/part5/before-cold' --mode cold --runs 3 --label before --cold-hook '<authorized ignored cache-purge hook.ps1>'
+& $perfNode tools/perf/p4c-startup.mjs --install $perfInstall --data $perfData --manifest "$perfData/perf-p4b-manifest.json" --out '.sciencescope-local/temp/p4c/part5/before-diagnostic' --mode diagnostic --runs 1 --label before
+```
+
+The output root is restricted to the ignored P4c Part 5 directory and each `startup-native.json` is reserved exclusively. Warm mode excludes one initial launch and then records three samples. Cold mode requires a successful cache-purge receipt before each sample; obtain approval for the exact number of purges first. Use new `after-*` directories for the optimized installation. All launches retain actual shutdown results and remaining owned-process counts. The tool verifies that the installed host uses Node 22.
+
+Normal warm/cold samples use private native/browser marks and ResourceTiming without CPU sampling or tracing. Native JSONL contains stage, time and window label only. It measures host-ready receipt, WebView creation, navigation and page-load bounds. Browser marks measure document entry, the first child inserted into `#app`, and the existing first-render report after two animation frames; paint entries are retained separately. Resource/paint observers are enabled by the private native observation flag and disconnected at that report. The existing `/api/startup/rendered` request and response fields are unchanged. The harness also waits for the input and seeded home project to be visible before collecting the receipt.
+
+Script/API spans and interval unions are clipped to the first-render boundary. Body bytes count only requests completed by that boundary; crossing requests have separate whole-body byte and observed-tail fields. ResourceTiming includes only requests completed by collection, so pending contributions remain unknown. The wall phases, parallel downloads, API waits and renderer events can overlap. Their medians should be reported separately rather than added.
+
+Diagnostic mode records one separate Chromium startup trace through the entire document-to-render interval, sanitizes URLs with `safeRoute`, writes `run-1-trace.json` and removes the raw trace. Its main-renderer evaluation/compilation unions stay outside formal warm/cold medians. In the P4c before diagnostic, document-to-report was 4,522.625 ms: a single `UpdateLayoutTree` occupied 2,216.224 ms at document +2,219.308 to +4,435.532 ms, followed by 73.155 ms of `Layout`. The observed module/script evaluation union was 27.962 ms and compilation union 26.170 ms. The 157 scripts occupied a 1,240 ms download span, while the completed first-screen APIs ran from document +1,268.9 to +2,202.5 ms; the large style event followed those API responses. These event bounds provide a concrete renderer diagnosis without assigning unobserved gaps to module evaluation. Existing `main.js` awaits `actions.start()` before rendering, and that action awaits event-head, four parallel state requests, activity and participant definitions.
+
+The separate after diagnostic retained the same 157 script bodies (2,218,006 encoded bytes): document-to-report was 4,532.416 ms, with 27.994 ms of observed evaluation and 25.284 ms of compilation. A 2,096.155 ms `UpdateLayoutTree` at document +2,343.182 to +4,439.337 ms and the following 78.690 ms `Layout` remain visible. Requests started by newly rendered components can precede the two-frame report and cross its boundary; report their clipped intervals and tails separately from the startup requests awaited by `actions.start()`. The installed v30→31 migration/preparation launch is retained separately from all formal samples, including its backup, full core interval and the 300 parsed-version checkpoints. Read-only SQLite inspection can leave an empty WAL and 32 KiB SHM; filesystem-only verification after the formal native closes found both absent. These diagnostic sidecars require no product change.
+
+### Part 5: backend import and recovery
+
+Run `p4c-startup-backend.mjs` with Node 22, after stopping other builds and measurements. This separate probe uses fresh child processes for application import, creation and HTTP readiness; the runtime is scripted and uv is a local stand-in. It records one initial data-root creation separately, then three fresh-process samples with operating-system caches left intact. No model or download is allowed.
+
+```powershell
+& $perfNode tools/perf/p4c-startup-backend.mjs --phase before --source '<before-checkout>' --out '.sciencescope-local/temp/p4c/part5-backend/before.json'
+& $perfNode tools/perf/p4c-startup-backend.mjs --phase after --data '<preserved before fixture directory>' --out '.sciencescope-local/temp/p4c/part5-backend/after.json'
+```
+
+The receipt's `fixtureDirectory` is relative to `.sciencescope-local/temp/p4c/part5-backend/`. Reuse that directory for the after probe. Recovery uses 300 sources and 5,060 chunks with a held foreground turn, so it measures queue restoration rather than task execution. It retains the initial legacy-checkpoint preparation separately from one warm-up and three service restarts. The mixed case includes running/queued jobs, retryable/exhausted failures, one reparsed source and a missing job; setup is outside timing. Each receipt includes paragraph read counts, preserved states/attempts and the maximum observed gap of a 1 ms heartbeat. These gaps measure scheduling responsiveness, not sampled CPU time.
+
+Migration 031 is measured on a private copy of the preserved v30 database before ordinary service startup upgrades the fixture. Index creation plus commit, and three before/after latest-import lookups with query plans, are reported separately; that DDL measurement excludes the migration backup and database opening. The installed migration launch records the full first-upgrade cost. `--mode import` or `--mode jobs` selects one probe; all receipts refuse overwriting.
+
+### Part 6: shared defaults, file writes and queue/worker protocols
+
+```powershell
+node tools/perf/p4c-core-tidy.mjs --phase before --source '<before-checkout>' --out '.sciencescope-local/temp/p4c/part6/before.json'
+node tools/perf/p4c-core-tidy.mjs --phase after --baseline '.sciencescope-local/temp/p4c/part6/before.json' --out '.sciencescope-local/temp/p4c/part6/after.json'
+node --test app/core/files.test.js app/core/workspace/workspace.test.js app/services/providers.test.js app/services/secretary/minutes.test.js app/services/memory/index.test.js
+node --test app/services/knowledge/jobs.test.js app/services/research/semantic/index.test.js app/services/research/semantic/embedding.test.js app/services/research/semantic/integration.test.js
+```
+
+Use Node 22 as above. The core probe retains actual default/partial-override values, counts independent definitions and checks the three public write paths. Each path has a warm-up and three measured batches: eight UTF-8 writes, eight binary writes, or ten serialized credential merges started concurrently. All values are generated public test strings, and fixtures are removed from the ignored Part 6 directory after receipt creation. `--baseline` requires exact default/output equality; times are observational, while the consolidation result is fewer duplicate implementations.
+
+The semantic regression uses three controlled indexing passes and a held final embedding promise. Two simultaneous `idle()` calls must remain pending until that last pass finishes, then neighbours must be available. It uses no longer sleep or weaker assertion. The embedding protocol tests create a small local worker, reverse two replies, exit with two requests pending, and close with one pending request. No model files or downloads are required. The existing semantic `integration.test.js` is an API/tool integration with a fake embedding function; it does not validate real ONNX loading or inference.
+
+### Part 7: installed editing-desk acceptance
+
+Generate the public synthetic manuscript before launching the fresh test product:
+
+```powershell
+node tools/perf/p4c-desk-fixture.mjs
+node tools/perf/p4c-desk-fixture.mjs --verify
+```
+
+Use Node 22.22.2. The generator writes exclusively to `.sciencescope-local/temp/p4c/part7/project/` and refuses to replace existing files. It creates a 50,876-Han-character DOCX with headings, a table, a visible PNG chart and an OMML equation, plus TeX, Markdown, a CSV and a standard-library Python counter. All text and numbers are self-created. The target sentence deliberately overstates a descriptive comparison; nearby text supplies the sample size and states that no significance test was performed. The manifest records parser checks, offsets, image refs and file hashes. `--verify` checks the pristine material before acceptance; normal editing will subsequently change those hashes. Use a separate clean task checkout for another fresh run, preserving previous evidence.
+
+Install only the separate test product, verify an empty welcome page, and create the project through its folder picker or path field. Set up the requested provider in Settings before AI scenarios. Follow `docs/architecture/EDITING_DESK.md` section 2 for all nine scenarios, keeping each actual UI operation separate from supporting read-only API, SQLite and DOCX ZIP checks. A failed driver selector is recorded as a driver failure, followed by a new receipt if corrected; an untested substep remains incomplete. Do not fix product UI during acceptance.
+
+`p4c-desk-acceptance.mjs` exports `withDeskAcceptance(options, run)` for an ignored local scenario driver. Pass the isolated `install`, its `data` child and a new `out` directory below `.sciencescope-local/temp/p4c/part7/`. It attaches to the real native windows, collects API timings and page errors, records each scenario, closes the owned process tree and aggregates model-request logs, including background work. Credential reads require `credentialsAuthorized: true` and stay local; neither credentials nor generated receipts belong in Git. No application state is seeded through this helper's API reader.
+
+Current screenshots are taken at the actual Windows 125% scale, with visual viewport scale 1; the helper records both metrics and marks the missing 100% set. Browser pinch/device-metrics experiments are separate diagnostic evidence. A genuine 100% set requires the approved system-scale change and restoration. Record any setup workaround and the exact model of each connection-test request rather than silently counting it as flash.
+
+Run the measurement-tool tests separately from the application check:
+
+```powershell
+node --test "tools/perf/*.test.mjs"
+```
+
+For a clean Windows application check, set `SCIENCESCOPE_MAKENSIS` to the existing cached `makensis.exe` before `npm run check`; inspect the totals to ensure the two installer-hook tests ran rather than skipped. Keep the original full-check log and every justified follow-up under distinct names.

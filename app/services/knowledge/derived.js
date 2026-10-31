@@ -1,4 +1,5 @@
 import { newId, nowIso } from '../../core/ids.js';
+import { validateSimilaritySettings } from '../../core/knowledge-similarity.js';
 import { citationEdges } from './citations.js';
 import { LITERATURE_KINDS } from '../research/records.js';
 
@@ -128,16 +129,7 @@ export function createDerived({ core, research, semantic }) {
     });
   }
   async function similar(sourceId, settings) {
-    if (
-      !Number.isFinite(settings.threshold) ||
-      settings.threshold < -1 ||
-      settings.threshold > 1 ||
-      !Number.isInteger(settings.maxPerPaper) ||
-      settings.maxPerPaper < 0
-    )
-      throw new Error(
-        'knowledge.similarity requires threshold between -1 and 1 and a nonnegative integer maxPerPaper.',
-      );
+    validateSimilaritySettings(settings);
     const existing = db
       .prepare("SELECT * FROM kb_edges WHERE layer='derived' AND method='similar'")
       .all();

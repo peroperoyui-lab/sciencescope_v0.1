@@ -8,6 +8,12 @@ import { createMemoryStore, hash } from './store.js';
 import { createMemorySources } from './sources.js';
 import { EXTRACTION_INSTRUCTIONS, VERIFICATION_INSTRUCTIONS, requestMemory } from './request.js';
 import { extractCandidates, verification, saveCandidate } from './candidates.js';
+import { startSettingsStage } from '../../core/workspace/settings-observation.js';
+import { settings as settingsResource } from '../../core/workspace/resources/settings.js';
+import { isDeepStrictEqual } from 'node:util';
+import { DEFAULT_MEMORY_SETTINGS } from '../../core/defaults.js';
+
+export { DEFAULT_MEMORY_SETTINGS };
 
 // Room kept for one memory reply. Reserving the model's whole maximum
 // output (384k on some models) put every request over the default budget.
@@ -21,13 +27,6 @@ export function memoryModel(prepared) {
   );
   return { ...prepared, outputTokens };
 }
-
-export const DEFAULT_MEMORY_SETTINGS = {
-  enabled: true,
-  idleMinutes: 10,
-  model: null,
-  tokenLimit: 100000,
-};
 
 /**
  * @param {{core:import('../../core/index.js').Core,minutes:any,research:any,runner:any,now?:()=>string,idleDelayMs?:number}} dependencies
@@ -49,6 +48,7 @@ export function createMemoryService({
   const generations = new Map();
   let unsubscribe;
   let closed = false;
+  let lastSettingsRevision = null;
 
   function eligible(meetingId) {
     const meeting = core.meetings.get(meetingId);
@@ -68,8 +68,13 @@ export function createMemoryService({
   }
 
   async function settings() {
-    const value = (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
-    return { ...DEFAULT_MEMORY_SETTINGS, ...value.memory };
+    const finishRead = startSettingsStage('memory.readSettings');
+    try {
+      const value = (await core.workspace.read({ resource: 'settings', key: 'app' })).value;
+      return { ...DEFAULT_MEMORY_SETTINGS, ...value.memory };
+    } finally {
+      finishRead();
+    }
   }
 
   /**
@@ -309,37 +314,62 @@ export function createMemoryService({
     return work.then(() => status(meetingId));
   }
 
-  async function schedule(meetingId) {
+  async function schedule(meetingId, savedSettings = null) {
     if (closed || !eligible(meetingId)) return;
-    const generation = (generations.get(meetingId) ?? 0) + 1;
-    generations.set(meetingId, generation);
-    clearTimeout(timers.get(meetingId));
-    timers.delete(meetingId);
-    const configured = await settings();
-    if (closed || !configured.enabled || generation !== generations.get(meetingId)) return;
-    const latest =
-      core.db
-        .prepare('SELECT created_at FROM events WHERE meeting_id = ? ORDER BY seq DESC LIMIT 1')
-        .get(meetingId)?.created_at ?? core.meetings.get(meetingId).updatedAt;
-    const delay =
-      idleDelayMs ??
-      Math.max(
-        0,
-        configured.idleMinutes * 60000 - (Date.parse(now()) - Date.parse(String(latest))),
-      );
-    const timer = setTimeout(async () => {
+    const finishSchedule = startSettingsStage('memory.schedule');
+    try {
+      const generation = (generations.get(meetingId) ?? 0) + 1;
+      generations.set(meetingId, generation);
+      clearTimeout(timers.get(meetingId));
       timers.delete(meetingId);
-      if (closed) return;
-      if (busy(meetingId)) return;
-      core.events.transient(
-        'meeting.idle',
-        { meetingId },
-        { meetingId, projectId: core.meetings.get(meetingId).projectId },
-      );
-      await consolidate(meetingId, { reason: 'idle' }).catch(() => {});
-    }, delay);
-    timer.unref?.();
-    timers.set(meetingId, timer);
+      const configured = savedSettings ?? (await settings());
+      if (closed || !configured.enabled || generation !== generations.get(meetingId)) return;
+      const latest =
+        core.db
+          .prepare('SELECT created_at FROM events WHERE meeting_id = ? ORDER BY seq DESC LIMIT 1')
+          .get(meetingId)?.created_at ?? core.meetings.get(meetingId).updatedAt;
+      const delay =
+        idleDelayMs ??
+        Math.max(
+          0,
+          configured.idleMinutes * 60000 - (Date.parse(now()) - Date.parse(String(latest))),
+        );
+      const timer = setTimeout(async () => {
+        timers.delete(meetingId);
+        if (closed) return;
+        if (busy(meetingId)) return;
+        core.events.transient(
+          'meeting.idle',
+          { meetingId },
+          { meetingId, projectId: core.meetings.get(meetingId).projectId },
+        );
+        await consolidate(meetingId, { reason: 'idle' }).catch(() => {});
+      }, delay);
+      timer.unref?.();
+      timers.set(meetingId, timer);
+    } finally {
+      finishSchedule();
+    }
+  }
+
+  function settingsChanged(event) {
+    const { revisionId } = event.payload;
+    if (!revisionId) {
+      for (const meeting of core.meetings.list()) void schedule(meeting.id).catch(() => {});
+      return;
+    }
+    if (revisionId === lastSettingsRevision) return;
+    const latest = core.workspace.history({ resource: 'settings', key: 'app', limit: 1 })[0];
+    if (latest?.id !== revisionId) return;
+    const revision = core.workspace.getRevision(revisionId);
+    const before = settingsResource.parse(revision.before);
+    const after = settingsResource.parse(revision.after);
+    lastSettingsRevision = revisionId;
+    const relevant = (value) => [value.memory, value.models.default, value.providers];
+    if (isDeepStrictEqual(relevant(before), relevant(after))) return;
+    const configured = { ...DEFAULT_MEMORY_SETTINGS, ...after.memory };
+    for (const meeting of core.meetings.list())
+      void schedule(meeting.id, configured).catch(() => {});
   }
 
   function start() {
@@ -363,7 +393,7 @@ export function createMemoryService({
       )
         void schedule(event.meetingId).catch(() => {});
       if (event.type === 'resource.changed' && event.payload.resource === 'settings')
-        for (const meeting of core.meetings.list()) void schedule(meeting.id).catch(() => {});
+        settingsChanged(event);
     });
     for (const meeting of core.meetings.list()) void schedule(meeting.id).catch(() => {});
   }

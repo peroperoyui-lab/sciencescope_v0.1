@@ -4,13 +4,14 @@ import { AppError } from '../../../core/errors.js';
 import { embeddingManifest, verifyEmbeddingFiles } from './model-assets.js';
 
 /** One local worker keeps inference off the server thread. Loading never downloads.
- * @param {{modelDir:string,modelId?:string,modelVersion?:string,manifest?:any}} options
+ * @param {{modelDir:string,modelId?:string,modelVersion?:string,manifest?:any,workerUrl?:URL}} options
  */
 export function createEmbedding({
   modelDir,
   modelId = 'Xenova/multilingual-e5-small',
   modelVersion,
   manifest,
+  workerUrl = new URL('./embedding-worker.js', import.meta.url),
 }) {
   let pinned = manifest;
   let worker = null;
@@ -40,7 +41,7 @@ export function createEmbedding({
 
   function startWorker() {
     if (worker) return;
-    worker = new Worker(new URL('./embedding-worker.js', import.meta.url), {
+    worker = new Worker(workerUrl, {
       workerData: { modelDir: path.resolve(modelDir), maxTokens: pinned.maxTokens ?? 512 },
     });
     worker.on('message', (message) => {

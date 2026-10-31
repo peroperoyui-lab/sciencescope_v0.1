@@ -10,6 +10,7 @@ import { compareText } from './comparison.js';
 import { createVersionStorage } from './storage.js';
 import { createVersionGraph } from './graph.js';
 import { createVersionDiffs } from './diffs.js';
+import { createVersionMedia } from './media.js';
 
 /**
  * @param {import('../../core/index.js').Core} core
@@ -163,6 +164,7 @@ export function createVersions(
     editNotes,
     compare,
     diff: diffs.diff,
+    media: createVersionMedia(core),
     diffIdle: diffs.idle,
     close: diffs.close,
     saveAsNew,

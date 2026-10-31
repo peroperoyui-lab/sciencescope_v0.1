@@ -1,5 +1,10 @@
 import { AppError } from '../../core/errors.js';
 import { publicRow } from './records.js';
+import {
+  describeKnowledgeRef,
+  knowledgeNodeTables,
+  projectRevisionDetails,
+} from './revision-details.js';
 
 /**
  * Queries page one hop; graph expansion and ranking belong to later services.
@@ -108,19 +113,9 @@ export function createKnowledgeQueries(core, records) {
   }
   function describe(ref, snapshot) {
     const [type, id] = ref.split(':');
-    const table = {
-      entity: 'kb_entities',
-      source: 'rb_sources',
-      item: 'rb_items',
-      chunk: 'rb_chunks',
-      edge: 'kb_edges',
-    }[type];
+    const table = knowledgeNodeTables[type];
     const row = snapshot ?? (table && db.prepare(`SELECT * FROM ${table} WHERE id=?`).get(id));
-    return {
-      ref,
-      name: row?.name ?? row?.title ?? row?.relation ?? row?.label ?? ref,
-      kind: row?.kind ?? row?.type ?? type,
-    };
+    return describeKnowledgeRef(ref, row);
   }
   function createdBy(row) {
     if (row.origin !== 'ai') return undefined;
@@ -216,19 +211,7 @@ export function createKnowledgeQueries(core, records) {
     };
   }
   function revisionDetails(row) {
-    const snapshot = row.after ?? row.before;
-    const detail = { ...row, ...describe(row.ref, snapshot) };
-    if (!row.ref.startsWith('edge:') || !snapshot) return detail;
-    // An edge reads as 「from —relation→ to」 with its evidence (「本轮修改了知识库」).
-    const from = describe(snapshot.from_ref ?? snapshot.fromRef);
-    const to = describe(snapshot.to_ref ?? snapshot.toRef);
-    const proof = snapshot.evidence_json ?? snapshot.evidence ?? '[]';
-    return {
-      ...detail,
-      from: { ref: from.ref, name: from.name, kind: from.kind },
-      to: { ref: to.ref, name: to.name, kind: to.kind },
-      evidence: typeof proof === 'string' ? JSON.parse(proof) : proof,
-    };
+    return projectRevisionDetails(row, describe);
   }
   return {
     getEntity,

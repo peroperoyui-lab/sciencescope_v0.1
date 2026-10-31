@@ -3,8 +3,17 @@ import { AppError } from '../../../core/errors.js';
 import { textParser } from './text.js';
 import { markdownParser } from './markdown.js';
 import { latexParser } from './latex.js';
-import { pdfParser } from './pdf.js';
 import { docxParser } from './docx.js';
+
+/** @type {import('./types.js').DocumentParser} */
+const pdfParser = {
+  id: 'pdf',
+  extensions: ['.pdf'],
+  async parse(bytes, options) {
+    const { pdfParser: parser } = await import('./pdf.js');
+    return parser.parse(bytes, options);
+  },
+};
 
 const parsers = [pdfParser, docxParser, markdownParser, latexParser, textParser];
 

@@ -9,6 +9,7 @@ mod desk_window;
 mod host_http;
 mod updates;
 mod update_error;
+mod startup_observation;
 
 use std::{
     fs,
@@ -634,6 +635,8 @@ mod windows_job {
 
 fn main() {
     let native_started = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).expect("system clock follows Unix epoch").as_millis();
+    let startup_observation = startup_observation::StartupObservation::from_environment();
+    startup_observation.mark("nativeEntry");
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -713,6 +716,7 @@ fn main() {
             }
         })
         .setup(move |app| {
+            startup_observation.mark("mainSetupStart");
             let executable = std::env::current_exe()?;
             let root = executable
                 .parent()
@@ -743,6 +747,7 @@ fn main() {
                     return Err(error);
                 }
             };
+            startup_observation.mark("hostReadyReceived");
             let mut config = app.config().app.windows[0].clone();
             let parsed_url = url::Url::parse(&url)?;
             let mut capability: serde_json::Value = serde_json::from_str(include_str!("../capabilities/main.json"))?;
@@ -767,15 +772,28 @@ fn main() {
                 child: Mutex::new(Some(child)),
             });
             app.manage(updates::UpdateState::new(native_data));
+            let navigation_observation = startup_observation.clone();
+            let page_observation = startup_observation.clone();
+            startup_observation.mark("mainWebviewBuildStart");
             WebviewWindowBuilder::from_config(app.handle(), &config)?
                 .initialization_script(api_initialization(app.handle()))
+                .initialization_script(startup_observation.initialization_script())
                 .data_directory(webview_data)
-                .on_page_load(|window, payload| {
+                .on_navigation(move |_url| {
+                    navigation_observation.mark("mainNavigationRequested");
+                    true
+                })
+                .on_page_load(move |window, payload| {
+                    page_observation.mark(match payload.event() {
+                        tauri::webview::PageLoadEvent::Started => "mainPageLoadStarted",
+                        tauri::webview::PageLoadEvent::Finished => "mainPageLoadFinished",
+                    });
                     if payload.event() == tauri::webview::PageLoadEvent::Finished {
                         updates::start_automatic(window.app_handle());
                     }
                 })
                 .build()?;
+            startup_observation.mark("mainWebviewBuildEnd");
             Ok(())
         })
         .run(tauri::generate_context!())

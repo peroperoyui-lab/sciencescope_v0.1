@@ -8,6 +8,7 @@ import { createResearchSearch } from '../search.js';
 import { createSemantic } from './index.js';
 import { openDatabase } from '../../../core/db/database.js';
 import { migrations } from '../../../core/db/migrations/index.js';
+import { embeddingManifest } from './model-assets.js';
 
 const hardware = async () => ({
   supported: true,
@@ -15,6 +16,102 @@ const hardware = async () => ({
   memoryBytes: 16 * 1024 ** 3,
   freeBytes: 10 * 1024 ** 3,
 });
+
+test(
+  'idle includes rebuilds requested while earlier indexing passes are running',
+  { timeout: 30000 },
+  async (t) => {
+    await withCore('semantic-idle-rebuilds', async (core) => {
+      const research = createResearch(core);
+      const source = await material(research);
+      let releaseThird = () => {};
+      let enteredThird = () => {};
+      const third = new Promise((resolve) => {
+        enteredThird = () => resolve(undefined);
+      });
+      const gate = new Promise((resolve) => {
+        releaseThird = () => resolve(undefined);
+      });
+      const embed = fakeEmbedding();
+      const passages = embed.embedPassages;
+      let calls = 0,
+        passes = 0,
+        settled = false,
+        previousState;
+      // Production scheduling is unref'ed; keep this gated test alive until its deadline.
+      const keepAlive = setTimeout(() => {}, 30000);
+      embed.embedPassages = async (texts) => {
+        if (++calls === 3) {
+          enteredThird();
+          await gate;
+        }
+        return passages(texts);
+      };
+      const semantic = createSemantic(core, {
+        embed,
+        hardware,
+        manifest: await embeddingManifest(),
+      });
+      const unsubscribe = core.events.subscribe((event) => {
+        if (event.type !== 'research.semantic.changed') return;
+        const changed = previousState !== event.payload.state;
+        previousState = event.payload.state;
+        if (!changed || event.payload.state !== 'indexing') return;
+        if (++passes <= 2) {
+          core.db
+            .prepare('UPDATE rb_sources SET title=? WHERE id=?')
+            .run(`Changed ${passes}`, source.id);
+          semantic.rebuild();
+        }
+      });
+      let draining,
+        otherDraining,
+        otherSettled = false;
+      try {
+        await semantic.start();
+        await semantic.configure('enable');
+        draining = semantic.idle().then(() => {
+          settled = true;
+        });
+        otherDraining = semantic.idle().then(() => {
+          otherSettled = true;
+        });
+        await third;
+        t.diagnostic(
+          JSON.stringify({
+            passes,
+            calls,
+            idleSettled: settled,
+            state: semantic.status().state,
+            neighboursIsNull: (await semantic.sourceNeighbors([source.id])) === null,
+          }),
+        );
+        assert.equal(semantic.status().state, 'indexing');
+        assert.equal(
+          settled,
+          false,
+          'idle returned before the queued third indexing pass completed',
+        );
+        assert.equal(otherSettled, false, 'concurrent idle must join the next indexing pass');
+        releaseThird();
+        await draining;
+        await otherDraining;
+        assert.equal(semantic.status().state, 'ready');
+        assert.equal(passes, 3);
+        assert.equal(calls, 3);
+        assert.ok(await semantic.sourceNeighbors([source.id]));
+      } finally {
+        releaseThird();
+        await draining;
+        await otherDraining;
+        await semantic.idle();
+        unsubscribe();
+        await semantic.close();
+        clearTimeout(keepAlive);
+      }
+    });
+  },
+);
 
 function fakeEmbedding() {
   const vector = (text) => {

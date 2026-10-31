@@ -3,10 +3,21 @@
 import { AppError } from './errors.js';
 
 /** @typedef {'running' | 'done' | 'max_tokens' | 'cancelled' | 'failed'} TurnStatus */
+/**
+ * @typedef {{id:string,meetingId:string,participantId:string,triggerMessageId:string|null,
+ *   status:TurnStatus,phase:string,stopReason:string|null,error:string|null,usage:any,
+ *   startedAt:string,endedAt:string|null}} Turn
+ * @typedef {{id:string,turnId:string,seq:number,callId:string|null,name:string,kind:string,
+ *   args:any,result:any,status:string,preamble:string,startedAt:string,endedAt:string|null}} ToolCall
+ */
 
 const nullable = (value) => (value == null ? null : String(value));
 
-function toTurn(row) {
+/**
+ * @param {any} row
+ * @returns {Turn}
+ */
+export function toTurn(row) {
   return {
     id: String(row.id),
     meetingId: String(row.meeting_id),
@@ -22,7 +33,11 @@ function toTurn(row) {
   };
 }
 
-function toToolCall(row) {
+/**
+ * @param {any} row
+ * @returns {ToolCall}
+ */
+export function toToolCall(row) {
   return {
     id: String(row.id),
     turnId: String(row.turn_id),

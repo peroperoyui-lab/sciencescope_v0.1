@@ -3,7 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import mammoth from 'mammoth';
 import { createProjectFiles } from '../project-files.js';
-import { extractCitationLabels } from '../research/citations.js';
+import { projectCitations } from './citations.js';
 import { AppError } from '../../core/errors.js';
 
 /**
@@ -119,31 +119,21 @@ export function createPreview(core, research) {
     const selected = message.replyTo
       ? (core.messages.get(message.replyTo).researchInput?.materials ?? [])
       : [];
-    return extractCitationLabels(message.text).map((label) => ({
-      ...label,
-      targets: label.citations
-        .filter((citation) => citation.kind === 'source')
-        .flatMap((citation) => {
-          const chosen = selected.find((entry) => entry.label === citation.label);
-          const source = chosen
-            ? research.store.getSource(chosen.id)
-            : (research.store.findSource(citation.label, projectId) ??
-              research.store.findSource(citation.label, null));
-          if (!source) return [];
-          const chunk = research.store
-            .chunks(source.id)
-            .find((entry) => !citation.fromPage || entry.page === citation.fromPage);
-          return [
-            {
-              kind: 'source',
-              id: source.id,
-              projectId: source.projectId,
-              page: citation.fromPage ?? 1,
-              highlight: chunk?.text ?? '',
-            },
-          ];
-        }),
-    }));
+    return projectCitations(
+      message.text,
+      selected,
+      (citation, chosen) =>
+        chosen
+          ? research.store.getSource(chosen.id)
+          : (research.store.findSource(citation.label, projectId) ??
+            research.store.findSource(citation.label, null)),
+      (source, citation) => {
+        const chunk = research.store
+          .chunks(source.id)
+          .find((entry) => !citation.fromPage || entry.page === citation.fromPage);
+        return chunk?.text ?? '';
+      },
+    );
   }
   return { content, document, citations };
 }

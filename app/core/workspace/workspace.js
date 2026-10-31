@@ -6,6 +6,7 @@ import path from 'node:path';
 import { createSnapshots } from './snapshots.js';
 import { AppError } from '../errors.js';
 import { hashText, readText, removeFile, writeTextAtomic } from './files.js';
+import { startSettingsStage } from './settings-observation.js';
 
 /**
  * @typedef {{ paths: ReturnType<typeof import('../paths.js').dataPaths>,
@@ -91,7 +92,12 @@ export function createWorkspace({ db, events, paths, now, newId, resources }) {
    */
   function queued(resourceKey, work) {
     const previous = queues.get(resourceKey) ?? Promise.resolve();
-    const next = previous.then(work, work);
+    const finishQueue = startSettingsStage('workspace.queue', resourceKey === 'settings:app');
+    const run = () => {
+      finishQueue();
+      return work();
+    };
+    const next = previous.then(run, run);
     queues.set(
       resourceKey,
       next.catch(() => {}),
@@ -138,13 +144,20 @@ export function createWorkspace({ db, events, paths, now, newId, resources }) {
   /** Record a change made outside ScienceScope, if any. Returns the current text. */
   async function currentText(resource, key, file) {
     const handler = resourceOf(resource);
+    const finishRead = startSettingsStage('workspace.read', resource === 'settings');
     const stored = await readText(file);
+    finishRead();
+    const finishPrepare = startSettingsStage('workspace.prepare', resource === 'settings');
     const text = handler.prepare ? await handler.prepare(stored) : stored;
+    finishPrepare(handler.prepare ? 1 : 0);
     if (text !== stored) {
+      const finishWrite = startSettingsStage('workspace.write', resource === 'settings');
       if (text == null) await removeFile(file);
       else await writeTextAtomic(file, text);
+      finishWrite();
     }
     handler.projectText?.(key, text);
+    const finishRevision = startSettingsStage('workspace.revision', resource === 'settings');
     const last = lastRevision(`${resource}:${key}`);
     if (last && hashText(text) !== (last.after_hash == null ? null : String(last.after_hash))) {
       const before = last.after_text == null ? null : String(last.after_text);
@@ -152,9 +165,12 @@ export function createWorkspace({ db, events, paths, now, newId, resources }) {
         insertRevision({ resource, key, op: 'external', before, after: text, actor: {} }),
       );
     }
+    finishRevision();
     // External deletion has already disappeared from the file. The previous
     // revision still identifies the credentials that must now be removed.
+    const finishAfterEdit = startSettingsStage('workspace.afterEdit', resource === 'settings');
     await handler.afterEdit?.(last?.after_text == null ? stored : String(last.after_text), text);
+    finishAfterEdit(handler.afterEdit ? 1 : 0);
     return text;
   }
 
@@ -197,16 +213,26 @@ export function createWorkspace({ db, events, paths, now, newId, resources }) {
       ) {
         throw new AppError('REVISION_CONFLICT', '内容已被更新，请刷新后再编辑。', 409);
       }
+      const finishApply = startSettingsStage('workspace.apply', resource === 'settings');
       const applied = await handler.apply(before, op, args);
+      finishApply();
+      const finishPrepare = startSettingsStage('workspace.prepare', resource === 'settings');
       const after = handler.prepare ? await handler.prepare(applied) : applied;
+      finishPrepare(handler.prepare ? 1 : 0);
       const value = handler.parse ? handler.parse(after) : after;
       if (after === before && !change.forceRevision) return { revisionId: null, value };
+      const finishWrite = startSettingsStage('workspace.write', resource === 'settings');
       if (after == null) await removeFile(file);
       else await writeTextAtomic(file, after);
+      finishWrite();
+      const finishRevision = startSettingsStage('workspace.revision', resource === 'settings');
       const revisionId = db.transaction(() =>
         insertRevision({ resource, key, op, before, after, actor }),
       );
+      finishRevision();
+      const finishAfterEdit = startSettingsStage('workspace.afterEdit', resource === 'settings');
       await handler.afterEdit?.(before, after);
+      finishAfterEdit(handler.afterEdit ? 1 : 0);
       return { revisionId, value };
     });
   }

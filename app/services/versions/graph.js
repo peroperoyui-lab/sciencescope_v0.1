@@ -4,6 +4,8 @@
 import { AppError } from '../../core/errors.js';
 import { nowIso } from '../../core/ids.js';
 
+const NOTE_READ_CONCURRENCY = 4;
+
 /**
  * @param {import('../../core/index.js').Core} core
  * @param {(work:()=>Promise<any>)=>Promise<any>} serial
@@ -14,9 +16,29 @@ export function createVersionGraph(core, serial) {
     const group = catalog.group(groupId);
     const rows = db
       .prepare(
-        'SELECT id,parent_id,deleted_at FROM manuscript_versions WHERE group_id=? ORDER BY number',
+        `SELECT id,number,parent_id,deleted_at,branch,tier,label,description,is_key,title,
+         original_name,origin,created_at FROM manuscript_versions WHERE group_id=? ORDER BY number`,
       )
       .all(groupId);
+    const visible = rows.filter((row) => !row.deleted_at);
+    const instructions = new Map();
+    for (const entry of db
+      .prepare(
+        `WITH distinct_instructions AS (
+         SELECT version_id,instruction,min(rowid) AS first_row FROM desk_changes
+         WHERE version_id IN (SELECT value FROM json_each(?)) AND trim(instruction)<>''
+         GROUP BY version_id,instruction
+       ), ranked AS (
+         SELECT version_id,instruction,
+           row_number() OVER (PARTITION BY version_id ORDER BY first_row) AS position
+         FROM distinct_instructions
+       ) SELECT version_id,instruction FROM ranked WHERE position<=10
+       ORDER BY version_id,position`,
+      )
+      .all(JSON.stringify(visible.map((row) => row.id)))) {
+      if (!instructions.has(entry.version_id)) instructions.set(entry.version_id, []);
+      instructions.get(entry.version_id).push(String(entry.instruction));
+    }
     const byId = new Map(rows.map((row) => [row.id, row]));
     function visibleParent(row) {
       const seen = new Set([row.id]);
@@ -28,39 +50,49 @@ export function createVersionGraph(core, serial) {
       }
       return null;
     }
-    const nodes = [];
-    for (const row of rows.filter((entry) => !entry.deleted_at)) {
-      const version = catalog.get(row.id);
-      const notes = await core.workspace.read({
-        resource: 'versions',
-        key: `${group.projectId}/${version.id}`,
-      });
-      const instructions = db
-        .prepare(
-          `SELECT instruction FROM desk_changes WHERE version_id=? AND trim(instruction)<>''
-         GROUP BY instruction ORDER BY min(rowid) LIMIT 10`,
-        )
-        .all(version.id)
-        .map((entry) => String(entry.instruction));
-      nodes.push({
-        id: version.id,
-        number: version.number,
-        parentId: visibleParent(row),
-        branch: version.branch,
-        tier: version.tier,
-        label: version.label,
-        description: version.description,
-        key: version.key,
-        title: version.title,
-        displayTitle: version.title || version.name,
-        origin: version.origin,
-        createdAt: version.createdAt,
-        notesExcerpt: Array.from(notes.text ?? '')
-          .slice(0, 200)
-          .join(''),
-        instructions,
-      });
+    const nodes = new Array(visible.length);
+    let next = 0;
+    let failed = false;
+    let failure;
+    async function readNext() {
+      while (!failed && next < visible.length) {
+        const index = next++;
+        const row = visible[index];
+        try {
+          const notes = await core.workspace.read({
+            resource: 'versions',
+            key: `${group.projectId}/${row.id}`,
+          });
+          nodes[index] = {
+            id: String(row.id),
+            number: Number(row.number),
+            parentId: visibleParent(row),
+            branch: String(row.branch),
+            tier: String(row.tier),
+            label: String(row.label),
+            description: String(row.description),
+            key: Boolean(row.is_key),
+            title: String(row.title),
+            displayTitle: String(row.title || row.original_name),
+            origin: String(row.origin),
+            createdAt: String(row.created_at),
+            notesExcerpt: Array.from(notes.text ?? '')
+              .slice(0, 200)
+              .join(''),
+            instructions: instructions.get(row.id) ?? [],
+          };
+        } catch (error) {
+          if (!failed) failure = error;
+          failed = true;
+        }
+      }
     }
+    // Finish in-flight workspace reads before reporting an error; their revision
+    // detection must not outlive the request that started them.
+    await Promise.all(
+      Array.from({ length: Math.min(NOTE_READ_CONCURRENCY, visible.length) }, readNext),
+    );
+    if (failed) throw failure;
     return { group, nodes };
   }
   function updateMetadata(id, changes, actorId = 'person_user') {
