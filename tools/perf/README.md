@@ -261,12 +261,12 @@ all variants at actual 100% and 125% after timing, restore 125% immediately afte
 the 100% batch and record switch/restoration times. Screenshot launches are not
 timing samples.
 
-Use p5-font-report.mjs with --dir <matrix root> and --out <new JSON receipt>
+Use `p5-font-report.mjs --dir <matrix root> --out <new JSON receipt>`
 to aggregate the five planned samples in each variant/mode, keeping every
 sample and checking unique purge receipts. A shutdown-only verification failure
 is listed separately when its startup trace, fonts and scaling are complete;
 the original sample remains failed. Do not replace a valid startup observation.
-If that failure prevented the paired warm start, --mode warm records an excluded
+If that failure prevented the paired warm start, `--mode warm` records an excluded
 warmup followed by one measured warm sample without invoking the cache hook.
 Keep the recovery in a new evidence directory; if copying the missing warm
 directory into the matrix for aggregation, record its source and matching hash,
