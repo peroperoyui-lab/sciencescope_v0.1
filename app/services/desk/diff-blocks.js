@@ -28,6 +28,9 @@ export function describeBlock(block, document) {
     // but annotations are not paragraph content or changes in this comparison.
     if (COMMENT_ATOMS.has(inline.atom)) continue;
     const value = inline.text ?? inline.display ?? '\uFFFC';
+    // Empty atoms have no body range to highlight. Their original XML/inlines
+    // remain available, but their identities must not split unchanged text.
+    if (inline.atom && !value.length) continue;
     if (inline.atom) {
       const atom = document?.atoms[inline.ref];
       const xml = atom ? document.xml.slice(atom.start, atom.end) : String(inline.ref);

@@ -2,7 +2,7 @@ import { compareText } from '../versions/comparison.js';
 import { describeBlock, MARKS } from './diff-blocks.js';
 import { pairBlocks } from './diff-pairs.js';
 
-export const DIFF_ALGORITHM = 2;
+export const DIFF_ALGORITHM = 3;
 const marks = (mask) => MARKS.filter((_, index) => mask & (1 << index));
 
 function addFormat(result, block, from, to, before, after) {
@@ -62,6 +62,30 @@ function characterFormats(old, next, oldStart, newStart, length, block, result) 
   }
 }
 
+function compareAtoms(old, next, region, pair, result) {
+  const groups = new Map();
+  const collect = (atoms, start, side) => {
+    for (const atom of atoms) {
+      if (atom.to <= atom.from || atom.from < start || atom.to > start + region.length) continue;
+      const from = atom.from - start;
+      const to = atom.to - start;
+      const key = `${from}:${to}`;
+      if (!groups.has(key)) groups.set(key, { from, to, before: [], after: [] });
+      groups.get(key)[side].push(atom.key);
+    }
+  };
+  collect(old.atoms, region.old, 'before');
+  collect(next.atoms, region.new, 'after');
+  for (const { from, to, before, after } of groups.values()) {
+    // Compare the whole ordered group: reusing the first equal-position atom
+    // loses duplicates, while matching by identity alone hides reorderings.
+    if (before.length === after.length && before.every((key, index) => key === after[index]))
+      continue;
+    result.deleted.push({ block: pair.old, from: region.old + from, to: region.old + to });
+    result.inserted.push({ block: pair.new, from: region.new + from, to: region.new + to });
+  }
+}
+
 function comparePair(old, next, pair, result) {
   const oldText = old.block.text;
   const newText = next.block.text;
@@ -81,27 +105,7 @@ function comparePair(old, next, pair, result) {
     if (part.type !== 'removed') newOffset += length;
   }
   for (const region of unchanged) {
-    for (const atom of old.atoms.filter(
-      (item) => item.from >= region.old && item.to <= region.old + region.length,
-    )) {
-      const from = region.new + atom.from - region.old;
-      const to = from + atom.to - atom.from;
-      const other = next.atoms.find((item) => item.from === from && item.to === to);
-      if (!other || other.key !== atom.key) {
-        result.deleted.push({ block: pair.old, from: atom.from, to: atom.to });
-        result.inserted.push({ block: pair.new, from, to });
-      }
-    }
-    for (const atom of next.atoms.filter(
-      (item) => item.from >= region.new && item.to <= region.new + region.length,
-    )) {
-      const from = region.old + atom.from - region.new;
-      const to = from + atom.to - atom.from;
-      if (!old.atoms.some((item) => item.from === from && item.to === to)) {
-        result.deleted.push({ block: pair.old, from, to });
-        result.inserted.push({ block: pair.new, from: atom.from, to: atom.to });
-      }
-    }
+    compareAtoms(old, next, region, pair, result);
     characterFormats(old, next, region.old, region.new, region.length, pair.new, result);
   }
   const style = (item) => ({
