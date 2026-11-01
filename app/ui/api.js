@@ -11,6 +11,7 @@ export const EVENT_TYPES = [
   'meeting.updated',
   'meeting.outbox.changed',
   'versions.changed',
+  'home.starters.updated',
   'message.created',
   'message.delta',
   'message.replace',

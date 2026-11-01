@@ -115,8 +115,7 @@ test(
         { projectId: project.id },
         { projectId: project.id },
       );
-      await page.reload();
-
+      // The open home picks it up from the event, without a reload.
       const progress = page.locator('[data-home-progress]');
       await progress.getByText('指标体系定稿，等补 2015 年数据。').waitFor();
       assert.match(await progress.textContent(), /^城市韧性研究：/u);
