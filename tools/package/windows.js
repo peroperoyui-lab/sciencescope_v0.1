@@ -250,6 +250,7 @@ await writeFile(
       ...(configuration.plugins ? { plugins: configuration.plugins } : {}),
       bundle: {
         ...configuration.bundle,
+        ...(options.createUpdaterArtifacts === false ? { createUpdaterArtifacts: false } : {}),
         active: true,
         useLocalToolsDir: true,
         targets: ['nsis'],

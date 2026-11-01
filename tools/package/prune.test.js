@@ -6,6 +6,26 @@ import { pruneProductionModules } from './prune.js';
 import { generateNotices } from './notices.js';
 import { buildOptions } from './build-options.js';
 
+test('unsigned packaging explicitly disables updater artifacts for either product without changing defaults', () => {
+  assert.deepEqual(buildOptions({ SCIENCESCOPE_BUILD_UNSIGNED: '1' }), {
+    createUpdaterArtifacts: false,
+    prune: true,
+  });
+  assert.deepEqual(
+    buildOptions({
+      SCIENCESCOPE_BUILD_VARIANT: 'installtest',
+      SCIENCESCOPE_BUILD_UNSIGNED: '1',
+    }),
+    {
+      productName: 'ScienceScope Install Test',
+      identifier: 'org.sciencescope.installtest',
+      createUpdaterArtifacts: false,
+      prune: true,
+    },
+  );
+  assert.deepEqual(buildOptions({ SCIENCESCOPE_BUILD_UNSIGNED: '0' }), { prune: true });
+});
+
 test('production pruning preserves live assets and licenses, with complete pre-prune notices', async () => {
   const root = path.resolve('.sciencescope-local/temp/package-prune');
   await mkdir(root, { recursive: true });

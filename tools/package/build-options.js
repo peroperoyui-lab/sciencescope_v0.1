@@ -2,7 +2,7 @@
  * Keep timing packages separate from the user's installed preview, including
  * NSIS's product-name registry key. Production remains the default.
  * @param {NodeJS.ProcessEnv} environment
- * @returns {{productName?: string, identifier?: string, prune: boolean}}
+ * @returns {{productName?: string, identifier?: string, prune: boolean, createUpdaterArtifacts?: false}}
  */
 export function buildOptions(environment) {
   const installTest = environment.SCIENCESCOPE_BUILD_VARIANT === 'installtest';
@@ -12,6 +12,7 @@ export function buildOptions(environment) {
     ...(installTest
       ? { productName: 'ScienceScope Install Test', identifier: 'org.sciencescope.installtest' }
       : {}),
+    ...(environment.SCIENCESCOPE_BUILD_UNSIGNED === '1' ? { createUpdaterArtifacts: false } : {}),
     prune: environment.SCIENCESCOPE_BUILD_PRUNE !== '0',
   };
 }
