@@ -2656,7 +2656,8 @@ export const en = {
   看计划: 'Plans',
   从这里开始: 'Start here',
   '点一下填进输入框，改几个字再发': 'Click to put it in the input box, then edit and send',
-  '点一下在「{name}」里开新对话，改几个字再发': 'Click to start a new chat in “{name}”, then edit and send',
+  '点一下在「{name}」里开新对话，改几个字再发':
+    'Click to start a new chat in “{name}”, then edit and send',
   继续上次的工作: 'Pick up where you left off',
   '{project} · 第 {n} 版': '{project} · version {n}',
   继续写作: 'Keep writing',
