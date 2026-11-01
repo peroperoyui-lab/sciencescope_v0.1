@@ -770,8 +770,8 @@ data/
 | 028  | `version_diffs`                                                                                                                              | 父子版本及任意版本对的差异缓存，可重新计算                                               |
 | 029  | `manuscript_bindings`、`manuscript_comments`；`desk_changes.annotations_json`                                                                | 索引、非 Word 批注及同次修改的标注快照；DOCX 批注仍由文件和修改记录保存                  |
 | 030  | `manuscript_versions.description`、`is_key`                                                                                                  | 版本描述和重点；旧版本默认空描述、非重点，原有 label 保留                                |
-| 031 | `events_source_import` 索引 | 按资料 id 与事件顺序恢复导入任务，不新增数据表 |
-| 032 | `home_starters`、`home_starters_state` | 每项目首页卡片缓存、全局当前快照与重启补写状态 |
+| 031  | `events_source_import` 索引                                                                                                                  | 按资料 id 与事件顺序恢复导入任务，不新增数据表                                           |
+| 032  | `home_starters`、`home_starters_state`                                                                                                       | 每项目首页卡片缓存、全局当前快照与重启补写状态                                           |
 
 ### 4.2 文件资源
 
