@@ -87,7 +87,7 @@ export function VersionTree({
   const [folded, setFolded] = useState(() => new Set());
   const [title, setTitle] = useState('');
   const [mark, setMark] = useState('');
-  const [branch, setBranch] = useState('');
+  const [branchName, setBranchName] = useState('');
   const scroller = useRef(/** @type {HTMLElement | null} */ (null));
   const nameInput = useRef(/** @type {HTMLInputElement | null} */ (null));
   const markInput = useRef(/** @type {HTMLTextAreaElement | null} */ (null));
@@ -125,7 +125,7 @@ export function VersionTree({
   useLayoutEffect(() => {
     setTitle(node?.displayTitle ?? '');
     setMark(node?.description ?? '');
-    setBranch(node?.branch ?? '');
+    setBranchName(node?.branch ?? '');
   }, [node?.id, node?.displayTitle, node?.description, node?.branch]);
   // Marks and key versions need the server's D10 fields.
   const marks = !!nodes?.length && 'description' in nodes[0];
@@ -168,8 +168,8 @@ export function VersionTree({
     const next = /** @type {HTMLInputElement} */ (event.currentTarget).value.trim();
     const was = node?.branch ?? '';
     if (node && next && next !== was)
-      void update(node, { branch: next }).then((saved) => saved || setBranch(was));
-    else setBranch(was);
+      void update(node, { branch: next }).then((saved) => saved || setBranchName(was));
+    else setBranchName(was);
   };
   /** @param {FocusEvent} event */
   const saveMark = (event) => {
@@ -541,13 +541,13 @@ export function VersionTree({
                   aria-label=${t('分支名称')}
                   placeholder=${t('主线')}
                   maxlength="40"
-                  value=${branch}
-                  onInput=${(event) => setBranch(event.currentTarget.value)}
+                  value=${branchName}
+                  onInput=${(event) => setBranchName(event.currentTarget.value)}
                   onBlur=${saveBranch}
                   onKeyDown=${(event) => {
                     if (event.key === 'Enter' && !event.isComposing) event.currentTarget.blur();
                     if (event.key === 'Escape') {
-                      setBranch(node.branch ?? '');
+                      setBranchName(node.branch ?? '');
                       requestAnimationFrame(() => event.currentTarget?.blur());
                     }
                   }}
