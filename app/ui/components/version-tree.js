@@ -87,9 +87,11 @@ export function VersionTree({
   const [folded, setFolded] = useState(() => new Set());
   const [title, setTitle] = useState('');
   const [mark, setMark] = useState('');
+  const [branch, setBranch] = useState('');
   const scroller = useRef(/** @type {HTMLElement | null} */ (null));
   const nameInput = useRef(/** @type {HTMLInputElement | null} */ (null));
   const markInput = useRef(/** @type {HTMLTextAreaElement | null} */ (null));
+  const branchInput = useRef(/** @type {HTMLInputElement | null} */ (null));
 
   useEffect(() => {
     let active = true;
@@ -123,7 +125,8 @@ export function VersionTree({
   useLayoutEffect(() => {
     setTitle(node?.displayTitle ?? '');
     setMark(node?.description ?? '');
-  }, [node?.id, node?.displayTitle, node?.description]);
+    setBranch(node?.branch ?? '');
+  }, [node?.id, node?.displayTitle, node?.description, node?.branch]);
   // Marks and key versions need the server's D10 fields.
   const marks = !!nodes?.length && 'description' in nodes[0];
 
@@ -144,8 +147,12 @@ export function VersionTree({
       await actions.updateVersion(target.id, changes);
       const graph = await actions.versionGraph(group.id);
       setNodes(graph.nodes);
+      return true;
     } catch (failure) {
-      actions.toast(failure.message);
+      actions.toast(
+        failure.code === 'BRANCH_EXISTS' ? t('这份文稿已经有同名的分支。') : failure.message,
+      );
+      return false;
     }
   }
   // Read the box itself: a blur right after typing can come before the re-render.
@@ -154,6 +161,15 @@ export function VersionTree({
     const next = /** @type {HTMLInputElement} */ (event.currentTarget).value.trim();
     if (node && next && next !== node.displayTitle) void update(node, { title: next });
     else setTitle(node?.displayTitle ?? '');
+  };
+  // A branch name renames the whole branch; an empty or unchanged name keeps it.
+  /** @param {FocusEvent} event */
+  const saveBranch = (event) => {
+    const next = /** @type {HTMLInputElement} */ (event.currentTarget).value.trim();
+    const was = node?.branch ?? '';
+    if (node && next && next !== was)
+      void update(node, { branch: next }).then((saved) => saved || setBranch(was));
+    else setBranch(was);
   };
   /** @param {FocusEvent} event */
   const saveMark = (event) => {
@@ -264,6 +280,11 @@ export function VersionTree({
           text: t('改名'),
           icon: 'pencil',
           run: () => requestAnimationFrame(() => nameInput.current?.select()),
+        },
+        {
+          text: t('重命名分支'),
+          icon: 'git-branch',
+          run: () => requestAnimationFrame(() => branchInput.current?.select()),
         },
         {
           text: t('层级…'),
@@ -513,7 +534,26 @@ export function VersionTree({
               <//>
             </dd>
             <dt>${t('分支')}</dt>
-            <dd>${node.branch || t('主线')}</dd>
+            <dd>
+              <span class="ss-input ss-input--sm">
+                <input
+                  ref=${branchInput}
+                  aria-label=${t('分支名称')}
+                  placeholder=${t('主线')}
+                  maxlength="40"
+                  value=${branch}
+                  onInput=${(event) => setBranch(event.currentTarget.value)}
+                  onBlur=${saveBranch}
+                  onKeyDown=${(event) => {
+                    if (event.key === 'Enter' && !event.isComposing) event.currentTarget.blur();
+                    if (event.key === 'Escape') {
+                      setBranch(node.branch ?? '');
+                      requestAnimationFrame(() => event.currentTarget?.blur());
+                    }
+                  }}
+                />
+              </span>
+            </dd>
             <dt>${t('来自')}</dt>
             <dd>${t(originOf(node)[1])} · ${formatTime(node.createdAt)}</dd>
             <dt>${t('派生')}</dt>

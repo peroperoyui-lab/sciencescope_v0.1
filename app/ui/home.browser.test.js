@@ -74,3 +74,70 @@ test(
       await page.waitForFunction(() => document.querySelectorAll('[data-starter]').length === 2);
     }),
 );
+
+test(
+  'the home shows the secretary’s progress and cards for the project last left, and a card starts a chat there',
+  { skip: browserSkip, timeout: 60000 },
+  () =>
+    withBrowserApp('home-slot', silent, async ({ page, app, shot }) => {
+      const { core } = app;
+      const project = await core.projects.create({ name: '城市韧性研究' });
+      const other = await core.projects.create({ name: '劳动保障政策演化' });
+      const cards = [
+        [
+          'scale',
+          '挑一挑开题报告',
+          '找出最容易被追问的三处',
+          '请读开题报告，找出三处。',
+          'agent_red_team',
+        ],
+        ['list-checks', '补齐 2015 年数据', '计划里还没做完', '接着补齐 2015 年数据。', null],
+        [
+          'file-pen',
+          '按审稿标准读',
+          '标出必须修改的地方',
+          '按审稿标准读第 3 版。',
+          'agent_reviewer',
+        ],
+        ['lightbulb', '定义城市韧性', '边界和维度', '帮我定义城市韧性。', 'agent_methodologist'],
+      ].map(([icon, title, sub, text, expertId]) => ({ icon, title, sub, text, expertId }));
+      core.db
+        .prepare(
+          `UPDATE home_starters_state SET slot_project_id=?, slot_result_json=?, slot_written_at=? WHERE id=1`,
+        )
+        .run(
+          project.id,
+          JSON.stringify({ progress: '指标体系定稿，等补 2015 年数据。', cards }),
+          '2026-11-01T00:00:00Z',
+        );
+      core.events.record(
+        'home.starters.updated',
+        { projectId: project.id },
+        { projectId: project.id },
+      );
+      await page.reload();
+
+      const progress = page.locator('[data-home-progress]');
+      await progress.getByText('指标体系定稿，等补 2015 年数据。').waitFor();
+      assert.match(await progress.textContent(), /^城市韧性研究：/u);
+      const starters = page.locator('[data-starter]');
+      assert.equal(await starters.count(), 4);
+      await starters.filter({ hasText: '@魔鬼代言人 · 找出最容易被追问的三处' }).waitFor();
+      await page.getByText('点一下在「城市韧性研究」里开新对话，改几个字再发').waitFor();
+      await shot('home-secretary-slot');
+
+      // A card on the home without a project opens a new chat in that project.
+      await starters.filter({ hasText: '定义城市韧性' }).click();
+      await page.waitForFunction((id) => location.hash === `#/new/${id}`, project.id);
+      await page.waitForFunction(
+        () =>
+          /** @type {HTMLTextAreaElement} */ (document.activeElement)?.value ===
+          '@方法学家 帮我定义城市韧性。',
+      );
+
+      // Another project's home keeps the template.
+      await page.evaluate((id) => (location.hash = `#/new/${id}`), other.id);
+      await page.locator('[data-starter]', { hasText: '让魔鬼代言人先唱唱反调' }).waitFor();
+      assert.equal(await page.getByText('指标体系定稿').count(), 0);
+    }),
+);

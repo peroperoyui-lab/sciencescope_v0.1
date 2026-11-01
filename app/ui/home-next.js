@@ -29,3 +29,30 @@ export function latestDrafts(lists, limit = 3) {
 export function starters(input) {
   return templateStarters(input, t);
 }
+
+/**
+ * The secretary's slot when this home shows it: always on the home without a
+ * project, and on a project's home only when the slot is about that project.
+ * @template {{ projectId: string }} T
+ * @param {T | null} slot @param {string | null} projectId
+ * @returns {T | null}
+ */
+export function slotFor(slot, projectId) {
+  return slot && (!projectId || slot.projectId === projectId) ? slot : null;
+}
+
+/**
+ * The secretary's cards as the page shows them: the expert is addressed by
+ * the name it has now, so a renamed expert does not leave the card stale.
+ * @param {Array<{ icon: string, title: string, sub: string, text: string, expertId: string | null }>} cards
+ * @param {any[]} participants
+ * @returns {Array<{ icon: string, title: string, sub: string, text: string }>}
+ */
+export function slotCards(cards, participants) {
+  return cards.map(({ icon, title, sub, text, expertId }) => {
+    const name = expertId && participants.find((person) => person.id === expertId)?.name;
+    return name
+      ? { icon, title, sub: `@${name} · ${sub}`, text: `@${name} ${text}` }
+      : { icon, title, sub, text };
+  });
+}

@@ -135,6 +135,28 @@ test(
       await branch.click();
       await tree.locator('.ss-vfold', { hasText: '1 版' }).click();
       await node(3).waitFor();
+      // 重命名分支 renames the whole branch; a name another branch has is refused.
+      await node(3).click({ button: 'right' });
+      await menu.getByRole('menuitem', { name: '重命名分支' }).click();
+      const branchName = desk.getByRole('textbox', { name: '分支名称' });
+      await desk.waitForFunction(
+        () => document.activeElement?.getAttribute('aria-label') === '分支名称',
+      );
+      await branchName.fill('  换个角度 ');
+      await branchName.press('Enter');
+      await branch.filter({ hasText: '换个角度' }).waitFor();
+      await shoot(desk, 'u7-branch-name');
+      await node(1).click();
+      await shownNumber(1).waitFor();
+      assert.equal(await branchName.inputValue(), '');
+      await branchName.fill('换个角度');
+      await branchName.press('Enter');
+      await desk.getByText('这份文稿已经有同名的分支。').waitFor();
+      await desk.waitForFunction(
+        () =>
+          /** @type {HTMLInputElement | null} */ (document.querySelector('[aria-label="分支名称"]'))
+            ?.value === '',
+      );
 
       // v2 has no later versions: it can be deleted after asking.
       await node(2).click({ button: 'right' });

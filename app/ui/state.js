@@ -67,6 +67,8 @@ export const initialState = {
   /** @type {any} */ previewTarget: null,
   semanticVersion: 0,
   pythonVersion: 0,
+  /** Bumped when the secretary writes the home's progress and starters. */
+  homeStartersVersion: 0,
   /** @type {any} */ creationDetails: null,
   /** @type {any} */
   semanticStatus: null,
@@ -134,6 +136,8 @@ export function applyEvent(state, event) {
   switch (type) {
     case 'versions.changed':
       return { ...state, versionsVersion: state.versionsVersion + 1 };
+    case 'home.starters.updated':
+      return { ...state, homeStartersVersion: state.homeStartersVersion + 1 };
     case 'python.changed':
       return { ...state, pythonVersion: state.pythonVersion + 1 };
     case 'desk.changed': {

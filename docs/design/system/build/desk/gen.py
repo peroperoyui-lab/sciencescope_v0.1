@@ -364,6 +364,7 @@ vtree_inner = f'''<div class="ss-toolbar" style="padding:8px 12px;border-bottom:
           <span class="ss-input ss-input--sm"><span class="ss-mono ss-muted" style="font-size:12px">v5</span><input value="修改方法部分" aria-label="版本名称" /></span>
           <dl class="ss-props">
             <dt>层级</dt><dd><button class="ss-select ss-select--sm" type="button"><span class="ss-select__value">草稿</span><i data-i="chevron-down"></i></button></dd>
+            <dt>分支</dt><dd><span class="ss-input ss-input--sm"><input aria-label="分支名称" placeholder="主线" value=""></span></dd>
             <dt>来自</dt><dd>编辑台 · 主专家 · 10-20 16:12</dd>
             <dt>派生</dt><dd>父 v4 · 子 v6、v8</dd>
             <dt>改动</dt><dd>12 处，集中在 3.2 节</dd>
@@ -389,13 +390,13 @@ card('PageDeskVersions', 'group="编辑台" page height=900 width=1536 subtitle=
 
 - 侧栏头部：「版本树 · 文件名」、拉宽、关闭；下面一行筛选框，按标题、标签、备注和修改指令过滤。
 - 树：从上往下长，根是导入的 v1；节点是版本卡片（版本号、名称、来源图标、时间或层级），连线是派生。分支从父版本右侧横出，线上标分支名；不常用的分支收成一枚「会议摘要 · 2 版」，点开展开。
-- 侧栏下半：图例和选中版本的详情：名称直接改，层级下拉，来自谁、父子版本、改动摘要；「从这一版开始编辑」「和 v7 比较」。
+- 侧栏下半：图例和选中版本的详情：名称直接改，层级下拉，分支名直接改（改的是整条分支，空着是主线，最多 40 字，和别的分支重名时提示），来自谁、父子版本、改动摘要；「从这一版开始编辑」「和 v7 比较」。
 
 ## 演示的规则
 
 - 正在编辑的版本号前有实心点；定稿、投稿在卡片左边有色条；从外部修改导入的版本是虚线框。
 - 选中的节点有强调色描边，到当前版本的路径连线是强调色。
-- 右键版本：打开（只读）、从这一版开始编辑、比较、改名和备注、层级、另存为文件、用这一版覆盖项目文件；有后续版本时不能删，菜单写明原因。
+- 右键版本：打开（只读）、从这一版开始编辑、比较、改名和备注、重命名分支、层级、另存为文件、用这一版覆盖项目文件；有后续版本时不能删，菜单写明原因。
 - 布局自己写，不用图布局库；节点多时可以折叠分支，侧栏可以拉宽。
 ''')
 

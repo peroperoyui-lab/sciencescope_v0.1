@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import { useActions, useAppState } from '../context.js';
 import { openDesk } from '../desk-window.js';
 import { html } from '../html.js';
-import { latestDrafts, starters } from '../home-next.js';
+import { latestDrafts, slotCards, slotFor, starters } from '../home-next.js';
 import { formatTime, t } from '../i18n/index.js';
 import { Lucide } from '../icons.js';
 import { navigate } from '../route.js';
@@ -184,6 +184,27 @@ function useVersionGroups(projects) {
   return lists;
 }
 
+/** The secretary's home slot, re-read when it writes a new one. */
+function useHomeSlot() {
+  const actions = useActions();
+  const version = useAppState((state) => state.homeStartersVersion);
+  const [slot, setSlot] = useState(/** @type {any} */ (null));
+  useEffect(() => {
+    let current = true;
+    actions
+      .homeStarters()
+      .then((answer) => current && setSlot(answer?.slot ?? null))
+      .catch(() => current && setSlot(null));
+    return () => {
+      current = false;
+    };
+  }, [version]);
+  return slot;
+}
+
+/** A starter picked on another project's home waits here for that home's composer. */
+let pendingFocus = /** @type {string | null} */ (null);
+
 /** The project's plans file, re-read when the workspace changes. @param {string | null} projectId */
 function usePlans(projectId) {
   const actions = useActions();
@@ -226,20 +247,29 @@ export function Welcome({ projectId = null }) {
   const input = useRef(/** @type {HTMLTextAreaElement | null} */ (null));
   const live = projects.filter((entry) => !entry.archived);
   const drafts = latestDrafts(useVersionGroups(project ? [project] : live));
-  const plans = usePlans(project?.id ?? null);
-  const lastChat = project
+  // The secretary's slot: the project last left, its progress and four cards.
+  // Without one (or on another project's home) the template below stands in.
+  const slot = slotFor(useHomeSlot(), projectId);
+  const subject =
+    project ?? (slot && live.find((candidate) => candidate.id === slot.projectId)) ?? null;
+  const plans = usePlans(subject?.id ?? null);
+  const lastChat = subject
     ? meetings
-        .filter((meeting) => listed(meeting) && meeting.projectId === project.id)
+        .filter((meeting) => listed(meeting) && meeting.projectId === subject.id)
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))[0]
     : null;
   const latest = drafts[0] ?? null;
   const owner = `new:${projectId ?? 'global'}`;
-  const offers = starters({
-    project: project ?? null,
-    draft: latest && { name: latest.version.name, number: latest.version.number },
-    plan: plans[0]?.text ?? null,
-    participants,
-  });
+  const offers = slot
+    ? slotCards(slot.cards, participants)
+    : starters({
+        project: project ?? null,
+        draft: latest && { name: latest.version.name, number: latest.version.number },
+        plan: plans[0]?.text ?? null,
+        participants,
+      });
+  // On the home without a project the secretary's cards start a chat in its project.
+  const away = slot && subject && subject.id !== projectId ? subject : null;
   /**
    * 继续写作: the desk, the folder, or the program the system opens it with. A
    * draft with a project file opens that file; one without opens its latest version.
@@ -277,16 +307,29 @@ export function Welcome({ projectId = null }) {
       version.name,
     );
   };
-  /** Put a starting question into the composer, caret at the end. @param {string} text */
-  const fill = (text) => {
-    actions.composerDraft(owner, text);
+  const focusComposer = () =>
     requestAnimationFrame(() => {
       const box = input.current;
       if (!box) return;
       box.focus();
       box.setSelectionRange(box.value.length, box.value.length);
     });
+  /** Put a starting question into the composer, caret at the end. @param {string} text */
+  const fill = (text) => {
+    if (away) {
+      actions.composerDraft(`new:${away.id}`, text);
+      pendingFocus = away.id;
+      navigate({ view: 'new', id: away.id });
+      return;
+    }
+    actions.composerDraft(owner, text);
+    focusComposer();
   };
+  useEffect(() => {
+    if (!projectId || pendingFocus !== projectId) return;
+    pendingFocus = null;
+    focusComposer();
+  }, [projectId]);
   const where = [
     ...live.map((entry) => ({
       text: entry.name,
@@ -331,14 +374,16 @@ export function Welcome({ projectId = null }) {
           </p>
         </div>
         ${
-          project &&
-          (facts.length > 0 || lastChat) &&
+          subject &&
+          (slot || facts.length > 0 || lastChat) &&
           html`<div class="ss-home__progress" data-home-progress>
             <p class="ss-home__progress-text">
-              <b>${project.name}</b>${
-                facts.length
-                  ? t('：{facts}。', { facts: facts.join(t('，')) })
-                  : t('：还没有稿件和计划。')
+              <b>${subject.name}</b>${
+                slot
+                  ? t('：{progress}', { progress: slot.progress })
+                  : facts.length
+                    ? t('：{facts}。', { facts: facts.join(t('，')) })
+                    : t('：还没有稿件和计划。')
               }
             </p>
             <div class="ss-home__progress-actions">
@@ -361,7 +406,7 @@ export function Welcome({ projectId = null }) {
                   type="button"
                   class="ss-btn ss-btn--ghost ss-btn--sm"
                   data-tip=${t('打开工作站的计划')}
-                  onClick=${() => navigate({ view: 'plans', id: project.id })}
+                  onClick=${() => navigate({ view: 'plans', id: subject.id })}
                 >
                   <${Lucide} name="list-checks" />${t('看计划')}
                 </button>`
@@ -374,7 +419,11 @@ export function Welcome({ projectId = null }) {
             <span class="ss-block-head__title">${t('从这里开始')}</span>
             <span class="ss-block-head__end"
               ><span class="ss-muted ss-home__hint"
-                >${t('点一下填进输入框，改几个字再发')}</span
+                >${
+                  away
+                    ? t('点一下在「{name}」里开新对话，改几个字再发', { name: away.name })
+                    : t('点一下填进输入框，改几个字再发')
+                }</span
               ></span
             >
           </div>

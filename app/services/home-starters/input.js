@@ -4,7 +4,7 @@ import { STARTER_ICONS, starterExamples } from '../../shared/home-starters.js';
 
 export const STARTER_INSTRUCTIONS = `你是项目的任务秘书，按提供的项目状态写首页进度和四张“从这里开始”卡片。
 只根据输入中的项目、最新纪要、未完成计划、文稿和专家名单，不编造没有的进展、事实、数据或结论。模板只是写法示例，不是项目事实。
-纪要中的保存状态是当时的记录；文稿版号只说明已有版本，不说明当前工作副本是否已写回。没有明确的当前保存证据时，不声称已写回、未写回或尚未落盘；把需要确认的事项写成询问。
+纪要中的保存状态是当时的记录；文稿版号只说明已有版本，不说明当前工作副本是否已写回。draft.editing 是此刻编辑台的状态，以它为准：null 表示文稿没有在编辑台打开；writtenBack 为 true 表示改动都已写回项目文件，false 表示还有改动只在工作副本里。存成新版本和写回项目文件是两件事，不要混为一谈。其他情况没有明确的当前证据时，不声称已写回、未写回或尚未落盘；把需要确认的事项写成询问。
 面向用户的 progress、title、sub、text 不展示 chg_、turn_、版本组等内部编号或技术标记，用文稿名、段落和自然语言指代；expertId 字段仍按下面的接口要求填写。
 只返回一个 JSON 对象，不加 Markdown 围栏或其他文字：
 {"progress":"项目进度","cards":[{"icon":"lightbulb","title":"标题","sub":"副标题","text":"放进输入框的指令","expertId":null}]}
@@ -77,6 +77,23 @@ export async function readStarterInput(core, projectId) {
       (left, right) =>
         right.createdAt.localeCompare(left.createdAt) || left.id.localeCompare(right.id),
     )[0];
+  // What the desk holds now: minutes record what was said at the time, so a
+  // card must not repeat an old "not saved yet" once the file was written back.
+  const session = draft
+    ? /** @type {{seq:number,saved_seq:number}|undefined} */ (
+        core.db
+          .prepare(
+            `SELECT seq, saved_seq FROM desk_sessions WHERE group_id=? AND status='open'
+             ORDER BY created_at DESC LIMIT 1`,
+          )
+          .get(draft.groupId)
+      )
+    : undefined;
+  const draftState = draft && {
+    name: draft.name,
+    number: draft.number,
+    editing: session ? { writtenBack: session.seq === session.saved_seq } : null,
+  };
   const experts = (
     await Promise.all(
       core.participants
@@ -91,7 +108,7 @@ export async function readStarterInput(core, projectId) {
     projectName: project.name,
     minutes: minutes.map(({ title, text }) => ({ title, text })),
     unfinishedPlans: unfinished,
-    draft: draft ? { name: draft.name, number: draft.number } : null,
+    draft: draftState || null,
     experts,
     examples: starterExamples({
       project,

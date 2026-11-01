@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { latestDrafts, starters } from './home-next.js';
+import { latestDrafts, slotCards, slotFor, starters } from './home-next.js';
 
 const version = (id, number, createdAt) => ({ id, number, createdAt });
 
@@ -68,4 +68,31 @@ test('starters without a draft or plan fall back, and without a project offer tw
     loose.map((card) => card.icon),
     ['circle-help', 'lightbulb'],
   );
+});
+
+test('the secretary slot shows on the home without a project and on its own project only', () => {
+  const slot = { projectId: 'p1' };
+  assert.equal(slotFor(slot, null), slot);
+  assert.equal(slotFor(slot, 'p1'), slot);
+  assert.equal(slotFor(slot, 'p2'), null);
+  assert.equal(slotFor(null, null), null);
+});
+
+test('secretary cards address the expert by the name it has now', () => {
+  const cards = [
+    {
+      icon: 'scale',
+      title: '挑一挑',
+      sub: '找出三处',
+      text: '请读开题报告。',
+      expertId: 'agent_red_team',
+    },
+    { icon: 'database', title: '核对资料', sub: '列出缺口', text: '按资料核对。', expertId: null },
+    { icon: 'lightbulb', title: '定义', sub: '边界', text: '帮我下定义。', expertId: 'agent_gone' },
+  ];
+  assert.deepEqual(slotCards(cards, [{ id: 'agent_red_team', name: '反方' }]), [
+    { icon: 'scale', title: '挑一挑', sub: '@反方 · 找出三处', text: '@反方 请读开题报告。' },
+    { icon: 'database', title: '核对资料', sub: '列出缺口', text: '按资料核对。' },
+    { icon: 'lightbulb', title: '定义', sub: '边界', text: '帮我下定义。' },
+  ]);
 });

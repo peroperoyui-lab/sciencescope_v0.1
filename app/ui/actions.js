@@ -142,6 +142,8 @@ export function createActions(api, store) {
 
   /** The sources a whole chat's answers used (GET /api/meetings/:id/sources). @param {string} meetingId */
   const meetingSources = (meetingId) => api.get(`/api/meetings/${meetingId}/sources`);
+  /** The home's progress and four starters, written by the secretary of the project last left. */
+  const homeStarters = () => api.get('/api/home/starters');
 
   async function loadEarlier(meetingId) {
     const loaded = store.get().messages[meetingId] ?? [];
@@ -629,6 +631,7 @@ export function createActions(api, store) {
     ...createExtensionActions(api),
     start,
     meetingSources,
+    homeStarters,
     stop: () => stopFollowing(),
     openMeeting,
     assistantSnapshot,
