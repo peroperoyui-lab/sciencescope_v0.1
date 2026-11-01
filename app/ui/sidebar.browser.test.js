@@ -150,3 +150,33 @@ test(
     }
   },
 );
+
+test(
+  'sidebar: a long title truncates and the sidebar never scrolls sideways',
+  { skip: browserSkip },
+  async () => {
+    await withBrowserApp(
+      'sidebar-long-title',
+      async function* () {
+        yield '好了';
+      },
+      async ({ page, app }) => {
+        const long = '一个很长很长的对话标题，长到侧栏放不下，应当以省略号结尾'.repeat(3);
+        const project = await app.core.projects.create({ name: `长名项目${long}` });
+        app.core.meetings.create({
+          projectId: project.id,
+          title: long,
+          members: [{ participantId: 'person_user' }, { participantId: 'agent_main' }],
+        });
+        await page.reload();
+        const box = page.locator('.ss-sidebar__scroll');
+        await box.getByText(long, { exact: true }).waitFor();
+        const { scrollWidth, clientWidth } = await box.evaluate((element) => ({
+          scrollWidth: element.scrollWidth,
+          clientWidth: element.clientWidth,
+        }));
+        assert.equal(scrollWidth, clientWidth);
+      },
+    );
+  },
+);

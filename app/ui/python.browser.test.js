@@ -110,6 +110,8 @@ test(
         await page.locator('#python-choice[data-value="system"]').waitFor();
         await shot('python-new-chat-zh');
         await page.getByRole('button', { name: '确定', exact: true }).click();
+        // The dialog closes before the home replaces the chat: type into the home's box.
+        await page.locator('.ss-home').waitFor();
         const before = app.core.meetings.list().length;
         await page.getByLabel('主输入框').fill('Run my standalone analysis');
         await page.getByRole('button', { name: '发送', exact: true }).click();

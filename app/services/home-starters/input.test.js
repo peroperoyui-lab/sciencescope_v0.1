@@ -63,7 +63,12 @@ test('starter input uses the three latest ordinary project chats, open plans, la
       [3, 2, 1].map((number) => ({ title: `普通对话 ${number}`, text: `纪要 ${number}` })),
     );
     assert.deepEqual(input.unfinishedPlans, ['补齐样本', '复核口径']);
-    assert.deepEqual(input.draft, { name: '合成草稿.md', number: 2, editing: null });
+    assert.deepEqual(input.draft, {
+      name: '合成草稿.md',
+      latestVersion: 2,
+      projectFile: null,
+      editing: null,
+    });
     // The desk's state now, not what the minutes said at the time: an open
     // session with changes only in the working copy, then written back.
     const latest = core.versionCatalog.get(imported.versions[1].id);
@@ -74,11 +79,17 @@ test('starter input uses the three latest ordinary project chats, open plans, la
       )
       .run(latest.groupId, latest.id);
     const unsaved = await readStarterInput(core, project.id);
-    assert.deepEqual(JSON.parse(unsaved.input).draft.editing, { writtenBack: false });
+    assert.deepEqual(JSON.parse(unsaved.input).draft.editing, {
+      fromVersion: 2,
+      writtenBack: false,
+    });
     assert.notEqual(unsaved.fingerprint, result.fingerprint);
     core.db.prepare("UPDATE desk_sessions SET saved_seq=2 WHERE id='ses_card'").run();
     const saved = await readStarterInput(core, project.id);
-    assert.deepEqual(JSON.parse(saved.input).draft.editing, { writtenBack: true });
+    assert.deepEqual(JSON.parse(saved.input).draft.editing, {
+      fromVersion: 2,
+      writtenBack: true,
+    });
     assert.notEqual(saved.fingerprint, unsaved.fingerprint);
     core.db.prepare("DELETE FROM desk_sessions WHERE id='ses_card'").run();
     assert.deepEqual(
@@ -164,7 +175,7 @@ test('starter JSON accepts Unicode limits and roster IDs without shortening the 
   assert.deepEqual(parseStarterResult(JSON.stringify(value), ['current-expert']), value);
   assert.match(STARTER_INSTRUCTIONS, /不编造/u);
   assert.match(STARTER_INSTRUCTIONS, /版号只说明已有版本，不说明当前工作副本是否已写回/u);
-  assert.match(STARTER_INSTRUCTIONS, /draft\.editing 是此刻编辑台的状态，以它为准/u);
+  assert.match(STARTER_INSTRUCTIONS, /draft 是此刻的状态，以它为准/u);
   assert.match(STARTER_INSTRUCTIONS, /没有明确的当前证据时，不声称已写回、未写回/u);
   assert.match(STARTER_INSTRUCTIONS, /progress、title、sub、text 不展示 chg_、turn_/u);
 });

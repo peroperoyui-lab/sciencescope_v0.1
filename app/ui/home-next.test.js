@@ -89,10 +89,27 @@ test('secretary cards address the expert by the name it has now', () => {
     },
     { icon: 'database', title: '核对资料', sub: '列出缺口', text: '按资料核对。', expertId: null },
     { icon: 'lightbulb', title: '定义', sub: '边界', text: '帮我下定义。', expertId: 'agent_gone' },
+    // Already addressed by the secretary, under the current or an older name.
+    {
+      icon: 'search',
+      title: '再查',
+      sub: '@反方 · 查漏',
+      text: '@反方 再查。',
+      expertId: 'agent_red_team',
+    },
+    {
+      icon: 'search',
+      title: '旧名',
+      sub: '@旧反方：查漏',
+      text: '@旧反方，再查。',
+      expertId: 'agent_red_team',
+    },
   ];
   assert.deepEqual(slotCards(cards, [{ id: 'agent_red_team', name: '反方' }]), [
     { icon: 'scale', title: '挑一挑', sub: '@反方 · 找出三处', text: '@反方 请读开题报告。' },
     { icon: 'database', title: '核对资料', sub: '列出缺口', text: '按资料核对。' },
     { icon: 'lightbulb', title: '定义', sub: '边界', text: '帮我下定义。' },
+    { icon: 'search', title: '再查', sub: '@反方 · 查漏', text: '@反方 再查。' },
+    { icon: 'search', title: '旧名', sub: '@反方 · 查漏', text: '@反方 再查。' },
   ]);
 });

@@ -1110,6 +1110,9 @@ button.ss-titlebar__brand {
 }
 .ss-tree {
   display: grid;
+  /* One column no wider than the sidebar: a long title truncates instead of
+     widening every row and letting the sidebar scroll sideways. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 1px;
 }
 .ss-tree-row {

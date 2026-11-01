@@ -108,3 +108,61 @@ test(
     );
   },
 );
+
+test(
+  'an answer still streaming when its chat opens gets its citation buttons once it ends',
+  { skip: browserSkip },
+  async () => {
+    let release = () => {};
+    const gate = new Promise((resolve) => {
+      release = () => resolve(undefined);
+    });
+    await withBrowserApp(
+      'preview-streaming-citations',
+      async function* () {
+        yield 'Evidence ';
+        await gate;
+        yield '[S1 p.1].';
+      },
+      async ({ page, app }) => {
+        await app.core.workspace.edit({
+          resource: 'settings',
+          key: 'app',
+          op: 'patch',
+          args: { changes: { models: { default: { provider: 'test', model: 'test' } } } },
+        });
+        const project = await app.core.projects.create({ name: '流式出处' });
+        const meeting = app.core.meetings.create({
+          projectId: project.id,
+          members: [{ participantId: 'person_user' }, { participantId: 'agent_main' }],
+        });
+        const pdf = await PDFDocument.create();
+        const font = await pdf.embedFont(StandardFonts.Helvetica);
+        pdf.addPage().drawText('First page evidence', { x: 40, y: 700, font, size: 14 });
+        const source = await app.research.importSource({
+          name: '论文.pdf',
+          projectId: project.id,
+          bytes: await pdf.save(),
+        });
+        const input = app.researchInput.change(meeting.id, {
+          op: 'add',
+          material: { id: source.id },
+        });
+        app.conductor.submit({
+          meetingId: meeting.id,
+          authorId: 'person_user',
+          text: 'Read',
+          researchInput: input,
+        });
+        // The chat opens while the answer is still being written.
+        await page.evaluate((id) => {
+          location.hash = '#/meeting/' + id;
+        }, meeting.id);
+        await page.locator('.ss-msg[data-streaming]').getByText('Evidence').waitFor();
+        release();
+        await app.conductor.idle();
+        await page.getByRole('button', { name: '[S1 p.1]', exact: true }).waitFor();
+      },
+    );
+  },
+);

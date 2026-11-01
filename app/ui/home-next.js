@@ -51,8 +51,21 @@ export function slotFor(slot, projectId) {
 export function slotCards(cards, participants) {
   return cards.map(({ icon, title, sub, text, expertId }) => {
     const name = expertId && participants.find((person) => person.id === expertId)?.name;
-    return name
-      ? { icon, title, sub: `@${name} · ${sub}`, text: `@${name} ${text}` }
-      : { icon, title, sub, text };
+    if (!name) return { icon, title, sub, text };
+    // The secretary sometimes addresses the expert itself, under this or an
+    // older name: drop its own @ so the card is addressed once.
+    const own = `@${name}`;
+    const bare = (value) => {
+      const rest = value.slice(own.length);
+      const kept =
+        value.startsWith(own) && (!rest || SEPARATOR.test(rest))
+          ? rest
+          : value.replace(ADDRESS, '');
+      return kept.replace(SEPARATOR, '').trim() || value;
+    };
+    return { icon, title, sub: `@${name} · ${bare(sub)}`, text: `@${name} ${bare(text)}` };
   });
 }
+
+const ADDRESS = /^@[^\s·:：,，、]+/u;
+const SEPARATOR = /^[\s·:：,，、]+/u;

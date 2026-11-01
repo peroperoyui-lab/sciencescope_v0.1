@@ -166,9 +166,11 @@ export function createActions(api, store) {
    */
   async function loadAnswers(meetingId, messages) {
     const answers = messages.filter((message) => message.turnId);
+    // An answer still being written has no citations yet: kept, the batch's
+    // empty list would be what the finished answer takes.
     const items = await extras.prefetch(
       meetingId,
-      answers.map((message) => message.id),
+      answers.filter((message) => message.status !== 'streaming').map((message) => message.id),
     );
     await Promise.all(
       answers.map(async (message) => {

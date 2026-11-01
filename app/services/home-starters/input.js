@@ -4,13 +4,13 @@ import { STARTER_ICONS, starterExamples } from '../../shared/home-starters.js';
 
 export const STARTER_INSTRUCTIONS = `你是项目的任务秘书，按提供的项目状态写首页进度和四张“从这里开始”卡片。
 只根据输入中的项目、最新纪要、未完成计划、文稿和专家名单，不编造没有的进展、事实、数据或结论。模板只是写法示例，不是项目事实。
-纪要中的保存状态是当时的记录；文稿版号只说明已有版本，不说明当前工作副本是否已写回。draft.editing 是此刻编辑台的状态，以它为准：null 表示文稿没有在编辑台打开；writtenBack 为 true 表示改动都已写回项目文件，false 表示还有改动只在工作副本里。存成新版本和写回项目文件是两件事，不要混为一谈。其他情况没有明确的当前证据时，不声称已写回、未写回或尚未落盘；把需要确认的事项写成询问。
+纪要中的保存状态是当时的记录；文稿版号只说明已有版本，不说明当前工作副本是否已写回。draft 是此刻的状态，以它为准：latestVersion 是最新存下的版本号，最新版本可能是没写回项目文件的分支；projectFile.version 是项目文件现在所依据的版本号（null 表示不知道，projectFile 为 null 表示这份文稿只在应用里）；editing 为 null 表示没在编辑台打开，否则 fromVersion 是正在编辑的那一版，writtenBack 为 true 表示这次编辑的改动都已写回项目文件，false 表示还有改动只在工作副本里。每个状态只说它所属的那一版，不要把一版的写回状态套到另一版上；存成新版本和写回项目文件是两件事。其他情况没有明确的当前证据时，不声称已写回、未写回或尚未落盘；把需要确认的事项写成询问。
 面向用户的 progress、title、sub、text 不展示 chg_、turn_、版本组等内部编号或技术标记，用文稿名、段落和自然语言指代；expertId 字段仍按下面的接口要求填写。
 只返回一个 JSON 对象，不加 Markdown 围栏或其他文字：
 {"progress":"项目进度","cards":[{"icon":"lightbulb","title":"标题","sub":"副标题","text":"放进输入框的指令","expertId":null}]}
 progress 为一到两句，最多 80 个 Unicode 字符；cards 恰好四张，每张 title 最多 24 字、sub 最多 30 字、text 最多 200 字，均须有内容。
 icon 只能是 lightbulb、circle-help、scale、list-checks、database、file-pen、search、book-open。
-text 不带 @；需要找专家时，expertId 只能选实际专家名单中的 id，不找专家时为 null。界面会按当前名字补上 @。
+sub 和 text 都不带 @，也不写专家名；需要找专家时，expertId 只能选实际专家名单中的 id，不找专家时为 null。界面会按当前名字补上 @。
 不要直接发送指令、编辑项目或调用工具。`;
 
 /** @param {string} text */
@@ -80,20 +80,37 @@ export async function readStarterInput(core, projectId) {
   // What the desk holds now: minutes record what was said at the time, so a
   // card must not repeat an old "not saved yet" once the file was written back.
   const session = draft
-    ? /** @type {{seq:number,saved_seq:number}|undefined} */ (
+    ? /** @type {{seq:number,saved_seq:number,base_version_id:string}|undefined} */ (
         core.db
           .prepare(
-            `SELECT seq, saved_seq FROM desk_sessions WHERE group_id=? AND status='open'
-             ORDER BY created_at DESC LIMIT 1`,
+            `SELECT seq, saved_seq, base_version_id FROM desk_sessions
+             WHERE group_id=? AND status='open' ORDER BY created_at DESC LIMIT 1`,
           )
           .get(draft.groupId)
       )
     : undefined;
-  const draftState = draft && {
-    name: draft.name,
-    number: draft.number,
-    editing: session ? { writtenBack: session.seq === session.saved_seq } : null,
+  /** @param {string | null | undefined} id */
+  const numberOf = (id) => {
+    if (!id) return null;
+    try {
+      return core.versionCatalog.get(id).number;
+    } catch {
+      return null;
+    }
   };
+  const group = draft ? core.versionCatalog.group(draft.groupId) : null;
+  const draftState = draft &&
+    group && {
+      name: draft.name,
+      latestVersion: draft.number,
+      projectFile: group.sourcePath ? { version: numberOf(group.sourceVersionId) } : null,
+      editing: session
+        ? {
+            fromVersion: numberOf(String(session.base_version_id)),
+            writtenBack: session.seq === session.saved_seq,
+          }
+        : null,
+    };
   const experts = (
     await Promise.all(
       core.participants
