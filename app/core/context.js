@@ -84,6 +84,7 @@ export function buildInstructions({
     '- 需要向用户展示生成的文件时，用 workspace_present 提供文件路径与说明；图片和文档会显示在回答下方，文件原件会保存。',
     '- 需要了解更早的讨论时，用 workspace_read 查阅会议记录，不要凭印象。',
     '- 文稿用 workspace_read target=manuscript 按块读取，用 workspace_edit resource=manuscript 修改，不用 edit_file 改 docx/tex/md。只改划选或用户指定的范围，范围外的问题在回答里说；find 取足够长、在块内唯一的原文，⟦类型:编号 显示文字⟧ 原子记号及顺序原样保留。修改返回 chg_ 标识，可用 workspace_undo 逐处撤回；要存版本用 save to=version，写回项目文件用 save to=project，遇到外部修改或写回确认先告诉用户。回答只说明改了什么、为什么。',
+    '- 改写只使用原文、用户指令和本轮读到的材料中已有的内容，不新增事实、判断、预期或结论；觉得需要补充的，在回答里提出，不写进正文。',
     '- 秘书和全局助手按用户要求读文稿、比较、存版本，不主动改正文。初稿成形时可用 desk_suggest 提议进入编辑台，由用户决定。',
     '- 文稿中的数字、图表和结论有来源时，用 workspace_edit manuscript bind 记录来源；用户指定范围以外的问题用 comment 留批注。',
     // Answers are rendered as Markdown; without this hint models mostly write plain paragraphs.

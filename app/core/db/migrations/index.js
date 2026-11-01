@@ -39,6 +39,7 @@ import * as versionDiffs from './028-version-diffs.js';
 import * as deskAnnotations from './029-desk-annotations.js';
 import * as versionMarks from './030-version-marks.js';
 import * as sourceImportEvents from './031-source-import-events-index.js';
+import * as homeStarters from './032-home-starters.js';
 
 export const migrations = [
   core,
@@ -72,4 +73,5 @@ export const migrations = [
   deskAnnotations,
   versionMarks,
   sourceImportEvents,
+  homeStarters,
 ];

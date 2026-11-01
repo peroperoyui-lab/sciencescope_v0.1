@@ -105,6 +105,12 @@ export function createVersionGraph(core, serial) {
           throw new AppError('INVALID_VERSION_METADATA', 'Version metadata must be text.');
         next[field] = changes[field];
       }
+      if (changes.branch !== undefined) {
+        next.branch = next.branch.trim();
+        if (!next.branch) throw new AppError('BRANCH_NAME_REQUIRED', '请填写分支名称。');
+        if (Array.from(next.branch).length > 40)
+          throw new AppError('BRANCH_NAME_TOO_LONG', '分支名称不能超过 40 个字。');
+      }
       if (changes.description !== undefined) {
         if (typeof changes.description !== 'string')
           throw new AppError('INVALID_VERSION_METADATA', 'Version description must be text.');
@@ -125,6 +131,13 @@ export function createVersionGraph(core, serial) {
         if (!settings.value.desk.tiers.includes(next.tier))
           throw new AppError('INVALID_TIER', 'Choose a tier from the editing desk settings.');
       }
+      if (
+        changes.branch !== undefined &&
+        ['title', 'label', 'tier', 'branch', 'description', 'key'].every(
+          (field) => next[field] === version[field],
+        )
+      )
+        return version;
       db.transaction(() => {
         if (next.branch !== version.branch) {
           if (
@@ -149,7 +162,15 @@ export function createVersionGraph(core, serial) {
         let action = 'metadata';
         if (next.description !== version.description) action = 'marked';
         else if (next.key !== version.key) action = 'key-changed';
-        catalog.changed(version.projectId, action, id, actorId);
+        catalog.changed(
+          version.projectId,
+          action,
+          id,
+          actorId,
+          next.branch === version.branch
+            ? undefined
+            : { oldBranch: version.branch, newBranch: next.branch },
+        );
       });
       return catalog.get(id);
     });

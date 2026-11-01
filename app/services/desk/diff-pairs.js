@@ -8,8 +8,8 @@ function similar(left, right, before, after, limit) {
     right.forEach((_, index) => pairs.push({ old: null, new: after + index }));
     return { pairs, limited: left.length * right.length > limit };
   }
-  const oldGrams = left.map((item) => bigrams(item.key));
-  const newGrams = right.map((item) => bigrams(item.key));
+  const oldGrams = left.map((item) => bigrams(item.matchingText ?? item.key));
+  const newGrams = right.map((item) => bigrams(item.matchingText ?? item.key));
   const scores = oldGrams.map((old) => Float64Array.from(newGrams, (next) => dice(old, next)));
   const best = Array.from({ length: left.length + 1 }, () => new Float64Array(right.length + 1));
   for (let i = left.length - 1; i >= 0; i--)

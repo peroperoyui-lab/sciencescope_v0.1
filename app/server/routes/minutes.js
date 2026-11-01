@@ -4,8 +4,9 @@ import { AppError } from '../../core/errors.js';
 /**
  * @param {import('../router.js').Router} router
  * @param {ReturnType<typeof import('../../services/secretary/minutes.js').createMinutesService>} [minutes]
+ * @param {ReturnType<typeof import('../../services/home-starters/index.js').createHomeStarters>} [starters]
  */
-export function registerMinutesRoutes(router, minutes) {
+export function registerMinutesRoutes(router, minutes, starters) {
   const service = () => {
     if (!minutes) throw new AppError('MINUTES_UNAVAILABLE', '纪要服务未启动。', 503);
     return minutes;
@@ -20,6 +21,7 @@ export function registerMinutesRoutes(router, minutes) {
   });
   router.post('/api/projects/:id/focus', async ({ params, body }) => {
     await service().focus(body.focused === false ? null : params.id);
+    starters?.focus(params.id, body.focused !== false);
     return { focused: body.focused !== false };
   });
 }

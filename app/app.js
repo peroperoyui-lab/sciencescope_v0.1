@@ -13,6 +13,7 @@ import { createModelCatalog } from './runtime/pi/catalog.js';
 import { createAppServer } from './server/server.js';
 import { createConductor } from './services/conductor.js';
 import { createMinutesService } from './services/secretary/minutes.js';
+import { createHomeStarters } from './services/home-starters/index.js';
 import { createSecretaryChat } from './services/secretary/chat.js';
 import { createBackgroundRunner } from './services/secretary/background.js';
 import { projectBrief } from './services/secretary/project-brief.js';
@@ -113,6 +114,13 @@ export async function createApp({
     modelCatalog: catalog,
   });
   const secretary = createSecretaryChat({ core, minutes, modelCatalog: catalog });
+  const homeStarters = createHomeStarters({
+    core,
+    minutes,
+    runtime: activeRuntime,
+    defaultModel: async () => (await settings()).models.default,
+    modelCatalog: catalog,
+  });
   const skills = createSkills(core);
   const mcp = createMcp(core);
   const tools = createTools(core, research, { secretary, python, versions, skills, mcp, desk });
@@ -154,6 +162,7 @@ export async function createApp({
   const conductor = createConductor({ core, runner });
   conductor.start();
   minutes.start();
+  homeStarters.start();
   memory.start();
   versionNotes.start();
   const server = createAppServer({
@@ -173,6 +182,7 @@ export async function createApp({
     researchInput,
     semantic,
     minutes,
+    homeStarters,
     secretary,
     assistant,
     memory,
@@ -202,6 +212,7 @@ export async function createApp({
     researchInput,
     semantic,
     minutes,
+    homeStarters,
     secretary,
     assistant,
     memory,
@@ -218,6 +229,7 @@ export async function createApp({
       await python.close();
       await memory.close();
       await memoryRunner.close();
+      await homeStarters.close();
       await minutes.close();
       await versions.close();
       await server.close();

@@ -12,6 +12,7 @@ import { registerMeetingRoutes } from './routes/meetings.js';
 import { registerMessageExtrasRoutes } from './routes/message-extras.js';
 import { registerMeetingSourcesRoutes } from './routes/meeting-sources.js';
 import { registerMinutesRoutes } from './routes/minutes.js';
+import { registerHomeRoutes } from './routes/home.js';
 import { registerMemoryRoutes } from './routes/memory.js';
 import { registerSecretaryRoutes } from './routes/secretary.js';
 import { registerParticipantRoutes } from './routes/participants.js';
@@ -70,6 +71,7 @@ function tokenMatches(given, expected) {
  *   versions?: ReturnType<typeof import('../services/versions/index.js').createVersions>,
  *   versionNotes?: ReturnType<typeof import('../services/versions/organizer.js').createVersionOrganizer>,
  *   minutes?: ReturnType<typeof import('../services/secretary/minutes.js').createMinutesService>,
+ *   homeStarters?: ReturnType<typeof import('../services/home-starters/index.js').createHomeStarters>,
  *   secretary?: ReturnType<typeof import('../services/secretary/chat.js').createSecretaryChat>,
  *   assistant?: ReturnType<typeof import('../services/assistant/index.js').createAssistant>,
  *   providers?:ReturnType<typeof import('../services/providers.js').createProviderService>,
@@ -100,6 +102,7 @@ export function createAppServer({
   researchInput,
   semantic,
   minutes,
+  homeStarters,
   secretary,
   assistant,
   memory,
@@ -134,7 +137,8 @@ export function createAppServer({
   registerMeetingSourcesRoutes(router, core);
   registerResearchInputRoutes(router, researchInput);
   registerPreviewRoutes(router, core, research);
-  registerMinutesRoutes(router, minutes);
+  registerMinutesRoutes(router, minutes, homeStarters);
+  registerHomeRoutes(router, homeStarters);
   registerSecretaryRoutes(router, secretary);
   registerAssistantRoutes(router, assistant);
   registerMemoryRoutes(router, core, memory, research);
