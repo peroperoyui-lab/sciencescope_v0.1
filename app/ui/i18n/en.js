@@ -1559,6 +1559,7 @@ export const en = {
   筛选立即生效: 'Filters apply immediately',
   清除: 'Clear',
   '{n} 条关系': 'Relations {n}',
+  '{count} 条关系': '{count} relations',
   '这种格式不解析内容，专家能按文件名和位置找到它。':
     'This format is not parsed; experts can still find it by name and location.',
   '没有原件，只有标题、作者等信息。': 'No original file, only details such as title and authors.',
@@ -1665,8 +1666,8 @@ export const en = {
   手动添加: 'Added by hand',
   从原文整理: 'From the source text',
   '自动线索（引用、相似）': 'Automatic hints (citations, similarity)',
-  '实线是手动添加的关系；带圆点的实线是从原文整理出来的，带页码证据；虚线是自动线索（引用、相似），只作参考。AI 添加且没人改过的关系带 AI 标记。拖动节点会把它钉在那里；按住 Shift 点选可以选中多个实体再合并。':
-    'Solid lines were added by hand; solid lines with a dot come from the source text with page evidence; dashed lines are automatic hints (citations, similarity), for reference only. Relations added by AI and not edited since carry an AI mark. Dragging a node pins it in place; Shift-click to select several entities and merge them.',
+  '实线是手动添加的关系；带圆点的实线是从原文整理出来的，带页码证据；虚线是自动线索（引用、相似），只作参考。鼠标停在线上显示关系名，AI 添加且没人改过的关系会标出 AI；停在节点上显示它的属性。拖动节点时，相连的节点会被拉着走，松手后它钉在那里；按住 Shift 点选可以选中多个实体再合并。':
+    'Solid lines were added by hand; solid lines with a dot come from the source text with page evidence; dashed lines are automatic hints (citations, similarity), for reference only. Hover a line to see its relation, marked AI when added by AI and not edited since; hover a node to see its details. Dragging a node pulls the nodes connected to it along, and it stays pinned where you drop it; Shift-click to select several entities and merge them.',
   '{nodes} 个节点 · {edges} 条关系': '{nodes} nodes · {edges} relations',
   '，{n} 个正在排布': ', {n} being placed',
   这个节点不在知识库的图里: 'This node is not in the knowledge base graph',

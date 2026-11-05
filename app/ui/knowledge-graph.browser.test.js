@@ -5,7 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createResearchStore } from '../services/research/store.js';
 import { createKnowledgeStore } from '../services/knowledge/store.js';
-import { browserSkip, withBrowserApp } from './browser-testing.js';
+import { browserSkip, eventually, withBrowserApp } from './browser-testing.js';
 
 async function* silent() {}
 const headers = { authorization: 'Bearer ui-token', 'content-type': 'application/json' };
@@ -105,6 +105,11 @@ test(
       assert.equal(settings.appearance.knowledgeView, 'graph');
       await shot('kb-10-graph');
 
+      let point;
+      // Relation names stay off the lines until one is hovered.
+      const labelled = () =>
+        onMap(page, 'return map.cy.edges().filter((e) => e.pstyle("label").strValue).length;');
+      assert.equal(await labelled(), 0);
       // Hovering an edge names both ends and where it came from.
       const [paperAt, panelAt] = [await at(page, ref.paper), await at(page, ref.panel)];
       await page.mouse.move((paperAt.x + panelAt.x) / 2, (paperAt.y + panelAt.y) / 2);
@@ -112,10 +117,24 @@ test(
       await hover.waitFor();
       assert.match(await hover.innerText(), /地级市面板/);
       assert.match(await hover.innerText(), /手动添加/);
+      assert.equal(await labelled(), 1);
       await page.mouse.move(5, 5);
+      await hover.waitFor({ state: 'detached' });
+      // Hovering a node shows its kind, relation count and details.
+      await page.mouse.move(paperAt.x, paperAt.y);
+      const card = page.locator('[data-node-card]');
+      await card.filter({ hasText: '3 条关系' }).waitFor();
+      assert.match(await card.innerText(), /组态视角/);
+      await shot('kb-10-node-card');
+      point = await at(page, ref.panel);
+      await page.mouse.move(point.x, point.y);
+      await card.filter({ hasText: '地级市面板' }).filter({ hasText: '数据集' }).waitFor();
+      await shot('kb-10-node-card-entity');
+      await page.mouse.move(5, 5);
+      await card.waitFor({ state: 'detached' });
 
       // Double-click centres on a node; depth 2 reaches one step further.
-      let point = await at(page, ref.paper);
+      point = await at(page, ref.paper);
       await page.mouse.dblclick(point.x, point.y);
       const center = page.locator('[data-kb-center]');
       await center.filter({ hasText: '组态视角' }).waitFor();
@@ -225,7 +244,14 @@ test(
         ref.alias,
       );
 
-      // Dragging a node pins it where it was dropped.
+      // Dragging a node pins it where it was dropped and pulls its neighbour
+      // along; the neighbour's new place is saved without pinning it.
+      const placeOf = (target) =>
+        onMap(page, 'return map.cy.getElementById(value).position();', target);
+      const paperBefore = await placeOf(ref.paper);
+      const neighbour = () =>
+        app.core.db.prepare('SELECT x, y, pinned FROM kb_positions WHERE ref=?').get(ref.paper);
+      const saved = neighbour();
       point = await at(page, ref.ragin);
       await page.mouse.move(point.x, point.y);
       await page.mouse.down();
@@ -236,6 +262,15 @@ test(
       for (let tries = 0; tries < 50 && !pinned()?.pinned; tries++)
         await new Promise((resolve) => setTimeout(resolve, 100));
       assert.equal(Number(pinned().pinned), 1);
+      const paperAfter = await placeOf(ref.paper);
+      assert.ok(
+        Math.hypot(paperAfter.x - paperBefore.x, paperAfter.y - paperBefore.y) > 1,
+        'the cited paper is pulled along',
+      );
+      await eventually(async () => {
+        const row = neighbour();
+        return row && Number(row.pinned) === 0 && (row.x !== saved.x || row.y !== saved.y);
+      });
 
       // Filters hide a kind at once; clearing brings it back.
       await page.locator('[data-kb-graph]').getByRole('button', { name: '筛选' }).click();

@@ -13,7 +13,8 @@ import { Illustration } from '../illustrations.js';
 import { KIND_GROUPS, createKnowledgeMap, displayKind } from '../knowledge-map.js';
 import { Dialog } from './dialog.js';
 import { moveFocus, usePopover } from './popover.js';
-import { relationKeys, relationLabel, splitRef } from './knowledge-fields.js';
+import { kindIcon, kindLabel, relationKeys, relationLabel, splitRef } from './knowledge-fields.js';
+import { authorText, researchLabel } from './research-fields.js';
 import { addedBy } from './research-list.js';
 
 // Edges of the centre's neighbourhood fetched at once; the rest stay as dots.
@@ -31,7 +32,7 @@ const PICKER_RELATIONS = [
   ...relationKeys.filter((key) => !COMMON_RELATIONS.includes(key) && !SYSTEM_RELATIONS.has(key)),
 ];
 const LEGEND_TIP =
-  '实线是手动添加的关系；带圆点的实线是从原文整理出来的，带页码证据；虚线是自动线索（引用、相似），只作参考。AI 添加且没人改过的关系带 AI 标记。拖动节点会把它钉在那里；按住 Shift 点选可以选中多个实体再合并。';
+  '实线是手动添加的关系；带圆点的实线是从原文整理出来的，带页码证据；虚线是自动线索（引用、相似），只作参考。鼠标停在线上显示关系名，AI 添加且没人改过的关系会标出 AI；停在节点上显示它的属性。拖动节点时，相连的节点会被拉着走，松手后它钉在那里；按住 Shift 点选可以选中多个实体再合并。';
 
 const noFilters = { kinds: null, layers: null, aiOnly: false, unlinked: false };
 /** A context-menu event at a canvas point, for actions.openMenu. @returns {any} */
@@ -88,6 +89,10 @@ export function KnowledgeGraph({ selection, onSelect, onStatus, query, searchNon
   );
   const [hoverDetail, setHoverDetail] = useState(/** @type {any} */ (null));
   const hoverCache = useRef(new Map());
+  const [nodeHover, setNodeHover] = useState(
+    /** @type {{ref:string,point:{x:number,y:number}}|null} */ (null),
+  );
+  const [nodeDetail, setNodeDetail] = useState(/** @type {any} */ (null));
   const [merge, setMerge] = useState(
     /** @type {{into:string,from:string[],intoName:string,fromName:string,count:number}|null} */ (
       null
@@ -114,9 +119,10 @@ export function KnowledgeGraph({ selection, onSelect, onStatus, query, searchNon
           onMenu: (ref, point) => handlers.current.menu(ref, point),
           onEdgeMenu: (edge, point) => handlers.current.edgeMenu(edge, point),
           onHover: (edge, point) => setHover(edge ? { edge, point } : null),
-          onMove: (ref, x, y) =>
+          onNodeHover: (ref, point) => setNodeHover(ref ? { ref, point } : null),
+          onMove: (positions) =>
             actions
-              .saveKnowledgePositions([{ ref, x, y, pinned: true }])
+              .saveKnowledgePositions(positions)
               .catch((caught) => actions.toast(caught.message)),
           onConnect: (from, to, point) => setPicker({ from, to, point }),
           onLoaded: () => handlers.current.loaded(),
@@ -519,6 +525,37 @@ export function KnowledgeGraph({ selection, onSelect, onStatus, query, searchNon
       clearTimeout(timer);
     };
   }, [hover?.edge?.id]);
+  // Hovering a node shows its kind, how connected it is, and what it is:
+  // an entity's description and who added it, a source's authors and year.
+  useEffect(() => {
+    setNodeDetail(null);
+    if (!nodeHover) return undefined;
+    const { type, id } = splitRef(nodeHover.ref);
+    const key = `node:${nodeHover.ref}`;
+    if (hoverCache.current.has(key)) {
+      setNodeDetail(hoverCache.current.get(key));
+      return undefined;
+    }
+    let current = true;
+    const timer = setTimeout(() => {
+      const load =
+        type === 'entity'
+          ? actions.knowledgeEntity(id).then((row) => row.entity)
+          : type === 'source'
+            ? actions.researchSource(id, { limit: 1 }).then((row) => row.source)
+            : actions.researchItem(id).then((row) => row.item);
+      load
+        .then((row) => {
+          hoverCache.current.set(key, row);
+          if (current) setNodeDetail(row);
+        })
+        .catch(() => {});
+    }, 200);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  }, [nodeHover?.ref]);
   useEffect(() => hoverCache.current.clear(), [version]);
   useEffect(() => {
     if (layoutError)
@@ -760,6 +797,7 @@ export function KnowledgeGraph({ selection, onSelect, onStatus, query, searchNon
           }
         </div>`
       }
+      ${nodeHover && !hover && html`<${NodeCard} hover=${nodeHover} detail=${nodeDetail} map=${mapRef.current} name=${label} at=${local} />`}
     </div>
     ${
       picker &&
@@ -1007,5 +1045,44 @@ function RelationPicker({ from, to, point, name, onPick, onClose }) {
         >${t('反向：{from} → {to}', { from: name(target), to: name(source) })}</span
       >
     </button>
+  </div>`;
+}
+
+/**
+ * The card beside a hovered node: name and kind, its relation count, and
+ * once loaded an entity's description and provenance or a source's authors.
+ * @param {{hover:{ref:string,point:{x:number,y:number}}, detail:any, map:any, name:(ref:string)=>string, at:(point:{x:number,y:number})=>{x:number,y:number}}} props
+ */
+function NodeCard({ hover, detail, map, name, at }) {
+  const info = map?.nodeInfo(hover.ref);
+  if (!info) return null;
+  const { type } = splitRef(hover.ref);
+  const spot = at(hover.point);
+  const metadata = detail?.metadata ?? {};
+  const byline = [
+    authorText(metadata.authors),
+    metadata.year,
+    metadata.venue && `《${metadata.venue}》`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  return html`<div
+    class="ss-graph__float kb-graph__hover"
+    role="tooltip"
+    data-node-card
+    style=${{ left: `${spot.x + 14}px`, top: `${spot.y + 14}px` }}
+  >
+    <div class="kb-graph__hover-title">${name(hover.ref) || detail?.title || detail?.name}</div>
+    <p class="ss-prov">
+      <span class="ss-kind" data-node-kind=${info.group}
+        ><${Lucide}
+          name=${kindIcon(info.kind)}
+        />${type === 'entity' ? kindLabel(info.kind) : detail?.kind ? researchLabel(detail.kind) : t(KIND_GROUPS.find(([group]) => group === info.group)?.[1] ?? '文献')}</span
+      >
+      ${' · '}${t('{count} 条关系', { count: info.degree })}
+    </p>
+    ${type !== 'entity' && byline && html`<p class="ss-prov">${byline}</p>`}
+    ${type === 'entity' && detail?.description && html`<p class="ss-prov kb-graph__quote">${detail.description}</p>`}
+    ${type === 'entity' && detail?.createdBy && html`<p class="ss-prov">${addedBy(detail.createdBy)}</p>`}
   </div>`;
 }

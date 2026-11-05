@@ -14,6 +14,16 @@ const SETTLE_MS = 100;
 // Average spacing between nodes on screen at zoom 1, whatever the host's units.
 const SPACING = 90;
 const LABEL_ZOOM = 0.7;
+// Drag pull: how far it reaches, and the springs that carry it (model units).
+const PULL_DEPTH = 2;
+const PULL_LIMIT = 150;
+const PULL_SPRING = 0.06;
+const PULL_PUSH = 0.08;
+const PULL_MIN = 40;
+const PULL_DAMPING = 0.72;
+const PULL_STEP = 40;
+const PULL_REST = 0.3;
+const PULL_SETTLE_MS = 1500;
 
 /** Node kinds that share a colour token (components.css `[data-node-kind]`). */
 const TOKEN = {
@@ -230,7 +240,8 @@ function stylesheet(palette) {
  *   onMenu?:(ref:string,point:{x:number,y:number})=>void,
  *   onEdgeMenu?:(edge:any,point:{x:number,y:number})=>void,
  *   onHover?:(edge:any|null,point?:{x:number,y:number})=>void,
- *   onMove?:(ref:string,x:number,y:number)=>void,
+ *   onNodeHover?:(ref:string|null,point?:{x:number,y:number})=>void,
+ *   onMove?:(positions:{ref:string,x:number,y:number,pinned?:boolean}[])=>void,
  *   onConnect?:(from:string,to:string,point:{x:number,y:number})=>void,
  *   onLoaded?:(state:{rendered:number,dots:number})=>void,
  * }} MapOptions
@@ -320,7 +331,9 @@ export function createKnowledgeMap(cytoscape, host, options) {
       for (const element of cy.nodes(':not(.ghost)')) {
         const index = position.get(element.id());
         if (index == null) element.remove();
-        else if (!element.grabbed()) element.position(model(nodes[index]));
+        // A node being dragged, or pulled along by one, keeps its place.
+        else if (!element.grabbed() && !pull?.at.has(element.id()))
+          element.position(model(nodes[index]));
       }
     });
     schedule(0);
@@ -590,13 +603,154 @@ export function createKnowledgeMap(cytoscape, host, options) {
     event.target.removeClass('hover');
     options.onHover?.(null);
   });
-  cy.on('dragfree', 'node:not(.ghost)', (event) => {
-    const ref = event.target.id();
-    const index = position.get(ref);
-    if (index == null) return;
-    const { x, y } = event.target.position();
-    Object.assign(nodes[index], { x: x / scale, y: y / scale, pinned: true });
-    options.onMove?.(ref, x / scale, y / scale);
+  cy.on('mouseover', 'node:not(.ghost)', (event) => {
+    if (!pull) options.onNodeHover?.(event.target.id(), point(event));
+  });
+  cy.on('mouseout', 'node', () => options.onNodeHover?.(null));
+  // Leaving the canvas fast skips the element's mouseout: clear both cards.
+  container.addEventListener('mouseleave', () => {
+    cy.edges('.hover').removeClass('hover');
+    options.onHover?.(null);
+    options.onNodeHover?.(null);
+  });
+
+  // Dragging a node pulls its loaded neighbourhood along on springs; the
+  // rest settles after release and every moved place is saved. The dragged
+  // node stays where it is dropped (pinned); the others keep their pin state.
+  /** @type {null | {ref:string, refs:string[], at:Map<string,{x:number,y:number,vx:number,vy:number}>, springs:{a:string,b:string,rest:number}[], released:number}} */
+  let pull = null;
+  let pullFrame = 0;
+  /** Held in place: the dragged node, pinned nodes, and those outside the pull. */
+  const fixed = (state, ref) =>
+    ref === state.ref || !state.at.has(ref) || Boolean(nodes[position.get(ref)]?.pinned);
+  function startPull(element) {
+    const ref = element.id();
+    const refs = [ref];
+    const seen = new Set(refs);
+    let ring = [element];
+    for (let depth = 0; depth < PULL_DEPTH && refs.length < PULL_LIMIT; depth++) {
+      const next = [];
+      for (const node of ring)
+        for (const peer of node.neighborhood('node:not(.ghost):not(.hidden)')) {
+          if (seen.has(peer.id()) || refs.length >= PULL_LIMIT) continue;
+          seen.add(peer.id());
+          refs.push(peer.id());
+          next.push(peer);
+        }
+      ring = next;
+    }
+    const at = new Map(
+      refs.map((id) => {
+        const { x, y } = cy.getElementById(id).position();
+        return [id, { x, y, vx: 0, vy: 0 }];
+      }),
+    );
+    // Springs keep each edge at its length before the drag, so the shape
+    // follows instead of collapsing; edges to nodes outside hold them back.
+    const springs = [];
+    for (const edge of cy
+      .edges(':not(.ghost)')
+      .filter((item) => at.has(item.source().id()) || at.has(item.target().id()))) {
+      const [a, b] = [edge.source(), edge.target()];
+      springs.push({
+        a: a.id(),
+        b: b.id(),
+        rest: Math.max(
+          PULL_MIN,
+          Math.hypot(a.position('x') - b.position('x'), a.position('y') - b.position('y')),
+        ),
+      });
+    }
+    pull = { ref, refs, at, springs, released: 0 };
+    options.onNodeHover?.(null);
+    pullFrame = requestAnimationFrame(stepPull);
+  }
+  function stepPull() {
+    pullFrame = 0;
+    if (!pull || destroyed) return;
+    const { at, springs } = pull;
+    const place = (id) =>
+      at.has(id) && !fixed(pull, id) ? at.get(id) : cy.getElementById(id).position();
+    const lead = cy.getElementById(pull.ref).position();
+    Object.assign(at.get(pull.ref), { x: lead.x, y: lead.y });
+    const force = new Map(pull.refs.map((id) => [id, { x: 0, y: 0 }]));
+    for (const { a, b, rest } of springs) {
+      const [p, q] = [place(a), place(b)];
+      const dx = q.x - p.x;
+      const dy = q.y - p.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const f = (PULL_SPRING * (d - rest)) / d;
+      if (force.has(a))
+        Object.assign(force.get(a), { x: force.get(a).x + f * dx, y: force.get(a).y + f * dy });
+      if (force.has(b))
+        Object.assign(force.get(b), { x: force.get(b).x - f * dx, y: force.get(b).y - f * dy });
+    }
+    // Close nodes push apart, so the pulled group does not pile up.
+    for (let i = 0; i < pull.refs.length; i++)
+      for (let j = i + 1; j < pull.refs.length; j++) {
+        const [a, b] = [pull.refs[i], pull.refs[j]];
+        const [p, q] = [place(a), place(b)];
+        const dx = q.x - p.x;
+        const dy = q.y - p.y;
+        const d = Math.hypot(dx, dy) || 1;
+        if (d >= PULL_MIN) continue;
+        const f = (PULL_PUSH * (PULL_MIN - d)) / d;
+        Object.assign(force.get(a), { x: force.get(a).x - f * dx, y: force.get(a).y - f * dy });
+        Object.assign(force.get(b), { x: force.get(b).x + f * dx, y: force.get(b).y + f * dy });
+      }
+    let motion = 0;
+    cy.batch(() => {
+      for (const id of pull.refs) {
+        if (fixed(pull, id)) continue;
+        const state = at.get(id);
+        const push = force.get(id);
+        state.vx = (state.vx + push.x) * PULL_DAMPING;
+        state.vy = (state.vy + push.y) * PULL_DAMPING;
+        const step = Math.hypot(state.vx, state.vy);
+        if (step > PULL_STEP) {
+          state.vx *= PULL_STEP / step;
+          state.vy *= PULL_STEP / step;
+        }
+        state.x += state.vx;
+        state.y += state.vy;
+        motion = Math.max(motion, step);
+        cy.getElementById(id).position({ x: state.x, y: state.y });
+      }
+    });
+    if (pull.released && (motion < PULL_REST || performance.now() - pull.released > PULL_SETTLE_MS))
+      endPull();
+    else pullFrame = requestAnimationFrame(stepPull);
+  }
+  function endPull() {
+    const done = pull;
+    pull = null;
+    if (!done) return;
+    const moved = [];
+    for (const id of done.refs) {
+      const index = position.get(id);
+      const element = cy.getElementById(id);
+      if (index == null || element.empty()) continue;
+      const { x, y } = element.position();
+      const lead = id === done.ref;
+      if (
+        !lead &&
+        (fixed(done, id) ||
+          Math.hypot(x / scale - nodes[index].x, y / scale - nodes[index].y) * scale < 0.5)
+      )
+        continue;
+      Object.assign(nodes[index], { x: x / scale, y: y / scale }, lead ? { pinned: true } : {});
+      moved.push({ ref: id, x: x / scale, y: y / scale, ...(lead ? { pinned: true } : {}) });
+    }
+    drawDots();
+    if (moved.length) options.onMove?.(moved);
+  }
+  cy.on('drag', 'node:not(.ghost)', (event) => {
+    if (!pull) startPull(event.target);
+  });
+  cy.on('dragfree', 'node:not(.ghost)', () => {
+    if (!pull) return;
+    pull.released = performance.now();
+    if (!pullFrame) pullFrame = requestAnimationFrame(stepPull);
   });
 
   // Drag-to-connect from the handle beside the selected node.
@@ -729,6 +883,13 @@ export function createKnowledgeMap(cytoscape, host, options) {
     },
     selected: () => [...chosen],
     rendered: (ref) => cy.getElementById(ref).nonempty(),
+    /** What the hover card shows without asking the host. */
+    nodeInfo(ref) {
+      const element = cy.getElementById(ref);
+      return element.empty()
+        ? null
+        : { kind: element.data('kind'), group: element.data('group'), degree: nodeDegree(ref) };
+    },
     labelsVisible: () => cy.zoom() >= LABEL_ZOOM,
     startConnect,
     handlePoint,
@@ -738,6 +899,7 @@ export function createKnowledgeMap(cytoscape, host, options) {
       destroyed = true;
       clearTimeout(syncTimer);
       cancelAnimationFrame(frame);
+      cancelAnimationFrame(pullFrame);
       observer.disconnect();
       resize.disconnect();
       cy.destroy();
