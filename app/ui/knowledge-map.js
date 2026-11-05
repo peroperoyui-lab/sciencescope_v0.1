@@ -8,9 +8,6 @@ import { kindIcon, nodeKind, relationLabel, splitRef } from './components/knowle
 
 export const RENDER_LIMIT = 1500;
 export const EDGE_LIMIT = 5000;
-// Above this many drawn edges, only the centre's, the selection's and the
-// hovered edges keep their labels: thousands of labels cost ~10x a frame.
-const EDGE_LABEL_LIMIT = 300;
 // Load a quarter of the view beyond each side, after panning settles.
 const MARGIN = 0.25;
 const SETTLE_MS = 100;
@@ -171,7 +168,8 @@ function stylesheet(palette) {
         'target-arrow-shape': 'triangle',
         'target-arrow-color': palette.line,
         'arrow-scale': 0.7,
-        label: 'data(label)',
+        // A relation's name shows only while the pointer is on its line.
+        label: '',
         'font-family': palette.font,
         'font-size': 10,
         color: palette.muted,
@@ -182,7 +180,6 @@ function stylesheet(palette) {
         'overlay-opacity': 0,
       },
     },
-    { selector: 'edge.quiet', style: { label: '' } },
     { selector: 'edge.derived', style: { 'line-style': 'dashed', 'line-dash-pattern': [4, 3] } },
     {
       selector: 'edge.extracted',
@@ -493,16 +490,7 @@ export function createKnowledgeMap(cytoscape, host, options) {
       element.toggleClass('hidden', index == null || !visibleNode(nodes[index]));
       element.toggleClass('faded', Boolean(center) && !center.refs.has(element.id()));
     }
-    const quiet = cy.edges(':not(.ghost)').length > EDGE_LABEL_LIMIT;
     for (const element of cy.edges(':not(.ghost)')) {
-      const [from, to] = [element.source().id(), element.target().id()];
-      element.toggleClass(
-        'quiet',
-        quiet &&
-          !(center?.refs.has(from) && center.refs.has(to)) &&
-          !chosen.has(from) &&
-          !chosen.has(to),
-      );
       const hidden =
         (filters.layers && !filters.layers.has(element.data('layer'))) ||
         (filters.aiOnly && !element.data('ai'));
